@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// AgeGroup values: 'U5' | 'O5' | 'Adult'
+
+model Surgery {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  slug          String   @unique
+  adminEmail    String?  @unique
+  adminPassHash String?  // bcrypt hash; nullable until set
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Config
+  enableDefaultHighRisk Boolean @default(true) // Enable/disable default high-risk buttons
+  highRiskLinks HighRiskLink[]
+  defaultHighRiskButtons DefaultHighRiskButtonConfig[]
+  highlightRules HighlightRule[]
+  symptomOverrides SurgerySymptomOverride[]
+  customSymptoms  SurgeryCustomSymptom[]
+  suggestions   Suggestion[]
+  events        EngagementEvent[]
+}
+
+model BaseSymptom {
+  id               String   @id @default(cuid())
+  slug             String   @unique
+  name             String
+  ageGroup         String   // 'U5' | 'O5' | 'Adult'
+  briefInstruction String?
+  highlightedText  String?
+  instructions     String?
+  linkToPage       String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  overrides SurgerySymptomOverride[]
+  events    EngagementEvent[]
+
+  // Effective index helpers:
+  @@index([name])
+  @@index([slug])
+  @@index([ageGroup])
+}
+
+model SurgerySymptomOverride {
+  id               String   @id @default(cuid())
+  surgeryId        String
+  baseSymptomId    String
+  // Any field that, if non-null, overrides the base:
+  name             String?
+  ageGroup         String?  // 'U5' | 'O5' | 'Adult'
+  briefInstruction String?
+  highlightedText  String?
+  instructions     String?
+  linkToPage       String?
+  // Soft delete: if true, this symptom is hidden for this surgery
+  isHidden         Boolean  @default(false)
+
+  surgery          Surgery     @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  baseSymptom      BaseSymptom @relation(fields: [baseSymptomId], references: [id], onDelete: Cascade)
+
+  @@unique([surgeryId, baseSymptomId])
+  @@index([surgeryId, baseSymptomId])
+}
+
+model SurgeryCustomSymptom {
+  id               String   @id @default(cuid())
+  surgeryId        String
+  slug             String   // unique per surgery
+  name             String
+  ageGroup         String   // 'U5' | 'O5' | 'Adult'
+  briefInstruction String?
+  highlightedText  String?
+  instructions     String?
+  linkToPage       String?
+
+  surgery          Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@unique([surgeryId, slug])
+  @@index([surgeryId, slug])
+  @@index([surgeryId, ageGroup])
+}
+
+model Suggestion {
+  id         String   @id @default(cuid())
+  surgeryId  String?
+  baseId     String?      // optional link to the affected base symptom
+  symptom    String       // captured as user typed/selected
+  userEmail  String?
+  text       String
+  createdAt  DateTime @default(now())
+  surgery    Surgery? @relation(fields: [surgeryId], references: [id])
+}
+
+model EngagementEvent {
+  id         String   @id @default(cuid())
+  surgeryId  String?
+  baseId     String
+  userEmail  String?
+  event      String    // "view_symptom"
+  createdAt  DateTime @default(now())
+
+  surgery Surgery?     @relation(fields: [surgeryId], references: [id])
+  base    BaseSymptom @relation(fields: [baseId], references: [id], onDelete: Cascade)
+}
+
+model HighlightRule {
+  id         String   @id @default(cuid())
+  // If null => global rule (applies to all unless overridden/disabled per surgery later)
+  surgeryId  String?
+  phrase     String
+  textColor  String   @default("#FFFFFF")
+  bgColor    String   @default("#6A0DAD") // purple default
+  isEnabled  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  surgery    Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@unique([surgeryId, phrase])
+  @@index([surgeryId, phrase])
+}
+
+model HighRiskLink {
+  id         String   @id @default(cuid())
+  surgeryId  String
+  label      String   // e.g., "Anaphylaxis", "Stroke"
+  // Either link by slug or by id; slug is friendlier for admins:
+  symptomSlug String?
+  symptomId   String?
+
+  orderIndex Int      @default(0)
+
+  surgery    Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  // No explicit FK to Base/Custom because it can point to either via slug resolution.
+  
+  @@unique([surgeryId, label])
+  @@index([surgeryId, orderIndex])
+}
+
+model DefaultHighRiskButtonConfig {
+  id         String   @id @default(cuid())
+  surgeryId  String
+  buttonKey  String   // e.g., "anaphylaxis", "stroke", "chest-pain", "sepsis", "meningitis"
+  label      String   // e.g., "Anaphylaxis", "Stroke"
+  symptomSlug String   // e.g., "anaphylaxis", "stroke"
+  isEnabled  Boolean  @default(true)
+  orderIndex Int      @default(0)
+
+  surgery    Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  
+  @@unique([surgeryId, buttonKey])
+  @@index([surgeryId, buttonKey])
+}

@@ -1,0 +1,9 @@
+Symptom,AgeGroup,BriefInstruction,Instructions,HighlightedText,LinkToPage,CustomID
+Headache,Adult,Rest and monitor symptoms,Take pain relief as directed and rest in a quiet room. If symptoms worsen or persist for more than 24 hours, seek medical advice.,Seek immediate medical attention if severe or sudden,,
+Fever,U5,Monitor temperature closely,Keep child cool with light clothing and offer plenty of fluids. Use age-appropriate fever reducers as directed.,Contact GP if fever persists over 24 hours,,
+Chest Pain,Adult,Seek immediate medical attention,This could be a sign of a serious condition. Call 999 immediately if severe or accompanied by shortness of breath.,Call 999 immediately for severe chest pain,Stroke,
+Rash,O5,Monitor and seek advice if concerning,Keep area clean and dry. Avoid scratching. Seek medical attention if widespread or painful.,Seek immediate medical attention for widespread rashes,,
+Nausea,Adult,Stay hydrated and rest,Rest and stay hydrated with small sips of water. Avoid solid foods initially. Seek medical attention if persistent.,Seek medical attention if vomiting persists,,
+Allergic Reaction,Adult,Use EpiPen if available,For mild reactions, avoid allergen and take antihistamines. For severe reactions, use EpiPen and call 999.,Severe reactions require immediate emergency treatment,Anaphylaxis,
+Difficulty Breathing,Adult,Emergency - call 999 immediately,If severe difficulty breathing, call 999 immediately. For mild problems, sit upright and use fan for air circulation.,Severe breathing difficulties require immediate emergency care,,
+Abdominal Pain,O5,Monitor and seek advice if severe,Rest and avoid eating if nauseous. Seek medical attention if pain is severe or persistent.,Severe abdominal pain may require immediate medical attention,,

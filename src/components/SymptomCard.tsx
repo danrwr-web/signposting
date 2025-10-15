@@ -1,0 +1,129 @@
+'use client'
+
+import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
+
+interface SymptomCardProps {
+  symptom: EffectiveSymptom
+  surgerySlug?: string
+}
+
+export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
+  const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
+
+  // Load highlight rules from API
+  useEffect(() => {
+    const loadHighlightRules = async () => {
+      try {
+        const response = await fetch('/api/highlights')
+        if (response.ok) {
+          const rules = await response.json()
+          setHighlightRules(rules)
+        }
+      } catch (error) {
+        console.error('Failed to load highlight rules:', error)
+      }
+    }
+    loadHighlightRules()
+  }, [])
+
+  const getSourceColor = (source: string) => {
+    switch (source) {
+      case 'base':
+        return 'bg-gray-200 text-gray-700'
+      case 'override':
+        return 'bg-nhs-blue text-white'
+      case 'custom':
+        return 'bg-nhs-green text-white'
+      default:
+        return 'bg-gray-200 text-gray-700'
+    }
+  }
+
+  const getAgeGroupColor = (ageGroup: string) => {
+    switch (ageGroup) {
+      case 'U5':
+        return 'bg-blue-100 text-blue-800'
+      case 'O5':
+        return 'bg-green-100 text-green-800'
+      case 'Adult':
+        return 'bg-purple-100 text-purple-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getAgeGroupLabel = (ageGroup: string) => {
+    switch (ageGroup) {
+      case 'U5':
+        return 'Under 5'
+      case 'O5':
+        return '5-17'
+      case 'Adult':
+        return 'Adult'
+      default:
+        return ageGroup
+    }
+  }
+
+  const highlightText = (text: string) => {
+    return applyHighlightRules(text, highlightRules)
+  }
+
+  return (
+    <Link href={`/symptom/${symptom.id}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`}>
+      <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col group">
+        {/* Header with title and badges */}
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="text-base font-semibold text-nhs-dark-blue flex-1 leading-tight pr-2">
+            {symptom.name}
+          </h3>
+          <div className="flex flex-col gap-1 flex-shrink-0">
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgeGroupColor(symptom.ageGroup)}`}>
+              {getAgeGroupLabel(symptom.ageGroup)}
+            </span>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSourceColor(symptom.source)}`}>
+              {symptom.source}
+            </span>
+          </div>
+        </div>
+        
+        {/* Brief instruction - truncated */}
+        <div className="flex-1 mb-3">
+          <p 
+            className="text-nhs-grey text-sm leading-relaxed line-clamp-3"
+            dangerouslySetInnerHTML={{ 
+              __html: highlightText(symptom.briefInstruction ?? "") 
+            }}
+          />
+        </div>
+        
+        {/* Highlight preview - compact */}
+        {symptom.highlightedText && (
+          <div className="bg-red-50 border-l-2 border-nhs-red p-2 mb-3 rounded-r">
+            <p 
+              className="text-xs font-medium text-nhs-red line-clamp-2"
+              dangerouslySetInnerHTML={{ 
+                __html: highlightText(symptom.highlightedText) 
+              }}
+            />
+          </div>
+        )}
+        
+        {/* Footer with link and open affordance */}
+        <div className="flex items-center justify-between mt-auto">
+          {symptom.linkToPage && (
+            <div className="text-xs text-nhs-blue font-medium truncate flex-1">
+              → {symptom.linkToPage}
+            </div>
+          )}
+          <div className="text-xs text-nhs-blue font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+            Open →
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+}
