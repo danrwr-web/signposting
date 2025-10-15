@@ -34,6 +34,7 @@ export default function Header({ surgeries, currentSurgerySlug }: HeaderProps) {
             {/* Admin Link */}
             <Link 
               href="/admin" 
+              prefetch={false}
               className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
             >
               Admin
