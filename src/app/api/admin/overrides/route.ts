@@ -85,9 +85,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Remove null/undefined values but keep empty strings (they represent "inherit from base")
+    // Also remove fields that shouldn't be in the update/create objects
+    const allowedFields = ['name', 'ageGroup', 'briefInstruction', 'highlightedText', 'instructions', 'linkToPage', 'isHidden']
     const cleanData = Object.fromEntries(
-      Object.entries(overrideData).filter(([_, value]) => 
-        value !== null && value !== undefined
+      Object.entries(overrideData).filter(([key, value]) => 
+        allowedFields.includes(key) && value !== null && value !== undefined
       )
     )
 
