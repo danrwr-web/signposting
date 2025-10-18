@@ -139,6 +139,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     }
   }, [selectedSurgery, editingMode])
 
+  // Load override data when symptom is selected
+  useEffect(() => {
+    if (selectedSymptom && (editingMode === 'override' ? selectedSurgery : true)) {
+      loadOverrideData()
+    }
+  }, [selectedSymptom, selectedSurgery, editingMode])
+
   const handleLogout = async () => {
     try {
       await signOut({ callbackUrl: '/' })
@@ -244,6 +251,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           // Override exists, use the data but ensure it has baseSymptom
           if (data.baseSymptom) {
             setOverrideData(data)
+            toast.success('Override data loaded successfully')
           } else {
             // If baseSymptom is missing, find it from effective symptoms
             const baseSymptom = effectiveSymptoms.find(s => s.id === selectedSymptom)
@@ -252,6 +260,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 ...data,
                 baseSymptom: baseSymptom
               })
+              toast.success('Override data loaded with base symptom')
             } else {
               toast.error('Base symptom not found')
             }
@@ -319,6 +328,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         } else {
           const errorData = await response.json()
           console.error('Override save failed:', errorData)
+          toast.error(`Override save failed: ${errorData.error || 'Unknown error'}`)
           throw new Error(`Failed to save override: ${errorData.error || 'Unknown error'}`)
         }
       }
