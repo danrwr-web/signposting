@@ -35,8 +35,28 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
 
   const handleCreateSurgery = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement surgery creation API call
-    console.log('Creating surgery:', newSurgery)
+    
+    try {
+      const response = await fetch('/api/admin/surgeries', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newSurgery),
+      })
+
+      if (response.ok) {
+        // Success - refresh the page to show the new surgery
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error creating surgery: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error creating surgery:', error)
+      alert('Failed to create surgery. Please try again.')
+    }
+    
     setShowCreateModal(false)
     setNewSurgery({ name: '', slug: '' })
   }

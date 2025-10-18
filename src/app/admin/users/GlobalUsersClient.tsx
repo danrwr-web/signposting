@@ -39,8 +39,28 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement user creation API call
-    console.log('Creating user:', newUser)
+    
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newUser),
+      })
+
+      if (response.ok) {
+        // Success - refresh the page to show the new user
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error creating user: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error creating user:', error)
+      alert('Failed to create user. Please try again.')
+    }
+    
     setShowCreateModal(false)
     setNewUser({ email: '', name: '', password: '', globalRole: 'USER' })
   }

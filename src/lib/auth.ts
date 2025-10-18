@@ -4,6 +4,18 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import type { NextAuthOptions } from 'next-auth'
 
+// Simple custom password storage for demo purposes
+// In production, you'd want to store hashed passwords in the database
+const customPasswords: Record<string, string> = {}
+
+async function checkCustomPassword(email: string, password: string): Promise<boolean> {
+  return customPasswords[email] === password
+}
+
+export function setCustomPassword(email: string, password: string) {
+  customPasswords[email] = password
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -42,7 +54,8 @@ export const authOptions: NextAuthOptions = {
             credentials.password === credentials.email || // Default demo password
             credentials.password === 'Lant0nyn!' || // Dan's custom password
             credentials.password === 'admin@idelane.com' || // Admin demo password
-            credentials.password === 'user@idelane.com' // User demo password
+            credentials.password === 'user@idelane.com' || // User demo password
+            await checkCustomPassword(credentials.email, credentials.password) // Check for custom passwords
           
           if (isValidPassword) {
             return {
