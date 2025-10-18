@@ -100,7 +100,10 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
 }
 
 export async function getEffectiveSymptomById(id: string, surgeryId?: string): Promise<EffectiveSymptom | null> {
+  console.log('getEffectiveSymptomById: id =', id, 'surgeryId =', surgeryId)
+  
   if (!surgeryId) {
+    console.log('getEffectiveSymptomById: No surgeryId, returning base symptom')
     // Return base symptom if no surgery context
     const base = await prisma.baseSymptom.findUnique({
       where: { id },
@@ -119,6 +122,7 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     return base ? { ...base, source: 'base' as const } : null
   }
 
+  console.log('getEffectiveSymptomById: Checking for custom symptom first')
   // Check if it's a custom symptom first
   const custom = await prisma.surgeryCustomSymptom.findFirst({
     where: { 
@@ -138,9 +142,11 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
   })
   
   if (custom) {
+    console.log('getEffectiveSymptomById: Found custom symptom:', custom.name)
     return { ...custom, source: 'custom' as const }
   }
 
+  console.log('getEffectiveSymptomById: Getting base symptom')
   // Get base symptom
   const base = await prisma.baseSymptom.findUnique({
     where: { id },
@@ -156,8 +162,12 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     }
   })
   
-  if (!base) return null
+  if (!base) {
+    console.log('getEffectiveSymptomById: Base symptom not found')
+    return null
+  }
 
+  console.log('getEffectiveSymptomById: Checking for override')
   // Check for override
   const override = await prisma.surgerySymptomOverride.findUnique({
     where: {
@@ -169,12 +179,13 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
   })
 
   if (override) {
+    console.log('getEffectiveSymptomById: Found override, isHidden =', override.isHidden)
     // If symptom is hidden, return null
     if (override.isHidden) {
       return null
     }
     
-    return {
+    const result = {
       ...base,
       name: (override.name && override.name.trim() !== '') ? override.name : base.name,
       ageGroup: (override.ageGroup && override.ageGroup.trim() !== '') ? override.ageGroup : base.ageGroup,
@@ -186,8 +197,11 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       baseSymptomId: base.id, // Include the base symptom ID for engagement logging
       isHidden: override.isHidden,
     }
+    console.log('getEffectiveSymptomById: Returning override symptom:', result.name, 'source:', result.source)
+    return result
   }
 
+  console.log('getEffectiveSymptomById: No override found, returning base symptom:', base.name)
   return { ...base, source: 'base' as const }
 }
 

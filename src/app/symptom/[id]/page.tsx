@@ -5,6 +5,10 @@ import { getEffectiveSymptomById, getEffectiveSymptomBySlug } from '@/server/eff
 import InstructionView from '@/components/InstructionView'
 import SimpleHeader from '@/components/SimpleHeader'
 
+// Disable caching for this page to prevent stale data
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface SymptomPageProps {
   params: Promise<{
     id: string
@@ -20,6 +24,9 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const resolvedSearchParams = await searchParams
   const surgeryParam = resolvedSearchParams.surgery
 
+  // Debug logging
+  console.log('SymptomPage: id =', id, 'surgeryParam =', surgeryParam)
+
   // Get surgery ID from param (ID or slug for backward compatibility)
   let surgeryId: string | undefined
   if (surgeryParam) {
@@ -30,6 +37,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
     })
     if (surgeryById) {
       surgeryId = surgeryById.id
+      console.log('SymptomPage: Found surgery by ID:', surgeryId)
     } else {
       // Fallback to slug for backward compatibility
       const surgeryBySlug = await prisma.surgery.findUnique({
@@ -37,8 +45,13 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         select: { id: true }
       })
       surgeryId = surgeryBySlug?.id
+      console.log('SymptomPage: Found surgery by slug:', surgeryId)
     }
+  } else {
+    console.log('SymptomPage: No surgery parameter provided')
   }
+
+  console.log('SymptomPage: Final surgeryId =', surgeryId)
 
   // Get effective symptom data - try by ID first, then by slug
   let symptom = await getEffectiveSymptomById(id, surgeryId)
@@ -47,6 +60,8 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
     // Try to find by slug if ID lookup failed
     symptom = await getEffectiveSymptomBySlug(id, surgeryId)
   }
+  
+  console.log('SymptomPage: Found symptom:', symptom?.name, 'source:', symptom?.source)
   
   if (!symptom) {
     notFound()
