@@ -3,6 +3,8 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import LandingPageClient from './LandingPageClient'
 
+// Trigger rebuild for database migrations
+
 export default async function HomePage() {
   const session = await getServerSession(authOptions)
   
