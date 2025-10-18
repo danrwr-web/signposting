@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { setCustomPassword } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
 const addMemberSchema = z.object({
   email: z.string().email(),
@@ -79,13 +79,11 @@ export async function POST(
         data: {
           email,
           name: null,
+          password: await bcrypt.hash(password, 12),
           globalRole: 'USER',
           defaultSurgeryId: surgeryId
         }
       })
-      
-      // Store the custom password for NextAuth
-      setCustomPassword(email, password)
     }
 
     // Check if user is already a member

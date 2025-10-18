@@ -15,6 +15,7 @@ model User {
   id                String        @id @default(cuid())
   email             String        @unique
   name              String?
+  password          String?       // Store hashed passwords
   globalRole        String        @default("USER") // "USER" | "SUPERUSER"
   defaultSurgeryId  String?
   defaultSurgery    Surgery?      @relation("DefaultSurgery", fields: [defaultSurgeryId], references: [id])

@@ -4,18 +4,6 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import type { NextAuthOptions } from 'next-auth'
 
-// Simple custom password storage for demo purposes
-// In production, you'd want to store hashed passwords in the database
-export const customPasswords: Record<string, string> = {}
-
-async function checkCustomPassword(email: string, password: string): Promise<boolean> {
-  return customPasswords[email] === password
-}
-
-export function setCustomPassword(email: string, password: string) {
-  customPasswords[email] = password
-}
-
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
@@ -47,15 +35,22 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
-          // For now, we'll use a simple password check
-          // In production, you'd want to store hashed passwords
-          // For demo purposes, we'll use the email as password OR custom passwords
-          const isValidPassword = 
-            credentials.password === credentials.email || // Default demo password
-            credentials.password === 'Lant0nyn!' || // Dan's custom password
-            credentials.password === 'admin@idelane.com' || // Admin demo password
-            credentials.password === 'user@idelane.com' || // User demo password
-            await checkCustomPassword(credentials.email, credentials.password) // Check for custom passwords
+          // Check password - try multiple methods for backward compatibility
+          let isValidPassword = false
+
+          // Method 1: Check database password (hashed)
+          if (user.password) {
+            isValidPassword = await bcrypt.compare(credentials.password, user.password)
+          }
+
+          // Method 2: Check hardcoded passwords for demo users (fallback)
+          if (!isValidPassword) {
+            isValidPassword = 
+              credentials.password === credentials.email || // Default demo password
+              credentials.password === 'Lant0nyn!' || // Dan's custom password
+              credentials.password === 'admin@idelane.com' || // Admin demo password
+              credentials.password === 'user@idelane.com' // User demo password
+          }
           
           if (isValidPassword) {
             return {

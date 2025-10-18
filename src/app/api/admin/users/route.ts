@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { setCustomPassword } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
 const createUserSchema = z.object({
   email: z.string().email(),
@@ -65,6 +65,7 @@ export async function POST(request: NextRequest) {
       data: {
         email,
         name,
+        password: await bcrypt.hash(password, 12),
         globalRole
       },
       include: {
@@ -76,9 +77,6 @@ export async function POST(request: NextRequest) {
         defaultSurgery: true
       }
     })
-
-    // Store the custom password for NextAuth
-    setCustomPassword(email, password)
 
     return NextResponse.json(user, { status: 201 })
   } catch (error) {
