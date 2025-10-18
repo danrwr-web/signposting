@@ -18,15 +18,26 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const resolvedParams = await params
   const { id } = resolvedParams
   const resolvedSearchParams = await searchParams
-  const surgerySlug = resolvedSearchParams.surgery
+  const surgeryParam = resolvedSearchParams.surgery
 
-  // Get surgery ID from slug
+  // Get surgery ID from param (ID or slug for backward compatibility)
   let surgeryId: string | undefined
-  if (surgerySlug) {
-    const surgery = await prisma.surgery.findUnique({
-      where: { slug: surgerySlug }
+  if (surgeryParam) {
+    // First try as ID
+    const surgeryById = await prisma.surgery.findUnique({
+      where: { id: surgeryParam },
+      select: { id: true }
     })
-    surgeryId = surgery?.id
+    if (surgeryById) {
+      surgeryId = surgeryById.id
+    } else {
+      // Fallback to slug for backward compatibility
+      const surgeryBySlug = await prisma.surgery.findUnique({
+        where: { slug: surgeryParam },
+        select: { id: true }
+      })
+      surgeryId = surgeryBySlug?.id
+    }
   }
 
   // Get effective symptom data - try by ID first, then by slug
@@ -75,7 +86,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={surgeries} currentSurgerySlug={surgerySlug} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} />
       
       <InstructionView 
         symptom={symptom} 

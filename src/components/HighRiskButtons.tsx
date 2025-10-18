@@ -13,21 +13,21 @@ interface HighRiskLink {
 }
 
 interface HighRiskButtonsProps {
-  surgerySlug?: string
+  surgeryId?: string
 }
 
-export default function HighRiskButtons({ surgerySlug }: HighRiskButtonsProps) {
+export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
   const [highRiskLinks, setHighRiskLinks] = useState<HighRiskLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     loadHighRiskLinks()
-  }, [surgerySlug])
+  }, [surgeryId])
 
   const loadHighRiskLinks = async () => {
     try {
       setIsLoading(true)
-      const url = surgerySlug ? `/api/highrisk?surgery=${surgerySlug}` : '/api/highrisk'
+      const url = surgeryId ? `/api/highrisk?surgery=${surgeryId}` : '/api/highrisk'
       const res = await fetch(url, { cache: 'no-store' })
       
       if (!res.ok) {
@@ -91,11 +91,11 @@ export default function HighRiskButtons({ surgerySlug }: HighRiskButtonsProps) {
           // Build href based on configured symptom slug or ID
           let href = '#'
           if (link.symptomId) {
-            href = `/symptom/${link.symptomId}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`
+            href = `/symptom/${link.symptomId}${surgeryId ? `?surgery=${surgeryId}` : ''}`
           } else if (link.symptomSlug) {
             // For slug-based links, we'll need to resolve to ID on the server side
             // For now, use the slug directly - the symptom page should handle this
-            href = `/symptom/${link.symptomSlug}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`
+            href = `/symptom/${link.symptomSlug}${surgeryId ? `?surgery=${surgeryId}` : ''}`
           }
 
           return (

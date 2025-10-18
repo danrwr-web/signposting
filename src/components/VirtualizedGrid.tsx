@@ -6,7 +6,7 @@ import SymptomCard from './SymptomCard'
 
 interface VirtualizedGridProps {
   symptoms: EffectiveSymptom[]
-  surgerySlug?: string
+  surgeryId?: string
   columns?: {
     xl: number
     lg: number
@@ -35,7 +35,7 @@ const DEFAULT_OVERSCAN = 5
 
 export default function VirtualizedGrid({
   symptoms,
-  surgerySlug,
+  surgeryId,
   columns = DEFAULT_COLUMNS,
   itemHeight = DEFAULT_ITEM_HEIGHT,
   overscan = DEFAULT_OVERSCAN
@@ -127,7 +127,7 @@ export default function VirtualizedGrid({
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {symptoms.map((symptom) => (
-          <SymptomCard key={symptom.id} symptom={symptom} surgerySlug={surgerySlug} />
+          <SymptomCard key={symptom.id} symptom={symptom} surgeryId={surgeryId} />
         ))}
       </div>
     )
@@ -160,7 +160,7 @@ export default function VirtualizedGrid({
                 height: itemHeight
               }}
             >
-              <SymptomCard symptom={symptom} surgerySlug={surgerySlug} />
+              <SymptomCard symptom={symptom} surgeryId={surgeryId} />
             </div>
           )
         })}

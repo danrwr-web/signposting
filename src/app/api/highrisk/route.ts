@@ -13,14 +13,26 @@ export const runtime = 'nodejs'
 async function getSurgeryIdFromContext(req: NextRequest): Promise<string | null> {
   // Try to get surgery from URL search params
   const url = new URL(req.url)
-  const surgerySlug = url.searchParams.get('surgery')
+  const surgeryParam = url.searchParams.get('surgery')
   
-  if (surgerySlug) {
-    const surgery = await prisma.surgery.findUnique({
-      where: { slug: surgerySlug },
+  if (surgeryParam) {
+    // First try as ID
+    const surgeryById = await prisma.surgery.findUnique({
+      where: { id: surgeryParam },
       select: { id: true }
     })
-    return surgery?.id || null
+    if (surgeryById) {
+      return surgeryById.id
+    }
+    
+    // Fallback to slug for backward compatibility
+    const surgeryBySlug = await prisma.surgery.findUnique({
+      where: { slug: surgeryParam },
+      select: { id: true }
+    })
+    if (surgeryBySlug) {
+      return surgeryBySlug.id
+    }
   }
   
   // Fallback to default surgery

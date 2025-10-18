@@ -37,22 +37,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedSearchParams = await searchParams
   const cookieStore = await cookies()
   
-  // Get surgery slug from URL params first, then fallback to cookie
-  const surgerySlug = resolvedSearchParams.surgery || cookieStore.get('surgerySlug')?.value
+  // Get surgery ID from URL params first, then fallback to cookie
+  const surgeryId = resolvedSearchParams.surgery || cookieStore.get('surgery')?.value
 
   // Get surgeries for header
   const surgeries = await prisma.surgery.findMany({
     orderBy: { name: 'asc' }
   })
-
-  // Get surgery ID from slug
-  let surgeryId: string | undefined
-  if (surgerySlug) {
-    const surgery = await prisma.surgery.findUnique({
-      where: { slug: surgerySlug }
-    })
-    surgeryId = surgery?.id
-  }
 
   // Get symptoms - base symptoms if no surgery selected, effective symptoms if surgery selected
   const symptoms = surgeryId ? await getEffectiveSymptoms(surgeryId) : await getBaseSymptoms()

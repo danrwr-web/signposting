@@ -14,7 +14,7 @@ type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
 
 interface CompactToolbarProps {
   surgeries: Surgery[]
-  currentSurgerySlug?: string
+  currentSurgeryId?: string
   searchTerm: string
   onSearchChange: (value: string) => void
   selectedLetter: Letter
@@ -23,11 +23,13 @@ interface CompactToolbarProps {
   onAgeChange: (age: AgeBand) => void
   resultsCount: number
   totalCount: number
+  showSurgerySelector: boolean
+  onShowSurgerySelector: (show: boolean) => void
 }
 
 export default function CompactToolbar({
   surgeries,
-  currentSurgerySlug,
+  currentSurgeryId,
   searchTerm,
   onSearchChange,
   selectedLetter,
@@ -35,7 +37,9 @@ export default function CompactToolbar({
   selectedAge,
   onAgeChange,
   resultsCount,
-  totalCount
+  totalCount,
+  showSurgerySelector,
+  onShowSurgerySelector
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -80,10 +84,21 @@ export default function CompactToolbar({
 
           {/* Surgery Selector and Admin Link */}
           <div className="flex items-center space-x-4">
-            <SurgerySelector 
-              surgeries={surgeries} 
-              currentSurgerySlug={currentSurgerySlug}
-            />
+            {showSurgerySelector ? (
+              <SurgerySelector 
+                surgeries={surgeries} 
+                currentSurgeryId={currentSurgeryId}
+                onClose={() => onShowSurgerySelector(false)}
+              />
+            ) : (
+              <button
+                onClick={() => onShowSurgerySelector(true)}
+                className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
+                aria-label="Select surgery"
+              >
+                Select Surgery
+              </button>
+            )}
             
             <Link 
               href="/admin" 
@@ -129,7 +144,7 @@ export default function CompactToolbar({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
         <div className="overflow-x-auto scrollbar-hide">
           <div className="flex gap-3 pb-2 min-w-max">
-            <HighRiskButtons surgerySlug={currentSurgerySlug} />
+            <HighRiskButtons surgeryId={currentSurgeryId} />
           </div>
         </div>
       </div>

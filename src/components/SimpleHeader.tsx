@@ -4,10 +4,10 @@ import { Surgery } from '@prisma/client'
 
 interface SimpleHeaderProps {
   surgeries: Surgery[]
-  currentSurgerySlug?: string
+  currentSurgeryId?: string
 }
 
-export default function SimpleHeader({ surgeries, currentSurgerySlug }: SimpleHeaderProps) {
+export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHeaderProps) {
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -28,7 +28,7 @@ export default function SimpleHeader({ surgeries, currentSurgerySlug }: SimpleHe
           <div className="flex items-center space-x-6">
             <SurgerySelector 
               surgeries={surgeries} 
-              currentSurgerySlug={currentSurgerySlug}
+              currentSurgeryId={currentSurgeryId}
             />
             
             {/* Admin Link */}

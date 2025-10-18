@@ -1,40 +1,44 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, useRef } from 'react'
 import { Surgery } from '@prisma/client'
+import { useSurgery } from '@/context/SurgeryContext'
 
 interface SurgerySelectorProps {
   surgeries: Surgery[]
-  currentSurgerySlug?: string
+  currentSurgeryId?: string
+  onClose?: () => void
 }
 
-export default function SurgerySelector({ surgeries, currentSurgerySlug }: SurgerySelectorProps) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [selectedSlug, setSelectedSlug] = useState(currentSurgerySlug || '')
+export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }: SurgerySelectorProps) {
+  const { setSurgery, clearSurgery } = useSurgery()
+  const [selectedId, setSelectedId] = useState(currentSurgeryId || '')
+  const selectRef = useRef<HTMLSelectElement>(null)
 
   useEffect(() => {
-    setSelectedSlug(currentSurgerySlug || '')
-  }, [currentSurgerySlug])
+    setSelectedId(currentSurgeryId || '')
+  }, [currentSurgeryId])
 
-  const handleSurgeryChange = (slug: string) => {
-    setSelectedSlug(slug)
+  // Focus management for accessibility
+  useEffect(() => {
+    if (selectRef.current) {
+      selectRef.current.focus()
+    }
+  }, [])
+
+  const handleSurgeryChange = (surgeryId: string) => {
+    setSelectedId(surgeryId)
     
-    // Update URL parameter
-    const params = new URLSearchParams(searchParams.toString())
-    if (slug) {
-      params.set('surgery', slug)
+    if (surgeryId) {
+      const surgery = surgeries.find(s => s.id === surgeryId)
+      if (surgery) {
+        setSurgery({ id: surgery.id, name: surgery.name })
+      }
     } else {
-      params.delete('surgery')
+      clearSurgery()
     }
     
-    // Update cookie
-    document.cookie = `surgerySlug=${slug}; path=/; max-age=${60 * 60 * 24 * 30}` // 30 days
-    
-    // Navigate with new params
-    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname
-    router.push(newUrl)
+    onClose?.()
   }
 
   return (
@@ -43,18 +47,29 @@ export default function SurgerySelector({ surgeries, currentSurgerySlug }: Surge
         Surgery:
       </label>
       <select
+        ref={selectRef}
         id="surgery-select"
-        value={selectedSlug}
+        value={selectedId}
         onChange={(e) => handleSurgeryChange(e.target.value)}
         className="px-3 py-1 border border-nhs-grey rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+        aria-label="Select surgery"
       >
         <option value="">Select Surgery</option>
         {surgeries.map((surgery) => (
-          <option key={surgery.id} value={surgery.slug}>
+          <option key={surgery.id} value={surgery.id}>
             {surgery.name}
           </option>
         ))}
       </select>
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="text-sm text-nhs-grey hover:text-nhs-blue"
+          aria-label="Close surgery selector"
+        >
+          ×
+        </button>
+      )}
     </div>
   )
 }

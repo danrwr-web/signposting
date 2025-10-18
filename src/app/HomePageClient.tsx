@@ -6,6 +6,7 @@ import CompactToolbar from '@/components/CompactToolbar'
 import VirtualizedGrid from '@/components/VirtualizedGrid'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { Surgery } from '@prisma/client'
+import { useSurgery } from '@/context/SurgeryContext'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -17,11 +18,20 @@ interface HomePageClientProps {
 
 export default function HomePageClient({ surgeries, symptoms: initialSymptoms }: HomePageClientProps) {
   const searchParams = useSearchParams()
+  const { surgery } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
   const [selectedAge, setSelectedAge] = useState<AgeBand>('All')
+  const [showSurgerySelector, setShowSurgerySelector] = useState(false)
 
-  const currentSurgerySlug = searchParams.get('surgery') || undefined
+  const currentSurgeryId = surgery?.id
+
+  // Auto-show surgery selector if no surgery is selected and surgeries are available
+  useEffect(() => {
+    if (!surgery && surgeries.length > 0) {
+      setShowSurgerySelector(true)
+    }
+  }, [surgery, surgeries.length])
 
   // Load age filter from localStorage
   useEffect(() => {
@@ -70,7 +80,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
       {/* Compact Toolbar */}
       <CompactToolbar
         surgeries={surgeries}
-        currentSurgerySlug={currentSurgerySlug}
+        currentSurgeryId={currentSurgeryId}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         selectedLetter={selectedLetter}
@@ -79,17 +89,30 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         onAgeChange={setSelectedAge}
         resultsCount={filteredSymptoms.length}
         totalCount={initialSymptoms.length}
+        showSurgerySelector={showSurgerySelector}
+        onShowSurgerySelector={setShowSurgerySelector}
       />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-nhs-dark-blue mb-3">
-            Symptom Signposting
+            Find the right place for care
           </h1>
+          {surgery && (
+            <div className="text-sm text-nhs-grey mb-2">
+              You're viewing: {surgery.name} —{' '}
+              <button
+                onClick={() => setShowSurgerySelector(true)}
+                className="text-nhs-blue hover:text-nhs-dark-blue underline"
+                aria-label="Change surgery"
+              >
+                Change
+              </button>
+            </div>
+          )}
           <p className="text-base text-nhs-grey max-w-2xl mx-auto">
-            Find the right guidance for your symptoms. Select your surgery above to see 
-            customized information, or browse the general symptom database.
+            Search by symptom and we'll guide you to the appropriate service.
           </p>
         </div>
 
@@ -97,7 +120,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         {filteredSymptoms.length > 0 ? (
           <VirtualizedGrid
             symptoms={filteredSymptoms}
-            surgerySlug={currentSurgerySlug}
+            surgeryId={currentSurgeryId}
             columns={{
               xl: 4,
               lg: 3,
