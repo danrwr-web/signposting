@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth, requireSurgeryAuth } from '@/server/auth'
+import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
@@ -15,21 +15,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireAuth()
-    
     const { id } = await params
     const data = await request.json()
 
-    const { source, name, ageGroup, briefInstruction, instructions, highlightedText, linkToPage } = data
+    const { source, surgeryId, name, ageGroup, briefInstruction, instructions, highlightedText, linkToPage } = data
 
     if (source === 'base') {
       // Superusers can update base symptoms
-      if (session.type !== 'superuser') {
-        return NextResponse.json(
-          { error: 'Only superusers can update base symptoms' },
-          { status: 403 }
-        )
-      }
+      await requireSuperuser()
 
       const updatedSymptom = await prisma.baseSymptom.update({
         where: { id },
@@ -46,18 +39,20 @@ export async function PATCH(
       return NextResponse.json(updatedSymptom)
     } else if (source === 'custom') {
       // Only surgery admins can update custom symptoms
-      if (session.type !== 'surgery' || !session.surgeryId) {
+      if (!surgeryId) {
         return NextResponse.json(
-          { error: 'Only surgery admins can update custom symptoms' },
-          { status: 403 }
+          { error: 'Surgery ID is required for custom symptoms' },
+          { status: 400 }
         )
       }
+      
+      await requireSurgeryAdmin(surgeryId)
 
       // Update custom symptom
       const updatedSymptom = await prisma.surgeryCustomSymptom.update({
         where: {
           id,
-          surgeryId: session.surgeryId
+          surgeryId: surgeryId
         },
         data: {
           name,
@@ -72,12 +67,14 @@ export async function PATCH(
       return NextResponse.json(updatedSymptom)
     } else if (source === 'override') {
       // Only surgery admins can update overrides
-      if (session.type !== 'surgery' || !session.surgeryId) {
+      if (!surgeryId) {
         return NextResponse.json(
-          { error: 'Only surgery admins can update overrides' },
-          { status: 403 }
+          { error: 'Surgery ID is required for overrides' },
+          { status: 400 }
         )
       }
+      
+      await requireSurgeryAdmin(surgeryId)
 
       // Update or create override
       const baseSymptom = await prisma.baseSymptom.findUnique({
@@ -94,7 +91,7 @@ export async function PATCH(
       const updatedOverride = await prisma.surgerySymptomOverride.upsert({
         where: {
           surgeryId_baseSymptomId: {
-            surgeryId: session.surgeryId!,
+            surgeryId: surgeryId,
             baseSymptomId: id,
           }
         },
@@ -107,7 +104,7 @@ export async function PATCH(
           linkToPage,
         },
         create: {
-          surgeryId: session.surgeryId,
+          surgeryId: surgeryId,
           baseSymptomId: id,
           name,
           ageGroup,
@@ -126,6 +123,9 @@ export async function PATCH(
       { status: 400 }
     )
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Error updating symptom:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
@@ -139,13 +139,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireAuth()
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')
 
-    if (action === 'restore' && session.type === 'superuser') {
+    if (action === 'restore') {
       // Superuser restoring a hidden symptom for a surgery
+      await requireSuperuser()
+      
       const surgeryId = searchParams.get('surgeryId')
       if (!surgeryId) {
         return NextResponse.json(
@@ -172,6 +173,9 @@ export async function POST(
       { status: 400 }
     )
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Error restoring symptom:', error)
     return NextResponse.json(
       { message: 'Internal server error' },
@@ -185,14 +189,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await requireAuth()
     const { id } = await params
     const { searchParams } = new URL(request.url)
     const source = searchParams.get('source')
     const action = searchParams.get('action') // 'permanent' for superuser, 'hide' for surgery admin
+    const surgeryId = searchParams.get('surgeryId')
 
-    if (source === 'base' && session.type === 'superuser' && action === 'permanent') {
+    if (source === 'base' && action === 'permanent') {
       // Superuser permanent deletion of base symptom
+      await requireSuperuser()
+      
       console.log(`Superuser deleting base symptom with id: ${id}`)
       
       await prisma.baseSymptom.delete({
@@ -201,12 +207,14 @@ export async function DELETE(
 
       console.log(`Successfully deleted base symptom with id: ${id}`)
       return NextResponse.json({ success: true })
-    } else if (source === 'base' && session.type === 'surgery' && session.surgeryId && action === 'hide') {
+    } else if (source === 'base' && action === 'hide' && surgeryId) {
       // Surgery admin hiding a base symptom for their surgery
+      await requireSurgeryAdmin(surgeryId)
+      
       await prisma.surgerySymptomOverride.upsert({
         where: {
           surgeryId_baseSymptomId: {
-            surgeryId: session.surgeryId,
+            surgeryId: surgeryId,
             baseSymptomId: id,
           }
         },
@@ -214,29 +222,33 @@ export async function DELETE(
           isHidden: true
         },
         create: {
-          surgeryId: session.surgeryId,
+          surgeryId: surgeryId,
           baseSymptomId: id,
           isHidden: true
         }
       })
 
       return NextResponse.json({ success: true })
-    } else if (source === 'custom' && session.type === 'surgery' && session.surgeryId) {
+    } else if (source === 'custom' && surgeryId) {
       // Delete custom symptom
+      await requireSurgeryAdmin(surgeryId)
+      
       await prisma.surgeryCustomSymptom.delete({
         where: {
           id,
-          surgeryId: session.surgeryId
+          surgeryId: surgeryId
         }
       })
 
       return NextResponse.json({ success: true })
-    } else if (source === 'override' && session.type === 'surgery' && session.surgeryId) {
+    } else if (source === 'override' && surgeryId) {
       // Delete override (revert to base)
+      await requireSurgeryAdmin(surgeryId)
+      
       await prisma.surgerySymptomOverride.delete({
         where: {
           surgeryId_baseSymptomId: {
-            surgeryId: session.surgeryId,
+            surgeryId: surgeryId,
             baseSymptomId: id,
           }
         }
@@ -250,6 +262,9 @@ export async function DELETE(
       { status: 400 }
     )
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Error deleting symptom:', error)
     return NextResponse.json(
       { message: 'Internal server error' },

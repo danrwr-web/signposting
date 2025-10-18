@@ -1,13 +1,12 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/server/auth'
+import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await requireAuth()
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
     const baseId = searchParams.get('baseId')
@@ -19,13 +18,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Verify surgery access
-    if (session.type === 'surgery' && session.surgeryId !== surgeryId) {
-      return NextResponse.json(
-        { error: 'Access denied to this surgery' },
-        { status: 403 }
-      )
-    }
+    // Check if user has access to this surgery
+    await requireSurgeryAdmin(surgeryId)
 
     const override = await prisma.surgerySymptomOverride.findUnique({
       where: {
@@ -42,6 +36,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(override)
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Error fetching override:', error)
     return NextResponse.json(
       { error: 'Failed to fetch override' },
@@ -52,16 +49,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth()
-    
-    // Only surgery admins can create overrides
-    if (session.type !== 'surgery' || !session.surgeryId) {
-      return NextResponse.json(
-        { error: 'Only surgery admins can create overrides' },
-        { status: 403 }
-      )
-    }
-    
     const body = await request.json()
     const { surgeryId, baseId, ...overrideData } = body
 
@@ -71,6 +58,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    // Check if user has access to this surgery
+    await requireSurgeryAdmin(surgeryId)
 
     // Validate that the surgery exists
     const surgery = await prisma.surgery.findUnique({
@@ -91,14 +81,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Base symptom not found' },
         { status: 404 }
-      )
-    }
-
-    // Verify surgery access
-    if (session.surgeryId !== surgeryId) {
-      return NextResponse.json(
-        { error: 'Access denied to this surgery' },
-        { status: 403 }
       )
     }
 
@@ -130,6 +112,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(override)
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Error creating/updating override:', error)
     return NextResponse.json(
       { error: 'Failed to create/update override', details: error instanceof Error ? error.message : 'Unknown error' },
@@ -140,16 +125,6 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await requireAuth()
-    
-    // Only surgery admins can delete overrides
-    if (session.type !== 'surgery' || !session.surgeryId) {
-      return NextResponse.json(
-        { error: 'Only surgery admins can delete overrides' },
-        { status: 403 }
-      )
-    }
-    
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
     const baseId = searchParams.get('baseId')
@@ -161,13 +136,8 @@ export async function DELETE(request: NextRequest) {
       )
     }
 
-    // Verify surgery access
-    if (session.surgeryId !== surgeryId) {
-      return NextResponse.json(
-        { error: 'Access denied to this surgery' },
-        { status: 403 }
-      )
-    }
+    // Check if user has access to this surgery
+    await requireSurgeryAdmin(surgeryId)
 
     await prisma.surgerySymptomOverride.delete({
       where: {
@@ -180,6 +150,9 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ message: 'Override deleted successfully' })
   } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
     console.error('Error deleting override:', error)
     return NextResponse.json(
       { error: 'Failed to delete override' },
