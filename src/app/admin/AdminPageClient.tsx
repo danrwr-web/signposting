@@ -328,8 +328,9 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         } else {
           const errorData = await response.json()
           console.error('Override save failed:', errorData)
-          toast.error(`Override save failed: ${errorData.error || 'Unknown error'}`)
-          throw new Error(`Failed to save override: ${errorData.error || 'Unknown error'}`)
+          const errorMessage = errorData.details ? `${errorData.error} - ${errorData.details}` : errorData.error || 'Unknown error'
+          toast.error(`Override save failed: ${errorMessage}`)
+          throw new Error(`Failed to save override: ${errorMessage}`)
         }
       }
     } catch (error) {

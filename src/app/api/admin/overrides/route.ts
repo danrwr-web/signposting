@@ -91,6 +91,9 @@ export async function POST(request: NextRequest) {
       )
     )
 
+    // Debug logging
+    console.error('Override API received:', { surgeryId, baseId, overrideData, cleanData })
+
     const override = await prisma.surgerySymptomOverride.upsert({
       where: {
         surgeryId_baseSymptomId: {
@@ -116,8 +119,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     console.error('Error creating/updating override:', error)
+    
+    // Provide more specific error details
+    let errorMessage = 'Failed to create/update override'
+    if (error instanceof Error) {
+      errorMessage += `: ${error.message}`
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to create/update override', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: errorMessage, details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
