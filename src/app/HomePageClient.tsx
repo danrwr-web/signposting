@@ -178,6 +178,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
           <VirtualizedGrid
             symptoms={filteredSymptoms}
             surgeryId={currentSurgeryId}
+            surgerySlug={surgeries.find(s => s.id === currentSurgeryId)?.slug}
             columns={{
               xl: 4,
               lg: 3,

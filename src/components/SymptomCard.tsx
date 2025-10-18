@@ -7,10 +7,10 @@ import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 
 interface SymptomCardProps {
   symptom: EffectiveSymptom
-  surgerySlug?: string
+  surgeryId?: string
 }
 
-export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
+export default function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
 
   // Load highlight rules from API
