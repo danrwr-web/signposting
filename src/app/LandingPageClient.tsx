@@ -17,7 +17,7 @@ export default function LandingPageClient() {
               <img 
                 src="/images/logo.png" 
                 alt="Signposting Toolkit Logo" 
-                className="h-12 w-auto"
+                className="h-16 w-auto"
               />
               <h1 className="text-2xl font-bold text-gray-900">
                 Signposting Toolkit (Beta)
