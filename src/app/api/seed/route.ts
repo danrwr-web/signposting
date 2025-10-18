@@ -49,8 +49,8 @@ export async function POST(request: NextRequest) {
     // Create users
     const superuser = await prisma.user.create({
       data: {
-        email: 'superuser@example.com',
-        name: 'Super User',
+        email: 'dan.rwr@gmail.com',
+        name: 'Dan Webber-Rookes',
         globalRole: 'SUPERUSER',
         defaultSurgeryId: ideLaneSurgery.id
       }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
       success: true, 
       message: 'Database seeded successfully',
       users: {
-        superuser: 'superuser@example.com',
+        superuser: 'dan.rwr@gmail.com',
         admin: 'admin@idelane.com', 
         standard: 'user@idelane.com'
       }
