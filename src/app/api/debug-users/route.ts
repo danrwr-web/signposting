@@ -1,7 +1,6 @@
 import 'server-only'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { customPasswords } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 
@@ -27,11 +26,8 @@ export async function GET() {
         globalRole: user.globalRole,
         defaultSurgeryId: user.defaultSurgeryId,
         memberships: user.memberships,
-        defaultSurgery: user.defaultSurgery
-      })),
-      customPasswords: Object.keys(customPasswords).map(email => ({
-        email,
-        hasPassword: !!customPasswords[email]
+        defaultSurgery: user.defaultSurgery,
+        hasPassword: !!user.password
       }))
     })
   } catch (error) {
