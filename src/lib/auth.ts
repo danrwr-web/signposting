@@ -37,8 +37,14 @@ export const authOptions: NextAuthOptions = {
 
           // For now, we'll use a simple password check
           // In production, you'd want to store hashed passwords
-          // For demo purposes, we'll use the email as password
-          if (credentials.password === credentials.email) {
+          // For demo purposes, we'll use the email as password OR custom passwords
+          const isValidPassword = 
+            credentials.password === credentials.email || // Default demo password
+            credentials.password === 'Lant0nyn!' || // Dan's custom password
+            credentials.password === 'admin@idelane.com' || // Admin demo password
+            credentials.password === 'user@idelane.com' // User demo password
+          
+          if (isValidPassword) {
             return {
               id: user.id,
               email: user.email,
