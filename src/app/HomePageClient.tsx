@@ -43,7 +43,9 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
       const surgery = surgeries.find(s => s.id === currentSurgeryId)
       const surgerySlug = surgery?.slug || currentSurgeryId
       
-      fetch(`/api/symptoms?surgery=${surgerySlug}`)
+      // Add timestamp to force refresh and avoid caching issues
+      const timestamp = Date.now()
+      fetch(`/api/symptoms?surgery=${surgerySlug}&t=${timestamp}`)
         .then(response => response.json())
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
@@ -57,6 +59,30 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         .finally(() => {
           setIsLoadingSymptoms(false)
         })
+    }
+  }, [currentSurgeryId, surgeries])
+
+  // Periodic refresh of symptoms to pick up override changes
+  useEffect(() => {
+    if (currentSurgeryId) {
+      const interval = setInterval(() => {
+        const surgery = surgeries.find(s => s.id === currentSurgeryId)
+        const surgerySlug = surgery?.slug || currentSurgeryId
+        const timestamp = Date.now()
+        
+        fetch(`/api/symptoms?surgery=${surgerySlug}&t=${timestamp}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.symptoms && Array.isArray(data.symptoms)) {
+              setSymptoms(data.symptoms)
+            }
+          })
+          .catch(error => {
+            console.error('Error refreshing symptoms:', error)
+          })
+      }, 30000) // Refresh every 30 seconds
+      
+      return () => clearInterval(interval)
     }
   }, [currentSurgeryId, surgeries])
 
