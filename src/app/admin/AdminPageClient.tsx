@@ -222,6 +222,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         
         const data = await response.json()
         
+        console.log('Loaded override data:', data)
+        
         // If no override exists, create a structure with base symptom data
         if (!data) {
           // Find the base symptom from effective symptoms
@@ -241,7 +243,21 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             toast.error('Symptom not found')
           }
         } else {
-          setOverrideData(data)
+          // Override exists, use the data but ensure it has baseSymptom
+          if (data.baseSymptom) {
+            setOverrideData(data)
+          } else {
+            // If baseSymptom is missing, find it from effective symptoms
+            const baseSymptom = effectiveSymptoms.find(s => s.id === selectedSymptom)
+            if (baseSymptom) {
+              setOverrideData({
+                ...data,
+                baseSymptom: baseSymptom
+              })
+            } else {
+              toast.error('Base symptom not found')
+            }
+          }
         }
       }
     } catch (error) {
@@ -285,6 +301,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         // Save override
         // Filter out non-schema fields like baseSymptom
         const { baseSymptom, ...overrideFields } = overrideData
+        
+        console.log('Saving override with data:', {
+          surgeryId: selectedSurgery,
+          baseId: selectedSymptom,
+          overrideFields
+        })
+        
         const response = await fetch('/api/admin/overrides', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
