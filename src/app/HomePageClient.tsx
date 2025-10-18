@@ -46,6 +46,12 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
     }
   }, [currentSurgeryId, surgeries])
 
+  // Debug logging for surgerySlug calculation
+  const surgerySlug = currentSurgeryId ? surgeries.find(s => s.id === currentSurgeryId)?.slug : undefined
+  useEffect(() => {
+    console.log('HomePageClient: Calculated surgerySlug =', surgerySlug, 'for currentSurgeryId =', currentSurgeryId)
+  }, [surgerySlug, currentSurgeryId])
+
   // Fetch symptoms when surgery changes
   useEffect(() => {
     if (currentSurgeryId) {
@@ -189,7 +195,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
           <VirtualizedGrid
             symptoms={filteredSymptoms}
             surgeryId={currentSurgeryId}
-            surgerySlug={currentSurgeryId ? surgeries.find(s => s.id === currentSurgeryId)?.slug : undefined}
+            surgerySlug={surgerySlug}
             columns={{
               xl: 4,
               lg: 3,

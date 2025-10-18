@@ -56,6 +56,11 @@ export default function VirtualizedGrid({
     console.log('VirtualizedGrid: Received surgerySlug =', surgerySlug, 'surgeryId =', surgeryId)
   }, [surgerySlug, surgeryId])
 
+  // Debug logging for visibleSymptoms
+  useEffect(() => {
+    console.log('VirtualizedGrid: visibleSymptoms count =', visibleSymptoms.length, 'surgerySlug =', surgerySlug)
+  }, [visibleSymptoms.length, surgerySlug])
+
   // Calculate grid dimensions based on container width
   const calculateGridDimensions = (width: number): GridDimensions => {
     let cols = DEFAULT_COLUMNS.sm
