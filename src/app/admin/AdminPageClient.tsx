@@ -93,13 +93,29 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     if (editingMode === 'override' && !selectedSurgery) return
     
     try {
-      // Use the symptoms data passed from the server instead of API calls
-      const validSymptoms = Array.isArray(symptoms) 
-        ? symptoms.filter((symptom): symptom is EffectiveSymptom => 
-            symptom.slug !== undefined
-          )
-        : []
-      setEffectiveSymptoms(validSymptoms)
+      // For base symptom editing, we need to fetch fresh data from the API
+      if (editingMode === 'base') {
+        const response = await fetch('/api/admin/symptoms')
+        if (response.ok) {
+          const freshSymptoms = await response.json()
+          const validSymptoms = Array.isArray(freshSymptoms) 
+            ? freshSymptoms.filter((symptom): symptom is EffectiveSymptom => 
+                symptom.slug !== undefined
+              )
+            : []
+          setEffectiveSymptoms(validSymptoms)
+        } else {
+          throw new Error('Failed to fetch symptoms')
+        }
+      } else {
+        // For override mode, use the symptoms data passed from the server
+        const validSymptoms = Array.isArray(symptoms) 
+          ? symptoms.filter((symptom): symptom is EffectiveSymptom => 
+              symptom.slug !== undefined
+            )
+          : []
+        setEffectiveSymptoms(validSymptoms)
+      }
     } catch (error) {
       console.error('Error loading symptoms:', error)
       toast.error('Failed to load symptoms')

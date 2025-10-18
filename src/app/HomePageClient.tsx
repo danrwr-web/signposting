@@ -23,6 +23,8 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
   const [selectedAge, setSelectedAge] = useState<AgeBand>('All')
   const [showSurgerySelector, setShowSurgerySelector] = useState(false)
+  const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>(initialSymptoms)
+  const [isLoadingSymptoms, setIsLoadingSymptoms] = useState(false)
 
   const currentSurgeryId = surgery?.id
 
@@ -32,6 +34,31 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
       setShowSurgerySelector(true)
     }
   }, [surgery, surgeries.length])
+
+  // Fetch symptoms when surgery changes
+  useEffect(() => {
+    if (currentSurgeryId) {
+      setIsLoadingSymptoms(true)
+      // Find the surgery slug for the API call
+      const surgery = surgeries.find(s => s.id === currentSurgeryId)
+      const surgerySlug = surgery?.slug || currentSurgeryId
+      
+      fetch(`/api/symptoms?surgery=${surgerySlug}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.symptoms && Array.isArray(data.symptoms)) {
+            setSymptoms(data.symptoms)
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching symptoms:', error)
+          // Keep the initial symptoms if fetch fails
+        })
+        .finally(() => {
+          setIsLoadingSymptoms(false)
+        })
+    }
+  }, [currentSurgeryId, surgeries])
 
   // Load age filter from localStorage
   useEffect(() => {
@@ -48,7 +75,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
 
   // Filter symptoms based on search, age group, and letter with useMemo for performance
   const filteredSymptoms = useMemo(() => {
-    return initialSymptoms.filter(symptom => {
+    return symptoms.filter(symptom => {
       const matchesSearch = !searchTerm || 
         symptom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (symptom.briefInstruction && symptom.briefInstruction.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -73,7 +100,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
       
       return matchesSearch && matchesAge && matchesLetter
     })
-  }, [initialSymptoms, searchTerm, selectedAge, selectedLetter])
+  }, [symptoms, searchTerm, selectedAge, selectedLetter])
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
@@ -117,7 +144,11 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         </div>
 
         {/* Symptoms Grid */}
-        {filteredSymptoms.length > 0 ? (
+        {isLoadingSymptoms ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="text-nhs-grey">Loading symptoms...</div>
+          </div>
+        ) : filteredSymptoms.length > 0 ? (
           <VirtualizedGrid
             symptoms={filteredSymptoms}
             surgeryId={currentSurgeryId}
