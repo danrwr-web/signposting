@@ -222,8 +222,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         
         const data = await response.json()
         
-        console.log('Loaded override data:', data)
-        
         // If no override exists, create a structure with base symptom data
         if (!data) {
           // Find the base symptom from effective symptoms
@@ -301,12 +299,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         // Save override
         // Filter out non-schema fields like baseSymptom
         const { baseSymptom, ...overrideFields } = overrideData
-        
-        console.log('Saving override with data:', {
-          surgeryId: selectedSurgery,
-          baseId: selectedSymptom,
-          overrideFields
-        })
         
         const response = await fetch('/api/admin/overrides', {
           method: 'POST',
@@ -438,9 +430,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         // Surgery admin hiding symptom
         url += '&action=hide'
       }
-
-      console.log(`Making DELETE request to: ${url}`)
-      console.log(`Session type: ${session.type}, Symptom source: ${selectedSymptomData.source}`)
 
       const response = await fetch(url, {
         method: 'DELETE',
