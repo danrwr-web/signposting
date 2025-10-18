@@ -6,7 +6,7 @@ import type { NextAuthOptions } from 'next-auth'
 
 // Simple custom password storage for demo purposes
 // In production, you'd want to store hashed passwords in the database
-const customPasswords: Record<string, string> = {}
+export const customPasswords: Record<string, string> = {}
 
 async function checkCustomPassword(email: string, password: string): Promise<boolean> {
   return customPasswords[email] === password
