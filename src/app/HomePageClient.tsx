@@ -185,7 +185,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
           <div className="flex justify-center items-center py-8">
             <div className="text-nhs-grey">Loading symptoms...</div>
           </div>
-        ) : filteredSymptoms.length > 0 ? (
+        ) : filteredSymptoms.length > 0 && surgeries.length > 0 ? (
           <VirtualizedGrid
             symptoms={filteredSymptoms}
             surgeryId={currentSurgeryId}
