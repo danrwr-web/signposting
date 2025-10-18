@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { setCustomPassword } from '@/lib/auth'
 
 const addMemberSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(1, 'Password is required'),
   role: z.enum(['STANDARD', 'ADMIN']).default('STANDARD')
 })
 
@@ -56,7 +58,7 @@ export async function POST(
     await requireSurgeryAdmin(surgeryId)
     
     const body = await request.json()
-    const { email, role } = addMemberSchema.parse(body)
+    const { email, password, role } = addMemberSchema.parse(body)
 
     // Check if surgery exists
     const surgery = await prisma.surgery.findUnique({
@@ -77,9 +79,13 @@ export async function POST(
         data: {
           email,
           name: null,
-          globalRole: 'USER'
+          globalRole: 'USER',
+          defaultSurgeryId: surgeryId
         }
       })
+      
+      // Store the custom password for NextAuth
+      setCustomPassword(email, password)
     }
 
     // Check if user is already a member

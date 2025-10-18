@@ -30,12 +30,48 @@ interface GlobalUsersClientProps {
 
 export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editingUser, setEditingUser] = useState<User | null>(null)
   const [newUser, setNewUser] = useState({
     email: '',
     name: '',
     password: '',
     globalRole: 'USER'
   })
+
+  const handleEditUser = (user: User) => {
+    setEditingUser(user)
+  }
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingUser) return
+    
+    try {
+      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editingUser.name,
+          globalRole: editingUser.globalRole
+        }),
+      })
+
+      if (response.ok) {
+        // Refresh the page to show the updated user
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error updating user: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert('Failed to update user. Please try again.')
+    }
+    
+    setEditingUser(null)
+  }
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,7 +181,10 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                       <div className="text-sm text-gray-500">
                         {user.memberships.length} surgery{user.memberships.length !== 1 ? 'ies' : ''}
                       </div>
-                      <button className="text-blue-600 hover:text-blue-500 text-sm font-medium">
+                      <button 
+                        onClick={() => handleEditUser(user)}
+                        className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                      >
                         Edit
                       </button>
                     </div>
@@ -253,6 +292,78 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Create User
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Edit User
+              </h3>
+              <form onSubmit={handleUpdateUser}>
+                <div className="mb-4">
+                  <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="edit-email"
+                    value={editingUser.email}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Email cannot be changed
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="edit-name"
+                    value={editingUser.name || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="mb-6">
+                  <label htmlFor="edit-globalRole" className="block text-sm font-medium text-gray-700 mb-1">
+                    Global Role
+                  </label>
+                  <select
+                    id="edit-globalRole"
+                    value={editingUser.globalRole}
+                    onChange={(e) => setEditingUser({ ...editingUser, globalRole: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="USER">Standard User</option>
+                    <option value="SUPERUSER">Superuser</option>
+                  </select>
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Update User
                   </button>
                 </div>
               </form>
