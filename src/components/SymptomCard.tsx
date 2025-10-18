@@ -7,10 +7,10 @@ import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 
 interface SymptomCardProps {
   symptom: EffectiveSymptom
-  surgeryId?: string
+  surgerySlug?: string
 }
 
-export default function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
+export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
 
   // Load highlight rules from API
@@ -73,19 +73,19 @@ export default function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
   }
 
   return (
-    <Link href={`/symptom/${symptom.id}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`}>
+    <Link href={`/symptom/${symptom.id || 'unknown'}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`}>
       <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col group">
         {/* Header with title and badges */}
         <div className="flex items-start justify-between mb-2">
           <h3 className="text-base font-semibold text-nhs-dark-blue flex-1 leading-tight pr-2">
-            {symptom.name}
+            {symptom.name || 'Unknown Symptom'}
           </h3>
           <div className="flex flex-col gap-1 flex-shrink-0">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgeGroupColor(symptom.ageGroup)}`}>
-              {getAgeGroupLabel(symptom.ageGroup)}
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgeGroupColor(symptom.ageGroup || 'Adult')}`}>
+              {getAgeGroupLabel(symptom.ageGroup || 'Adult')}
             </span>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSourceColor(symptom.source)}`}>
-              {symptom.source}
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSourceColor(symptom.source || 'base')}`}>
+              {symptom.source || 'base'}
             </span>
           </div>
         </div>
@@ -95,7 +95,7 @@ export default function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
           <p 
             className="text-nhs-grey text-sm leading-relaxed line-clamp-3"
             dangerouslySetInnerHTML={{ 
-              __html: highlightText(symptom.briefInstruction ?? "") 
+              __html: highlightText(symptom.briefInstruction || "") 
             }}
           />
         </div>
@@ -106,7 +106,7 @@ export default function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
             <p 
               className="text-xs font-medium text-nhs-red line-clamp-2"
               dangerouslySetInnerHTML={{ 
-                __html: highlightText(symptom.highlightedText) 
+                __html: highlightText(symptom.highlightedText || "") 
               }}
             />
           </div>
