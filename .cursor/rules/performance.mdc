@@ -1,0 +1,19 @@
+---
+alwaysApply: true
+---
+performance:
+  ui:
+    - useExistingComponentStructure: true
+    - preferComposition: true
+    - avoidCustomStylingWhenPossible: true
+    - location: "src/components"
+  designTokens:
+    - useTailwindTokensMappedToNHSPalette: true
+    - noInlineHexForLowContrast: true
+    - minTextContrast: "4.5:1"
+  asyncUI:
+    - includeExplicitLoadingState: true
+    - includeExplicitErrorState: true
+    - requirements:
+        - loadingState: "Visible UI feedback during async operations (e.g., spinners, skeletons, aria-live regions)"
+        - errorState: "Clear, accessible error message via consistent component"

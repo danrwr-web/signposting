@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/server/auth'
+import { getSessionUser } from '@/lib/rbac'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
@@ -14,16 +14,22 @@ export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await requireAuth()
+    const user = await getSessionUser()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     const letter = searchParams.get('letter') ?? 'All'
     const q = (searchParams.get('q') ?? '').trim().toLowerCase()
 
     // Get effective symptoms for this surgery (or all if superuser)
     let allSymptoms
-    if (session.type === 'surgery' && session.surgeryId) {
-      allSymptoms = await getEffectiveSymptoms(session.surgeryId)
-    } else if (session.type === 'superuser') {
+    if (user.globalRole === 'SUPERUSER') {
       // For superuser, get all base symptoms
       allSymptoms = await prisma.baseSymptom.findMany({
         select: { 
@@ -41,10 +47,15 @@ export async function GET(request: NextRequest) {
         results.map(s => ({ ...s, source: 'base' as const }))
       )
     } else {
-      return NextResponse.json(
-        { error: 'Invalid session type' },
-        { status: 403 }
-      )
+      // For non-superusers, get symptoms for their default surgery
+      const surgeryId = user.defaultSurgeryId
+      if (!surgeryId) {
+        return NextResponse.json(
+          { error: 'No default surgery assigned' },
+          { status: 403 }
+        )
+      }
+      allSymptoms = await getEffectiveSymptoms(surgeryId)
     }
 
     // Apply filters
@@ -79,27 +90,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth()
+    const user = await getSessionUser()
     
-    // Check session type and handle accordingly
-    if (session.type !== 'surgery' && session.type !== 'superuser') {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Invalid session type' },
-        { status: 403 }
-      )
-    }
-    
-    if (session.type === 'surgery' && !session.surgeryId) {
-      return NextResponse.json(
-        { error: 'Surgery session missing surgery ID' },
-        { status: 403 }
+        { error: 'Authentication required' },
+        { status: 401 }
       )
     }
     
     const body = await request.json()
     const { name, slug, ageGroup, briefInstruction, instructions, highlightedText, linkToPage } = CreateSymptomReqZ.parse(body)
 
-    if (session.type === 'superuser') {
+    if (user.globalRole === 'SUPERUSER') {
       // Superusers create base symptoms visible to all surgeries
       const existingSymptom = await prisma.baseSymptom.findUnique({
         where: { slug }
@@ -136,11 +139,19 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({ symptom }, { status: 201 })
     } else {
-      // Surgery admins create custom symptoms visible only to their surgery
+      // Non-superusers create custom symptoms for their default surgery
+      const surgeryId = user.defaultSurgeryId
+      if (!surgeryId) {
+        return NextResponse.json(
+          { error: 'No default surgery assigned' },
+          { status: 403 }
+        )
+      }
+
       const existingSymptom = await prisma.surgeryCustomSymptom.findUnique({
         where: {
           surgeryId_slug: {
-            surgeryId: session.surgeryId!,
+            surgeryId: surgeryId,
             slug: slug
           }
         }
@@ -155,7 +166,7 @@ export async function POST(request: NextRequest) {
 
       const symptom = await prisma.surgeryCustomSymptom.create({
         data: {
-          surgeryId: session.surgeryId!,
+          surgeryId: surgeryId,
           slug,
           name,
           ageGroup,

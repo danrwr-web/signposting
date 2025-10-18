@@ -1,0 +1,25 @@
+---
+alwaysApply: true
+---
+appArchitecture:
+  directoryConvention: 
+    - useAppDirectoryOnly: true
+    - colocateRouteHandlersAndComponents: true
+    - structure:
+        - routes: "Inside /app, group API 'route.ts' or 'route.js' files at leaf folders with related UI or logic modules"
+        - components: "Co-locate UI components alongside relevant routes or features"
+  serverAndClientSeparation:
+    - forServerFiles: 
+        - serverOnlyImport: "Always import 'server-only' at top"
+    - forClientComponents: 
+        - clientDirective: "Always use 'use client' directive at top"
+  serverActions:
+    - preferServerActionsForMutations: true
+    - requirements:
+        - forServerCode: "Mark server files with 'server-only', use Server Actions for data mutations"
+        - forClientCode: "Only fetch or call Server Actions using client components when necessary"
+  typescript:
+    - noAnyType: true
+    - strictTypeScript: true
+    - preferInferredTypes: true
+    - useConstAssertionsWhenApplicable: true

@@ -7,7 +7,7 @@ async function main() {
 
   // Create sample surgeries
   const surgery1 = await prisma.surgery.upsert({
-    where: { slug: 'ide-lane' },
+    where: { name: 'Ide Lane Surgery' },
     update: {},
     create: {
       name: 'Ide Lane Surgery',
@@ -16,7 +16,7 @@ async function main() {
   })
 
   const surgery2 = await prisma.surgery.upsert({
-    where: { slug: 'health-centre' },
+    where: { name: 'Health Centre' },
     update: {},
     create: {
       name: 'Health Centre',
@@ -25,6 +25,75 @@ async function main() {
   })
 
   console.log('Created surgeries:', { surgery1, surgery2 })
+
+  // Create RBAC users
+  const superuser = await prisma.user.upsert({
+    where: { email: 'superuser@example.com' },
+    update: {},
+    create: {
+      email: 'superuser@example.com',
+      name: 'Super User',
+      globalRole: 'SUPERUSER',
+      defaultSurgeryId: surgery1.id,
+    },
+  })
+
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@idelane.com' },
+    update: {},
+    create: {
+      email: 'admin@idelane.com',
+      name: 'Admin User',
+      globalRole: 'USER',
+      defaultSurgeryId: surgery1.id,
+    },
+  })
+
+  const standardUser = await prisma.user.upsert({
+    where: { email: 'user@idelane.com' },
+    update: {},
+    create: {
+      email: 'user@idelane.com',
+      name: 'Standard User',
+      globalRole: 'USER',
+      defaultSurgeryId: surgery1.id,
+    },
+  })
+
+  console.log('Created users:', { superuser, adminUser, standardUser })
+
+  // Create surgery memberships
+  await prisma.userSurgery.upsert({
+    where: {
+      userId_surgeryId: {
+        userId: adminUser.id,
+        surgeryId: surgery1.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: adminUser.id,
+      surgeryId: surgery1.id,
+      role: 'ADMIN',
+    },
+  })
+
+  await prisma.userSurgery.upsert({
+    where: {
+      userId_surgeryId: {
+        userId: standardUser.id,
+        surgeryId: surgery1.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: standardUser.id,
+      surgeryId: surgery1.id,
+      role: 'STANDARD',
+    },
+  })
+
+  console.log('Created surgery memberships')
 
   // Create sample base symptoms
   const symptoms = [
@@ -103,8 +172,10 @@ async function main() {
   ]
 
   for (const symptomData of symptoms) {
-    await prisma.baseSymptom.create({
-      data: symptomData,
+    await prisma.baseSymptom.upsert({
+      where: { slug: symptomData.slug },
+      update: symptomData,
+      create: symptomData,
     })
   }
 

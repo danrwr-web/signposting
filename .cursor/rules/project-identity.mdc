@@ -1,0 +1,14 @@
+---
+alwaysApply: true
+---
+project: "NHS-style symptom signposting web app built with Next.js 15 App Router, TypeScript, Prisma, and Tailwind CSS."
+homepage.primaryH1: "Find the right place for care"
+spelling: "british-english"
+contentGuidelines:
+  - useNHSServiceManualPatterns: true
+  - readingAge: "9-12"
+  - usePlainEnglish: true
+naming:
+  homepageH1:
+    doNotUse: ["Symptom Signposting"]
+    use: ["Find the right place for care"]

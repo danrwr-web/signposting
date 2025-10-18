@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { signOut } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import SearchBox from './SearchBox'
 import AlphabetStrip from './AlphabetStrip'
 import AgeFilter from './AgeFilter'
 import HighRiskButtons from './HighRiskButtons'
 import { Surgery } from '@prisma/client'
+import { useSession } from 'next-auth/react'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -42,6 +44,21 @@ export default function CompactToolbar({
   onShowSurgerySelector
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const { data: session } = useSession()
+  
+  // Check if user can access admin features
+  const canAccessAdmin = session?.user && (
+    (session.user as any).globalRole === 'SUPERUSER' ||
+    (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
+  )
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: '/' })
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
 
   // Keyboard shortcuts: / to focus search, Esc to clear
   useEffect(() => {
@@ -100,12 +117,21 @@ export default function CompactToolbar({
               </button>
             )}
             
-            <Link 
-              href="/admin" 
+            {canAccessAdmin && (
+              <Link 
+                href="/admin" 
+                className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
+              >
+                Admin
+              </Link>
+            )}
+            
+            <button
+              onClick={handleLogout}
               className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
             >
-              Admin
-            </Link>
+              Sign Out
+            </button>
           </div>
         </div>
       </div>

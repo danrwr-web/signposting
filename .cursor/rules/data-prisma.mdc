@@ -1,0 +1,22 @@
+---
+alwaysApply: true
+---
+dataPrisma:
+  dbAccess:
+    - usePrismaOnly: true
+    - followExistingSchemaPatterns: true
+    - allRelatedWritesUseTransactions: true
+  types:
+    - generateTypesFromPrismaClient: true
+    - noHandWrittenDomainTypes: true
+  localDev:
+    - provideSeedScripts: true
+    - migrationsMustBeIdempotent: true
+    - migrationsMustBeReviewed: true
+  environments:
+    - supportSQLiteForLocal: true
+    - supportPostgresForProd: true
+    - useDatabaseUrl: true
+    - failFastIfEnvMissing: true
+alwaysApply: true
+---

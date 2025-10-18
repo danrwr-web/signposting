@@ -5,6 +5,7 @@ import { Toaster } from 'react-hot-toast'
 import { SurgeryProvider } from '@/context/SurgeryContext'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
+import Providers from '@/components/Providers'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,13 +22,16 @@ export default async function RootLayout({
   const cookieStore = await cookies()
   const surgeryId = cookieStore.get('surgery')?.value
   
+  // Get all surgeries for the SurgeryProvider
+  const surgeries = await prisma.surgery.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  })
+  
   // Resolve surgery data if ID is present
   let initialSurgery = null
   if (surgeryId) {
-    const surgery = await prisma.surgery.findUnique({
-      where: { id: surgeryId },
-      select: { id: true, name: true }
-    })
+    const surgery = surgeries.find(s => s.id === surgeryId)
     if (surgery) {
       initialSurgery = { id: surgery.id, name: surgery.name }
     }
@@ -36,9 +40,11 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SurgeryProvider initialSurgery={initialSurgery}>
-          {children}
-        </SurgeryProvider>
+        <Providers>
+          <SurgeryProvider initialSurgery={initialSurgery} availableSurgeries={surgeries}>
+            {children}
+          </SurgeryProvider>
+        </Providers>
         <Toaster 
           position="top-right"
           toastOptions={{

@@ -1,20 +1,40 @@
 -- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "email" TEXT NOT NULL,
+    "name" TEXT,
+    "globalRole" TEXT NOT NULL DEFAULT 'USER',
+    "defaultSurgeryId" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "User_defaultSurgeryId_fkey" FOREIGN KEY ("defaultSurgeryId") REFERENCES "Surgery" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "UserSurgery" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "surgeryId" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'STANDARD',
+    CONSTRAINT "UserSurgery_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "UserSurgery_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
 CREATE TABLE "Surgery" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "name" TEXT NOT NULL,
-    "slug" TEXT NOT NULL,
+    "slug" TEXT,
     "adminEmail" TEXT,
     "adminPassHash" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "enableDefaultHighRisk" BOOLEAN NOT NULL DEFAULT true,
-
-    CONSTRAINT "Surgery_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    "enableDefaultHighRisk" BOOLEAN NOT NULL DEFAULT true
 );
 
 -- CreateTable
 CREATE TABLE "BaseSymptom" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "ageGroup" TEXT NOT NULL,
@@ -22,15 +42,13 @@ CREATE TABLE "BaseSymptom" (
     "highlightedText" TEXT,
     "instructions" TEXT,
     "linkToPage" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "BaseSymptom_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
 );
 
 -- CreateTable
 CREATE TABLE "SurgerySymptomOverride" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "surgeryId" TEXT NOT NULL,
     "baseSymptomId" TEXT NOT NULL,
     "name" TEXT,
@@ -40,13 +58,13 @@ CREATE TABLE "SurgerySymptomOverride" (
     "instructions" TEXT,
     "linkToPage" TEXT,
     "isHidden" BOOLEAN NOT NULL DEFAULT false,
-
-    CONSTRAINT "SurgerySymptomOverride_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "SurgerySymptomOverride_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "SurgerySymptomOverride_baseSymptomId_fkey" FOREIGN KEY ("baseSymptomId") REFERENCES "BaseSymptom" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "SurgeryCustomSymptom" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "surgeryId" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -55,73 +73,74 @@ CREATE TABLE "SurgeryCustomSymptom" (
     "highlightedText" TEXT,
     "instructions" TEXT,
     "linkToPage" TEXT,
-
-    CONSTRAINT "SurgeryCustomSymptom_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "SurgeryCustomSymptom_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "Suggestion" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "surgeryId" TEXT,
     "baseId" TEXT,
     "symptom" TEXT NOT NULL,
     "userEmail" TEXT,
     "text" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "Suggestion_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Suggestion_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "EngagementEvent" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "surgeryId" TEXT,
     "baseId" TEXT NOT NULL,
     "userEmail" TEXT,
     "event" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "EngagementEvent_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EngagementEvent_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
+    CONSTRAINT "EngagementEvent_baseId_fkey" FOREIGN KEY ("baseId") REFERENCES "BaseSymptom" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "HighlightRule" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "surgeryId" TEXT,
     "phrase" TEXT NOT NULL,
     "textColor" TEXT NOT NULL DEFAULT '#FFFFFF',
     "bgColor" TEXT NOT NULL DEFAULT '#6A0DAD',
     "isEnabled" BOOLEAN NOT NULL DEFAULT true,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "HighlightRule_pkey" PRIMARY KEY ("id")
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "HighlightRule_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "HighRiskLink" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "surgeryId" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "symptomSlug" TEXT,
     "symptomId" TEXT,
     "orderIndex" INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT "HighRiskLink_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "HighRiskLink_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable
 CREATE TABLE "DefaultHighRiskButtonConfig" (
-    "id" TEXT NOT NULL,
+    "id" TEXT NOT NULL PRIMARY KEY,
     "surgeryId" TEXT NOT NULL,
     "buttonKey" TEXT NOT NULL,
     "label" TEXT NOT NULL,
     "symptomSlug" TEXT NOT NULL,
     "isEnabled" BOOLEAN NOT NULL DEFAULT true,
     "orderIndex" INTEGER NOT NULL DEFAULT 0,
-
-    CONSTRAINT "DefaultHighRiskButtonConfig_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "DefaultHighRiskButtonConfig_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserSurgery_userId_surgeryId_key" ON "UserSurgery"("userId", "surgeryId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Surgery_name_key" ON "Surgery"("name");
@@ -176,30 +195,3 @@ CREATE INDEX "DefaultHighRiskButtonConfig_surgeryId_buttonKey_idx" ON "DefaultHi
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DefaultHighRiskButtonConfig_surgeryId_buttonKey_key" ON "DefaultHighRiskButtonConfig"("surgeryId", "buttonKey");
-
--- AddForeignKey
-ALTER TABLE "SurgerySymptomOverride" ADD CONSTRAINT "SurgerySymptomOverride_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurgerySymptomOverride" ADD CONSTRAINT "SurgerySymptomOverride_baseSymptomId_fkey" FOREIGN KEY ("baseSymptomId") REFERENCES "BaseSymptom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "SurgeryCustomSymptom" ADD CONSTRAINT "SurgeryCustomSymptom_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Suggestion" ADD CONSTRAINT "Suggestion_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EngagementEvent" ADD CONSTRAINT "EngagementEvent_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "EngagementEvent" ADD CONSTRAINT "EngagementEvent_baseId_fkey" FOREIGN KEY ("baseId") REFERENCES "BaseSymptom"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HighlightRule" ADD CONSTRAINT "HighlightRule_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "HighRiskLink" ADD CONSTRAINT "HighRiskLink_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "DefaultHighRiskButtonConfig" ADD CONSTRAINT "DefaultHighRiskButtonConfig_surgeryId_fkey" FOREIGN KEY ("surgeryId") REFERENCES "Surgery"("id") ON DELETE CASCADE ON UPDATE CASCADE;

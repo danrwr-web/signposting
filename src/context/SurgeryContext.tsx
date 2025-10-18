@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 
 export interface SurgeryState {
   id: string
@@ -12,6 +13,9 @@ interface SurgeryContextValue {
   surgery: SurgeryState | null
   setSurgery: (next: SurgeryState) => void
   clearSurgery: () => void
+  availableSurgeries: SurgeryState[]
+  canManageSurgery: (surgeryId: string) => boolean
+  isSuperuser: boolean
 }
 
 const SurgeryContext = createContext<SurgeryContextValue | undefined>(undefined)
@@ -38,51 +42,83 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 180 // 180 days
 
 interface ProviderProps {
   initialSurgery: SurgeryState | null
+  availableSurgeries: SurgeryState[]
   children: React.ReactNode
 }
 
-export function SurgeryProvider({ initialSurgery, children }: ProviderProps) {
+export function SurgeryProvider({ initialSurgery, availableSurgeries, children }: ProviderProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const { data: session } = useSession()
   const [surgery, setSurgeryState] = useState<SurgeryState | null>(initialSurgery)
   const isSettingRef = useRef(false)
 
-  // On mount: apply precedence URL > cookie > localStorage
+  // Get user info from session
+  const user = session?.user as any
+  const isSuperuser = user?.globalRole === 'SUPERUSER'
+  const memberships = user?.memberships || []
+
+  // On mount: apply precedence URL > cookie > localStorage > user's default surgery
   useEffect(() => {
     // Guard against re-entrancy
     if (isSettingRef.current) return
 
     const urlId = searchParams.get('surgery') || undefined
     if (urlId) {
-      // We only know the id from URL here; preserve name from initial state if it matches
-      const next: SurgeryState = { id: urlId, name: initialSurgery?.id === urlId ? initialSurgery.name : '' }
-      setSurgeryState(next)
-      writeCookie(COOKIE_KEY, urlId, COOKIE_MAX_AGE)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      return
+      // Check if user has access to this surgery
+      const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === urlId)
+      if (hasAccess) {
+        const surgeryData = availableSurgeries.find(s => s.id === urlId)
+        const next: SurgeryState = surgeryData || { id: urlId, name: '' }
+        setSurgeryState(next)
+        writeCookie(COOKIE_KEY, urlId, COOKIE_MAX_AGE)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        return
+      }
     }
 
     const cookieId = readCookie(COOKIE_KEY)
     if (cookieId) {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      const parsed: SurgeryState | null = stored ? safeParseJSON(stored) : null
-      const next: SurgeryState = parsed && parsed.id === cookieId ? parsed : { id: cookieId, name: parsed?.name || '' }
-      setSurgeryState(next)
-      // Preserve URL without surgery param if not set
-      return
+      // Check if user has access to this surgery
+      const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === cookieId)
+      if (hasAccess) {
+        const stored = localStorage.getItem(STORAGE_KEY)
+        const parsed: SurgeryState | null = stored ? safeParseJSON(stored) : null
+        const surgeryData = availableSurgeries.find(s => s.id === cookieId)
+        const next: SurgeryState = parsed && parsed.id === cookieId ? parsed : surgeryData || { id: cookieId, name: '' }
+        setSurgeryState(next)
+        return
+      }
     }
 
-    // Fallback to localStorage if present
+    // Fallback to localStorage if present and user has access
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
       const parsed: SurgeryState | null = safeParseJSON(stored)
       if (parsed) {
-        setSurgeryState(parsed)
-        writeCookie(COOKIE_KEY, parsed.id, COOKIE_MAX_AGE)
+        const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === parsed.id)
+        if (hasAccess) {
+          setSurgeryState(parsed)
+          writeCookie(COOKIE_KEY, parsed.id, COOKIE_MAX_AGE)
+          return
+        }
       }
     }
-  }, [])
+
+    // Final fallback: user's default surgery
+    if (user?.defaultSurgeryId) {
+      const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === user.defaultSurgeryId)
+      if (hasAccess) {
+        const surgeryData = availableSurgeries.find(s => s.id === user.defaultSurgeryId)
+        if (surgeryData) {
+          setSurgeryState(surgeryData)
+          writeCookie(COOKIE_KEY, surgeryData.id, COOKIE_MAX_AGE)
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(surgeryData))
+        }
+      }
+    }
+  }, [user, isSuperuser, memberships, availableSurgeries])
 
   // Cross-tab sync via storage event
   useEffect(() => {
@@ -96,6 +132,13 @@ export function SurgeryProvider({ initialSurgery, children }: ProviderProps) {
   }, [])
 
   const setSurgery = useCallback((next: SurgeryState) => {
+    // Check if user has access to this surgery
+    const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === next.id)
+    if (!hasAccess) {
+      console.warn('User does not have access to surgery:', next.id)
+      return
+    }
+
     isSettingRef.current = true
     setSurgeryState(next)
     writeCookie(COOKIE_KEY, next.id, COOKIE_MAX_AGE)
@@ -106,7 +149,7 @@ export function SurgeryProvider({ initialSurgery, children }: ProviderProps) {
     params.set('surgery', next.id)
     router.push(`${pathname}?${params.toString()}`)
     isSettingRef.current = false
-  }, [pathname, router, searchParams])
+  }, [pathname, router, searchParams, isSuperuser, memberships])
 
   const clearSurgery = useCallback(() => {
     isSettingRef.current = true
@@ -120,7 +163,19 @@ export function SurgeryProvider({ initialSurgery, children }: ProviderProps) {
     isSettingRef.current = false
   }, [pathname, router, searchParams])
 
-  const value = useMemo(() => ({ surgery, setSurgery, clearSurgery }), [surgery, setSurgery, clearSurgery])
+  const canManageSurgery = useCallback((surgeryId: string) => {
+    if (isSuperuser) return true
+    return memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN')
+  }, [isSuperuser, memberships])
+
+  const value = useMemo(() => ({ 
+    surgery, 
+    setSurgery, 
+    clearSurgery, 
+    availableSurgeries,
+    canManageSurgery,
+    isSuperuser
+  }), [surgery, setSurgery, clearSurgery, availableSurgeries, canManageSurgery, isSuperuser])
   return (
     <SurgeryContext.Provider value={value}>{children}</SurgeryContext.Provider>
   )

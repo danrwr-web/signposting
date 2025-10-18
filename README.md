@@ -1,16 +1,18 @@
 # NHS Signposting Web App
 
-A responsive NHS-style signposting web application built with Next.js 15, TypeScript, and Tailwind CSS. The app allows surgeries to customize symptom information while maintaining a base dataset.
+A responsive NHS-style signposting web application built with Next.js 15, TypeScript, and Tailwind CSS. The app provides role-based access control (RBAC) for healthcare admin teams to manage symptom signposting across multiple surgeries.
 
 ## Features
 
+- **Role-Based Access Control (RBAC)**: Three-tier permission system (Superuser, Admin, Standard)
 - **Multi-tenant Architecture**: Each surgery can have customized symptom information
 - **Base Data + Overrides**: Base symptoms with per-surgery overrides
 - **Excel Import**: Upload Excel files to seed/refresh base symptom data
 - **Search & Filtering**: Search symptoms and filter by age group
 - **Engagement Tracking**: Track symptom views and user suggestions
-- **Admin Dashboard**: Manage data, overrides, and view analytics
+- **Admin Dashboards**: Global and per-surgery administration
 - **NHS Styling**: Clean, accessible design following NHS guidelines
+- **Authentication**: NextAuth.js with credentials provider
 
 ## Tech Stack
 
@@ -18,9 +20,10 @@ A responsive NHS-style signposting web application built with Next.js 15, TypeSc
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
 - **Database**: Prisma + SQLite (dev) / PostgreSQL (prod)
+- **Authentication**: NextAuth.js with credentials provider
 - **Excel Parsing**: SheetJS (xlsx)
 - **UI Components**: Custom components with NHS styling
-- **Authentication**: Simple passcode-based admin auth
+- **Testing**: Jest + React Testing Library
 
 ## Setup
 
@@ -52,11 +55,15 @@ Edit `.env.local` with your configuration:
 # Database
 DATABASE_URL="file:./dev.db"
 
-# Default surgery for first-time users
-DEFAULT_SURGERY_SLUG="ide-lane"
+# NextAuth Configuration
+NEXTAUTH_SECRET="your-secret-here-change-this-in-production"
+NEXTAUTH_URL="http://localhost:3000"
 
-# Admin authentication
-ADMIN_PASSCODE="admin123"
+# App Configuration
+NEXT_PUBLIC_APP_VERSION="Beta v1.0"
+
+# Feature Flags
+DONATIONS_ENABLED="false"
 ```
 
 4. Set up the database:
@@ -78,13 +85,66 @@ npm run dev
 
 The application will be available at `http://localhost:3000`.
 
+## Role-Based Access Control (RBAC)
+
+The application implements a three-tier permission system:
+
+### User Roles
+
+1. **Superuser (Global)**
+   - Can manage all surgeries and users
+   - Can create other superusers, admins, and standard users
+   - Access to global admin dashboard (`/admin`)
+   - Can switch between any surgery
+
+2. **Admin (Per-Surgery)**
+   - Can manage users within their assigned surgery
+   - Can invite/add/remove users to their surgery
+   - Can set per-surgery roles (ADMIN or STANDARD)
+   - Can set/remove user's default surgery
+   - Access to surgery admin dashboard (`/s/[surgeryId]/admin`)
+
+3. **Standard (Per-Surgery)**
+   - Can use the toolkit within their assigned surgery
+   - Cannot see admin links or access admin routes
+   - Access to surgery dashboard (`/s/[surgeryId]/dashboard`)
+
+### Surgery Persistence Precedence
+
+The application follows this precedence for determining which surgery context to use:
+
+1. **URL Parameter** (`/s/[surgeryId]`) - Highest priority
+2. **Cookie** - Stored surgery preference
+3. **localStorage** - Browser-stored preference
+4. **User's Default Surgery** - Fallback to user's assigned default surgery
+
+### Authentication Flow
+
+1. **Unauthenticated users** → Redirected to `/login`
+2. **Superusers** → Redirected to `/admin` (global dashboard)
+3. **Non-superusers** → Redirected to `/s/[surgeryId]/dashboard` where `surgeryId` is their `defaultSurgeryId`
+
+### Test Accounts
+
+The seed script creates these test accounts (password = email address):
+
+- `superuser@example.com` - Superuser
+- `admin@idelane.com` - Admin of Ide Lane Surgery
+- `user@idelane.com` - Standard user of Ide Lane Surgery
+
 ## Database Schema
 
 ### Core Models
 
-- **Surgery**: Represents individual surgeries/practices
-- **SymptomBase**: Base symptom data (shared across all surgeries)
-- **SymptomOverride**: Per-surgery customizations of base symptoms
+#### RBAC Models
+- **User**: User accounts with global roles and surgery memberships
+- **Surgery**: Individual surgeries/practices with optional slugs for backward compatibility
+- **UserSurgery**: Junction table linking users to surgeries with per-surgery roles
+
+#### Content Models
+- **BaseSymptom**: Base symptom data (shared across all surgeries)
+- **SurgerySymptomOverride**: Per-surgery customizations of base symptoms
+- **SurgeryCustomSymptom**: Surgery-specific custom symptoms
 - **Suggestion**: User feedback and suggestions
 - **EngagementEvent**: Tracks user interactions
 

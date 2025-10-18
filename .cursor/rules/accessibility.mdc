@@ -1,0 +1,29 @@
+---
+alwaysApply: true
+---
+accessibility:
+  wcagStandard: "WCAG 2.1 AA"
+  interactiveElements:
+    - keyboardReachable: true
+    - visibleFocusIndicator: true
+    - ariaRoleLabel: "Only when necessary, not when native semantic is sufficient"
+  headings:
+    - hierarchyCorrect: true
+    - skipLinksProvided: true
+    - pageTitleUpdated: true
+  focusManagement:
+    - onRouteChange: "Move focus to main landmark or top-level heading"
+    - onModalOpen: "Trap focus within modal/dialog"
+    - onModalClose: "Return focus to invoking control"
+  images:
+    - allNonDecorativeHaveAlt: true
+    - decorativeHaveEmptyAlt: true
+  automatedChecks:
+    - tool: "axe"
+    - runInCI: true
+    - blockCriticalViolations: true
+  general:
+    - maintainPlainEnglish: true
+    - supportScreenReaders: true
+    - ensureColorContrast: ">= 4.5:1 for text, 3:1 for large text/icons"
+    - avoidMotionTriggers: true

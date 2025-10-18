@@ -1,0 +1,88 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getSessionUser, requireSuperuser } from '@/lib/rbac'
+import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
+
+const createUserSchema = z.object({
+  email: z.string().email(),
+  name: z.string().optional(),
+  globalRole: z.enum(['USER', 'SUPERUSER']).default('USER')
+})
+
+const updateUserSchema = z.object({
+  globalRole: z.enum(['USER', 'SUPERUSER']).optional(),
+  name: z.string().optional()
+})
+
+// GET /api/admin/users - List all users
+export async function GET() {
+  try {
+    await requireSuperuser()
+    
+    const users = await prisma.user.findMany({
+      include: {
+        memberships: {
+          include: {
+            surgery: true
+          }
+        },
+        defaultSurgery: true
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    })
+
+    return NextResponse.json(users)
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// POST /api/admin/users - Create new user
+export async function POST(request: NextRequest) {
+  try {
+    await requireSuperuser()
+    
+    const body = await request.json()
+    const { email, name, globalRole } = createUserSchema.parse(body)
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    })
+
+    if (existingUser) {
+      return NextResponse.json({ error: 'User already exists' }, { status: 400 })
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        globalRole
+      },
+      include: {
+        memberships: {
+          include: {
+            surgery: true
+          }
+        },
+        defaultSurgery: true
+      }
+    })
+
+    return NextResponse.json(user, { status: 201 })
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

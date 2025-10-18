@@ -1,0 +1,15 @@
+---
+alwaysApply: true
+---
+routineApi:
+  canonicalIdentifier: "surgery ID"
+  slugSupport:
+    description: "Slugs are supported for backward compatibility only."
+    apiRouteBehaviour:
+      - "API routes must accept both ID and slug parameters until slug support removal date."
+      - "After slug support ends, routes should return 410 Gone, or optionally redirect to the valid canonical (ID-based) route."
+  inputValidation:
+    required: true
+    implementation: 
+      - "All API route inputs must be validated using zod at the entry point (edge) of the handler."
+      - "Handlers must return typed error objects (not strings or generic objects) on validation failure."

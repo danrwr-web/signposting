@@ -6,8 +6,38 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+// RBAC Models (using String fields instead of enums for SQLite compatibility)
+model User {
+  id                String        @id @default(cuid())
+  email             String        @unique
+  name              String?
+  globalRole        String        @default("USER") // "USER" | "SUPERUSER"
+  defaultSurgeryId  String?
+  defaultSurgery    Surgery?      @relation("DefaultSurgery", fields: [defaultSurgeryId], references: [id])
+  memberships       UserSurgery[]
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  // NextAuth.js fields
+  emailVerified     DateTime?
+  image             String?
+  accounts          Account[]
+  sessions          Session[]
+}
+
+model UserSurgery {
+  id         String      @id @default(cuid())
+  userId     String
+  surgeryId  String
+  role       String      @default("STANDARD") // "STANDARD" | "ADMIN"
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery    Surgery     @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, surgeryId])
 }
 
 // AgeGroup values: 'U5' | 'O5' | 'Adult'
@@ -15,11 +45,15 @@ datasource db {
 model Surgery {
   id            String   @id @default(cuid())
   name          String   @unique
-  slug          String   @unique
+  slug          String?  @unique // Made optional for backward compatibility
   adminEmail    String?  @unique
   adminPassHash String?  // bcrypt hash; nullable until set
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  // RBAC relationships
+  users         UserSurgery[] @relation("SurgeryUsers")
+  defaultUsers  User[]        @relation("DefaultSurgery")
 
   // Config
   enableDefaultHighRisk Boolean @default(true) // Enable/disable default high-risk buttons
@@ -162,4 +196,40 @@ model DefaultHighRiskButtonConfig {
   
   @@unique([surgeryId, buttonKey])
   @@index([surgeryId, buttonKey])
+}
+
+// NextAuth.js models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }

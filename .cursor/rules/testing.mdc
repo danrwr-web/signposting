@@ -1,0 +1,19 @@
+---
+description: When Testing
+alwaysApply: false
+---
+testing:
+  ui:
+    - useExistingComponentStructure: true
+    - preferComposition: true
+    - avoidCustomStylingWhenPossible: true
+    - verifyComponentLocation: "src/components"
+  designTokens:
+    - useTailwindTokensMappedToNHSPalette: true
+    - noInlineHexForLowContrast: true
+    - minTextContrast: "4.5:1"
+  asyncUI:
+    - mustIncludeLoadingState: true
+    - mustIncludeErrorState: true
+    - loadingStateRequirement: "Show visible UI feedback (spinner, skeleton, aria-live region) during async operations"
+    - errorStateRequirement: "Clear, accessible error message through a consistent component"

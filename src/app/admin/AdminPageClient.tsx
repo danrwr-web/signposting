@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
+import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
@@ -92,28 +93,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     if (editingMode === 'override' && !selectedSurgery) return
     
     try {
-      let response
-      if (editingMode === 'base') {
-        // Load base symptoms directly for superusers
-        response = await fetch(`/api/symptoms?letter=All`, { cache: 'no-store' })
-      } else {
-        // Load effective symptoms for surgery
-        response = await fetch(`/api/admin/symptoms?letter=All`, { cache: 'no-store' })
-      }
-      
-      if (response.ok) {
-        const json = await response.json()
-        const { symptoms } = GetEffectiveSymptomsResZ.parse(json)
-        // Filter out symptoms with undefined slug and ensure proper typing
-        const validSymptoms = Array.isArray(symptoms) 
-          ? symptoms.filter((symptom): symptom is EffectiveSymptom => 
-              symptom.slug !== undefined
-            )
-          : []
-        setEffectiveSymptoms(validSymptoms)
-      } else {
-        toast.error('Failed to load symptoms')
-      }
+      // Use the symptoms data passed from the server instead of API calls
+      const validSymptoms = Array.isArray(symptoms) 
+        ? symptoms.filter((symptom): symptom is EffectiveSymptom => 
+            symptom.slug !== undefined
+          )
+        : []
+      setEffectiveSymptoms(validSymptoms)
     } catch (error) {
       console.error('Error loading symptoms:', error)
       toast.error('Failed to load symptoms')
@@ -139,8 +125,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' })
-      window.location.href = '/admin-login'
+      await signOut({ callbackUrl: '/' })
     } catch (error) {
       console.error('Logout error:', error)
       toast.error('Failed to logout')
@@ -445,7 +430,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={surgeries} currentSurgerySlug={currentSurgerySlug} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={undefined} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -459,14 +444,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             </p>
           </div>
           <div className="flex gap-2">
-            {session.type === 'surgery' && (
-              <a
-                href="/super-login"
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
-              >
-                Super Login
-              </a>
-            )}
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -487,6 +464,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 { id: 'highrisk', label: 'High-Risk Buttons' },
                 { id: 'engagement', label: 'Engagement' },
                 { id: 'suggestions', label: 'Suggestions' },
+                ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
+                ...(session.type === 'superuser' ? [{ id: 'system', label: 'System Management' }] : []),
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -794,6 +773,87 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   User suggestions will be displayed here. This feature requires 
                   the suggestions API to be implemented.
                 </p>
+              </div>
+            )}
+
+            {/* User Management Tab - Only for Surgery Admins */}
+            {activeTab === 'users' && session.type === 'surgery' && (
+              <div>
+                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+                  User Management
+                </h2>
+                <p className="text-nhs-grey mb-6">
+                  Manage users for your surgery. Add new users, change roles, and set default surgeries.
+                </p>
+
+                <div className="bg-white p-6 rounded-lg border border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Surgery User Management
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Manage users who have access to your surgery. You can add new users, 
+                    change their roles, and set their default surgery.
+                  </p>
+                  
+                  <div className="flex gap-4">
+                    <a
+                      href={`/s/${session.surgeryId}/admin/users`}
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Manage Users
+                    </a>
+                    <a
+                      href={`/s/${session.surgeryId}`}
+                      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                    >
+                      Launch Signposting Tool
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* System Management Tab - Only for Superusers */}
+            {activeTab === 'system' && session.type === 'superuser' && (
+              <div>
+                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+                  System Management
+                </h2>
+                <p className="text-nhs-grey mb-6">
+                  Global system administration and management tools.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Global User Management
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Manage all users across the system, create new users, and assign roles.
+                    </p>
+                    <a
+                      href="/admin/users"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Manage Users
+                    </a>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Surgery Management
+                    </h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Create new surgeries, manage surgery settings, and assign administrators.
+                    </p>
+                    <a
+                      href="/admin/surgeries"
+                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Manage Surgeries
+                    </a>
+                  </div>
+                </div>
               </div>
             )}
           </div>
