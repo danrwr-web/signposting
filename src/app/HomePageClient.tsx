@@ -35,6 +35,17 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
     }
   }, [surgery, surgeries.length])
 
+  // Debug logging for surgery data
+  useEffect(() => {
+    console.log('HomePageClient: currentSurgeryId:', currentSurgeryId)
+    console.log('HomePageClient: surgeries:', surgeries)
+    if (currentSurgeryId) {
+      const currentSurgery = surgeries.find(s => s.id === currentSurgeryId)
+      console.log('HomePageClient: currentSurgery:', currentSurgery)
+      console.log('HomePageClient: surgerySlug:', currentSurgery?.slug)
+    }
+  }, [currentSurgeryId, surgeries])
+
   // Fetch symptoms when surgery changes
   useEffect(() => {
     if (currentSurgeryId) {
