@@ -71,7 +71,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           <p 
             className="text-lg text-nhs-grey mb-4"
             dangerouslySetInnerHTML={{ 
-              __html: highlightText(symptom.briefInstruction) 
+              __html: highlightText(symptom.briefInstruction || '') 
             }}
           />
         </div>
@@ -149,7 +149,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         isOpen={showSuggestionModal}
         onClose={() => setShowSuggestionModal(false)}
         symptomId={symptom.id}
-        symptomName={symptom.symptom}
+        symptomName={symptom.name}
         surgeryId={surgeryId}
       />
     </>

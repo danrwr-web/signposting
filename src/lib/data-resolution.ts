@@ -37,7 +37,7 @@ export async function getEffectiveSymptoms(surgerySlug?: string): Promise<Effect
     return {
       id: base.id,
       symptom: override?.name ?? base.name,
-      ageGroup: override?.ageGroup ?? base.ageGroup,
+      ageGroup: (override?.ageGroup ?? base.ageGroup) as 'U5' | 'O5' | 'Adult',
       briefInstruction: override?.briefInstruction ?? base.briefInstruction,
       instructions: override?.instructions ?? base.instructions,
       highlightedText: override?.highlightedText ?? base.highlightedText,
@@ -75,7 +75,7 @@ export async function getEffectiveSymptomById(id: string, surgerySlug?: string):
   return {
     id: baseSymptom.id,
     symptom: override?.name ?? baseSymptom.name,
-    ageGroup: override?.ageGroup ?? baseSymptom.ageGroup,
+    ageGroup: (override?.ageGroup ?? baseSymptom.ageGroup) as 'U5' | 'O5' | 'Adult',
     briefInstruction: override?.briefInstruction ?? baseSymptom.briefInstruction,
     instructions: override?.instructions ?? baseSymptom.instructions,
     highlightedText: override?.highlightedText ?? baseSymptom.highlightedText,

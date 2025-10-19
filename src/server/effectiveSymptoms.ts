@@ -80,7 +80,7 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
     byBaseId.set(o.baseSymptomId, {
       ...b,
       name: (o.name && o.name.trim() !== '') ? o.name : b.name,
-      ageGroup: (o.ageGroup && o.ageGroup.trim() !== '') ? o.ageGroup : b.ageGroup,
+      ageGroup: (o.ageGroup && o.ageGroup.trim() !== '') ? o.ageGroup as 'U5' | 'O5' | 'Adult' : b.ageGroup as 'U5' | 'O5' | 'Adult',
       briefInstruction: (o.briefInstruction && o.briefInstruction.trim() !== '') ? o.briefInstruction : b.briefInstruction,
       highlightedText: (o.highlightedText && o.highlightedText.trim() !== '') ? o.highlightedText : b.highlightedText,
       instructions: (o.instructions && o.instructions.trim() !== '') ? o.instructions : b.instructions,
@@ -188,7 +188,7 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     const result = {
       ...base,
       name: (override.name && override.name.trim() !== '') ? override.name : base.name,
-      ageGroup: (override.ageGroup && override.ageGroup.trim() !== '') ? override.ageGroup : base.ageGroup,
+      ageGroup: (override.ageGroup && override.ageGroup.trim() !== '') ? override.ageGroup as 'U5' | 'O5' | 'Adult' : base.ageGroup as 'U5' | 'O5' | 'Adult',
       briefInstruction: (override.briefInstruction && override.briefInstruction.trim() !== '') ? override.briefInstruction : base.briefInstruction,
       highlightedText: (override.highlightedText && override.highlightedText.trim() !== '') ? override.highlightedText : base.highlightedText,
       instructions: (override.instructions && override.instructions.trim() !== '') ? override.instructions : base.instructions,
@@ -283,7 +283,7 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
     return {
       ...base,
       name: (override.name && override.name.trim() !== '') ? override.name : base.name,
-      ageGroup: (override.ageGroup && override.ageGroup.trim() !== '') ? override.ageGroup : base.ageGroup,
+      ageGroup: (override.ageGroup && override.ageGroup.trim() !== '') ? override.ageGroup as 'U5' | 'O5' | 'Adult' : base.ageGroup as 'U5' | 'O5' | 'Adult',
       briefInstruction: (override.briefInstruction && override.briefInstruction.trim() !== '') ? override.briefInstruction : base.briefInstruction,
       highlightedText: (override.highlightedText && override.highlightedText.trim() !== '') ? override.highlightedText : base.highlightedText,
       instructions: (override.instructions && override.instructions.trim() !== '') ? override.instructions : base.instructions,

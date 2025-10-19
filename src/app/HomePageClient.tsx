@@ -55,7 +55,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
             // Ensure symptoms are sorted alphabetically
-            const sortedSymptoms = data.symptoms.sort((a, b) => a.name.localeCompare(b.name))
+            const sortedSymptoms = data.symptoms.sort((a: any, b: any) => a.name.localeCompare(b.name))
             setSymptoms(sortedSymptoms)
           }
         })
@@ -80,7 +80,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
           .then(data => {
             if (data.symptoms && Array.isArray(data.symptoms)) {
               // Ensure symptoms are sorted alphabetically
-              const sortedSymptoms = data.symptoms.sort((a, b) => a.name.localeCompare(b.name))
+              const sortedSymptoms = data.symptoms.sort((a: any, b: any) => a.name.localeCompare(b.name))
               setSymptoms(sortedSymptoms)
             }
           })
