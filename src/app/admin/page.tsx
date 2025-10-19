@@ -57,6 +57,10 @@ export default async function AdminPage() {
       surgeryId: isSuperuser ? undefined : user.memberships.find(m => m.role === 'ADMIN')?.surgeryId,
       surgerySlug: undefined
     }
+    
+    console.log('Admin page - User memberships:', user.memberships)
+    console.log('Admin page - Admin membership:', user.memberships.find(m => m.role === 'ADMIN'))
+    console.log('Admin page - Created session:', session)
 
     return (
       <AdminPageClient 

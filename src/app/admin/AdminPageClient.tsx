@@ -124,10 +124,15 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   // Initialize selected surgery based on session type
   useEffect(() => {
+    console.log('AdminPageClient - Session:', session)
+    console.log('AdminPageClient - Surgeries:', surgeries)
+    
     if (session.type === 'surgery' && session.surgeryId) {
+      console.log('AdminPageClient - Setting selectedSurgery to:', session.surgeryId)
       setSelectedSurgery(session.surgeryId)
     } else if (session.type === 'superuser' && surgeries.length > 0) {
       // For superuser, default to first surgery
+      console.log('AdminPageClient - Setting selectedSurgery to first surgery:', surgeries[0].id)
       setSelectedSurgery(surgeries[0].id)
     }
   }, [session, surgeries])
