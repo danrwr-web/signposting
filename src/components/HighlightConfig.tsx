@@ -143,6 +143,7 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
     }
 
     console.log('Toggle built-in highlights:', enabled, 'for surgery:', surgeryId)
+    console.log('HighlightConfig surgeryId type:', typeof surgeryId, 'value:', surgeryId)
 
     try {
       const response = await fetch(`/api/admin/surgery-settings`, {

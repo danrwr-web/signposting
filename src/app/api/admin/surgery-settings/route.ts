@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/server/auth'
+import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -18,24 +18,42 @@ const updateSurgerySettingsSchema = z.object({
 // PATCH /api/admin/surgery-settings - Update surgery settings
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSession()
-    console.log('Surgery settings API - Session:', session)
+    const user = await getSessionUser()
+    console.log('Surgery settings API - User:', user)
     
-    // Check if user is logged in and has surgery access
-    if (!session) {
+    // Check if user is logged in
+    if (!user) {
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       )
     }
 
-    // For surgery admins, they must have a surgeryId
-    // For superusers, they can access any surgery
-    const targetSurgeryId = session.surgeryId
-    console.log('Surgery settings API - targetSurgeryId:', targetSurgeryId, 'session type:', session.type)
+    // For surgery admins, get surgery ID from their admin membership
+    // For superusers, they can access any surgery (but we need a surgery ID)
+    let targetSurgeryId: string | null = null
     
-    if (!targetSurgeryId && session.type !== 'superuser') {
-      console.log('Surgery settings API - No surgeryId found for non-superuser')
+    if (user.globalRole === 'SUPERUSER') {
+      // For superusers, we need to get surgery ID from request or use first available
+      const url = new URL(request.url)
+      const surgeryParam = url.searchParams.get('surgeryId')
+      if (surgeryParam) {
+        targetSurgeryId = surgeryParam
+      } else {
+        // Use first available surgery for superuser
+        const firstSurgery = await prisma.surgery.findFirst()
+        targetSurgeryId = firstSurgery?.id || null
+      }
+    } else {
+      // For surgery admins, use their admin surgery ID
+      const adminMembership = user.memberships.find(m => m.role === 'ADMIN')
+      targetSurgeryId = adminMembership?.surgeryId || null
+    }
+    
+    console.log('Surgery settings API - targetSurgeryId:', targetSurgeryId, 'user role:', user.globalRole)
+    
+    if (!targetSurgeryId) {
+      console.log('Surgery settings API - No surgeryId found')
       return NextResponse.json(
         { error: 'Unauthorized - surgery admin access required' },
         { status: 401 }
