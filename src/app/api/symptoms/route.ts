@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
+import { checkTestUserUsageLimit } from '@/lib/test-user-limits'
 
 export const runtime = 'nodejs'
 
@@ -35,6 +36,9 @@ async function getSurgeryIdFromContext(req: NextRequest): Promise<string | null>
 
 export async function GET(req: NextRequest) {
   try {
+    // Check test user usage limits
+    await checkTestUserUsageLimit()
+    
     const url = new URL(req.url)
     const letter = url.searchParams.get('letter')
     const searchQuery = url.searchParams.get('q')

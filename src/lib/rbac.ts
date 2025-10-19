@@ -9,6 +9,9 @@ export interface SessionUser {
   name?: string
   globalRole: string
   defaultSurgeryId?: string
+  isTestUser: boolean
+  symptomUsageLimit?: number | null
+  symptomsUsed: number
   memberships: Array<{
     surgeryId: string
     role: string
@@ -46,6 +49,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       name: user.name,
       globalRole: user.globalRole,
       defaultSurgeryId: user.defaultSurgeryId,
+      isTestUser: user.isTestUser,
+      symptomUsageLimit: user.symptomUsageLimit,
+      symptomsUsed: user.symptomsUsed,
       memberships: user.memberships.map(m => ({
         surgeryId: m.surgeryId,
         role: m.role

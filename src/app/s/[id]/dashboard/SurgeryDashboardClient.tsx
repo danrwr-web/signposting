@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
+import TestUserUsage from '@/components/TestUserUsage'
 
 interface Surgery {
   id: string
@@ -50,6 +51,13 @@ export default function SurgeryDashboardClient({ surgery, user }: SurgeryDashboa
           </div>
         </div>
       </header>
+
+      {/* Test User Usage Display */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <TestUserUsage />
+        </div>
+      </div>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

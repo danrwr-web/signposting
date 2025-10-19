@@ -10,6 +10,9 @@ interface User {
   globalRole: string
   defaultSurgeryId: string | null
   createdAt: Date
+  isTestUser: boolean
+  symptomUsageLimit: number | null
+  symptomsUsed: number
   memberships: Array<{
     id: string
     role: string
@@ -35,7 +38,9 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
     email: '',
     name: '',
     password: '',
-    globalRole: 'USER'
+    globalRole: 'USER',
+    isTestUser: false,
+    symptomUsageLimit: 25
   })
 
   const handleEditUser = (user: User) => {
@@ -98,7 +103,34 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
     }
     
     setShowCreateModal(false)
-    setNewUser({ email: '', name: '', password: '', globalRole: 'USER' })
+    setNewUser({ email: '', name: '', password: '', globalRole: 'USER', isTestUser: false, symptomUsageLimit: 25 })
+  }
+
+  const handleResetTestUserUsage = async (userId: string) => {
+    if (!confirm('Are you sure you want to reset this test user\'s usage count?')) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/test-users/reset-usage', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId }),
+      })
+
+      if (response.ok) {
+        alert('Test user usage reset successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error resetting usage: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error resetting usage:', error)
+      alert('Failed to reset usage. Please try again.')
+    }
   }
 
   return (
@@ -171,22 +203,42 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                           }`}>
                             {user.globalRole}
                           </span>
+                          {user.isTestUser && (
+                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              TEST USER
+                            </span>
+                          )}
                         </div>
                         {user.defaultSurgery && (
                           <div className="mt-1 text-xs text-gray-400">
                             Default: {user.defaultSurgery.name}
                           </div>
                         )}
+                        {user.isTestUser && user.symptomUsageLimit && (
+                          <div className="mt-1 text-xs text-gray-400">
+                            Usage: {user.symptomsUsed}/{user.symptomUsageLimit} symptoms
+                          </div>
+                        )}
                       </div>
                       <div className="text-sm text-gray-500">
                         {user.memberships.length} surgery{user.memberships.length !== 1 ? 'ies' : ''}
                       </div>
-                      <button 
-                        onClick={() => handleEditUser(user)}
-                        className="text-blue-600 hover:text-blue-500 text-sm font-medium"
-                      >
-                        Edit
-                      </button>
+                      <div className="flex space-x-2">
+                        <button 
+                          onClick={() => handleEditUser(user)}
+                          className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                        {user.isTestUser && (
+                          <button 
+                            onClick={() => handleResetTestUserUsage(user.id)}
+                            className="text-green-600 hover:text-green-500 text-sm font-medium"
+                          >
+                            Reset Usage
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                   {user.memberships.length > 0 && (
@@ -265,7 +317,7 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                     placeholder="Enter password"
                   />
                 </div>
-                <div className="mb-6">
+                <div className="mb-4">
                   <label htmlFor="globalRole" className="block text-sm font-medium text-gray-700 mb-1">
                     Global Role
                   </label>
@@ -279,6 +331,36 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                     <option value="SUPERUSER">Superuser</option>
                   </select>
                 </div>
+                <div className="mb-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={newUser.isTestUser}
+                      onChange={(e) => setNewUser({ ...newUser, isTestUser: e.target.checked })}
+                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">Test User (Limited Access)</span>
+                  </label>
+                </div>
+                {newUser.isTestUser && (
+                  <div className="mb-6">
+                    <label htmlFor="symptomUsageLimit" className="block text-sm font-medium text-gray-700 mb-1">
+                      Symptom Usage Limit
+                    </label>
+                    <input
+                      type="number"
+                      id="symptomUsageLimit"
+                      min="1"
+                      value={newUser.symptomUsageLimit}
+                      onChange={(e) => setNewUser({ ...newUser, symptomUsageLimit: parseInt(e.target.value) || 25 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="25"
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Number of symptoms the test user can view before being locked out
+                    </p>
+                  </div>
+                )}
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"

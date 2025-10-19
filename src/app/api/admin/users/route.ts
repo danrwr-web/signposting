@@ -8,7 +8,9 @@ const createUserSchema = z.object({
   email: z.string().email(),
   name: z.string().optional(),
   password: z.string().min(1, 'Password is required'),
-  globalRole: z.enum(['USER', 'SUPERUSER']).default('USER')
+  globalRole: z.enum(['USER', 'SUPERUSER']).default('USER'),
+  isTestUser: z.boolean().default(false),
+  symptomUsageLimit: z.number().int().positive().optional()
 })
 
 const updateUserSchema = z.object({
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
     await requireSuperuser()
     
     const body = await request.json()
-    const { email, name, password, globalRole } = createUserSchema.parse(body)
+    const { email, name, password, globalRole, isTestUser, symptomUsageLimit } = createUserSchema.parse(body)
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -66,7 +68,10 @@ export async function POST(request: NextRequest) {
         email,
         name,
         password: await bcrypt.hash(password, 12),
-        globalRole
+        globalRole,
+        isTestUser,
+        symptomUsageLimit: isTestUser ? (symptomUsageLimit || 25) : null,
+        symptomsUsed: 0
       },
       include: {
         memberships: {

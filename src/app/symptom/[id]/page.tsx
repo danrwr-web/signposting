@@ -1,9 +1,10 @@
 import 'server-only'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptomById, getEffectiveSymptomBySlug } from '@/server/effectiveSymptoms'
 import InstructionView from '@/components/InstructionView'
 import SimpleHeader from '@/components/SimpleHeader'
+import { getSessionUser } from '@/lib/rbac'
 
 // Disable caching for this page to prevent stale data
 export const dynamic = 'force-dynamic'
@@ -72,7 +73,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
     orderBy: { name: 'asc' }
   })
 
-  // Log engagement event
+  // Log engagement event and track usage for test users
   if (surgeryId) {
     // Determine the base symptom ID for the engagement event
     let baseSymptomId: string | null = null
@@ -96,6 +97,34 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
           event: 'view_symptom'
         }
       })
+    }
+
+    // Track usage for test users
+    const sessionUser = await getSessionUser()
+    if (sessionUser?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: sessionUser.email },
+        select: { 
+          id: true, 
+          isTestUser: true, 
+          symptomsUsed: true, 
+          symptomUsageLimit: true 
+        }
+      })
+
+      if (user?.isTestUser && user.symptomUsageLimit) {
+        // Check if user has reached their limit
+        if (user.symptomsUsed >= user.symptomUsageLimit) {
+          // Redirect to lockout page
+          redirect('/test-user-lockout')
+        }
+
+        // Increment usage count
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { symptomsUsed: user.symptomsUsed + 1 }
+        })
+      }
     }
   }
 

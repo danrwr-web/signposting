@@ -24,6 +24,11 @@ model User {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   
+  // Test user fields
+  isTestUser        Boolean       @default(false)
+  symptomUsageLimit Int?          // null = unlimited, number = limit
+  symptomsUsed      Int           @default(0)
+  
   // NextAuth.js fields
   emailVerified     DateTime?
   image             String?
