@@ -6,6 +6,7 @@ generator client {
 }
 
 datasource db {
+  // CRITICAL: Always keep provider as "postgresql" - changing to "sqlite" breaks Vercel deployments
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
