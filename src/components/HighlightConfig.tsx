@@ -142,6 +142,8 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       return
     }
 
+    console.log('Toggle built-in highlights:', enabled, 'for surgery:', surgeryId)
+
     try {
       const response = await fetch(`/api/admin/surgery-settings`, {
         method: 'PATCH',
@@ -149,11 +151,17 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
         body: JSON.stringify({ enableBuiltInHighlights: enabled })
       })
 
+      console.log('Toggle response status:', response.status)
+
       if (response.ok) {
+        const result = await response.json()
+        console.log('Toggle response data:', result)
         setEnableBuiltInHighlights(enabled)
         toast.success(`Built-in highlights ${enabled ? 'enabled' : 'disabled'}`)
       } else {
-        toast.error('Failed to update built-in highlights setting')
+        const errorData = await response.json()
+        console.error('Toggle error response:', errorData)
+        toast.error(`Failed to update built-in highlights setting: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error updating built-in highlights setting:', error)

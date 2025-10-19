@@ -37,9 +37,13 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
         const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
+          console.log('SymptomCard: API response:', json)
           const { highlights, enableBuiltInHighlights: builtInEnabled } = json
+          console.log('SymptomCard: Parsed highlights:', highlights)
           setHighlightRules(Array.isArray(highlights) ? highlights : [])
           setEnableBuiltInHighlights(builtInEnabled ?? true)
+        } else {
+          console.error('SymptomCard: Failed to fetch highlights:', response.status, response.statusText)
         }
       } catch (error) {
         console.error('Failed to load highlight rules:', error)
