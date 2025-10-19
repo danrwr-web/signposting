@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest) {
 
     // For surgery admins, they must have a surgeryId
     // For superusers, they can access any surgery
-    const targetSurgeryId = session.surgeryId || session.surgery?.id
+    const targetSurgeryId = session.surgeryId
     if (!targetSurgeryId && session.type !== 'superuser') {
       return NextResponse.json(
         { error: 'Unauthorized - surgery admin access required' },
