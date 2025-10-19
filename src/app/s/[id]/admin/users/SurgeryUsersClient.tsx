@@ -27,7 +27,9 @@ interface SurgeryUsersClientProps {
 
 export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClientProps) {
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editingUser, setEditingUser] = useState<{ id: string; email: string; name: string | null; role: string } | null>(null)
   const [newUserEmail, setNewUserEmail] = useState('')
+  const [newUserName, setNewUserName] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState('STANDARD')
 
@@ -41,6 +43,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
         },
         body: JSON.stringify({
           email: newUserEmail,
+          name: newUserName,
           password: newUserPassword,
           role: newUserRole,
         }),
@@ -60,6 +63,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
     
     setShowAddModal(false)
     setNewUserEmail('')
+    setNewUserName('')
     setNewUserPassword('')
     setNewUserRole('STANDARD')
   }
@@ -83,6 +87,46 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
         alert('Failed to remove user')
       }
     }
+  }
+
+  const handleEditUser = (membership: { id: string; role: string; user: { id: string; email: string; name: string | null } }) => {
+    setEditingUser({
+      id: membership.user.id,
+      email: membership.user.email,
+      name: membership.user.name,
+      role: membership.role
+    })
+  }
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingUser) return
+    
+    try {
+      const response = await fetch(`/api/s/${surgery.id}/members/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: editingUser.name,
+          role: editingUser.role
+        }),
+      })
+
+      if (response.ok) {
+        // Refresh the page to show the updated user
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error updating user: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error updating user:', error)
+      alert('Failed to update user. Please try again.')
+    }
+    
+    setEditingUser(null)
   }
 
   const handleSetDefaultSurgery = async (userId: string) => {
@@ -186,6 +230,12 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                         )}
                       </div>
                       <div className="flex space-x-2">
+                        <button 
+                          onClick={() => handleEditUser(membership)}
+                          className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
                         {membership.user.defaultSurgeryId !== surgery.id && (
                           <button
                             onClick={() => handleSetDefaultSurgery(membership.user.id)}
@@ -237,6 +287,19 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                   </p>
                 </div>
                 <div className="mb-4">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="mb-4">
                   <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
                     Password
                   </label>
@@ -277,6 +340,78 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Add User
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Edit User
+              </h3>
+              <form onSubmit={handleUpdateUser}>
+                <div className="mb-4">
+                  <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    id="edit-email"
+                    value={editingUser.email}
+                    disabled
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Email cannot be changed
+                  </p>
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    id="edit-name"
+                    value={editingUser.name || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div className="mb-6">
+                  <label htmlFor="edit-role" className="block text-sm font-medium text-gray-700 mb-1">
+                    Role
+                  </label>
+                  <select
+                    id="edit-role"
+                    value={editingUser.role}
+                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="STANDARD">Standard User</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Update User
                   </button>
                 </div>
               </form>

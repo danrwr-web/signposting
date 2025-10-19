@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 const updateMemberSchema = z.object({
   role: z.enum(['STANDARD', 'ADMIN']).optional(),
+  name: z.string().optional(),
   setAsDefault: z.boolean().optional()
 })
 
@@ -18,7 +19,7 @@ export async function PATCH(
     await requireSurgeryAdmin(surgeryId)
     
     const body = await request.json()
-    const { role, setAsDefault } = updateMemberSchema.parse(body)
+    const { role, name, setAsDefault } = updateMemberSchema.parse(body)
 
     // Check if membership exists
     const membership = await prisma.userSurgery.findUnique({
@@ -50,6 +51,14 @@ export async function PATCH(
       })
     }
 
+    // Update user name if provided
+    if (name !== undefined) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { name: name || null }
+      })
+    }
+
     // Set as default surgery if requested
     if (setAsDefault) {
       await prisma.user.update({
@@ -77,7 +86,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid input', details: error.issues }, { status: 400 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

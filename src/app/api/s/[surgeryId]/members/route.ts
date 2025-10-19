@@ -6,12 +6,14 @@ import bcrypt from 'bcryptjs'
 
 const addMemberSchema = z.object({
   email: z.string().email(),
+  name: z.string().optional(),
   password: z.string().min(1, 'Password is required'),
   role: z.enum(['STANDARD', 'ADMIN']).default('STANDARD')
 })
 
 const updateMemberSchema = z.object({
   role: z.enum(['STANDARD', 'ADMIN']).optional(),
+  name: z.string().optional(),
   setAsDefault: z.boolean().optional()
 })
 
@@ -58,7 +60,7 @@ export async function POST(
     await requireSurgeryAdmin(surgeryId)
     
     const body = await request.json()
-    const { email, password, role } = addMemberSchema.parse(body)
+    const { email, name, password, role } = addMemberSchema.parse(body)
 
     // Check if surgery exists
     const surgery = await prisma.surgery.findUnique({
@@ -78,7 +80,7 @@ export async function POST(
       user = await prisma.user.create({
         data: {
           email,
-          name: null,
+          name: name || null,
           password: await bcrypt.hash(password, 12),
           globalRole: 'USER',
           defaultSurgeryId: surgeryId
