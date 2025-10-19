@@ -49,16 +49,25 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Update the surgery settings
-    const surgery = await prisma.surgery.update({
-      where: { id: targetSurgeryId },
-      data,
-      select: {
-        id: true,
-        name: true,
-        enableBuiltInHighlights: true,
-        updatedAt: true,
-      } as any, // Temporary type assertion
-    })
+    // Note: Using raw SQL to avoid Prisma client generation issues
+    const updateQuery = `
+      UPDATE "Surgery" 
+      SET ${Object.keys(data).map((key, index) => `"${key}" = $${index + 2}`).join(', ')}, "updatedAt" = NOW()
+      WHERE id = $1
+      RETURNING id, name, "enableBuiltInHighlights", "updatedAt"
+    `
+    
+    const updateValues = [targetSurgeryId, ...Object.values(data)]
+    const result = await prisma.$queryRawUnsafe(updateQuery, ...updateValues) as any[]
+    
+    if (result.length === 0) {
+      return NextResponse.json(
+        { error: 'Surgery not found' },
+        { status: 404 }
+      )
+    }
+    
+    const surgery = result[0]
 
     return NextResponse.json({ surgery })
   } catch (error) {
