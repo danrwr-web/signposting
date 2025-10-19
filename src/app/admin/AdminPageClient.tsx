@@ -53,6 +53,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     highlightedText: '',
     linkToPage: ''
   })
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false)
+  const [clearConfirmText, setClearConfirmText] = useState('')
 
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [effectiveSymptoms, setEffectiveSymptoms] = useState<EffectiveSymptom[]>([])
@@ -485,6 +487,38 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     }
   }
 
+  const handleClearAllData = async () => {
+    if (clearConfirmText !== 'DELETE ALL DATA') {
+      toast.error('Please type "DELETE ALL DATA" exactly to confirm')
+      return
+    }
+
+    setIsLoading(true)
+    try {
+      const response = await fetch('/api/admin/clear-all-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirmText: clearConfirmText })
+      })
+
+      if (response.ok) {
+        toast.success('All data cleared successfully')
+        setShowClearAllDialog(false)
+        setClearConfirmText('')
+        // Refresh the page to show empty state
+        window.location.reload()
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
+        console.error('Clear all data failed:', errorData)
+        toast.error(`Failed to clear data: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error clearing all data:', error)
+      toast.error('Failed to clear all data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
@@ -564,15 +598,23 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                         {session.type === 'superuser' ? 'Delete Symptom' : 'Hide Symptom'}
                       </button>
                       {session.type === 'superuser' && (
-                        <button
-                          onClick={() => {
-                            setShowHiddenSymptomsDialog(true)
-                            loadHiddenSymptoms()
-                          }}
-                          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
-                        >
-                          Manage Hidden Symptoms
-                        </button>
+                        <>
+                          <button
+                            onClick={() => {
+                              setShowHiddenSymptomsDialog(true)
+                              loadHiddenSymptoms()
+                            }}
+                            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
+                          >
+                            Manage Hidden Symptoms
+                          </button>
+                          <button
+                            onClick={() => setShowClearAllDialog(true)}
+                            className="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors text-sm font-semibold"
+                          >
+                            🗑️ Clear All Data
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1156,6 +1198,75 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 className="nhs-button-secondary"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Data Warning Modal */}
+      {showClearAllDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center mb-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <span className="text-red-600 text-xl">⚠️</span>
+                </div>
+              </div>
+              <div className="ml-3">
+                <h3 className="text-lg font-semibold text-red-600">
+                  Clear All Data
+                </h3>
+              </div>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-sm text-gray-600 mb-4">
+                <strong>WARNING:</strong> This action will permanently delete ALL data from the system:
+              </p>
+              <ul className="text-sm text-gray-600 list-disc list-inside mb-4 space-y-1">
+                <li>All base symptoms</li>
+                <li>All custom symptoms</li>
+                <li>All surgery overrides</li>
+                <li>All highlight rules</li>
+                <li>All high-risk button configurations</li>
+              </ul>
+              <p className="text-sm text-red-600 font-semibold">
+                This action cannot be undone!
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                To confirm, type: <code className="bg-gray-100 px-2 py-1 rounded">DELETE ALL DATA</code>
+              </label>
+              <input
+                type="text"
+                value={clearConfirmText}
+                onChange={(e) => setClearConfirmText(e.target.value)}
+                placeholder="Type confirmation text here..."
+                className="w-full nhs-input border-red-300 focus:border-red-500 focus:ring-red-500"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={handleClearAllData}
+                disabled={clearConfirmText !== 'DELETE ALL DATA' || isLoading}
+                className="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                {isLoading ? 'Clearing...' : '🗑️ Clear All Data'}
+              </button>
+              <button
+                onClick={() => {
+                  setShowClearAllDialog(false)
+                  setClearConfirmText('')
+                }}
+                className="nhs-button-secondary"
+              >
+                Cancel
               </button>
             </div>
           </div>
