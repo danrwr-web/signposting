@@ -55,11 +55,8 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
 
   // Fetch symptoms when surgery changes
   useEffect(() => {
-    if (currentSurgeryId) {
+    if (currentSurgeryId && surgerySlug) {
       setIsLoadingSymptoms(true)
-      // Find the surgery slug for the API call
-      const surgery = surgeries.find(s => s.id === currentSurgeryId)
-      const surgerySlug = surgery?.slug || currentSurgeryId
       
       // Add timestamp to force refresh and avoid caching issues
       const timestamp = Date.now()
@@ -78,14 +75,12 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
           setIsLoadingSymptoms(false)
         })
     }
-  }, [currentSurgeryId, surgeries])
+  }, [currentSurgeryId, surgerySlug])
 
   // Periodic refresh of symptoms to pick up override changes
   useEffect(() => {
-    if (currentSurgeryId) {
+    if (currentSurgeryId && surgerySlug) {
       const interval = setInterval(() => {
-        const surgery = surgeries.find(s => s.id === currentSurgeryId)
-        const surgerySlug = surgery?.slug || currentSurgeryId
         const timestamp = Date.now()
         
         fetch(`/api/symptoms?surgery=${surgerySlug}&t=${timestamp}`)
@@ -102,7 +97,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
       
       return () => clearInterval(interval)
     }
-  }, [currentSurgeryId, surgeries])
+  }, [currentSurgeryId, surgerySlug])
 
   // Load age filter from localStorage
   useEffect(() => {
