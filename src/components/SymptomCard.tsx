@@ -13,13 +13,6 @@ interface SymptomCardProps {
 export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
 
-  // Debug logging for surgerySlug
-  useEffect(() => {
-    console.log('SymptomCard: Received surgerySlug =', surgerySlug, 'for symptom:', symptom.id, symptom.name)
-    if (!surgerySlug) {
-      console.warn('SymptomCard: surgerySlug is undefined for symptom:', symptom.id, symptom.name)
-    }
-  }, [surgerySlug, symptom.id, symptom.name])
 
   // Load highlight rules from API
   useEffect(() => {
