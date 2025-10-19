@@ -95,13 +95,17 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     try {
       // For base symptom editing, we need to fetch fresh data from the API
       if (editingMode === 'base') {
-        const response = await fetch('/api/admin/symptoms')
+        // Add cache-busting parameter to ensure fresh data
+        const timestamp = Date.now()
+        const response = await fetch(`/api/admin/symptoms?t=${timestamp}`, {
+          cache: 'no-store'
+        })
         if (response.ok) {
           const freshSymptoms = await response.json()
           const validSymptoms = Array.isArray(freshSymptoms) 
             ? freshSymptoms.filter((symptom): symptom is EffectiveSymptom => 
                 symptom.slug !== undefined
-              )
+              ).sort((a, b) => a.name.localeCompare(b.name))
             : []
           setEffectiveSymptoms(validSymptoms)
         } else {
@@ -112,7 +116,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         const validSymptoms = Array.isArray(symptoms) 
           ? symptoms.filter((symptom): symptom is EffectiveSymptom => 
               symptom.slug !== undefined
-            )
+            ).sort((a, b) => a.name.localeCompare(b.name))
           : []
         setEffectiveSymptoms(validSymptoms)
       }

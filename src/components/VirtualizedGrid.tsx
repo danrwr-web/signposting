@@ -40,6 +40,11 @@ export default function VirtualizedGrid({
   itemHeight = DEFAULT_ITEM_HEIGHT,
   overscan = DEFAULT_OVERSCAN
 }: VirtualizedGridProps) {
+  // Ensure symptoms are sorted alphabetically
+  const sortedSymptoms = useMemo(() => 
+    [...symptoms].sort((a, b) => a.name.localeCompare(b.name)), 
+    [symptoms]
+  )
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerHeight, setContainerHeight] = useState(0)
   const [scrollTop, setScrollTop] = useState(0)
@@ -109,10 +114,10 @@ export default function VirtualizedGrid({
     const itemsPerPage = rowsPerPage * itemsPerRow
 
     const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) * itemsPerRow - overscan * itemsPerRow)
-    const endIndex = Math.min(symptoms.length, startIndex + itemsPerPage + overscan * itemsPerRow)
+    const endIndex = Math.min(sortedSymptoms.length, startIndex + itemsPerPage + overscan * itemsPerRow)
 
     return { start: startIndex, end: endIndex }
-  }, [scrollTop, containerHeight, gridDimensions.columns, itemHeight, overscan, symptoms.length])
+  }, [scrollTop, containerHeight, gridDimensions.columns, itemHeight, overscan, sortedSymptoms.length])
 
   // Handle scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -120,17 +125,17 @@ export default function VirtualizedGrid({
   }
 
   // Calculate total height
-  const totalRows = Math.ceil(symptoms.length / gridDimensions.columns)
+  const totalRows = Math.ceil(sortedSymptoms.length / gridDimensions.columns)
   const totalHeight = totalRows * itemHeight + (totalRows - 1) * 24 // gap
 
   // Get visible symptoms
-  const visibleSymptoms = symptoms.slice(visibleRange.start, visibleRange.end)
+  const visibleSymptoms = sortedSymptoms.slice(visibleRange.start, visibleRange.end)
 
   // If we have fewer than 150 symptoms, render normally without virtualization
-  if (symptoms.length <= 150) {
+  if (sortedSymptoms.length <= 150) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {symptoms.map((symptom) => (
+        {sortedSymptoms.map((symptom) => (
           <SymptomCard key={symptom.id} symptom={symptom} surgerySlug={surgerySlug} />
         ))}
       </div>

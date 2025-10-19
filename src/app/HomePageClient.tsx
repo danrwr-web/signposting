@@ -54,7 +54,9 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         .then(response => response.json())
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
-            setSymptoms(data.symptoms)
+            // Ensure symptoms are sorted alphabetically
+            const sortedSymptoms = data.symptoms.sort((a, b) => a.name.localeCompare(b.name))
+            setSymptoms(sortedSymptoms)
           }
         })
         .catch(error => {
@@ -77,7 +79,9 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
           .then(response => response.json())
           .then(data => {
             if (data.symptoms && Array.isArray(data.symptoms)) {
-              setSymptoms(data.symptoms)
+              // Ensure symptoms are sorted alphabetically
+              const sortedSymptoms = data.symptoms.sort((a, b) => a.name.localeCompare(b.name))
+              setSymptoms(sortedSymptoms)
             }
           })
           .catch(error => {
