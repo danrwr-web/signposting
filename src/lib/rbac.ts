@@ -46,9 +46,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     return {
       id: user.id,
       email: user.email,
-      name: user.name,
+      name: user.name || undefined,
       globalRole: user.globalRole,
-      defaultSurgeryId: user.defaultSurgeryId,
+      defaultSurgeryId: user.defaultSurgeryId || undefined,
       isTestUser: user.isTestUser,
       symptomUsageLimit: user.symptomUsageLimit,
       symptomsUsed: user.symptomsUsed,

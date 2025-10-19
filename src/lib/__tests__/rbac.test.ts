@@ -9,6 +9,8 @@ describe('RBAC Utilities', () => {
       name: 'Super User',
       globalRole: 'SUPERUSER',
       defaultSurgeryId: 'surgery1',
+      isTestUser: false,
+      symptomsUsed: 0,
       memberships: [
         { surgeryId: 'surgery1', role: 'ADMIN' },
         { surgeryId: 'surgery2', role: 'STANDARD' }
@@ -21,6 +23,8 @@ describe('RBAC Utilities', () => {
       name: 'Admin User',
       globalRole: 'USER',
       defaultSurgeryId: 'surgery1',
+      isTestUser: false,
+      symptomsUsed: 0,
       memberships: [
         { surgeryId: 'surgery1', role: 'ADMIN' },
         { surgeryId: 'surgery2', role: 'STANDARD' }
@@ -33,6 +37,8 @@ describe('RBAC Utilities', () => {
       name: 'Standard User',
       globalRole: 'USER',
       defaultSurgeryId: 'surgery1',
+      isTestUser: false,
+      symptomsUsed: 0,
       memberships: [
         { surgeryId: 'surgery1', role: 'STANDARD' }
       ]

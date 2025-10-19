@@ -22,6 +22,8 @@ describe('SurgeryContext', () => {
       email: 'admin@example.com',
       globalRole: 'USER',
       defaultSurgeryId: 'surgery1',
+      isTestUser: false,
+      symptomsUsed: 0,
       memberships: [
         { surgeryId: 'surgery1', role: 'ADMIN' },
         { surgeryId: 'surgery2', role: 'STANDARD' }
@@ -85,6 +87,8 @@ describe('SurgeryContext', () => {
         email: 'superuser@example.com',
         globalRole: 'SUPERUSER',
         defaultSurgeryId: 'surgery1',
+        isTestUser: false,
+        symptomsUsed: 0,
         memberships: []
       }
     }
