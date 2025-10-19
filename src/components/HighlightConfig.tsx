@@ -109,7 +109,12 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
         toast.success('Highlight rule deleted successfully')
         loadHighlights()
       } else {
-        toast.error('Failed to delete highlight rule')
+        const errorData = await response.json()
+        if (response.status === 403) {
+          toast.error(errorData.error || 'You do not have permission to delete this rule')
+        } else {
+          toast.error(errorData.error || 'Failed to delete highlight rule')
+        }
       }
     } catch (error) {
       console.error('Error deleting highlight:', error)
@@ -351,12 +356,21 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
                 >
                   {highlight.isEnabled ? 'Enabled' : 'Disabled'}
                 </button>
-                <button
-                  onClick={() => handleDeleteHighlight(highlight.id)}
-                  className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
-                >
-                  Delete
-                </button>
+                {/* Only show delete button for rules that can be deleted */}
+                {(isSuperuser || highlight.surgeryId !== null) && (
+                  <button
+                    onClick={() => handleDeleteHighlight(highlight.id)}
+                    className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
+                  >
+                    Delete
+                  </button>
+                )}
+                {/* Show indicator for global rules that can't be deleted by surgery admins */}
+                {!isSuperuser && highlight.surgeryId === null && (
+                  <span className="text-xs text-blue-600 font-medium">
+                    Global rule
+                  </span>
+                )}
               </div>
             </div>
           ))

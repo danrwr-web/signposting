@@ -5,7 +5,8 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { updateHighlightRule, deleteHighlightRule } from '@/server/highlights'
+import { updateHighlightRule, deleteHighlightRule, getAllHighlightRules } from '@/server/highlights'
+import { getSession } from '@/server/auth'
 
 export const runtime = 'nodejs'
 
@@ -58,7 +59,31 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const session = await getSession()
     const { id } = await params
+
+    // Check if the rule exists and get its details
+    // Get all rules (both global and surgery-specific) to find the rule
+    const globalRules = await getAllHighlightRules(null)
+    const surgeryRules = session?.type === 'surgery' ? await getAllHighlightRules(session.surgeryId) : []
+    const allRules = [...globalRules, ...surgeryRules]
+    const ruleToDelete = allRules.find(rule => rule.id === id)
+    
+    // If rule is global (surgeryId is null) and user is not a superuser, prevent deletion
+    if (ruleToDelete && ruleToDelete.surgeryId === null && session?.type !== 'superuser') {
+      return NextResponse.json(
+        { error: 'Cannot delete global rules - only disable/enable is allowed' },
+        { status: 403 }
+      )
+    }
+
+    // If rule belongs to a surgery and user is not the admin of that surgery or superuser, prevent deletion
+    if (ruleToDelete && ruleToDelete.surgeryId && session?.type === 'surgery' && session.surgeryId !== ruleToDelete.surgeryId) {
+      return NextResponse.json(
+        { error: 'Cannot delete rules from other surgeries' },
+        { status: 403 }
+      )
+    }
 
     await deleteHighlightRule(id)
 
