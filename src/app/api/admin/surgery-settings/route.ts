@@ -32,7 +32,10 @@ export async function PATCH(request: NextRequest) {
     // For surgery admins, they must have a surgeryId
     // For superusers, they can access any surgery
     const targetSurgeryId = session.surgeryId
+    console.log('Surgery settings API - targetSurgeryId:', targetSurgeryId, 'session type:', session.type)
+    
     if (!targetSurgeryId && session.type !== 'superuser') {
+      console.log('Surgery settings API - No surgeryId found for non-superuser')
       return NextResponse.json(
         { error: 'Unauthorized - surgery admin access required' },
         { status: 401 }
@@ -58,9 +61,14 @@ export async function PATCH(request: NextRequest) {
     `
     
     const updateValues = [targetSurgeryId, ...Object.values(data)]
+    console.log('Surgery settings API - Update query:', updateQuery)
+    console.log('Surgery settings API - Update values:', updateValues)
+    
     const result = await prisma.$queryRawUnsafe(updateQuery, ...updateValues) as any[]
+    console.log('Surgery settings API - Query result:', result)
     
     if (result.length === 0) {
+      console.log('Surgery settings API - No surgery found with ID:', targetSurgeryId)
       return NextResponse.json(
         { error: 'Surgery not found' },
         { status: 404 }
