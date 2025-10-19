@@ -13,6 +13,13 @@ interface SymptomCardProps {
 export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
 
+  // Debug logging for surgerySlug
+  useEffect(() => {
+    console.log('SymptomCard: Received surgerySlug =', surgerySlug, 'for symptom:', symptom.id, symptom.name)
+    if (!surgerySlug) {
+      console.warn('SymptomCard: surgerySlug is undefined for symptom:', symptom.id, symptom.name)
+    }
+  }, [surgerySlug, symptom.id, symptom.name])
 
   // Load highlight rules from API
   useEffect(() => {
@@ -73,8 +80,11 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     return applyHighlightRules(text, highlightRules)
   }
 
+  const linkUrl = `/symptom/${symptom.id || 'unknown'}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`
+  console.log('SymptomCard: Generated link URL =', linkUrl, 'for symptom:', symptom.name)
+
   return (
-    <Link href={`/symptom/${symptom.id || 'unknown'}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`}>
+    <Link href={linkUrl}>
       <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col group">
         {/* Header with title and badges */}
         <div className="flex items-start justify-between mb-2">
