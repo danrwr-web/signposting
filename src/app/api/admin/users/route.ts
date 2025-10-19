@@ -63,6 +63,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User already exists' }, { status: 400 })
     }
 
+    // For test users, assign them to the first available surgery
+    let defaultSurgeryId = null
+    if (isTestUser) {
+      const firstSurgery = await prisma.surgery.findFirst({
+        select: { id: true }
+      })
+      if (firstSurgery) {
+        defaultSurgeryId = firstSurgery.id
+      }
+    }
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -70,8 +81,16 @@ export async function POST(request: NextRequest) {
         password: await bcrypt.hash(password, 12),
         globalRole,
         isTestUser,
+        defaultSurgeryId,
         symptomUsageLimit: isTestUser ? (symptomUsageLimit || 25) : null,
-        symptomsUsed: 0
+        symptomsUsed: 0,
+        // Create membership for test users
+        memberships: isTestUser && defaultSurgeryId ? {
+          create: {
+            surgeryId: defaultSurgeryId,
+            role: 'STANDARD'
+          }
+        } : undefined
       },
       include: {
         memberships: {
