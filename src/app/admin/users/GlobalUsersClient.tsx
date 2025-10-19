@@ -40,6 +40,8 @@ interface GlobalUsersClientProps {
 export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [showMembershipModal, setShowMembershipModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [newUser, setNewUser] = useState({
     email: '',
     name: '',
@@ -47,6 +49,10 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
     globalRole: 'USER',
     isTestUser: false,
     symptomUsageLimit: 25
+  })
+  const [newMembership, setNewMembership] = useState({
+    surgeryId: '',
+    role: 'STANDARD' as 'STANDARD' | 'ADMIN'
   })
 
   const handleEditUser = (user: User) => {
@@ -163,6 +169,87 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
     }
   }
 
+  const handleManageMemberships = (user: User) => {
+    setSelectedUser(user)
+    setShowMembershipModal(true)
+  }
+
+  const handleAddMembership = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedUser) return
+
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/memberships`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newMembership),
+      })
+
+      if (response.ok) {
+        alert('Surgery membership added successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error adding membership: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error adding membership:', error)
+      alert('Failed to add membership. Please try again.')
+    }
+  }
+
+  const handleRemoveMembership = async (membershipId: string) => {
+    if (!confirm('Are you sure you want to remove this surgery membership?')) {
+      return
+    }
+
+    if (!selectedUser) return
+
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/memberships/${membershipId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        alert('Surgery membership removed successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error removing membership: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error removing membership:', error)
+      alert('Failed to remove membership. Please try again.')
+    }
+  }
+
+  const handleUpdateMembershipRole = async (membershipId: string, newRole: 'STANDARD' | 'ADMIN') => {
+    if (!selectedUser) return
+
+    try {
+      const response = await fetch(`/api/admin/users/${selectedUser.id}/memberships/${membershipId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ role: newRole }),
+      })
+
+      if (response.ok) {
+        alert('Membership role updated successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error updating membership role: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error updating membership role:', error)
+      alert('Failed to update membership role. Please try again.')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -259,6 +346,12 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                           className="text-blue-600 hover:text-blue-500 text-sm font-medium"
                         >
                           Edit
+                        </button>
+                        <button 
+                          onClick={() => handleManageMemberships(user)}
+                          className="text-purple-600 hover:text-purple-500 text-sm font-medium"
+                        >
+                          Memberships
                         </button>
                         {user.isTestUser && (
                           <button 
@@ -506,6 +599,137 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Membership Management Modal */}
+      {showMembershipModal && selectedUser && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Manage Surgery Memberships - {selectedUser.name || selectedUser.email}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowMembershipModal(false)
+                    setSelectedUser(null)
+                    setNewMembership({ surgeryId: '', role: 'STANDARD' })
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Current Memberships */}
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-900 mb-3">Current Memberships</h4>
+                {selectedUser.memberships.length === 0 ? (
+                  <p className="text-sm text-gray-500 italic">No surgery memberships</p>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedUser.memberships.map((membership) => (
+                      <div key={membership.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <div>
+                          <span className="font-medium">{membership.surgery.name}</span>
+                          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                            membership.role === 'ADMIN' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {membership.role}
+                          </span>
+                        </div>
+                        <div className="flex space-x-2">
+                          <select
+                            value={membership.role}
+                            onChange={(e) => handleUpdateMembershipRole(membership.id, e.target.value as 'STANDARD' | 'ADMIN')}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="STANDARD">Standard</option>
+                            <option value="ADMIN">Admin</option>
+                          </select>
+                          <button
+                            onClick={() => handleRemoveMembership(membership.id)}
+                            className="text-xs text-red-600 hover:text-red-500 px-2 py-1"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add New Membership */}
+              <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-gray-900 mb-3">Add New Membership</h4>
+                <form onSubmit={handleAddMembership}>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label htmlFor="surgeryId" className="block text-sm font-medium text-gray-700 mb-1">
+                        Surgery
+                      </label>
+                      <select
+                        id="surgeryId"
+                        required
+                        value={newMembership.surgeryId}
+                        onChange={(e) => setNewMembership({ ...newMembership, surgeryId: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="">Select surgery...</option>
+                        {surgeries
+                          .filter(surgery => !selectedUser.memberships.some(m => m.surgery.id === surgery.id))
+                          .map((surgery) => (
+                            <option key={surgery.id} value={surgery.id}>
+                              {surgery.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                        Role
+                      </label>
+                      <select
+                        id="role"
+                        value={newMembership.role}
+                        onChange={(e) => setNewMembership({ ...newMembership, role: e.target.value as 'STANDARD' | 'ADMIN' })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="STANDARD">Standard</option>
+                        <option value="ADMIN">Admin</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMembershipModal(false)
+                        setSelectedUser(null)
+                        setNewMembership({ surgeryId: '', role: 'STANDARD' })
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                    >
+                      Add Membership
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>
