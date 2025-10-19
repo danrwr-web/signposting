@@ -51,6 +51,9 @@ export default function VirtualizedGrid({
     containerWidth: 0
   })
 
+  // Debug logging
+  console.log('VirtualizedGrid: Received surgerySlug =', surgerySlug, 'surgeryId =', surgeryId)
+
 
   // Calculate grid dimensions based on container width
   const calculateGridDimensions = (width: number): GridDimensions => {
