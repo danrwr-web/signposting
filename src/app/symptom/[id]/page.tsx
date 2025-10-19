@@ -73,9 +73,36 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
     orderBy: { name: 'asc' }
   })
 
-  // Log engagement event and track usage for test users
+  // Track usage for test users BEFORE displaying the symptom
   if (surgeryId) {
-    // Determine the base symptom ID for the engagement event
+    const sessionUser = await getSessionUser()
+    if (sessionUser?.email) {
+      const user = await prisma.user.findUnique({
+        where: { email: sessionUser.email },
+        select: { 
+          id: true, 
+          isTestUser: true, 
+          symptomsUsed: true, 
+          symptomUsageLimit: true 
+        }
+      })
+
+      if (user?.isTestUser && user.symptomUsageLimit) {
+        // Check if user has reached their limit BEFORE showing content
+        if (user.symptomsUsed >= user.symptomUsageLimit) {
+          // Redirect to lockout page
+          redirect('/test-user-lockout')
+        }
+
+        // Increment usage count BEFORE showing content
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { symptomsUsed: user.symptomsUsed + 1 }
+        })
+      }
+    }
+
+    // Log engagement event (after usage tracking)
     let baseSymptomId: string | null = null
     
     if (symptom.source === 'base') {
@@ -97,34 +124,6 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
           event: 'view_symptom'
         }
       })
-    }
-
-    // Track usage for test users
-    const sessionUser = await getSessionUser()
-    if (sessionUser?.email) {
-      const user = await prisma.user.findUnique({
-        where: { email: sessionUser.email },
-        select: { 
-          id: true, 
-          isTestUser: true, 
-          symptomsUsed: true, 
-          symptomUsageLimit: true 
-        }
-      })
-
-      if (user?.isTestUser && user.symptomUsageLimit) {
-        // Check if user has reached their limit
-        if (user.symptomsUsed >= user.symptomUsageLimit) {
-          // Redirect to lockout page
-          redirect('/test-user-lockout')
-        }
-
-        // Increment usage count
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { symptomsUsed: user.symptomsUsed + 1 }
-        })
-      }
     }
   }
 

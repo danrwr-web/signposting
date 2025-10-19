@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import CompactToolbar from '@/components/CompactToolbar'
 import VirtualizedGrid from '@/components/VirtualizedGrid'
+import TestUserUsage from '@/components/TestUserUsage'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
@@ -152,6 +153,13 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
       />
+
+      {/* Test User Usage Display */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <TestUserUsage />
+        </div>
+      </div>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Page Header */}
