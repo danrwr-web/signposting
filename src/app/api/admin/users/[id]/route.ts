@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionUser, requireSuperuser } from '@/lib/rbac'
+import { requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 const updateUserSchema = z.object({
-  globalRole: z.enum(['USER', 'SUPERUSER']).optional(),
   name: z.string().optional(),
+  globalRole: z.enum(['USER', 'SUPERUSER']).optional(),
   defaultSurgeryId: z.string().optional()
 })
 
@@ -17,9 +17,10 @@ export async function PATCH(
   try {
     await requireSuperuser()
     
-    const { id } = await params
+    const resolvedParams = await params
+    const { id } = resolvedParams
     const body = await request.json()
-    const updateData = updateUserSchema.parse(body)
+    const { name, globalRole, defaultSurgeryId } = updateUserSchema.parse(body)
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -30,20 +31,23 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // If updating defaultSurgeryId, verify the surgery exists
-    if (updateData.defaultSurgeryId) {
+    // If updating defaultSurgeryId, validate that the surgery exists
+    if (defaultSurgeryId) {
       const surgery = await prisma.surgery.findUnique({
-        where: { id: updateData.defaultSurgeryId }
+        where: { id: defaultSurgeryId }
       })
-      
       if (!surgery) {
         return NextResponse.json({ error: 'Surgery not found' }, { status: 400 })
       }
     }
 
-    const user = await prisma.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id },
-      data: updateData,
+      data: {
+        ...(name !== undefined && { name }),
+        ...(globalRole !== undefined && { globalRole }),
+        ...(defaultSurgeryId !== undefined && { defaultSurgeryId })
+      },
       include: {
         memberships: {
           include: {
@@ -54,7 +58,7 @@ export async function PATCH(
       }
     })
 
-    return NextResponse.json(user)
+    return NextResponse.json(updatedUser)
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -74,7 +78,8 @@ export async function DELETE(
   try {
     await requireSuperuser()
     
-    const { id } = await params
+    const resolvedParams = await params
+    const { id } = resolvedParams
 
     // Check if user exists
     const existingUser = await prisma.user.findUnique({
@@ -85,22 +90,25 @@ export async function DELETE(
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Prevent deleting the last superuser
+    // Prevent deletion of the last superuser
     if (existingUser.globalRole === 'SUPERUSER') {
       const superuserCount = await prisma.user.count({
         where: { globalRole: 'SUPERUSER' }
       })
       
       if (superuserCount <= 1) {
-        return NextResponse.json({ error: 'Cannot delete the last superuser' }, { status: 400 })
+        return NextResponse.json({ 
+          error: 'Cannot delete the last superuser' 
+        }, { status: 400 })
       }
     }
 
+    // Delete user (cascade will handle memberships)
     await prisma.user.delete({
       where: { id }
     })
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ message: 'User deleted successfully' })
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -27,11 +27,17 @@ interface User {
   } | null
 }
 
-interface GlobalUsersClientProps {
-  users: User[]
+interface Surgery {
+  id: string
+  name: string
 }
 
-export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
+interface GlobalUsersClientProps {
+  users: User[]
+  surgeries: Surgery[]
+}
+
+export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [newUser, setNewUser] = useState({
@@ -59,7 +65,8 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
         },
         body: JSON.stringify({
           name: editingUser.name,
-          globalRole: editingUser.globalRole
+          globalRole: editingUser.globalRole,
+          defaultSurgeryId: editingUser.defaultSurgeryId
         }),
       })
 
@@ -130,6 +137,29 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
     } catch (error) {
       console.error('Error resetting usage:', error)
       alert('Failed to reset usage. Please try again.')
+    }
+  }
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    if (!confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+      })
+
+      if (response.ok) {
+        alert('User deleted successfully!')
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Error deleting user: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert('Failed to delete user. Please try again.')
     }
   }
 
@@ -238,6 +268,12 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                             Reset Usage
                           </button>
                         )}
+                        <button 
+                          onClick={() => handleDeleteUser(user.id, user.email)}
+                          className="text-red-600 hover:text-red-500 text-sm font-medium"
+                        >
+                          Delete
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -419,7 +455,7 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                     placeholder="John Doe"
                   />
                 </div>
-                <div className="mb-6">
+                <div className="mb-4">
                   <label htmlFor="edit-globalRole" className="block text-sm font-medium text-gray-700 mb-1">
                     Global Role
                   </label>
@@ -432,6 +468,27 @@ export default function GlobalUsersClient({ users }: GlobalUsersClientProps) {
                     <option value="USER">Standard User</option>
                     <option value="SUPERUSER">Superuser</option>
                   </select>
+                </div>
+                <div className="mb-6">
+                  <label htmlFor="edit-defaultSurgery" className="block text-sm font-medium text-gray-700 mb-1">
+                    Default Surgery
+                  </label>
+                  <select
+                    id="edit-defaultSurgery"
+                    value={editingUser.defaultSurgeryId || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, defaultSurgeryId: e.target.value || null })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">No default surgery</option>
+                    {surgeries.map((surgery) => (
+                      <option key={surgery.id} value={surgery.id}>
+                        {surgery.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    The surgery this user will be redirected to when they log in
+                  </p>
                 </div>
                 <div className="flex justify-end space-x-3">
                   <button

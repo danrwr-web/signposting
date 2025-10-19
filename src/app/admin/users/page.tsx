@@ -29,5 +29,16 @@ export default async function GlobalUsersPage() {
     }
   })
 
-  return <GlobalUsersClient users={users} />
+  // Get all surgeries for default surgery selection
+  const surgeries = await prisma.surgery.findMany({
+    select: {
+      id: true,
+      name: true
+    },
+    orderBy: {
+      name: 'asc'
+    }
+  })
+
+  return <GlobalUsersClient users={users} surgeries={surgeries} />
 }
