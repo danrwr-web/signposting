@@ -30,11 +30,11 @@ export async function GET(request: NextRequest) {
 
     // Get symptom details
     const symptomIds = topSymptoms.map(item => item.baseId)
-    const symptoms = await prisma.symptomBase.findMany({
+    const symptoms = await prisma.baseSymptom.findMany({
       where: { id: { in: symptomIds } },
       select: {
         id: true,
-        symptom: true,
+        name: true,
         ageGroup: true,
       }
     })

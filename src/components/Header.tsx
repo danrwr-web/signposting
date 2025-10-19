@@ -28,7 +28,7 @@ export default function Header({ surgeries, currentSurgerySlug }: HeaderProps) {
           <div className="flex items-center space-x-6">
             <SurgerySelector 
               surgeries={surgeries} 
-              currentSurgerySlug={currentSurgerySlug}
+              currentSurgeryId={currentSurgerySlug}
             />
             
             {/* Admin Link */}

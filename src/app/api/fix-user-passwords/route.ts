@@ -1,7 +1,7 @@
 import 'server-only'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { setCustomPassword } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
 export const runtime = 'nodejs'
 
@@ -21,8 +21,13 @@ export async function POST() {
       // Generate a simple password based on email
       const password = user.email.split('@')[0] + '123' // e.g., "admin123", "user123"
       
-      // Store password in customPasswords
-      setCustomPassword(user.email, password)
+      // Hash and store password in database
+      const hashedPassword = await bcrypt.hash(password, 12)
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword }
+      })
       
       passwordUpdates.push({
         email: user.email,

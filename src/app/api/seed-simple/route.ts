@@ -17,23 +17,18 @@ export async function POST(request: NextRequest) {
     const ideLaneSurgery = await prisma.surgery.create({
       data: {
         name: 'Ide Lane Surgery',
-        slug: 'ide-lane-surgery',
-        address: '123 Ide Lane, Example City, EC1 1AA',
-        phone: '020 1234 5678',
-        email: 'info@idelane.example',
-        website: 'https://idelane.example',
-        description: 'A modern GP practice serving the local community'
+        slug: 'ide-lane-surgery'
       }
     })
 
     console.log('Creating base symptoms...')
     // Create base symptoms
     const symptoms = [
-      { name: 'Chest Pain', slug: 'chest-pain', description: 'Pain or discomfort in the chest area' },
-      { name: 'Shortness of Breath', slug: 'shortness-of-breath', description: 'Difficulty breathing or feeling breathless' },
-      { name: 'Headache', slug: 'headache', description: 'Pain in the head or neck area' },
-      { name: 'Fever', slug: 'fever', description: 'Elevated body temperature' },
-      { name: 'Cough', slug: 'cough', description: 'Persistent coughing' }
+      { name: 'Chest Pain', slug: 'chest-pain', ageGroup: 'Adult', description: 'Pain or discomfort in the chest area' },
+      { name: 'Shortness of Breath', slug: 'shortness-of-breath', ageGroup: 'Adult', description: 'Difficulty breathing or feeling breathless' },
+      { name: 'Headache', slug: 'headache', ageGroup: 'Adult', description: 'Pain in the head or neck area' },
+      { name: 'Fever', slug: 'fever', ageGroup: 'Adult', description: 'Elevated body temperature' },
+      { name: 'Cough', slug: 'cough', ageGroup: 'Adult', description: 'Persistent coughing' }
     ]
 
     for (const symptom of symptoms) {

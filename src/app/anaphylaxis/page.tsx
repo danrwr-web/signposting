@@ -18,7 +18,7 @@ export default async function AnaphylaxisPage({ searchParams }: AnaphylaxisPageP
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={surgeries} currentSurgerySlug={surgerySlug} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={surgerySlug} />
       
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-md p-8">

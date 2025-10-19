@@ -1,8 +1,3 @@
-/**
- * Super dashboard page
- * Server component for superuser management interface
- */
-
 import 'server-only'
 import { requireSuperuserAuth } from '@/server/auth'
 import SuperDashboardClient from './SuperDashboardClient'
@@ -24,5 +19,17 @@ export default async function SuperDashboard() {
     },
   })
 
-  return <SuperDashboardClient surgeries={surgeries} />
+  // Filter out surgeries without slugs and transform to match api-contracts type
+  const validSurgeries = surgeries
+    .filter(surgery => surgery.slug !== null)
+    .map(surgery => ({
+      id: surgery.id,
+      name: surgery.name,
+      slug: surgery.slug!,
+      adminEmail: surgery.adminEmail,
+      createdAt: surgery.createdAt,
+      updatedAt: surgery.updatedAt,
+    }))
+
+  return <SuperDashboardClient surgeries={validSurgeries} />
 }

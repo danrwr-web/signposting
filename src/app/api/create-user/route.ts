@@ -7,12 +7,7 @@ export async function POST(request: NextRequest) {
     const surgery = await prisma.surgery.create({
       data: {
         name: 'Ide Lane Surgery',
-        slug: 'ide-lane-surgery',
-        address: '123 Ide Lane, Example City, EC1 1AA',
-        phone: '020 1234 5678',
-        email: 'info@idelane.example',
-        website: 'https://idelane.example',
-        description: 'A modern GP practice serving the local community'
+        slug: 'ide-lane-surgery'
       }
     })
 

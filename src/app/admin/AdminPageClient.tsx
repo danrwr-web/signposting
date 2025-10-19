@@ -846,7 +846,11 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             {/* High-Risk Buttons Tab */}
             {activeTab === 'highrisk' && (
               <div className="space-y-6">
-                <HighRiskConfig surgeryId={selectedSurgery} surgeries={surgeries} session={session} />
+                <HighRiskConfig 
+                  surgeryId={selectedSurgery} 
+                  surgeries={surgeries.filter(s => s.slug !== null).map(s => ({ id: s.id, slug: s.slug!, name: s.name }))} 
+                  session={session} 
+                />
               </div>
             )}
 

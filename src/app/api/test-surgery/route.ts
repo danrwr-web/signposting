@@ -7,12 +7,7 @@ export async function POST(request: NextRequest) {
     const surgery = await prisma.surgery.create({
       data: {
         name: 'Test Surgery',
-        slug: 'test-surgery',
-        address: 'Test Address',
-        phone: '123-456-7890',
-        email: 'test@test.com',
-        website: 'https://test.com',
-        description: 'Test surgery'
+        slug: 'test-surgery'
       }
     })
 

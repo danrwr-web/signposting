@@ -18,17 +18,17 @@ export async function getEffectiveSymptoms(surgerySlug?: string): Promise<Effect
   }) : null
 
   // Get all base symptoms
-  const baseSymptoms = await prisma.symptomBase.findMany({
-    orderBy: { symptom: 'asc' }
+  const baseSymptoms = await prisma.baseSymptom.findMany({
+    orderBy: { name: 'asc' }
   })
 
   // Get overrides for this surgery if it exists
-  const overrides = surgery ? await prisma.symptomOverride.findMany({
+  const overrides = surgery ? await prisma.surgerySymptomOverride.findMany({
     where: { surgeryId: surgery.id }
   }) : []
 
   // Create a map of overrides by baseId for quick lookup
-  const overrideMap = new Map(overrides.map(override => [override.baseId, override]))
+  const overrideMap = new Map(overrides.map(override => [override.baseSymptomId, override]))
 
   // Merge base symptoms with overrides
   const effectiveSymptoms: EffectiveSymptom[] = baseSymptoms.map(base => {
@@ -36,8 +36,7 @@ export async function getEffectiveSymptoms(surgerySlug?: string): Promise<Effect
     
     return {
       id: base.id,
-      customId: base.customId,
-      symptom: override?.symptom ?? base.symptom,
+      symptom: override?.name ?? base.name,
       ageGroup: override?.ageGroup ?? base.ageGroup,
       briefInstruction: override?.briefInstruction ?? base.briefInstruction,
       instructions: override?.instructions ?? base.instructions,
@@ -56,18 +55,18 @@ export async function getEffectiveSymptomById(id: string, surgerySlug?: string):
   }) : null
 
   // Get base symptom
-  const baseSymptom = await prisma.symptomBase.findUnique({
+  const baseSymptom = await prisma.baseSymptom.findUnique({
     where: { id }
   })
 
   if (!baseSymptom) return null
 
   // Get override for this surgery if it exists
-  const override = surgery ? await prisma.symptomOverride.findUnique({
+  const override = surgery ? await prisma.surgerySymptomOverride.findUnique({
     where: {
-      surgeryId_baseId: {
+      surgeryId_baseSymptomId: {
         surgeryId: surgery.id,
-        baseId: id
+        baseSymptomId: id
       }
     }
   }) : null
@@ -75,8 +74,7 @@ export async function getEffectiveSymptomById(id: string, surgerySlug?: string):
   // Merge base with override
   return {
     id: baseSymptom.id,
-    customId: baseSymptom.customId,
-    symptom: override?.symptom ?? baseSymptom.symptom,
+    symptom: override?.name ?? baseSymptom.name,
     ageGroup: override?.ageGroup ?? baseSymptom.ageGroup,
     briefInstruction: override?.briefInstruction ?? baseSymptom.briefInstruction,
     instructions: override?.instructions ?? baseSymptom.instructions,
