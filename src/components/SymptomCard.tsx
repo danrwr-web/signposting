@@ -12,6 +12,7 @@ interface SymptomCardProps {
 
 export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
+  const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
 
   // Debug logging for surgerySlug
   useEffect(() => {
@@ -25,17 +26,27 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   useEffect(() => {
     const loadHighlightRules = async () => {
       try {
-        const response = await fetch('/api/highlights')
+        // Build URL with surgeryId parameter if available
+        let url = '/api/highlights'
+        if (surgerySlug) {
+          // We need to get the surgeryId from the slug
+          // For now, we'll fetch all highlights and let the API handle scoping
+          url += `?surgeryId=${encodeURIComponent(surgerySlug)}`
+        }
+        
+        const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
-          const rules = await response.json()
-          setHighlightRules(rules)
+          const json = await response.json()
+          const { highlights, enableBuiltInHighlights: builtInEnabled } = json
+          setHighlightRules(Array.isArray(highlights) ? highlights : [])
+          setEnableBuiltInHighlights(builtInEnabled ?? true)
         }
       } catch (error) {
         console.error('Failed to load highlight rules:', error)
       }
     }
     loadHighlightRules()
-  }, [])
+  }, [surgerySlug])
 
   const getSourceColor = (source: string) => {
     switch (source) {
@@ -77,7 +88,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   }
 
   const highlightText = (text: string) => {
-    return applyHighlightRules(text, highlightRules)
+    return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
   }
 
   const linkUrl = `/symptom/${symptom.id || 'unknown'}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`

@@ -19,12 +19,15 @@ export interface HighlightRule {
  */
 export function applyHighlightRules(
   text: string,
-  rules: Array<{ phrase: string; textColor: string; bgColor: string; isEnabled: boolean }>
+  rules: Array<{ phrase: string; textColor: string; bgColor: string; isEnabled: boolean }>,
+  enableBuiltInHighlights: boolean = true
 ): string {
   let highlightedText = text
 
-  // Apply built-in slot highlighting first
-  highlightedText = applyBuiltInHighlighting(highlightedText)
+  // Apply built-in slot highlighting first (if enabled)
+  if (enableBuiltInHighlights) {
+    highlightedText = applyBuiltInHighlighting(highlightedText)
+  }
 
   // Apply custom rules (they take precedence)
   highlightedText = applyCustomRules(highlightedText, rules)

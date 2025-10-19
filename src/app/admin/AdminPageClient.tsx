@@ -778,7 +778,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             {/* Highlight Config Tab */}
             {activeTab === 'highlights' && (
               <div className="space-y-6">
-                <HighlightConfig surgeryId={selectedSurgery} />
+                <HighlightConfig surgeryId={selectedSurgery} isSuperuser={session?.type === 'superuser'} />
               </div>
             )}
 

@@ -39,6 +39,22 @@ export async function getActiveHighlightRules(surgeryId?: string): Promise<Highl
 }
 
 /**
+ * Get surgery's built-in highlights setting
+ */
+export async function getSurgeryBuiltInHighlightsSetting(surgeryId?: string): Promise<boolean> {
+  if (!surgeryId) {
+    return true // Default to enabled if no surgery
+  }
+
+  const surgery = await prisma.surgery.findUnique({
+    where: { id: surgeryId },
+    select: { enableBuiltInHighlights: true } as any // Temporary type assertion
+  })
+
+  return (surgery as any)?.enableBuiltInHighlights ?? true
+}
+
+/**
  * Get all highlight rules (admin use)
  */
 export async function getAllHighlightRules(surgeryId?: string | null): Promise<HighlightRule[]> {

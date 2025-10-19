@@ -7,17 +7,20 @@ import { GetHighlightsResZ } from '@/lib/api-contracts'
 
 interface HighlightConfigProps {
   surgeryId?: string
+  isSuperuser?: boolean
 }
 
-export default function HighlightConfig({ surgeryId }: HighlightConfigProps) {
+export default function HighlightConfig({ surgeryId, isSuperuser = false }: HighlightConfigProps) {
   const [highlights, setHighlights] = useState<HighlightRule[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
   const [newHighlight, setNewHighlight] = useState({
     phrase: '',
     textColor: '#ffffff',
-    bgColor: '#6A0DAD'
+    bgColor: '#6A0DAD',
+    isGlobal: false // For superusers to create global rules
   })
 
   // Load existing highlights
@@ -39,8 +42,9 @@ export default function HighlightConfig({ surgeryId }: HighlightConfigProps) {
       const response = await fetch(url, { cache: 'no-store' })
       if (response.ok) {
         const json = await response.json()
-        const { highlights } = GetHighlightsResZ.parse(json)
+        const { highlights, enableBuiltInHighlights: builtInEnabled } = GetHighlightsResZ.parse(json)
         setHighlights(Array.isArray(highlights) ? highlights : [])
+        setEnableBuiltInHighlights(builtInEnabled ?? true)
       } else {
         const errorMessage = `Failed to load highlight rules (${response.status})`
         setError(errorMessage)
@@ -71,13 +75,13 @@ export default function HighlightConfig({ surgeryId }: HighlightConfigProps) {
           textColor: newHighlight.textColor,
           bgColor: newHighlight.bgColor,
           isEnabled: true,
-          surgeryId: surgeryId || null
+          surgeryId: newHighlight.isGlobal && isSuperuser ? null : (surgeryId || null)
         })
       })
 
       if (response.ok) {
         toast.success('Highlight rule added successfully')
-        setNewHighlight({ phrase: '', textColor: '#ffffff', bgColor: '#6A0DAD' })
+        setNewHighlight({ phrase: '', textColor: '#ffffff', bgColor: '#6A0DAD', isGlobal: false })
         setShowAddForm(false)
         loadHighlights()
       } else {
@@ -129,6 +133,31 @@ export default function HighlightConfig({ surgeryId }: HighlightConfigProps) {
     } catch (error) {
       console.error('Error updating highlight:', error)
       toast.error('Failed to update highlight rule')
+    }
+  }
+
+  const handleToggleBuiltInHighlights = async (enabled: boolean) => {
+    if (!surgeryId) {
+      toast.error('Cannot update built-in highlights setting without surgery context')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/surgery-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enableBuiltInHighlights: enabled })
+      })
+
+      if (response.ok) {
+        setEnableBuiltInHighlights(enabled)
+        toast.success(`Built-in highlights ${enabled ? 'enabled' : 'disabled'}`)
+      } else {
+        toast.error('Failed to update built-in highlights setting')
+      }
+    } catch (error) {
+      console.error('Error updating built-in highlights setting:', error)
+      toast.error('Failed to update built-in highlights setting')
     }
   }
 
@@ -185,6 +214,28 @@ export default function HighlightConfig({ surgeryId }: HighlightConfigProps) {
         </button>
       </div>
 
+      {/* Built-in Highlights Toggle */}
+      {surgeryId && (
+        <div className="bg-blue-50 rounded-lg p-4 mb-6">
+          <h4 className="text-md font-medium text-nhs-dark-blue mb-3">Built-in Highlights</h4>
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-nhs-grey">
+              <p>Enable or disable built-in highlighting for slot types (green slot, orange slot, etc.)</p>
+            </div>
+            <button
+              onClick={() => handleToggleBuiltInHighlights(!enableBuiltInHighlights)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                enableBuiltInHighlights
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {enableBuiltInHighlights ? 'Enabled' : 'Disabled'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Add New Highlight Form */}
       {showAddForm && (
         <div className="bg-nhs-light-grey rounded-lg p-4 mb-6">
@@ -224,6 +275,20 @@ export default function HighlightConfig({ surgeryId }: HighlightConfigProps) {
                 className="w-full h-10 border border-gray-300 rounded-lg"
               />
             </div>
+            {isSuperuser && (
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isGlobal"
+                  checked={newHighlight.isGlobal}
+                  onChange={(e) => setNewHighlight({ ...newHighlight, isGlobal: e.target.checked })}
+                  className="rounded border-gray-300 text-nhs-blue focus:ring-nhs-blue"
+                />
+                <label htmlFor="isGlobal" className="text-sm text-nhs-grey">
+                  Global rule (applies to all surgeries)
+                </label>
+              </div>
+            )}
             <div className="flex items-end">
               <button
                 onClick={handleAddHighlight}

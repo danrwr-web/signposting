@@ -19,6 +19,7 @@ export const HighlightRuleZ = z.object({
 
 export const GetHighlightsResZ = z.object({
   highlights: z.array(HighlightRuleZ), // force array under "highlights"
+  enableBuiltInHighlights: z.boolean().optional(),
 });
 
 export const CreateHighlightReqZ = z.object({
