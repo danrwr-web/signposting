@@ -180,7 +180,6 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
         ) : filteredSymptoms.length > 0 && surgeries.length > 0 ? (
           <VirtualizedGrid
             symptoms={filteredSymptoms}
-            surgeryId={currentSurgeryId}
             surgerySlug={surgerySlug}
             columns={{
               xl: 4,
