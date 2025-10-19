@@ -50,11 +50,14 @@ export default async function AdminPage() {
     }))
 
     // Create a mock session object for compatibility with AdminPageClient
+    const adminMemberships = user.memberships.filter(m => m.role === 'ADMIN')
+    const primarySurgeryId = adminMemberships.length > 0 ? adminMemberships[0].surgeryId : undefined
+    
     const session = {
       type: isSuperuser ? 'superuser' as const : 'surgery' as const,
       id: user.id,
       email: user.email,
-      surgeryId: isSuperuser ? undefined : user.memberships.find(m => m.role === 'ADMIN')?.surgeryId,
+      surgeryId: isSuperuser ? undefined : primarySurgeryId,
       surgerySlug: undefined
     }
     

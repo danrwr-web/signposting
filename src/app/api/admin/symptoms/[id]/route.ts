@@ -195,6 +195,8 @@ export async function DELETE(
     const action = searchParams.get('action') // 'permanent' for superuser, 'hide' for surgery admin
     const surgeryId = searchParams.get('surgeryId')
 
+    console.log('DELETE /api/admin/symptoms/[id]:', { id, source, action, surgeryId })
+
     if (source === 'base' && action === 'permanent') {
       // Superuser permanent deletion of base symptom
       await requireSuperuser()
@@ -209,6 +211,7 @@ export async function DELETE(
       return NextResponse.json({ success: true })
     } else if (source === 'base' && action === 'hide' && surgeryId) {
       // Surgery admin hiding a base symptom for their surgery
+      console.log(`Surgery admin hiding base symptom ${id} for surgery ${surgeryId}`)
       await requireSurgeryAdmin(surgeryId)
       
       await prisma.surgerySymptomOverride.upsert({
@@ -228,6 +231,7 @@ export async function DELETE(
         }
       })
 
+      console.log(`Successfully hidden base symptom ${id} for surgery ${surgeryId}`)
       return NextResponse.json({ success: true })
     } else if (source === 'custom' && surgeryId) {
       // Delete custom symptom

@@ -432,6 +432,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         return
       }
 
+      console.log('AdminPageClient: Session object:', session)
+      console.log('AdminPageClient: Session type:', session.type)
+      console.log('AdminPageClient: Session surgeryId:', session.surgeryId)
+
       let url = `/api/admin/symptoms/${symptomToRemove}?source=${selectedSymptomData.source}`
       
       if (session.type === 'superuser' && selectedSymptomData.source === 'base') {
@@ -440,7 +444,18 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       } else if (session.type === 'surgery' && selectedSymptomData.source === 'base') {
         // Surgery admin hiding symptom
         url += '&action=hide'
+        // Add surgeryId parameter for surgery admin operations
+        if (session.surgeryId) {
+          url += `&surgeryId=${session.surgeryId}`
+          console.log('AdminPageClient: Added surgeryId to URL:', session.surgeryId)
+        } else {
+          console.error('AdminPageClient: session.surgeryId is undefined!')
+          toast.error('Unable to determine surgery context')
+          return
+        }
       }
+
+      console.log('AdminPageClient: Final URL:', url)
 
       const response = await fetch(url, {
         method: 'DELETE',
