@@ -59,6 +59,9 @@ export const authOptions: NextAuthOptions = {
               name: user.name,
               globalRole: user.globalRole,
               defaultSurgeryId: user.defaultSurgeryId,
+              isTestUser: user.isTestUser,
+              symptomUsageLimit: user.symptomUsageLimit,
+              symptomsUsed: user.symptomsUsed,
               memberships: user.memberships.map(m => ({
                 surgeryId: m.surgeryId,
                 role: m.role
@@ -82,6 +85,9 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.globalRole = user.globalRole
         token.defaultSurgeryId = user.defaultSurgeryId
+        token.isTestUser = user.isTestUser
+        token.symptomUsageLimit = user.symptomUsageLimit
+        token.symptomsUsed = user.symptomsUsed
         token.memberships = user.memberships
       }
       return token
@@ -91,6 +97,9 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.sub!
         session.user.globalRole = token.globalRole as string
         session.user.defaultSurgeryId = token.defaultSurgeryId as string
+        session.user.isTestUser = token.isTestUser as boolean
+        session.user.symptomUsageLimit = token.symptomUsageLimit as number | null
+        session.user.symptomsUsed = token.symptomsUsed as number
         session.user.memberships = token.memberships as Array<{ surgeryId: string; role: string }>
       }
       return session
