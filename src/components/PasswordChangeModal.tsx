@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 
 interface PasswordChangeModalProps {
@@ -97,9 +98,9 @@ export default function PasswordChangeModal({ isOpen, onClose }: PasswordChangeM
 
   if (!isOpen) return null
 
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999]">
-      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+  return createPortal(
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[99999]">
+      <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white z-[99999]">
         <div className="mt-3">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-medium text-gray-900">
@@ -208,6 +209,7 @@ export default function PasswordChangeModal({ isOpen, onClose }: PasswordChangeM
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
