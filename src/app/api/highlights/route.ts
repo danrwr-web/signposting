@@ -76,14 +76,26 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession()
     const body = await request.json()
-    const { phrase, textColor, bgColor, isEnabled, surgeryId } = CreateHighlightReqZ.parse(body)
+    const { phrase, textColor, bgColor, isEnabled, surgeryId, isGlobal } = CreateHighlightReqZ.parse(body)
 
-    // Determine surgeryId based on session type
+    // Determine surgeryId based on session type and global rule setting
     let targetSurgeryId: string | null = null
-    if (session?.type === 'surgery' && session.surgeryId) {
+    
+    if (session?.type === 'superuser' && isGlobal) {
+      // For superusers creating global rules, surgeryId should be null
+      targetSurgeryId = null
+    } else if (session?.type === 'surgery' && session.surgeryId) {
+      // For surgery admins, use their surgery ID
       targetSurgeryId = session.surgeryId
     } else if (surgeryId) {
+      // Fallback to provided surgeryId
       targetSurgeryId = surgeryId
+    } else {
+      // No valid surgery context
+      return NextResponse.json(
+        { error: 'Surgery context required for highlight rule creation' },
+        { status: 400 }
+      )
     }
 
     const rule = await createHighlightRule({

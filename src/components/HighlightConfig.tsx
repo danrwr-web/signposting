@@ -75,7 +75,8 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
           textColor: newHighlight.textColor,
           bgColor: newHighlight.bgColor,
           isEnabled: true,
-          surgeryId: newHighlight.isGlobal && isSuperuser ? null : (surgeryId || null)
+          isGlobal: newHighlight.isGlobal && isSuperuser, // Send isGlobal flag for superusers
+          surgeryId: surgeryId || undefined // Only include surgeryId if not global
         })
       })
 

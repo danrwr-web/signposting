@@ -28,6 +28,7 @@ export const CreateHighlightReqZ = z.object({
   bgColor: z.string().default('#6A0DAD'),
   isEnabled: z.boolean().default(true),
   surgeryId: z.string().optional(),
+  isGlobal: z.boolean().optional(), // For superusers to create global rules
 });
 
 export const UpdateHighlightReqZ = z.object({
