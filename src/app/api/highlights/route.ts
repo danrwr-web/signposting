@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAllHighlightRules, createHighlightRule, getSurgeryBuiltInHighlightsSetting } from '@/server/highlights'
 import { getSession } from '@/server/auth'
 import { GetHighlightsResZ, CreateHighlightReqZ } from '@/lib/api-contracts'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
@@ -16,7 +17,29 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSession()
     const { searchParams } = new URL(request.url)
-    const surgeryId = searchParams.get('surgeryId')
+    const surgeryParam = searchParams.get('surgeryId')
+
+    // Convert surgery parameter to surgeryId (handles both ID and slug)
+    let surgeryId: string | null = null
+    if (surgeryParam) {
+      // First try as ID
+      const surgeryById = await prisma.surgery.findUnique({
+        where: { id: surgeryParam },
+        select: { id: true }
+      })
+      if (surgeryById) {
+        surgeryId = surgeryById.id
+      } else {
+        // Fallback to slug for backward compatibility
+        const surgeryBySlug = await prisma.surgery.findUnique({
+          where: { slug: surgeryParam },
+          select: { id: true }
+        })
+        if (surgeryBySlug) {
+          surgeryId = surgeryBySlug.id
+        }
+      }
+    }
 
     // Get global rules (surgeryId = null)
     const globalRules = await getAllHighlightRules(null)

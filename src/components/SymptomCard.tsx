@@ -24,15 +24,14 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
 
   // Load highlight rules from API
   useEffect(() => {
-    const loadHighlightRules = async () => {
-      try {
-        // Build URL with surgeryId parameter if available
-        let url = '/api/highlights'
-        if (surgerySlug) {
-          // We need to get the surgeryId from the slug
-          // For now, we'll fetch all highlights and let the API handle scoping
-          url += `?surgeryId=${encodeURIComponent(surgerySlug)}`
-        }
+  const loadHighlightRules = async () => {
+    try {
+      // Build URL with surgeryId parameter if available
+      let url = '/api/highlights'
+      if (surgerySlug) {
+        // Pass the surgerySlug directly - the API will handle conversion to surgeryId
+        url += `?surgeryId=${encodeURIComponent(surgerySlug)}`
+      }
         
         const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
@@ -40,6 +39,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
           console.log('SymptomCard: API response:', json)
           const { highlights, enableBuiltInHighlights: builtInEnabled } = json
           console.log('SymptomCard: Parsed highlights:', highlights)
+          console.log('SymptomCard: Built-in highlights enabled:', builtInEnabled)
           setHighlightRules(Array.isArray(highlights) ? highlights : [])
           setEnableBuiltInHighlights(builtInEnabled ?? true)
         } else {
