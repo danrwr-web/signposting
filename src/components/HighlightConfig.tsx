@@ -43,7 +43,7 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       if (response.ok) {
         const json = await response.json()
         const { highlights, enableBuiltInHighlights: builtInEnabled } = GetHighlightsResZ.parse(json)
-        setHighlights(Array.isArray(highlights) ? highlights : [])
+        setHighlights(Array.isArray(highlights) ? highlights.filter(h => h.createdAt !== undefined) as any : [])
         setEnableBuiltInHighlights(builtInEnabled ?? true)
       } else {
         const errorMessage = `Failed to load highlight rules (${response.status})`
@@ -357,7 +357,7 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
                   {highlight.isEnabled ? 'Enabled' : 'Disabled'}
                 </button>
                 {/* Only show delete button for rules that can be deleted */}
-                {(isSuperuser || highlight.surgeryId !== null) && (
+                {(isSuperuser || (highlight as any).surgeryId !== null) && (
                   <button
                     onClick={() => handleDeleteHighlight(highlight.id)}
                     className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
@@ -366,7 +366,7 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
                   </button>
                 )}
                 {/* Show indicator for global rules that can't be deleted by surgery admins */}
-                {!isSuperuser && highlight.surgeryId === null && (
+                {!isSuperuser && (highlight as any).surgeryId === null && (
                   <span className="text-xs text-blue-600 font-medium">
                     Global rule
                   </span>

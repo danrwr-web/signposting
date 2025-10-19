@@ -31,7 +31,7 @@ describe('SurgeryContext', () => {
 
   beforeEach(() => {
     mockUseSession.mockReturnValue({
-      data: mockSession,
+      data: { ...mockSession, expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() },
       status: 'authenticated',
       update: jest.fn(),
     })
@@ -71,10 +71,10 @@ describe('SurgeryContext', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('available-count')).toHaveTextContent('2')
-      expect(screen.getByTestId('can-manage-surgery1')).toHaveTextContent('true')
-      expect(screen.getByTestId('can-manage-surgery2')).toHaveTextContent('false')
-      expect(screen.getByTestId('is-superuser')).toHaveTextContent('false')
+      expect(screen.getByTestId('available-count').textContent).toBe('2')
+      expect(screen.getByTestId('can-manage-surgery1').textContent).toBe('true')
+      expect(screen.getByTestId('can-manage-surgery2').textContent).toBe('false')
+      expect(screen.getByTestId('is-superuser').textContent).toBe('false')
     })
   })
 
@@ -90,7 +90,7 @@ describe('SurgeryContext', () => {
     }
 
     mockUseSession.mockReturnValue({
-      data: superuserSession,
+      data: { ...superuserSession, expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() },
       status: 'authenticated',
       update: jest.fn(),
     })
@@ -120,8 +120,8 @@ describe('SurgeryContext', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByTestId('can-manage-any')).toHaveTextContent('true')
-      expect(screen.getByTestId('is-superuser')).toHaveTextContent('true')
+      expect(screen.getByTestId('can-manage-any').textContent).toBe('true')
+      expect(screen.getByTestId('is-superuser').textContent).toBe('true')
     })
   })
 })

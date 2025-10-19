@@ -38,7 +38,7 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
       const { links } = GetHighRiskResZ.parse(json)
       
       if (Array.isArray(links) && links.length > 0) {
-        setHighRiskLinks(links)
+        setHighRiskLinks(links.filter(link => link.symptomSlug !== undefined) as any)
       } else {
         // Fallback to default buttons if no configuration exists
         setHighRiskLinks([

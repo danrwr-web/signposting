@@ -7,6 +7,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import type { EffectiveSymptom } from '@/lib/api-contracts'
 
 export const runtime = 'nodejs'
 
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
     }
     
     // Apply filters
-    let filteredSymptoms = symptoms
+    let filteredSymptoms = symptoms as EffectiveSymptom[]
     
     if (letter && letter !== 'All') {
       filteredSymptoms = filteredSymptoms.filter(symptom => 

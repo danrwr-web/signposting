@@ -9,6 +9,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
+import type { EffectiveSymptom } from '@/lib/api-contracts'
 
 export const runtime = 'nodejs'
 
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply filters
-    let symptoms = allSymptoms
+    let symptoms = allSymptoms as EffectiveSymptom[]
 
     if (letter !== 'All') {
       symptoms = symptoms.filter(s => 
