@@ -54,7 +54,7 @@ export default async function AdminPage() {
       type: isSuperuser ? 'superuser' as const : 'surgery' as const,
       id: user.id,
       email: user.email,
-      surgeryId: isSuperuser ? undefined : user.defaultSurgeryId,
+      surgeryId: isSuperuser ? undefined : user.memberships.find(m => m.role === 'ADMIN')?.surgeryId,
       surgerySlug: undefined
     }
 
