@@ -18,17 +18,24 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   useEffect(() => {
     const loadHighlightRules = async () => {
       try {
-        const response = await fetch('/api/highlights')
+        // Build URL with surgeryId parameter if available
+        let url = '/api/highlights'
+        if (surgeryId) {
+          url += `?surgeryId=${encodeURIComponent(surgeryId)}`
+        }
+        
+        const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
-          const rules = await response.json()
-          setHighlightRules(rules)
+          const json = await response.json()
+          const { highlights } = json
+          setHighlightRules(Array.isArray(highlights) ? highlights : [])
         }
       } catch (error) {
         console.error('Failed to load highlight rules:', error)
       }
     }
     loadHighlightRules()
-  }, [])
+  }, [surgeryId])
 
   const getSourceColor = (source: string) => {
     switch (source) {

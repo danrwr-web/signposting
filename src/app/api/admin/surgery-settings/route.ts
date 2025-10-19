@@ -19,9 +19,20 @@ const updateSurgerySettingsSchema = z.object({
 export async function PATCH(request: NextRequest) {
   try {
     const session = await getSession()
+    console.log('Surgery settings API - Session:', session)
     
     // Check if user is logged in and has surgery access
-    if (!session || session.type !== 'surgery' || !session.surgeryId) {
+    if (!session) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    // For surgery admins, they must have a surgeryId
+    // For superusers, they can access any surgery
+    const targetSurgeryId = session.surgeryId || session.surgery?.id
+    if (!targetSurgeryId && session.type !== 'superuser') {
       return NextResponse.json(
         { error: 'Unauthorized - surgery admin access required' },
         { status: 401 }
@@ -39,7 +50,7 @@ export async function PATCH(request: NextRequest) {
 
     // Update the surgery settings
     const surgery = await prisma.surgery.update({
-      where: { id: session.surgeryId },
+      where: { id: targetSurgeryId },
       data,
       select: {
         id: true,
@@ -68,7 +79,10 @@ export async function PATCH(request: NextRequest) {
     }
     
     return NextResponse.json(
-      { error: 'Failed to update surgery settings' },
+      { 
+        error: 'Failed to update surgery settings',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
