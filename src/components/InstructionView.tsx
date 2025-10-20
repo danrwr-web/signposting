@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SuggestionModal from './SuggestionModal'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
@@ -13,6 +14,9 @@ interface InstructionViewProps {
 export default function InstructionView({ symptom, surgeryId }: InstructionViewProps) {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false)
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
+  const [isLoadingLinkedSymptom, setIsLoadingLinkedSymptom] = useState(false)
+  const [linkedSymptomError, setLinkedSymptomError] = useState<string | null>(null)
+  const router = useRouter()
 
   // Load highlight rules from API
   useEffect(() => {
@@ -52,6 +56,46 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
   const highlightText = (text: string) => {
     return applyHighlightRules(text, highlightRules)
+  }
+
+  const handleLinkedSymptomClick = async () => {
+    if (!symptom.linkToPage) return
+
+    setIsLoadingLinkedSymptom(true)
+    setLinkedSymptomError(null)
+
+    try {
+      // Build API URL with surgeryId parameter if available
+      let url = `/api/symptoms/by-name?name=${encodeURIComponent(symptom.linkToPage)}`
+      if (surgeryId) {
+        url += `&surgeryId=${encodeURIComponent(surgeryId)}`
+      }
+
+      const response = await fetch(url, { cache: 'no-store' })
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setLinkedSymptomError(`No symptom found with the name "${symptom.linkToPage}". Please check the spelling or contact your administrator.`)
+        } else {
+          setLinkedSymptomError('Unable to find the linked symptom. Please try again later.')
+        }
+        return
+      }
+
+      const data = await response.json()
+      const linkedSymptom = data.symptom
+
+      if (linkedSymptom) {
+        // Navigate to the linked symptom's instruction page
+        const linkUrl = `/symptom/${linkedSymptom.id}${surgeryId ? `?surgery=${surgeryId}` : ''}`
+        router.push(linkUrl)
+      }
+    } catch (error) {
+      console.error('Error looking up linked symptom:', error)
+      setLinkedSymptomError('Unable to find the linked symptom. Please try again later.')
+    } finally {
+      setIsLoadingLinkedSymptom(false)
+    }
   }
 
   return (
@@ -121,9 +165,32 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             <p className="text-nhs-grey mb-3">
               For more detailed information about {symptom.linkToPage}, please see:
             </p>
-            <div className="text-nhs-blue font-medium">
-              → {symptom.linkToPage}
-            </div>
+            <button
+              onClick={handleLinkedSymptomClick}
+              disabled={isLoadingLinkedSymptom}
+              className="text-nhs-blue font-medium hover:text-nhs-dark-blue hover:underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label={`View instructions for ${symptom.linkToPage}`}
+            >
+              {isLoadingLinkedSymptom ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Loading...
+                </span>
+              ) : (
+                `→ ${symptom.linkToPage}`
+              )}
+            </button>
+            
+            {linkedSymptomError && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-700 text-sm">
+                  {linkedSymptomError}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
