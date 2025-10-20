@@ -44,7 +44,7 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
   return (
     <div className="flex items-center space-x-2">
       <label htmlFor="surgery-select" className="text-sm font-medium text-nhs-grey">
-        Surgery:
+        You're viewing:
       </label>
       <select
         ref={selectRef}
@@ -52,7 +52,7 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
         value={selectedId}
         onChange={(e) => handleSurgeryChange(e.target.value)}
         className="px-3 py-1 border border-nhs-grey rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
-        aria-label="Select surgery"
+        aria-label="Change surgery"
       >
         <option value="">Select Surgery</option>
         {surgeries.map((surgery) => (

@@ -167,18 +167,6 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
           <h1 className="text-3xl font-bold text-nhs-dark-blue mb-3">
             Find the right place for care
           </h1>
-          {surgery && (
-            <div className="text-sm text-nhs-grey mb-2">
-              You're viewing: {surgery.name} —{' '}
-              <button
-                onClick={() => setShowSurgerySelector(true)}
-                className="text-nhs-blue hover:text-nhs-dark-blue underline"
-                aria-label="Change surgery"
-              >
-                Change
-              </button>
-            </div>
-          )}
           <p className="text-base text-nhs-grey max-w-2xl mx-auto">
             Search by symptom and we'll guide you to the appropriate service.
           </p>

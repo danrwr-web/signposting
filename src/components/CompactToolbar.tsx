@@ -11,6 +11,7 @@ import HighRiskButtons from './HighRiskButtons'
 import PasswordChangeModal from './PasswordChangeModal'
 import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
+import { useSurgery } from '@/context/SurgeryContext'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -46,6 +47,7 @@ export default function CompactToolbar({
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { data: session } = useSession()
+  const { surgery } = useSurgery()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   
   // Check if user can access admin features
@@ -113,9 +115,9 @@ export default function CompactToolbar({
               <button
                 onClick={() => onShowSurgerySelector(true)}
                 className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
-                aria-label="Select surgery"
+                aria-label="Change surgery"
               >
-                Select Surgery
+                {surgery ? `You're viewing: ${surgery.name} — Change` : 'Select Surgery'}
               </button>
             )}
             
