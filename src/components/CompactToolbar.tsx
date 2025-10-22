@@ -130,6 +130,14 @@ export default function CompactToolbar({
               </Link>
             )}
 
+            {/* Help Link - visible to all authenticated users */}
+            <Link 
+              href="/help" 
+              className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors underline-offset-2 hover:underline"
+            >
+              User Guide
+            </Link>
+
             {/* Settings Gear Icon */}
             <button
               onClick={() => setShowPasswordModal(true)}

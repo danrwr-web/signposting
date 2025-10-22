@@ -39,6 +39,15 @@ export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHead
             >
               Admin
             </Link>
+            
+            {/* Help Link */}
+            <Link 
+              href="/help" 
+              prefetch={false}
+              className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors underline-offset-2 hover:underline"
+            >
+              User Guide
+            </Link>
           </div>
         </div>
       </div>
