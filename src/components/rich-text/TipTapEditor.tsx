@@ -68,39 +68,56 @@ export default function TipTapEditor({
 
   const editor = useEditor(() => {
     try {
+      // Ensure we have valid extensions
+      const extensions = [
+        StarterKit.configure({
+          heading: {
+            levels: [1, 2, 3],
+          },
+        }),
+        Underline,
+        Link.configure({
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'text-nhs-blue underline hover:text-nhs-dark-blue',
+            rel: 'noopener noreferrer',
+            target: '_blank',
+          },
+        }),
+        TextStyle,
+        Color.configure({
+          types: ['textStyle'],
+        }),
+        Highlight.configure({
+          multicolor: true,
+        }),
+        History,
+        Table.configure({
+          resizable: true,
+        }),
+        TableRow,
+        TableHeader,
+        TableCell,
+        Badge,
+      ].filter(Boolean) // Remove any undefined extensions
+
+      // Validate that StarterKit is properly loaded
+      if (!StarterKit || typeof StarterKit.configure !== 'function') {
+        console.error('StarterKit is not properly loaded')
+        return null
+      }
+
       return {
-        extensions: [
-          StarterKit.configure({
-            heading: {
-              levels: [1, 2, 3],
-            },
-          }),
-          Underline,
-          Link.configure({
-            openOnClick: false,
-            HTMLAttributes: {
-              class: 'text-nhs-blue underline hover:text-nhs-dark-blue',
-              rel: 'noopener noreferrer',
-              target: '_blank',
-            },
-          }),
-          TextStyle,
-          Color.configure({
-            types: ['textStyle'],
-          }),
-          Highlight.configure({
-            multicolor: true,
-          }),
-          History,
-          Table.configure({
-            resizable: true,
-          }),
-          TableRow,
-          TableHeader,
-          TableCell,
-          Badge,
-        ].filter(Boolean), // Remove any undefined extensions
-        content: value,
+        extensions,
+        content: value || {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: []
+            }
+          ]
+        },
         editable: !readOnly,
         onUpdate: ({ editor }) => {
           const json = editor.getJSON()

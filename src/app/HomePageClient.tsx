@@ -39,10 +39,14 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
 
   // Calculate surgerySlug using useMemo to avoid circular dependencies
   const surgerySlug = useMemo(() => {
+    console.log('HomePageClient: Available surgeries:', surgeries)
+    console.log('HomePageClient: Current surgery:', surgery)
+    console.log('HomePageClient: Current surgery ID:', currentSurgeryId)
+    
     const slug = currentSurgeryId ? surgeries.find(s => s.id === currentSurgeryId)?.slug : undefined
     console.log('HomePageClient: Calculated surgerySlug =', slug, 'for currentSurgeryId =', currentSurgeryId)
     return slug
-  }, [currentSurgeryId, surgeries])
+  }, [currentSurgeryId, surgeries, surgery])
 
   // Fetch symptoms when surgery changes
   useEffect(() => {
