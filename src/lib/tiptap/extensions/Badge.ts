@@ -28,7 +28,7 @@ declare module '@tiptap/core' {
   }
 }
 
-export const Badge = Mark.create<BadgeOptions>({
+const Badge = Mark.create<BadgeOptions>({
   name: 'badge',
 
   addOptions() {
@@ -103,3 +103,5 @@ export const Badge = Mark.create<BadgeOptions>({
     }
   },
 })
+
+export default Badge

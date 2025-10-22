@@ -19,7 +19,7 @@ import Table from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
-import { Badge } from '@/lib/tiptap/extensions/Badge'
+import Badge from '@/lib/tiptap/extensions/Badge'
 
 interface TipTapEditorCoreProps {
   value?: any // ProseMirror JSON document
@@ -56,64 +56,90 @@ export default function TipTapEditorCore({
   const [showMarkdownModal, setShowMarkdownModal] = useState(false)
   const [markdownText, setMarkdownText] = useState('')
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-      }),
-      Underline,
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-nhs-blue underline hover:text-nhs-dark-blue',
-          rel: 'noopener noreferrer',
-          target: '_blank',
-        },
-      }),
-      TextStyle,
-      Color.configure({
-        types: ['textStyle'],
-      }),
-      Highlight.configure({
-        multicolor: true,
-      }),
-      History,
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      Badge,
-    ],
-    content: value || {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: []
-        }
-      ]
-    },
-    editable: !readOnly,
-    onUpdate: ({ editor }) => {
-      const json = editor.getJSON()
-      // Convert to markdown for back-compat
-      import('tiptap-markdown').then(({ proseMirrorToMarkdown }) => {
-        try {
-          const markdown = proseMirrorToMarkdown(json)
-          onChange(json, markdown)
-        } catch (error) {
-          console.warn('Failed to convert to markdown:', error)
-          onChange(json)
-        }
-      }).catch(() => {
-        // If markdown conversion fails, just pass the JSON
-        onChange(json)
+  const editor = useEditor(() => {
+    try {
+      console.log('Creating TipTap editor with extensions:', {
+        StarterKit: !!StarterKit,
+        Underline: !!Underline,
+        Link: !!Link,
+        TextStyle: !!TextStyle,
+        Color: !!Color,
+        Highlight: !!Highlight,
+        History: !!History,
+        Table: !!Table,
+        TableRow: !!TableRow,
+        TableHeader: !!TableHeader,
+        TableCell: !!TableCell,
+        Badge: !!Badge,
       })
-    },
+
+      const extensions = [
+        StarterKit?.configure({
+          heading: {
+            levels: [1, 2, 3],
+          },
+        }),
+        Underline,
+        Link?.configure({
+          openOnClick: false,
+          HTMLAttributes: {
+            class: 'text-nhs-blue underline hover:text-nhs-dark-blue',
+            rel: 'noopener noreferrer',
+            target: '_blank',
+          },
+        }),
+        TextStyle,
+        Color?.configure({
+          types: ['textStyle'],
+        }),
+        Highlight?.configure({
+          multicolor: true,
+        }),
+        History,
+        Table?.configure({
+          resizable: true,
+        }),
+        TableRow,
+        TableHeader,
+        TableCell,
+        Badge,
+      ].filter(Boolean) // Remove any undefined extensions
+
+      console.log('Filtered extensions:', extensions.length)
+
+      return {
+        extensions,
+        content: value || {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: []
+            }
+          ]
+        },
+        editable: !readOnly,
+        onUpdate: ({ editor }) => {
+          const json = editor.getJSON()
+          // Convert to markdown for back-compat
+          import('tiptap-markdown').then(({ proseMirrorToMarkdown }) => {
+            try {
+              const markdown = proseMirrorToMarkdown(json)
+              onChange(json, markdown)
+            } catch (error) {
+              console.warn('Failed to convert to markdown:', error)
+              onChange(json)
+            }
+          }).catch(() => {
+            // If markdown conversion fails, just pass the JSON
+            onChange(json)
+          })
+        },
+      }
+    } catch (error) {
+      console.error('Failed to create TipTap editor:', error)
+      return null
+    }
   })
 
   // Update editor content when value prop changes
