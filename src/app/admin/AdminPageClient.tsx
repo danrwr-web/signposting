@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
+import RichTextEditor from '@/components/RichTextEditor'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -58,6 +59,9 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [effectiveSymptoms, setEffectiveSymptoms] = useState<EffectiveSymptom[]>([])
+  const [baseSymptoms, setBaseSymptoms] = useState<EffectiveSymptom[]>([])
+  const [showEditSymptomModal, setShowEditSymptomModal] = useState(false)
+  const [editingSymptom, setEditingSymptom] = useState<EffectiveSymptom | null>(null)
 
   // Load highlight rules from API
   useEffect(() => {
@@ -88,6 +92,26 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       }
     }
     loadHighlightRules()
+  }, [])
+
+  // Load base symptoms for Current Base Symptoms section
+  const loadBaseSymptoms = async () => {
+    try {
+      const response = await fetch('/api/admin/symptoms', { cache: 'no-store' })
+      if (response.ok) {
+        const data = await response.json()
+        setBaseSymptoms(data.symptoms || [])
+      } else {
+        console.error('Failed to load base symptoms')
+      }
+    } catch (error) {
+      console.error('Error loading base symptoms:', error)
+    }
+  }
+
+  // Load base symptoms on component mount
+  useEffect(() => {
+    loadBaseSymptoms()
   }, [])
 
   // Load effective symptoms for override dropdown
@@ -158,6 +182,54 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     } catch (error) {
       console.error('Logout error:', error)
       toast.error('Failed to logout')
+    }
+  }
+
+  const handleEditSymptom = (symptom: EffectiveSymptom) => {
+    setEditingSymptom(symptom)
+    setNewSymptom({
+      name: symptom.name,
+      slug: symptom.slug,
+      ageGroup: symptom.ageGroup,
+      briefInstruction: symptom.briefInstruction || '',
+      instructions: symptom.instructions || '',
+      highlightedText: symptom.highlightedText || '',
+      linkToPage: symptom.linkToPage || ''
+    })
+    setShowEditSymptomModal(true)
+  }
+
+  const handleUpdateSymptom = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingSymptom) return
+    
+    setIsLoading(true)
+    try {
+      const response = await fetch(`/api/admin/symptoms/${editingSymptom.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          source: 'base',
+          ...newSymptom
+        })
+      })
+
+      const result = await response.json()
+      
+      if (response.ok) {
+        toast.success('Symptom updated successfully!')
+        setShowEditSymptomModal(false)
+        setEditingSymptom(null)
+        // Reload base symptoms to show updated data
+        loadBaseSymptoms()
+      } else {
+        toast.error(result.error || 'Failed to update symptom')
+      }
+    } catch (error) {
+      console.error('Update symptom error:', error)
+      toast.error('An error occurred')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -376,6 +448,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         setShowAddSymptomForm(false)
         // Reload symptoms to show the new one
         loadEffectiveSymptoms()
+        loadBaseSymptoms()
       } else {
         const errorData = await response.json()
         console.error('Add symptom failed:', errorData)
@@ -649,19 +722,24 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
                 <div>
                   <h3 className="text-lg font-semibold text-nhs-dark-blue mb-3">
-                    Current Base Symptoms ({symptoms.length})
+                    Current Base Symptoms ({baseSymptoms.length})
                   </h3>
                   <div className="bg-nhs-light-grey rounded-lg p-4 max-h-96 overflow-y-auto">
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {symptoms.map((symptom) => (
-                        <div key={symptom.id} className="bg-white p-3 rounded border">
+                      {baseSymptoms.map((symptom) => (
+                        <div 
+                          key={symptom.id} 
+                          className="bg-white p-3 rounded border cursor-pointer hover:border-nhs-blue hover:shadow-md transition-all"
+                          onClick={() => handleEditSymptom(symptom)}
+                          title="Click to edit this symptom"
+                        >
                           <div className="font-medium text-nhs-dark-blue">
                             {symptom.name}
                           </div>
                             <div 
                               className="text-sm text-nhs-grey"
                               dangerouslySetInnerHTML={{ 
-                                __html: `${symptom.ageGroup} • ${highlightText(symptom.briefInstruction)}` 
+                                __html: `${symptom.ageGroup} • ${highlightText(symptom.briefInstruction || '')}` 
                               }}
                             />
                         </div>
@@ -1031,13 +1109,15 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <label className="block text-sm font-medium text-nhs-grey mb-1">
                   Instructions *
                 </label>
-                <textarea
+                <RichTextEditor
                   value={newSymptom.instructions}
-                  onChange={(e) => setNewSymptom({ ...newSymptom, instructions: e.target.value })}
-                  className="w-full nhs-input"
-                  rows={4}
-                  placeholder="Detailed instructions for this symptom"
+                  onChange={(value) => setNewSymptom({ ...newSymptom, instructions: value })}
+                  placeholder="Enter detailed instructions with formatting..."
+                  height={200}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  You can use formatting tools to make text bold, italic, add lists, change colours, and more.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1272,6 +1352,132 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Symptom Modal */}
+      {showEditSymptomModal && editingSymptom && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Base Symptom</h3>
+              <form onSubmit={handleUpdateSymptom}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newSymptom.name}
+                      onChange={(e) => setNewSymptom(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Slug *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={newSymptom.slug}
+                      onChange={(e) => setNewSymptom(prev => ({ ...prev, slug: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                    />
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Age Group *
+                  </label>
+                  <select
+                    required
+                    value={newSymptom.ageGroup}
+                    onChange={(e) => setNewSymptom(prev => ({ ...prev, ageGroup: e.target.value as 'U5' | 'O5' | 'Adult' }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                  >
+                    <option value="U5">Under 5</option>
+                    <option value="O5">Over 5</option>
+                    <option value="Adult">Adult</option>
+                  </select>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Brief Instruction
+                  </label>
+                  <textarea
+                    value={newSymptom.briefInstruction}
+                    onChange={(e) => setNewSymptom(prev => ({ ...prev, briefInstruction: e.target.value }))}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Instructions
+                  </label>
+                  <RichTextEditor
+                    value={newSymptom.instructions}
+                    onChange={(value) => setNewSymptom(prev => ({ ...prev, instructions: value }))}
+                    placeholder="Enter detailed instructions with formatting..."
+                    height={250}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    You can use formatting tools to make text bold, italic, add lists, change colours, and more.
+                  </p>
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Highlighted Text
+                  </label>
+                  <textarea
+                    value={newSymptom.highlightedText}
+                    onChange={(e) => setNewSymptom(prev => ({ ...prev, highlightedText: e.target.value }))}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                  />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Link to Page
+                  </label>
+                  <input
+                    type="url"
+                    value={newSymptom.linkToPage}
+                    onChange={(e) => setNewSymptom(prev => ({ ...prev, linkToPage: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEditSymptomModal(false)
+                      setEditingSymptom(null)
+                    }}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue disabled:opacity-50"
+                  >
+                    {isLoading ? 'Updating...' : 'Update'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
