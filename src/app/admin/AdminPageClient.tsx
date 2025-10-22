@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
-import TipTapEditor from '@/components/rich-text/TipTapEditor'
+import QuillEditor from '@/components/rich-text/QuillEditor'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -1132,20 +1132,20 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <label className="block text-sm font-medium text-nhs-grey mb-1">
                   Instructions *
                 </label>
-                <TipTapEditor
+                <QuillEditor
                   value={newSymptom.instructions}
-                  onChange={(text) => {
+                  onChange={(html) => {
                     setNewSymptom(prev => ({ 
                       ...prev, 
-                      instructions: text,
+                      instructions: html,
                       instructionsJson: null
                     }))
                   }}
-                  placeholder="Enter detailed instructions..."
+                  placeholder="Enter detailed instructions with formatting..."
                   height={200}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Enter plain text instructions. Rich text formatting will be available soon.
+                  Use the toolbar to format text, add NHS badges, create lists, and more.
                 </p>
               </div>
 
@@ -1452,20 +1452,20 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Instructions
                   </label>
-                  <TipTapEditor
+                  <QuillEditor
                     value={newSymptom.instructions}
-                    onChange={(text) => {
+                    onChange={(html) => {
                       setNewSymptom(prev => ({ 
                         ...prev, 
-                        instructions: text,
+                        instructions: html,
                         instructionsJson: null
                       }))
                     }}
-                    placeholder="Enter detailed instructions..."
+                    placeholder="Enter detailed instructions with formatting..."
                     height={250}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Enter plain text instructions. Rich text formatting will be available soon.
+                    Use the toolbar to format text, add NHS badges, create lists, and more.
                   </p>
                 </div>
 
