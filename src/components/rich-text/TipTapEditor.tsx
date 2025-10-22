@@ -23,7 +23,7 @@ import { Badge } from '@/lib/tiptap/extensions/Badge'
 import dynamic from 'next/dynamic'
 
 // Dynamically import markdown utilities to avoid SSR issues
-const { markdownToProseMirror, proseMirrorToMarkdown } = dynamic(() => import('tiptap-markdown'), { ssr: false })
+const MarkdownUtils = dynamic(() => import('tiptap-markdown'), { ssr: false })
 
 interface TipTapEditorProps {
   value?: any // ProseMirror JSON document
@@ -66,51 +66,63 @@ export default function TipTapEditor({
     setMounted(true)
   }, [])
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
+  const editor = useEditor(() => {
+    try {
+      return {
+        extensions: [
+          StarterKit.configure({
+            heading: {
+              levels: [1, 2, 3],
+            },
+          }),
+          Underline,
+          Link.configure({
+            openOnClick: false,
+            HTMLAttributes: {
+              class: 'text-nhs-blue underline hover:text-nhs-dark-blue',
+              rel: 'noopener noreferrer',
+              target: '_blank',
+            },
+          }),
+          TextStyle,
+          Color.configure({
+            types: ['textStyle'],
+          }),
+          Highlight.configure({
+            multicolor: true,
+          }),
+          History,
+          Table.configure({
+            resizable: true,
+          }),
+          TableRow,
+          TableHeader,
+          TableCell,
+          Badge,
+        ].filter(Boolean), // Remove any undefined extensions
+        content: value,
+        editable: !readOnly,
+        onUpdate: ({ editor }) => {
+          const json = editor.getJSON()
+          // Convert to markdown for back-compat
+          import('tiptap-markdown').then(({ proseMirrorToMarkdown }) => {
+            try {
+              const markdown = proseMirrorToMarkdown(json)
+              onChange(json, markdown)
+            } catch (error) {
+              console.warn('Failed to convert to markdown:', error)
+              onChange(json)
+            }
+          }).catch(() => {
+            // If markdown conversion fails, just pass the JSON
+            onChange(json)
+          })
         },
-      }),
-      Underline,
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-nhs-blue underline hover:text-nhs-dark-blue',
-          rel: 'noopener noreferrer',
-          target: '_blank',
-        },
-      }),
-      TextStyle,
-      Color.configure({
-        types: ['textStyle'],
-      }),
-      Highlight.configure({
-        multicolor: true,
-      }),
-      History,
-      Table.configure({
-        resizable: true,
-      }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      Badge,
-    ],
-    content: value,
-    editable: !readOnly,
-    onUpdate: ({ editor }) => {
-      const json = editor.getJSON()
-      // Convert to markdown for back-compat
-      try {
-        const markdown = proseMirrorToMarkdown(json)
-        onChange(json, markdown)
-      } catch (error) {
-        console.warn('Failed to convert to markdown:', error)
-        onChange(json)
       }
-    },
+    } catch (error) {
+      console.error('Failed to create TipTap editor:', error)
+      return null
+    }
   })
 
   // Update editor content when value prop changes
@@ -144,10 +156,11 @@ export default function TipTapEditor({
     setShowBadgePicker(false)
   }, [editor])
 
-  const importMarkdown = useCallback(() => {
+  const importMarkdown = useCallback(async () => {
     if (!editor || !markdownText) return
     
     try {
+      const { markdownToProseMirror } = await import('tiptap-markdown')
       const json = markdownToProseMirror(markdownText)
       editor.commands.setContent(json)
       setShowMarkdownModal(false)
@@ -159,10 +172,11 @@ export default function TipTapEditor({
     }
   }, [editor, markdownText])
 
-  const exportMarkdown = useCallback(() => {
+  const exportMarkdown = useCallback(async () => {
     if (!editor) return
     
     try {
+      const { proseMirrorToMarkdown } = await import('tiptap-markdown')
       const json = editor.getJSON()
       const markdown = proseMirrorToMarkdown(json)
       setMarkdownText(markdown)
