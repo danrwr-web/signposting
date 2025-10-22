@@ -14,6 +14,7 @@ export interface EffectiveSymptom {
   briefInstruction: string | null
   highlightedText: string | null
   instructions: string | null
+  instructionsJson: string | null // ProseMirror JSON as string
   linkToPage: string | null
   source: 'base' | 'override' | 'custom'
   baseSymptomId?: string // For overrides, this is the base symptom ID
@@ -31,6 +32,7 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
       briefInstruction: true, 
       highlightedText: true, 
       instructions: true, 
+      instructionsJson: true,
       linkToPage: true 
     },
     orderBy: { name: 'asc' }
@@ -46,6 +48,7 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
       briefInstruction: true,
       highlightedText: true,
       instructions: true,
+      instructionsJson: true,
       linkToPage: true,
       isHidden: true
     }
@@ -60,6 +63,7 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
       briefInstruction: true,
       highlightedText: true,
       instructions: true,
+      instructionsJson: true,
       linkToPage: true
     }
   })

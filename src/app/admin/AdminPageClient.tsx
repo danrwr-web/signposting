@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
-import RichTextEditor from '@/components/RichTextEditor'
+import TipTapEditor from '@/components/rich-text/TipTapEditor'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -51,6 +51,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     ageGroup: 'Adult',
     briefInstruction: '',
     instructions: '',
+    instructionsJson: null as any,
     highlightedText: '',
     linkToPage: ''
   })
@@ -187,12 +188,26 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   const handleEditSymptom = (symptom: EffectiveSymptom) => {
     setEditingSymptom(symptom)
+    
+    // Parse instructionsJson if it exists, otherwise use instructions as fallback
+    let instructionsJson = null
+    try {
+      if (symptom.instructionsJson) {
+        instructionsJson = typeof symptom.instructionsJson === 'string' 
+          ? JSON.parse(symptom.instructionsJson) 
+          : symptom.instructionsJson
+      }
+    } catch (error) {
+      console.warn('Failed to parse instructionsJson:', error)
+    }
+    
     setNewSymptom({
       name: symptom.name,
       slug: symptom.slug,
       ageGroup: symptom.ageGroup,
       briefInstruction: symptom.briefInstruction || '',
       instructions: symptom.instructions || '',
+      instructionsJson: instructionsJson,
       highlightedText: symptom.highlightedText || '',
       linkToPage: symptom.linkToPage || ''
     })
@@ -210,7 +225,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: 'base',
-          ...newSymptom
+          name: newSymptom.name,
+          slug: newSymptom.slug,
+          ageGroup: newSymptom.ageGroup,
+          briefInstruction: newSymptom.briefInstruction,
+          instructions: newSymptom.instructions,
+          instructionsJson: newSymptom.instructionsJson,
+          highlightedText: newSymptom.highlightedText,
+          linkToPage: newSymptom.linkToPage
         })
       })
 
@@ -442,6 +464,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           ageGroup: 'Adult',
           briefInstruction: '',
           instructions: '',
+          instructionsJson: null,
           highlightedText: '',
           linkToPage: ''
         })
@@ -1109,14 +1132,20 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <label className="block text-sm font-medium text-nhs-grey mb-1">
                   Instructions *
                 </label>
-                <RichTextEditor
-                  value={newSymptom.instructions}
-                  onChange={(value) => setNewSymptom({ ...newSymptom, instructions: value })}
+                <TipTapEditor
+                  value={newSymptom.instructionsJson}
+                  onChange={(json, markdown) => {
+                    setNewSymptom(prev => ({ 
+                      ...prev, 
+                      instructionsJson: json,
+                      instructions: markdown || prev.instructions
+                    }))
+                  }}
                   placeholder="Enter detailed instructions with formatting..."
                   height={200}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  You can use markdown formatting: **bold**, *italic*, lists, headers, links, etc.
+                  Use the toolbar to format text, add badges, create lists, and more.
                 </p>
               </div>
 
@@ -1423,14 +1452,20 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Instructions
                   </label>
-                  <RichTextEditor
-                    value={newSymptom.instructions}
-                    onChange={(value) => setNewSymptom(prev => ({ ...prev, instructions: value }))}
+                  <TipTapEditor
+                    value={newSymptom.instructionsJson}
+                    onChange={(json, markdown) => {
+                      setNewSymptom(prev => ({ 
+                        ...prev, 
+                        instructionsJson: json,
+                        instructions: markdown || prev.instructions
+                      }))
+                    }}
                     placeholder="Enter detailed instructions with formatting..."
                     height={250}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    You can use markdown formatting: **bold**, *italic*, lists, headers, links, etc.
+                    Use the toolbar to format text, add badges, create lists, and more.
                   </p>
                 </div>
 

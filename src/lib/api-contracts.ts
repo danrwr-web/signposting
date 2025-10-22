@@ -96,6 +96,7 @@ export const EffectiveSymptomZ = z.object({
   briefInstruction: z.string().nullable().optional(),
   highlightedText: z.string().nullable().optional(),
   instructions: z.string().nullable().optional(),
+  instructionsJson: z.string().nullable().optional(), // ProseMirror JSON as string
   linkToPage: z.string().nullable().optional(),
   source: z.enum(['base', 'override', 'custom']),
   baseSymptomId: z.string().optional(),
@@ -112,6 +113,7 @@ export const CreateSymptomReqZ = z.object({
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
   instructions: z.string().optional(),
+  instructionsJson: z.any().optional(), // ProseMirror JSON
   linkToPage: z.string().optional(),
 });
 
@@ -121,6 +123,7 @@ export const UpdateSymptomReqZ = z.object({
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
   instructions: z.string().optional(),
+  instructionsJson: z.any().optional(), // ProseMirror JSON
   linkToPage: z.string().optional(),
 });
 

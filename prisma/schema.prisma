@@ -81,7 +81,8 @@ model BaseSymptom {
   ageGroup         String   // 'U5' | 'O5' | 'Adult'
   briefInstruction String?
   highlightedText  String?
-  instructions     String?
+  instructions     String?  // Legacy markdown field for back-compat
+  instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
   linkToPage       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -104,7 +105,8 @@ model SurgerySymptomOverride {
   ageGroup         String?  // 'U5' | 'O5' | 'Adult'
   briefInstruction String?
   highlightedText  String?
-  instructions     String?
+  instructions     String?  // Legacy markdown field for back-compat
+  instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
   linkToPage       String?
   // Soft delete: if true, this symptom is hidden for this surgery
   isHidden         Boolean  @default(false)
@@ -124,7 +126,8 @@ model SurgeryCustomSymptom {
   ageGroup         String   // 'U5' | 'O5' | 'Adult'
   briefInstruction String?
   highlightedText  String?
-  instructions     String?
+  instructions     String?  // Legacy markdown field for back-compat
+  instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
   linkToPage       String?
 
   surgery          Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
