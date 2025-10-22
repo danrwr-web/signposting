@@ -1133,19 +1133,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   Instructions *
                 </label>
                 <TipTapEditor
-                  value={newSymptom.instructionsJson}
-                  onChange={(json, markdown) => {
+                  value={newSymptom.instructions}
+                  onChange={(text) => {
                     setNewSymptom(prev => ({ 
                       ...prev, 
-                      instructionsJson: json,
-                      instructions: markdown || prev.instructions
+                      instructions: text,
+                      instructionsJson: null
                     }))
                   }}
-                  placeholder="Enter detailed instructions with formatting..."
+                  placeholder="Enter detailed instructions..."
                   height={200}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Use the toolbar to format text, add badges, create lists, and more.
+                  Enter plain text instructions. Rich text formatting will be available soon.
                 </p>
               </div>
 
@@ -1453,19 +1453,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     Instructions
                   </label>
                   <TipTapEditor
-                    value={newSymptom.instructionsJson}
-                    onChange={(json, markdown) => {
+                    value={newSymptom.instructions}
+                    onChange={(text) => {
                       setNewSymptom(prev => ({ 
                         ...prev, 
-                        instructionsJson: json,
-                        instructions: markdown || prev.instructions
+                        instructions: text,
+                        instructionsJson: null
                       }))
                     }}
-                    placeholder="Enter detailed instructions with formatting..."
+                    placeholder="Enter detailed instructions..."
                     height={250}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Use the toolbar to format text, add badges, create lists, and more.
+                    Enter plain text instructions. Rich text formatting will be available soon.
                   </p>
                 </div>
 

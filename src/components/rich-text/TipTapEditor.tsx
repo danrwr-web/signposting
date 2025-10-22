@@ -55,30 +55,13 @@ export default function TipTapEditor({
   placeholder = 'Start typing...',
   height = 300
 }: TipTapEditorProps) {
-  const [mounted, setMounted] = useState(false)
-
-  // Ensure component is mounted before rendering
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) {
-    return (
-      <SimpleTextEditor
-        value={value}
-        onChange={(text: string) => onChange(text)}
-        placeholder={placeholder}
-        height={height}
-      />
-    )
-  }
-
+  // Temporarily disable TipTap editor due to schema issues
+  // TODO: Re-enable TipTap once schema issues are resolved
+  
   return (
-    <TipTapEditorCore
-      value={value}
-      onChange={onChange}
-      className={className}
-      readOnly={readOnly}
+    <SimpleTextEditor
+      value={typeof value === 'string' ? value : ''}
+      onChange={(text: string) => onChange(text)}
       placeholder={placeholder}
       height={height}
     />
