@@ -1116,7 +1116,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   height={200}
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  You can use formatting tools to make text bold, italic, add lists, change colours, and more.
+                  You can use markdown formatting: **bold**, *italic*, lists, headers, links, etc.
                 </p>
               </div>
 
@@ -1430,7 +1430,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     height={250}
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    You can use formatting tools to make text bold, italic, add lists, change colours, and more.
+                    You can use markdown formatting: **bold**, *italic*, lists, headers, links, etc.
                   </p>
                 </div>
 

@@ -1,6 +1,6 @@
 /**
  * Rich Text Editor Component
- * A simple rich text editor using react-quill for editing instructions
+ * A markdown editor for editing instructions with formatting
  */
 
 'use client'
@@ -8,9 +8,8 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 
-// Dynamically import react-quill to avoid SSR issues
-const ReactQuill = dynamic(() => import('react-quill'), { ssr: false })
-import 'react-quill/dist/quill.snow.css'
+// Dynamically import the markdown editor to avoid SSR issues
+const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 
 interface RichTextEditorProps {
   value: string
@@ -32,26 +31,6 @@ export default function RichTextEditor({
     setMounted(true)
   }, [])
 
-  // Custom toolbar configuration
-  const modules = {
-    toolbar: [
-      [{ 'header': [1, 2, 3, false] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'indent': '-1'}, { 'indent': '+1' }],
-      [{ 'align': [] }],
-      ['link'],
-      ['clean']
-    ],
-  }
-
-  const formats = [
-    'header', 'bold', 'italic', 'underline', 'strike',
-    'color', 'background', 'list', 'bullet', 'indent',
-    'align', 'link'
-  ]
-
   if (!mounted) {
     // Show a simple textarea while loading
     return (
@@ -67,32 +46,48 @@ export default function RichTextEditor({
 
   return (
     <div className="rich-text-editor">
-      <ReactQuill
-        theme="snow"
+      <MDEditor
         value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        modules={modules}
-        formats={formats}
-        style={{ height: `${height}px` }}
+        onChange={(val) => onChange(val || '')}
+        height={height}
+        data-color-mode="light"
+        preview="edit"
+        hideToolbar={false}
+        visibleDragBar={false}
+        textareaProps={{
+          placeholder: placeholder,
+          style: {
+            fontSize: 14,
+            fontFamily: 'inherit',
+          },
+        }}
       />
       <style jsx global>{`
-        .rich-text-editor .ql-editor {
-          min-height: ${height - 50}px;
+        .rich-text-editor .w-md-editor {
+          border: 1px solid #d1d5db;
+          border-radius: 0.375rem;
         }
-        .rich-text-editor .ql-toolbar {
-          border-top: 1px solid #ccc;
-          border-left: 1px solid #ccc;
-          border-right: 1px solid #ccc;
+        .rich-text-editor .w-md-editor:focus-within {
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
-        .rich-text-editor .ql-container {
-          border-bottom: 1px solid #ccc;
-          border-left: 1px solid #ccc;
-          border-right: 1px solid #ccc;
+        .rich-text-editor .w-md-editor-toolbar {
+          background-color: #f9fafb;
+          border-bottom: 1px solid #e5e7eb;
         }
-        .rich-text-editor .ql-editor.ql-blank::before {
-          color: #9ca3af;
-          font-style: italic;
+        .rich-text-editor .w-md-editor-toolbar button {
+          color: #374151;
+        }
+        .rich-text-editor .w-md-editor-toolbar button:hover {
+          background-color: #e5e7eb;
+        }
+        .rich-text-editor .w-md-editor-text {
+          background-color: white;
+        }
+        .rich-text-editor .w-md-editor-text-pre {
+          font-family: inherit;
+          font-size: 14px;
+          line-height: 1.5;
         }
       `}</style>
     </div>
