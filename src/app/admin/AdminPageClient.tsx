@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
-import QuillEditor from '@/components/rich-text/QuillEditor'
+import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -1132,7 +1132,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <label className="block text-sm font-medium text-nhs-grey mb-1">
                   Instructions *
                 </label>
-                <QuillEditor
+                <RichTextEditor
                   value={newSymptom.instructions}
                   onChange={(html) => {
                     setNewSymptom(prev => ({ 
@@ -1452,7 +1452,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Instructions
                   </label>
-                  <QuillEditor
+                  <RichTextEditor
                     value={newSymptom.instructions}
                     onChange={(html) => {
                       setNewSymptom(prev => ({ 
