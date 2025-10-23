@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useState, useEffect } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
+import { useSurgery } from '@/context/SurgeryContext'
 
 interface SymptomCardProps {
   symptom: EffectiveSymptom
@@ -11,16 +12,20 @@ interface SymptomCardProps {
 }
 
 export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
+  const { currentSurgerySlug } = useSurgery()
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
 
+  // Use provided surgerySlug or fall back to context
+  const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
+
   // Debug logging for surgerySlug
   useEffect(() => {
-    console.log('SymptomCard: Received surgerySlug =', surgerySlug, 'for symptom:', symptom.id, symptom.name)
-    if (!surgerySlug) {
+    console.log('SymptomCard: Received surgerySlug =', surgerySlug, 'context surgerySlug =', currentSurgerySlug, 'effective =', effectiveSurgerySlug, 'for symptom:', symptom.id, symptom.name)
+    if (!effectiveSurgerySlug) {
       console.warn('SymptomCard: surgerySlug is undefined for symptom:', symptom.id, symptom.name)
     }
-  }, [surgerySlug, symptom.id, symptom.name])
+  }, [surgerySlug, currentSurgerySlug, effectiveSurgerySlug, symptom.id, symptom.name])
 
   // Load highlight rules from API
   useEffect(() => {
@@ -28,9 +33,9 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     try {
       // Build URL with surgeryId parameter if available
       let url = '/api/highlights'
-      if (surgerySlug) {
+      if (effectiveSurgerySlug) {
         // Pass the surgerySlug directly - the API will handle conversion to surgeryId
-        url += `?surgeryId=${encodeURIComponent(surgerySlug)}`
+        url += `?surgeryId=${encodeURIComponent(effectiveSurgerySlug)}`
       }
         
         const response = await fetch(url, { cache: 'no-store' })
@@ -50,7 +55,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
       }
     }
     loadHighlightRules()
-  }, [surgerySlug])
+  }, [effectiveSurgerySlug])
 
   const getSourceColor = (source: string) => {
     switch (source) {
@@ -95,7 +100,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
   }
 
-  const linkUrl = `/symptom/${symptom.id || 'unknown'}${surgerySlug ? `?surgery=${surgerySlug}` : ''}`
+  const linkUrl = effectiveSurgerySlug ? `/${effectiveSurgerySlug}/symptom/${symptom.id || 'unknown'}` : `/symptom/${symptom.id || 'unknown'}`
   console.log('SymptomCard: Generated link URL =', linkUrl, 'for symptom:', symptom.name)
 
   return (

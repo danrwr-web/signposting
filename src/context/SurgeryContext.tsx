@@ -6,11 +6,14 @@ import { useSession } from 'next-auth/react'
 
 export interface SurgeryState {
   id: string
+  slug: string
   name: string
 }
 
 interface SurgeryContextValue {
   surgery: SurgeryState | null
+  currentSurgeryId: string | null
+  currentSurgerySlug: string | null
   setSurgery: (next: SurgeryState) => void
   clearSurgery: () => void
   availableSurgeries: SurgeryState[]
@@ -70,7 +73,7 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
       const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === urlId)
       if (hasAccess) {
         const surgeryData = availableSurgeries.find(s => s.id === urlId)
-        const next: SurgeryState = surgeryData || { id: urlId, name: '' }
+        const next: SurgeryState = surgeryData || { id: urlId, slug: urlId, name: '' }
         setSurgeryState(next)
         writeCookie(COOKIE_KEY, urlId, COOKIE_MAX_AGE)
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
@@ -86,7 +89,7 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
         const stored = localStorage.getItem(STORAGE_KEY)
         const parsed: SurgeryState | null = stored ? safeParseJSON(stored) : null
         const surgeryData = availableSurgeries.find(s => s.id === cookieId)
-        const next: SurgeryState = parsed && parsed.id === cookieId ? parsed : surgeryData || { id: cookieId, name: '' }
+        const next: SurgeryState = parsed && parsed.id === cookieId ? parsed : surgeryData || { id: cookieId, slug: cookieId, name: '' }
         setSurgeryState(next)
         return
       }
@@ -170,6 +173,8 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
 
   const value = useMemo(() => ({ 
     surgery, 
+    currentSurgeryId: surgery?.id ?? null,
+    currentSurgerySlug: surgery?.slug ?? surgery?.id ?? null,
     setSurgery, 
     clearSurgery, 
     availableSurgeries,

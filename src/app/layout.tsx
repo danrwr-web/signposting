@@ -24,7 +24,7 @@ export default async function RootLayout({
   
   // Get all surgeries for the SurgeryProvider
   const surgeries = await prisma.surgery.findMany({
-    select: { id: true, name: true },
+    select: { id: true, slug: true, name: true },
     orderBy: { name: 'asc' }
   })
   
@@ -33,7 +33,7 @@ export default async function RootLayout({
   if (surgeryId) {
     const surgery = surgeries.find(s => s.id === surgeryId)
     if (surgery) {
-      initialSurgery = { id: surgery.id, name: surgery.name }
+      initialSurgery = { id: surgery.id, slug: surgery.slug || surgery.id, name: surgery.name }
     }
   }
 

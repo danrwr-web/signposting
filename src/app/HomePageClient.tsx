@@ -19,7 +19,7 @@ interface HomePageClientProps {
 
 export default function HomePageClient({ surgeries, symptoms: initialSymptoms }: HomePageClientProps) {
   const searchParams = useSearchParams()
-  const { surgery } = useSurgery()
+  const { surgery, currentSurgerySlug } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
   const [selectedAge, setSelectedAge] = useState<AgeBand>('All')
@@ -37,16 +37,8 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
   }, [surgery, surgeries.length])
 
 
-  // Calculate surgerySlug using useMemo to avoid circular dependencies
-  const surgerySlug = useMemo(() => {
-    console.log('HomePageClient: Available surgeries:', surgeries)
-    console.log('HomePageClient: Current surgery:', surgery)
-    console.log('HomePageClient: Current surgery ID:', currentSurgeryId)
-    
-    const slug = currentSurgeryId ? surgeries.find(s => s.id === currentSurgeryId)?.slug : undefined
-    console.log('HomePageClient: Calculated surgerySlug =', slug, 'for currentSurgeryId =', currentSurgeryId)
-    return slug
-  }, [currentSurgeryId, surgeries, surgery])
+  // Use surgerySlug from context
+  const surgerySlug = currentSurgerySlug
 
   // Fetch symptoms when surgery changes
   useEffect(() => {

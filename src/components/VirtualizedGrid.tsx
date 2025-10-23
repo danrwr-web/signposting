@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SymptomCard from './SymptomCard'
+import { useSurgery } from '@/context/SurgeryContext'
 
 interface VirtualizedGridProps {
   symptoms: EffectiveSymptom[]
@@ -40,6 +41,10 @@ export default function VirtualizedGrid({
   itemHeight = DEFAULT_ITEM_HEIGHT,
   overscan = DEFAULT_OVERSCAN
 }: VirtualizedGridProps) {
+  const { currentSurgerySlug } = useSurgery()
+  
+  // Use provided surgerySlug or fall back to context
+  const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
   // Ensure symptoms are sorted alphabetically
   const sortedSymptoms = useMemo(() => 
     [...symptoms].sort((a, b) => a.name.localeCompare(b.name)), 
@@ -169,7 +174,7 @@ export default function VirtualizedGrid({
                 height: itemHeight
               }}
             >
-              <SymptomCard symptom={symptom} surgerySlug={surgerySlug} />
+              <SymptomCard symptom={symptom} surgerySlug={effectiveSurgerySlug} />
             </div>
           )
         })}
