@@ -9,9 +9,16 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
     const limit = parseInt(searchParams.get('limit') || '5')
+    const startDate = searchParams.get('startDate')
+    const includeSurgeryBreakdown = searchParams.get('includeSurgeryBreakdown') === 'true'
 
     const where: any = { event: 'view_symptom' }
     if (surgeryId) where.surgeryId = surgeryId
+    if (startDate) {
+      where.createdAt = {
+        gte: new Date(startDate)
+      }
+    }
 
     // Top symptoms by view count
     const topSymptoms = await prisma.engagementEvent.groupBy({
@@ -72,6 +79,7 @@ export async function GET(request: NextRequest) {
         userEmail: item.userEmail,
         engagementCount: item._count.userEmail,
       })),
+      surgeryBreakdown: includeSurgeryBreakdown ? await getSurgeryBreakdown(where) : undefined,
     })
   } catch (error) {
     console.error('Error fetching engagement data:', error)
@@ -80,4 +88,42 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+async function getSurgeryBreakdown(where: any) {
+  // Get engagement events grouped by surgery
+  const surgeryEngagement = await prisma.engagementEvent.groupBy({
+    by: ['surgeryId'],
+    where,
+    _count: {
+      surgeryId: true,
+    },
+    orderBy: {
+      _count: {
+        surgeryId: 'desc',
+      },
+    },
+  })
+
+  // Get surgery details
+  const surgeryIds = surgeryEngagement.map(item => item.surgeryId).filter(Boolean)
+  const surgeries = await prisma.surgery.findMany({
+    where: { id: { in: surgeryIds } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    }
+  })
+
+  // Combine with counts
+  return surgeryEngagement.map(item => {
+    const surgery = surgeries.find(s => s.id === item.surgeryId)
+    return {
+      surgeryId: item.surgeryId,
+      surgeryName: surgery?.name || 'Unknown Surgery',
+      surgerySlug: surgery?.slug,
+      engagementCount: item._count.surgeryId,
+    }
+  })
 }

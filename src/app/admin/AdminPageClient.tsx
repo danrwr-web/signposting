@@ -8,6 +8,7 @@ import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
+import EngagementAnalytics from '@/components/EngagementAnalytics'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -794,15 +795,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
             {/* Engagement Tab */}
             {activeTab === 'engagement' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  Engagement Analytics
-                </h2>
-                <p className="text-nhs-grey">
-                  Engagement analytics will be displayed here. This feature requires 
-                  the engagement API to be implemented.
-                </p>
-              </div>
+              <EngagementAnalytics 
+                session={session} 
+                surgeries={session.type === 'superuser' ? surgeries : undefined}
+              />
             )}
 
             {/* Suggestions Tab */}
