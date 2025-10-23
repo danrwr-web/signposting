@@ -697,24 +697,22 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                       >
                         {session.type === 'superuser' ? 'Delete Symptom' : 'Hide Symptom'}
                       </button>
+                      <button
+                        onClick={() => {
+                          setShowHiddenSymptomsDialog(true)
+                          loadHiddenSymptoms()
+                        }}
+                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
+                      >
+                        Manage Hidden Symptoms
+                      </button>
                       {session.type === 'superuser' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setShowHiddenSymptomsDialog(true)
-                              loadHiddenSymptoms()
-                            }}
-                            className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
-                          >
-                            Manage Hidden Symptoms
-                          </button>
-                          <button
-                            onClick={() => setShowClearAllDialog(true)}
-                            className="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors text-sm font-semibold"
-                          >
-                            🗑️ Clear All Data
-                          </button>
-                        </>
+                        <button
+                          onClick={() => setShowClearAllDialog(true)}
+                          className="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors text-sm font-semibold"
+                        >
+                          🗑️ Clear All Data
+                        </button>
                       )}
                     </div>
                   </div>

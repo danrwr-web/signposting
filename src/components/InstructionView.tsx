@@ -32,6 +32,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [hideError, setHideError] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
+  const { currentSurgerySlug } = useSurgery()
 
   // Check if user is superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
@@ -298,7 +299,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       }
 
       // Redirect back to symptoms list
-      router.push(`/${surgeryId}`)
+      router.push(`/${currentSurgerySlug || surgeryId}`)
     } catch (error: any) {
       console.error('Error hiding symptom:', error)
       setHideError(error.message || 'Failed to hide symptom. Please try again.')

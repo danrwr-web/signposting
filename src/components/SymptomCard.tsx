@@ -116,7 +116,9 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
               {getAgeGroupLabel(symptom.ageGroup || 'Adult')}
             </span>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSourceColor(symptom.source || 'base')}`}>
-              {symptom.source || 'base'}
+              {symptom.source === 'override' ? 'Practice Customised' : 
+               symptom.source === 'custom' ? 'Practice Created' : 
+               symptom.source || 'base'}
             </span>
           </div>
         </div>
