@@ -23,6 +23,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [editedInstructions, setEditedInstructions] = useState('')
   const [isSavingInstructions, setIsSavingInstructions] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [isEditingAll, setIsEditingAll] = useState(false)
+  const [editedBriefInstruction, setEditedBriefInstruction] = useState('')
+  const [editedHighlightedText, setEditedHighlightedText] = useState('')
+  const [editedLinkToPage, setEditedLinkToPage] = useState('')
+  const [isSavingAll, setIsSavingAll] = useState(false)
   const router = useRouter()
   const { data: session } = useSession()
 
@@ -136,6 +141,24 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setSaveError(null)
   }
 
+  const handleEditAll = () => {
+    setEditedBriefInstruction(symptom.briefInstruction || '')
+    setEditedHighlightedText(symptom.highlightedText || '')
+    setEditedLinkToPage(symptom.linkToPage || '')
+    setEditedInstructions(symptom.instructionsHtml || symptom.instructions || '')
+    setIsEditingAll(true)
+    setSaveError(null)
+  }
+
+  const handleCancelEditAll = () => {
+    setIsEditingAll(false)
+    setEditedBriefInstruction('')
+    setEditedHighlightedText('')
+    setEditedLinkToPage('')
+    setEditedInstructions('')
+    setSaveError(null)
+  }
+
   const handleSaveInstructions = async () => {
     if (!canEditInstructions) return
 
@@ -190,6 +213,72 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     }
   }
 
+  const handleSaveAll = async () => {
+    if (!canEditInstructions) return
+
+    setIsSavingAll(true)
+    setSaveError(null)
+
+    try {
+      const sanitizedInstructions = sanitizeHtml(editedInstructions)
+      
+      // Determine the source and surgery ID for the API call
+      let apiSource = symptom.source
+      let apiSurgeryId = surgeryId
+      
+      // If practice admin is editing a base symptom, create an override
+      if (isPracticeAdmin && symptom.source === 'base') {
+        apiSource = 'override'
+        apiSurgeryId = surgeryId
+      }
+      
+      const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source: apiSource,
+          surgeryId: apiSurgeryId,
+          name: symptom.name, // Keep existing name
+          ageGroup: symptom.ageGroup, // Keep existing age group
+          briefInstruction: editedBriefInstruction.trim(),
+          instructions: sanitizedInstructions, // Keep legacy field for compatibility
+          instructionsHtml: sanitizedInstructions,
+          highlightedText: editedHighlightedText.trim(),
+          linkToPage: editedLinkToPage.trim(),
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save changes')
+      }
+
+      // Update the symptom object locally
+      symptom.briefInstruction = editedBriefInstruction.trim()
+      symptom.highlightedText = editedHighlightedText.trim()
+      symptom.linkToPage = editedLinkToPage.trim()
+      symptom.instructionsHtml = sanitizedInstructions
+      symptom.instructions = sanitizedInstructions
+      symptom.source = apiSource // Update source if override was created
+
+      setIsEditingAll(false)
+      setEditedBriefInstruction('')
+      setEditedHighlightedText('')
+      setEditedLinkToPage('')
+      setEditedInstructions('')
+      
+      // Refresh the page to show updated content
+      router.refresh()
+    } catch (error: any) {
+      console.error('Error saving all fields:', error)
+      setSaveError(error.message || 'Failed to save changes. Please try again.')
+    } finally {
+      setIsSavingAll(false)
+    }
+  }
+
   return (
     <>
       <div className="max-w-4xl mx-auto p-6">
@@ -199,32 +288,87 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             <h1 className="text-3xl font-bold text-nhs-dark-blue">
               {symptom.name}
             </h1>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getSourceColor(symptom.source)}`}>
-              {symptom.source}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getSourceColor(symptom.source)}`}>
+                {symptom.source}
+              </span>
+              {canEditInstructions && !isEditingAll && !isEditingInstructions && (
+                <button
+                  onClick={handleEditAll}
+                  className="px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+                >
+                  {isPracticeAdmin && symptom.source === 'base' ? 'Customise All Fields' : 'Edit All Fields'}
+                </button>
+              )}
+            </div>
           </div>
           
-          <p 
-            className="text-lg text-nhs-grey mb-4"
-            dangerouslySetInnerHTML={{ 
-              __html: highlightText(symptom.briefInstruction || '') 
-            }}
-          />
+          {isEditingAll ? (
+            <div className="space-y-4">
+              {isPracticeAdmin && symptom.source === 'base' && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-700 text-sm">
+                    <strong>Customising for your practice:</strong> You're creating a custom version of this symptom for your surgery. The original base symptom will remain unchanged for other practices.
+                  </p>
+                </div>
+              )}
+              
+              <div>
+                <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
+                  Brief Instruction
+                </label>
+                <textarea
+                  value={editedBriefInstruction}
+                  onChange={(e) => setEditedBriefInstruction(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                  rows={2}
+                  placeholder="Enter brief instruction..."
+                />
+              </div>
+            </div>
+          ) : (
+            <p 
+              className="text-lg text-nhs-grey mb-4"
+              dangerouslySetInnerHTML={{ 
+                __html: highlightText(symptom.briefInstruction || '') 
+              }}
+            />
+          )}
         </div>
 
         {/* Highlighted Text - Important Notice */}
-        {symptom.highlightedText && (
-          <div className="bg-red-50 border-l-4 border-nhs-red rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-semibold text-nhs-red mb-2">
-              Important Notice
-            </h3>
-            <p 
-              className="text-nhs-red font-medium"
-              dangerouslySetInnerHTML={{ 
-                __html: highlightText(symptom.highlightedText) 
-              }}
-            />
+        {isEditingAll ? (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
+                Important Notice (Highlighted Text)
+              </label>
+              <textarea
+                value={editedHighlightedText}
+                onChange={(e) => setEditedHighlightedText(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                rows={3}
+                placeholder="Enter important notice text..."
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                This text will appear in a red highlighted box above the main instructions.
+              </p>
+            </div>
           </div>
+        ) : (
+          symptom.highlightedText && (
+            <div className="bg-red-50 border-l-4 border-nhs-red rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold text-nhs-red mb-2">
+                Important Notice
+              </h3>
+              <p 
+                className="text-nhs-red font-medium"
+                dangerouslySetInnerHTML={{ 
+                  __html: highlightText(symptom.highlightedText) 
+                }}
+              />
+            </div>
+          )
         )}
 
         {/* Main Instructions */}
@@ -245,7 +389,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 </span>
               )}
             </div>
-            {canEditInstructions && !isEditingInstructions && (
+            {canEditInstructions && !isEditingInstructions && !isEditingAll && (
               <button
                 onClick={handleEditInstructions}
                 className="px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
@@ -255,9 +399,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             )}
           </div>
           
-          {isEditingInstructions ? (
+          {isEditingInstructions || isEditingAll ? (
             <div className="space-y-4">
-              {isPracticeAdmin && symptom.source === 'base' && (
+              {isEditingInstructions && isPracticeAdmin && symptom.source === 'base' && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-700 text-sm">
                     <strong>Customising for your practice:</strong> You're creating a custom version of these instructions for your surgery. The original base instructions will remain unchanged for other practices.
@@ -265,12 +409,17 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 </div>
               )}
               
-              <RichTextEditor
-                value={editedInstructions}
-                onChange={setEditedInstructions}
-                placeholder="Enter detailed instructions with formatting..."
-                height={300}
-              />
+              <div>
+                <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
+                  Detailed Instructions
+                </label>
+                <RichTextEditor
+                  value={editedInstructions}
+                  onChange={setEditedInstructions}
+                  placeholder="Enter detailed instructions with formatting..."
+                  height={300}
+                />
+              </div>
               
               {saveError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -282,11 +431,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               
               <div className="flex space-x-3">
                 <button
-                  onClick={handleSaveInstructions}
-                  disabled={isSavingInstructions}
+                  onClick={isEditingAll ? handleSaveAll : handleSaveInstructions}
+                  disabled={isSavingInstructions || isSavingAll}
                   className="px-4 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2"
                 >
-                  {isSavingInstructions ? (
+                  {(isSavingInstructions || isSavingAll) ? (
                     <span className="flex items-center gap-2">
                       <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
@@ -300,8 +449,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 </button>
                 
                 <button
-                  onClick={handleCancelEdit}
-                  disabled={isSavingInstructions}
+                  onClick={isEditingAll ? handleCancelEditAll : handleCancelEdit}
+                  disabled={isSavingInstructions || isSavingAll}
                   className="px-4 py-2 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
                 >
                   Cancel
@@ -327,41 +476,61 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         </div>
 
         {/* Link to Page */}
-        {symptom.linkToPage && (
-          <div className="bg-nhs-light-blue border border-nhs-blue rounded-lg p-6 mb-6">
-            <h3 className="text-lg font-semibold text-nhs-dark-blue mb-2">
-              Related Information
-            </h3>
-            <p className="text-nhs-grey mb-3">
-              For more detailed information about {symptom.linkToPage}, please see:
-            </p>
-            <button
-              onClick={handleLinkedSymptomClick}
-              disabled={isLoadingLinkedSymptom}
-              className="text-nhs-blue font-medium hover:text-nhs-dark-blue hover:underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label={`View instructions for ${symptom.linkToPage}`}
-            >
-              {isLoadingLinkedSymptom ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Loading...
-                </span>
-              ) : (
-                `→ ${symptom.linkToPage}`
-              )}
-            </button>
-            
-            {linkedSymptomError && (
-              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-red-700 text-sm">
-                  {linkedSymptomError}
-                </p>
-              </div>
-            )}
+        {isEditingAll ? (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
+                Link to Related Symptom
+              </label>
+              <input
+                type="text"
+                value={editedLinkToPage}
+                onChange={(e) => setEditedLinkToPage(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                placeholder="Enter name of related symptom..."
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Enter the exact name of another symptom to link to. Users will be able to click to navigate to that symptom's instructions.
+              </p>
+            </div>
           </div>
+        ) : (
+          symptom.linkToPage && (
+            <div className="bg-nhs-light-blue border border-nhs-blue rounded-lg p-6 mb-6">
+              <h3 className="text-lg font-semibold text-nhs-dark-blue mb-2">
+                Related Information
+              </h3>
+              <p className="text-nhs-grey mb-3">
+                For more detailed information about {symptom.linkToPage}, please see:
+              </p>
+              <button
+                onClick={handleLinkedSymptomClick}
+                disabled={isLoadingLinkedSymptom}
+                className="text-nhs-blue font-medium hover:text-nhs-dark-blue hover:underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label={`View instructions for ${symptom.linkToPage}`}
+              >
+                {isLoadingLinkedSymptom ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Loading...
+                  </span>
+                ) : (
+                  `→ ${symptom.linkToPage}`
+                )}
+              </button>
+              
+              {linkedSymptomError && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-700 text-sm">
+                    {linkedSymptomError}
+                  </p>
+                </div>
+              )}
+            </div>
+          )
         )}
 
         {/* Action Buttons */}
