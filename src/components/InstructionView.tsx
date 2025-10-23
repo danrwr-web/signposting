@@ -300,7 +300,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       }
 
       // Redirect back to symptoms list
-      router.push(`/${currentSurgerySlug || surgeryId}`)
+      router.push(`/s/${currentSurgerySlug || surgeryId}`)
     } catch (error: any) {
       console.error('Error hiding symptom:', error)
       setHideError(error.message || 'Failed to hide symptom. Please try again.')
