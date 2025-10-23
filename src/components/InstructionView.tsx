@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SuggestionModal from './SuggestionModal'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
-import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
+import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
+import RichTextEditor from './rich-text/RichTextEditor'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
@@ -17,7 +19,15 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [isLoadingLinkedSymptom, setIsLoadingLinkedSymptom] = useState(false)
   const [linkedSymptomError, setLinkedSymptomError] = useState<string | null>(null)
+  const [isEditingInstructions, setIsEditingInstructions] = useState(false)
+  const [editedInstructions, setEditedInstructions] = useState('')
+  const [isSavingInstructions, setIsSavingInstructions] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const router = useRouter()
+  const { data: session } = useSession()
+
+  // Check if user is superuser
+  const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
 
   // Load highlight rules from API
   useEffect(() => {
@@ -99,6 +109,62 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     }
   }
 
+  const handleEditInstructions = () => {
+    setEditedInstructions(symptom.instructionsHtml || symptom.instructions || '')
+    setIsEditingInstructions(true)
+    setSaveError(null)
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditingInstructions(false)
+    setEditedInstructions('')
+    setSaveError(null)
+  }
+
+  const handleSaveInstructions = async () => {
+    if (!isSuperuser) return
+
+    setIsSavingInstructions(true)
+    setSaveError(null)
+
+    try {
+      const sanitizedHtml = sanitizeHtml(editedInstructions)
+      
+      const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source: symptom.source,
+          surgeryId: surgeryId,
+          instructionsHtml: sanitizedHtml,
+          instructions: sanitizedHtml, // Keep legacy field for compatibility
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save instructions')
+      }
+
+      // Update the symptom object locally
+      symptom.instructionsHtml = sanitizedHtml
+      symptom.instructions = sanitizedHtml
+
+      setIsEditingInstructions(false)
+      setEditedInstructions('')
+      
+      // Refresh the page to show updated content
+      router.refresh()
+    } catch (error: any) {
+      console.error('Error saving instructions:', error)
+      setSaveError(error.message || 'Failed to save instructions. Please try again.')
+    } finally {
+      setIsSavingInstructions(false)
+    }
+  }
+
   return (
     <>
       <div className="max-w-4xl mx-auto p-6">
@@ -138,23 +204,81 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
         {/* Main Instructions */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-            Instructions
-          </h2>
-          <div className="prose max-w-none">
-            {(symptom.instructionsHtml || symptom.instructions) ? (
-              <div 
-                className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
-                dangerouslySetInnerHTML={{ 
-                  __html: sanitizeAndFormatContent(highlightText(symptom.instructionsHtml || symptom.instructions || ''))
-                }}
-              />
-            ) : (
-              <div className="text-gray-500 italic">
-                No detailed instructions available. Please contact your healthcare provider for guidance.
-              </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-nhs-dark-blue">
+              Instructions
+            </h2>
+            {isSuperuser && !isEditingInstructions && (
+              <button
+                onClick={handleEditInstructions}
+                className="px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+              >
+                Edit Instructions
+              </button>
             )}
           </div>
+          
+          {isEditingInstructions ? (
+            <div className="space-y-4">
+              <RichTextEditor
+                value={editedInstructions}
+                onChange={setEditedInstructions}
+                placeholder="Enter detailed instructions with formatting..."
+                height={300}
+              />
+              
+              {saveError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-700 text-sm">
+                    {saveError}
+                  </p>
+                </div>
+              )}
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleSaveInstructions}
+                  disabled={isSavingInstructions}
+                  className="px-4 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2"
+                >
+                  {isSavingInstructions ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Saving...
+                    </span>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+                
+                <button
+                  onClick={handleCancelEdit}
+                  disabled={isSavingInstructions}
+                  className="px-4 py-2 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="prose max-w-none">
+              {(symptom.instructionsHtml || symptom.instructions) ? (
+                <div 
+                  className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
+                  dangerouslySetInnerHTML={{ 
+                    __html: sanitizeAndFormatContent(highlightText(symptom.instructionsHtml || symptom.instructions || ''))
+                  }}
+                />
+              ) : (
+                <div className="text-gray-500 italic">
+                  No detailed instructions available. Please contact your healthcare provider for guidance.
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Link to Page */}
