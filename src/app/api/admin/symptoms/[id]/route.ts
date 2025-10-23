@@ -152,15 +152,26 @@ export async function POST(
     const action = searchParams.get('action')
 
     if (action === 'restore') {
-      // Superuser restoring a hidden symptom for a surgery
-      await requireSuperuser()
-      
+      // Allow superusers to restore any hidden symptom, or surgery admins to restore for their own surgery
       const surgeryId = searchParams.get('surgeryId')
       if (!surgeryId) {
         return NextResponse.json(
           { message: 'Surgery ID required for restore' },
           { status: 400 }
         )
+      }
+
+      // Check if user is superuser or surgery admin for this surgery
+      const user = await getSessionUser()
+      if (!user) {
+        return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      }
+
+      const isSuperuser = user.globalRole === 'SUPERUSER'
+      const isSurgeryAdmin = user.memberships.some(m => m.surgeryId === surgeryId && m.role === 'ADMIN')
+
+      if (!isSuperuser && !isSurgeryAdmin) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
 
       // Remove the hidden override

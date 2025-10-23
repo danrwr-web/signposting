@@ -8,6 +8,7 @@ import SuggestionModal from './SuggestionModal'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
+import { useSurgery } from '@/context/SurgeryContext'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
