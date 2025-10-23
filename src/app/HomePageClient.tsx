@@ -164,7 +164,7 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
             Find the right place for care
           </h1>
           <p className="text-base text-nhs-grey max-w-2xl mx-auto">
-            Search by symptom and we'll guide you to the appropriate service.
+            Search by symptom and we&apos;ll guide you to the appropriate service.
           </p>
         </div>
 
