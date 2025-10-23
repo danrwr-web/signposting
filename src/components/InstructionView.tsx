@@ -28,6 +28,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [editedHighlightedText, setEditedHighlightedText] = useState('')
   const [editedLinkToPage, setEditedLinkToPage] = useState('')
   const [isSavingAll, setIsSavingAll] = useState(false)
+  const [isHidingSymptom, setIsHidingSymptom] = useState(false)
+  const [hideError, setHideError] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
 
@@ -276,6 +278,32 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       setSaveError(error.message || 'Failed to save changes. Please try again.')
     } finally {
       setIsSavingAll(false)
+    }
+  }
+
+  const handleHideSymptom = async () => {
+    if (!isPracticeAdmin || !surgeryId) return
+
+    setIsHidingSymptom(true)
+    setHideError(null)
+
+    try {
+      const response = await fetch(`/api/admin/symptoms/${symptom.id}?source=base&action=hide&surgeryId=${surgeryId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to hide symptom')
+      }
+
+      // Redirect back to symptoms list
+      router.push(`/${surgeryId}`)
+    } catch (error: any) {
+      console.error('Error hiding symptom:', error)
+      setHideError(error.message || 'Failed to hide symptom. Please try again.')
+    } finally {
+      setIsHidingSymptom(false)
     }
   }
 
@@ -534,13 +562,33 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         )}
 
         {/* Action Buttons */}
-        <div className="flex space-x-4">
+        <div className="flex flex-wrap gap-4">
           <button
             onClick={() => setShowSuggestionModal(true)}
             className="px-6 py-3 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
           >
             Suggest an Improvement
           </button>
+          
+          {isPracticeAdmin && symptom.source === 'base' && (
+            <button
+              onClick={handleHideSymptom}
+              disabled={isHidingSymptom}
+              className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isHidingSymptom ? (
+                <span className="flex items-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Hiding...
+                </span>
+              ) : (
+                'Hide Symptom for Practice'
+              )}
+            </button>
+          )}
           
           <button
             onClick={() => window.history.back()}
@@ -549,6 +597,14 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             Back to Symptoms
           </button>
         </div>
+        
+        {hideError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700 text-sm">
+              {hideError}
+            </p>
+          </div>
+        )}
       </div>
 
       <SuggestionModal
