@@ -9,6 +9,7 @@ import HighRiskConfig from '@/components/HighRiskConfig'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
+import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -66,6 +67,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   const [baseSymptoms, setBaseSymptoms] = useState<EffectiveSymptom[]>([])
   const [showEditSymptomModal, setShowEditSymptomModal] = useState(false)
   const [editingSymptom, setEditingSymptom] = useState<EffectiveSymptom | null>(null)
+  const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0)
 
   // Load highlight rules from API
   useEffect(() => {
@@ -96,6 +98,27 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       }
     }
     loadHighlightRules()
+  }, [])
+
+  // Load unread suggestions count
+  useEffect(() => {
+    const loadUnreadSuggestionsCount = async () => {
+      try {
+        const response = await fetch('/api/suggestions?status=pending')
+        if (response.ok) {
+          const data = await response.json()
+          setUnreadSuggestionsCount(data.unreadCount || 0)
+        }
+      } catch (error) {
+        console.error('Failed to load unread suggestions count:', error)
+      }
+    }
+    
+    loadUnreadSuggestionsCount()
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(loadUnreadSuggestionsCount, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   // Load base symptoms for Current Base Symptoms section
@@ -654,7 +677,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 { id: 'highlights', label: 'Highlight Config' },
                 { id: 'highrisk', label: 'High-Risk Buttons' },
                 { id: 'engagement', label: 'Engagement' },
-                { id: 'suggestions', label: 'Suggestions' },
+                { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
                 ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
                 ...(session.type === 'superuser' ? [{ id: 'system', label: 'System Management' }] : []),
               ].map((tab) => (
@@ -667,7 +690,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                       : 'border-transparent text-nhs-grey hover:text-nhs-blue hover:border-gray-300'
                   }`}
                 >
-                  {tab.label}
+                  <div className="flex items-center space-x-2">
+                    <span>{tab.label}</span>
+                    {tab.badge && tab.badge > 0 && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        {tab.badge}
+                      </span>
+                    )}
+                  </div>
                 </button>
               ))}
             </nav>
@@ -803,15 +833,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
             {/* Suggestions Tab */}
             {activeTab === 'suggestions' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  User Suggestions
-                </h2>
-                <p className="text-nhs-grey">
-                  User suggestions will be displayed here. This feature requires 
-                  the suggestions API to be implemented.
-                </p>
-              </div>
+              <SuggestionsAnalytics session={session} />
             )}
 
             {/* User Management Tab - Only for Surgery Admins */}

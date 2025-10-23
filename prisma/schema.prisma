@@ -147,7 +147,9 @@ model Suggestion {
   symptom    String       // captured as user typed/selected
   userEmail  String?
   text       String
+  status     String   @default("pending") // "pending" | "actioned" | "discarded"
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   surgery    Surgery? @relation(fields: [surgeryId], references: [id])
 }
 
