@@ -692,7 +692,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 >
                   <div className="flex items-center space-x-2">
                     <span>{tab.label}</span>
-                    {tab.badge && tab.badge > 0 && (
+                    {tab.badge !== undefined && tab.badge > 0 && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                         {tab.badge}
                       </span>

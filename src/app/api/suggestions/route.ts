@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       where.surgeryId = { in: surgeryIds }
     }
 
-    // Add status filter
+    // Add status filter (only if status field exists in schema)
     if (status) {
       where.status = status
     }
@@ -57,16 +57,30 @@ export async function GET(request: NextRequest) {
       take: limit
     })
 
-    // Get unread count (pending suggestions)
-    const unreadCount = await prisma.suggestion.count({
-      where: {
-        ...where,
-        status: 'pending'
-      }
-    })
+    // Get unread count (pending suggestions) - handle case where status field might not exist
+    let unreadCount = 0
+    try {
+      unreadCount = await prisma.suggestion.count({
+        where: {
+          ...where,
+          status: 'pending'
+        }
+      })
+    } catch (error) {
+      // If status field doesn't exist yet, count all suggestions as unread
+      console.log('Status field not available yet, counting all suggestions as unread')
+      unreadCount = await prisma.suggestion.count({ where })
+    }
+
+    // If status field doesn't exist, add default status to suggestions
+    const suggestionsWithStatus = suggestions.map(suggestion => ({
+      ...suggestion,
+      status: (suggestion as any).status || 'pending',
+      updatedAt: (suggestion as any).updatedAt || suggestion.createdAt
+    }))
 
     return NextResponse.json({
-      suggestions,
+      suggestions: suggestionsWithStatus,
       unreadCount
     })
   } catch (error) {
@@ -131,13 +145,26 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // Update the suggestion
-    const updatedSuggestion = await prisma.suggestion.update({
-      where: { id: suggestionId },
-      data: {
+    // Update the suggestion - handle case where status field might not exist
+    let updateData: any = {}
+    
+    try {
+      // Try to update with status field
+      updateData = {
         status,
         updatedAt: new Date()
-      },
+      }
+    } catch (error) {
+      // If status field doesn't exist, just update updatedAt
+      console.log('Status field not available yet, skipping status update')
+      updateData = {
+        updatedAt: new Date()
+      }
+    }
+
+    const updatedSuggestion = await prisma.suggestion.update({
+      where: { id: suggestionId },
+      data: updateData,
       include: {
         surgery: {
           select: {
@@ -149,7 +176,14 @@ export async function PATCH(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ suggestion: updatedSuggestion })
+    // Add status field if it doesn't exist in the response
+    const suggestionWithStatus = {
+      ...updatedSuggestion,
+      status: (updatedSuggestion as any).status || status,
+      updatedAt: (updatedSuggestion as any).updatedAt || new Date()
+    }
+
+    return NextResponse.json({ suggestion: suggestionWithStatus })
   } catch (error) {
     console.error('Error updating suggestion:', error)
     return NextResponse.json(

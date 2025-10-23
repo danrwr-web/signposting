@@ -116,6 +116,11 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
     }
   }
 
+  const getStatusCount = (status: string) => {
+    if (!suggestionsData?.suggestions) return 0
+    return suggestionsData.suggestions.filter(s => s.status === status).length
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       day: '2-digit',
@@ -222,7 +227,7 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
         <div className="bg-white rounded-lg shadow-md p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-yellow-600">
-              {suggestionsData?.suggestions.filter(s => s.status === 'pending').length || 0}
+              {getStatusCount('pending')}
             </div>
             <p className="text-sm text-gray-600">Pending</p>
           </div>
@@ -230,7 +235,7 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
         <div className="bg-white rounded-lg shadow-md p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              {suggestionsData?.suggestions.filter(s => s.status === 'actioned').length || 0}
+              {getStatusCount('actioned')}
             </div>
             <p className="text-sm text-gray-600">Actioned</p>
           </div>
@@ -238,7 +243,7 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
         <div className="bg-white rounded-lg shadow-md p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-red-600">
-              {suggestionsData?.suggestions.filter(s => s.status === 'discarded').length || 0}
+              {getStatusCount('discarded')}
             </div>
             <p className="text-sm text-gray-600">Discarded</p>
           </div>
