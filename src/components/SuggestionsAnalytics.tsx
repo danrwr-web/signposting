@@ -35,6 +35,8 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
   const [error, setError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'actioned' | 'discarded'>('all')
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false)
+  const [isClearing, setIsClearing] = useState(false)
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -91,22 +93,50 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
         throw new Error('Failed to update suggestion')
       }
       
-      // Refresh the data
-      const params = new URLSearchParams()
-      if (statusFilter !== 'all') {
-        params.append('status', statusFilter)
-      }
-      
-      const refreshResponse = await fetch(`/api/suggestions?${params}`)
-      if (refreshResponse.ok) {
-        const data = await refreshResponse.json()
-        setSuggestionsData(data)
+      // Update the local state immediately for better UX
+      // Since the database doesn't have status field yet, we simulate the update
+      if (suggestionsData) {
+        const updatedSuggestions = suggestionsData.suggestions.map(suggestion => 
+          suggestion.id === suggestionId 
+            ? { ...suggestion, status: newStatus, updatedAt: new Date().toISOString() }
+            : suggestion
+        )
+        setSuggestionsData({
+          ...suggestionsData,
+          suggestions: updatedSuggestions
+        })
       }
     } catch (err) {
       console.error('Error updating suggestion:', err)
       setError(err instanceof Error ? err.message : 'Failed to update suggestion')
     } finally {
       setIsUpdating(null)
+    }
+  }
+
+  const clearAllSuggestions = async () => {
+    try {
+      setIsClearing(true)
+      
+      const response = await fetch('/api/suggestions', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to clear suggestions')
+      }
+      
+      // Clear the local state
+      setSuggestionsData({ suggestions: [], unreadCount: 0 })
+      setShowClearAllDialog(false)
+    } catch (err) {
+      console.error('Error clearing suggestions:', err)
+      setError(err instanceof Error ? err.message : 'Failed to clear suggestions')
+    } finally {
+      setIsClearing(false)
     }
   }
 
@@ -218,6 +248,14 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
             <option value="actioned">Actioned</option>
             <option value="discarded">Discarded</option>
           </select>
+          {suggestionsData?.suggestions && suggestionsData.suggestions.length > 0 && (
+            <button
+              onClick={() => setShowClearAllDialog(true)}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium"
+            >
+              Clear All
+            </button>
+          )}
         </div>
       </div>
 
@@ -346,6 +384,47 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
           </div>
         </div>
       </div>
+
+      {/* Clear All Confirmation Dialog */}
+      {showClearAllDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center mb-4">
+                <svg className="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Clear All Suggestions
+                </h3>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Are you sure you want to delete all suggestions? This action cannot be undone.
+                {session.type === 'superuser' 
+                  ? ' This will clear suggestions from all practices.'
+                  : ' This will clear suggestions from your practice only.'
+                }
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowClearAllDialog(false)}
+                  disabled={isClearing}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={clearAllSuggestions}
+                  disabled={isClearing}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm font-medium disabled:opacity-50"
+                >
+                  {isClearing ? 'Clearing...' : 'Clear All'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

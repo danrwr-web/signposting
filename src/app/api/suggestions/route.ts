@@ -185,6 +185,64 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getSessionUser()
+    if (!user) {
+      console.log('Suggestions API: No authenticated user for DELETE')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    console.log('Suggestions API: Clearing suggestions for user:', { 
+      id: user.id, 
+      email: user.email, 
+      globalRole: user.globalRole 
+    })
+
+    // Build where clause based on user role
+    const where: any = {}
+    
+    if (user.globalRole === 'SUPERUSER') {
+      // Superusers can clear all suggestions
+      console.log('Suggestions API: Superuser clearing all suggestions')
+    } else {
+      // Surgery admins can only clear their surgery's suggestions
+      const surgeryIds = user.memberships
+        .filter(m => m.role === 'ADMIN')
+        .map(m => m.surgeryId)
+      
+      console.log('Suggestions API: Surgery admin clearing suggestions for surgery IDs:', surgeryIds)
+      
+      if (surgeryIds.length === 0) {
+        console.log('Suggestions API: No admin surgeries found for clearing')
+        return NextResponse.json({ suggestions: [], deletedCount: 0 })
+      }
+      
+      where.surgeryId = { in: surgeryIds }
+    }
+
+    // Delete suggestions based on user permissions
+    const deleteResult = await prisma.suggestion.deleteMany({
+      where
+    })
+
+    console.log('Suggestions API: Deleted suggestions:', deleteResult.count)
+
+    return NextResponse.json({ 
+      message: 'Suggestions cleared successfully',
+      deletedCount: deleteResult.count
+    })
+
+  } catch (error) {
+    console.error('Suggestions API: Error clearing suggestions:', error)
+    console.error('Suggestions API: Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    return NextResponse.json(
+      { error: 'Failed to clear suggestions', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     const user = await getSessionUser()
