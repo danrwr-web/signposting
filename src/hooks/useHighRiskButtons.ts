@@ -19,8 +19,8 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
 
   // Convert surgery ID to slug if needed
   const surgerySlug = surgeryId && surgeries 
-    ? surgeries.find(s => s.id === surgeryId)?.slug || surgeryId
-    : surgeryId
+    ? surgeries.find(s => s.id === surgeryId)?.slug || null
+    : null
 
   const buildApiUrl = (endpoint: string, includeSurgery = true) => {
     const baseUrl = `/api/admin/${endpoint}`
