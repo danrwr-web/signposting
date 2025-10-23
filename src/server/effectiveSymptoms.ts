@@ -125,6 +125,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
         briefInstruction: true, 
         highlightedText: true, 
         instructions: true, 
+        instructionsJson: true,
+        instructionsHtml: true,
         linkToPage: true 
       }
     })
@@ -147,6 +149,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       briefInstruction: true, 
       highlightedText: true, 
       instructions: true, 
+      instructionsJson: true,
+      instructionsHtml: true,
       linkToPage: true 
     }
   })
@@ -168,6 +172,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       briefInstruction: true, 
       highlightedText: true, 
       instructions: true, 
+      instructionsJson: true,
+      instructionsHtml: true,
       linkToPage: true 
     }
   })
@@ -185,6 +191,17 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
         surgeryId,
         baseSymptomId: id
       }
+    },
+    select: {
+      name: true,
+      ageGroup: true,
+      briefInstruction: true,
+      highlightedText: true,
+      instructions: true,
+      instructionsJson: true,
+      instructionsHtml: true,
+      linkToPage: true,
+      isHidden: true
     }
   })
 
@@ -202,6 +219,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       briefInstruction: (override.briefInstruction && override.briefInstruction.trim() !== '') ? override.briefInstruction : base.briefInstruction,
       highlightedText: (override.highlightedText && override.highlightedText.trim() !== '') ? override.highlightedText : base.highlightedText,
       instructions: (override.instructions && override.instructions.trim() !== '') ? override.instructions : base.instructions,
+      instructionsJson: (override.instructionsJson && override.instructionsJson.trim() !== '') ? override.instructionsJson : base.instructionsJson,
+      instructionsHtml: (override.instructionsHtml && override.instructionsHtml.trim() !== '') ? override.instructionsHtml : base.instructionsHtml,
       linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
       source: 'override' as const,
       baseSymptomId: base.id, // Include the base symptom ID for engagement logging
@@ -228,6 +247,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
         briefInstruction: true, 
         highlightedText: true, 
         instructions: true, 
+        instructionsJson: true,
+        instructionsHtml: true,
         linkToPage: true 
       }
     })
@@ -249,6 +270,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       briefInstruction: true, 
       highlightedText: true, 
       instructions: true, 
+      instructionsJson: true,
+      instructionsHtml: true,
       linkToPage: true 
     }
   })
@@ -268,6 +291,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       briefInstruction: true, 
       highlightedText: true, 
       instructions: true, 
+      instructionsJson: true,
+      instructionsHtml: true,
       linkToPage: true 
     }
   })
@@ -281,6 +306,17 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
         surgeryId,
         baseSymptomId: base.id
       }
+    },
+    select: {
+      name: true,
+      ageGroup: true,
+      briefInstruction: true,
+      highlightedText: true,
+      instructions: true,
+      instructionsJson: true,
+      instructionsHtml: true,
+      linkToPage: true,
+      isHidden: true
     }
   })
 
@@ -297,6 +333,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       briefInstruction: (override.briefInstruction && override.briefInstruction.trim() !== '') ? override.briefInstruction : base.briefInstruction,
       highlightedText: (override.highlightedText && override.highlightedText.trim() !== '') ? override.highlightedText : base.highlightedText,
       instructions: (override.instructions && override.instructions.trim() !== '') ? override.instructions : base.instructions,
+      instructionsJson: (override.instructionsJson && override.instructionsJson.trim() !== '') ? override.instructionsJson : base.instructionsJson,
+      instructionsHtml: (override.instructionsHtml && override.instructionsHtml.trim() !== '') ? override.instructionsHtml : base.instructionsHtml,
       linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
       source: 'override' as const,
       isHidden: override.isHidden,
