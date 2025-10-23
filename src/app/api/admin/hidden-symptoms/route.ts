@@ -1,26 +1,51 @@
 /**
  * Admin hidden symptoms API route
- * Lists symptoms that are hidden for specific surgeries (superuser only)
+ * Lists symptoms that are hidden for specific surgeries
+ * Superusers can see all hidden symptoms, surgery admins can see hidden symptoms for their own surgeries
  */
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireSuperuserAuth } from '@/server/auth'
+import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await requireSuperuserAuth()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
 
-    // Get all hidden symptoms
+    // Determine which surgeries the user can see hidden symptoms for
+    let allowedSurgeryIds: string[] = []
+    
+    if (user.globalRole === 'SUPERUSER') {
+      // Superusers can see all hidden symptoms
+      allowedSurgeryIds = []
+    } else {
+      // Surgery admins can only see hidden symptoms for their own surgeries
+      const adminSurgeryIds = user.memberships
+        .filter(m => m.role === 'ADMIN')
+        .map(m => m.surgeryId)
+      
+      if (adminSurgeryIds.length === 0) {
+        return NextResponse.json({ error: 'No admin access' }, { status: 403 })
+      }
+      
+      allowedSurgeryIds = adminSurgeryIds
+    }
+
+    // Get hidden symptoms
     const hiddenOverrides = await prisma.surgerySymptomOverride.findMany({
       where: {
         isHidden: true,
-        ...(surgeryId ? { surgeryId } : {})
+        ...(surgeryId ? { surgeryId } : {}),
+        ...(allowedSurgeryIds.length > 0 ? { surgeryId: { in: allowedSurgeryIds } } : {})
       },
       include: {
         baseSymptom: {

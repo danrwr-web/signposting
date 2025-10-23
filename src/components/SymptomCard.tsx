@@ -19,13 +19,6 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   // Use provided surgerySlug or fall back to context
   const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
 
-  // Debug logging for surgerySlug
-  useEffect(() => {
-    console.log('SymptomCard: Received surgerySlug =', surgerySlug, 'context surgerySlug =', currentSurgerySlug, 'effective =', effectiveSurgerySlug, 'for symptom:', symptom.id, symptom.name)
-    if (!effectiveSurgerySlug) {
-      console.warn('SymptomCard: surgerySlug is undefined for symptom:', symptom.id, symptom.name)
-    }
-  }, [surgerySlug, currentSurgerySlug, effectiveSurgerySlug, symptom.id, symptom.name])
 
   // Load highlight rules from API
   useEffect(() => {
@@ -41,10 +34,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
         const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
-          console.log('SymptomCard: API response:', json)
           const { highlights, enableBuiltInHighlights: builtInEnabled } = json
-          console.log('SymptomCard: Parsed highlights:', highlights)
-          console.log('SymptomCard: Built-in highlights enabled:', builtInEnabled)
           setHighlightRules(Array.isArray(highlights) ? highlights : [])
           setEnableBuiltInHighlights(builtInEnabled ?? true)
         } else {
@@ -101,7 +91,6 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   }
 
   const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgerySlug ? `?surgery=${effectiveSurgerySlug}` : ''}`
-  console.log('SymptomCard: Generated link URL =', linkUrl, 'for symptom:', symptom.name)
 
   return (
     <Link href={linkUrl}>

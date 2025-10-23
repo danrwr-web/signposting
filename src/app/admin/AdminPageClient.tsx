@@ -491,8 +491,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   }
 
   const loadHiddenSymptoms = async () => {
-    if (session.type !== 'superuser') return
-    
     try {
       const response = await fetch('/api/admin/hidden-symptoms', { cache: 'no-store' })
       if (response.ok) {

@@ -60,7 +60,6 @@ export default function VirtualizedGrid({
   })
 
   // Debug logging
-  console.log('VirtualizedGrid: Received surgerySlug =', surgerySlug)
 
 
   // Calculate grid dimensions based on container width
