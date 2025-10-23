@@ -73,19 +73,11 @@ export default function RichTextEditor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
-        },
-      }),
+      StarterKit,
       TextStyle,
-      Color.configure({
-        types: ['textStyle'],
-      }),
+      Color,
       Underline,
-      Highlight.configure({
-        multicolor: true,
-      }),
+      Highlight,
     ],
     content: value,
     editable: !readOnly,
