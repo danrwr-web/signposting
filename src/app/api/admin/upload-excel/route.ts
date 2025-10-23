@@ -1,12 +1,30 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSessionUser } from '@/lib/rbac'
 import { parseExcelFile } from '@/lib/excel-parser'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication and authorization
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    // Restrict Excel upload to specific admin user only
+    if (user.email !== 'dan.rwr@gmail.com') {
+      return NextResponse.json(
+        { error: 'Access denied. Excel upload is restricted to authorized administrators only.' },
+        { status: 403 }
+      )
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
 
