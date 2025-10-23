@@ -93,18 +93,16 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
         throw new Error('Failed to update suggestion')
       }
       
-      // Update the local state immediately for better UX
-      // Since the database doesn't have status field yet, we simulate the update
-      if (suggestionsData) {
-        const updatedSuggestions = suggestionsData.suggestions.map(suggestion => 
-          suggestion.id === suggestionId 
-            ? { ...suggestion, status: newStatus, updatedAt: new Date().toISOString() }
-            : suggestion
-        )
-        setSuggestionsData({
-          ...suggestionsData,
-          suggestions: updatedSuggestions
-        })
+      // Refresh the data to get the updated status from the database
+      const params = new URLSearchParams()
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter)
+      }
+      
+      const refreshResponse = await fetch(`/api/suggestions?${params}`)
+      if (refreshResponse.ok) {
+        const data = await refreshResponse.json()
+        setSuggestionsData(data)
       }
     } catch (err) {
       console.error('Error updating suggestion:', err)

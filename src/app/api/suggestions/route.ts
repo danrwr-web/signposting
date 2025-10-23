@@ -67,16 +67,38 @@ export async function GET(request: NextRequest) {
 
     console.log('Suggestions API: Found suggestions:', suggestions.length)
 
-    // Count all suggestions as unread since status field doesn't exist
-    const unreadCount = suggestions.length
-    console.log('Suggestions API: Unread count (all suggestions):', unreadCount)
+    // Parse status information from text field (temporary workaround)
+    const suggestionsWithStatus = suggestions.map(suggestion => {
+      let status = 'pending'
+      let originalText = suggestion.text
+      let updatedAt = suggestion.createdAt
+      
+      // Check if the text contains status information
+      try {
+        const parsedText = JSON.parse(suggestion.text)
+        if (parsedText.originalText && parsedText.status) {
+          status = parsedText.status
+          originalText = parsedText.originalText
+          updatedAt = parsedText.updatedAt ? new Date(parsedText.updatedAt) : suggestion.createdAt
+        }
+      } catch {
+        // Text is not JSON, so it's a regular suggestion with pending status
+        status = 'pending'
+        originalText = suggestion.text
+        updatedAt = suggestion.createdAt
+      }
+      
+      return {
+        ...suggestion,
+        text: originalText, // Return the original text to frontend
+        status: status,
+        updatedAt: updatedAt.toISOString()
+      }
+    })
 
-    // Add default status to all suggestions since the field doesn't exist yet
-    const suggestionsWithStatus = suggestions.map(suggestion => ({
-      ...suggestion,
-      status: 'pending', // All suggestions are pending until status field is added
-      updatedAt: suggestion.createdAt // Use createdAt as updatedAt until field is added
-    }))
+    // Count only pending suggestions as unread
+    const unreadCount = suggestionsWithStatus.filter(s => s.status === 'pending').length
+    console.log('Suggestions API: Unread count (pending suggestions):', unreadCount)
 
     console.log('Suggestions API: Returning data:', { 
       suggestionsCount: suggestionsWithStatus.length, 
@@ -296,15 +318,64 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // For now, just return success without updating since status field doesn't exist
-    // TODO: Implement actual update when database schema is updated
-    console.log('Suggestions API: Status update requested but field not available yet:', { suggestionId, status })
+    // Since the status field doesn't exist in the database yet, we'll use a workaround:
+    // We'll store the status in the text field as a JSON object with the original text and status
+    // This is a temporary solution until the database schema is updated
     
-    // Return the original suggestion with the requested status
+    let updatedText = suggestion.text
+    
+    // Check if the text already contains status information
+    try {
+      const parsedText = JSON.parse(suggestion.text)
+      if (parsedText.originalText && parsedText.status) {
+        // Update existing status
+        updatedText = JSON.stringify({
+          originalText: parsedText.originalText,
+          status: status,
+          updatedAt: new Date().toISOString()
+        })
+      } else {
+        // Add status to original text
+        updatedText = JSON.stringify({
+          originalText: suggestion.text,
+          status: status,
+          updatedAt: new Date().toISOString()
+        })
+      }
+    } catch {
+      // Text is not JSON, so add status information
+      updatedText = JSON.stringify({
+        originalText: suggestion.text,
+        status: status,
+        updatedAt: new Date().toISOString()
+      })
+    }
+
+    // Update the suggestion with the new text containing status information
+    const updatedSuggestion = await prisma.suggestion.update({
+      where: { id: suggestionId },
+      data: {
+        text: updatedText
+      },
+      include: {
+        surgery: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
+      }
+    })
+
+    console.log('Suggestions API: Status updated successfully:', { suggestionId, status })
+
+    // Return the suggestion with the proper status for frontend compatibility
     const suggestionWithStatus = {
-      ...suggestion,
+      ...updatedSuggestion,
+      text: JSON.parse(updatedText).originalText, // Return original text to frontend
       status: status,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }
 
     return NextResponse.json({ suggestion: suggestionWithStatus })
