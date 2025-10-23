@@ -28,6 +28,15 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
   // Check if user is superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
+  
+  // Check if user is practice admin for this surgery
+  const isPracticeAdmin = session?.user && surgeryId && 
+    (session.user as any).memberships?.some((m: any) => 
+      m.surgeryId === surgeryId && m.role === 'ADMIN'
+    )
+  
+  // Can edit if superuser or practice admin
+  const canEditInstructions = isSuperuser || isPracticeAdmin
 
   // Load highlight rules from API
   useEffect(() => {
@@ -110,7 +119,13 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   }
 
   const handleEditInstructions = () => {
-    setEditedInstructions(symptom.instructionsHtml || symptom.instructions || '')
+    // For practice admins editing base symptoms, start with base content
+    // For superusers or when editing overrides/custom, use current content
+    const contentToEdit = (isPracticeAdmin && symptom.source === 'base') 
+      ? (symptom.instructionsHtml || symptom.instructions || '')
+      : (symptom.instructionsHtml || symptom.instructions || '')
+    
+    setEditedInstructions(contentToEdit)
     setIsEditingInstructions(true)
     setSaveError(null)
   }
@@ -122,7 +137,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   }
 
   const handleSaveInstructions = async () => {
-    if (!isSuperuser) return
+    if (!canEditInstructions) return
 
     setIsSavingInstructions(true)
     setSaveError(null)
@@ -130,14 +145,24 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     try {
       const sanitizedHtml = sanitizeHtml(editedInstructions)
       
+      // Determine the source and surgery ID for the API call
+      let apiSource = symptom.source
+      let apiSurgeryId = surgeryId
+      
+      // If practice admin is editing a base symptom, create an override
+      if (isPracticeAdmin && symptom.source === 'base') {
+        apiSource = 'override'
+        apiSurgeryId = surgeryId
+      }
+      
       const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          source: symptom.source,
-          surgeryId: surgeryId,
+          source: apiSource,
+          surgeryId: apiSurgeryId,
           instructionsHtml: sanitizedHtml,
           instructions: sanitizedHtml, // Keep legacy field for compatibility
         }),
@@ -205,21 +230,41 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         {/* Main Instructions */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-nhs-dark-blue">
-              Instructions
-            </h2>
-            {isSuperuser && !isEditingInstructions && (
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold text-nhs-dark-blue">
+                Instructions
+              </h2>
+              {symptom.source === 'override' && (
+                <span className="px-2 py-1 text-xs font-medium bg-nhs-blue text-white rounded-full">
+                  Practice Customised
+                </span>
+              )}
+              {symptom.source === 'custom' && (
+                <span className="px-2 py-1 text-xs font-medium bg-nhs-green text-white rounded-full">
+                  Practice Created
+                </span>
+              )}
+            </div>
+            {canEditInstructions && !isEditingInstructions && (
               <button
                 onClick={handleEditInstructions}
                 className="px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
               >
-                Edit Instructions
+                {isPracticeAdmin && symptom.source === 'base' ? 'Customise Instructions' : 'Edit Instructions'}
               </button>
             )}
           </div>
           
           {isEditingInstructions ? (
             <div className="space-y-4">
+              {isPracticeAdmin && symptom.source === 'base' && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-700 text-sm">
+                    <strong>Customising for your practice:</strong> You're creating a custom version of these instructions for your surgery. The original base instructions will remain unchanged for other practices.
+                  </p>
+                </div>
+              )}
+              
               <RichTextEditor
                 value={editedInstructions}
                 onChange={setEditedInstructions}
