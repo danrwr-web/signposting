@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
     })
 
     const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status') // 'pending', 'actioned', 'discarded', or null for all
     const limit = parseInt(searchParams.get('limit') || '50')
+
+    console.log('Suggestions API: Requested status filter:', status)
 
     // Build where clause based on user role
     const where: any = {}
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     console.log('Suggestions API: Query where clause:', where)
 
-    // Get suggestions with surgery details - minimal query without any status references
+    // Get suggestions with surgery details - we'll filter by status after parsing
     const suggestions = await prisma.suggestion.findMany({
       where,
       include: {
@@ -96,17 +99,25 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Count only pending suggestions as unread
+    // Apply status filter if requested
+    let filteredSuggestions = suggestionsWithStatus
+    if (status && status !== 'all') {
+      filteredSuggestions = suggestionsWithStatus.filter(s => s.status === status)
+      console.log(`Suggestions API: Filtered by status '${status}':`, filteredSuggestions.length)
+    }
+
+    // Count only pending suggestions as unread (from all suggestions, not filtered)
     const unreadCount = suggestionsWithStatus.filter(s => s.status === 'pending').length
     console.log('Suggestions API: Unread count (pending suggestions):', unreadCount)
 
     console.log('Suggestions API: Returning data:', { 
-      suggestionsCount: suggestionsWithStatus.length, 
-      unreadCount 
+      suggestionsCount: filteredSuggestions.length, 
+      unreadCount,
+      statusFilter: status
     })
 
     return NextResponse.json({
-      suggestions: suggestionsWithStatus,
+      suggestions: filteredSuggestions,
       unreadCount
     })
   } catch (error) {
