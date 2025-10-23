@@ -31,6 +31,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [isSavingAll, setIsSavingAll] = useState(false)
   const [isHidingSymptom, setIsHidingSymptom] = useState(false)
   const [hideError, setHideError] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeletingSymptom, setIsDeletingSymptom] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -306,6 +309,39 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       setHideError(error.message || 'Failed to hide symptom. Please try again.')
     } finally {
       setIsHidingSymptom(false)
+    }
+  }
+
+  const handleDeleteSymptom = async () => {
+    if (!isSuperuser && !isPracticeAdmin) return
+
+    setIsDeletingSymptom(true)
+    setDeleteError(null)
+
+    try {
+      const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source: 'custom',
+          surgeryId: surgeryId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to delete symptom')
+      }
+
+      // Redirect back to symptoms list
+      router.push(`/s/${currentSurgeryId || surgeryId}`)
+    } catch (error: any) {
+      console.error('Error deleting symptom:', error)
+      setDeleteError(error.message || 'Failed to delete symptom. Please try again.')
+    } finally {
+      setIsDeletingSymptom(false)
     }
   }
 
@@ -592,6 +628,15 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             </button>
           )}
           
+          {(isSuperuser || isPracticeAdmin) && symptom.source === 'custom' && (
+            <button
+              onClick={() => setShowDeleteDialog(true)}
+              className="px-6 py-3 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors font-medium"
+            >
+              Delete Symptom
+            </button>
+          )}
+          
           <button
             onClick={() => window.history.back()}
             className="px-6 py-3 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors font-medium"
@@ -607,7 +652,54 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             </p>
           </div>
         )}
+        
+        {deleteError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-700 text-sm">
+              {deleteError}
+            </p>
+          </div>
+        )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+              Delete Symptom
+            </h3>
+            <p className="text-nhs-grey mb-6">
+              Are you sure you want to delete "{symptom.name}"? This action cannot be undone and will permanently remove this symptom from your practice.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                className="px-4 py-2 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteSymptom}
+                disabled={isDeletingSymptom}
+                className="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeletingSymptom ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Deleting...
+                  </span>
+                ) : (
+                  'Delete Symptom'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <SuggestionModal
         isOpen={showSuggestionModal}

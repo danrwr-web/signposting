@@ -253,8 +253,18 @@ export async function DELETE(
       console.log(`Successfully hidden base symptom ${id} for surgery ${surgeryId}`)
       return NextResponse.json({ success: true })
     } else if (source === 'custom' && surgeryId) {
-      // Delete custom symptom
-      await requireSurgeryAdmin(surgeryId)
+      // Delete custom symptom - allow both superusers and surgery admins
+      const user = await getSessionUser()
+      if (!user) {
+        return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+      }
+
+      const isSuperuser = user.globalRole === 'SUPERUSER'
+      const isSurgeryAdmin = user.memberships.some(m => m.surgeryId === surgeryId && m.role === 'ADMIN')
+
+      if (!isSuperuser && !isSurgeryAdmin) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
       
       await prisma.surgeryCustomSymptom.delete({
         where: {
