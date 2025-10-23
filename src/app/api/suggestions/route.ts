@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
     })
 
     const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status') // 'pending', 'actioned', 'discarded', or null for all
     const limit = parseInt(searchParams.get('limit') || '50')
 
     // Build where clause based on user role
@@ -46,15 +45,9 @@ export async function GET(request: NextRequest) {
       where.surgeryId = { in: surgeryIds }
     }
 
-    // Don't add status filter for now - the field doesn't exist in production
-    // TODO: Re-enable when database schema is updated
-    // if (status) {
-    //   where.status = status
-    // }
-
     console.log('Suggestions API: Query where clause:', where)
 
-    // Get suggestions with surgery details - use basic query without status field
+    // Get suggestions with surgery details - minimal query without any status references
     const suggestions = await prisma.suggestion.findMany({
       where,
       include: {
@@ -74,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     console.log('Suggestions API: Found suggestions:', suggestions.length)
 
-    // For now, count all suggestions as unread since status field doesn't exist
+    // Count all suggestions as unread since status field doesn't exist
     const unreadCount = suggestions.length
     console.log('Suggestions API: Unread count (all suggestions):', unreadCount)
 
