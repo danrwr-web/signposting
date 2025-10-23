@@ -78,11 +78,11 @@ export default function RichTextEditor({
           levels: [1, 2, 3],
         },
       }),
-      TextStyle.configure({}),
+      TextStyle,
       Color.configure({
         types: ['textStyle'],
       }),
-      Underline.configure({}),
+      Underline,
       Highlight.configure({
         multicolor: true,
       }),
@@ -98,7 +98,7 @@ export default function RichTextEditor({
         class: 'prose prose-sm max-w-none focus:outline-none',
       },
     },
-  })
+  }, [mounted]) // Only create editor after component is mounted
 
   // Update editor content when value prop changes
   useEffect(() => {
@@ -107,16 +107,12 @@ export default function RichTextEditor({
     }
   }, [editor, value])
 
-  if (!mounted) {
+  if (!mounted || !editor) {
     return (
       <div className={`w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 animate-pulse ${className}`}>
         Loading editor...
       </div>
     )
-  }
-
-  if (!editor) {
-    return null
   }
 
   return (
