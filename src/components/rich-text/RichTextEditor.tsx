@@ -70,7 +70,7 @@ export default function RichTextEditor({
       StarterKit,
       TextStyle,
       Color.configure({
-        types: ['textStyle'],
+        types: [TextStyle.name],
       }),
     ],
     content: value,
@@ -78,6 +78,14 @@ export default function RichTextEditor({
     onUpdate: ({ editor }) => {
       const html = editor.getHTML()
       onChange(html)
+    },
+    onCreate: ({ editor }) => {
+      console.log('TipTap editor created with extensions:', {
+        StarterKit: !!StarterKit,
+        TextStyle: !!TextStyle,
+        Color: !!Color,
+        TextStyleName: TextStyle.name
+      })
     },
   }, [mounted])
 

@@ -685,12 +685,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             {/* Data Management Tab */}
             {activeTab === 'data' && (
               <div className="space-y-6">
-                {/* Colour Test Component - Temporary */}
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h3 className="text-lg font-bold text-yellow-800 mb-2">Colour Test (Temporary)</h3>
-                  <ColorTestComponent />
-                </div>
-
                 {/* Symptom Management */}
                 <div className="bg-white rounded-lg shadow-md p-6">
                   <div className="flex justify-between items-center mb-4">
