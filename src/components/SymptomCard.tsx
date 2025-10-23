@@ -100,7 +100,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
   }
 
-  const linkUrl = effectiveSurgerySlug ? `/${effectiveSurgerySlug}/symptom/${symptom.id || 'unknown'}` : `/symptom/${symptom.id || 'unknown'}`
+  const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgerySlug ? `?surgery=${effectiveSurgerySlug}` : ''}`
   console.log('SymptomCard: Generated link URL =', linkUrl, 'for symptom:', symptom.name)
 
   return (
