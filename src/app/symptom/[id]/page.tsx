@@ -121,7 +121,8 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         data: {
           surgeryId,
           baseId: baseSymptomId,
-          event: 'view_symptom'
+          event: 'view_symptom',
+          userEmail: sessionUser?.email || null
         }
       })
     }
