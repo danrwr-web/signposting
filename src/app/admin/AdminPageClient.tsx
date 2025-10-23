@@ -7,13 +7,7 @@ import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
-import dynamic from 'next/dynamic'
-
-// Ensure RichTextEditor is client-only
-const ClientRichTextEditor = dynamic(() => import('@/components/rich-text/RichTextEditor'), {
-  ssr: false,
-  loading: () => <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 animate-pulse">Loading editor...</div>
-})
+import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -1143,7 +1137,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <label className="block text-sm font-medium text-nhs-grey mb-1">
                   Instructions *
                 </label>
-                <ClientRichTextEditor
+                <RichTextEditor
                   value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                   onChange={(html) => {
                     const sanitizedHtml = sanitizeHtml(html)
@@ -1465,7 +1459,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Instructions
                   </label>
-                  <ClientRichTextEditor
+                  <RichTextEditor
                     value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                     onChange={(html) => {
                       const sanitizedHtml = sanitizeHtml(html)

@@ -9,12 +9,9 @@ import { useState, useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 
-// Version-agnostic import shims for TipTap extensions
-import * as TextStyleMod from '@tiptap/extension-text-style'
-const TextStyle = (TextStyleMod as any).default ?? (TextStyleMod as any).TextStyle
-
-import * as ColorMod from '@tiptap/extension-color'
-const Color = (ColorMod as any).default ?? (ColorMod as any).Color
+// Import TipTap extensions with proper syntax
+import { TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
 
 interface RichTextEditorProps {
   value: string
