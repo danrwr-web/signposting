@@ -5,20 +5,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import AdminDashboardClient from './AdminDashboardClient'
-import dynamic from 'next/dynamic'
-
-// Ensure AdminPageClient is client-only to prevent SSR issues with TipTap
-const AdminPageClient = dynamic(() => import('./AdminPageClient'), {
-  ssr: false,
-  loading: () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-nhs-blue mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading admin dashboard...</p>
-      </div>
-    </div>
-  )
-})
+import AdminPageWrapper from './AdminPageWrapper'
 
 export default async function AdminPage() {
   const user = await getSessionUser()
@@ -79,7 +66,7 @@ export default async function AdminPage() {
     
 
     return (
-      <AdminPageClient 
+      <AdminPageWrapper 
         surgeries={surgeries} 
         symptoms={symptoms} 
         session={session}
