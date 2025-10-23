@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Migration Runner</title>
+</head>
+<body>
+    <h1>Instructions Migration</h1>
+    <button id="runMigration">Run Migration</button>
+    <div id="output"></div>
+
+    <script>
+        document.getElementById('runMigration').addEventListener('click', async () => {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Running migration...';
+            
+            try {
+                const response = await fetch('/api/admin/migrate-instructions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    output.innerHTML = `
+                        <h2>Migration Completed Successfully!</h2>
+                        <p><strong>Total rows updated:</strong> ${result.results.totalUpdated}</p>
+                        <ul>
+                            <li>Base symptoms: ${result.results.baseSymptoms}</li>
+                            <li>Surgery overrides: ${result.results.surgeryOverrides}</li>
+                            <li>Custom symptoms: ${result.results.customSymptoms}</li>
+                        </ul>
+                    `;
+                } else {
+                    output.innerHTML = `
+                        <h2>Migration Failed</h2>
+                        <p><strong>Error:</strong> ${result.error}</p>
+                        <p><strong>Details:</strong> ${result.details}</p>
+                    `;
+                }
+            } catch (error) {
+                output.innerHTML = `
+                    <h2>Migration Failed</h2>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
