@@ -8,8 +8,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import TextStyle from '@tiptap/extension-text-style'
-import Color from '@tiptap/extension-color'
+
+// Version-agnostic import shims for TipTap extensions
+import * as TextStyleMod from '@tiptap/extension-text-style'
+const TextStyle = (TextStyleMod as any).default ?? (TextStyleMod as any).TextStyle
+
+import * as ColorMod from '@tiptap/extension-color'
+const Color = (ColorMod as any).default ?? (ColorMod as any).Color
 
 interface RichTextEditorProps {
   value: string
@@ -70,7 +75,7 @@ export default function RichTextEditor({
       StarterKit,
       TextStyle,
       Color.configure({
-        types: [TextStyle.name],
+        types: ['textStyle'],
       }),
     ],
     content: value,
