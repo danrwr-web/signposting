@@ -18,7 +18,7 @@ export async function PATCH(
     const { id } = await params
     const data = await request.json()
 
-    const { source, surgeryId, name, ageGroup, briefInstruction, instructions, instructionsJson, highlightedText, linkToPage } = data
+    const { source, surgeryId, name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage } = data
 
     if (source === 'base') {
       // Superusers can update base symptoms
@@ -32,6 +32,7 @@ export async function PATCH(
           briefInstruction,
           instructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
+          instructionsHtml,
           highlightedText,
           linkToPage,
         }
@@ -61,6 +62,7 @@ export async function PATCH(
           briefInstruction,
           instructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
+          instructionsHtml,
           highlightedText,
           linkToPage,
         }
@@ -103,6 +105,7 @@ export async function PATCH(
           briefInstruction,
           instructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
+          instructionsHtml,
           highlightedText,
           linkToPage,
         },
@@ -114,6 +117,7 @@ export async function PATCH(
           briefInstruction,
           instructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
+          instructionsHtml,
           highlightedText,
           linkToPage,
         }

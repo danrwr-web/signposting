@@ -7,6 +7,7 @@ import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
+import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -52,6 +53,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     briefInstruction: '',
     instructions: '',
     instructionsJson: null as any,
+    instructionsHtml: '',
     highlightedText: '',
     linkToPage: ''
   })
@@ -208,6 +210,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       briefInstruction: symptom.briefInstruction || '',
       instructions: symptom.instructions || '',
       instructionsJson: instructionsJson,
+      instructionsHtml: symptom.instructionsHtml || '',
       highlightedText: symptom.highlightedText || '',
       linkToPage: symptom.linkToPage || ''
     })
@@ -231,6 +234,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           briefInstruction: newSymptom.briefInstruction,
           instructions: newSymptom.instructions,
           instructionsJson: newSymptom.instructionsJson,
+          instructionsHtml: newSymptom.instructionsHtml,
           highlightedText: newSymptom.highlightedText,
           linkToPage: newSymptom.linkToPage
         })
@@ -465,6 +469,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           briefInstruction: '',
           instructions: '',
           instructionsJson: null,
+          instructionsHtml: '',
           highlightedText: '',
           linkToPage: ''
         })
@@ -1133,11 +1138,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   Instructions *
                 </label>
                 <RichTextEditor
-                  value={newSymptom.instructions}
+                  value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                   onChange={(html) => {
+                    const sanitizedHtml = sanitizeHtml(html)
                     setNewSymptom(prev => ({ 
                       ...prev, 
-                      instructions: html,
+                      instructionsHtml: sanitizedHtml,
+                      instructions: sanitizedHtml, // Keep legacy field for compatibility
                       instructionsJson: null
                     }))
                   }}
@@ -1453,11 +1460,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     Instructions
                   </label>
                   <RichTextEditor
-                    value={newSymptom.instructions}
+                    value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                     onChange={(html) => {
+                      const sanitizedHtml = sanitizeHtml(html)
                       setNewSymptom(prev => ({ 
                         ...prev, 
-                        instructions: html,
+                        instructionsHtml: sanitizedHtml,
+                        instructions: sanitizedHtml, // Keep legacy field for compatibility
                         instructionsJson: null
                       }))
                     }}

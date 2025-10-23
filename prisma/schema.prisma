@@ -83,6 +83,7 @@ model BaseSymptom {
   highlightedText  String?
   instructions     String?  // Legacy markdown field for back-compat
   instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
+  instructionsHtml String?  // HTML format with colour support
   linkToPage       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -107,6 +108,7 @@ model SurgerySymptomOverride {
   highlightedText  String?
   instructions     String?  // Legacy markdown field for back-compat
   instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
+  instructionsHtml String?  // HTML format with colour support
   linkToPage       String?
   // Soft delete: if true, this symptom is hidden for this surgery
   isHidden         Boolean  @default(false)
@@ -128,6 +130,7 @@ model SurgeryCustomSymptom {
   highlightedText  String?
   instructions     String?  // Legacy markdown field for back-compat
   instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
+  instructionsHtml String?  // HTML format with colour support
   linkToPage       String?
 
   surgery          Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)

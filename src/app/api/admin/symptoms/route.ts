@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { name, slug, ageGroup, briefInstruction, instructions, instructionsJson, highlightedText, linkToPage } = CreateSymptomReqZ.parse(body)
+    const { name, slug, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage } = CreateSymptomReqZ.parse(body)
 
     if (user.globalRole === 'SUPERUSER') {
       // Superusers create base symptoms visible to all surgeries
@@ -124,6 +124,7 @@ export async function POST(request: NextRequest) {
           briefInstruction,
           instructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
+          instructionsHtml,
           highlightedText,
           linkToPage,
         },
@@ -136,6 +137,7 @@ export async function POST(request: NextRequest) {
           highlightedText: true,
           instructions: true,
           instructionsJson: true,
+          instructionsHtml: true,
           linkToPage: true,
         }
       })
@@ -176,6 +178,7 @@ export async function POST(request: NextRequest) {
           briefInstruction,
           instructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
+          instructionsHtml,
           highlightedText,
           linkToPage,
         },
@@ -188,6 +191,7 @@ export async function POST(request: NextRequest) {
           highlightedText: true,
           instructions: true,
           instructionsJson: true,
+          instructionsHtml: true,
           linkToPage: true,
         }
       })

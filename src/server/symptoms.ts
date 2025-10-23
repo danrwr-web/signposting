@@ -14,6 +14,7 @@ export interface EffectiveSymptom {
   highlightedText: string | null
   instructions: string | null
   instructionsJson: string | null // ProseMirror JSON as string
+  instructionsHtml: string | null // HTML format with colour support
   linkToPage: string | null
   source: 'base' | 'override' | 'custom'
   baseSymptomId?: string
