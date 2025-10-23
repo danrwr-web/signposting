@@ -21,7 +21,7 @@ export default function ColorTestComponent() {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      TextStyle.configure({}),
+      TextStyle,
       Color.configure({
         types: ['textStyle'],
       }),
@@ -44,30 +44,30 @@ export default function ColorTestComponent() {
       
       {/* Toolbar */}
       <div className="mb-4 flex gap-2">
-        <button
-          onClick={() => editor.commands.setColor('#ff0000')}
-          className="px-3 py-1 bg-red-500 text-white rounded"
-        >
-          Red
-        </button>
-        <button
-          onClick={() => editor.commands.setColor('#00ff00')}
-          className="px-3 py-1 bg-green-500 text-white rounded"
-        >
-          Green
-        </button>
-        <button
-          onClick={() => editor.commands.setColor('#0000ff')}
-          className="px-3 py-1 bg-blue-500 text-white rounded"
-        >
-          Blue
-        </button>
-        <button
-          onClick={() => editor.commands.unsetColor()}
-          className="px-3 py-1 bg-gray-500 text-white rounded"
-        >
-          Remove Colour
-        </button>
+         <button
+           onClick={() => editor.chain().focus().setColor('#ff0000').run()}
+           className="px-3 py-1 bg-red-500 text-white rounded"
+         >
+           Red
+         </button>
+         <button
+           onClick={() => editor.chain().focus().setColor('#00ff00').run()}
+           className="px-3 py-1 bg-green-500 text-white rounded"
+         >
+           Green
+         </button>
+         <button
+           onClick={() => editor.chain().focus().setColor('#0000ff').run()}
+           className="px-3 py-1 bg-blue-500 text-white rounded"
+         >
+           Blue
+         </button>
+         <button
+           onClick={() => editor.chain().focus().unsetColor().run()}
+           className="px-3 py-1 bg-gray-500 text-white rounded"
+         >
+           Remove Colour
+         </button>
       </div>
 
       {/* Editor */}

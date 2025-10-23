@@ -64,11 +64,11 @@ export default function RichTextEditor({
     }
   }, [])
 
-  // Create editor with minimal extensions
+  // Create editor with proper extension configuration
   const editor = useEditor({
     extensions: [
       StarterKit,
-      TextStyle.configure({}),
+      TextStyle,
       Color.configure({
         types: ['textStyle'],
       }),
@@ -186,11 +186,11 @@ export default function RichTextEditor({
                     <button
                       key={color.value}
                       type="button"
-                      onClick={() => {
-                        console.log('Setting colour:', color.value)
-                        editor.commands.setColor(color.value)
-                        setShowColorPicker(false)
-                      }}
+                       onClick={() => {
+                         console.log('Setting colour:', color.value)
+                         editor.chain().focus().setColor(color.value).run()
+                         setShowColorPicker(false)
+                       }}
                       className={`w-8 h-8 rounded border-2 hover:ring-2 hover:ring-nhs-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue transition-all ${
                         editor.isActive('textStyle', { color: color.value }) ? 'ring-2 ring-nhs-blue' : ''
                       }`}
@@ -206,11 +206,11 @@ export default function RichTextEditor({
                 <div className="mt-2 pt-2 border-t border-gray-200">
                   <button
                     type="button"
-                    onClick={() => {
-                      console.log('Removing colour')
-                      editor.commands.unsetColor()
-                      setShowColorPicker(false)
-                    }}
+                     onClick={() => {
+                       console.log('Removing colour')
+                       editor.chain().focus().unsetColor().run()
+                       setShowColorPicker(false)
+                     }}
                     className="text-xs text-gray-600 hover:text-gray-800 underline"
                   >
                     Remove colour
