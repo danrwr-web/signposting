@@ -23,7 +23,7 @@ interface RichTextEditorProps {
   "data-testid"?: string
 }
 
-// NHS colour palette
+// NHS colour palette with more colours and better organization
 const NHS_COLORS = [
   { name: 'NHS Blue', value: '#005EB8', class: 'text-nhs-blue' },
   { name: 'NHS Red', value: '#DA020E', class: 'text-red-600' },
@@ -32,6 +32,11 @@ const NHS_COLORS = [
   { name: 'Purple', value: '#6A0DAD', class: 'text-purple-600' },
   { name: 'Pink', value: '#E5007E', class: 'text-pink-600' },
   { name: 'Black', value: '#000000', class: 'text-black' },
+  { name: 'Dark Gray', value: '#374151', class: 'text-gray-700' },
+  { name: 'Brown', value: '#92400e', class: 'text-amber-800' },
+  { name: 'Teal', value: '#0d9488', class: 'text-teal-600' },
+  { name: 'Indigo', value: '#4f46e5', class: 'text-indigo-600' },
+  { name: 'Rose', value: '#e11d48', class: 'text-rose-600' },
 ]
 
 export default function RichTextEditor({
@@ -232,30 +237,59 @@ export default function RichTextEditor({
             <button
               type="button"
               onClick={() => setShowColorPicker(!showColorPicker)}
-              className="px-2 py-1 text-sm rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+              className={`px-2 py-1 text-sm rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
+                editor.isActive('textStyle') ? 'bg-gray-200' : ''
+              }`}
               title="Text Colour"
               aria-expanded={showColorPicker}
               aria-haspopup="true"
             >
-              A
+              <span 
+                className="font-bold"
+                style={{ 
+                  color: editor.getAttributes('textStyle').color || '#000000'
+                }}
+              >
+                A
+              </span>
             </button>
             {showColorPicker && (
-              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-2 z-10">
-                <div className="grid grid-cols-4 gap-1">
+              <div className="absolute top-full left-0 mt-1 bg-white border border-gray-300 rounded-md shadow-lg p-3 z-10 min-w-[200px]">
+                <div className="text-xs font-medium text-gray-600 mb-2">Text Colour</div>
+                <div className="grid grid-cols-3 gap-2">
                   {NHS_COLORS.map((color) => (
                     <button
                       key={color.value}
                       type="button"
                       onClick={() => {
+                        console.log('Setting colour:', color.value)
                         editor.commands.setColor(color.value)
                         setShowColorPicker(false)
                       }}
-                      className={`w-6 h-6 rounded border hover:ring-2 hover:ring-nhs-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue ${color.class}`}
-                      style={{ backgroundColor: color.value }}
+                      className={`w-8 h-8 rounded border-2 hover:ring-2 hover:ring-nhs-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue transition-all ${
+                        editor.isActive('textStyle', { color: color.value }) ? 'ring-2 ring-nhs-blue' : ''
+                      }`}
+                      style={{ 
+                        backgroundColor: color.value,
+                        borderColor: color.value === '#000000' ? '#e5e7eb' : color.value
+                      }}
                       title={color.name}
                       aria-label={`Set text colour to ${color.name}`}
                     />
                   ))}
+                </div>
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      console.log('Removing colour')
+                      editor.commands.unsetColor()
+                      setShowColorPicker(false)
+                    }}
+                    className="text-xs text-gray-600 hover:text-gray-800 underline"
+                  >
+                    Remove colour
+                  </button>
                 </div>
               </div>
             )}
@@ -377,6 +411,11 @@ export default function RichTextEditor({
           background-color: #fef3c7;
           padding: 0.125rem 0.25rem;
           border-radius: 0.125rem;
+        }
+        
+        /* Ensure colour styles are applied */
+        .rich-text-editor .ProseMirror span[style*="color"] {
+          color: inherit !important;
         }
         
         /* Focus styling */
