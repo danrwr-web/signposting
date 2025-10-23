@@ -3,6 +3,12 @@
 import { useState, useEffect } from 'react'
 import { Session } from '@/server/auth'
 
+interface AuditEntry {
+  action: string
+  userEmail: string
+  timestamp: string
+}
+
 interface Suggestion {
   id: string
   surgeryId: string | null
@@ -13,6 +19,7 @@ interface Suggestion {
   status: 'pending' | 'actioned' | 'discarded'
   createdAt: string
   updatedAt: string
+  auditTrail: AuditEntry[]
   surgery: {
     id: string
     name: string
@@ -37,6 +44,7 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
   const [showClearAllDialog, setShowClearAllDialog] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -112,6 +120,78 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
     }
   }
 
+  const undoStatusChange = async (suggestionId: string) => {
+    try {
+      setIsUpdating(suggestionId)
+      
+      const response = await fetch('/api/suggestions', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          suggestionId,
+          status: 'pending'
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to undo status change')
+      }
+      
+      // Refresh the data to get the updated status from the database
+      const params = new URLSearchParams()
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter)
+      }
+      
+      const refreshResponse = await fetch(`/api/suggestions?${params}`)
+      if (refreshResponse.ok) {
+        const data = await refreshResponse.json()
+        setSuggestionsData(data)
+      }
+    } catch (err) {
+      console.error('Error undoing status change:', err)
+      setError(err instanceof Error ? err.message : 'Failed to undo status change')
+    } finally {
+      setIsUpdating(null)
+    }
+  }
+
+  const deleteSuggestion = async (suggestionId: string) => {
+    try {
+      setIsDeleting(suggestionId)
+      
+      const response = await fetch(`/api/suggestions?id=${suggestionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete suggestion')
+      }
+      
+      // Refresh the data to get the updated list
+      const params = new URLSearchParams()
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter)
+      }
+      
+      const refreshResponse = await fetch(`/api/suggestions?${params}`)
+      if (refreshResponse.ok) {
+        const data = await refreshResponse.json()
+        setSuggestionsData(data)
+      }
+    } catch (err) {
+      console.error('Error deleting suggestion:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete suggestion')
+    } finally {
+      setIsDeleting(null)
+    }
+  }
+
   const clearAllSuggestions = async () => {
     try {
       setIsClearing(true)
@@ -164,6 +244,17 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const formatAuditTrail = (auditTrail: AuditEntry[]) => {
+    if (!auditTrail || auditTrail.length === 0) return null
+    
+    const latestAction = auditTrail[auditTrail.length - 1]
+    return {
+      action: latestAction.action,
+      userEmail: latestAction.userEmail,
+      timestamp: formatDate(latestAction.timestamp)
+    }
   }
 
   if (isLoading) {
@@ -321,25 +412,53 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
                   <p className="text-sm text-gray-500">
                     Submitted: {formatDate(suggestion.createdAt)}
                   </p>
+                  {(() => {
+                    const auditInfo = formatAuditTrail(suggestion.auditTrail)
+                    if (auditInfo) {
+                      return (
+                        <p className="text-sm text-gray-500">
+                          {auditInfo.action === 'actioned' ? 'Actioned' : 'Discarded'} by {auditInfo.userEmail} on {auditInfo.timestamp}
+                        </p>
+                      )
+                    }
+                    return null
+                  })()}
                 </div>
-                {suggestion.status === 'pending' && (
-                  <div className="flex space-x-2">
+                <div className="flex space-x-2">
+                  {suggestion.status === 'pending' ? (
+                    <>
+                      <button
+                        onClick={() => updateSuggestionStatus(suggestion.id, 'actioned')}
+                        disabled={isUpdating === suggestion.id}
+                        className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
+                      >
+                        {isUpdating === suggestion.id ? 'Updating...' : 'Mark Actioned'}
+                      </button>
+                      <button
+                        onClick={() => updateSuggestionStatus(suggestion.id, 'discarded')}
+                        disabled={isUpdating === suggestion.id}
+                        className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
+                      >
+                        {isUpdating === suggestion.id ? 'Updating...' : 'Discard'}
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={() => updateSuggestionStatus(suggestion.id, 'actioned')}
+                      onClick={() => undoStatusChange(suggestion.id)}
                       disabled={isUpdating === suggestion.id}
-                      className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm disabled:opacity-50"
+                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm disabled:opacity-50"
                     >
-                      {isUpdating === suggestion.id ? 'Updating...' : 'Mark Actioned'}
+                      {isUpdating === suggestion.id ? 'Updating...' : 'Undo'}
                     </button>
-                    <button
-                      onClick={() => updateSuggestionStatus(suggestion.id, 'discarded')}
-                      disabled={isUpdating === suggestion.id}
-                      className="px-3 py-1 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm disabled:opacity-50"
-                    >
-                      {isUpdating === suggestion.id ? 'Updating...' : 'Discard'}
-                    </button>
-                  </div>
-                )}
+                  )}
+                  <button
+                    onClick={() => deleteSuggestion(suggestion.id)}
+                    disabled={isDeleting === suggestion.id}
+                    className="px-3 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm disabled:opacity-50"
+                  >
+                    {isDeleting === suggestion.id ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-gray-800 whitespace-pre-wrap">

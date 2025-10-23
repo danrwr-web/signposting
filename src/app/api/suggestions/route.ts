@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
       let status = 'pending'
       let originalText = suggestion.text
       let updatedAt = suggestion.createdAt
+      let auditTrail = []
       
       // Check if the text contains status information
       try {
@@ -83,19 +84,22 @@ export async function GET(request: NextRequest) {
           status = parsedText.status
           originalText = parsedText.originalText
           updatedAt = parsedText.updatedAt ? new Date(parsedText.updatedAt) : suggestion.createdAt
+          auditTrail = parsedText.auditTrail || []
         }
       } catch {
         // Text is not JSON, so it's a regular suggestion with pending status
         status = 'pending'
         originalText = suggestion.text
         updatedAt = suggestion.createdAt
+        auditTrail = []
       }
       
       return {
         ...suggestion,
         text: originalText, // Return the original text to frontend
         status: status,
-        updatedAt: updatedAt.toISOString()
+        updatedAt: updatedAt.toISOString(),
+        auditTrail: auditTrail
       }
     })
 
@@ -218,6 +222,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+
 export async function DELETE(request: NextRequest) {
   try {
     const user = await getSessionUser()
@@ -226,6 +231,81 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { searchParams } = new URL(request.url)
+    const suggestionId = searchParams.get('id')
+
+    if (suggestionId) {
+      // Delete a single suggestion
+      return await deleteSingleSuggestion(request, suggestionId, user)
+    } else {
+      // Clear all suggestions (existing functionality)
+      return await clearAllSuggestions(request, user)
+    }
+  } catch (error) {
+    console.error('Suggestions API: Error in DELETE:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete suggestion', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}
+
+async function deleteSingleSuggestion(request: NextRequest, suggestionId: string, user: any) {
+  try {
+    console.log('Suggestions API: Deleting single suggestion:', suggestionId)
+
+    // Check if user has permission to delete this suggestion
+    const suggestion = await prisma.suggestion.findUnique({
+      where: { id: suggestionId },
+      include: {
+        surgery: true
+      }
+    })
+
+    if (!suggestion) {
+      return NextResponse.json(
+        { error: 'Suggestion not found' },
+        { status: 404 }
+      )
+    }
+
+    // Check permissions
+    if (user.globalRole !== 'SUPERUSER') {
+      const hasPermission = user.memberships.some(
+        m => m.surgeryId === suggestion.surgeryId && m.role === 'ADMIN'
+      )
+      
+      if (!hasPermission) {
+        return NextResponse.json(
+          { error: 'Insufficient permissions' },
+          { status: 403 }
+        )
+      }
+    }
+
+    // Delete the suggestion
+    await prisma.suggestion.delete({
+      where: { id: suggestionId }
+    })
+
+    console.log('Suggestions API: Suggestion deleted successfully:', suggestionId)
+
+    return NextResponse.json({ 
+      message: 'Suggestion deleted successfully',
+      deletedId: suggestionId
+    })
+
+  } catch (error) {
+    console.error('Suggestions API: Error deleting single suggestion:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete suggestion', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}
+
+async function clearAllSuggestions(request: NextRequest, user: any) {
+  try {
     console.log('Suggestions API: Clearing suggestions for user:', { 
       id: user.id, 
       email: user.email, 
@@ -330,7 +410,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Since the status field doesn't exist in the database yet, we'll use a workaround:
-    // We'll store the status in the text field as a JSON object with the original text and status
+    // We'll store the status in the text field as a JSON object with the original text, status, and audit trail
     // This is a temporary solution until the database schema is updated
     
     let updatedText = suggestion.text
@@ -339,26 +419,44 @@ export async function PATCH(request: NextRequest) {
     try {
       const parsedText = JSON.parse(suggestion.text)
       if (parsedText.originalText && parsedText.status) {
-        // Update existing status
+        // Update existing status with audit trail
+        const auditTrail = parsedText.auditTrail || []
+        auditTrail.push({
+          action: status,
+          userEmail: user.email,
+          timestamp: new Date().toISOString()
+        })
+        
         updatedText = JSON.stringify({
           originalText: parsedText.originalText,
           status: status,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          auditTrail: auditTrail
         })
       } else {
-        // Add status to original text
+        // Add status to original text with initial audit entry
         updatedText = JSON.stringify({
           originalText: suggestion.text,
           status: status,
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
+          auditTrail: [{
+            action: status,
+            userEmail: user.email,
+            timestamp: new Date().toISOString()
+          }]
         })
       }
     } catch {
-      // Text is not JSON, so add status information
+      // Text is not JSON, so add status information with initial audit entry
       updatedText = JSON.stringify({
         originalText: suggestion.text,
         status: status,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        auditTrail: [{
+          action: status,
+          userEmail: user.email,
+          timestamp: new Date().toISOString()
+        }]
       })
     }
 
