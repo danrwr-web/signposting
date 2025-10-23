@@ -319,15 +319,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setDeleteError(null)
 
     try {
-      const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
+      const response = await fetch(`/api/admin/symptoms/${symptom.id}?source=custom&surgeryId=${encodeURIComponent(surgeryId || '')}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          source: 'custom',
-          surgeryId: surgeryId
-        })
       })
 
       if (!response.ok) {
