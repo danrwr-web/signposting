@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SuggestionModal from './SuggestionModal'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
@@ -146,7 +146,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               <div 
                 className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
                 dangerouslySetInnerHTML={{ 
-                  __html: sanitizeHtml(highlightText(symptom.instructionsHtml || symptom.instructions || ''))
+                  __html: sanitizeAndFormatContent(highlightText(symptom.instructionsHtml || symptom.instructions || ''))
                 }}
               />
             ) : (

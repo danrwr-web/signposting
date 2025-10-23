@@ -57,15 +57,39 @@ export function sanitizeHtmlWithLinks(html: string): string {
 }
 
 /**
- * Checks if HTML content is safe to render
- * @param html - The HTML content to check
- * @returns True if the content is safe
+ * Converts plain text line breaks to HTML
+ * @param text - The plain text content
+ * @returns HTML string with line breaks converted to <br> tags
  */
-export function isHtmlSafe(html: string): boolean {
-  if (!html || typeof html !== 'string') {
-    return true
+export function convertLineBreaksToHtml(text: string): string {
+  if (!text || typeof text !== 'string') {
+    return ''
   }
   
-  const sanitized = DOMPurify.sanitize(html, sanitizeConfig)
-  return sanitized === html
+  // Convert \n to <br> tags
+  return text.replace(/\n/g, '<br>')
+}
+
+/**
+ * Sanitizes and formats text content for display
+ * Handles both HTML and plain text content
+ * @param content - The content to sanitize and format
+ * @returns Sanitized HTML string
+ */
+export function sanitizeAndFormatContent(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return ''
+  }
+  
+  // Check if content already contains HTML tags
+  const hasHtmlTags = /<[^>]+>/.test(content)
+  
+  if (hasHtmlTags) {
+    // Content is already HTML, just sanitize it
+    return sanitizeHtml(content)
+  } else {
+    // Content is plain text, convert line breaks and sanitize
+    const htmlWithBreaks = convertLineBreaksToHtml(content)
+    return sanitizeHtml(htmlWithBreaks)
+  }
 }
