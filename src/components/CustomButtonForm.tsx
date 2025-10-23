@@ -12,8 +12,7 @@ interface CustomButtonFormProps {
 export default function CustomButtonForm({ onSubmit, onCancel }: CustomButtonFormProps) {
   const [formData, setFormData] = useState({
     label: '',
-    symptomSlug: '',
-    orderIndex: 0
+    symptomSlug: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -22,11 +21,11 @@ export default function CustomButtonForm({ onSubmit, onCancel }: CustomButtonFor
     if (!formData.label.trim()) return
 
     setIsSubmitting(true)
-    const success = await onSubmit(formData)
+    const success = await onSubmit({ ...formData, orderIndex: 0 })
     setIsSubmitting(false)
 
     if (success) {
-      setFormData({ label: '', symptomSlug: '', orderIndex: 0 })
+      setFormData({ label: '', symptomSlug: '' })
     }
   }
 
@@ -36,7 +35,7 @@ export default function CustomButtonForm({ onSubmit, onCancel }: CustomButtonFor
         Add New High-Risk Button
       </h4>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label 
               className="block text-sm font-medium text-nhs-grey mb-1"
@@ -76,25 +75,6 @@ export default function CustomButtonForm({ onSubmit, onCancel }: CustomButtonFor
             />
             <p id="custom-slug-help" className="text-xs text-gray-500 mt-1">
               URL slug for the symptom page (optional)
-            </p>
-          </div>
-          <div>
-            <label 
-              className="block text-sm font-medium text-nhs-grey mb-1"
-              htmlFor="custom-order"
-            >
-              Order Index
-            </label>
-            <input
-              id="custom-order"
-              type="number"
-              value={formData.orderIndex}
-              onChange={(e) => setFormData({ ...formData, orderIndex: parseInt(e.target.value) || 0 })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-              aria-describedby="custom-order-help"
-            />
-            <p id="custom-order-help" className="text-xs text-gray-500 mt-1">
-              Lower numbers appear first
             </p>
           </div>
         </div>

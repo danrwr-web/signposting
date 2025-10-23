@@ -60,29 +60,13 @@ export default function HighRiskConfig({ surgeryId, surgeries, session }: HighRi
         <h2 className="text-lg font-semibold text-nhs-dark-blue">
           High-Risk Quick Access Buttons
         </h2>
-        <div className="flex gap-3">
-          <button
-            onClick={toggleDefaultButtons}
-            className={`
-              px-4 py-2 rounded-lg transition-colors
-              focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2
-              ${enableDefaultHighRisk 
-                ? 'bg-nhs-green text-white hover:bg-green-600' 
-                : 'bg-gray-400 text-white hover:bg-gray-500'
-              }
-            `}
-            aria-label={`${enableDefaultHighRisk ? 'Disable' : 'Enable'} all default buttons`}
-          >
-            {enableDefaultHighRisk ? 'Disable Defaults' : 'Enable Defaults'}
-          </button>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
-            aria-label="Add custom high-risk button"
-          >
-            Add Custom Button
-          </button>
-        </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+          aria-label="Add custom high-risk button"
+        >
+          Add Custom Button
+        </button>
       </div>
 
       <DefaultButtonsConfig

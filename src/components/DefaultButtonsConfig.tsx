@@ -43,29 +43,13 @@ export default function DefaultButtonsConfig({
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <svg 
-              className="h-5 w-5 text-blue-400" 
-              viewBox="0 0 20 20" 
-              fill="currentColor"
-              aria-hidden="true"
-            >
-              <path 
-                fillRule="evenodd" 
-                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" 
-                clipRule="evenodd" 
-              />
-            </svg>
-          </div>
-          <div className="ml-3">
-            <h4 className="text-sm font-medium text-blue-900">
-              Default High-Risk Buttons
-            </h4>
-            <p className="text-xs text-blue-700">
-              Configure which default buttons are enabled for this surgery
-            </p>
-          </div>
+        <div>
+          <h4 className="text-sm font-medium text-blue-900">
+            Default High-Risk Buttons
+          </h4>
+          <p className="text-xs text-blue-700">
+            Configure which default buttons are enabled
+          </p>
         </div>
         <button
           onClick={onToggleAll}
@@ -103,11 +87,7 @@ export default function DefaultButtonsConfig({
                       value={editingButton.label}
                       onChange={(e) => setEditingButton({ ...editingButton, label: e.target.value })}
                       className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
-                      aria-describedby={`edit-label-help-${button.buttonKey}`}
                     />
-                    <p id={`edit-label-help-${button.buttonKey}`} className="text-xs text-gray-500 mt-1">
-                      Display text for the button
-                    </p>
                   </div>
                   <div>
                     <label 
@@ -122,11 +102,7 @@ export default function DefaultButtonsConfig({
                       value={editingButton.symptomSlug}
                       onChange={(e) => setEditingButton({ ...editingButton, symptomSlug: e.target.value })}
                       className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
-                      aria-describedby={`edit-slug-help-${button.buttonKey}`}
                     />
-                    <p id={`edit-slug-help-${button.buttonKey}`} className="text-xs text-gray-500 mt-1">
-                      URL slug for the symptom page
-                    </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -134,11 +110,7 @@ export default function DefaultButtonsConfig({
                     checked={editingButton.isEnabled}
                     onChange={(checked) => setEditingButton({ ...editingButton, isEnabled: checked })}
                     label="Enabled"
-                    aria-describedby={`edit-status-help-${button.buttonKey}`}
                   />
-                  <p id={`edit-status-help-${button.buttonKey}`} className="text-xs text-gray-500">
-                    Whether this button is active
-                  </p>
                   <div className="flex space-x-2">
                     <button
                       onClick={handleUpdateButton}
@@ -160,24 +132,15 @@ export default function DefaultButtonsConfig({
             ) : (
               // View mode
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="text-sm font-medium text-gray-900">
-                    {button.label}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    Links to: {button.symptomSlug}
-                  </div>
+                <div className="text-sm font-medium text-gray-900">
+                  {button.label}
                 </div>
                 <div className="flex items-center space-x-2">
                   <ToggleSwitch
                     checked={button.isEnabled}
                     onChange={(checked) => onToggleIndividual(button.buttonKey, checked)}
                     label={`${button.label} button`}
-                    aria-describedby={`button-status-${button.buttonKey}`}
                   />
-                  <p id={`button-status-${button.buttonKey}`} className="text-xs text-gray-500">
-                    {button.isEnabled ? 'Enabled' : 'Disabled'}
-                  </p>
                   {session?.type === 'superuser' && (
                     <button
                       onClick={() => setEditingButton(button)}

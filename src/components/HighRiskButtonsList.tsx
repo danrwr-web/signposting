@@ -76,26 +76,18 @@ export default function HighRiskButtonsList({
                 isDefault ? 'bg-blue-50 border border-blue-200' : 'bg-nhs-light-grey'
               }`}
             >
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <div className="text-sm font-medium text-nhs-dark-blue">
-                    {link.label}
-                  </div>
-                  {isDefault && (
-                    <span 
-                      className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                      aria-label="Default button"
-                    >
-                      Default
-                    </span>
-                  )}
+              <div className="flex items-center space-x-3">
+                <div className="text-sm font-medium text-nhs-dark-blue">
+                  {link.label}
                 </div>
-                <div className="text-sm text-nhs-grey">
-                  Links to: {link.symptomSlug || 'Not configured'}
-                </div>
-                <div className="text-xs text-nhs-grey">
-                  Order: {link.orderIndex}
-                </div>
+                {isDefault && (
+                  <span 
+                    className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                    aria-label="Default button"
+                  >
+                    Default
+                  </span>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 {!isDefault && (
