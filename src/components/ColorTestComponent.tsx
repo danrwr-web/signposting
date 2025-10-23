@@ -21,8 +21,10 @@ export default function ColorTestComponent() {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      TextStyle,
-      Color,
+      TextStyle.configure({}),
+      Color.configure({
+        types: ['textStyle'],
+      }),
     ],
     content: '<p>Test text for colour</p>',
     onUpdate: ({ editor }) => {
@@ -43,25 +45,25 @@ export default function ColorTestComponent() {
       {/* Toolbar */}
       <div className="mb-4 flex gap-2">
         <button
-          onClick={() => editor.commands.setMark('textStyle', { color: '#ff0000' })}
+          onClick={() => editor.commands.setColor('#ff0000')}
           className="px-3 py-1 bg-red-500 text-white rounded"
         >
           Red
         </button>
         <button
-          onClick={() => editor.commands.setMark('textStyle', { color: '#00ff00' })}
+          onClick={() => editor.commands.setColor('#00ff00')}
           className="px-3 py-1 bg-green-500 text-white rounded"
         >
           Green
         </button>
         <button
-          onClick={() => editor.commands.setMark('textStyle', { color: '#0000ff' })}
+          onClick={() => editor.commands.setColor('#0000ff')}
           className="px-3 py-1 bg-blue-500 text-white rounded"
         >
           Blue
         </button>
         <button
-          onClick={() => editor.commands.unsetMark('textStyle')}
+          onClick={() => editor.commands.unsetColor()}
           className="px-3 py-1 bg-gray-500 text-white rounded"
         >
           Remove Colour

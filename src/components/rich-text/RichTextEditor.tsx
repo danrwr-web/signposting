@@ -68,8 +68,10 @@ export default function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
-      TextStyle,
-      Color,
+      TextStyle.configure({}),
+      Color.configure({
+        types: ['textStyle'],
+      }),
     ],
     content: value,
     editable: !readOnly,
@@ -186,7 +188,7 @@ export default function RichTextEditor({
                       type="button"
                       onClick={() => {
                         console.log('Setting colour:', color.value)
-                        editor.commands.setMark('textStyle', { color: color.value })
+                        editor.commands.setColor(color.value)
                         setShowColorPicker(false)
                       }}
                       className={`w-8 h-8 rounded border-2 hover:ring-2 hover:ring-nhs-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue transition-all ${
@@ -206,7 +208,7 @@ export default function RichTextEditor({
                     type="button"
                     onClick={() => {
                       console.log('Removing colour')
-                      editor.commands.unsetMark('textStyle')
+                      editor.commands.unsetColor()
                       setShowColorPicker(false)
                     }}
                     className="text-xs text-gray-600 hover:text-gray-800 underline"
