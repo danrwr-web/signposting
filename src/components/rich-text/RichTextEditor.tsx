@@ -93,6 +93,11 @@ export default function RichTextEditor({
       const html = editor.getHTML()
       onChange(html)
     },
+    editorProps: {
+      attributes: {
+        class: 'prose prose-sm max-w-none focus:outline-none',
+      },
+    },
   })
 
   // Update editor content when value prop changes
