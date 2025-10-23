@@ -34,6 +34,33 @@ const NHS_COLORS = [
   { name: 'Black', value: '#000000' },
 ]
 
+// Function to ensure proper paragraph formatting
+function ensureProperParagraphs(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return ''
+  }
+  
+  // If content already has proper HTML structure, return as-is
+  if (content.includes('<p>') && content.includes('</p>')) {
+    return content
+  }
+  
+  // If content has line breaks, convert them to paragraphs
+  if (content.includes('\n')) {
+    const paragraphs = content
+      .split('\n')
+      .map(p => p.trim())
+      .filter(p => p.length > 0)
+      .map(p => `<p>${p}</p>`)
+      .join('')
+    
+    return paragraphs || '<p></p>'
+  }
+  
+  // If content is plain text without line breaks, wrap in paragraph
+  return `<p>${content}</p>`
+}
+
 export default function RichTextEditor({
   value,
   onChange,
@@ -69,13 +96,19 @@ export default function RichTextEditor({
   // Create editor with proper extension configuration
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        paragraph: {
+          HTMLAttributes: {
+            class: 'prose-p',
+          },
+        },
+      }),
       TextStyle,
       Color.configure({
         types: ['textStyle'],
       }),
     ],
-    content: value,
+    content: ensureProperParagraphs(value),
     editable: !readOnly,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML()

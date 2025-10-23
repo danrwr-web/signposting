@@ -146,21 +146,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               <div 
                 className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
                 dangerouslySetInnerHTML={{ 
-                  __html: (() => {
-                    const rawContent = symptom.instructionsHtml || symptom.instructions || ''
-                    const highlightedContent = highlightText(rawContent)
-                    const finalContent = sanitizeAndFormatContent(highlightedContent)
-                    console.log('InstructionView Debug:', {
-                      hasInstructionsHtml: !!symptom.instructionsHtml,
-                      hasInstructions: !!symptom.instructions,
-                      rawContent: rawContent.substring(0, 200) + (rawContent.length > 200 ? '...' : ''),
-                      highlightedContent: highlightedContent.substring(0, 200) + (highlightedContent.length > 200 ? '...' : ''),
-                      finalContent: finalContent.substring(0, 200) + (finalContent.length > 200 ? '...' : ''),
-                      hasLineBreaks: rawContent.includes('\n'),
-                      hasHtmlTags: /<[^>]+>/.test(rawContent)
-                    })
-                    return finalContent
-                  })()
+                  __html: sanitizeAndFormatContent(highlightText(symptom.instructionsHtml || symptom.instructions || ''))
                 }}
               />
             ) : (
