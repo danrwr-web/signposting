@@ -1,6 +1,7 @@
 import { Metadata } from 'next'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { notFound } from 'next/navigation'
@@ -28,6 +29,19 @@ export default function HelpPage({}: HelpPageProps) {
     return (
       <main className="min-h-screen bg-nhs-light-grey">
         <div className="max-w-4xl mx-auto px-4 py-8">
+          {/* Back to App link */}
+          <div className="mb-4">
+            <Link 
+              href="/" 
+              className="inline-flex items-center text-sm text-nhs-blue hover:text-nhs-dark-blue transition-colors underline-offset-2 hover:underline"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Signposting App
+            </Link>
+          </div>
+          
           <h1 className="text-2xl font-bold mb-4 border-b border-nhs-blue pb-2 text-nhs-dark-blue">
             User Guide
           </h1>
@@ -51,6 +65,19 @@ export default function HelpPage({}: HelpPageProps) {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Sticky page title bar */}
         <div className="sticky top-0 bg-nhs-light-grey z-10 pb-4">
+          {/* Back to App link */}
+          <div className="mb-4">
+            <Link 
+              href="/" 
+              className="inline-flex items-center text-sm text-nhs-blue hover:text-nhs-dark-blue transition-colors underline-offset-2 hover:underline"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Signposting App
+            </Link>
+          </div>
+          
           <h1 className="text-2xl font-bold mb-4 border-b border-nhs-blue pb-2 text-nhs-dark-blue">
             User Guide
           </h1>
