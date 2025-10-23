@@ -1,6 +1,6 @@
 /**
- * NHS-Styled TipTap Rich Text Editor
- * Provides rich text editing with NHS styling, colour support, and accessibility
+ * Minimal TipTap Rich Text Editor
+ * Simplified version to resolve extension loading issues
  */
 
 'use client'
@@ -10,8 +10,6 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TextStyle from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
-import Underline from '@tiptap/extension-underline'
-import Highlight from '@tiptap/extension-highlight'
 
 interface RichTextEditorProps {
   value: string
@@ -23,20 +21,15 @@ interface RichTextEditorProps {
   "data-testid"?: string
 }
 
-// NHS colour palette with more colours and better organization
+// NHS colour palette
 const NHS_COLORS = [
-  { name: 'NHS Blue', value: '#005EB8', class: 'text-nhs-blue' },
-  { name: 'NHS Red', value: '#DA020E', class: 'text-red-600' },
-  { name: 'NHS Orange', value: '#F59E0B', class: 'text-orange-500' },
-  { name: 'NHS Green', value: '#00A499', class: 'text-green-600' },
-  { name: 'Purple', value: '#6A0DAD', class: 'text-purple-600' },
-  { name: 'Pink', value: '#E5007E', class: 'text-pink-600' },
-  { name: 'Black', value: '#000000', class: 'text-black' },
-  { name: 'Dark Gray', value: '#374151', class: 'text-gray-700' },
-  { name: 'Brown', value: '#92400e', class: 'text-amber-800' },
-  { name: 'Teal', value: '#0d9488', class: 'text-teal-600' },
-  { name: 'Indigo', value: '#4f46e5', class: 'text-indigo-600' },
-  { name: 'Rose', value: '#e11d48', class: 'text-rose-600' },
+  { name: 'NHS Blue', value: '#005EB8' },
+  { name: 'NHS Red', value: '#DA020E' },
+  { name: 'NHS Orange', value: '#F59E0B' },
+  { name: 'NHS Green', value: '#00A499' },
+  { name: 'Purple', value: '#6A0DAD' },
+  { name: 'Pink', value: '#E5007E' },
+  { name: 'Black', value: '#000000' },
 ]
 
 export default function RichTextEditor({
@@ -71,13 +64,12 @@ export default function RichTextEditor({
     }
   }, [])
 
+  // Create editor with minimal extensions
   const editor = useEditor({
     extensions: [
       StarterKit,
       TextStyle,
       Color,
-      Underline,
-      Highlight,
     ],
     content: value,
     editable: !readOnly,
@@ -85,12 +77,7 @@ export default function RichTextEditor({
       const html = editor.getHTML()
       onChange(html)
     },
-    editorProps: {
-      attributes: {
-        class: 'prose prose-sm max-w-none focus:outline-none',
-      },
-    },
-  }, [mounted]) // Only create editor after component is mounted
+  }, [mounted])
 
   // Update editor content when value prop changes
   useEffect(() => {
@@ -112,7 +99,7 @@ export default function RichTextEditor({
       {/* Toolbar */}
       {!readOnly && (
         <div className="border border-gray-300 border-b-0 rounded-t-md bg-gray-50 p-2 flex flex-wrap gap-1">
-          {/* Text Formatting */}
+          {/* Bold */}
           <button
             type="button"
             onClick={() => editor.commands.toggleBold()}
@@ -122,8 +109,10 @@ export default function RichTextEditor({
             title="Bold"
             aria-pressed={editor.isActive('bold')}
           >
-            <strong>B</strong>
+            <span className="font-bold">B</span>
           </button>
+
+          {/* Italic */}
           <button
             type="button"
             onClick={() => editor.commands.toggleItalic()}
@@ -133,60 +122,12 @@ export default function RichTextEditor({
             title="Italic"
             aria-pressed={editor.isActive('italic')}
           >
-            <em>I</em>
-          </button>
-          <button
-            type="button"
-            onClick={() => editor.commands.toggleUnderline()}
-            className={`px-2 py-1 text-sm rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
-              editor.isActive('underline') ? 'bg-gray-200' : ''
-            }`}
-            title="Underline"
-            aria-pressed={editor.isActive('underline')}
-          >
-            <u>U</u>
+            <span className="italic">I</span>
           </button>
 
           <div className="w-px h-6 bg-gray-300 mx-1" />
 
-          {/* Headings */}
-          <button
-            type="button"
-            onClick={() => editor.commands.toggleHeading({ level: 1 })}
-            className={`px-2 py-1 text-sm rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
-              editor.isActive('heading', { level: 1 }) ? 'bg-gray-200' : ''
-            }`}
-            title="Heading 1"
-            aria-pressed={editor.isActive('heading', { level: 1 })}
-          >
-            H1
-          </button>
-          <button
-            type="button"
-            onClick={() => editor.commands.toggleHeading({ level: 2 })}
-            className={`px-2 py-1 text-sm rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
-              editor.isActive('heading', { level: 2 }) ? 'bg-gray-200' : ''
-            }`}
-            title="Heading 2"
-            aria-pressed={editor.isActive('heading', { level: 2 })}
-          >
-            H2
-          </button>
-          <button
-            type="button"
-            onClick={() => editor.commands.toggleHeading({ level: 3 })}
-            className={`px-2 py-1 text-sm rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
-              editor.isActive('heading', { level: 3 }) ? 'bg-gray-200' : ''
-            }`}
-            title="Heading 3"
-            aria-pressed={editor.isActive('heading', { level: 3 })}
-          >
-            H3
-          </button>
-
-          <div className="w-px h-6 bg-gray-300 mx-1" />
-
-          {/* Lists */}
+          {/* Bullet List */}
           <button
             type="button"
             onClick={() => editor.commands.toggleBulletList()}
@@ -198,6 +139,8 @@ export default function RichTextEditor({
           >
             •
           </button>
+
+          {/* Numbered List */}
           <button
             type="button"
             onClick={() => editor.commands.toggleOrderedList()}
@@ -211,19 +154,6 @@ export default function RichTextEditor({
           </button>
 
           <div className="w-px h-6 bg-gray-300 mx-1" />
-
-          {/* Highlight */}
-          <button
-            type="button"
-            onClick={() => editor.commands.toggleHighlight()}
-            className={`px-2 py-1 text-sm rounded hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
-              editor.isActive('highlight') ? 'bg-gray-200' : ''
-            }`}
-            title="Highlight"
-            aria-pressed={editor.isActive('highlight')}
-          >
-            🖍️
-          </button>
 
           {/* Text Colour */}
           <div className="relative" ref={colorPickerRef}>
@@ -290,7 +220,7 @@ export default function RichTextEditor({
 
           <div className="w-px h-6 bg-gray-300 mx-1" />
 
-          {/* History */}
+          {/* Undo */}
           <button
             type="button"
             onClick={() => editor.commands.undo()}
@@ -300,6 +230,8 @@ export default function RichTextEditor({
           >
             ↶
           </button>
+
+          {/* Redo */}
           <button
             type="button"
             onClick={() => editor.commands.redo()}
@@ -313,52 +245,34 @@ export default function RichTextEditor({
       )}
 
       {/* Editor Content */}
-      <div
-        className={`border border-gray-300 rounded-b-md bg-white ${
-          readOnly ? 'rounded-md' : ''
-        }`}
-        style={{ minHeight: `${height}px` }}
+      <div 
+        className="border border-gray-300 rounded-b-md bg-white"
+        style={{ height: height }}
       >
-        <EditorContent
-          editor={editor}
-          className="prose prose-sm max-w-none p-4 focus:outline-none"
+        <EditorContent 
+          editor={editor} 
+          className="h-full overflow-y-auto p-3 focus:outline-none"
         />
       </div>
 
-      {/* NHS Styling */}
-      <style jsx global>{`
+      {/* Styles */}
+      <style jsx>{`
         .rich-text-editor .ProseMirror {
           outline: none;
-          min-height: ${height - 100}px;
+          min-height: 100px;
         }
         
-        .rich-text-editor .ProseMirror p.is-editor-empty:first-child::before {
-          color: #9ca3af;
-          content: attr(data-placeholder);
-          float: left;
-          height: 0;
-          pointer-events: none;
+        .rich-text-editor .ProseMirror p {
+          margin: 0.5rem 0;
+          line-height: 1.6;
         }
         
-        .rich-text-editor .ProseMirror h1 {
-          font-size: 1.5rem;
-          font-weight: 700;
-          margin: 1rem 0 0.5rem 0;
-          color: #1f2937;
+        .rich-text-editor .ProseMirror p:first-child {
+          margin-top: 0;
         }
         
-        .rich-text-editor .ProseMirror h2 {
-          font-size: 1.25rem;
-          font-weight: 600;
-          margin: 0.75rem 0 0.5rem 0;
-          color: #1f2937;
-        }
-        
-        .rich-text-editor .ProseMirror h3 {
-          font-size: 1.125rem;
-          font-weight: 600;
-          margin: 0.5rem 0 0.25rem 0;
-          color: #1f2937;
+        .rich-text-editor .ProseMirror p:last-child {
+          margin-bottom: 0;
         }
         
         .rich-text-editor .ProseMirror ul, .rich-text-editor .ProseMirror ol {
@@ -370,40 +284,12 @@ export default function RichTextEditor({
           margin: 0.25rem 0;
         }
         
-        .rich-text-editor .ProseMirror code {
-          background-color: #f3f4f6;
-          border-radius: 0.25rem;
-          padding: 0.125rem 0.25rem;
-          font-family: 'Courier New', monospace;
-          font-size: 0.875rem;
+        .rich-text-editor .ProseMirror strong {
+          font-weight: 700;
         }
         
-        .rich-text-editor .ProseMirror pre {
-          background-color: #f3f4f6;
-          border-radius: 0.375rem;
-          padding: 1rem;
-          margin: 0.5rem 0;
-          overflow-x: auto;
-        }
-        
-        .rich-text-editor .ProseMirror pre code {
-          background: none;
-          padding: 0;
-        }
-        
-        .rich-text-editor .ProseMirror a {
-          color: #005EB8;
-          text-decoration: underline;
-        }
-        
-        .rich-text-editor .ProseMirror a:hover {
-          color: #003d82;
-        }
-        
-        .rich-text-editor .ProseMirror mark {
-          background-color: #fef3c7;
-          padding: 0.125rem 0.25rem;
-          border-radius: 0.125rem;
+        .rich-text-editor .ProseMirror em {
+          font-style: italic;
         }
         
         /* Ensure colour styles are applied */
