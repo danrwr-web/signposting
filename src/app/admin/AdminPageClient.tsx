@@ -108,9 +108,15 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         if (response.ok) {
           const data = await response.json()
           setUnreadSuggestionsCount(data.unreadCount || 0)
+        } else {
+          console.error('Failed to load unread suggestions count:', response.status, response.statusText)
+          // Don't set error state for badge count, just log it
+          setUnreadSuggestionsCount(0)
         }
       } catch (error) {
         console.error('Failed to load unread suggestions count:', error)
+        // Don't set error state for badge count, just log it
+        setUnreadSuggestionsCount(0)
       }
     }
     

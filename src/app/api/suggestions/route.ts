@@ -9,8 +9,16 @@ export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser()
     if (!user) {
+      console.log('Suggestions API: No authenticated user')
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    console.log('Suggestions API: User authenticated:', { 
+      id: user.id, 
+      email: user.email, 
+      globalRole: user.globalRole,
+      memberships: user.memberships?.length || 0
+    })
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') // 'pending', 'actioned', 'discarded', or null for all
@@ -21,13 +29,17 @@ export async function GET(request: NextRequest) {
     
     if (user.globalRole === 'SUPERUSER') {
       // Superusers see all suggestions
+      console.log('Suggestions API: Superuser access - showing all suggestions')
     } else {
       // Surgery admins see only their surgery's suggestions
       const surgeryIds = user.memberships
         .filter(m => m.role === 'ADMIN')
         .map(m => m.surgeryId)
       
+      console.log('Suggestions API: Surgery admin access - surgery IDs:', surgeryIds)
+      
       if (surgeryIds.length === 0) {
+        console.log('Suggestions API: No admin surgeries found')
         return NextResponse.json({ suggestions: [], unreadCount: 0 })
       }
       
@@ -38,6 +50,8 @@ export async function GET(request: NextRequest) {
     if (status) {
       where.status = status
     }
+
+    console.log('Suggestions API: Query where clause:', where)
 
     // Get suggestions with surgery details
     const suggestions = await prisma.suggestion.findMany({
@@ -57,6 +71,8 @@ export async function GET(request: NextRequest) {
       take: limit
     })
 
+    console.log('Suggestions API: Found suggestions:', suggestions.length)
+
     // Get unread count (pending suggestions) - handle case where status field might not exist
     let unreadCount = 0
     try {
@@ -66,10 +82,12 @@ export async function GET(request: NextRequest) {
           status: 'pending'
         }
       })
+      console.log('Suggestions API: Unread count (with status):', unreadCount)
     } catch (error) {
       // If status field doesn't exist yet, count all suggestions as unread
-      console.log('Status field not available yet, counting all suggestions as unread')
+      console.log('Suggestions API: Status field not available, counting all as unread')
       unreadCount = await prisma.suggestion.count({ where })
+      console.log('Suggestions API: Unread count (fallback):', unreadCount)
     }
 
     // If status field doesn't exist, add default status to suggestions
@@ -79,14 +97,20 @@ export async function GET(request: NextRequest) {
       updatedAt: (suggestion as any).updatedAt || suggestion.createdAt
     }))
 
+    console.log('Suggestions API: Returning data:', { 
+      suggestionsCount: suggestionsWithStatus.length, 
+      unreadCount 
+    })
+
     return NextResponse.json({
       suggestions: suggestionsWithStatus,
       unreadCount
     })
   } catch (error) {
-    console.error('Error fetching suggestions:', error)
+    console.error('Suggestions API: Error fetching suggestions:', error)
+    console.error('Suggestions API: Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json(
-      { error: 'Failed to fetch suggestions' },
+      { error: 'Failed to fetch suggestions', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

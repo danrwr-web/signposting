@@ -47,16 +47,23 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
           params.append('status', statusFilter)
         }
         
+        console.log('SuggestionsAnalytics: Fetching suggestions with params:', params.toString())
         const response = await fetch(`/api/suggestions?${params}`)
         
         if (!response.ok) {
-          throw new Error('Failed to fetch suggestions')
+          const errorText = await response.text()
+          console.error('SuggestionsAnalytics: API error:', response.status, errorText)
+          throw new Error(`API error: ${response.status} ${response.statusText}`)
         }
         
         const data = await response.json()
+        console.log('SuggestionsAnalytics: Received data:', data)
         setSuggestionsData(data)
       } catch (err) {
+        console.error('SuggestionsAnalytics: Error:', err)
         setError(err instanceof Error ? err.message : 'An error occurred')
+        // Set empty data on error to prevent UI crashes
+        setSuggestionsData({ suggestions: [], unreadCount: 0 })
       } finally {
         setIsLoading(false)
       }
