@@ -71,66 +71,6 @@ export function convertLineBreaksToHtml(text: string): string {
 }
 
 /**
- * Converts single paragraph content to multiple paragraphs based on medical instruction patterns
- * This helps fix existing content that was stored as single paragraphs
- * @param html - The HTML content to process
- * @returns HTML with proper paragraph breaks
- */
-export function convertSingleParagraphToMultiple(html: string): string {
-  if (!html || typeof html !== 'string') {
-    return ''
-  }
-  
-  // Only process if it's a single paragraph
-  if (!html.match(/^<p>.*<\/p>$/s)) {
-    return html
-  }
-  
-  // Extract content from paragraph tags
-  const content = html.replace(/^<p>(.*)<\/p>$/s, '$1')
-  
-  // Medical instruction patterns that typically indicate paragraph breaks:
-  // 1. "Signpost Community Pharmacy" - common instruction separator
-  // 2. "Contact GP" - another common instruction separator  
-  // 3. "Call 111" - emergency instruction separator
-  // 4. "Go to A&E" - emergency instruction separator
-  // 5. Colon followed by space and capital letter (e.g., "Symptoms: Treatment")
-  
-  let processedContent = content
-  
-  // Split on common medical instruction patterns
-  const instructionPatterns = [
-    /(Signpost Community Pharmacy)/gi,
-    /(Contact GP)/gi,
-    /(Call 111)/gi,
-    /(Go to A&E)/gi,
-    /(Visit A&E)/gi,
-    /(Emergency Department)/gi,
-  ]
-  
-  // Apply instruction pattern splits
-  instructionPatterns.forEach(pattern => {
-    processedContent = processedContent.replace(pattern, '</p><p>$1')
-  })
-  
-  // Also split on colon patterns for general instruction separation
-  processedContent = processedContent.replace(/:\s+([A-Z][^:]*?)(?=\s+[A-Z]|$)/g, ':</p><p>$1')
-  
-  // Clean up any double paragraph tags
-  processedContent = processedContent.replace(/<\/p><p><\/p><p>/g, '</p><p>')
-  processedContent = processedContent.replace(/^<\/p><p>/, '')
-  processedContent = processedContent.replace(/<\/p><p>$/, '')
-  
-  // If we made changes, wrap in paragraph tags
-  if (processedContent !== content) {
-    return `<p>${processedContent}</p>`
-  }
-  
-  // If no changes were made, return original
-  return html
-}
-
-/**
  * Sanitizes and formats text content for display
  * Handles both HTML and plain text content
  * @param content - The content to sanitize and format
@@ -145,9 +85,8 @@ export function sanitizeAndFormatContent(content: string): string {
   const hasHtmlTags = /<[^>]+>/.test(content)
   
   if (hasHtmlTags) {
-    // Content is already HTML, try to fix single paragraphs
-    const fixedContent = convertSingleParagraphToMultiple(content)
-    return sanitizeHtml(fixedContent)
+    // Content is already HTML, just sanitize it
+    return sanitizeHtml(content)
   } else {
     // Content is plain text, convert line breaks and sanitize
     const htmlWithBreaks = convertLineBreaksToHtml(content)
