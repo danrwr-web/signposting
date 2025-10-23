@@ -97,6 +97,94 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getSessionUser()
+    if (!user) {
+      console.log('Suggestions API: No authenticated user for POST')
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { surgeryId, baseId, symptom, userEmail, text } = body
+
+    // Validate required fields
+    if (!symptom || !text) {
+      return NextResponse.json(
+        { error: 'Missing required fields: symptom and text are required' },
+        { status: 400 }
+      )
+    }
+
+    console.log('Suggestions API: Creating suggestion:', { 
+      surgeryId, 
+      baseId, 
+      symptom, 
+      userEmail, 
+      textLength: text.length,
+      userId: user.id 
+    })
+
+    // Check if user has permission to create suggestions for this surgery
+    if (surgeryId && user.globalRole !== 'SUPERUSER') {
+      const hasPermission = user.memberships.some(
+        m => m.surgeryId === surgeryId && (m.role === 'ADMIN' || m.role === 'STANDARD')
+      )
+      
+      if (!hasPermission) {
+        console.log('Suggestions API: User lacks permission for surgery:', surgeryId)
+        return NextResponse.json(
+          { error: 'Insufficient permissions for this surgery' },
+          { status: 403 }
+        )
+      }
+    }
+
+    // Create the suggestion
+    const suggestion = await prisma.suggestion.create({
+      data: {
+        surgeryId: surgeryId || null,
+        baseId: baseId || null,
+        symptom,
+        userEmail: userEmail || user.email,
+        text,
+        // Note: status and updatedAt fields are commented out in schema
+      },
+      include: {
+        surgery: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
+      }
+    })
+
+    console.log('Suggestions API: Created suggestion:', suggestion.id)
+
+    // Add default status for response compatibility
+    const suggestionWithStatus = {
+      ...suggestion,
+      status: 'pending', // All suggestions are pending until status field is added
+      updatedAt: suggestion.createdAt // Use createdAt as updatedAt until field is added
+    }
+
+    return NextResponse.json({ 
+      suggestion: suggestionWithStatus,
+      message: 'Suggestion created successfully'
+    }, { status: 201 })
+
+  } catch (error) {
+    console.error('Suggestions API: Error creating suggestion:', error)
+    console.error('Suggestions API: Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+    return NextResponse.json(
+      { error: 'Failed to create suggestion', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     const user = await getSessionUser()
