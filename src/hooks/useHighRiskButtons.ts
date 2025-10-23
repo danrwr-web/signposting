@@ -92,7 +92,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       console.error('Error toggling default buttons:', error)
       toast.error('Failed to toggle default buttons')
     }
-  }, [enableDefaultHighRisk, surgerySlug])
+  }, [enableDefaultHighRisk, surgerySlug, loadHighRiskLinks])
 
   const toggleIndividualButton = useCallback(async (buttonKey: string, isEnabled: boolean) => {
     try {
@@ -117,7 +117,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       console.error('Error toggling individual button:', error)
       toast.error('Failed to toggle button')
     }
-  }, [surgerySlug])
+  }, [surgerySlug, loadHighRiskLinks])
 
   const updateButton = useCallback(async (buttonKey: string, label: string, symptomSlug: string) => {
     try {
@@ -145,7 +145,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to update button')
       return false
     }
-  }, [surgerySlug])
+  }, [surgerySlug, loadHighRiskLinks])
 
   const addCustomLink = useCallback(async (newLink: { label: string; symptomSlug: string; orderIndex: number }) => {
     if (!newLink.label.trim()) {
@@ -177,7 +177,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to add high-risk button')
       return false
     }
-  }, [surgerySlug])
+  }, [surgerySlug, loadHighRiskLinks])
 
   const deleteLink = useCallback(async (id: string) => {
     try {
@@ -199,7 +199,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to delete high-risk button')
       return false
     }
-  }, [surgerySlug])
+  }, [surgerySlug, loadHighRiskLinks])
 
   const updateOrder = useCallback(async (id: string, newOrder: number) => {
     try {
@@ -220,7 +220,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       console.error('Error updating order:', error)
     }
     return false
-  }, [surgerySlug])
+  }, [surgerySlug, loadHighRiskLinks])
 
   return {
     highRiskLinks,
