@@ -14,15 +14,19 @@ export const runtime = 'nodejs'
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth()
+    console.log('GET /api/admin/highrisk - Session type:', session.type)
     
     // Determine surgery ID based on session type
     let surgeryId: string
     if (session.type === 'surgery') {
       surgeryId = session.surgeryId!
+      console.log('GET /api/admin/highrisk - Surgery ID from session:', surgeryId)
     } else if (session.type === 'superuser') {
       // For superusers, get surgery ID from query params
       const url = new URL(request.url)
       const surgerySlug = url.searchParams.get('surgery')
+      console.log('GET /api/admin/highrisk - Surgery slug from query:', surgerySlug)
+      
       if (!surgerySlug) {
         return NextResponse.json(
           { error: 'Surgery parameter required for superuser' },
@@ -34,13 +38,16 @@ export async function GET(request: NextRequest) {
         select: { id: true }
       })
       if (!surgery) {
+        console.log('GET /api/admin/highrisk - Surgery not found for slug:', surgerySlug)
         return NextResponse.json(
           { error: 'Surgery not found' },
           { status: 404 }
         )
       }
       surgeryId = surgery.id
+      console.log('GET /api/admin/highrisk - Surgery ID from slug:', surgeryId)
     } else {
+      console.log('GET /api/admin/highrisk - Unauthorized session type:', session)
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -110,8 +117,9 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('Error fetching high-risk links:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json(
-      { error: 'Failed to fetch high-risk links' },
+      { error: 'Failed to fetch high-risk links', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
