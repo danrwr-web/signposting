@@ -107,12 +107,14 @@ export async function GET(request: NextRequest) {
     // Add any global configs that aren't in hardcoded list (user-created buttons)
     globalConfigs.forEach(cfg => {
       if (!hardcodedButtonKeys.has(cfg.buttonKey)) {
+        // Check if there's a surgery-specific override for this button
+        const surgeryOverride = configMap.get(cfg.buttonKey)
         buttons.push({
           id: cfg.id,
           buttonKey: cfg.buttonKey,
           label: cfg.label,
           symptomSlug: cfg.symptomSlug,
-          isEnabled: cfg.isEnabled,
+          isEnabled: surgeryOverride?.isEnabled ?? cfg.isEnabled,
           orderIndex: cfg.orderIndex
         })
       }
