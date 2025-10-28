@@ -12,6 +12,11 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'NHS Signposting',
   description: 'NHS-style symptom signposting application',
+  icons: {
+    icon: '/images/signposting_logo_fav.png',
+    shortcut: '/images/signposting_logo_fav.png',
+    apple: '/images/signposting_logo_fav.png',
+  },
 }
 
 export default async function RootLayout({
