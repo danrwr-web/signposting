@@ -107,42 +107,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if phrase already exists
-    const existing = await prisma.imageIcon.findUnique({
-      where: { phrase: phrase.trim() }
-    })
+    try {
+      const existing = await prisma.imageIcon.findUnique({
+        where: { phrase: phrase.trim() }
+      })
 
-    if (existing) {
-      return NextResponse.json(
-        { error: 'An icon for this phrase already exists' },
-        { status: 409 }
-      )
+      if (existing) {
+        return NextResponse.json(
+          { error: 'An icon for this phrase already exists' },
+          { status: 409 }
+        )
+      }
+    } catch (error) {
+      console.log('Table not ready yet:', error)
     }
 
-    // Process and save image
-    await ensureUploadDir()
-    
+    // For now, store file as base64 in database instead of filesystem (Vercel doesn't allow file writes)
     const buffer = Buffer.from(await file.arrayBuffer())
+    const base64Data = buffer.toString('base64')
+    const dataUri = `data:${file.type};base64,${base64Data}`
     
-    // Generate safe filename
-    const safePhrase = phrase.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-')
-    const extension = file.name.split('.').pop()?.toLowerCase() || 'png'
-    const filename = `${safePhrase}-${Date.now()}.${extension}`
-    const filepath = join(UPLOAD_DIR, filename)
-    
-    // Save file as-is for now
-    await writeFile(filepath, buffer)
-    
-    const imageUrl = `/icons/${filename}`
+    const imageUrl = dataUri
     
     // TODO: Get actual dimensions from buffer or use a lightweight image library
     const width = null
     const height = null
     
-    // Save to database
+    // Save to database with base64 data
     const icon = await prisma.imageIcon.create({
       data: {
         phrase: phrase.trim(),
-        filePath: filepath,
+        filePath: '', // Not using filesystem storage
         imageUrl,
         alt: alt || phrase.trim(),
         width,
@@ -155,7 +150,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error uploading image icon:', error)
     return NextResponse.json(
-      { error: 'Failed to upload image icon' },
+      { error: 'Failed to upload image icon', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
