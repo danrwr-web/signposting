@@ -75,15 +75,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('POST /api/image-icons - Starting')
+    
     const session = await getSession()
+    console.log('Session:', { type: session?.type, email: session?.email })
     
     // Check if user is authenticated and is superuser
     if (!session || session.type !== 'superuser') {
+      console.log('Unauthorized - not superuser')
       return NextResponse.json(
         { error: 'Unauthorized - superuser only' },
         { status: 403 }
       )
     }
+    
+    console.log('Authorized as superuser')
 
     const formData = await request.formData()
     const file = formData.get('file') as File
@@ -115,9 +121,11 @@ export async function POST(request: NextRequest) {
 
     // Check if phrase already exists
     try {
+      console.log('Checking for existing icon with phrase:', phrase.trim())
       const existing = await (prisma as any).imageIcon.findUnique({
         where: { phrase: phrase.trim() }
       })
+      console.log('Existing icon check result:', existing ? 'found' : 'not found')
 
       if (existing) {
         return NextResponse.json(
@@ -125,10 +133,12 @@ export async function POST(request: NextRequest) {
           { status: 409 }
         )
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Error checking for existing icon:', error)
       // If imageIcon doesn't exist, return 503
       const errorMsg = error instanceof Error ? error.message : String(error)
       if (errorMsg.includes('imageIcon') || errorMsg.includes('not found')) {
+        console.error('imageIcon model not available in Prisma client')
         return NextResponse.json(
           { error: 'Image icon feature not available. Deployment may still be completing.' },
           { status: 503 }
