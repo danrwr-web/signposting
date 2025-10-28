@@ -18,7 +18,7 @@ export async function PATCH(
     const { id } = await params
     const data = await request.json()
 
-    const { source, surgeryId, name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage } = data
+    const { source, surgeryId, name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, variants } = data
 
     if (source === 'base') {
       // Superusers can update base symptoms
@@ -26,7 +26,7 @@ export async function PATCH(
 
       const updatedSymptom = await prisma.baseSymptom.update({
         where: { id },
-        data: {
+        data: ({
           name,
           ageGroup,
           briefInstruction,
@@ -35,7 +35,8 @@ export async function PATCH(
           instructionsHtml,
           highlightedText,
           linkToPage,
-        }
+          variants: variants ?? null,
+        } as any)
       })
 
       return NextResponse.json(updatedSymptom)

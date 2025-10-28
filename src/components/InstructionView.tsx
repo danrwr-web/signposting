@@ -55,7 +55,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const variants = symptom.variants as any
   const hasVariants = variants?.ageGroups && Array.isArray(variants.ageGroups) && variants.ageGroups.length > 0
   const activeVariant = hasVariants && selectedVariantKey ? variants.ageGroups.find((v: any) => v.key === selectedVariantKey) : null
-  const displayText = activeVariant ? activeVariant.instructions : (symptom.instructionsHtml || symptom.instructions || '')
+  const originalText = (symptom.instructionsHtml || symptom.instructions || '')
+  const displayText = activeVariant ? activeVariant.instructions : originalText
   const activeVariantLabel = activeVariant ? activeVariant.label : null
 
   // Load highlight rules from API
@@ -458,9 +459,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         {/* Variant Selection - Age Groups */}
         {hasVariants && !isEditingInstructions && !isEditingAll && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-              Choose Age Group
-            </h3>
+            {(variants.heading && variants.heading.trim() !== '') && (
+              <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+                {variants.heading}
+              </h3>
+            )}
             <div className="flex flex-wrap gap-3">
               {variants.ageGroups.map((variant: any) => (
                 <button
@@ -476,6 +479,14 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                   {variant.label}
                 </button>
               ))}
+              {selectedVariantKey && (
+                <button
+                  onClick={() => setSelectedVariantKey(null)}
+                  className="px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey"
+                >
+                  Revert to original
+                </button>
+              )}
             </div>
             {activeVariantLabel && (
               <p className="text-sm text-nhs-grey mt-3">

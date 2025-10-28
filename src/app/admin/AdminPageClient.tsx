@@ -61,6 +61,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     variants: null as any
   })
   const [showVariantsSection, setShowVariantsSection] = useState(false)
+  const [variantHeading, setVariantHeading] = useState<string>('')
   const [variants, setVariants] = useState<Array<{key: string, label: string, instructions: string}>>([])
   const [showClearAllDialog, setShowClearAllDialog] = useState(false)
   const [clearConfirmText, setClearConfirmText] = useState('')
@@ -245,8 +246,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       instructionsJson: instructionsJson,
       instructionsHtml: symptom.instructionsHtml || '',
       highlightedText: symptom.highlightedText || '',
-      linkToPage: symptom.linkToPage || ''
+      linkToPage: symptom.linkToPage || '',
+      variants: (symptom as any).variants ?? null
     })
+    try {
+      const v = (symptom as any).variants
+      setVariantHeading(v?.heading || '')
+      setVariants(Array.isArray(v?.ageGroups) ? v.ageGroups : [])
+    } catch {}
     setShowEditSymptomModal(true)
   }
 
@@ -269,7 +276,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           instructionsJson: newSymptom.instructionsJson,
           instructionsHtml: newSymptom.instructionsHtml,
           highlightedText: newSymptom.highlightedText,
-          linkToPage: newSymptom.linkToPage
+          linkToPage: newSymptom.linkToPage,
+          variants: variants.length > 0 ? { heading: (variantHeading || undefined), ageGroups: variants } : null
         })
       })
 
@@ -489,7 +497,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     try {
       const payload = {
         ...newSymptom,
-        variants: variants.length > 0 ? { ageGroups: variants } : null
+        variants: variants.length > 0 ? { heading: (variantHeading || undefined), ageGroups: variants } : null
       }
       
       const response = await fetch('/api/admin/symptoms', {
@@ -514,6 +522,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           variants: null
         })
         setVariants([])
+        setVariantHeading('')
         setShowVariantsSection(false)
         setShowAddSymptomForm(false)
         // Reload symptoms to show the new one
@@ -1091,6 +1100,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   
                   {showVariantsSection && (
                     <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-nhs-grey mb-1">
+                          Variant Heading (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={variantHeading}
+                          onChange={(e) => setVariantHeading(e.target.value)}
+                          className="w-full nhs-input"
+                          placeholder="e.g., Choose Age Group"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Leave blank to hide the heading on the instructions page.</p>
+                      </div>
                       {variants.map((variant, index) => (
                         <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                           <div className="grid grid-cols-2 gap-3 mb-2">
@@ -1468,6 +1490,96 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
                   />
                 </div>
+
+                {/* Variants Section (Superusers Only) */}
+                {session?.type === 'superuser' && (
+                  <div className="border-t border-gray-200 pt-4 mt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-medium text-nhs-dark-blue">Variants (Optional)</h4>
+                      <button
+                        type="button"
+                        onClick={() => setShowVariantsSection(!showVariantsSection)}
+                        className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
+                      >
+                        {showVariantsSection ? 'Hide' : 'Add Variants'}
+                      </button>
+                    </div>
+
+                    {showVariantsSection && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="block text-sm font-medium text-nhs-grey mb-1">
+                            Variant Heading (optional)
+                          </label>
+                          <input
+                            type="text"
+                            value={variantHeading}
+                            onChange={(e) => setVariantHeading(e.target.value)}
+                            className="w-full nhs-input"
+                            placeholder="e.g., Choose Age Group"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Leave blank to hide the heading on the instructions page.</p>
+                        </div>
+
+                        {variants.map((variant, index) => (
+                          <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                            <div className="grid grid-cols-2 gap-3 mb-2">
+                              <input
+                                type="text"
+                                value={variant.label}
+                                onChange={(e) => {
+                                  const updated = [...variants]
+                                  updated[index].label = e.target.value
+                                  updated[index].key = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                                  setVariants(updated)
+                                }}
+                                placeholder="Label (e.g., Under 5)"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              />
+                              <input
+                                type="text"
+                                value={variant.key}
+                                onChange={(e) => {
+                                  const updated = [...variants]
+                                  updated[index].key = e.target.value
+                                  setVariants(updated)
+                                }}
+                                placeholder="Key"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              />
+                            </div>
+                            <textarea
+                              value={variant.instructions}
+                              onChange={(e) => {
+                                const updated = [...variants]
+                                updated[index].instructions = e.target.value
+                                setVariants(updated)
+                              }}
+                              placeholder="Instructions for this variant"
+                              rows={3}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setVariants(variants.filter((_, i) => i !== index))}
+                              className="mt-2 text-sm text-red-600 hover:text-red-800"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          onClick={() => setVariants([...variants, { key: '', label: '', instructions: '' }])}
+                          className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
+                        >
+                          + Add Variant
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="flex justify-end space-x-3">
                   <button
