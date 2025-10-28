@@ -248,6 +248,41 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     return false
   }, [surgerySlug, loadHighRiskLinks])
 
+  const addGlobalDefaultButton = useCallback(async (buttonKey: string, label: string, symptomSlug: string) => {
+    try {
+      const url = buildApiUrl('default-highrisk-buttons', false) // Don't include surgery param for global
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ 
+          buttonKey, 
+          label, 
+          symptomSlug, 
+          surgeryId: null // null means global
+        }),
+        credentials: 'include',
+        cache: 'no-store',
+      })
+
+      if (response.ok) {
+        toast.success('Global default button added successfully')
+        await loadDefaultButtons()
+        return true
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to add global default button')
+        return false
+      }
+    } catch (error) {
+      console.error('Error adding global default button:', error)
+      toast.error('Failed to add global default button')
+      return false
+    }
+  }, [loadDefaultButtons])
+
   return {
     highRiskLinks,
     defaultButtons,
@@ -260,6 +295,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     updateButton,
     addCustomLink,
     deleteLink,
-    updateOrder
+    updateOrder,
+    addGlobalDefaultButton
   }
 }

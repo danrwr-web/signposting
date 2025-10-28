@@ -13,6 +13,7 @@ interface DefaultButtonsConfigProps {
   onToggleAll: () => void
   onToggleIndividual: (buttonKey: string, isEnabled: boolean) => void
   onUpdateButton: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
+  onAddButton?: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
   session?: Session
 }
 
@@ -22,9 +23,12 @@ export default function DefaultButtonsConfig({
   onToggleAll,
   onToggleIndividual,
   onUpdateButton,
+  onAddButton,
   session
 }: DefaultButtonsConfigProps) {
   const [editingButton, setEditingButton] = useState<DefaultHighRiskButtonConfig | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newButton, setNewButton] = useState({ buttonKey: '', label: '', symptomSlug: '' })
 
   const handleUpdateButton = async () => {
     if (!editingButton) return
@@ -40,6 +44,17 @@ export default function DefaultButtonsConfig({
     }
   }
 
+  const handleAddButton = async () => {
+    if (!newButton.buttonKey || !newButton.label || !newButton.symptomSlug) return
+    if (!onAddButton) return
+    
+    const success = await onAddButton(newButton.buttonKey, newButton.label, newButton.symptomSlug)
+    if (success) {
+      setNewButton({ buttonKey: '', label: '', symptomSlug: '' })
+      setShowAddForm(false)
+    }
+  }
+
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
       <div className="flex items-center justify-between mb-4">
@@ -51,21 +66,97 @@ export default function DefaultButtonsConfig({
             Configure which default buttons are enabled
           </p>
         </div>
-        <button
-          onClick={onToggleAll}
-          className={`
-            px-3 py-1 rounded text-sm transition-colors
-            focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2
-            ${enableDefaultHighRisk 
-              ? 'bg-nhs-green text-white hover:bg-green-600' 
-              : 'bg-gray-400 text-white hover:bg-gray-500'
-            }
-          `}
-          aria-label={`${enableDefaultHighRisk ? 'Disable' : 'Enable'} all default buttons`}
-        >
-          {enableDefaultHighRisk ? 'Disable All' : 'Enable All'}
-        </button>
+        <div className="flex items-center gap-2">
+          {session?.type === 'superuser' && (
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-3 py-1 bg-nhs-blue text-white rounded text-sm hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+              aria-label="Add new default button"
+            >
+              Add Default Button
+            </button>
+          )}
+          <button
+            onClick={onToggleAll}
+            className={`
+              px-3 py-1 rounded text-sm transition-colors
+              focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2
+              ${enableDefaultHighRisk 
+                ? 'bg-nhs-green text-white hover:bg-green-600' 
+                : 'bg-gray-400 text-white hover:bg-gray-500'
+              }
+            `}
+            aria-label={`${enableDefaultHighRisk ? 'Disable' : 'Enable'} all default buttons`}
+          >
+            {enableDefaultHighRisk ? 'Disable All' : 'Enable All'}
+          </button>
+        </div>
       </div>
+      
+      {showAddForm && session?.type === 'superuser' && (
+        <div className="bg-white rounded p-4 mb-4 border border-blue-300">
+          <h5 className="text-sm font-medium text-gray-900 mb-3">Add New Default Button</h5>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="add-key">
+                Button Key *
+              </label>
+              <input
+                id="add-key"
+                type="text"
+                value={newButton.buttonKey}
+                onChange={(e) => setNewButton({ ...newButton, buttonKey: e.target.value })}
+                placeholder="e.g., heart-attack"
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="add-label">
+                Label *
+              </label>
+              <input
+                id="add-label"
+                type="text"
+                value={newButton.label}
+                onChange={(e) => setNewButton({ ...newButton, label: e.target.value })}
+                placeholder="e.g., Heart Attack"
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="add-slug">
+                Symptom Slug *
+              </label>
+              <input
+                id="add-slug"
+                type="text"
+                value={newButton.symptomSlug}
+                onChange={(e) => setNewButton({ ...newButton, symptomSlug: e.target.value })}
+                placeholder="e.g., heart-attack"
+                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={handleAddButton}
+              disabled={!newButton.buttonKey || !newButton.label || !newButton.symptomSlug}
+              className="px-3 py-1 bg-nhs-green text-white text-xs rounded hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add Button
+            </button>
+            <button
+              onClick={() => {
+                setShowAddForm(false)
+                setNewButton({ buttonKey: '', label: '', symptomSlug: '' })
+              }}
+              className="px-3 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       
       <div className="space-y-2">
         {defaultButtons.map((button) => (

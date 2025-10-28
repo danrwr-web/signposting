@@ -203,14 +203,14 @@ model HighRiskLink {
 
 model DefaultHighRiskButtonConfig {
   id         String   @id @default(cuid())
-  surgeryId  String
+  surgeryId  String?  // If null, this is a system-wide default button
   buttonKey  String   // e.g., "anaphylaxis", "stroke", "chest-pain", "sepsis", "meningitis"
   label      String   // e.g., "Anaphylaxis", "Stroke"
   symptomSlug String   // e.g., "anaphylaxis", "stroke"
   isEnabled  Boolean  @default(true)
   orderIndex Int      @default(0)
 
-  surgery    Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery    Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   
   @@unique([surgeryId, buttonKey])
   @@index([surgeryId, buttonKey])

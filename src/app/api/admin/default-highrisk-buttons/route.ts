@@ -204,3 +204,48 @@ export async function PATCH(request: NextRequest) {
     )
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await requireAuth()
+    
+    // Only superusers can add global default buttons
+    if (session.type !== 'superuser') {
+      return NextResponse.json(
+        { error: 'Unauthorized: Only superusers can add global default buttons' },
+        { status: 403 }
+      )
+    }
+    
+    const body = await request.json()
+    const { buttonKey, label, symptomSlug, surgeryId } = body
+
+    if (!buttonKey || !label || !symptomSlug) {
+      return NextResponse.json(
+        { error: 'buttonKey, label, and symptomSlug are required' },
+        { status: 400 }
+      )
+    }
+
+    // Create a global default button (surgeryId is undefined for global buttons)
+    // Note: After schema migration, surgeryId will be nullable
+    const newConfig = await prisma.defaultHighRiskButtonConfig.create({
+      data: {
+        surgeryId: undefined as any, // Will be nullable after migration
+        buttonKey,
+        label,
+        symptomSlug,
+        isEnabled: true,
+        orderIndex: 0 // Will be calculated based on existing count
+      }
+    })
+    
+    return NextResponse.json({ button: newConfig }, { status: 201 })
+  } catch (error) {
+    console.error('Error creating global default button:', error)
+    return NextResponse.json(
+      { error: 'Failed to create global default button' },
+      { status: 500 }
+    )
+  }
+}
