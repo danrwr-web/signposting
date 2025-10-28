@@ -26,23 +26,35 @@ export async function GET(request: NextRequest) {
     
     // If phrase provided, return matching icon (for client-side use)
     if (phrase) {
-      const icons = await prisma.imageIcon.findMany({
-        orderBy: { createdAt: 'desc' }
-      })
-      
-      // Find first icon whose phrase appears in the provided text (case-insensitive)
-      const matchingIcon = icons.find(icon => 
-        phrase.toLowerCase().includes(icon.phrase.toLowerCase())
-      )
-      
-      return NextResponse.json(matchingIcon || null)
+      try {
+        const icons = await prisma.imageIcon.findMany({
+          orderBy: { createdAt: 'desc' }
+        })
+        
+        // Find first icon whose phrase appears in the provided text (case-insensitive)
+        const matchingIcon = icons.find(icon => 
+          phrase.toLowerCase().includes(icon.phrase.toLowerCase())
+        )
+        
+        return NextResponse.json(matchingIcon || null)
+      } catch (error) {
+        // Table doesn't exist yet, return null
+        console.log('ImageIcon table not found, returning null')
+        return NextResponse.json(null)
+      }
     }
     
     // Otherwise return all icons (for admin use)
-    const icons = await prisma.imageIcon.findMany({
-      orderBy: { createdAt: 'desc' }
-    })
-    return NextResponse.json({ icons })
+    try {
+      const icons = await prisma.imageIcon.findMany({
+        orderBy: { createdAt: 'desc' }
+      })
+      return NextResponse.json({ icons })
+    } catch (error) {
+      // Table doesn't exist yet, return empty array
+      console.log('ImageIcon table not found, returning empty array')
+      return NextResponse.json({ icons: [] })
+    }
   } catch (error) {
     console.error('Error fetching image icons:', error)
     return NextResponse.json(
