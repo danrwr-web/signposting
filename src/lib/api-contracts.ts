@@ -82,8 +82,8 @@ export const GetDefaultHighRiskButtonsResZ = z.object({
 
 export const UpdateDefaultHighRiskButtonReqZ = z.object({
   buttonKey: z.string(),
-  label: z.string().min(1).optional(),
-  symptomSlug: z.string().min(1).optional(),
+  label: z.string().optional(),
+  symptomSlug: z.string().optional(),
   isEnabled: z.boolean().optional(),
   orderIndex: z.number().optional(),
 });
