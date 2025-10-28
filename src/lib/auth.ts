@@ -24,10 +24,23 @@ export const authOptions: NextAuthOptions = {
             include: {
               memberships: {
                 include: {
-                  surgery: true
+                  surgery: {
+                    select: {
+                      id: true,
+                      name: true,
+                      slug: true,
+                      // Exclude enableImageIcons temporarily until migration runs
+                    }
+                  }
                 }
               },
-              defaultSurgery: true
+              defaultSurgery: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                }
+              }
             }
           })
 

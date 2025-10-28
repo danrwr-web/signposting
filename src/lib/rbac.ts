@@ -32,10 +32,22 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       include: {
         memberships: {
           include: {
-            surgery: true
+            surgery: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              }
+            }
           }
         },
-        defaultSurgery: true
+        defaultSurgery: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
       }
     })
 
