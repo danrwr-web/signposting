@@ -149,17 +149,36 @@ export async function POST(request: NextRequest) {
     const height = null
     
     // Save to database with base64 data
-    const icon = await (prisma as any).imageIcon.create({
-      data: {
-        phrase: phrase.trim(),
-        filePath: '', // Not using filesystem storage
-        imageUrl,
-        alt: alt || phrase.trim(),
-        width,
-        height,
-        createdBy: session.email || 'unknown'
-      }
-    })
+    // Try with new fields first, fallback to old schema if needed
+    let icon
+    try {
+      icon = await (prisma as any).imageIcon.create({
+        data: {
+          phrase: phrase.trim(),
+          filePath: '', // Not using filesystem storage
+          imageUrl,
+          alt: alt || phrase.trim(),
+          width,
+          height,
+          isEnabled: true, // Set as enabled by default
+          surgeryId: null, // Global icon
+          createdBy: session.email || 'unknown'
+        }
+      })
+    } catch (createError) {
+      // Fallback for old schema without isEnabled/surgeryId
+      icon = await (prisma as any).imageIcon.create({
+        data: {
+          phrase: phrase.trim(),
+          filePath: '', // Not using filesystem storage
+          imageUrl,
+          alt: alt || phrase.trim(),
+          width,
+          height,
+          createdBy: session.email || 'unknown'
+        }
+      })
+    }
 
     return NextResponse.json({ icon }, { status: 201 })
   } catch (error) {
