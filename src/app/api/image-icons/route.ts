@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 import { getSession } from '@/server/auth'
 // Note: Sharp is heavy, using basic file handling for now
 // import sharp from 'sharp'

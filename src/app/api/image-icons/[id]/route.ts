@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from '@/lib/auth'
-import prisma from '@/lib/prisma'
+import { getSession } from '@/server/auth'
+import { prisma } from '@/lib/prisma'
 import { unlink } from 'fs/promises'
 import { join } from 'path'
 
@@ -9,7 +9,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession()
+    const session = await getSession()
     const { id } = await params
     
     // Only superusers can delete
@@ -20,7 +20,7 @@ export async function DELETE(
       )
     }
 
-    const icon = await prisma.imageIcon.findUnique({
+    const icon = await (prisma as any).imageIcon.findUnique({
       where: { id }
     })
 
@@ -31,15 +31,17 @@ export async function DELETE(
       )
     }
 
-    // Delete file from filesystem
-    try {
-      await unlink(icon.filePath)
-    } catch (error) {
-      console.warn('Failed to delete file:', error)
+    // Delete file from filesystem (if applicable)
+    if (icon.filePath) {
+      try {
+        await unlink(icon.filePath)
+      } catch (error) {
+        console.warn('Failed to delete file:', error)
+      }
     }
 
     // Delete from database
-    await prisma.imageIcon.delete({
+    await (prisma as any).imageIcon.delete({
       where: { id }
     })
 
