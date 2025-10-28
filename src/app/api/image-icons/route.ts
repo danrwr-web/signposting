@@ -24,43 +24,45 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const phrase = url.searchParams.get('phrase')
     
-    // If phrase provided, return matching icon (for client-side use)
-    if (phrase) {
-      try {
-        const icons = await prisma.imageIcon.findMany({
-          orderBy: { createdAt: 'desc' }
-        })
-        
-        // Find first icon whose phrase appears in the provided text (case-insensitive)
-        const matchingIcon = icons.find(icon => 
-          phrase.toLowerCase().includes(icon.phrase.toLowerCase())
-        )
-        
-        return NextResponse.json(matchingIcon || null)
-      } catch (error) {
-        // Table doesn't exist yet, return null
-        console.log('ImageIcon table not found, returning null')
-        return NextResponse.json(null)
+    // Check if ImageIcon model exists by checking if table exists
+    try {
+      await prisma.$queryRaw`SELECT 1 FROM "ImageIcon" LIMIT 1`
+    } catch (error: any) {
+      // Table doesn't exist yet
+      if (phrase) {
+        return NextResponse.json(null, { status: 200 })
+      } else {
+        return NextResponse.json({ icons: [] }, { status: 200 })
       }
     }
     
-    // Otherwise return all icons (for admin use)
-    try {
+    // If phrase provided, return matching icon (for client-side use)
+    if (phrase) {
       const icons = await prisma.imageIcon.findMany({
         orderBy: { createdAt: 'desc' }
       })
-      return NextResponse.json({ icons })
-    } catch (error) {
-      // Table doesn't exist yet, return empty array
-      console.log('ImageIcon table not found, returning empty array')
-      return NextResponse.json({ icons: [] })
+      
+      // Find first icon whose phrase appears in the provided text (case-insensitive)
+      const matchingIcon = icons.find(icon => 
+        phrase.toLowerCase().includes(icon.phrase.toLowerCase())
+      )
+      
+      return NextResponse.json(matchingIcon || null)
     }
-  } catch (error) {
+    
+    // Otherwise return all icons (for admin use)
+    const icons = await prisma.imageIcon.findMany({
+      orderBy: { createdAt: 'desc' }
+    })
+    return NextResponse.json({ icons })
+  } catch (error: any) {
     console.error('Error fetching image icons:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch image icons' },
-      { status: 500 }
-    )
+    // Always return 200 to prevent client errors
+    if (request.url.includes('?phrase=')) {
+      return NextResponse.json(null, { status: 200 })
+    } else {
+      return NextResponse.json({ icons: [] }, { status: 200 })
+    }
   }
 }
 
