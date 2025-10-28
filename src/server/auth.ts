@@ -8,11 +8,13 @@ import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export interface Session {
   type: 'surgery' | 'superuser'
   id: string
-  email: string
+  email?: string
   surgeryId?: string
   surgerySlug?: string
 }
@@ -62,9 +64,32 @@ export async function requireAuth(redirectTo: string = '/admin-login'): Promise<
   const session = await getSession()
   
   if (!session) {
+    // Try falling back to NextAuth session (global user auth)
+    const nextAuthSession = await getServerSession(authOptions)
+    if (nextAuthSession?.user) {
+      // Map NextAuth session to our Session shape
+      const isSuper = nextAuthSession.user.globalRole === 'SUPERUSER'
+      if (isSuper) {
+        return {
+          type: 'superuser',
+          id: nextAuthSession.user.id,
+          email: nextAuthSession.user.email ?? '',
+        }
+      }
+      // For surgery admins, use their default surgery when available
+      const defaultSurgeryId = (nextAuthSession.user as any).defaultSurgeryId as string | undefined
+      if (defaultSurgeryId) {
+        return {
+          type: 'surgery',
+          id: nextAuthSession.user.id,
+          email: nextAuthSession.user.email ?? '',
+          surgeryId: defaultSurgeryId,
+        }
+      }
+      // If no default surgery, treat as unauthorized for surgery-only endpoints
+    }
+
     // Distinguish between API/json requests and page requests.
-    // Next.js app router prefetch uses Accept: */* even for page navigations,
-    // so treat anything that accepts text/html as a page and redirect.
     const { headers } = await import('next/headers')
     const headersList = await headers()
     const acceptHeader = headersList.get('accept') || ''
@@ -125,7 +150,7 @@ export async function authenticateSurgeryAdmin(email: string, password: string):
       id: surgery.id,
       email: surgery.adminEmail!,
       surgeryId: surgery.id,
-      surgerySlug: surgery.slug,
+      surgerySlug: surgery.slug ?? undefined,
     }
   } catch (error) {
     console.error('Error authenticating surgery admin:', error)
