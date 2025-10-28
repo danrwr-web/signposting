@@ -145,6 +145,7 @@ export async function GET(request: NextRequest) {
 
     // Combine enabled default buttons, user-created global buttons, and custom links
     const allLinks = [...enabledDefaultButtons, ...userCreatedGlobalButtons, ...markedCustomLinks]
+      .sort((a, b) => (a?.orderIndex ?? 0) - (b?.orderIndex ?? 0)) // Sort by orderIndex
 
     return NextResponse.json(
       GetHighRiskResZ.parse({ links: allLinks }),

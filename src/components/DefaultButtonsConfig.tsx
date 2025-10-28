@@ -78,17 +78,25 @@ export default function DefaultButtonsConfig({
 
   const handleMoveUp = async (button: DefaultHighRiskButtonConfig) => {
     if (!onReorderButton) return
-    const currentIndex = defaultButtons.findIndex(b => b.buttonKey === button.buttonKey)
+    // Sort buttons by orderIndex to ensure we have the correct order
+    const sortedButtons = [...defaultButtons].sort((a, b) => a.orderIndex - b.orderIndex)
+    const currentIndex = sortedButtons.findIndex(b => b.buttonKey === button.buttonKey)
     if (currentIndex > 0) {
-      await onReorderButton(button.buttonKey, button.orderIndex - 1)
+      // Get the button above this one and swap their orderIndex values
+      const buttonAbove = sortedButtons[currentIndex - 1]
+      await onReorderButton(button.buttonKey, buttonAbove.orderIndex)
     }
   }
 
   const handleMoveDown = async (button: DefaultHighRiskButtonConfig) => {
     if (!onReorderButton) return
-    const currentIndex = defaultButtons.findIndex(b => b.buttonKey === button.buttonKey)
-    if (currentIndex < defaultButtons.length - 1) {
-      await onReorderButton(button.buttonKey, button.orderIndex + 1)
+    // Sort buttons by orderIndex to ensure we have the correct order
+    const sortedButtons = [...defaultButtons].sort((a, b) => a.orderIndex - b.orderIndex)
+    const currentIndex = sortedButtons.findIndex(b => b.buttonKey === button.buttonKey)
+    if (currentIndex < sortedButtons.length - 1) {
+      // Get the button below this one and swap their orderIndex values
+      const buttonBelow = sortedButtons[currentIndex + 1]
+      await onReorderButton(button.buttonKey, buttonBelow.orderIndex)
     }
   }
 

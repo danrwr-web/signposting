@@ -118,6 +118,9 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Sort buttons by orderIndex before returning
+    buttons.sort((a, b) => a.orderIndex - b.orderIndex)
+
     return NextResponse.json(
       { buttons },
       { headers: { 'Cache-Control': 'private, max-age=30' } }
