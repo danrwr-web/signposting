@@ -24,19 +24,24 @@ export async function PATCH(
       // Superusers can update base symptoms
       await requireSuperuser()
 
+      const updateData: any = {
+        name,
+        ageGroup,
+        briefInstruction,
+        instructions,
+        instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
+        instructionsHtml,
+        highlightedText,
+        linkToPage,
+      }
+      // Only update variants if explicitly provided; otherwise leave unchanged
+      if (Object.prototype.hasOwnProperty.call(data, 'variants')) {
+        updateData.variants = variants ?? null
+      }
+
       const updatedSymptom = await prisma.baseSymptom.update({
         where: { id },
-        data: ({
-          name,
-          ageGroup,
-          briefInstruction,
-          instructions,
-          instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
-          highlightedText,
-          linkToPage,
-          variants: variants ?? null,
-        } as any)
+        data: updateData,
       })
 
       return NextResponse.json(updatedSymptom)
