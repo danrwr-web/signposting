@@ -34,6 +34,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isDeletingSymptom, setIsDeletingSymptom] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [selectedVariantKey, setSelectedVariantKey] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -49,6 +50,13 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   
   // Can edit if superuser or practice admin
   const canEditInstructions = isSuperuser || isPracticeAdmin
+
+  // Parse variant data and determine active variant
+  const variants = symptom.variants as any
+  const hasVariants = variants?.ageGroups && Array.isArray(variants.ageGroups) && variants.ageGroups.length > 0
+  const activeVariant = hasVariants && selectedVariantKey ? variants.ageGroups.find((v: any) => v.key === selectedVariantKey) : null
+  const displayText = activeVariant ? activeVariant.instructions : (symptom.instructionsHtml || symptom.instructions || '')
+  const activeVariantLabel = activeVariant ? activeVariant.label : null
 
   // Load highlight rules from API
   useEffect(() => {
@@ -88,6 +96,23 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
   const highlightText = (text: string) => {
     return applyHighlightRules(text, highlightRules)
+  }
+
+  const handleVariantSelect = (variantKey: string) => {
+    setSelectedVariantKey(variantKey)
+    
+    // Log engagement event for variant selection
+    if (surgeryId && symptom.baseSymptomId) {
+      fetch('/api/engagement/variant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          baseId: symptom.baseSymptomId,
+          surgeryId: surgeryId,
+          variantKey: variantKey
+        })
+      }).catch(err => console.error('Failed to log variant engagement:', err))
+    }
   }
 
   const handleLinkedSymptomClick = async () => {
@@ -430,6 +455,36 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           )
         )}
 
+        {/* Variant Selection - Age Groups */}
+        {hasVariants && !isEditingInstructions && !isEditingAll && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+              Choose Age Group
+            </h3>
+            <div className="flex flex-wrap gap-3">
+              {variants.ageGroups.map((variant: any) => (
+                <button
+                  key={variant.key}
+                  onClick={() => handleVariantSelect(variant.key)}
+                  aria-pressed={selectedVariantKey === variant.key}
+                  className={`px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 ${
+                    selectedVariantKey === variant.key
+                      ? 'bg-nhs-blue text-white border-nhs-blue'
+                      : 'bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey'
+                  }`}
+                >
+                  {variant.label}
+                </button>
+              ))}
+            </div>
+            {activeVariantLabel && (
+              <p className="text-sm text-nhs-grey mt-3">
+                Advice shown: {activeVariantLabel}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Main Instructions */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -518,11 +573,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             </div>
           ) : (
             <div className="prose max-w-none">
-              {(symptom.instructionsHtml || symptom.instructions) ? (
+              {displayText ? (
                 <div 
                   className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
                   dangerouslySetInnerHTML={{ 
-                    __html: sanitizeAndFormatContent(highlightText(symptom.instructionsHtml || symptom.instructions || ''))
+                    __html: sanitizeAndFormatContent(highlightText(displayText))
                   }}
                 />
               ) : (

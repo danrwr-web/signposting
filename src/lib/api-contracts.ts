@@ -99,6 +99,7 @@ export const EffectiveSymptomZ = z.object({
   instructionsJson: z.string().nullable().optional(), // ProseMirror JSON as string
   instructionsHtml: z.string().nullable().optional(), // HTML format with colour support
   linkToPage: z.string().nullable().optional(),
+  variants: z.any().nullable().optional(),
   source: z.enum(['base', 'override', 'custom']),
   baseSymptomId: z.string().optional(),
 });
@@ -117,6 +118,7 @@ export const CreateSymptomReqZ = z.object({
   instructionsJson: z.any().optional(), // ProseMirror JSON
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
+  variants: z.any().optional(),
 });
 
 export const UpdateSymptomReqZ = z.object({
@@ -128,6 +130,7 @@ export const UpdateSymptomReqZ = z.object({
   instructionsJson: z.any().optional(), // ProseMirror JSON
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
+  variants: z.any().optional(),
 });
 
 // Surgery

@@ -20,6 +20,7 @@ export interface EffectiveSymptom {
   source: 'base' | 'override' | 'custom'
   baseSymptomId?: string // For overrides, this is the base symptom ID
   isHidden?: boolean // For overrides, indicates if symptom is hidden for this surgery
+  variants?: unknown | null // Optional variants JSON from BaseSymptom
 }
 
 export async function getEffectiveSymptoms(surgeryId: string): Promise<EffectiveSymptom[]> {
@@ -35,7 +36,8 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
       instructions: true, 
       instructionsJson: true,
       instructionsHtml: true,
-      linkToPage: true 
+      linkToPage: true,
+      variants: true as any
     },
     orderBy: { name: 'asc' }
   })
@@ -127,7 +129,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
         instructions: true, 
         instructionsJson: true,
         instructionsHtml: true,
-        linkToPage: true 
+        linkToPage: true,
+        variants: true
       }
     })
     
@@ -174,7 +177,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       instructions: true, 
       instructionsJson: true,
       instructionsHtml: true,
-      linkToPage: true 
+      linkToPage: true,
+      variants: true as any
     }
   })
   
@@ -227,7 +231,7 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       isHidden: override.isHidden,
     }
     console.log('getEffectiveSymptomById: Returning override symptom:', result.name, 'source:', result.source)
-    return result
+    return result as any
   }
 
   console.log('getEffectiveSymptomById: No override found, returning base symptom:', base.name)
@@ -249,7 +253,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
         instructions: true, 
         instructionsJson: true,
         instructionsHtml: true,
-        linkToPage: true 
+        linkToPage: true,
+        variants: true
       }
     })
     
@@ -293,7 +298,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       instructions: true, 
       instructionsJson: true,
       instructionsHtml: true,
-      linkToPage: true 
+      linkToPage: true,
+      variants: true as any
     }
   })
   
@@ -365,7 +371,10 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
         briefInstruction: true, 
         highlightedText: true, 
         instructions: true, 
-        linkToPage: true 
+        instructionsJson: true,
+        instructionsHtml: true,
+        linkToPage: true,
+        variants: true
       }
     })
     
@@ -390,6 +399,8 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
       briefInstruction: true, 
       highlightedText: true, 
       instructions: true, 
+      instructionsJson: true,
+      instructionsHtml: true,
       linkToPage: true 
     }
   })
@@ -416,7 +427,10 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
       briefInstruction: true, 
       highlightedText: true, 
       instructions: true, 
-      linkToPage: true 
+      instructionsJson: true,
+      instructionsHtml: true,
+      linkToPage: true,
+      variants: true as any
     }
   })
   
@@ -450,6 +464,8 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
       briefInstruction: (override.briefInstruction && override.briefInstruction.trim() !== '') ? override.briefInstruction : base.briefInstruction,
       highlightedText: (override.highlightedText && override.highlightedText.trim() !== '') ? override.highlightedText : base.highlightedText,
       instructions: (override.instructions && override.instructions.trim() !== '') ? override.instructions : base.instructions,
+      instructionsJson: (override.instructionsJson && override.instructionsJson.trim() !== '') ? override.instructionsJson : base.instructionsJson,
+      instructionsHtml: (override.instructionsHtml && override.instructionsHtml.trim() !== '') ? override.instructionsHtml : base.instructionsHtml,
       linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
       source: 'override' as const,
       baseSymptomId: base.id, // Include the base symptom ID for engagement logging

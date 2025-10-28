@@ -57,8 +57,11 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     instructionsJson: null as any,
     instructionsHtml: '',
     highlightedText: '',
-    linkToPage: ''
+    linkToPage: '',
+    variants: null as any
   })
+  const [showVariantsSection, setShowVariantsSection] = useState(false)
+  const [variants, setVariants] = useState<Array<{key: string, label: string, instructions: string}>>([])
   const [showClearAllDialog, setShowClearAllDialog] = useState(false)
   const [clearConfirmText, setClearConfirmText] = useState('')
 
@@ -376,8 +379,9 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               briefInstruction: '',
               instructions: '',
               highlightedText: '',
-              linkToPage: ''
-            })
+          linkToPage: '',
+          variants: null
+        })
           } else {
             toast.error('Symptom not found')
           }
@@ -483,10 +487,15 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
     setIsLoading(true)
     try {
+      const payload = {
+        ...newSymptom,
+        variants: variants.length > 0 ? { ageGroups: variants } : null
+      }
+      
       const response = await fetch('/api/admin/symptoms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newSymptom),
+        body: JSON.stringify(payload),
       })
 
       if (response.ok) {
@@ -501,8 +510,11 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           instructionsJson: null,
           instructionsHtml: '',
           highlightedText: '',
-          linkToPage: ''
+          linkToPage: '',
+          variants: null
         })
+        setVariants([])
+        setShowVariantsSection(false)
         setShowAddSymptomForm(false)
         // Reload symptoms to show the new one
         loadEffectiveSymptoms()
@@ -1062,6 +1074,82 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   />
                 </div>
               </div>
+
+              {/* Variants Section (Superusers Only) */}
+              {session?.type === 'superuser' && (
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-nhs-dark-blue">Variants (Optional)</h3>
+                    <button
+                      type="button"
+                      onClick={() => setShowVariantsSection(!showVariantsSection)}
+                      className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
+                    >
+                      {showVariantsSection ? 'Hide' : 'Add Variants'}
+                    </button>
+                  </div>
+                  
+                  {showVariantsSection && (
+                    <div className="space-y-3">
+                      {variants.map((variant, index) => (
+                        <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                          <div className="grid grid-cols-2 gap-3 mb-2">
+                            <input
+                              type="text"
+                              value={variant.label}
+                              onChange={(e) => {
+                                const updated = [...variants]
+                                updated[index].label = e.target.value
+                                updated[index].key = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                                setVariants(updated)
+                              }}
+                              placeholder="Label (e.g., Under 5)"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                            <input
+                              type="text"
+                              value={variant.key}
+                              onChange={(e) => {
+                                const updated = [...variants]
+                                updated[index].key = e.target.value
+                                setVariants(updated)
+                              }}
+                              placeholder="Key"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                            />
+                          </div>
+                          <textarea
+                            value={variant.instructions}
+                            onChange={(e) => {
+                              const updated = [...variants]
+                              updated[index].instructions = e.target.value
+                              setVariants(updated)
+                            }}
+                            placeholder="Instructions for this variant"
+                            rows={3}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setVariants(variants.filter((_, i) => i !== index))}
+                            className="mt-2 text-sm text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      
+                      <button
+                        type="button"
+                        onClick={() => setVariants([...variants, { key: '', label: '', instructions: '' }])}
+                        className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
+                      >
+                        + Add Variant
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
 

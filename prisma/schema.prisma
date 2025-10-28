@@ -85,6 +85,7 @@ model BaseSymptom {
   instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String?  // HTML format with colour support
   linkToPage       String?
+  variants         Json?    // Optional age/scenario-tailored advice variants
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
