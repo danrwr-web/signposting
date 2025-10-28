@@ -25,7 +25,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
   const buildApiUrl = (endpoint: string, includeSurgery = true) => {
     const baseUrl = `/api/admin/${endpoint}`
     if (includeSurgery && surgerySlug) {
-      return `${baseUrl}?surgery=${surgerySlug}`
+      return `${baseUrl}?surgery=${encodeURIComponent(surgerySlug)}`
     }
     return baseUrl
   }
