@@ -314,6 +314,36 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     }
   }, [loadDefaultButtons, loadHighRiskLinks])
 
+  const reorderDefaultButton = useCallback(async (buttonKey: string, newOrder: number) => {
+    try {
+      const url = buildApiUrl('default-highrisk-buttons', false) // Don't include surgery param for global
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ buttonKey, orderIndex: newOrder }),
+        credentials: 'include',
+        cache: 'no-store',
+      })
+
+      if (response.ok) {
+        await loadDefaultButtons()
+        await loadHighRiskLinks()
+        return true
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to reorder button')
+        return false
+      }
+    } catch (error) {
+      console.error('Error reordering default button:', error)
+      toast.error('Failed to reorder button')
+      return false
+    }
+  }, [loadDefaultButtons, loadHighRiskLinks])
+
   return {
     highRiskLinks,
     defaultButtons,
@@ -328,6 +358,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     deleteLink,
     updateOrder,
     addGlobalDefaultButton,
-    deleteDefaultButton
+    deleteDefaultButton,
+    reorderDefaultButton
   }
 }

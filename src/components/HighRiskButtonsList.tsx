@@ -38,7 +38,15 @@ export default function HighRiskButtonsList({
 
   // Filter out default buttons since they're managed in DefaultButtonsConfig
   const customButtons = (Array.isArray(highRiskLinks) ? highRiskLinks : [])
-    .filter(link => !link.id.startsWith('default-'))
+    .filter(link => {
+      // Exclude all default buttons (both hardcoded and user-created global defaults)
+      // Check both the isDefault flag and the ID prefix for backward compatibility
+      if (link.isDefault === true) return false
+      if (link.id.startsWith('default-')) return false
+      
+      // Include all other buttons (surgery-specific custom buttons)
+      return true
+    })
     .sort((a, b) => a.orderIndex - b.orderIndex)
 
   if (customButtons.length === 0) {

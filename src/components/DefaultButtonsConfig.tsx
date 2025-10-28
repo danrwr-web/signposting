@@ -15,6 +15,7 @@ interface DefaultButtonsConfigProps {
   onUpdateButton: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
   onAddButton?: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
   onDeleteButton?: (buttonKey: string) => Promise<boolean>
+  onReorderButton?: (buttonKey: string, newOrder: number) => Promise<boolean>
   symptoms?: Array<{ slug: string; name: string }>
   session?: Session
 }
@@ -27,6 +28,7 @@ export default function DefaultButtonsConfig({
   onUpdateButton,
   onAddButton,
   onDeleteButton,
+  onReorderButton,
   symptoms = [],
   session
 }: DefaultButtonsConfigProps) {
@@ -72,6 +74,22 @@ export default function DefaultButtonsConfig({
     if (!confirm(`Are you sure you want to delete the "${defaultButtons.find(b => b.buttonKey === buttonKey)?.label}" button?`)) return
     
     await onDeleteButton(buttonKey)
+  }
+
+  const handleMoveUp = async (button: DefaultHighRiskButtonConfig) => {
+    if (!onReorderButton) return
+    const currentIndex = defaultButtons.findIndex(b => b.buttonKey === button.buttonKey)
+    if (currentIndex > 0) {
+      await onReorderButton(button.buttonKey, button.orderIndex - 1)
+    }
+  }
+
+  const handleMoveDown = async (button: DefaultHighRiskButtonConfig) => {
+    if (!onReorderButton) return
+    const currentIndex = defaultButtons.findIndex(b => b.buttonKey === button.buttonKey)
+    if (currentIndex < defaultButtons.length - 1) {
+      await onReorderButton(button.buttonKey, button.orderIndex + 1)
+    }
   }
 
   // Filter symptoms based on search
@@ -291,6 +309,26 @@ export default function DefaultButtonsConfig({
                   />
                   {session?.type === 'superuser' && (
                     <>
+                      {onReorderButton && (
+                        <>
+                          <button
+                            onClick={() => handleMoveUp(button)}
+                            className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                            title="Move up"
+                            aria-label={`Move ${button.label} up`}
+                          >
+                            ↑
+                          </button>
+                          <button
+                            onClick={() => handleMoveDown(button)}
+                            className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                            title="Move down"
+                            aria-label={`Move ${button.label} down`}
+                          >
+                            ↓
+                          </button>
+                        </>
+                      )}
                       <button
                         onClick={() => setEditingButton(button)}
                         className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"

@@ -118,7 +118,8 @@ export async function GET(request: NextRequest) {
           label: config?.label || defaultButton.label,
           symptomSlug: config?.symptomSlug || defaultButton.symptomSlug,
           symptomId: null,
-          orderIndex: config?.orderIndex ?? defaultButton.orderIndex
+          orderIndex: config?.orderIndex ?? defaultButton.orderIndex,
+          isDefault: true
         }
       })
       .filter(Boolean)
@@ -132,11 +133,18 @@ export async function GET(request: NextRequest) {
         label: config.label,
         symptomSlug: config.symptomSlug,
         symptomId: null,
-        orderIndex: config.orderIndex
+        orderIndex: config.orderIndex,
+        isDefault: true
       }))
 
+    // Mark custom links as not default
+    const markedCustomLinks = customLinks.map(link => ({
+      ...link,
+      isDefault: false
+    }))
+
     // Combine enabled default buttons, user-created global buttons, and custom links
-    const allLinks = [...enabledDefaultButtons, ...userCreatedGlobalButtons, ...customLinks]
+    const allLinks = [...enabledDefaultButtons, ...userCreatedGlobalButtons, ...markedCustomLinks]
 
     return NextResponse.json(
       GetHighRiskResZ.parse({ links: allLinks }),

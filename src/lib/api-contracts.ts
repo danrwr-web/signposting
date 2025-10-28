@@ -45,6 +45,7 @@ export const HighRiskLinkZ = z.object({
   symptomSlug: z.string().nullable().optional(),
   symptomId: z.string().nullable().optional(),
   orderIndex: z.number(),
+  isDefault: z.boolean().optional(),
 });
 
 export const GetHighRiskResZ = z.object({
