@@ -1,30 +1,37 @@
-# Apply Image Icon Migration
+# Database Migration Instructions
 
-The `ImageIcon` table needs two new columns: `isEnabled` and `surgeryId`.
+You need to apply the latest database migration to add the `isEnabled` and `surgeryId` fields to the `ImageIcon` table.
 
-## Run this SQL in your Neon database console:
+## Option 1: Using Neon Console (Recommended)
+
+1. Go to your Neon database console
+2. Open the SQL Editor
+3. Copy and paste the following SQL:
 
 ```sql
--- Add isEnabled and surgeryId fields to ImageIcon table
 ALTER TABLE "ImageIcon" 
   ADD COLUMN IF NOT EXISTS "isEnabled" BOOLEAN NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS "surgeryId" TEXT;
 
--- Drop the old unique constraint and add a new one that includes surgeryId
 ALTER TABLE "ImageIcon" 
   DROP CONSTRAINT IF EXISTS "ImageIcon_phrase_key";
 
--- Create new composite unique constraint on (phrase, surgeryId)
 ALTER TABLE "ImageIcon" 
   ADD CONSTRAINT "ImageIcon_phrase_surgeryId_key" UNIQUE ("phrase", "surgeryId");
 
--- Create index on surgeryId for faster lookups
 CREATE INDEX IF NOT EXISTS "ImageIcon_surgeryId_idx" ON "ImageIcon"("surgeryId");
 ```
 
-## After running the migration:
+4. Run the SQL
 
-1. Wait for Vercel to redeploy (automatic after git push)
-2. Try adding an image icon again
-3. The 503 error should be resolved
+## Option 2: Using Prisma Migrate (Local Development)
 
+If you're running locally with the Neon database:
+
+```bash
+npm run db:migrate:deploy
+```
+
+## After Migration
+
+Once the migration is applied, the 503 error on `/api/image-icons` should be resolved and you'll be able to upload and manage image icons.
