@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
           briefInstruction: true, 
           highlightedText: true, 
           instructions: true, 
-          linkToPage: true 
+          instructionsJson: true,
+          instructionsHtml: true,
+          linkToPage: true
         },
         orderBy: { name: 'asc' }
       }).then(results => 
@@ -117,7 +119,7 @@ export async function POST(request: NextRequest) {
       }
 
       const symptom = await prisma.baseSymptom.create({
-        data: {
+        data: ({
           slug,
           name,
           ageGroup,
@@ -128,7 +130,7 @@ export async function POST(request: NextRequest) {
           highlightedText,
           linkToPage,
           variants: variants || null,
-        },
+        } as any),
         select: {
           id: true,
           slug: true,

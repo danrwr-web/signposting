@@ -35,6 +35,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [isDeletingSymptom, setIsDeletingSymptom] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [selectedVariantKey, setSelectedVariantKey] = useState<string | null>(null)
+  // Superuser variant editor state (for base symptoms)
+  const [enableVariantsEdit, setEnableVariantsEdit] = useState<boolean>(false)
+  const [editVariantHeading, setEditVariantHeading] = useState<string>('')
+  const [editVariantPosition, setEditVariantPosition] = useState<'before' | 'after'>('before')
+  const [editVariantGroups, setEditVariantGroups] = useState<Array<{ key: string; label: string; instructions: string }>>([])
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -179,6 +184,21 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setEditedHighlightedText(symptom.highlightedText || '')
     setEditedLinkToPage(symptom.linkToPage || '')
     setEditedInstructions(symptom.instructionsHtml || symptom.instructions || '')
+    // Prefill variants when superuser editing base
+    if (isSuperuser && symptom.source === 'base') {
+      const v: any = (symptom as any).variants
+      if (v && Array.isArray(v.ageGroups)) {
+        setEnableVariantsEdit(true)
+        setEditVariantHeading(v.heading || '')
+        setEditVariantPosition((v.position === 'after' ? 'after' : 'before'))
+        setEditVariantGroups(v.ageGroups.map((g: any) => ({ key: g.key || '', label: g.label || '', instructions: g.instructions || '' })))
+      } else {
+        setEnableVariantsEdit(false)
+        setEditVariantHeading('')
+        setEditVariantPosition('before')
+        setEditVariantGroups([])
+      }
+    }
     setIsEditingAll(true)
     setSaveError(null)
   }
@@ -211,6 +231,20 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         apiSurgeryId = surgeryId
       }
       
+      // Build variants payload
+      let variantsPayload: any = undefined
+      if (isSuperuser && symptom.source === 'base') {
+        if (enableVariantsEdit && editVariantGroups.length > 0) {
+          variantsPayload = {
+            heading: (editVariantHeading || undefined),
+            position: editVariantPosition,
+            ageGroups: editVariantGroups
+          }
+        } else if (!enableVariantsEdit) {
+          variantsPayload = null
+        }
+      }
+
       const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
         method: 'PATCH',
         headers: {
@@ -265,22 +299,41 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         apiSurgeryId = surgeryId
       }
       
+      // Build variants payload only for superuser editing base
+      let variantsPayload: any = undefined
+      if (isSuperuser && symptom.source === 'base') {
+        if (enableVariantsEdit && editVariantGroups.length > 0) {
+          variantsPayload = {
+            heading: (editVariantHeading || undefined),
+            position: editVariantPosition,
+            ageGroups: editVariantGroups
+          }
+        } else if (!enableVariantsEdit) {
+          variantsPayload = null
+        }
+      }
+
+      const payload: any = {
+        source: apiSource,
+        surgeryId: apiSurgeryId,
+        name: symptom.name, // Keep existing name
+        ageGroup: symptom.ageGroup, // Keep existing age group
+        briefInstruction: editedBriefInstruction.trim(),
+        instructions: sanitizedInstructions, // Keep legacy field for compatibility
+        instructionsHtml: sanitizedInstructions,
+        highlightedText: editedHighlightedText.trim(),
+        linkToPage: editedLinkToPage.trim(),
+      }
+      if (typeof variantsPayload !== 'undefined') {
+        payload.variants = variantsPayload
+      }
+
       const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          source: apiSource,
-          surgeryId: apiSurgeryId,
-          name: symptom.name, // Keep existing name
-          ageGroup: symptom.ageGroup, // Keep existing age group
-          briefInstruction: editedBriefInstruction.trim(),
-          instructions: sanitizedInstructions, // Keep legacy field for compatibility
-          instructionsHtml: sanitizedInstructions,
-          highlightedText: editedHighlightedText.trim(),
-          linkToPage: editedLinkToPage.trim(),
-        }),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {
@@ -549,6 +602,102 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                   height={300}
                 />
               </div>
+
+              {isSuperuser && symptom.source === 'base' && (
+                <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-nhs-dark-blue">Variants</h3>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" className="h-4 w-4" checked={enableVariantsEdit} onChange={(e) => setEnableVariantsEdit(e.target.checked)} />
+                      Enable variants
+                    </label>
+                  </div>
+                  {enableVariantsEdit && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-nhs-dark-blue mb-1">Heading (optional)</label>
+                          <input
+                            type="text"
+                            value={editVariantHeading}
+                            onChange={(e) => setEditVariantHeading(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                            placeholder="e.g., Choose Age Group"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-nhs-dark-blue mb-1">Position</label>
+                          <select
+                            value={editVariantPosition}
+                            onChange={(e) => setEditVariantPosition(e.target.value as 'before' | 'after')}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                          >
+                            <option value="before">Before instructions</option>
+                            <option value="after">After instructions</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {editVariantGroups.map((vg, idx) => (
+                        <div key={idx} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2">
+                            <input
+                              type="text"
+                              value={vg.label}
+                              onChange={(e) => {
+                                const updated = [...editVariantGroups]
+                                updated[idx].label = e.target.value
+                                updated[idx].key = e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+                                setEditVariantGroups(updated)
+                              }}
+                              placeholder="Label (e.g., Under 5)"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="text"
+                              value={vg.key}
+                              onChange={(e) => {
+                                const updated = [...editVariantGroups]
+                                updated[idx].key = e.target.value
+                                setEditVariantGroups(updated)
+                              }}
+                              placeholder="Key"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                          </div>
+                          <label className="block text-sm font-medium text-nhs-dark-blue mb-1">Instructions</label>
+                          <RichTextEditor
+                            value={vg.instructions}
+                            onChange={(html) => {
+                              const sanitizedHtml = sanitizeHtml(html)
+                              const updated = [...editVariantGroups]
+                              updated[idx].instructions = sanitizedHtml
+                              setEditVariantGroups(updated)
+                            }}
+                            placeholder="Enter detailed instructions for this variant..."
+                            height={180}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setEditVariantGroups(editVariantGroups.filter((_, i) => i !== idx))}
+                            className="mt-2 text-sm text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() => setEditVariantGroups([...editVariantGroups, { key: '', label: '', instructions: '' }])}
+                        className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
+                      >
+                        + Add Variant
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               
               {saveError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
