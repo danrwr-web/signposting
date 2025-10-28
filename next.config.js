@@ -2,6 +2,7 @@
 const nextConfig = {
   serverExternalPackages: ['@prisma/client', 'jsdom', 'jest-environment-jsdom'],
   webpack: (config, { isServer }) => {
+    // Exclude jsdom from bundling
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -9,6 +10,14 @@ const nextConfig = {
         jsdom: false,
       };
     }
+    
+    // Mark jsdom as external
+    config.externals = config.externals || [];
+    config.externals.push({
+      'jsdom': 'commonjs jsdom',
+      'jest-environment-jsdom': 'commonjs jest-environment-jsdom',
+    });
+    
     return config;
   },
   eslint: {
