@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // If phrase provided, return matching icon (for client-side use)
+    // If phrase provided, return matching icon (for client-side use - no auth required)
     if (phrase) {
       const icons = await (prisma as any).imageIcon.findMany({
         where: { isEnabled: true }, // Only return enabled icons
@@ -48,14 +48,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(matchingIcon || null)
     }
     
-    // Otherwise return all icons (for admin use)
+    // Otherwise, return all icons (for admin use - requires superuser)
+    const session = await getSession()
+    
+    if (!session || session.type !== 'superuser') {
+      return NextResponse.json(
+        { error: 'Unauthorized - superuser only' },
+        { status: 403 }
+      )
+    }
+    
     const icons = await (prisma as any).imageIcon.findMany({
       orderBy: { createdAt: 'desc' }
     })
     return NextResponse.json({ icons })
   } catch (error: any) {
     console.error('Error fetching image icons:', error)
-    // Always return 200 to prevent client errors
+    // Always return 200 to prevent client errors for phrase lookups
     if (request.url.includes('?phrase=')) {
       return NextResponse.json(null, { status: 200 })
     } else {
