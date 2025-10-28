@@ -497,7 +497,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     try {
       const payload = {
         ...newSymptom,
-        variants: variants.length > 0 ? { heading: (variantHeading || undefined), ageGroups: variants } : null
+        variants: variants.length > 0 ? { heading: (variantHeading || undefined), position: ((newSymptom.variants as any)?.position || 'before'), ageGroups: variants } : null
       }
       
       const response = await fetch('/api/admin/symptoms', {
@@ -1140,17 +1140,22 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                               className="w-full px-3 py-2 border border-gray-300 rounded-md"
                             />
                           </div>
-                          <textarea
-                            value={variant.instructions}
-                            onChange={(e) => {
-                              const updated = [...variants]
-                              updated[index].instructions = e.target.value
-                              setVariants(updated)
-                            }}
-                            placeholder="Instructions for this variant"
-                            rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                          />
+                          <div className="mt-2">
+                            <label className="block text-sm font-medium text-nhs-grey mb-1">
+                              Variant Instructions
+                            </label>
+                            <RichTextEditor
+                              value={variant.instructions || ''}
+                              onChange={(html) => {
+                                const sanitizedHtml = sanitizeHtml(html)
+                                const updated = [...variants]
+                                updated[index].instructions = sanitizedHtml
+                                setVariants(updated)
+                              }}
+                              placeholder="Enter detailed instructions for this variant..."
+                              height={180}
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => setVariants(variants.filter((_, i) => i !== index))}
@@ -1519,6 +1524,23 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                             placeholder="e.g., Choose Age Group"
                           />
                           <p className="text-xs text-gray-500 mt-1">Leave blank to hide the heading on the instructions page.</p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-nhs-grey mb-1">
+                            Variant Position
+                          </label>
+                          <select
+                            value={(newSymptom.variants as any)?.position || 'before'}
+                            onChange={(e) => {
+                              const pos = e.target.value
+                              setNewSymptom(prev => ({ ...prev, variants: { ...(prev.variants || {}), position: pos } as any }))
+                            }}
+                            className="w-full nhs-input"
+                          >
+                            <option value="before">Before instructions</option>
+                            <option value="after">After instructions</option>
+                          </select>
                         </div>
 
                         {variants.map((variant, index) => (

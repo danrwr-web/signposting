@@ -458,42 +458,46 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
         {/* Variant Selection - Age Groups */}
         {hasVariants && !isEditingInstructions && !isEditingAll && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            {(variants.heading && variants.heading.trim() !== '') && (
-              <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-                {variants.heading}
-              </h3>
+          <>
+            {(!variants.position || variants.position === 'before') && (
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+                {(variants.heading && variants.heading.trim() !== '') && (
+                  <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+                    {variants.heading}
+                  </h3>
+                )}
+                <div className="flex flex-wrap gap-3">
+                  {variants.ageGroups.map((variant: any) => (
+                    <button
+                      key={variant.key}
+                      onClick={() => handleVariantSelect(variant.key)}
+                      aria-pressed={selectedVariantKey === variant.key}
+                      className={`px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 ${
+                        selectedVariantKey === variant.key
+                          ? 'bg-nhs-blue text-white border-nhs-blue'
+                          : 'bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey'
+                      }`}
+                    >
+                      {variant.label}
+                    </button>
+                  ))}
+                  {selectedVariantKey && (
+                    <button
+                      onClick={() => setSelectedVariantKey(null)}
+                      className="px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey"
+                    >
+                      Revert to original
+                    </button>
+                  )}
+                </div>
+                {activeVariantLabel && (
+                  <p className="text-sm text-nhs-grey mt-3">
+                    Advice shown: {activeVariantLabel}
+                  </p>
+                )}
+              </div>
             )}
-            <div className="flex flex-wrap gap-3">
-              {variants.ageGroups.map((variant: any) => (
-                <button
-                  key={variant.key}
-                  onClick={() => handleVariantSelect(variant.key)}
-                  aria-pressed={selectedVariantKey === variant.key}
-                  className={`px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 ${
-                    selectedVariantKey === variant.key
-                      ? 'bg-nhs-blue text-white border-nhs-blue'
-                      : 'bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey'
-                  }`}
-                >
-                  {variant.label}
-                </button>
-              ))}
-              {selectedVariantKey && (
-                <button
-                  onClick={() => setSelectedVariantKey(null)}
-                  className="px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey"
-                >
-                  Revert to original
-                </button>
-              )}
-            </div>
-            {activeVariantLabel && (
-              <p className="text-sm text-nhs-grey mt-3">
-                Advice shown: {activeVariantLabel}
-              </p>
-            )}
-          </div>
+          </>
         )}
 
         {/* Main Instructions */}
@@ -656,6 +660,46 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               )}
             </div>
           )
+        )}
+
+        {/* Variant Selection after instructions (if configured) */}
+        {hasVariants && !isEditingInstructions && !isEditingAll && variants.position === 'after' && (
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            {(variants.heading && variants.heading.trim() !== '') && (
+              <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+                {variants.heading}
+              </h3>
+            )}
+            <div className="flex flex-wrap gap-3">
+              {variants.ageGroups.map((variant: any) => (
+                <button
+                  key={variant.key}
+                  onClick={() => handleVariantSelect(variant.key)}
+                  aria-pressed={selectedVariantKey === variant.key}
+                  className={`px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 ${
+                    selectedVariantKey === variant.key
+                      ? 'bg-nhs-blue text-white border-nhs-blue'
+                      : 'bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey'
+                  }`}
+                >
+                  {variant.label}
+                </button>
+              ))}
+              {selectedVariantKey && (
+                <button
+                  onClick={() => setSelectedVariantKey(null)}
+                  className="px-4 py-2 rounded-xl border-2 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 bg-white text-nhs-dark-blue border-nhs-grey hover:bg-nhs-light-grey"
+                >
+                  Revert to original
+                </button>
+              )}
+            </div>
+            {activeVariantLabel && (
+              <p className="text-sm text-nhs-grey mt-3">
+                Advice shown: {activeVariantLabel}
+              </p>
+            )}
+          </div>
         )}
 
         {/* Action Buttons */}
