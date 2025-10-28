@@ -12,6 +12,7 @@ import PasswordChangeModal from './PasswordChangeModal'
 import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
+import LogoSizeControl from './LogoSizeControl'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -97,9 +98,11 @@ export default function CompactToolbar({
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"
-                className="h-6 w-auto"
+                style={{ height: 'var(--logo-height, 28px)' }}
+                className="w-auto"
               />
             </Link>
+            <LogoSizeControl />
           </div>
 
           {/* Surgery Selector and Admin Link */}

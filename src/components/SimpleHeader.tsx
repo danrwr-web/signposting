@@ -1,6 +1,9 @@
+"use client"
+
 import Link from 'next/link'
 import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
+import LogoSizeControl from './LogoSizeControl'
 
 interface SimpleHeaderProps {
   surgeries: Surgery[]
@@ -18,9 +21,11 @@ export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHead
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"
-                className="h-8 w-auto"
+                style={{ height: 'var(--logo-height, 32px)' }}
+                className="w-auto"
               />
             </Link>
+            <LogoSizeControl />
           </div>
 
           {/* Surgery Selector */}
