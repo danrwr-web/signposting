@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from '@/lib/auth'
 import prisma from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 // Note: Sharp is heavy, using basic file handling for now
 // import sharp from 'sharp'
 import { writeFile, mkdir } from 'fs/promises'
@@ -68,12 +69,21 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
+    const session = await getServerSession(authOptions)
     
-    // Only superusers can create image icons
-    if (!session || (session.type !== 'superuser' && session.type !== 'surgery')) {
+    // Check if user is authenticated and is superuser
+    if (!session || !session.user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+    
+    // Check if user is superuser
+    const isSuperuser = (session.user as any).globalRole === 'SUPERUSER'
+    if (!isSuperuser) {
+      return NextResponse.json(
+        { error: 'Unauthorized - superuser only' },
         { status: 403 }
       )
     }
@@ -142,7 +152,7 @@ export async function POST(request: NextRequest) {
         alt: alt || phrase.trim(),
         width,
         height,
-        createdBy: session.email || 'unknown'
+        createdBy: session.user?.email || 'unknown'
       }
     })
 
