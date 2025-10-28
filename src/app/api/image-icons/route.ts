@@ -105,14 +105,6 @@ export async function POST(request: NextRequest) {
 
     // Check if phrase already exists
     try {
-      // Check if imageIcon model exists
-      if (!('imageIcon' in prisma)) {
-        return NextResponse.json(
-          { error: 'Image icon feature not available yet. Please wait for deployment to complete.' },
-          { status: 503 }
-        )
-      }
-
       const existing = await (prisma as any).imageIcon.findUnique({
         where: { phrase: phrase.trim() }
       })
@@ -124,11 +116,15 @@ export async function POST(request: NextRequest) {
         )
       }
     } catch (error) {
-      console.log('Table not ready yet:', error)
-      return NextResponse.json(
-        { error: 'Database table not ready. Please wait for migration to complete.' },
-        { status: 503 }
-      )
+      // If imageIcon doesn't exist, return 503
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      if (errorMsg.includes('imageIcon') || errorMsg.includes('not found')) {
+        return NextResponse.json(
+          { error: 'Image icon feature not available. Deployment may still be completing.' },
+          { status: 503 }
+        )
+      }
+      throw error
     }
 
     // For now, store file as base64 in database instead of filesystem (Vercel doesn't allow file writes)
@@ -142,14 +138,6 @@ export async function POST(request: NextRequest) {
     const width = null
     const height = null
     
-    // Check if imageIcon model exists before trying to create
-    if (!('imageIcon' in prisma)) {
-      return NextResponse.json(
-        { error: 'Image icon feature not available yet. Please wait for deployment to complete.' },
-        { status: 503 }
-      )
-    }
-
     // Save to database with base64 data
     const icon = await (prisma as any).imageIcon.create({
       data: {
@@ -166,8 +154,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ icon }, { status: 201 })
   } catch (error) {
     console.error('Error uploading image icon:', error)
+    const errorMsg = error instanceof Error ? error.message : String(error)
+    
+    // Check if it's an imageIcon missing error
+    if (errorMsg.includes('imageIcon') || errorMsg.includes('Cannot read properties of undefined') || errorMsg.includes('reading \'imageIcon\'')) {
+      return NextResponse.json(
+        { error: 'Image icon feature not available. The Prisma client needs to be regenerated. Please try again in a few minutes or contact support.' },
+        { status: 503 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to upload image icon', details: error instanceof Error ? error.message : String(error) },
+      { error: 'Failed to upload image icon', details: errorMsg },
       { status: 500 }
     )
   }
