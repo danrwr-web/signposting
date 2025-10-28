@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Determine surgery ID based on session type
-    let surgeryId: string
+    let surgeryId: string | null
     if (session.type === 'surgery') {
       surgeryId = session.surgeryId!
       console.log('GET /api/admin/default-highrisk-buttons - Surgery ID from session:', surgeryId)
@@ -40,24 +40,23 @@ export async function GET(request: NextRequest) {
       console.log('GET /api/admin/default-highrisk-buttons - Surgery slug from query:', surgerySlug)
       
       if (!surgerySlug) {
-        return NextResponse.json(
-          { error: 'Surgery parameter required for superuser' },
-          { status: 400 }
-        )
+        // No surgery provided – fall back to global-only view
+        surgeryId = null
+      } else {
+        const surgery = await prisma.surgery.findUnique({
+          where: { slug: surgerySlug },
+          select: { id: true }
+        })
+        if (!surgery) {
+          console.log('GET /api/admin/default-highrisk-buttons - Surgery not found for slug:', surgerySlug)
+          return NextResponse.json(
+            { error: 'Surgery not found' },
+            { status: 404 }
+          )
+        }
+        surgeryId = surgery.id
+        console.log('GET /api/admin/default-highrisk-buttons - Surgery ID from slug:', surgeryId)
       }
-      const surgery = await prisma.surgery.findUnique({
-        where: { slug: surgerySlug },
-        select: { id: true }
-      })
-      if (!surgery) {
-        console.log('GET /api/admin/default-highrisk-buttons - Surgery not found for slug:', surgerySlug)
-        return NextResponse.json(
-          { error: 'Surgery not found' },
-          { status: 404 }
-        )
-      }
-      surgeryId = surgery.id
-      console.log('GET /api/admin/default-highrisk-buttons - Surgery ID from slug:', surgeryId)
     } else {
       console.log('GET /api/admin/default-highrisk-buttons - Unauthorized session type:', session)
       return NextResponse.json(
@@ -66,16 +65,32 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    // Get existing configurations for this surgery
-    const existingConfigs = await prisma.defaultHighRiskButtonConfig.findMany({
-      where: { surgeryId },
-      orderBy: { orderIndex: 'asc' }
-    })
+    // Load configs: surgery-specific (if provided) and global (placeholder surgeryId)
+    const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
+    const [existingConfigs, globalConfigs] = await Promise.all([
+      surgeryId
+        ? prisma.defaultHighRiskButtonConfig.findMany({
+            where: { surgeryId },
+            orderBy: { orderIndex: 'asc' }
+          })
+        : Promise.resolve([] as any[]),
+      prisma.defaultHighRiskButtonConfig.findMany({
+        where: { surgeryId: GLOBAL_SURGERY_ID },
+        orderBy: { orderIndex: 'asc' }
+      })
+    ])
     
-    // Create a map of existing configs by buttonKey
-    const configMap = new Map(existingConfigs.map(config => [config.buttonKey, config]))
+    // Merge maps: surgery overrides take precedence over global, which override hardcoded
+    const configMap = new Map<string, any>()
+    for (const cfg of globalConfigs) {
+      configMap.set(cfg.buttonKey, cfg)
+    }
+    for (const cfg of existingConfigs) {
+      configMap.set(cfg.buttonKey, cfg)
+    }
     
-    // Build the response with all default buttons, using existing configs where available
+    // Build the response with all default buttons, using configs where available
     const buttons = DEFAULT_BUTTONS.map(defaultButton => {
       const existingConfig = configMap.get(defaultButton.buttonKey)
       return {
@@ -87,7 +102,7 @@ export async function GET(request: NextRequest) {
         orderIndex: existingConfig?.orderIndex ?? defaultButton.orderIndex
       }
     })
-    
+
     return NextResponse.json(
       { buttons },
       { headers: { 'Cache-Control': 'private, max-age=30' } }
@@ -118,7 +133,8 @@ export async function PATCH(request: NextRequest) {
     const { buttonKey, label, symptomSlug, isEnabled, orderIndex } = UpdateDefaultHighRiskButtonReqZ.parse(body)
 
     // Determine surgery ID based on session type
-    let surgeryId: string
+    let surgeryId: string | null
+    const GLOBAL_SURGERY_ID = 'global-default-buttons'
     if (session.type === 'surgery') {
       surgeryId = session.surgeryId!
     } else if (session.type === 'superuser') {
@@ -126,22 +142,21 @@ export async function PATCH(request: NextRequest) {
       const url = new URL(request.url)
       const surgerySlug = url.searchParams.get('surgery')
       if (!surgerySlug) {
-        return NextResponse.json(
-          { error: 'Surgery parameter required for superuser' },
-          { status: 400 }
-        )
+        // Allow global updates when no surgery provided
+        surgeryId = GLOBAL_SURGERY_ID
+      } else {
+        const surgery = await prisma.surgery.findUnique({
+          where: { slug: surgerySlug },
+          select: { id: true }
+        })
+        if (!surgery) {
+          return NextResponse.json(
+            { error: 'Surgery not found' },
+            { status: 404 }
+          )
+        }
+        surgeryId = surgery.id
       }
-      const surgery = await prisma.surgery.findUnique({
-        where: { slug: surgerySlug },
-        select: { id: true }
-      })
-      if (!surgery) {
-        return NextResponse.json(
-          { error: 'Surgery not found' },
-          { status: 404 }
-        )
-      }
-      surgeryId = surgery.id
     } else {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -149,20 +164,28 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Check if this is a valid default button key
+    // Check if this is a valid default button key OR allow new key when surgeryId is global
     const defaultButton = DEFAULT_BUTTONS.find(btn => btn.buttonKey === buttonKey)
-    if (!defaultButton) {
+    if (!defaultButton && surgeryId !== GLOBAL_SURGERY_ID) {
       return NextResponse.json(
         { error: 'Invalid default button key' },
         { status: 400 }
       )
     }
 
+    // Ensure global surgery exists if needed
+    if (surgeryId === GLOBAL_SURGERY_ID) {
+      const existing = await prisma.surgery.findUnique({ where: { id: GLOBAL_SURGERY_ID } })
+      if (!existing) {
+        await prisma.surgery.create({ data: { id: GLOBAL_SURGERY_ID, name: 'Global Default Buttons', slug: 'global' } })
+      }
+    }
+
     // Find or create the configuration
     const existingConfig = await prisma.defaultHighRiskButtonConfig.findUnique({
       where: {
         surgeryId_buttonKey: {
-          surgeryId,
+          surgeryId: surgeryId!,
           buttonKey
         }
       }
@@ -185,12 +208,12 @@ export async function PATCH(request: NextRequest) {
       // Create new configuration
       const newConfig = await prisma.defaultHighRiskButtonConfig.create({
         data: {
-          surgeryId,
+          surgeryId: surgeryId!,
           buttonKey,
-          label: label || defaultButton.label,
-          symptomSlug: symptomSlug || defaultButton.symptomSlug,
+          label: (label ?? (defaultButton?.label)) || buttonKey,
+          symptomSlug: (symptomSlug ?? (defaultButton?.symptomSlug)) || '',
           isEnabled: isEnabled ?? true,
-          orderIndex: orderIndex ?? defaultButton.orderIndex
+          orderIndex: (orderIndex ?? (defaultButton?.orderIndex)) || 0
         }
       })
       
