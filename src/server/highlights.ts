@@ -62,12 +62,18 @@ export async function getSurgeryImageIconsSetting(surgeryId?: string): Promise<b
     return true // Default to enabled if no surgery
   }
 
-  const surgery = await prisma.surgery.findUnique({
-    where: { id: surgeryId },
-    select: { enableImageIcons: true } as any
-  })
+  try {
+    const surgery = await prisma.surgery.findUnique({
+      where: { id: surgeryId },
+      select: { enableImageIcons: true } as any
+    })
 
-  return (surgery as any)?.enableImageIcons ?? true
+    return (surgery as any)?.enableImageIcons ?? true
+  } catch (error) {
+    // Field doesn't exist yet in production DB, return default
+    console.log('enableImageIcons field not found, using default true')
+    return true
+  }
 }
 
 /**
