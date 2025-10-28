@@ -16,6 +16,7 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
+  const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
   const [newHighlight, setNewHighlight] = useState({
     phrase: '',
     textColor: '#ffffff',
@@ -42,9 +43,10 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       const response = await fetch(url, { cache: 'no-store' })
       if (response.ok) {
         const json = await response.json()
-        const { highlights, enableBuiltInHighlights: builtInEnabled } = GetHighlightsResZ.parse(json)
+        const { highlights, enableBuiltInHighlights: builtInEnabled, enableImageIcons: imageIconsEnabled } = { ...GetHighlightsResZ.parse(json), enableImageIcons: json.enableImageIcons }
         setHighlights(Array.isArray(highlights) ? highlights.filter(h => h.createdAt !== undefined) as any : [])
         setEnableBuiltInHighlights(builtInEnabled ?? true)
+        setEnableImageIcons(imageIconsEnabled ?? true)
       } else {
         const errorMessage = `Failed to load highlight rules (${response.status})`
         setError(errorMessage)
@@ -142,6 +144,32 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
     }
   }
 
+  const handleToggleImageIcons = async (enabled: boolean) => {
+    if (!surgeryId) {
+      toast.error('Cannot update image icons setting without surgery context')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/surgery-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enableImageIcons: enabled })
+      })
+
+      if (response.ok) {
+        setEnableImageIcons(enabled)
+        toast.success(`Image icons ${enabled ? 'enabled' : 'disabled'}`)
+      } else {
+        const errorData = await response.json()
+        toast.error(`Failed to update image icons setting: ${errorData.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error updating image icons setting:', error)
+      toast.error('Failed to update image icons setting')
+    }
+  }
+
   const handleToggleBuiltInHighlights = async (enabled: boolean) => {
     if (!surgeryId) {
       toast.error('Cannot update built-in highlights setting without surgery context')
@@ -230,22 +258,42 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
 
       {/* Built-in Highlights Toggle */}
       {surgeryId && (
-        <div className="bg-blue-50 rounded-lg p-4 mb-6">
-          <h4 className="text-md font-medium text-nhs-dark-blue mb-3">Built-in Highlights</h4>
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-nhs-grey">
-              <p>Enable or disable built-in highlighting for slot types (green slot, orange slot, etc.)</p>
+        <div className="space-y-4 mb-6">
+          <div className="bg-blue-50 rounded-lg p-4">
+            <h4 className="text-md font-medium text-nhs-dark-blue mb-3">Built-in Highlights</h4>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-nhs-grey">
+                <p>Enable or disable built-in highlighting for slot types (green slot, orange slot, etc.)</p>
+              </div>
+              <button
+                onClick={() => handleToggleBuiltInHighlights(!enableBuiltInHighlights)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  enableBuiltInHighlights
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {enableBuiltInHighlights ? 'Enabled' : 'Disabled'}
+              </button>
             </div>
-            <button
-              onClick={() => handleToggleBuiltInHighlights(!enableBuiltInHighlights)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                enableBuiltInHighlights
-                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              {enableBuiltInHighlights ? 'Enabled' : 'Disabled'}
-            </button>
+          </div>
+          <div className="bg-purple-50 rounded-lg p-4">
+            <h4 className="text-md font-medium text-nhs-dark-blue mb-3">Image Icons</h4>
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-nhs-grey">
+                <p>Enable or disable image icons on symptom cards when phrases match</p>
+              </div>
+              <button
+                onClick={() => handleToggleImageIcons(!enableImageIcons)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  enableImageIcons
+                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {enableImageIcons ? 'Enabled' : 'Disabled'}
+              </button>
+            </div>
           </div>
         </div>
       )}

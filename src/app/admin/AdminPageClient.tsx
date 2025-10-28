@@ -6,6 +6,7 @@ import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
+import ImageIconConfig from '@/components/ImageIconConfig'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
@@ -867,6 +868,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             {activeTab === 'highlights' && (
               <div className="space-y-6">
                 <HighlightConfig surgeryId={selectedSurgery} isSuperuser={session?.type === 'superuser'} />
+                {/* Image Icons - superuser only */}
+                {session?.type === 'superuser' && (
+                  <ImageIconConfig isSuperuser={true} />
+                )}
               </div>
             )}
 

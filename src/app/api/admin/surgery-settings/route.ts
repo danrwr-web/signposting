@@ -13,6 +13,7 @@ export const runtime = 'nodejs'
 
 const updateSurgerySettingsSchema = z.object({
   enableBuiltInHighlights: z.boolean().optional(),
+  enableImageIcons: z.boolean().optional(),
 })
 
 // PATCH /api/admin/surgery-settings - Update surgery settings
@@ -64,6 +65,9 @@ export async function PATCH(request: NextRequest) {
     if (updateData.enableBuiltInHighlights !== undefined) {
       data.enableBuiltInHighlights = updateData.enableBuiltInHighlights
     }
+    if (updateData.enableImageIcons !== undefined) {
+      data.enableImageIcons = updateData.enableImageIcons
+    }
 
     // Update the surgery settings
     // Note: Using raw SQL to avoid Prisma client generation issues
@@ -71,7 +75,7 @@ export async function PATCH(request: NextRequest) {
       UPDATE "Surgery" 
       SET ${Object.keys(data).map((key, index) => `"${key}" = $${index + 2}`).join(', ')}, "updatedAt" = NOW()
       WHERE id = $1
-      RETURNING id, name, "enableBuiltInHighlights", "updatedAt"
+      RETURNING id, name, "enableBuiltInHighlights", "enableImageIcons", "updatedAt"
     `
     
     const updateValues = [targetSurgeryId, ...Object.values(data)]

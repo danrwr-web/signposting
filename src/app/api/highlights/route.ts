@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllHighlightRules, createHighlightRule, getSurgeryBuiltInHighlightsSetting } from '@/server/highlights'
+import { getAllHighlightRules, createHighlightRule, getSurgeryBuiltInHighlightsSetting, getSurgeryImageIconsSetting } from '@/server/highlights'
 import { getSession } from '@/server/auth'
 import { GetHighlightsResZ, CreateHighlightReqZ } from '@/lib/api-contracts'
 import { prisma } from '@/lib/prisma'
@@ -47,19 +47,22 @@ export async function GET(request: NextRequest) {
     // Get surgery-specific rules if surgeryId is provided
     let surgeryRules: any[] = []
     let enableBuiltInHighlights = true
+    let enableImageIcons = true
     if (surgeryId) {
       surgeryRules = await getAllHighlightRules(surgeryId)
       enableBuiltInHighlights = await getSurgeryBuiltInHighlightsSetting(surgeryId)
+      enableImageIcons = await getSurgeryImageIconsSetting(surgeryId)
     }
 
     // Combine all rules
     const highlights = [...globalRules, ...surgeryRules]
 
     return NextResponse.json(
-      GetHighlightsResZ.parse({ 
+      { 
         highlights,
-        enableBuiltInHighlights 
-      }),
+        enableBuiltInHighlights,
+        enableImageIcons 
+      },
       { headers: { 'Cache-Control': 'private, max-age=30' } }
     )
   } catch (error) {

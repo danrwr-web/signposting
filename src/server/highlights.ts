@@ -55,6 +55,22 @@ export async function getSurgeryBuiltInHighlightsSetting(surgeryId?: string): Pr
 }
 
 /**
+ * Get surgery's image icons setting
+ */
+export async function getSurgeryImageIconsSetting(surgeryId?: string): Promise<boolean> {
+  if (!surgeryId) {
+    return true // Default to enabled if no surgery
+  }
+
+  const surgery = await prisma.surgery.findUnique({
+    where: { id: surgeryId },
+    select: { enableImageIcons: true } as any
+  })
+
+  return (surgery as any)?.enableImageIcons ?? true
+}
+
+/**
  * Get all highlight rules (admin use)
  */
 export async function getAllHighlightRules(surgeryId?: string | null): Promise<HighlightRule[]> {
