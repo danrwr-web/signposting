@@ -91,15 +91,14 @@ export default function CompactToolbar({
       {/* Row 1: Logo, Surgery Selector, Admin Link */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
-          {/* Logo and Title */}
+          {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="w-6 h-6 bg-nhs-blue rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-xs">NHS</span>
-              </div>
-              <h1 className="text-lg font-bold text-nhs-dark-blue">
-                Signposting
-              </h1>
+            <Link href="/" className="flex items-center">
+              <img
+                src="/images/signposting_logo_head.png"
+                alt="Signposting"
+                className="h-6 w-auto"
+              />
             </Link>
           </div>
 

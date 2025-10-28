@@ -12,15 +12,14 @@ export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHead
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo and Title */}
+          {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-nhs-blue rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">NHS</span>
-              </div>
-              <h1 className="text-xl font-bold text-nhs-dark-blue">
-                Signposting
-              </h1>
+            <Link href="/" className="flex items-center">
+              <img
+                src="/images/signposting_logo_head.png"
+                alt="Signposting"
+                className="h-8 w-auto"
+              />
             </Link>
           </div>
 
