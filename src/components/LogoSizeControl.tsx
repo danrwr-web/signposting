@@ -8,7 +8,7 @@ const LOCAL_STORAGE_KEY = 'logoHeightPx'
 export default function LogoSizeControl() {
   const searchParams = useSearchParams()
   const show = useMemo(() => searchParams?.get('logoSize') === '1', [searchParams])
-  const [height, setHeight] = useState<number>(32)
+  const [height, setHeight] = useState<number>(58)
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -18,6 +18,9 @@ export default function LogoSizeControl() {
       if (!Number.isNaN(parsed) && parsed >= 16 && parsed <= 96) {
         setHeight(parsed)
         document.documentElement.style.setProperty('--logo-height', `${parsed}px`)
+      } else {
+        // Apply default if none stored
+        document.documentElement.style.setProperty('--logo-height', '58px')
       }
     } catch {
       // ignore storage errors

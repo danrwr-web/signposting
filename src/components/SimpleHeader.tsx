@@ -21,7 +21,7 @@ export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHead
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"
-                style={{ height: 'var(--logo-height, 32px)' }}
+                style={{ height: 'var(--logo-height, 58px)' }}
                 className="w-auto"
               />
             </Link>

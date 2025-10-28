@@ -98,7 +98,7 @@ export default function CompactToolbar({
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"
-                style={{ height: 'var(--logo-height, 28px)' }}
+                style={{ height: 'var(--logo-height, 58px)' }}
                 className="w-auto"
               />
             </Link>
