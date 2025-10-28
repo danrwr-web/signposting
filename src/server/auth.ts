@@ -160,14 +160,17 @@ export async function authenticateSurgeryAdmin(email: string, password: string):
 
 export async function authenticateSuperuser(email: string, password: string): Promise<Session | null> {
   try {
+    console.log('Superuser auth attempt:', email, 'password length:', password.length)
     // Temporary hardcoded credentials for testing
     if (email === 'dan.rwr@gmail.com' && password === 'Lant0nyn!') {
+      console.log('Superuser authenticated successfully')
       return {
         type: 'superuser',
         id: 'superuser',
         email: 'dan.rwr@gmail.com',
       }
     }
+    console.log('Superuser auth failed - credentials mismatch')
     
     // Fallback to environment variables if they exist
     const superuserEmail = process.env.SUPERUSER_EMAIL
