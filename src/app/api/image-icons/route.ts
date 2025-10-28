@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     // If phrase provided, return matching icon (for client-side use)
     if (phrase) {
       const icons = await (prisma as any).imageIcon.findMany({
+        where: { isEnabled: true }, // Only return enabled icons
         orderBy: { createdAt: 'desc' }
       })
       

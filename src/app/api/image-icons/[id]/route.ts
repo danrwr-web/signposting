@@ -3,6 +3,53 @@ import { getSession } from '@/server/auth'
 import { prisma } from '@/lib/prisma'
 import { unlink } from 'fs/promises'
 import { join } from 'path'
+import { z } from 'zod'
+
+const updateImageIconSchema = z.object({
+  isEnabled: z.boolean()
+})
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const { id } = await params
+    
+    // Only superusers can update
+    if (!session || session.type !== 'superuser') {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      )
+    }
+
+    const body = await request.json()
+    const updateData = updateImageIconSchema.parse(body)
+
+    const icon = await (prisma as any).imageIcon.update({
+      where: { id },
+      data: { isEnabled: updateData.isEnabled }
+    })
+
+    return NextResponse.json({ icon })
+  } catch (error) {
+    console.error('Error updating image icon:', error)
+    
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      )
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to update image icon' },
+      { status: 500 }
+    )
+  }
+}
 
 export async function DELETE(
   request: NextRequest,

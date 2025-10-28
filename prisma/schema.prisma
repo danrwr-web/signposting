@@ -261,10 +261,13 @@ model ImageIcon {
   alt        String?  // Alt text for accessibility
   width      Int?     // Image width in pixels
   height     Int?     // Image height in pixels
+  isEnabled  Boolean  @default(true) // Enable/disable this icon
+  surgeryId  String?  // Surgery-specific icon (null = global)
   createdBy  String   // Email of superuser who created it
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@unique([phrase])
+  @@unique([phrase, surgeryId])
   @@index([phrase])
+  @@index([surgeryId])
 }

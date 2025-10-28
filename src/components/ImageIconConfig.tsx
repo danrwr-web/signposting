@@ -11,6 +11,8 @@ interface ImageIcon {
   alt: string | null
   width: number | null
   height: number | null
+  isEnabled: boolean
+  surgeryId: string | null
   createdBy: string
   createdAt: string
 }
@@ -112,6 +114,27 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
       toast.error('Failed to add image icon')
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleToggleIcon = async (id: string, isEnabled: boolean) => {
+    try {
+      const response = await fetch(`/api/image-icons/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isEnabled })
+      })
+
+      if (response.ok) {
+        toast.success(`Image icon ${isEnabled ? 'enabled' : 'disabled'}`)
+        loadIcons()
+      } else {
+        const data = await response.json()
+        toast.error(data.error || 'Failed to update image icon')
+      }
+    } catch (error) {
+      console.error('Error updating image icon:', error)
+      toast.error('Failed to update image icon')
     }
   }
 
@@ -268,6 +291,16 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handleToggleIcon(icon.id, !icon.isEnabled)}
+                  className={`px-3 py-1 rounded text-sm ${
+                    icon.isEnabled 
+                      ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {icon.isEnabled ? 'Enabled' : 'Disabled'}
+                </button>
                 <button
                   onClick={() => handleDeleteIcon(icon.id)}
                   className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
