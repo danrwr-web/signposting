@@ -19,9 +19,11 @@ export async function GET(request: NextRequest) {
     let session
     try {
       session = await requireAuth()
+      console.log('GET /api/admin/default-highrisk-buttons - Session type:', session.type)
     } catch (authError) {
+      console.error('GET /api/admin/default-highrisk-buttons - Auth error:', authError)
       return NextResponse.json(
-        { error: 'Unauthorized: No valid session found' },
+        { error: 'Unauthorized: No valid session found', details: authError instanceof Error ? authError.message : String(authError) },
         { status: 401 }
       )
     }
@@ -30,10 +32,12 @@ export async function GET(request: NextRequest) {
     let surgeryId: string
     if (session.type === 'surgery') {
       surgeryId = session.surgeryId!
+      console.log('GET /api/admin/default-highrisk-buttons - Surgery ID from session:', surgeryId)
     } else if (session.type === 'superuser') {
       // For superusers, get surgery ID from query params
       const url = new URL(request.url)
       const surgerySlug = url.searchParams.get('surgery')
+      console.log('GET /api/admin/default-highrisk-buttons - Surgery slug from query:', surgerySlug)
       
       if (!surgerySlug) {
         return NextResponse.json(
@@ -46,13 +50,16 @@ export async function GET(request: NextRequest) {
         select: { id: true }
       })
       if (!surgery) {
+        console.log('GET /api/admin/default-highrisk-buttons - Surgery not found for slug:', surgerySlug)
         return NextResponse.json(
           { error: 'Surgery not found' },
           { status: 404 }
         )
       }
       surgeryId = surgery.id
+      console.log('GET /api/admin/default-highrisk-buttons - Surgery ID from slug:', surgeryId)
     } else {
+      console.log('GET /api/admin/default-highrisk-buttons - Unauthorized session type:', session)
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
@@ -87,8 +94,9 @@ export async function GET(request: NextRequest) {
     )
   } catch (error) {
     console.error('Error fetching default high-risk buttons:', error)
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace')
     return NextResponse.json(
-      { error: 'Failed to fetch default high-risk buttons' },
+      { error: 'Failed to fetch default high-risk buttons', details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     )
   }
