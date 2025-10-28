@@ -127,15 +127,23 @@ export async function GET(request: NextRequest) {
     // Add user-created global buttons that aren't in hardcoded list
     const userCreatedGlobalButtons = globalButtonConfigs
       .filter(config => !hardcodedButtonKeys.has(config.buttonKey))
-      .filter(config => config.isEnabled)
-      .map(config => ({
-        id: config.id,
-        label: config.label,
-        symptomSlug: config.symptomSlug,
-        symptomId: null,
-        orderIndex: config.orderIndex,
-        isDefault: true
-      }))
+      .map(config => {
+        // Check if there's a surgery-specific override
+        const surgeryOverride = configMap.get(config.buttonKey)
+        const isEnabled = surgeryOverride?.isEnabled ?? config.isEnabled
+        
+        if (!isEnabled) return null
+        
+        return {
+          id: config.id,
+          label: config.label,
+          symptomSlug: config.symptomSlug,
+          symptomId: null,
+          orderIndex: config.orderIndex,
+          isDefault: true
+        }
+      })
+      .filter(Boolean)
 
     // Mark custom links as not default
     const markedCustomLinks = customLinks.map(link => ({
