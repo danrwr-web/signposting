@@ -252,7 +252,15 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     try {
       const v = (symptom as any).variants
       setVariantHeading(v?.heading || '')
-      setVariants(Array.isArray(v?.ageGroups) ? v.ageGroups : [])
+      setVariants(Array.isArray(v?.ageGroups) ? v.ageGroups.map((g: any) => ({
+        key: g.key || '',
+        label: g.label || '',
+        instructions: g.instructions || ''
+      })) : [])
+      // Preserve position in newSymptom.variants so the select reflects existing state
+      if (v && v.position) {
+        setNewSymptom(prev => ({ ...prev, variants: { ...(prev.variants || {}), position: v.position } as any }))
+      }
     } catch {}
     setShowEditSymptomModal(true)
   }
@@ -1112,6 +1120,23 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                           placeholder="e.g., Choose Age Group"
                         />
                         <p className="text-xs text-gray-500 mt-1">Leave blank to hide the heading on the instructions page.</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-nhs-grey mb-1">
+                          Variant Position
+                        </label>
+                        <select
+                          value={(newSymptom.variants as any)?.position || 'before'}
+                          onChange={(e) => {
+                            const pos = e.target.value
+                            setNewSymptom(prev => ({ ...prev, variants: { ...(prev.variants || {}), position: pos } as any }))
+                          }}
+                          className="w-full nhs-input"
+                        >
+                          <option value="before">Before instructions</option>
+                          <option value="after">After instructions</option>
+                        </select>
                       </div>
                       {variants.map((variant, index) => (
                         <div key={index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
