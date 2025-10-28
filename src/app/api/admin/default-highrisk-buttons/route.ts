@@ -90,7 +90,8 @@ export async function GET(request: NextRequest) {
       configMap.set(cfg.buttonKey, cfg)
     }
     
-    // Build the response with all default buttons, using configs where available
+    // Start with hardcoded buttons
+    const hardcodedButtonKeys = new Set(DEFAULT_BUTTONS.map(btn => btn.buttonKey))
     const buttons = DEFAULT_BUTTONS.map(defaultButton => {
       const existingConfig = configMap.get(defaultButton.buttonKey)
       return {
@@ -100,6 +101,20 @@ export async function GET(request: NextRequest) {
         symptomSlug: existingConfig?.symptomSlug || defaultButton.symptomSlug,
         isEnabled: existingConfig?.isEnabled ?? true,
         orderIndex: existingConfig?.orderIndex ?? defaultButton.orderIndex
+      }
+    })
+
+    // Add any global configs that aren't in hardcoded list (user-created buttons)
+    globalConfigs.forEach(cfg => {
+      if (!hardcodedButtonKeys.has(cfg.buttonKey)) {
+        buttons.push({
+          id: cfg.id,
+          buttonKey: cfg.buttonKey,
+          label: cfg.label,
+          symptomSlug: cfg.symptomSlug,
+          isEnabled: cfg.isEnabled,
+          orderIndex: cfg.orderIndex
+        })
       }
     })
 
