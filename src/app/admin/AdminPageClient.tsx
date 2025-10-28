@@ -875,7 +875,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               <div className="space-y-6">
                 <HighRiskConfig 
                   surgeryId={selectedSurgery} 
-                  surgeries={surgeries.filter(s => s.slug !== null).map(s => ({ id: s.id, slug: s.slug!, name: s.name }))} 
+                  surgeries={surgeries.filter(s => s.slug !== null).map(s => ({ id: s.id, slug: s.slug!, name: s.name }))}
+                  symptoms={effectiveSymptoms.map(s => ({ slug: s.slug, name: s.name }))}
                   session={session} 
                 />
               </div>

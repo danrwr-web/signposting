@@ -227,16 +227,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create a global default button (surgeryId is undefined for global buttons)
-    // Note: After schema migration, surgeryId will be nullable
+    // For now, create a special "global" surgery entry to avoid schema issues
+    // After migration, this will use surgeryId: null
+    let globalSurgeryId = 'global-default-buttons'
+    
+    // Check if global surgery exists, if not create it
+    let globalSurgery = await prisma.surgery.findUnique({
+      where: { id: globalSurgeryId }
+    })
+    
+    if (!globalSurgery) {
+      globalSurgery = await prisma.surgery.create({
+        data: {
+          id: globalSurgeryId,
+          name: 'Global Default Buttons',
+          slug: 'global'
+        }
+      })
+    }
+    
     const newConfig = await prisma.defaultHighRiskButtonConfig.create({
       data: {
-        surgeryId: undefined as any, // Will be nullable after migration
+        surgeryId: globalSurgeryId,
         buttonKey,
         label,
         symptomSlug,
         isEnabled: true,
-        orderIndex: 0 // Will be calculated based on existing count
+        orderIndex: 0
       }
     })
     

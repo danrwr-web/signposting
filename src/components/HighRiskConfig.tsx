@@ -16,10 +16,11 @@ import HighRiskButtonsSkeleton from './HighRiskButtonsSkeleton'
 interface HighRiskConfigProps {
   surgeryId?: string
   surgeries?: Array<{ id: string; slug: string; name: string }>
+  symptoms?: Array<{ slug: string; name: string }>
   session?: Session
 }
 
-export default function HighRiskConfig({ surgeryId, surgeries, session }: HighRiskConfigProps) {
+export default function HighRiskConfig({ surgeryId, surgeries, symptoms = [], session }: HighRiskConfigProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   
   const {
@@ -77,6 +78,7 @@ export default function HighRiskConfig({ surgeryId, surgeries, session }: HighRi
         onToggleIndividual={toggleIndividualButton}
         onUpdateButton={updateButton}
         onAddButton={addGlobalDefaultButton}
+        symptoms={symptoms}
         session={session}
       />
 

@@ -14,6 +14,7 @@ interface DefaultButtonsConfigProps {
   onToggleIndividual: (buttonKey: string, isEnabled: boolean) => void
   onUpdateButton: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
   onAddButton?: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
+  symptoms?: Array<{ slug: string; name: string }>
   session?: Session
 }
 
@@ -24,11 +25,13 @@ export default function DefaultButtonsConfig({
   onToggleIndividual,
   onUpdateButton,
   onAddButton,
+  symptoms = [],
   session
 }: DefaultButtonsConfigProps) {
   const [editingButton, setEditingButton] = useState<DefaultHighRiskButtonConfig | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [newButton, setNewButton] = useState({ buttonKey: '', label: '', symptomSlug: '' })
+  const [newButton, setNewButton] = useState({ label: '', symptomSlug: '' })
+  const [symptomSearch, setSymptomSearch] = useState('')
 
   const handleUpdateButton = async () => {
     if (!editingButton) return
@@ -45,15 +48,27 @@ export default function DefaultButtonsConfig({
   }
 
   const handleAddButton = async () => {
-    if (!newButton.buttonKey || !newButton.label || !newButton.symptomSlug) return
+    if (!newButton.label || !newButton.symptomSlug) return
     if (!onAddButton) return
     
-    const success = await onAddButton(newButton.buttonKey, newButton.label, newButton.symptomSlug)
+    // Auto-generate button key from label (e.g., "Heart Attack" -> "heart-attack")
+    const buttonKey = newButton.label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+    
+    const success = await onAddButton(buttonKey, newButton.label, newButton.symptomSlug)
     if (success) {
-      setNewButton({ buttonKey: '', label: '', symptomSlug: '' })
+      setNewButton({ label: '', symptomSlug: '' })
       setShowAddForm(false)
     }
   }
+
+  // Filter symptoms based on search
+  const filteredSymptoms = symptoms.filter(s => 
+    s.name.toLowerCase().includes(symptomSearch.toLowerCase()) ||
+    s.slug.toLowerCase().includes(symptomSearch.toLowerCase())
+  )
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -96,23 +111,10 @@ export default function DefaultButtonsConfig({
       {showAddForm && session?.type === 'superuser' && (
         <div className="bg-white rounded p-4 mb-4 border border-blue-300">
           <h5 className="text-sm font-medium text-gray-900 mb-3">Add New Default Button</h5>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="add-key">
-                Button Key *
-              </label>
-              <input
-                id="add-key"
-                type="text"
-                value={newButton.buttonKey}
-                onChange={(e) => setNewButton({ ...newButton, buttonKey: e.target.value })}
-                placeholder="e.g., heart-attack"
-                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
-              />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <div>
               <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="add-label">
-                Label *
+                Button Label *
               </label>
               <input
                 id="add-label"
@@ -122,25 +124,49 @@ export default function DefaultButtonsConfig({
                 placeholder="e.g., Heart Attack"
                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
               />
+              <p className="text-xs text-gray-500 mt-1">Button key will be auto-generated</p>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="add-slug">
-                Symptom Slug *
+            <div className="relative">
+              <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="symptom-search">
+                Link to Symptom *
               </label>
               <input
-                id="add-slug"
+                id="symptom-search"
                 type="text"
-                value={newButton.symptomSlug}
-                onChange={(e) => setNewButton({ ...newButton, symptomSlug: e.target.value })}
-                placeholder="e.g., heart-attack"
+                value={symptomSearch}
+                onChange={(e) => setSymptomSearch(e.target.value)}
+                placeholder="Search symptoms..."
                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
               />
+              {symptomSearch && filteredSymptoms.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto">
+                  {filteredSymptoms.map((symptom) => (
+                    <button
+                      key={symptom.slug}
+                      type="button"
+                      onClick={() => {
+                        setNewButton({ ...newButton, symptomSlug: symptom.slug })
+                        setSymptomSearch(symptom.name)
+                      }}
+                      className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                    >
+                      <div className="font-medium">{symptom.name}</div>
+                      <div className="text-xs text-gray-500">{symptom.slug}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {newButton.symptomSlug && (
+                <p className="text-xs text-green-600 mt-1">
+                  Selected: {symptoms.find(s => s.slug === newButton.symptomSlug)?.name}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex justify-end gap-2">
             <button
               onClick={handleAddButton}
-              disabled={!newButton.buttonKey || !newButton.label || !newButton.symptomSlug}
+              disabled={!newButton.label || !newButton.symptomSlug}
               className="px-3 py-1 bg-nhs-green text-white text-xs rounded hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add Button
@@ -148,7 +174,8 @@ export default function DefaultButtonsConfig({
             <button
               onClick={() => {
                 setShowAddForm(false)
-                setNewButton({ buttonKey: '', label: '', symptomSlug: '' })
+                setNewButton({ label: '', symptomSlug: '' })
+                setSymptomSearch('')
               }}
               className="px-3 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             >
