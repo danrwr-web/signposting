@@ -33,7 +33,11 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
   const loadHighRiskLinks = useCallback(async () => {
     try {
       const url = buildApiUrl('highrisk')
-      const response = await fetch(url, { credentials: 'include', cache: 'no-store' })
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+      })
       if (response.ok) {
         const data = await response.json()
         setHighRiskLinks(data.links || [])
@@ -49,7 +53,11 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
   const loadDefaultButtons = useCallback(async () => {
     try {
       const url = buildApiUrl('default-highrisk-buttons')
-      const response = await fetch(url, { credentials: 'include', cache: 'no-store' })
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+      })
       if (response.ok) {
         const data = await response.json()
         setDefaultButtons(data.buttons || [])
@@ -75,6 +83,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({ enableDefaultHighRisk: !enableDefaultHighRisk }),
         credentials: 'include',
@@ -103,6 +112,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({ buttonKey, isEnabled }),
         credentials: 'include',
@@ -130,6 +140,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({ buttonKey, label, symptomSlug }),
         credentials: 'include',
@@ -165,6 +176,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify(newLink),
         credentials: 'include',
@@ -192,6 +204,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       const url = buildApiUrl(`highrisk/${id}`)
       const response = await fetch(url, {
         method: 'DELETE',
+        headers: { Accept: 'application/json' },
         credentials: 'include',
         cache: 'no-store',
       })
@@ -218,6 +231,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          Accept: 'application/json',
         },
         body: JSON.stringify({ orderIndex: newOrder }),
         credentials: 'include',
