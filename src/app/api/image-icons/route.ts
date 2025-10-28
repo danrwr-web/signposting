@@ -24,11 +24,8 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const phrase = url.searchParams.get('phrase')
     
-    // Check if ImageIcon model exists by checking if table exists
-    try {
-      await prisma.$queryRaw`SELECT 1 FROM "ImageIcon" LIMIT 1`
-    } catch (error: any) {
-      // Table doesn't exist yet
+    // Check if ImageIcon model exists
+    if (!('imageIcon' in prisma)) {
       if (phrase) {
         return NextResponse.json(null, { status: 200 })
       } else {
@@ -38,12 +35,12 @@ export async function GET(request: NextRequest) {
     
     // If phrase provided, return matching icon (for client-side use)
     if (phrase) {
-      const icons = await prisma.imageIcon.findMany({
+      const icons = await (prisma as any).imageIcon.findMany({
         orderBy: { createdAt: 'desc' }
       })
       
       // Find first icon whose phrase appears in the provided text (case-insensitive)
-      const matchingIcon = icons.find(icon => 
+      const matchingIcon = icons.find((icon: any) => 
         phrase.toLowerCase().includes(icon.phrase.toLowerCase())
       )
       
@@ -51,7 +48,7 @@ export async function GET(request: NextRequest) {
     }
     
     // Otherwise return all icons (for admin use)
-    const icons = await prisma.imageIcon.findMany({
+    const icons = await (prisma as any).imageIcon.findMany({
       orderBy: { createdAt: 'desc' }
     })
     return NextResponse.json({ icons })
@@ -108,7 +105,15 @@ export async function POST(request: NextRequest) {
 
     // Check if phrase already exists
     try {
-      const existing = await prisma.imageIcon.findUnique({
+      // Check if imageIcon model exists
+      if (!('imageIcon' in prisma)) {
+        return NextResponse.json(
+          { error: 'Image icon feature not available yet. Please wait for deployment to complete.' },
+          { status: 503 }
+        )
+      }
+
+      const existing = await (prisma as any).imageIcon.findUnique({
         where: { phrase: phrase.trim() }
       })
 
@@ -120,6 +125,10 @@ export async function POST(request: NextRequest) {
       }
     } catch (error) {
       console.log('Table not ready yet:', error)
+      return NextResponse.json(
+        { error: 'Database table not ready. Please wait for migration to complete.' },
+        { status: 503 }
+      )
     }
 
     // For now, store file as base64 in database instead of filesystem (Vercel doesn't allow file writes)
@@ -133,8 +142,16 @@ export async function POST(request: NextRequest) {
     const width = null
     const height = null
     
+    // Check if imageIcon model exists before trying to create
+    if (!('imageIcon' in prisma)) {
+      return NextResponse.json(
+        { error: 'Image icon feature not available yet. Please wait for deployment to complete.' },
+        { status: 503 }
+      )
+    }
+
     // Save to database with base64 data
-    const icon = await prisma.imageIcon.create({
+    const icon = await (prisma as any).imageIcon.create({
       data: {
         phrase: phrase.trim(),
         filePath: '', // Not using filesystem storage
