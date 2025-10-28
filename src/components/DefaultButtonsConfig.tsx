@@ -14,6 +14,7 @@ interface DefaultButtonsConfigProps {
   onToggleIndividual: (buttonKey: string, isEnabled: boolean) => void
   onUpdateButton: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
   onAddButton?: (buttonKey: string, label: string, symptomSlug: string) => Promise<boolean>
+  onDeleteButton?: (buttonKey: string) => Promise<boolean>
   symptoms?: Array<{ slug: string; name: string }>
   session?: Session
 }
@@ -25,6 +26,7 @@ export default function DefaultButtonsConfig({
   onToggleIndividual,
   onUpdateButton,
   onAddButton,
+  onDeleteButton,
   symptoms = [],
   session
 }: DefaultButtonsConfigProps) {
@@ -63,6 +65,13 @@ export default function DefaultButtonsConfig({
       setNewButton({ label: '', symptomSlug: '' })
       setShowAddForm(false)
     }
+  }
+
+  const handleDeleteButton = async (buttonKey: string) => {
+    if (!onDeleteButton) return
+    if (!confirm(`Are you sure you want to delete the "${defaultButtons.find(b => b.buttonKey === buttonKey)?.label}" button?`)) return
+    
+    await onDeleteButton(buttonKey)
   }
 
   // Filter symptoms based on search
@@ -281,14 +290,26 @@ export default function DefaultButtonsConfig({
                     label={`${button.label} button`}
                   />
                   {session?.type === 'superuser' && (
-                    <button
-                      onClick={() => setEditingButton(button)}
-                      className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                      title="Edit button (Superuser only)"
-                      aria-label={`Edit ${button.label} button`}
-                    >
-                      Edit
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setEditingButton(button)}
+                        className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded hover:bg-blue-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        title="Edit button (Superuser only)"
+                        aria-label={`Edit ${button.label} button`}
+                      >
+                        Edit
+                      </button>
+                      {onDeleteButton && (
+                        <button
+                          onClick={() => handleDeleteButton(button.buttonKey)}
+                          className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded hover:bg-red-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                          title="Delete button (Superuser only)"
+                          aria-label={`Delete ${button.label} button`}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

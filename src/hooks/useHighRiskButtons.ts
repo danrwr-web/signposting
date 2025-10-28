@@ -283,6 +283,37 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     }
   }, [loadDefaultButtons])
 
+  const deleteDefaultButton = useCallback(async (buttonKey: string) => {
+    try {
+      const url = buildApiUrl('default-highrisk-buttons', false) // Don't include surgery param for global
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ buttonKey }),
+        credentials: 'include',
+        cache: 'no-store',
+      })
+
+      if (response.ok) {
+        toast.success('Default button deleted successfully')
+        await loadDefaultButtons()
+        await loadHighRiskLinks()
+        return true
+      } else {
+        const error = await response.json()
+        toast.error(error.message || 'Failed to delete default button')
+        return false
+      }
+    } catch (error) {
+      console.error('Error deleting default button:', error)
+      toast.error('Failed to delete default button')
+      return false
+    }
+  }, [loadDefaultButtons, loadHighRiskLinks])
+
   return {
     highRiskLinks,
     defaultButtons,
@@ -296,6 +327,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     addCustomLink,
     deleteLink,
     updateOrder,
-    addGlobalDefaultButton
+    addGlobalDefaultButton,
+    deleteDefaultButton
   }
 }

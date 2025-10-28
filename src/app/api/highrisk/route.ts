@@ -85,11 +85,19 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    // Get individual default button configurations
-    const defaultButtonConfigs = await prisma.defaultHighRiskButtonConfig.findMany({
-      where: { surgeryId },
-      orderBy: { orderIndex: 'asc' }
-    })
+    const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
+    // Get individual default button configurations for this surgery AND global defaults
+    const [defaultButtonConfigs, globalButtonConfigs] = await Promise.all([
+      prisma.defaultHighRiskButtonConfig.findMany({
+        where: { surgeryId },
+        orderBy: { orderIndex: 'asc' }
+      }),
+      prisma.defaultHighRiskButtonConfig.findMany({
+        where: { surgeryId: GLOBAL_SURGERY_ID },
+        orderBy: { orderIndex: 'asc' }
+      })
+    ])
 
     // Define default buttons with their configurations
     const defaultButtons = [
@@ -100,10 +108,17 @@ export async function GET(req: NextRequest) {
       { buttonKey: 'meningitis', label: 'Meningitis Rash', symptomSlug: 'meningitis', orderIndex: 4 }
     ]
 
-    // Create a map of existing configs by buttonKey
-    const configMap = new Map(defaultButtonConfigs.map(config => [config.buttonKey, config]))
+    // Create a map of existing configs by buttonKey (global first, then surgery-specific overrides)
+    const configMap = new Map()
+    for (const config of globalButtonConfigs) {
+      configMap.set(config.buttonKey, config)
+    }
+    for (const config of defaultButtonConfigs) {
+      configMap.set(config.buttonKey, config) // Surgery-specific overrides global
+    }
 
     // Build enabled default buttons based on individual configurations
+    const hardcodedButtonKeys = new Set(defaultButtons.map(btn => btn.buttonKey))
     const enabledDefaultButtons = defaultButtons
       .map(defaultButton => {
         const config = configMap.get(defaultButton.buttonKey)
@@ -121,8 +136,20 @@ export async function GET(req: NextRequest) {
       })
       .filter(Boolean)
 
-    // Combine enabled default buttons and custom links
-    const allLinks = [...enabledDefaultButtons, ...customLinks]
+    // Add user-created global buttons that aren't in hardcoded list
+    const userCreatedGlobalButtons = globalButtonConfigs
+      .filter(config => !hardcodedButtonKeys.has(config.buttonKey))
+      .filter(config => config.isEnabled)
+      .map(config => ({
+        id: config.id,
+        label: config.label,
+        symptomSlug: config.symptomSlug,
+        symptomId: null,
+        orderIndex: config.orderIndex
+      }))
+
+    // Combine enabled default buttons, user-created global buttons, and custom links
+    const allLinks = [...enabledDefaultButtons, ...userCreatedGlobalButtons, ...customLinks]
     
     return NextResponse.json(
       GetHighRiskResZ.parse({ links: allLinks }),

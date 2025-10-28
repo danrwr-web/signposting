@@ -36,7 +36,8 @@ export default function HighRiskConfig({ surgeryId, surgeries, symptoms = [], se
     addCustomLink,
     deleteLink,
     updateOrder,
-    addGlobalDefaultButton
+    addGlobalDefaultButton,
+    deleteDefaultButton
   } = useHighRiskButtons({ surgeryId, surgeries })
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function HighRiskConfig({ surgeryId, surgeries, symptoms = [], se
         onToggleIndividual={toggleIndividualButton}
         onUpdateButton={updateButton}
         onAddButton={addGlobalDefaultButton}
+        onDeleteButton={deleteDefaultButton}
         symptoms={symptoms}
         session={session}
       />

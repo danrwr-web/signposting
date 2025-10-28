@@ -304,3 +304,63 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const session = await requireAuth()
+    
+    // Only superusers can delete default buttons
+    if (session.type !== 'superuser') {
+      return NextResponse.json(
+        { error: 'Unauthorized: Only superusers can delete default buttons' },
+        { status: 403 }
+      )
+    }
+    
+    const body = await request.json()
+    const { buttonKey } = body
+
+    if (!buttonKey) {
+      return NextResponse.json(
+        { error: 'buttonKey is required' },
+        { status: 400 }
+      )
+    }
+
+    const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
+    // Find and delete the config from the global surgery
+    const existingConfig = await prisma.defaultHighRiskButtonConfig.findUnique({
+      where: {
+        surgeryId_buttonKey: {
+          surgeryId: GLOBAL_SURGERY_ID,
+          buttonKey
+        }
+      }
+    })
+
+    if (!existingConfig) {
+      return NextResponse.json(
+        { error: 'Default button not found' },
+        { status: 404 }
+      )
+    }
+
+    await prisma.defaultHighRiskButtonConfig.delete({
+      where: { id: existingConfig.id }
+    })
+
+    // Also delete any surgery-specific overrides for this button
+    await prisma.defaultHighRiskButtonConfig.deleteMany({
+      where: { buttonKey }
+    })
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (error) {
+    console.error('Error deleting default button:', error)
+    return NextResponse.json(
+      { error: 'Failed to delete default button' },
+      { status: 500 }
+    )
+  }
+}
