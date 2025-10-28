@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getSession } from '@/server/auth'
 // Note: Sharp is heavy, using basic file handling for now
 // import sharp from 'sharp'
 import { writeFile, mkdir } from 'fs/promises'
@@ -69,19 +68,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const session = await getSession()
     
     // Check if user is authenticated and is superuser
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 403 }
-      )
-    }
-    
-    // Check if user is superuser
-    const isSuperuser = (session.user as any).globalRole === 'SUPERUSER'
-    if (!isSuperuser) {
+    if (!session || session.type !== 'superuser') {
       return NextResponse.json(
         { error: 'Unauthorized - superuser only' },
         { status: 403 }
@@ -152,7 +142,7 @@ export async function POST(request: NextRequest) {
         alt: alt || phrase.trim(),
         width,
         height,
-        createdBy: session.user?.email || 'unknown'
+        createdBy: session.email || 'unknown'
       }
     })
 
