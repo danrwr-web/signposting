@@ -2,7 +2,7 @@
  * Default buttons configuration component
  */
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { DefaultHighRiskButtonConfig } from '@/lib/api-contracts'
 import { Session } from '@/server/auth'
 import ToggleSwitch from './ToggleSwitch'
@@ -32,6 +32,7 @@ export default function DefaultButtonsConfig({
   const [showAddForm, setShowAddForm] = useState(false)
   const [newButton, setNewButton] = useState({ label: '', symptomSlug: '' })
   const [symptomSearch, setSymptomSearch] = useState('')
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const handleUpdateButton = async () => {
     if (!editingButton) return
@@ -69,6 +70,23 @@ export default function DefaultButtonsConfig({
     s.name.toLowerCase().includes(symptomSearch.toLowerCase()) ||
     s.slug.toLowerCase().includes(symptomSearch.toLowerCase())
   )
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setSymptomSearch('')
+      }
+    }
+
+    if (symptomSearch) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [symptomSearch])
 
   return (
     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -126,7 +144,7 @@ export default function DefaultButtonsConfig({
               />
               <p className="text-xs text-gray-500 mt-1">Button key will be auto-generated</p>
             </div>
-            <div className="relative">
+            <div className="relative" ref={dropdownRef}>
               <label className="block text-xs font-medium text-gray-700 mb-1" htmlFor="symptom-search">
                 Link to Symptom *
               </label>
@@ -139,14 +157,17 @@ export default function DefaultButtonsConfig({
                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
               />
               {symptomSearch && filteredSymptoms.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto">
+                <div 
+                  className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {filteredSymptoms.map((symptom) => (
                     <button
                       key={symptom.slug}
                       type="button"
                       onClick={() => {
                         setNewButton({ ...newButton, symptomSlug: symptom.slug })
-                        setSymptomSearch(symptom.name)
+                        setSymptomSearch('') // Clear search to hide dropdown
                       }}
                       className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
                     >
