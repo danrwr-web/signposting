@@ -150,13 +150,30 @@ export async function PATCH(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { buttonKey, label, symptomSlug, isEnabled, orderIndex } = UpdateDefaultHighRiskButtonReqZ.parse(body)
+    console.log('PATCH /api/admin/default-highrisk-buttons - Request body:', JSON.stringify(body))
+    
+    let parsed
+    try {
+      parsed = UpdateDefaultHighRiskButtonReqZ.parse(body)
+    } catch (parseError) {
+      console.error('PATCH /api/admin/default-highrisk-buttons - Validation error:', parseError)
+      return NextResponse.json(
+        { error: 'Invalid request', details: parseError instanceof Error ? parseError.message : String(parseError) },
+        { status: 400 }
+      )
+    }
+    
+    const { buttonKey, label, symptomSlug, isEnabled, orderIndex } = parsed
+    
+    console.log('PATCH /api/admin/default-highrisk-buttons - Parsed params:', { buttonKey, label, symptomSlug, isEnabled, orderIndex })
+    console.log('PATCH /api/admin/default-highrisk-buttons - Session type:', session.type)
 
     // Determine surgery ID based on session type
     let surgeryId: string | null
     const GLOBAL_SURGERY_ID = 'global-default-buttons'
     if (session.type === 'surgery') {
       surgeryId = session.surgeryId!
+      console.log('PATCH /api/admin/default-highrisk-buttons - Surgery ID from session:', surgeryId)
     } else if (session.type === 'superuser') {
       // For superusers, get surgery ID from query params
       const url = new URL(request.url)
@@ -184,9 +201,21 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Check if this is a valid default button key OR allow new key when surgeryId is global
+    console.log('PATCH /api/admin/default-highrisk-buttons - Resolved surgeryId:', surgeryId)
+    console.log('PATCH /api/admin/default-highrisk-buttons - Button key:', buttonKey)
+    console.log('PATCH /api/admin/default-highrisk-buttons - Valid default button keys:', DEFAULT_BUTTONS.map(btn => btn.buttonKey))
+    
+    // Check if this is a valid default button key OR a user-created global button
     const defaultButton = DEFAULT_BUTTONS.find(btn => btn.buttonKey === buttonKey)
-    if (!defaultButton && surgeryId !== GLOBAL_SURGERY_ID) {
+    
+    // Also check if it's a user-created global button
+    const globalConfigs = await prisma.defaultHighRiskButtonConfig.findMany({
+      where: { surgeryId: GLOBAL_SURGERY_ID }
+    })
+    const isUserCreatedButton = globalConfigs.some(cfg => cfg.buttonKey === buttonKey)
+    
+    if (!defaultButton && !isUserCreatedButton && surgeryId !== GLOBAL_SURGERY_ID) {
+      console.error('PATCH /api/admin/default-highrisk-buttons - Invalid button key:', buttonKey, 'for surgery:', surgeryId)
       return NextResponse.json(
         { error: 'Invalid default button key' },
         { status: 400 }
