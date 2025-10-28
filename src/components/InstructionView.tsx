@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
+import Image from 'next/image'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SuggestionModal from './SuggestionModal'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
@@ -40,6 +41,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [editVariantHeading, setEditVariantHeading] = useState<string>('')
   const [editVariantPosition, setEditVariantPosition] = useState<'before' | 'after'>('before')
   const [editVariantGroups, setEditVariantGroups] = useState<Array<{ key: string; label: string; instructions: string }>>([])
+  // Image icon state
+  const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
+  const [imageIconUrl, setImageIconUrl] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -77,15 +81,27 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
-          const { highlights } = json
+          const { highlights, enableImageIcons: imageIconsEnabled } = json
           setHighlightRules(Array.isArray(highlights) ? highlights : [])
+          setEnableImageIcons(imageIconsEnabled ?? true)
+          
+          // Load image icon if enabled
+          if (imageIconsEnabled && symptom.briefInstruction) {
+            const iconResponse = await fetch(`/api/image-icons?phrase=${encodeURIComponent(symptom.briefInstruction)}`)
+            if (iconResponse.ok) {
+              const iconData = await iconResponse.json()
+              if (iconData && iconData.imageUrl) {
+                setImageIconUrl(iconData.imageUrl)
+              }
+            }
+          }
         }
       } catch (error) {
         console.error('Failed to load highlight rules:', error)
       }
     }
     loadHighlightRules()
-  }, [surgeryId])
+  }, [surgeryId, symptom.briefInstruction])
 
   const getSourceColor = (source: string) => {
     switch (source) {
@@ -465,12 +481,24 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               </div>
             </div>
           ) : (
-            <p 
-              className="text-lg text-nhs-grey mb-4"
-              dangerouslySetInnerHTML={{ 
-                __html: highlightText(symptom.briefInstruction || '') 
-              }}
-            />
+            <div className="flex items-start gap-4 mb-4">
+              <p 
+                className="text-lg text-nhs-grey flex-1"
+                dangerouslySetInnerHTML={{ 
+                  __html: highlightText(symptom.briefInstruction || '') 
+                }}
+              />
+              {imageIconUrl && enableImageIcons && (
+                <div className="relative w-32 h-32 flex-shrink-0">
+                  <Image
+                    src={imageIconUrl}
+                    alt=""
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              )}
+            </div>
           )}
         </div>
 
