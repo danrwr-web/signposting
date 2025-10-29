@@ -8,9 +8,14 @@ A responsive NHS-style signposting web application built with Next.js 15, TypeSc
 - **Multi-tenant Architecture**: Each surgery can have customized symptom information
 - **Base Data + Overrides**: Base symptoms with per-surgery overrides
 - **Excel Import**: Upload Excel files to seed/refresh base symptom data
+- **Rich Text Editor**: TipTap-powered editor for formatting instructions with colors and highlighting
+- **Image Icons**: Upload images that appear on symptom cards when specific phrases are detected
+- **Advanced Highlighting**: Custom highlight rules with phrase matching and color customization
 - **Search & Filtering**: Search symptoms and filter by age group
 - **Engagement Tracking**: Track symptom views and user suggestions
 - **Admin Dashboards**: Global and per-surgery administration
+- **High-Risk Quick Access**: Dedicated buttons for urgent conditions (Anaphylaxis, Stroke, Chest Pain, Sepsis, Meningitis)
+- **Performance Optimized**: API caching, batched requests, and optimized database queries
 - **NHS Styling**: Clean, accessible design following NHS guidelines
 - **Authentication**: NextAuth.js with credentials provider
 
@@ -21,9 +26,12 @@ A responsive NHS-style signposting web application built with Next.js 15, TypeSc
 - **Styling**: Tailwind CSS
 - **Database**: Prisma + SQLite (dev) / PostgreSQL (prod)
 - **Authentication**: NextAuth.js with credentials provider
+- **Rich Text Editing**: TipTap with ProseMirror
 - **Excel Parsing**: SheetJS (xlsx)
+- **Image Optimization**: Next.js Image component
 - **UI Components**: Custom components with NHS styling
 - **Testing**: Jest + React Testing Library
+- **Performance**: API response caching, batched requests, optimized queries
 
 ## Setup
 
@@ -147,6 +155,8 @@ The seed script creates these test accounts (password = email address):
 - **SurgeryCustomSymptom**: Surgery-specific custom symptoms
 - **Suggestion**: User feedback and suggestions
 - **EngagementEvent**: Tracks user interactions
+- **ImageIcon**: Images that display on symptom cards when phrases are matched
+- **HighlightRule**: Custom highlighting rules for text matching
 
 ### Data Resolution
 
@@ -162,11 +172,12 @@ The app uses a sophisticated data resolution system:
 ### For End Users
 
 1. **Select Surgery**: Use the dropdown in the header to choose your surgery
-2. **Browse Symptoms**: View symptoms in a responsive grid layout
+2. **Browse Symptoms**: View symptoms in a responsive grid layout with image icons when applicable
 3. **Search & Filter**: Use the search box and age filters to find relevant information
 4. **High-Risk Quick Access**: Use red buttons for urgent conditions (Anaphylaxis, Stroke, Chest Pain, Sepsis, Meningitis)
-5. **View Details**: Click on symptoms to see detailed instructions with enhanced highlighting
+5. **View Details**: Click on symptoms to see detailed instructions with enhanced highlighting and images
 6. **Suggest Improvements**: Use the suggestion button to provide feedback
+7. **Image Icons**: Icons automatically appear on symptom cards and instruction pages when configured phrases are detected
 
 ### For Administrators
 
@@ -195,6 +206,11 @@ The app uses a sophisticated data resolution system:
 - **Surgery-Specific**: Rules can be global or surgery-specific
 - **Active/Inactive**: Toggle rules on/off
 - **Built-in Info**: View default slot highlighting
+- **Image Icons Management**: 
+  - **Superusers**: Upload images that appear on symptom cards when phrases are detected
+  - **Admins**: Toggle image icons on/off for their surgery
+  - **Size Control**: Set individual sizes for symptom cards and instruction pages (Small/Medium/Large)
+  - **Phrase Matching**: Icons appear when their phrase appears in brief instructions
 
 #### Engagement Tab
 - **Analytics**: Monitor symptom views and user engagement
@@ -277,17 +293,44 @@ The application automatically highlights appointment slot types and supports cus
 
 Example: "Book a green slot appointment" will display with "green slot" highlighted in green.
 
+### Image Icons Feature
+
+Superusers can upload images that automatically appear on symptom cards and instruction pages when specific phrases are detected in brief instructions.
+
+#### Features
+- **Phrase Matching**: Images appear when their configured phrase appears in brief instructions (case-insensitive)
+- **Separate Sizes**: Configure different sizes for symptom cards (small/medium/large) and instruction pages (small/medium/large)
+- **Surgery Control**: Admins can enable/disable image icons for their surgery
+- **Per-Icon Toggle**: Superusers can enable/disable individual icons
+- **Accessibility**: Alt text support for screen readers
+
+#### Usage
+1. Go to Admin Panel → Highlights tab
+2. Scroll to "Image Icons" section (superuser only)
+3. Click "Add Icon" to upload a new image
+4. Enter the matching phrase and configure sizes
+5. Icons will automatically appear on relevant symptom cards and instruction pages
+6. Admins can toggle icons on/off for their surgery without uploading new ones
+
 ## API Endpoints
 
 ### Public APIs
 - `GET /api/symptoms` - Get effective symptoms for current surgery
 - `GET /api/symptoms/[id]` - Get specific symptom details
 - `POST /api/suggestions` - Submit user suggestions
+- `GET /api/highlights` - Get highlight rules for current surgery
+- `GET /api/highrisk` - Get high-risk quick access buttons
+- `GET /api/symptom-card-data` - Combined endpoint for symptom card data (highlights + icons)
+- `GET /api/image-icons` - Get image icon by phrase (client-side) or all icons (superuser)
 
 ### Admin APIs
 - `POST /api/admin/upload-excel` - Upload Excel file
 - `GET/POST/DELETE /api/admin/overrides` - Manage symptom overrides
 - `GET /api/engagement/top` - Get engagement analytics
+- `POST /api/image-icons` - Upload new image icon (superuser only)
+- `PATCH /api/image-icons/[id]` - Update image icon (enable/disable, sizes) (superuser only)
+- `DELETE /api/image-icons/[id]` - Delete image icon (superuser only)
+- `POST /api/admin/surgery-settings` - Update surgery settings (enableImageIcons, etc.)
 
 ## Deployment
 
@@ -334,6 +377,8 @@ npx prisma migrate dev --name init
 npx prisma migrate deploy
 ```
 
+**Note**: The `postinstall` script automatically runs `prisma migrate deploy` during Vercel deployments. Ensure your `DATABASE_URL` environment variable is set correctly.
+
 ## Customization
 
 ### Adding New Surgeries
@@ -358,6 +403,26 @@ The app uses NHS color palette and Inter font. Customize in:
 3. **New Components**: Add reusable components in `src/components/`
 4. **Database Changes**: Update `prisma/schema.prisma` and run migrations
 
+## Performance Optimizations
+
+The application includes several performance optimizations:
+
+- **API Response Caching**: Public APIs cache responses for 60 seconds with stale-while-revalidate
+- **Batched Requests**: Symptom card data is fetched in a single combined endpoint
+- **Optimized Queries**: Database queries use selective field selection to reduce payload size
+- **No Polling**: Removed automatic refresh intervals to reduce server load
+- **Image Optimization**: Next.js Image component handles responsive images and lazy loading
+- **Database Indexing**: Strategic indexes on frequently queried fields
+
+### Cache Strategy
+
+Most API endpoints use the following caching strategy:
+- **Cache Duration**: 60 seconds (`s-maxage=60`)
+- **Stale While Revalidate**: 120 seconds
+- **Public Caching**: Responses are cacheable by CDN and browsers
+
+Admin endpoints use `no-store` to ensure fresh data for administrative actions.
+
 ## Troubleshooting
 
 ### Common Issues
@@ -366,6 +431,14 @@ The app uses NHS color palette and Inter font. Customize in:
 2. **Excel Upload**: Check file format and column names
 3. **Authentication**: Verify ADMIN_PASSCODE in environment
 4. **Build Errors**: Run `npm run db:generate` after schema changes
+5. **Image Icons Not Appearing**: 
+   - Check that the phrase matches text in brief instructions (case-insensitive)
+   - Verify that image icons are enabled for the surgery
+   - Check that the icon is enabled in the admin panel
+6. **Slow Performance**: 
+   - Clear browser cache if experiencing stale data
+   - Check network tab for API response times
+   - Verify database indexes are properly created
 
 ### Development Commands
 
