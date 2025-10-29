@@ -45,9 +45,8 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
     if (currentSurgeryId && surgerySlug) {
       setIsLoadingSymptoms(true)
       
-      // Add timestamp to force refresh and avoid caching issues
-      const timestamp = Date.now()
-      fetch(`/api/symptoms?surgery=${surgerySlug}&t=${timestamp}`)
+      // Use cached API response - cache headers handle freshness
+      fetch(`/api/symptoms?surgery=${surgerySlug}`)
         .then(response => response.json())
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
@@ -66,29 +65,8 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms }:
     }
   }, [currentSurgeryId, surgerySlug])
 
-  // Periodic refresh of symptoms to pick up override changes
-  useEffect(() => {
-    if (currentSurgeryId && surgerySlug) {
-      const interval = setInterval(() => {
-        const timestamp = Date.now()
-        
-        fetch(`/api/symptoms?surgery=${surgerySlug}&t=${timestamp}`)
-          .then(response => response.json())
-          .then(data => {
-            if (data.symptoms && Array.isArray(data.symptoms)) {
-              // Ensure symptoms are sorted alphabetically
-              const sortedSymptoms = data.symptoms.sort((a: any, b: any) => a.name.localeCompare(b.name))
-              setSymptoms(sortedSymptoms)
-            }
-          })
-          .catch(error => {
-            console.error('Error refreshing symptoms:', error)
-          })
-      }, 30000) // Refresh every 30 seconds
-      
-      return () => clearInterval(interval)
-    }
-  }, [currentSurgeryId, surgerySlug])
+  // Manual refresh function - symptoms are refreshed when surgery changes or user explicitly refreshes
+  // Removed automatic polling to reduce server load and improve performance
 
   // Load age filter from localStorage
   useEffect(() => {

@@ -23,47 +23,56 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
 
 
-  // Load highlight rules from API
+  // Load highlight rules and image icon from combined API endpoint
   useEffect(() => {
-  const loadHighlightRules = async () => {
-    try {
-      // Build URL with surgeryId parameter if available
-      let url = '/api/highlights'
-      if (effectiveSurgerySlug) {
-        // Pass the surgerySlug directly - the API will handle conversion to surgeryId
-        url += `?surgeryId=${encodeURIComponent(effectiveSurgerySlug)}`
-      }
+    const loadCardData = async () => {
+      try {
+        // Build URL with surgeryId and phrase for combined data fetch
+        let url = '/api/symptom-card-data'
+        const params = new URLSearchParams()
+        if (effectiveSurgerySlug) {
+          params.append('surgeryId', effectiveSurgerySlug)
+        }
+        if (symptom.briefInstruction) {
+          params.append('phrase', symptom.briefInstruction)
+        }
+        if (params.toString()) {
+          url += `?${params.toString()}`
+        }
         
-        const response = await fetch(url, { cache: 'no-store' })
+        // Single API call for all card data - uses caching
+        const response = await fetch(url)
         if (response.ok) {
           const json = await response.json()
-          const { highlights, enableBuiltInHighlights: builtInEnabled, enableImageIcons: imageIconsEnabled } = json
+          const { 
+            highlights, 
+            enableBuiltInHighlights: builtInEnabled, 
+            enableImageIcons: imageIconsEnabled,
+            imageIcon: iconData
+          } = json
+          
           setHighlightRules(Array.isArray(highlights) ? highlights : [])
           setEnableBuiltInHighlights(builtInEnabled ?? true)
           setEnableImageIcons(imageIconsEnabled ?? true)
           
-          // Load image icon if enabled
-          if (imageIconsEnabled && symptom.briefInstruction) {
-            const iconResponse = await fetch(`/api/image-icons?phrase=${encodeURIComponent(symptom.briefInstruction)}`)
-            if (iconResponse.ok) {
-              const iconData = await iconResponse.json()
-              if (iconData && iconData.imageUrl) {
-                setImageIcon({ 
-                  imageUrl: iconData.imageUrl, 
-                  cardSize: iconData.cardSize || 'medium' 
-                })
-              }
-            }
+          // Set image icon if available
+          if (iconData && iconData.imageUrl) {
+            setImageIcon({ 
+              imageUrl: iconData.imageUrl, 
+              cardSize: iconData.cardSize || 'medium' 
+            })
+          } else {
+            setImageIcon(null)
           }
         } else {
-          console.error('SymptomCard: Failed to fetch highlights:', response.status, response.statusText)
+          console.error('SymptomCard: Failed to fetch card data:', response.status, response.statusText)
         }
       } catch (error) {
-        console.error('Failed to load highlight rules:', error)
+        console.error('Failed to load card data:', error)
       }
     }
-    loadHighlightRules()
-  }, [effectiveSurgerySlug])
+    loadCardData()
+  }, [effectiveSurgerySlug, symptom.briefInstruction])
 
   const getSourceColor = (source: string) => {
     switch (source) {

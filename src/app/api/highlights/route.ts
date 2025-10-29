@@ -57,14 +57,16 @@ export async function GET(request: NextRequest) {
     // Combine all rules
     const highlights = [...globalRules, ...surgeryRules]
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       { 
         highlights,
         enableBuiltInHighlights,
         enableImageIcons 
-      },
-      { headers: { 'Cache-Control': 'private, max-age=30' } }
+      }
     )
+    // Cache for 60s with stale-while-revalidate for better performance
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+    return response
   } catch (error) {
     console.error('Error fetching highlight rules:', error)
     return NextResponse.json(

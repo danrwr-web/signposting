@@ -86,21 +86,15 @@ export async function GET(req: NextRequest) {
       )
     }
     
-    return NextResponse.json(
-      { symptoms: filteredSymptoms },
-      { 
-        status: 200,
-        headers: { 'Cache-Control': 'private, max-age=30' }
-      }
-    )
+    const response = NextResponse.json({ symptoms: filteredSymptoms })
+    // Cache symptoms for 60s - they don't change frequently
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+    return response
   } catch (error) {
     console.error('Error fetching symptoms:', error)
-    return NextResponse.json(
-      { symptoms: [] },
-      { 
-        status: 200,
-        headers: { 'Cache-Control': 'private, max-age=5' }
-      }
-    )
+    const response = NextResponse.json({ symptoms: [] })
+    // Shorter cache on error
+    response.headers.set('Cache-Control', 'public, s-maxage=5')
+    return response
   }
 }

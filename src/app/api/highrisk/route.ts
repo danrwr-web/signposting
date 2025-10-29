@@ -58,13 +58,9 @@ export async function GET(req: NextRequest) {
         { id: 'default-5', label: 'Meningitis Rash', symptomSlug: 'meningitis', symptomId: null, orderIndex: 4 }
       ]
       
-      return NextResponse.json(
-        GetHighRiskResZ.parse({ links: defaultButtons }),
-        { 
-          status: 200,
-          headers: { 'Cache-Control': 'private, max-age=30' }
-        }
-      )
+      const response = NextResponse.json(GetHighRiskResZ.parse({ links: defaultButtons }))
+      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+      return response
     }
     
     // Get surgery config and custom links
@@ -169,13 +165,9 @@ export async function GET(req: NextRequest) {
     const allLinks = [...enabledDefaultButtons, ...userCreatedGlobalButtons, ...markedCustomLinks]
       .sort((a, b) => (a?.orderIndex ?? 0) - (b?.orderIndex ?? 0))
     
-    return NextResponse.json(
-      GetHighRiskResZ.parse({ links: allLinks }),
-      { 
-        status: 200,
-        headers: { 'Cache-Control': 'private, max-age=30' }
-      }
-    )
+    const response = NextResponse.json(GetHighRiskResZ.parse({ links: allLinks }))
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+    return response
   } catch (error) {
     console.error('Error fetching high-risk links:', error)
     return NextResponse.json(

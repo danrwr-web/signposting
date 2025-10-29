@@ -35,17 +35,30 @@ export async function GET(request: NextRequest) {
     
     // If phrase provided, return matching icon (for client-side use - no auth required)
     if (phrase) {
+      // Fetch only enabled icons with minimal fields needed for matching
       const icons = await (prisma as any).imageIcon.findMany({
-        where: { isEnabled: true }, // Only return enabled icons
+        where: { isEnabled: true },
+        select: {
+          id: true,
+          phrase: true,
+          imageUrl: true,
+          alt: true,
+          cardSize: true,
+          instructionSize: true
+        },
         orderBy: { createdAt: 'desc' }
       })
       
       // Find first icon whose phrase appears in the provided text (case-insensitive)
-      const matchingIcon = icons.find((icon: any) => 
-        phrase.toLowerCase().includes(icon.phrase.toLowerCase())
+      const phraseLower = phrase.toLowerCase()
+      const matchingIcon = icons.find((icon: any) =>
+        phraseLower.includes(icon.phrase.toLowerCase())
       )
       
-      return NextResponse.json(matchingIcon || null)
+      // Add cache header - icons don't change frequently
+      const response = NextResponse.json(matchingIcon || null)
+      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+      return response
     }
     
     // Otherwise, return all icons (for admin use - requires superuser)
