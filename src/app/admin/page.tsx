@@ -4,6 +4,7 @@ export const revalidate = 0
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import AdminDashboardClient from './AdminDashboardClient'
 import AdminPageWrapper from './AdminPageWrapper'
 
