@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/server/auth'
+import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { GetHighRiskResZ, CreateHighRiskReqZ } from '@/lib/api-contracts'
 
@@ -13,45 +13,56 @@ export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await requireAuth()
-    console.log('GET /api/admin/highrisk - Session type:', session.type)
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const url = new URL(request.url)
+    const surgerySlug = url.searchParams.get('surgery')
     
-    // Determine surgery ID based on session type
+    // Determine surgery ID
     let surgeryId: string
-    if (session.type === 'surgery') {
-      surgeryId = session.surgeryId!
-      console.log('GET /api/admin/highrisk - Surgery ID from session:', surgeryId)
-    } else if (session.type === 'superuser') {
-      // For superusers, get surgery ID from query params
-      const url = new URL(request.url)
-      const surgerySlug = url.searchParams.get('surgery')
-      console.log('GET /api/admin/highrisk - Surgery slug from query:', surgerySlug)
-      
-      if (!surgerySlug) {
-        return NextResponse.json(
-          { error: 'Surgery parameter required for superuser' },
-          { status: 400 }
-        )
-      }
+    if (surgerySlug) {
+      // Surgery ID provided via query param (superuser or admin accessing specific surgery)
       const surgery = await prisma.surgery.findUnique({
         where: { slug: surgerySlug },
         select: { id: true }
       })
       if (!surgery) {
-        console.log('GET /api/admin/highrisk - Surgery not found for slug:', surgerySlug)
         return NextResponse.json(
           { error: 'Surgery not found' },
           { status: 404 }
         )
       }
       surgeryId = surgery.id
-      console.log('GET /api/admin/highrisk - Surgery ID from slug:', surgeryId)
+      
+      // Verify user has admin access to this surgery
+      if (user.globalRole !== 'SUPERUSER') {
+        await requireSurgeryAdmin(surgeryId)
+      }
     } else {
-      console.log('GET /api/admin/highrisk - Unauthorized session type:', session)
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      // No surgery param - use user's default surgery or first admin surgery
+      if (user.globalRole === 'SUPERUSER') {
+        return NextResponse.json(
+          { error: 'Surgery parameter required for superuser' },
+          { status: 400 }
+        )
+      }
+      
+      // For non-superusers, require admin access to their default surgery
+      if (!user.defaultSurgeryId) {
+        return NextResponse.json(
+          { error: 'No default surgery assigned' },
+          { status: 403 }
+        )
+      }
+      
+      surgeryId = user.defaultSurgeryId
+      await requireSurgeryAdmin(surgeryId)
     }
     
     // Get surgery config and custom links
@@ -171,24 +182,23 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { label, symptomSlug, symptomId, orderIndex } = CreateHighRiskReqZ.parse(body)
 
-    // Determine surgery ID based on session type
+    const url = new URL(request.url)
+    const surgerySlug = url.searchParams.get('surgery')
+    
+    // Determine surgery ID
     let surgeryId: string
-    if (session.type === 'surgery') {
-      surgeryId = session.surgeryId!
-    } else if (session.type === 'superuser') {
-      // For superusers, get surgery ID from query params
-      const url = new URL(request.url)
-      const surgerySlug = url.searchParams.get('surgery')
-      if (!surgerySlug) {
-        return NextResponse.json(
-          { error: 'Surgery parameter required for superuser' },
-          { status: 400 }
-        )
-      }
+    if (surgerySlug) {
       const surgery = await prisma.surgery.findUnique({
         where: { slug: surgerySlug },
         select: { id: true }
@@ -200,11 +210,28 @@ export async function POST(request: NextRequest) {
         )
       }
       surgeryId = surgery.id
+      
+      // Verify user has admin access to this surgery
+      if (user.globalRole !== 'SUPERUSER') {
+        await requireSurgeryAdmin(surgeryId)
+      }
     } else {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      if (user.globalRole === 'SUPERUSER') {
+        return NextResponse.json(
+          { error: 'Surgery parameter required for superuser' },
+          { status: 400 }
+        )
+      }
+      
+      if (!user.defaultSurgeryId) {
+        return NextResponse.json(
+          { error: 'No default surgery assigned' },
+          { status: 403 }
+        )
+      }
+      
+      surgeryId = user.defaultSurgeryId
+      await requireSurgeryAdmin(surgeryId)
     }
 
     // Check if label already exists for this surgery
@@ -259,7 +286,14 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await requireAuth()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     const body = await request.json()
     const { enableDefaultHighRisk } = body
 
@@ -270,20 +304,12 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // Determine surgery ID based on session type
+    const url = new URL(request.url)
+    const surgerySlug = url.searchParams.get('surgery')
+    
+    // Determine surgery ID
     let surgeryId: string
-    if (session.type === 'surgery') {
-      surgeryId = session.surgeryId!
-    } else if (session.type === 'superuser') {
-      // For superusers, get surgery ID from query params
-      const url = new URL(request.url)
-      const surgerySlug = url.searchParams.get('surgery')
-      if (!surgerySlug) {
-        return NextResponse.json(
-          { error: 'Surgery parameter required for superuser' },
-          { status: 400 }
-        )
-      }
+    if (surgerySlug) {
       const surgery = await prisma.surgery.findUnique({
         where: { slug: surgerySlug },
         select: { id: true }
@@ -295,11 +321,28 @@ export async function PATCH(request: NextRequest) {
         )
       }
       surgeryId = surgery.id
+      
+      // Verify user has admin access to this surgery
+      if (user.globalRole !== 'SUPERUSER') {
+        await requireSurgeryAdmin(surgeryId)
+      }
     } else {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      if (user.globalRole === 'SUPERUSER') {
+        return NextResponse.json(
+          { error: 'Surgery parameter required for superuser' },
+          { status: 400 }
+        )
+      }
+      
+      if (!user.defaultSurgeryId) {
+        return NextResponse.json(
+          { error: 'No default surgery assigned' },
+          { status: 403 }
+        )
+      }
+      
+      surgeryId = user.defaultSurgeryId
+      await requireSurgeryAdmin(surgeryId)
     }
 
     await prisma.surgery.update({

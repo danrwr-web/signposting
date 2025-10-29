@@ -1,3 +1,4 @@
+// DEV-ONLY: This route is disabled in production.
 import 'server-only'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -6,6 +7,14 @@ import bcrypt from 'bcryptjs'
 export const runtime = 'nodejs'
 
 export async function POST() {
+  // Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Forbidden: This route is disabled in production' },
+      { status: 403 }
+    )
+  }
+
   try {
     // Get all users without passwords
     const usersWithoutPasswords = await prisma.user.findMany({

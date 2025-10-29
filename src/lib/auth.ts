@@ -48,22 +48,13 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
-          // Check password - try multiple methods for backward compatibility
-          let isValidPassword = false
-
-          // Method 1: Check database password (hashed)
-          if (user.password) {
-            isValidPassword = await bcrypt.compare(credentials.password, user.password)
+          // Check password - only validate against database hash
+          if (!user.password) {
+            // User has no password set - reject authentication
+            return null
           }
 
-          // Method 2: Check hardcoded passwords for demo users (fallback)
-          if (!isValidPassword) {
-            isValidPassword = 
-              credentials.password === credentials.email || // Default demo password
-              credentials.password === 'Lant0nyn!' || // Dan's custom password
-              credentials.password === 'admin@idelane.com' || // Admin demo password
-              credentials.password === 'user@idelane.com' // User demo password
-          }
+          const isValidPassword = await bcrypt.compare(credentials.password, user.password)
           
           if (isValidPassword) {
             return {

@@ -5,14 +5,21 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuth } from '@/server/auth'
+import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await requireAuth()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const body = await request.json()
     const { orderIndex } = body
@@ -24,44 +31,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       )
     }
 
-    // Determine surgery ID based on session type
-    let surgeryId: string
-    if (session.type === 'surgery') {
-      surgeryId = session.surgeryId!
-    } else if (session.type === 'superuser') {
-      // For superusers, get surgery ID from query params
-      const url = new URL(request.url)
-      const surgerySlug = url.searchParams.get('surgery')
-      if (!surgerySlug) {
-        return NextResponse.json(
-          { error: 'Surgery parameter required for superuser' },
-          { status: 400 }
-        )
-      }
-      const surgery = await prisma.surgery.findUnique({
-        where: { slug: surgerySlug },
-        select: { id: true }
-      })
-      if (!surgery) {
-        return NextResponse.json(
-          { error: 'Surgery not found' },
-          { status: 404 }
-        )
-      }
-      surgeryId = surgery.id
-    } else {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    // Check if the high-risk link exists and belongs to this surgery
-    const existingLink = await prisma.highRiskLink.findFirst({
-      where: {
-        id,
-        surgeryId
-      }
+    // Get surgery ID from the high-risk link first
+    const existingLink = await prisma.highRiskLink.findUnique({
+      where: { id },
+      select: { surgeryId: true }
     })
 
     if (!existingLink) {
@@ -69,6 +42,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         { error: 'High-risk button not found' },
         { status: 404 }
       )
+    }
+
+    const surgeryId = existingLink.surgeryId
+
+    // Verify user has admin access to this surgery
+    if (user.globalRole !== 'SUPERUSER') {
+      await requireSurgeryAdmin(surgeryId)
     }
 
     // Update the order index
@@ -89,47 +69,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const session = await requireAuth()
-    const { id } = await params
-
-    // Determine surgery ID based on session type
-    let surgeryId: string
-    if (session.type === 'surgery') {
-      surgeryId = session.surgeryId!
-    } else if (session.type === 'superuser') {
-      // For superusers, get surgery ID from query params
-      const url = new URL(request.url)
-      const surgerySlug = url.searchParams.get('surgery')
-      if (!surgerySlug) {
-        return NextResponse.json(
-          { error: 'Surgery parameter required for superuser' },
-          { status: 400 }
-        )
-      }
-      const surgery = await prisma.surgery.findUnique({
-        where: { slug: surgerySlug },
-        select: { id: true }
-      })
-      if (!surgery) {
-        return NextResponse.json(
-          { error: 'Surgery not found' },
-          { status: 404 }
-        )
-      }
-      surgeryId = surgery.id
-    } else {
+    const user = await getSessionUser()
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
     }
 
-    // Check if the high-risk link exists and belongs to this surgery
-    const existingLink = await prisma.highRiskLink.findFirst({
-      where: {
-        id,
-        surgeryId
-      }
+    const { id } = await params
+
+    // Get surgery ID from the high-risk link first
+    const existingLink = await prisma.highRiskLink.findUnique({
+      where: { id },
+      select: { surgeryId: true }
     })
 
     if (!existingLink) {
@@ -137,6 +90,13 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         { error: 'High-risk button not found' },
         { status: 404 }
       )
+    }
+
+    const surgeryId = existingLink.surgeryId
+
+    // Verify user has admin access to this surgery
+    if (user.globalRole !== 'SUPERUSER') {
+      await requireSurgeryAdmin(surgeryId)
     }
 
     // Delete the high-risk link

@@ -523,6 +523,14 @@ npm run lint             # Run ESLint
 - No SQLite dependencies in production
 - All migrations run automatically via `postinstall` script on Vercel deployments
 
+### Production Readiness Notes
+
+- All admin pages and admin APIs enforce authentication and role checks server-side.
+- Development-only migration/diagnostic routes are blocked in production.
+- No shared admin passcodes are used.
+- No hardcoded superuser credentials are used in authentication.
+- Production runs on Vercel with Neon Postgres via DATABASE_URL.
+
 ## Contributing
 
 1. Fork the repository

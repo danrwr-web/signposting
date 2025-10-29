@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { requireSuperuserAuth } from '@/server/auth'
+import { requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { UpdateSurgeryReqZ } from '@/lib/api-contracts'
 import { hashPassword } from '@/server/auth'
@@ -17,7 +17,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSuperuserAuth()
+    await requireSuperuser()
     const { id } = await params
 
     const body = await request.json()
@@ -71,7 +71,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSuperuserAuth()
+    await requireSuperuser()
     const { id } = await params
 
     await prisma.surgery.delete({

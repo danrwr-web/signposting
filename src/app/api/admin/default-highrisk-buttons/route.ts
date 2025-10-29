@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/server/auth'
+import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { GetDefaultHighRiskButtonsResZ, UpdateDefaultHighRiskButtonReqZ } from '@/lib/api-contracts'
 
 export const runtime = 'nodejs'
@@ -16,53 +16,53 @@ const DEFAULT_BUTTONS = [
 
 export async function GET(request: NextRequest) {
   try {
-    let session
-    try {
-      session = await requireAuth()
-      console.log('GET /api/admin/default-highrisk-buttons - Session type:', session.type)
-    } catch (authError) {
-      console.error('GET /api/admin/default-highrisk-buttons - Auth error:', authError)
-      return NextResponse.json(
-        { error: 'Unauthorized: No valid session found', details: authError instanceof Error ? authError.message : String(authError) },
-        { status: 401 }
-      )
-    }
-    
-    // Determine surgery ID based on session type
-    let surgeryId: string | null
-    if (session.type === 'surgery') {
-      surgeryId = session.surgeryId!
-      console.log('GET /api/admin/default-highrisk-buttons - Surgery ID from session:', surgeryId)
-    } else if (session.type === 'superuser') {
-      // For superusers, get surgery ID from query params
-      const url = new URL(request.url)
-      const surgerySlug = url.searchParams.get('surgery')
-      console.log('GET /api/admin/default-highrisk-buttons - Surgery slug from query:', surgerySlug)
-      
-      if (!surgerySlug) {
-        // No surgery provided – fall back to global-only view
-        surgeryId = null
-      } else {
-        const surgery = await prisma.surgery.findUnique({
-          where: { slug: surgerySlug },
-          select: { id: true }
-        })
-        if (!surgery) {
-          console.log('GET /api/admin/default-highrisk-buttons - Surgery not found for slug:', surgerySlug)
-          return NextResponse.json(
-            { error: 'Surgery not found' },
-            { status: 404 }
-          )
-        }
-        surgeryId = surgery.id
-        console.log('GET /api/admin/default-highrisk-buttons - Surgery ID from slug:', surgeryId)
-      }
-    } else {
-      console.log('GET /api/admin/default-highrisk-buttons - Unauthorized session type:', session)
+    const user = await getSessionUser()
+    if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       )
+    }
+
+    const url = new URL(request.url)
+    const surgerySlug = url.searchParams.get('surgery')
+    
+    // Determine surgery ID
+    let surgeryId: string | null
+    if (surgerySlug) {
+      // Surgery ID provided via query param
+      const surgery = await prisma.surgery.findUnique({
+        where: { slug: surgerySlug },
+        select: { id: true }
+      })
+      if (!surgery) {
+        return NextResponse.json(
+          { error: 'Surgery not found' },
+          { status: 404 }
+        )
+      }
+      surgeryId = surgery.id
+      
+      // Verify user has admin access to this surgery (unless superuser)
+      if (user.globalRole !== 'SUPERUSER') {
+        await requireSurgeryAdmin(surgeryId)
+      }
+    } else {
+      // No surgery param - superusers can view global, others use default surgery
+      if (user.globalRole === 'SUPERUSER') {
+        // Superuser viewing global configs
+        surgeryId = null
+      } else {
+        // Non-superusers use their default surgery
+        if (!user.defaultSurgeryId) {
+          return NextResponse.json(
+            { error: 'No default surgery assigned' },
+            { status: 403 }
+          )
+        }
+        surgeryId = user.defaultSurgeryId
+        await requireSurgeryAdmin(surgeryId)
+      }
     }
     
     // Load configs: surgery-specific (if provided) and global (placeholder surgeryId)
@@ -139,24 +139,19 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    let session
-    try {
-      session = await requireAuth()
-    } catch (authError) {
+    const user = await getSessionUser()
+    if (!user) {
       return NextResponse.json(
-        { error: 'Unauthorized: No valid session found' },
+        { error: 'Unauthorized' },
         { status: 401 }
       )
     }
     
     const body = await request.json()
-    console.log('PATCH /api/admin/default-highrisk-buttons - Request body:', JSON.stringify(body))
-    
     let parsed
     try {
       parsed = UpdateDefaultHighRiskButtonReqZ.parse(body)
     } catch (parseError) {
-      console.error('PATCH /api/admin/default-highrisk-buttons - Validation error:', parseError)
       return NextResponse.json(
         { error: 'Invalid request', details: parseError instanceof Error ? parseError.message : String(parseError) },
         { status: 400 }
@@ -164,41 +159,46 @@ export async function PATCH(request: NextRequest) {
     }
     
     const { buttonKey, label, symptomSlug, isEnabled, orderIndex } = parsed
-    
-    console.log('PATCH /api/admin/default-highrisk-buttons - Parsed params:', { buttonKey, label, symptomSlug, isEnabled, orderIndex })
-    console.log('PATCH /api/admin/default-highrisk-buttons - Session type:', session.type)
 
-    // Determine surgery ID based on session type
+    // Determine surgery ID
     let surgeryId: string | null
     const GLOBAL_SURGERY_ID = 'global-default-buttons'
-    if (session.type === 'surgery') {
-      surgeryId = session.surgeryId!
-      console.log('PATCH /api/admin/default-highrisk-buttons - Surgery ID from session:', surgeryId)
-    } else if (session.type === 'superuser') {
-      // For superusers, get surgery ID from query params
-      const url = new URL(request.url)
-      const surgerySlug = url.searchParams.get('surgery')
-      if (!surgerySlug) {
-        // Allow global updates when no surgery provided
-        surgeryId = GLOBAL_SURGERY_ID
-      } else {
-        const surgery = await prisma.surgery.findUnique({
-          where: { slug: surgerySlug },
-          select: { id: true }
-        })
-        if (!surgery) {
-          return NextResponse.json(
-            { error: 'Surgery not found' },
-            { status: 404 }
-          )
-        }
-        surgeryId = surgery.id
+    const url = new URL(request.url)
+    const surgerySlug = url.searchParams.get('surgery')
+    
+    if (surgerySlug) {
+      const surgery = await prisma.surgery.findUnique({
+        where: { slug: surgerySlug },
+        select: { id: true }
+      })
+      if (!surgery) {
+        return NextResponse.json(
+          { error: 'Surgery not found' },
+          { status: 404 }
+        )
+      }
+      surgeryId = surgery.id
+      
+      // Verify user has admin access to this surgery (unless superuser)
+      if (user.globalRole !== 'SUPERUSER') {
+        await requireSurgeryAdmin(surgeryId)
       }
     } else {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      )
+      // No surgery param
+      if (user.globalRole === 'SUPERUSER') {
+        // Superuser can update global configs
+        surgeryId = GLOBAL_SURGERY_ID
+      } else {
+        // Non-superusers use their default surgery
+        if (!user.defaultSurgeryId) {
+          return NextResponse.json(
+            { error: 'No default surgery assigned' },
+            { status: 403 }
+          )
+        }
+        surgeryId = user.defaultSurgeryId
+        await requireSurgeryAdmin(surgeryId)
+      }
     }
 
     console.log('PATCH /api/admin/default-highrisk-buttons - Resolved surgeryId:', surgeryId)
@@ -279,10 +279,16 @@ export async function PATCH(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await requireAuth()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
     
     // Only superusers can add global default buttons
-    if (session.type !== 'superuser') {
+    if (user.globalRole !== 'SUPERUSER') {
       return NextResponse.json(
         { error: 'Unauthorized: Only superusers can add global default buttons' },
         { status: 403 }
@@ -341,10 +347,16 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await requireAuth()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
     
     // Only superusers can delete default buttons
-    if (session.type !== 'superuser') {
+    if (user.globalRole !== 'SUPERUSER') {
       return NextResponse.json(
         { error: 'Unauthorized: Only superusers can delete default buttons' },
         { status: 403 }

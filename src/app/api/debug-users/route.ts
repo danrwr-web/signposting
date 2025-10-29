@@ -1,3 +1,4 @@
+// DEV-ONLY: This route is disabled in production.
 import 'server-only'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -5,6 +6,14 @@ import { prisma } from '@/lib/prisma'
 export const runtime = 'nodejs'
 
 export async function GET() {
+  // Block in production
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json(
+      { error: 'Forbidden: This route is disabled in production' },
+      { status: 403 }
+    )
+  }
+
   try {
     const users = await prisma.user.findMany({
       include: {

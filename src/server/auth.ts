@@ -160,31 +160,46 @@ export async function authenticateSurgeryAdmin(email: string, password: string):
 
 export async function authenticateSuperuser(email: string, password: string): Promise<Session | null> {
   try {
-    console.log('Superuser auth attempt:', email, 'password length:', password.length)
-    // Temporary hardcoded credentials for testing
-    if (email === 'dan.rwr@gmail.com' && password === 'Lant0nyn!') {
-      console.log('Superuser authenticated successfully')
-      return {
-        type: 'superuser',
-        id: 'superuser',
-        email: 'dan.rwr@gmail.com',
+    // Look up user in database by email and verify they are a superuser
+    const user = await prisma.user.findUnique({
+      where: { email },
+      include: {
+        memberships: {
+          include: {
+            surgery: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              }
+            }
+          }
+        },
+        defaultSurgery: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          }
+        }
       }
-    }
-    console.log('Superuser auth failed - credentials mismatch')
-    
-    // Fallback to environment variables if they exist
-    const superuserEmail = process.env.SUPERUSER_EMAIL
-    const superuserPassHash = process.env.SUPERUSER_PASS_HASH
-    
-    if (!superuserEmail || !superuserPassHash) {
+    })
+
+    if (!user) {
       return null
     }
-    
-    if (email !== superuserEmail) {
+
+    // Must be a superuser
+    if (user.globalRole !== 'SUPERUSER') {
       return null
     }
-    
-    const isValid = await verifyPassword(password, superuserPassHash)
+
+    // Verify password against database hash
+    if (!user.password) {
+      return null
+    }
+
+    const isValid = await verifyPassword(password, user.password)
     
     if (!isValid) {
       return null
@@ -192,8 +207,8 @@ export async function authenticateSuperuser(email: string, password: string): Pr
     
     return {
       type: 'superuser',
-      id: 'superuser',
-      email: superuserEmail,
+      id: user.id,
+      email: user.email,
     }
   } catch (error) {
     console.error('Error authenticating superuser:', error)

@@ -1,12 +1,12 @@
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 import 'server-only'
-import { requireSuperuserAuth } from '@/server/auth'
+import { requireSuperuser } from '@/lib/rbac'
 import SuperDashboardClient from './SuperDashboardClient'
 import { prisma } from '@/lib/prisma'
 
 export default async function SuperDashboard() {
-  await requireSuperuserAuth()
+  await requireSuperuser()
 
   // Get all surgeries for management
   const surgeries = await prisma.surgery.findMany({
