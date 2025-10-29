@@ -119,11 +119,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if phrase already exists
+    // Check if phrase already exists (for global icons, surgeryId = null)
     try {
       console.log('Checking for existing icon with phrase:', phrase.trim())
-      const existing = await (prisma as any).imageIcon.findUnique({
-        where: { phrase: phrase.trim() }
+      const existing = await (prisma as any).imageIcon.findFirst({
+        where: { 
+          phrase: phrase.trim(),
+          surgeryId: null // Check for global icons
+        }
       })
       console.log('Existing icon check result:', existing ? 'found' : 'not found')
 
