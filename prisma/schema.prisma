@@ -29,6 +29,10 @@ model User {
   symptomUsageLimit Int?          // null = unlimited, number = limit
   symptomsUsed      Int           @default(0)
   
+  // Clinical review relationships
+  clinicalReviews   Surgery[]     @relation("ClinicalReviews")
+  symptomReviewStatuses SymptomReviewStatus[]
+  
   // NextAuth.js fields
   emailVerified     DateTime?
   image             String?
@@ -62,6 +66,12 @@ model Surgery {
   users         UserSurgery[] @relation("SurgeryUsers")
   defaultUsers  User[]        @relation("DefaultSurgery")
 
+  // Clinical governance / sign-off
+  requiresClinicalReview  Boolean   @default(true)
+  lastClinicalReviewAt    DateTime?
+  lastClinicalReviewerId  String?
+  lastClinicalReviewer    User?     @relation("ClinicalReviews", fields: [lastClinicalReviewerId], references: [id])
+
   // Config
   enableDefaultHighRisk Boolean @default(true) // Enable/disable default high-risk buttons
   enableBuiltInHighlights Boolean @default(true) // Enable/disable built-in highlight rules
@@ -73,6 +83,7 @@ model Surgery {
   customSymptoms  SurgeryCustomSymptom[]
   suggestions   Suggestion[]
   events        EngagementEvent[]
+  symptomReviews SymptomReviewStatus[]
 }
 
 model BaseSymptom {
@@ -272,4 +283,26 @@ model ImageIcon {
   @@unique([phrase, surgeryId])
   @@index([phrase])
   @@index([surgeryId])
+}
+
+enum SymptomReviewState {
+  PENDING
+  APPROVED
+  CHANGES_REQUIRED
+}
+
+model SymptomReviewStatus {
+  id               String                @id @default(cuid())
+  surgeryId        String
+  surgery          Surgery               @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  symptomId        String                // Effective symptom ID (base symptom ID or custom symptom ID)
+  ageGroup         String?               // e.g. "U5" | "O5" | "Adult" if relevant. Can be null if not age-specific.
+  status           SymptomReviewState    @default(PENDING)
+  lastReviewedAt   DateTime?
+  lastReviewedById String?
+  lastReviewedBy   User?                 @relation(fields: [lastReviewedById], references: [id])
+
+  @@unique([surgeryId, symptomId, ageGroup])
+  @@index([surgeryId])
+  @@index([surgeryId, status])
 }

@@ -15,10 +15,15 @@ export default async function SurgeryDashboardPage({ params }: SurgeryDashboardP
   try {
     const user = await requireSurgeryAccess(surgeryId)
     
-    // Get surgery details
+    // Get surgery details including clinical review status
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        createdAt: true,
+        requiresClinicalReview: true,
         _count: {
           select: {
             users: true

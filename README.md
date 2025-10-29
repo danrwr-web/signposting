@@ -151,8 +151,40 @@ All admin pages and API routes use server-side RBAC helpers located in `src/lib/
 
 - `/admin/*` - Requires SUPERUSER or ADMIN role (enforced by middleware and page-level checks)
 - `/s/[surgeryId]/admin/*` - Requires ADMIN role for specific surgery (enforced by page-level checks)
+- `/s/[surgeryId]/clinical-review` - Requires ADMIN role for specific surgery (enforced by page-level checks)
 - `/super/*` - Requires SUPERUSER role (enforced by page-level checks)
 - `/api/admin/*` - All endpoints verify authentication and appropriate roles server-side
+
+### Clinical Sign-off Workflow
+
+Each surgery must review and approve its own symptom guidance to ensure clinical governance and medico-legal clarity. The clinical review workflow ensures that each practice is responsible for the advice their reception and care navigation team sees.
+
+#### Workflow Overview
+
+1. **Initial State**: When a surgery is first created or after a re-review is requested, all symptoms start with a "PENDING" review status, and the surgery's `requiresClinicalReview` flag is set to `true`.
+
+2. **Warning Banner**: While `requiresClinicalReview` is `true`, all users at that surgery see a visible warning banner on the main surgery page and dashboard stating:
+   > "Content for [Surgery Name] is awaiting local clinical review. If you're unsure, please check with a clinician before booking."
+
+3. **Review Process**: 
+   - Admins (or superusers) access the clinical review dashboard at `/s/[surgeryId]/clinical-review`
+   - For each symptom, they can mark it as:
+     - **APPROVED**: Content is clinically appropriate for this surgery
+     - **CHANGES_REQUIRED**: Content needs modification (with a link to edit the override)
+   - The system tracks who reviewed each symptom and when
+
+4. **Sign-off**: Once all symptoms are reviewed (none remain PENDING), the admin can click "Complete Review and Sign Off", which:
+   - Sets `requiresClinicalReview = false`
+   - Records the reviewer's identity and timestamp
+   - Removes the warning banner for all users at that surgery
+
+5. **Re-review**: At any time, admins can request a re-review, which:
+   - Resets all symptoms back to PENDING status
+   - Sets `requiresClinicalReview = true` again
+   - Triggers the warning banner to reappear
+   - Supports annual review cycles and clinical lead turnover
+
+The system records who signed off and when, providing an audit trail for governance and CQC-style assurance.
 
 ### Surgery Persistence Precedence
 
@@ -530,6 +562,7 @@ npm run lint             # Run ESLint
 - No shared admin passcodes are used.
 - No hardcoded superuser credentials are used in authentication.
 - Production runs on Vercel with Neon Postgres via DATABASE_URL.
+- Each surgery is responsible for clinically approving its own guidance. The system records reviewer identity and timestamp, and shows a banner until sign-off is complete. This supports governance and medico-legal accountability.
 
 ## Contributing
 

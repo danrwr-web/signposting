@@ -16,9 +16,15 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
   try {
     const user = await requireSurgeryAccess(surgeryId)
     
-    // Get surgery details
+    // Get surgery details including clinical review status
     const surgery = await prisma.surgery.findUnique({
-      where: { id: surgeryId }
+      where: { id: surgeryId },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        requiresClinicalReview: true,
+      }
     })
 
     if (!surgery) {
@@ -33,7 +39,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
     // Get effective symptoms for this surgery (with overrides applied)
     const symptoms = await getEffectiveSymptoms(surgeryId)
 
-    return <HomePageClient surgeries={surgeries} symptoms={symptoms} />
+    return <HomePageClient surgeries={surgeries} symptoms={symptoms} requiresClinicalReview={surgery.requiresClinicalReview} surgeryName={surgery.name} />
   } catch (error) {
     redirect('/unauthorized')
   }
