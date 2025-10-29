@@ -43,7 +43,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [editVariantGroups, setEditVariantGroups] = useState<Array<{ key: string; label: string; instructions: string }>>([])
   // Image icon state
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
-  const [imageIconUrl, setImageIconUrl] = useState<string | null>(null)
+  const [imageIcon, setImageIcon] = useState<{ imageUrl: string; instructionSize: string } | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -91,7 +91,10 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             if (iconResponse.ok) {
               const iconData = await iconResponse.json()
               if (iconData && iconData.imageUrl) {
-                setImageIconUrl(iconData.imageUrl)
+                setImageIcon({ 
+                  imageUrl: iconData.imageUrl, 
+                  instructionSize: iconData.instructionSize || 'medium' 
+                })
               }
             }
           }
@@ -488,16 +491,26 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                   __html: highlightText(symptom.briefInstruction || '') 
                 }}
               />
-              {imageIconUrl && enableImageIcons && (
-                <div className="relative w-32 h-32 flex-shrink-0">
-                  <Image
-                    src={imageIconUrl}
-                    alt=""
-                    fill
-                    className="object-contain"
-                  />
-                </div>
-              )}
+              {imageIcon && enableImageIcons && (() => {
+                // Map size to Tailwind classes
+                const sizeClasses = {
+                  small: 'w-24 h-24',
+                  medium: 'w-32 h-32',
+                  large: 'w-48 h-48'
+                }
+                const sizeClass = sizeClasses[imageIcon.instructionSize as keyof typeof sizeClasses] || sizeClasses.medium
+                
+                return (
+                  <div className={`relative ${sizeClass} flex-shrink-0`}>
+                    <Image
+                      src={imageIcon.imageUrl}
+                      alt=""
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+                )
+              })()}
             </div>
           )}
         </div>

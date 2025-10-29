@@ -95,6 +95,8 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const phrase = formData.get('phrase') as string
     const alt = formData.get('alt') as string || undefined
+    const cardSize = (formData.get('cardSize') as string) || 'medium'
+    const instructionSize = (formData.get('instructionSize') as string) || 'medium'
 
     if (!file || !phrase) {
       return NextResponse.json(
@@ -173,6 +175,8 @@ export async function POST(request: NextRequest) {
           alt: alt || phrase.trim(),
           width,
           height,
+          cardSize,
+          instructionSize,
           isEnabled: true, // Set as enabled by default
           surgeryId: null, // Global icon
           createdBy: session.email || 'unknown'

@@ -254,18 +254,20 @@ model VerificationToken {
 }
 
 model ImageIcon {
-  id         String   @id @default(cuid())
-  phrase     String   // Phrase to match in briefInstruction
-  filePath   String   // Path to uploaded image file
-  imageUrl   String   // URL for serving the image
-  alt        String?  // Alt text for accessibility
-  width      Int?     // Image width in pixels
-  height     Int?     // Image height in pixels
-  isEnabled  Boolean  @default(true) // Enable/disable this icon
-  surgeryId  String?  // Surgery-specific icon (null = global)
-  createdBy  String   // Email of superuser who created it
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(cuid())
+  phrase          String   // Phrase to match in briefInstruction
+  filePath        String   // Path to uploaded image file
+  imageUrl        String   // URL for serving the image
+  alt             String?  // Alt text for accessibility
+  width           Int?     // Image width in pixels
+  height          Int?     // Image height in pixels
+  cardSize        String   @default("medium") // Size on symptom cards: "small", "medium", "large"
+  instructionSize String   @default("medium") // Size on instruction pages: "small", "medium", "large"
+  isEnabled       Boolean  @default(true) // Enable/disable this icon
+  surgeryId       String?  // Surgery-specific icon (null = global)
+  createdBy       String   // Email of superuser who created it
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@unique([phrase, surgeryId])
   @@index([phrase])

@@ -6,7 +6,10 @@ import { join } from 'path'
 import { z } from 'zod'
 
 const updateImageIconSchema = z.object({
-  isEnabled: z.boolean()
+  isEnabled: z.boolean().optional(),
+  cardSize: z.enum(['small', 'medium', 'large']).optional(),
+  instructionSize: z.enum(['small', 'medium', 'large']).optional(),
+  alt: z.string().optional()
 })
 
 export async function PATCH(
@@ -28,9 +31,24 @@ export async function PATCH(
     const body = await request.json()
     const updateData = updateImageIconSchema.parse(body)
 
+    // Build update object with only provided fields
+    const updateFields: any = {}
+    if (updateData.isEnabled !== undefined) {
+      updateFields.isEnabled = updateData.isEnabled
+    }
+    if (updateData.cardSize !== undefined) {
+      updateFields.cardSize = updateData.cardSize
+    }
+    if (updateData.instructionSize !== undefined) {
+      updateFields.instructionSize = updateData.instructionSize
+    }
+    if (updateData.alt !== undefined) {
+      updateFields.alt = updateData.alt
+    }
+
     const icon = await (prisma as any).imageIcon.update({
       where: { id },
-      data: { isEnabled: updateData.isEnabled }
+      data: updateFields
     })
 
     return NextResponse.json({ icon })

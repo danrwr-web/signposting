@@ -11,6 +11,8 @@ interface ImageIcon {
   alt: string | null
   width: number | null
   height: number | null
+  cardSize: string
+  instructionSize: string
   isEnabled: boolean
   surgeryId: string | null
   createdBy: string
@@ -19,16 +21,20 @@ interface ImageIcon {
 
 interface ImageIconConfigProps {
   isSuperuser?: boolean
+  isAdmin?: boolean // If true, is a surgery admin (can toggle but not create/delete)
 }
 
-export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfigProps) {
+export default function ImageIconConfig({ isSuperuser = false, isAdmin = false }: ImageIconConfigProps) {
   const [icons, setIcons] = useState<ImageIcon[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [editingIcon, setEditingIcon] = useState<ImageIcon | null>(null)
   const [uploading, setUploading] = useState(false)
   const [newIcon, setNewIcon] = useState({
     phrase: '',
     alt: '',
+    cardSize: 'medium' as 'small' | 'medium' | 'large',
+    instructionSize: 'medium' as 'small' | 'medium' | 'large',
     file: null as File | null
   })
 
@@ -91,6 +97,8 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
       const formData = new FormData()
       formData.append('file', newIcon.file)
       formData.append('phrase', newIcon.phrase.trim())
+      formData.append('cardSize', newIcon.cardSize)
+      formData.append('instructionSize', newIcon.instructionSize)
       if (newIcon.alt) {
         formData.append('alt', newIcon.alt.trim())
       }
@@ -102,7 +110,7 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
 
       if (response.ok) {
         toast.success('Image icon added successfully')
-        setNewIcon({ phrase: '', alt: '', file: null })
+        setNewIcon({ phrase: '', alt: '', cardSize: 'medium', instructionSize: 'medium', file: null })
         setShowAddForm(false)
         loadIcons()
       } else {
@@ -138,6 +146,28 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
     }
   }
 
+  const handleUpdateIcon = async (icon: ImageIcon, updates: { cardSize?: string; instructionSize?: string; alt?: string }) => {
+    try {
+      const response = await fetch(`/api/image-icons/${icon.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      })
+
+      if (response.ok) {
+        toast.success('Image icon updated successfully')
+        setEditingIcon(null)
+        loadIcons()
+      } else {
+        const data = await response.json()
+        toast.error(data.error || 'Failed to update image icon')
+      }
+    } catch (error) {
+      console.error('Error updating image icon:', error)
+      toast.error('Failed to update image icon')
+    }
+  }
+
   const handleDeleteIcon = async (id: string) => {
     if (!confirm('Are you sure you want to delete this image icon?')) {
       return
@@ -161,7 +191,8 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
     }
   }
 
-  if (!isSuperuser) {
+  // Allow superusers and admins to see this (admins can toggle, superusers can create/delete)
+  if (!isSuperuser && !isAdmin) {
     return null
   }
 
@@ -190,16 +221,18 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
             Images shown on symptom cards when their phrase appears in brief instructions
           </p>
         </div>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
-        >
-          {showAddForm ? 'Cancel' : 'Add Icon'}
-        </button>
+        {isSuperuser && (
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
+          >
+            {showAddForm ? 'Cancel' : 'Add Icon'}
+          </button>
+        )}
       </div>
 
-      {/* Add New Icon Form */}
-      {showAddForm && (
+      {/* Add New Icon Form - Superuser only */}
+      {showAddForm && isSuperuser && (
         <div className="bg-nhs-light-grey rounded-lg p-4 mb-6">
           <h4 className="text-md font-medium text-nhs-dark-blue mb-3">Add New Image Icon</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -227,6 +260,34 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
                 placeholder="Description for accessibility"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nhs-blue"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-nhs-grey mb-1">
+                Size on Symptom Cards
+              </label>
+              <select
+                value={newIcon.cardSize}
+                onChange={(e) => setNewIcon({ ...newIcon, cardSize: e.target.value as 'small' | 'medium' | 'large' })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+              >
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-nhs-grey mb-1">
+                Size on Instruction Pages
+              </label>
+              <select
+                value={newIcon.instructionSize}
+                onChange={(e) => setNewIcon({ ...newIcon, instructionSize: e.target.value as 'small' | 'medium' | 'large' })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+              >
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+              </select>
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-nhs-grey mb-1">
@@ -257,6 +318,84 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
         </div>
       )}
 
+      {/* Edit Icon Form - Superuser only */}
+      {editingIcon && isSuperuser && (
+        <div className="bg-nhs-light-grey rounded-lg p-4 mb-6">
+          <h4 className="text-md font-medium text-nhs-dark-blue mb-3">Edit Image Icon</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-nhs-grey mb-1">
+                Phrase (cannot be changed)
+              </label>
+              <input
+                type="text"
+                value={editingIcon.phrase}
+                disabled
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-nhs-grey mb-1">
+                Alt Text
+              </label>
+              <input
+                type="text"
+                value={editingIcon.alt || ''}
+                onChange={(e) => setEditingIcon({ ...editingIcon, alt: e.target.value })}
+                placeholder="Description for accessibility"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-nhs-grey mb-1">
+                Size on Symptom Cards
+              </label>
+              <select
+                value={editingIcon.cardSize}
+                onChange={(e) => setEditingIcon({ ...editingIcon, cardSize: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+              >
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-nhs-grey mb-1">
+                Size on Instruction Pages
+              </label>
+              <select
+                value={editingIcon.instructionSize}
+                onChange={(e) => setEditingIcon({ ...editingIcon, instructionSize: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+              >
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+              </select>
+            </div>
+            <div className="md:col-span-2 flex items-end space-x-2">
+              <button
+                onClick={() => handleUpdateIcon(editingIcon, {
+                  cardSize: editingIcon.cardSize,
+                  instructionSize: editingIcon.instructionSize,
+                  alt: editingIcon.alt || undefined
+                })}
+                className="px-4 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                Save Changes
+              </button>
+              <button
+                onClick={() => setEditingIcon(null)}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Existing Icons */}
       <div className="space-y-3">
         {icons.length === 0 ? (
@@ -281,7 +420,7 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
                     &quot;{icon.phrase}&quot;
                   </div>
                   <div className="text-sm text-nhs-grey">
-                    {icon.width && icon.height ? `${icon.width}x${icon.height}px` : 'Unknown size'}
+                    Card: {icon.cardSize} | Instruction: {icon.instructionSize}
                   </div>
                   {icon.alt && (
                     <div className="text-xs text-nhs-grey italic">
@@ -301,12 +440,22 @@ export default function ImageIconConfig({ isSuperuser = false }: ImageIconConfig
                 >
                   {icon.isEnabled ? 'Enabled' : 'Disabled'}
                 </button>
-                <button
-                  onClick={() => handleDeleteIcon(icon.id)}
-                  className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
-                >
-                  Delete
-                </button>
+                {isSuperuser && (
+                  <>
+                    <button
+                      onClick={() => setEditingIcon(icon)}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDeleteIcon(icon.id)}
+                      className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           ))

@@ -868,9 +868,12 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             {activeTab === 'highlights' && (
               <div className="space-y-6">
                 <HighlightConfig surgeryId={selectedSurgery} isSuperuser={session?.type === 'superuser'} />
-                {/* Image Icons - superuser only */}
-                {session?.type === 'superuser' && (
-                  <ImageIconConfig isSuperuser={true} />
+                {/* Image Icons - visible to superusers and admins */}
+                {(session?.type === 'superuser' || session?.type === 'surgery') && (
+                  <ImageIconConfig 
+                    isSuperuser={session?.type === 'superuser'} 
+                    isAdmin={session?.type === 'surgery'} 
+                  />
                 )}
               </div>
             )}

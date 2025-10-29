@@ -17,7 +17,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
-  const [imageIconUrl, setImageIconUrl] = useState<string | null>(null)
+  const [imageIcon, setImageIcon] = useState<{ imageUrl: string; cardSize: string } | null>(null)
 
   // Use provided surgerySlug or fall back to context
   const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
@@ -48,7 +48,10 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
             if (iconResponse.ok) {
               const iconData = await iconResponse.json()
               if (iconData && iconData.imageUrl) {
-                setImageIconUrl(iconData.imageUrl)
+                setImageIcon({ 
+                  imageUrl: iconData.imageUrl, 
+                  cardSize: iconData.cardSize || 'medium' 
+                })
               }
             }
           }
@@ -159,16 +162,26 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
             </div>
           )}
           <div className="flex items-center gap-2">
-            {imageIconUrl && enableImageIcons && (
-              <div className="relative w-24 h-24 flex-shrink-0">
-                <Image
-                  src={imageIconUrl}
-                  alt=""
-                  fill
-                  className="object-contain"
-                />
-              </div>
-            )}
+            {imageIcon && enableImageIcons && (() => {
+              // Map size to Tailwind classes
+              const sizeClasses = {
+                small: 'w-16 h-16',
+                medium: 'w-24 h-24',
+                large: 'w-32 h-32'
+              }
+              const sizeClass = sizeClasses[imageIcon.cardSize as keyof typeof sizeClasses] || sizeClasses.medium
+              
+              return (
+                <div className={`relative ${sizeClass} flex-shrink-0`}>
+                  <Image
+                    src={imageIcon.imageUrl}
+                    alt=""
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+              )
+            })()}
             <div className="text-xs text-nhs-blue font-medium opacity-0 group-hover:opacity-100 transition-opacity">
               Open →
             </div>
