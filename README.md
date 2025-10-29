@@ -24,7 +24,7 @@ A responsive NHS-style signposting web application built with Next.js 15, TypeSc
 - **Framework**: Next.js 15 (App Router)
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **Database**: Prisma + SQLite (dev) / PostgreSQL (prod)
+- **Database**: Prisma + SQLite (dev) / PostgreSQL/Neon (prod)
 - **Authentication**: NextAuth.js with credentials provider
 - **Rich Text Editing**: TipTap with ProseMirror
 - **Excel Parsing**: SheetJS (xlsx)
@@ -93,17 +93,37 @@ npm run dev
 
 The application will be available at `http://localhost:3000`.
 
+## Authentication
+
+The application uses NextAuth.js with a credentials provider for authentication. All authentication is session-based using JWT tokens stored securely in HTTP-only cookies.
+
+### Login Process
+
+1. Users authenticate via `/login` with email and password
+2. Passwords are stored as bcrypt hashes in the database
+3. Successful authentication creates a NextAuth session with user role information
+4. Sessions are protected by middleware that enforces role-based access control
+
+### Security Features
+
+- **Password Hashing**: All passwords are hashed using bcrypt with salt rounds of 12
+- **Session Management**: JWT-based sessions with secure HTTP-only cookies
+- **Server-Side Validation**: All admin routes and API endpoints verify authentication server-side
+- **No Hardcoded Credentials**: All authentication uses database-stored credentials
+- **Role-Based Access**: Permissions checked on every request using RBAC helpers
+
 ## Role-Based Access Control (RBAC)
 
-The application implements a three-tier permission system:
+The application implements a three-tier permission system with server-side enforcement:
 
 ### User Roles
 
 1. **Superuser (Global)**
    - Can manage all surgeries and users
    - Can create other superusers, admins, and standard users
-   - Access to global admin dashboard (`/admin`)
+   - Access to global admin dashboard (`/admin`) and superuser dashboard (`/super`)
    - Can switch between any surgery
+   - Access to all admin API routes requiring superuser privileges
 
 2. **Admin (Per-Surgery)**
    - Can manage users within their assigned surgery
@@ -111,11 +131,28 @@ The application implements a three-tier permission system:
    - Can set per-surgery roles (ADMIN or STANDARD)
    - Can set/remove user's default surgery
    - Access to surgery admin dashboard (`/s/[surgeryId]/admin`)
+   - Access to surgery-specific admin API routes
 
 3. **Standard (Per-Surgery)**
    - Can use the toolkit within their assigned surgery
    - Cannot see admin links or access admin routes
-   - Access to surgery dashboard (`/s/[surgeryId]/dashboard`)
+   - Access to surgery dashboard (`/s/[surgeryId]`)
+
+### RBAC Implementation
+
+All admin pages and API routes use server-side RBAC helpers located in `src/lib/rbac.ts`:
+
+- `requireAuth()` - Ensures user is authenticated
+- `requireSuperuser()` - Requires SUPERUSER global role
+- `requireSurgeryAdmin(surgeryId)` - Requires ADMIN role for specific surgery (or SUPERUSER)
+- `requireSurgeryAccess(surgeryId)` - Requires any membership in surgery (or SUPERUSER)
+
+### Protected Routes
+
+- `/admin/*` - Requires SUPERUSER or ADMIN role (enforced by middleware and page-level checks)
+- `/s/[surgeryId]/admin/*` - Requires ADMIN role for specific surgery (enforced by page-level checks)
+- `/super/*` - Requires SUPERUSER role (enforced by page-level checks)
+- `/api/admin/*` - All endpoints verify authentication and appropriate roles server-side
 
 ### Surgery Persistence Precedence
 
@@ -130,7 +167,7 @@ The application follows this precedence for determining which surgery context to
 
 1. **Unauthenticated users** → Redirected to `/login`
 2. **Superusers** → Redirected to `/admin` (global dashboard)
-3. **Non-superusers** → Redirected to `/s/[surgeryId]/dashboard` where `surgeryId` is their `defaultSurgeryId`
+3. **Non-superusers** → Redirected to `/s/[surgeryId]` where `surgeryId` is their `defaultSurgeryId`
 
 ### Test Accounts
 
@@ -139,6 +176,8 @@ The seed script creates these test accounts (password = email address):
 - `superuser@example.com` - Superuser
 - `admin@idelane.com` - Admin of Ide Lane Surgery
 - `user@idelane.com` - Standard user of Ide Lane Surgery
+
+**Note**: Passwords must be set via the admin interface or database seeding. Default passwords should be changed in production.
 
 ## Database Schema
 
@@ -182,8 +221,8 @@ The app uses a sophisticated data resolution system:
 ### For Administrators
 
 ### Access
-- **URL**: `/admin`
-- **Passcode**: `admin123` (configurable via environment variables)
+- **URL**: `/admin` (for superusers) or `/s/[surgeryId]/admin` (for surgery admins)
+- **Authentication**: Login via `/login` with email and password
 
 ### Features
 
@@ -240,7 +279,7 @@ Expected columns in Excel files:
 
 A sample Excel file (`test-symptoms.xlsx`) has been created for testing. You can:
 
-1. Open the admin panel at `/admin` (passcode: `admin123`)
+1. Log in to the admin panel at `/admin` with an admin account
 2. Go to the "Data Management" tab
 3. Upload the `test-symptoms.xlsx` file
 4. The system will process and import the symptoms
@@ -340,17 +379,18 @@ For production deployment, set these environment variables:
 
 ```env
 # Database (use PostgreSQL for production)
+# Production uses Neon Postgres via Vercel environment variables
 DATABASE_URL="postgresql://user:password@localhost:5432/nhs_signposting"
 
-# Default surgery
-DEFAULT_SURGERY_SLUG="your-default-surgery"
-
-# Admin authentication
-ADMIN_PASSCODE="your-secure-passcode"
-
-# NextAuth (if implementing proper auth)
-NEXTAUTH_SECRET="your-secret-key"
+# NextAuth Configuration (required)
+NEXTAUTH_SECRET="your-secret-key-change-this-in-production"
 NEXTAUTH_URL="https://your-domain.com"
+
+# App Configuration
+NEXT_PUBLIC_APP_VERSION="Beta v1.0"
+
+# Feature Flags
+DONATIONS_ENABLED="false"
 ```
 
 ### Build and Deploy
@@ -429,7 +469,7 @@ Admin endpoints use `no-store` to ensure fresh data for administrative actions.
 
 1. **Database Connection**: Ensure DATABASE_URL is correct
 2. **Excel Upload**: Check file format and column names
-3. **Authentication**: Verify ADMIN_PASSCODE in environment
+3. **Authentication**: Verify NEXTAUTH_SECRET and NEXTAUTH_URL are set correctly
 4. **Build Errors**: Run `npm run db:generate` after schema changes
 5. **Image Icons Not Appearing**: 
    - Check that the phrase matches text in brief instructions (case-insensitive)
@@ -455,6 +495,33 @@ npm run build            # Build for production
 npm run start            # Start production server
 npm run lint             # Run ESLint
 ```
+
+## Security & Access Control (Oct 2025 Update)
+
+**All admin routes and APIs now require authenticated NextAuth sessions with role-based checks.**
+
+### Authentication
+- All authentication uses NextAuth.js with credentials provider
+- Passwords are stored as bcrypt hashes in the database
+- No hardcoded passwords or environment variable fallbacks
+- Sessions use JWT tokens stored in secure HTTP-only cookies
+
+### Authorization
+- **SUPERUSER**: Global role for managing all surgeries and users
+- **ADMIN**: Per-surgery role for managing users within assigned surgery
+- **STANDARD**: Per-surgery role for accessing signposting features
+
+### Server-Side Enforcement
+- All admin pages (`/admin`, `/s/[surgeryId]/admin`, `/super`) verify authentication and roles server-side
+- All admin API routes (`/api/admin/*`) verify authentication and appropriate permissions server-side
+- RBAC helpers in `src/lib/rbac.ts` provide consistent permission checking across the application
+- Middleware protects routes at the edge, but pages and APIs perform additional server-side verification
+
+### Production Environment
+- Production uses Vercel + Neon Postgres
+- `DATABASE_URL` environment variable points to Neon database
+- No SQLite dependencies in production
+- All migrations run automatically via `postinstall` script on Vercel deployments
 
 ## Contributing
 
