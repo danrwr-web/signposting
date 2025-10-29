@@ -53,14 +53,22 @@ export default function ClinicalReviewClient({
   // Calculate statistics
   const totalSymptoms = symptoms.length
   const approvedCount = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'APPROVED').length
-  const pendingCount = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'PENDING').length
   const changesRequiredCount = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'CHANGES_REQUIRED').length
+  
+  // Count pending: symptoms that don't have a review status OR have PENDING status
+  const reviewedSymptomKeys = new Set(reviewStatuses.keys())
+  const unreviewedCount = symptoms.filter(s => {
+    const key = `${s.id}-${s.ageGroup || ''}`
+    return !reviewedSymptomKeys.has(key)
+  }).length
+  const explicitPendingCount = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'PENDING').length
+  const pendingCount = unreviewedCount + explicitPendingCount
 
   const getReviewStatus = (symptomId: string, ageGroup: string | null): SymptomReviewStatus | null => {
     return reviewStatuses.get(`${symptomId}-${ageGroup || ''}`) || null
   }
 
-  const updateReviewStatus = async (symptomId: string, ageGroup: string | null, newStatus: 'APPROVED' | 'CHANGES_REQUIRED') => {
+  const updateReviewStatus = async (symptomId: string, ageGroup: string | null, newStatus: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED') => {
     const key = `${symptomId}-${ageGroup || ''}`
     setLoading(key)
 
@@ -379,28 +387,46 @@ export default function ClinicalReviewClient({
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
+                          <div className="flex items-center space-x-4">
                             <Link
-                              href={`/admin?surgery=${surgery.id}&symptom=${symptom.id}&tab=overrides`}
+                              href={`/symptom/${symptom.id}?surgery=${surgery.id}`}
                               className="text-blue-600 hover:text-blue-900"
                               target="_blank"
                             >
-                              View / Edit Override
+                              View / Edit
                             </Link>
-                            <button
-                              onClick={() => updateReviewStatus(symptom.id, symptom.ageGroup || null, 'APPROVED')}
-                              disabled={loading === key}
-                              className="text-green-600 hover:text-green-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {loading === key ? 'Saving...' : 'Mark Approved'}
-                            </button>
-                            <button
-                              onClick={() => updateReviewStatus(symptom.id, symptom.ageGroup || null, 'CHANGES_REQUIRED')}
-                              disabled={loading === key}
-                              className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {loading === key ? 'Saving...' : 'Mark Needs Change'}
-                            </button>
+                            <div className="flex items-center space-x-4">
+                              <label className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={status === 'APPROVED'}
+                                  onChange={() => {
+                                    // If already approved, uncheck (set to PENDING)
+                                    // Otherwise, set to approved
+                                    const newStatus: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' = status === 'APPROVED' ? 'PENDING' : 'APPROVED'
+                                    updateReviewStatus(symptom.id, symptom.ageGroup || null, newStatus)
+                                  }}
+                                  disabled={loading === key}
+                                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <span className="text-green-700 font-medium">Approved</span>
+                              </label>
+                              <label className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={status === 'CHANGES_REQUIRED'}
+                                  onChange={() => {
+                                    // If already needs change, uncheck (set to PENDING)
+                                    // Otherwise, set to needs change
+                                    const newStatus: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' = status === 'CHANGES_REQUIRED' ? 'PENDING' : 'CHANGES_REQUIRED'
+                                    updateReviewStatus(symptom.id, symptom.ageGroup || null, newStatus)
+                                  }}
+                                  disabled={loading === key}
+                                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <span className="text-red-700 font-medium">Needs Change</span>
+                              </label>
+                            </div>
                           </div>
                         </td>
                       </tr>

@@ -8,9 +8,13 @@ import { SessionUser } from '@/lib/rbac'
 import { Surgery } from '@prisma/client'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 
+interface SurgeryWithPendingCount extends Surgery {
+  pendingReviewCount?: number
+}
+
 interface AdminDashboardClientProps {
   user: SessionUser
-  surgeries: Surgery[]
+  surgeries: SurgeryWithPendingCount[]
   symptoms: EffectiveSymptom[]
   isSuperuser: boolean
 }
@@ -197,6 +201,21 @@ export default function AdminDashboardClient({
                           </p>
                         </div>
                         <div className="flex space-x-3">
+                          <Link
+                            href={`/s/${surgery.id}/clinical-review`}
+                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                              surgery.pendingReviewCount && surgery.pendingReviewCount > 0
+                                ? 'text-orange-700 bg-orange-50 hover:bg-orange-100'
+                                : 'text-purple-600 bg-purple-50 hover:bg-purple-100'
+                            }`}
+                          >
+                            Clinical Review
+                            {surgery.pendingReviewCount && surgery.pendingReviewCount > 0 && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-200 text-orange-800">
+                                {surgery.pendingReviewCount}
+                              </span>
+                            )}
+                          </Link>
                           <Link
                             href={`/s/${surgery.id}/admin/users`}
                             className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"

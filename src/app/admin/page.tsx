@@ -28,7 +28,14 @@ export default async function AdminPage() {
     let surgeries
     if (isSuperuser) {
       surgeries = await prisma.surgery.findMany({
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        include: {
+          symptomReviews: {
+            where: {
+              status: 'PENDING'
+            }
+          }
+        }
       })
     } else {
       const surgeryIds = user.memberships
@@ -37,8 +44,30 @@ export default async function AdminPage() {
       
       surgeries = await prisma.surgery.findMany({
         where: { id: { in: surgeryIds } },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        include: {
+          symptomReviews: {
+            where: {
+              status: 'PENDING'
+            }
+          }
+        }
       })
+    }
+
+    // For each surgery, get the total symptom count and calculate pending
+    for (const surgery of surgeries) {
+      const symptoms = await getEffectiveSymptoms(surgery.id)
+      const reviewedSymptomIds = new Set(
+        surgery.symptomReviews.map(r => `${r.symptomId}-${r.ageGroup || ''}`)
+      )
+      const pendingCount = symptoms.filter(s => {
+        const key = `${s.id}-${s.ageGroup || ''}`
+        return !reviewedSymptomIds.has(key)
+      }).length
+      
+      // Add pendingCount to surgery object (TypeScript will accept this as any)
+      ;(surgery as any).pendingReviewCount = pendingCount + surgery.symptomReviews.length
     }
 
     // Get all base symptoms and convert to EffectiveSymptom format
