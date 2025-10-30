@@ -61,7 +61,7 @@ These screens prompt yes/no questions and provide clear instructions on when to 
 | 🟩 **Green** | Routine | Non-urgent issues, follow-ups, medication reviews, ongoing problems. |
 | 🟥 **Red** | Urgent / Same-Day | For problems requiring prompt GP review (same-day triage). |
 | 🟧 **Orange** | Semi-Urgent (Face-to-Face GP) | For issues requiring a face-to-face review within the next few days. Not immediately urgent but cannot wait more than 2–3 days. |
-| 🩷 **Pink / Purple** | Triage (Within 48 Hours) | For problems requiring GP review or decision within 48 hours. Usually booked for GP assessment before confirming an appointment. |
+| 🩷 **Pink / Purple** | Triage (Within 48 Hours) | For problems requiring GP review or decision within 48 hours. Usually booked for GP assessment before confirming an appointment. **Do not promise a face-to-face unless instructed by the GP.** |
 
 ---
 
@@ -208,3 +208,5 @@ If you find it valuable, please consider contributing to its ongoing development
 > Developed by **Dr Daniel Webber-Rookes** and the team at Ide Lane Surgery, Exeter  
 > © 2025 Signposting Toolkit – All rights reserved  
 > Version 0.9 (Beta)
+
+**If at any point you are worried about safety, or something does not fit one of the options given, stop and check with a clinician immediately rather than booking a routine slot.**

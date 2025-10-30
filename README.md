@@ -149,19 +149,20 @@ All admin pages and API routes use server-side RBAC helpers located in `src/lib/
 
 ### Protected Routes
 
-- `/admin/*` - Requires SUPERUSER or ADMIN role (enforced by middleware and page-level checks)
-- `/s/[surgeryId]/admin/*` - Requires ADMIN role for specific surgery (enforced by page-level checks)
-- `/s/[surgeryId]/clinical-review` - Requires ADMIN role for specific surgery (enforced by page-level checks)
-- `/super/*` - Requires SUPERUSER role (enforced by page-level checks)
-- `/api/admin/*` - All endpoints verify authentication and appropriate roles server-side
-
+| Route | Access Required | Description |
+|--------|------------------|--------------|
+| `/admin/*` | **SUPERUSER only** | Global administration (manage surgeries, users, and system-wide settings). |
+| `/s/[surgeryId]/admin/*` | **SUPERUSER or ADMIN** | Surgery-specific administration (manage symptoms, overrides, and highlight rules). |
+| `/s/[surgeryId]/clinical-review` | **SUPERUSER or ADMIN** | Clinical review dashboard for that surgery. |
+| `/super/*` | **SUPERUSER only** | Superuser utilities and platform-level tools. |
+| `/api/admin/*` | **Role-gated** | Each endpoint checks authentication and required permissions server-side. |
 ### Clinical Sign-off Workflow
 
 Each surgery must review and approve its own symptom guidance to ensure clinical governance and medico-legal clarity. The clinical review workflow ensures that each practice is responsible for the advice their reception and care navigation team sees.
 
 #### Workflow Overview
 
-1. **Initial State**: When a surgery is first created or after a re-review is requested, all symptoms start with a "PENDING" review status, and the surgery's `requiresClinicalReview` flag is set to `true`.
+1. **Initial State**: When a surgery is first created or after a re-review is requested, all symptoms start with a "PENDING" review status, and the surgery's `requiresClinicalReview` flag is set to `true`. This supports **annual review cycles** and clinical lead turnover.
 
 2. **Warning Banner**: While `requiresClinicalReview` is `true`, all users at that surgery see a visible warning banner on the main surgery page and dashboard stating:
    > "Content for [Surgery Name] is awaiting local clinical review. If you're unsure, please check with a clinician before booking."
