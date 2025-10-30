@@ -186,6 +186,16 @@ Each surgery must review and approve its own symptom guidance to ensure clinical
 
 The system records who signed off and when, providing an audit trail for governance and CQC-style assurance.
 
+#### How to Use (Admins and Superusers)
+
+1. Open the Admin dashboard and choose your surgery.
+2. Click Clinical Review to view all effective symptoms for that surgery.
+3. For each symptom, mark Approved or Needs Change.
+4. When everything is reviewed (no items left pending), click Complete Review and Sign Off.
+5. To start a new annual review, click Request Re‑review (this resets all statuses to Pending and shows the banner to staff again).
+
+Staff using the signposting tool will see a banner while content is awaiting local clinical review.
+
 ### Surgery Persistence Precedence
 
 The application follows this precedence for determining which surgery context to use:

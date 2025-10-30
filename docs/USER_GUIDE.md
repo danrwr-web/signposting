@@ -120,7 +120,31 @@ If in doubt, err on the side of escalation.
 
 ---
 
-## 8. Using the Toolkit (Step-by-Step)
+## 8. Clinical Review and Local Sign‑off
+
+Each practice must review and approve its own symptom guidance. Until approved, staff will see a banner stating the content is awaiting local clinical review.
+
+### 8.1 For Admins / Senior Clinicians
+
+1. Open the Admin dashboard and select your surgery.
+2. Click **Clinical Review** to see all symptoms for that surgery.
+3. For each symptom, choose:
+   - **Approved** – content is appropriate
+   - **Needs Change** – content requires editing (use “View / Edit” to open the instruction page)
+   - **Set Pending** – revert back to pending if needed
+4. When no items are pending, click **Complete Review and Sign Off**.
+5. To re‑inspect annually (or after substantive changes), click **Request Re‑review**. This resets all statuses to Pending and shows the staff banner again.
+
+On each instruction page (when accessed from Clinical Review), you can also approve/mark needs‑change directly and navigate Previous/Next.
+
+### 8.2 For Staff (Reception / Navigation)
+
+- If a yellow banner appears, the content is awaiting your practice’s clinical review. Use the guidance as an aid, but check with a clinician if unsure.
+- Once signed off, the banner disappears. The instruction page will show who approved it and when.
+
+---
+
+## 9. Using the Toolkit (Step-by-Step)
 
 1. **Open the web app** and log in (if required).  
 2. **Select the symptom** that best matches the patient's presentation.  
@@ -136,7 +160,7 @@ If in doubt, err on the side of escalation.
 
 ---
 
-## 9. Example Scenarios
+## 10. Example Scenarios
 
 ### Example 1 – Sore Throat
 - Select *Sore Throat* → toolkit shows pharmacy/self-care guidance.  
@@ -150,7 +174,7 @@ If in doubt, err on the side of escalation.
 
 ---
 
-## 10. Support and Feedback
+## 11. Support and Feedback
 
 For issues, suggestions, or feedback:
 - Use the **"Suggest a Change"** form within the app to submit your idea.  
@@ -159,7 +183,7 @@ For issues, suggestions, or feedback:
 
 ---
 
-## 11. Donations and Support
+## 12. Donations and Support
 
 The Signposting Toolkit is shared in good faith to help other surgeries improve patient access and workflow safety.  
 It is self-funded and maintained voluntarily.  
@@ -172,7 +196,7 @@ If you find it valuable, please consider contributing to its ongoing development
 
 ---
 
-## 12. Version Control and Updates
+## 13. Version Control and Updates
 
 | **Date** | **Version** | **Changes** |
 |-----------|--------------|--------------|
