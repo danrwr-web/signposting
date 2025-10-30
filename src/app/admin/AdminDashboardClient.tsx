@@ -154,7 +154,7 @@ export default function AdminDashboardClient({
                       </p>
                     </Link>
                     <Link
-                      href={`/s/${user.defaultSurgeryId}/admin/users`}
+                      href={adminSurgeryId ? `/s/${adminSurgeryId}/admin/users` : '#'}
                       className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
                     >
                       <h4 className="font-medium text-gray-900">Manage Users</h4>
@@ -164,7 +164,7 @@ export default function AdminDashboardClient({
                     </Link>
                     
                     <Link
-                      href={`/s/${user.defaultSurgeryId}`}
+                      href={adminSurgeryId ? `/s/${adminSurgeryId}` : '#'}
                       className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
                     >
                       <h4 className="font-medium text-gray-900">Launch Tool</h4>

@@ -149,6 +149,44 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   return (
     <div className="min-h-screen bg-nhs-light-grey">
       <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} />
+      {/* Inline status badge and approver info */}
+      {surgeryId && (
+        await (async () => {
+          const status = await prisma.symptomReviewStatus.findUnique({
+            where: {
+              surgeryId_symptomId_ageGroup: {
+                surgeryId,
+                symptomId: symptom.id,
+                ageGroup: symptom.ageGroup || null
+              }
+            },
+            include: {
+              lastReviewedBy: {
+                select: { name: true, email: true }
+              }
+            }
+          })
+          const approved = status?.status === 'APPROVED'
+          const needsChange = status?.status === 'CHANGES_REQUIRED'
+          const pending = !status || status.status === 'PENDING'
+          return (
+            <div className={pending || needsChange ? 'bg-yellow-50 border-l-4 border-yellow-400' : 'bg-green-50 border-l-4 border-green-400'}>
+              <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+                {approved && (
+                  <p className="text-sm text-green-800">
+                    Approved on {status?.lastReviewedAt ? new Date(status.lastReviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'} by {status?.lastReviewedBy?.name || status?.lastReviewedBy?.email || 'Unknown'}
+                  </p>
+                )}
+                {(needsChange || pending) && (
+                  <p className="text-sm text-yellow-800">
+                    {needsChange ? 'Marked as Needs Change' : 'Pending clinical review'}{status?.lastReviewedAt ? ` (last updated ${new Date(status.lastReviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}
+                  </p>
+                )}
+              </div>
+            </div>
+          )
+        })()
+      )}
       {refParam === 'clinical-review' && surgeryId && (
         <div className="bg-white border-b border-gray-200">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">

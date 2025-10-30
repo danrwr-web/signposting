@@ -215,10 +215,10 @@ export default function ClinicalReviewClient({
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <Link
-                href={`/s/${surgery.id}/dashboard`}
+                href={`/admin`}
                 className="text-blue-600 hover:text-blue-500 mr-4"
               >
-                ← Back to Dashboard
+                ← Back to Admin Dashboard
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">
                 Clinical Review - {surgery.name}
