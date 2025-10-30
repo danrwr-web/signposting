@@ -321,23 +321,23 @@ export default function ClinicalReviewClient({
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto md:overflow-x-visible">
+            <table className="min-w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5 md:w-2/5 break-words">
                     Symptom Name
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6 md:w-1/6">
                     Age Group
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6 md:w-1/6">
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6 md:w-1/6">
                     Last Reviewed
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5 md:w-2/5">
                     Actions
                   </th>
                 </tr>
@@ -345,7 +345,7 @@ export default function ClinicalReviewClient({
               <tbody className="bg-white divide-y divide-gray-200">
                 {symptoms.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan={5} className="px-4 md:px-6 py-4 text-center text-sm text-gray-500">
                       No symptoms found for this surgery.
                     </td>
                   </tr>
@@ -356,23 +356,23 @@ export default function ClinicalReviewClient({
                     const key = `${symptom.id}-${symptom.ageGroup || ''}`
 
                     return (
-                      <tr key={symptom.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
+                      <tr key={symptom.id} className="align-top">
+                        <td className="px-4 md:px-6 py-4 whitespace-normal break-words">
+                          <div className="text-sm font-medium text-gray-900 leading-snug">
                             {symptom.name}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <span className="text-sm text-gray-500">
                             {symptom.ageGroup || 'N/A'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-4 md:px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(status)}`}>
                             {status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-4 md:px-6 py-4 whitespace-normal break-words text-sm text-gray-500">
                           {reviewStatus?.lastReviewedAt ? (
                             <div>
                               <div>{formatDate(reviewStatus.lastReviewedAt)}</div>
@@ -386,8 +386,8 @@ export default function ClinicalReviewClient({
                             'Not reviewed'
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center space-x-4">
+                        <td className="px-4 md:px-6 py-4 whitespace-normal break-words text-sm font-medium">
+                          <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
                             <Link
                               href={`/symptom/${symptom.id}?surgery=${surgery.id}&ref=clinical-review`}
                               className="text-blue-600 hover:text-blue-900"
@@ -395,8 +395,8 @@ export default function ClinicalReviewClient({
                             >
                               View / Edit
                             </Link>
-                            <div className="flex items-center space-x-4">
-                              <label className="flex items-center space-x-2 cursor-pointer">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <label className="inline-flex items-center space-x-2 cursor-pointer">
                                 <input
                                   type="checkbox"
                                   checked={status === 'APPROVED'}
@@ -411,7 +411,7 @@ export default function ClinicalReviewClient({
                                 />
                                 <span className="text-green-700 font-medium">Approved</span>
                               </label>
-                              <label className="flex items-center space-x-2 cursor-pointer">
+                              <label className="inline-flex items-center space-x-2 cursor-pointer">
                                 <input
                                   type="checkbox"
                                   checked={status === 'CHANGES_REQUIRED'}
