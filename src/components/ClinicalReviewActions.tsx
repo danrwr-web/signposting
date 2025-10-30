@@ -11,10 +11,10 @@ interface ClinicalReviewActionsProps {
 }
 
 export default function ClinicalReviewActions({ surgeryId, symptomId, ageGroup }: ClinicalReviewActionsProps) {
-  const [loading, setLoading] = useState<'APPROVED' | 'CHANGES_REQUIRED' | null>(null)
+  const [loading, setLoading] = useState<'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' | null>(null)
   const router = useRouter()
 
-  const updateStatus = async (newStatus: 'APPROVED' | 'CHANGES_REQUIRED') => {
+  const updateStatus = async (newStatus: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED') => {
     try {
       setLoading(newStatus)
       const res = await fetch('/api/admin/review-status', {
@@ -26,7 +26,9 @@ export default function ClinicalReviewActions({ surgeryId, symptomId, ageGroup }
         const e = await res.json().catch(() => ({}))
         throw new Error(e.error || 'Failed to update review status')
       }
-      toast.success(newStatus === 'APPROVED' ? 'Marked Approved' : 'Marked Needs Change')
+      toast.success(
+        newStatus === 'APPROVED' ? 'Marked Approved' : newStatus === 'CHANGES_REQUIRED' ? 'Marked Needs Change' : 'Set to Pending'
+      )
       router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update review status')
@@ -39,11 +41,11 @@ export default function ClinicalReviewActions({ surgeryId, symptomId, ageGroup }
     <div className="bg-white border-b border-gray-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-end gap-3">
         <button
-          onClick={() => updateStatus('CHANGES_REQUIRED')}
+          onClick={() => updateStatus('PENDING')}
           disabled={loading !== null}
           className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Set Pending
+          {loading === 'PENDING' ? 'Saving…' : 'Set Pending'}
         </button>
         <button
           onClick={() => updateStatus('CHANGES_REQUIRED')}

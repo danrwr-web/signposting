@@ -750,6 +750,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                       Symptom Management
                     </h2>
                     <div className="space-x-2">
+                      {session.type === 'surgery' && selectedSurgery && (
+                        <a
+                          href={`/s/${selectedSurgery}/clinical-review`}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                        >
+                          Clinical Review
+                        </a>
+                      )}
                       <button
                         onClick={() => setShowAddSymptomForm(true)}
                         className="px-4 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
