@@ -322,7 +322,7 @@ export default function ClinicalReviewClient({
           </div>
 
           <div className="overflow-x-auto md:overflow-x-visible">
-            <table className="min-w-full table-fixed divide-y divide-gray-200">
+            <table className="w-full table-fixed divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5 md:w-2/5 break-words">
@@ -337,7 +337,7 @@ export default function ClinicalReviewClient({
                   <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/6 md:w-1/6">
                     Last Reviewed
                   </th>
-                  <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5 md:w-2/5">
+                  <th scope="col" className="px-4 md:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px] md:min-w-[220px] w-2/6 md:w-1/3">
                     Actions
                   </th>
                 </tr>
@@ -377,7 +377,7 @@ export default function ClinicalReviewClient({
                             <div>
                               <div>{formatDate(reviewStatus.lastReviewedAt)}</div>
                               {reviewStatus.lastReviewedBy && (
-                                <div className="text-xs text-gray-400">
+                                <div className="text-xs text-gray-400 hidden sm:block">
                                   by {reviewStatus.lastReviewedBy.name || reviewStatus.lastReviewedBy.email}
                                 </div>
                               )}
@@ -387,15 +387,17 @@ export default function ClinicalReviewClient({
                           )}
                         </td>
                         <td className="px-4 md:px-6 py-4 whitespace-normal break-words text-sm font-medium">
-                          <div className="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-2 md:space-y-0">
-                            <Link
-                              href={`/symptom/${symptom.id}?surgery=${surgery.id}&ref=clinical-review`}
-                              className="text-blue-600 hover:text-blue-900"
-                              target="_blank"
-                            >
-                              View / Edit
-                            </Link>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="flex flex-col gap-3">
+                            <div>
+                              <Link
+                                href={`/symptom/${symptom.id}?surgery=${surgery.id}&ref=clinical-review`}
+                                className="text-blue-600 hover:text-blue-900 inline-block"
+                                target="_blank"
+                              >
+                                View / Edit
+                              </Link>
+                            </div>
+                            <div className="flex flex-col gap-2">
                               <label className="inline-flex items-center space-x-2 cursor-pointer">
                                 <input
                                   type="checkbox"
