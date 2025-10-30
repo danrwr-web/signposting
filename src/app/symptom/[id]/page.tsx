@@ -16,6 +16,7 @@ interface SymptomPageProps {
   }>
   searchParams: Promise<{
     surgery?: string
+    ref?: string
   }>
 }
 
@@ -24,6 +25,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const { id } = resolvedParams
   const resolvedSearchParams = await searchParams
   const surgeryParam = resolvedSearchParams.surgery
+  const refParam = resolvedSearchParams.ref
 
   // Debug logging
   console.log('SymptomPage: id =', id, 'surgeryParam =', surgeryParam)
@@ -72,6 +74,21 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const surgeries = await prisma.surgery.findMany({
     orderBy: { name: 'asc' }
   })
+
+  // If coming from clinical review, compute previous/next for navigation
+  let prevSymptomId: string | null = null
+  let nextSymptomId: string | null = null
+  if (refParam === 'clinical-review' && surgeryId) {
+    // Load all effective symptoms for this surgery and sort by name
+    const { getEffectiveSymptoms } = await import('@/server/effectiveSymptoms')
+    const all = await getEffectiveSymptoms(surgeryId)
+    const sorted = all.sort((a, b) => a.name.localeCompare(b.name))
+    const index = sorted.findIndex(s => s.id === symptom.id)
+    if (index !== -1) {
+      prevSymptomId = index > 0 ? sorted[index - 1].id : null
+      nextSymptomId = index < sorted.length - 1 ? sorted[index + 1].id : null
+    }
+  }
 
   // Track usage for test users BEFORE displaying the symptom
   if (surgeryId) {
@@ -131,6 +148,33 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   return (
     <div className="min-h-screen bg-nhs-light-grey">
       <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} />
+      {refParam === 'clinical-review' && surgeryId && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+            <a href={`/s/${surgeryId}/clinical-review`} className="text-blue-600 hover:text-blue-700 text-sm">
+              ← Back to Clinical Review
+            </a>
+            <div className="flex items-center gap-3">
+              {prevSymptomId && (
+                <a
+                  href={`/symptom/${prevSymptomId}?surgery=${surgeryId}&ref=clinical-review`}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  ← Previous
+                </a>
+              )}
+              {nextSymptomId && (
+                <a
+                  href={`/symptom/${nextSymptomId}?surgery=${surgeryId}&ref=clinical-review`}
+                  className="text-sm text-blue-600 hover:text-blue-700"
+                >
+                  Next →
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       <InstructionView 
         symptom={symptom} 

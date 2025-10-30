@@ -389,7 +389,7 @@ export default function ClinicalReviewClient({
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center space-x-4">
                             <Link
-                              href={`/symptom/${symptom.id}?surgery=${surgery.id}`}
+                              href={`/symptom/${symptom.id}?surgery=${surgery.id}&ref=clinical-review`}
                               className="text-blue-600 hover:text-blue-900"
                               target="_blank"
                             >

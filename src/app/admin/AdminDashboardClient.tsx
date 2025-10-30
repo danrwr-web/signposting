@@ -140,6 +140,15 @@ export default function AdminDashboardClient({
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Link
+                      href={`/s/${user.defaultSurgeryId}/clinical-review`}
+                      className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
+                    >
+                      <h4 className="font-medium text-gray-900">Clinical Review</h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Review and approve symptom guidance
+                      </p>
+                    </Link>
+                    <Link
                       href={`/s/${user.defaultSurgeryId}/admin/users`}
                       className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
                     >
