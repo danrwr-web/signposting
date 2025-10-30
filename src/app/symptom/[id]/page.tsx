@@ -5,6 +5,7 @@ import { getEffectiveSymptomById, getEffectiveSymptomBySlug } from '@/server/eff
 import InstructionView from '@/components/InstructionView'
 import SimpleHeader from '@/components/SimpleHeader'
 import { getSessionUser } from '@/lib/rbac'
+import ClinicalReviewActions from '@/components/ClinicalReviewActions'
 
 // Disable caching for this page to prevent stale data
 export const dynamic = 'force-dynamic'
@@ -174,6 +175,9 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
             </div>
           </div>
         </div>
+      )}
+      {refParam === 'clinical-review' && surgeryId && (
+        <ClinicalReviewActions surgeryId={surgeryId} symptomId={symptom.id} ageGroup={symptom.ageGroup} />
       )}
       
       <InstructionView 

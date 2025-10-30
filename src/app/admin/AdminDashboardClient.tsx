@@ -27,6 +27,11 @@ export default function AdminDashboardClient({
 }: AdminDashboardClientProps) {
   const [activeTab, setActiveTab] = useState('overview')
 
+  // Prefer a surgery the admin can manage; fall back to default
+  const adminSurgeryId = !isSuperuser
+    ? (user.memberships.find(m => m.role === 'ADMIN')?.surgeryId || user.defaultSurgeryId)
+    : user.defaultSurgeryId
+
   const handleLogout = async () => {
     try {
       await signOut({ callbackUrl: '/' })
@@ -140,7 +145,7 @@ export default function AdminDashboardClient({
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Link
-                      href={`/s/${user.defaultSurgeryId}/clinical-review`}
+                      href={adminSurgeryId ? `/s/${adminSurgeryId}/clinical-review` : '#'}
                       className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
                     >
                       <h4 className="font-medium text-gray-900">Clinical Review</h4>
