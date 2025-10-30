@@ -59,13 +59,22 @@ export default function LandingPageClient() {
             <p className="mt-6 text-xl text-gray-600 max-w-3xl mx-auto">
               Helping admin teams get patients to the right place, first time.
             </p>
-            <div className="mt-8">
+            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+              A simple, safe toolkit that helps your reception and care navigation teams direct patients to the right service — with clear instructions, clinical sign-off, and built-in audit.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href="/login"
                 className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Launch Toolkit
               </Link>
+              <a
+                href="mailto:d.webber-rookes2@nhs.net"
+                className="inline-flex items-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Request a Demo
+              </a>
             </div>
           </div>
         </div>
@@ -192,6 +201,74 @@ export default function LandingPageClient() {
         </div>
       </section>
 
+      {/* Why Practices Choose the Signposting Toolkit */}
+      <section className="py-16 bg-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900">Why Practices Choose the Signposting Toolkit</h2>
+            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+              A modern, clinically governed signposting platform built by GPs for GPs and their care navigators.
+            </p>
+          </div>
+          
+          {/* Comparison Table */}
+          <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 w-1/4">Feature</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-blue-600 w-2/4">Signposting Toolkit</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600 w-2/4">Other Toolkits</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Clinical Governance</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Built-in clinical sign-off and audit trail</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Vendor pre-approved content, limited local control.</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Customisation</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Editable symptoms, local overrides & highlight rules</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Basic edits within fixed structure.</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Technology</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Built using modern, sustainable technology with secure cloud hosting.</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Uses older web frameworks with limited flexibility.</td>
+                  </tr>
+                  <tr className="bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Audit & Security</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Role-based access, secure data model, no patient-identifiable information stored.</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Limited role differentiation.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="text-center mb-8">
+            <p className="text-base text-gray-700 mb-6">
+              For further information or to discuss pricing and onboarding options, please contact{' '}
+              <a 
+                href="mailto:d.webber-rookes2@nhs.net" 
+                className="text-blue-600 hover:text-blue-700 font-medium underline"
+              >
+                d.webber-rookes2@nhs.net
+              </a>
+              .
+            </p>
+            <Link
+              href="/login"
+              className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Launch Toolkit
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Disclaimer section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -227,32 +304,13 @@ export default function LandingPageClient() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Signposting Toolkit</h3>
-              <p className="text-gray-400">
-                Helping healthcare admin teams provide better patient guidance.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Attribution</h3>
-              <p className="text-gray-400">
-                Developed in partnership with Ide Lane Surgery
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Version</h3>
-              <p className="text-gray-400">
-                {process.env.NEXT_PUBLIC_APP_VERSION || 'Beta v1.0'}
-              </p>
-            </div>
-          </div>
-          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
-            <p>&copy; 2025 Signposting Toolkit. All rights reserved.</p>
-          </div>
-        </div>
+      <footer className="py-8 text-center text-sm text-gray-500">
+        <p>© {new Date().getFullYear()} The Signposting Toolkit · Built by GPs for GPs and their care navigators</p>
+        <p>
+          Contact: <a href="mailto:d.webber-rookes2@nhs.net" className="text-blue-600 underline">
+            d.webber-rookes2@nhs.net
+          </a>
+        </p>
       </footer>
     </div>
   )
