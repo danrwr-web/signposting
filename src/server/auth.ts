@@ -31,10 +31,14 @@ export async function createSession(session: Session): Promise<void> {
   const cookieStore = await cookies()
   const sessionData = JSON.stringify(session)
   
+  const cookieDomain = process.env.COOKIE_DOMAIN
+
   cookieStore.set('session', sessionData, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
+    path: '/',
+    domain: cookieDomain || undefined,
     maxAge: 60 * 60 * 24 * 7, // 7 days
   })
 }

@@ -20,8 +20,8 @@ export async function PATCH(
     const session = await getSession()
     const { id } = await params
     
-    // Only superusers can update
-    if (!session || session.type !== 'superuser') {
+    // AuthZ: superusers can update all fields; surgery admins may only toggle isEnabled
+    if (!session || (session.type !== 'superuser' && session.type !== 'surgery')) {
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 403 }
@@ -44,6 +44,19 @@ export async function PATCH(
     }
     if (updateData.alt !== undefined) {
       updateFields.alt = updateData.alt
+    }
+
+    // Enforce field-level permissions for surgery admins
+    if (session.type === 'surgery') {
+      const allowedKeys = ['isEnabled']
+      const requestedKeys = Object.keys(updateFields)
+      const isOnlyToggle = requestedKeys.length === 1 && allowedKeys.includes(requestedKeys[0])
+      if (!isOnlyToggle) {
+        return NextResponse.json(
+          { error: 'Unauthorized - superuser required for this change' },
+          { status: 403 }
+        )
+      }
     }
 
     const icon = await (prisma as any).imageIcon.update({

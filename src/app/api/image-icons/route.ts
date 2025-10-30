@@ -61,12 +61,12 @@ export async function GET(request: NextRequest) {
       return response
     }
     
-    // Otherwise, return all icons (for admin use - requires superuser)
+    // Otherwise, return all icons (admin UI - allow superuser and surgery admins)
     const session = await getSession()
     
-    if (!session || session.type !== 'superuser') {
+    if (!session || (session.type !== 'superuser' && session.type !== 'surgery')) {
       return NextResponse.json(
-        { error: 'Unauthorized - superuser only' },
+        { error: 'Unauthorized' },
         { status: 403 }
       )
     }
