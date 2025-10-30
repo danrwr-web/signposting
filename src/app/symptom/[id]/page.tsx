@@ -170,7 +170,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
           const needsChange = status?.status === 'CHANGES_REQUIRED'
           const pending = !status || status.status === 'PENDING'
           return (
-            <div className={pending || needsChange ? 'bg-yellow-50 border-l-4 border-yellow-400' : 'bg-green-50 border-l-4 border-green-400'}>
+            <div className={needsChange ? 'bg-red-50 border-l-4 border-red-400' : pending ? 'bg-yellow-50 border-l-4 border-yellow-400' : 'bg-green-50 border-l-4 border-green-400'}>
               <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 {approved && (
                   <p className="text-sm text-green-800">
@@ -178,7 +178,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
                   </p>
                 )}
                 {(needsChange || pending) && (
-                  <p className="text-sm text-yellow-800">
+                  <p className={`text-sm ${needsChange ? 'text-red-800' : 'text-yellow-800'}`}>
                     {needsChange ? 'Marked as Needs Change' : 'Pending clinical review'}{status?.lastReviewedAt ? ` (last updated ${new Date(status.lastReviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}
                   </p>
                 )}

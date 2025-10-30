@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 
 interface ClinicalReviewActionsProps {
@@ -11,6 +12,7 @@ interface ClinicalReviewActionsProps {
 
 export default function ClinicalReviewActions({ surgeryId, symptomId, ageGroup }: ClinicalReviewActionsProps) {
   const [loading, setLoading] = useState<'APPROVED' | 'CHANGES_REQUIRED' | null>(null)
+  const router = useRouter()
 
   const updateStatus = async (newStatus: 'APPROVED' | 'CHANGES_REQUIRED') => {
     try {
@@ -25,6 +27,7 @@ export default function ClinicalReviewActions({ surgeryId, symptomId, ageGroup }
         throw new Error(e.error || 'Failed to update review status')
       }
       toast.success(newStatus === 'APPROVED' ? 'Marked Approved' : 'Marked Needs Change')
+      router.refresh()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update review status')
     } finally {
@@ -35,6 +38,13 @@ export default function ClinicalReviewActions({ surgeryId, symptomId, ageGroup }
   return (
     <div className="bg-white border-b border-gray-200">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-end gap-3">
+        <button
+          onClick={() => updateStatus('CHANGES_REQUIRED')}
+          disabled={loading !== null}
+          className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Set Pending
+        </button>
         <button
           onClick={() => updateStatus('CHANGES_REQUIRED')}
           disabled={loading !== null}
