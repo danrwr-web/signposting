@@ -12,6 +12,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'NHS Signposting',
   description: 'NHS-style symptom signposting application',
+  other: {
+    'google-site-verification': 'Jkfm6MYx8FVRR6F3CQj72ybUFcjI8NJ_p8-F9tmubvQ',
+  },
   icons: {
     icon: '/images/signposting_logo_fav.png',
     shortcut: '/images/signposting_logo_fav.png',
@@ -36,7 +39,7 @@ export default async function RootLayout({
   // Resolve surgery data if ID is present
   let initialSurgery = null
   if (surgeryId) {
-    const surgery = surgeries.find(s => s.id === surgeryId)
+    const surgery = surgeries.find((s: { id: string }) => s.id === surgeryId)
     if (surgery) {
       initialSurgery = { id: surgery.id, slug: surgery.slug || surgery.id, name: surgery.name }
     }
