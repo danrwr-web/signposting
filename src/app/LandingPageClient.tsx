@@ -305,11 +305,13 @@ export default function LandingPageClient() {
 
       {/* Footer */}
       <footer className="py-8 text-center text-sm text-gray-500">
-        <p>© {new Date().getFullYear()} The Signposting Toolkit · Built by GPs for GPs and their care navigators</p>
         <p>
-          Contact: <a href="mailto:d.webber-rookes2@nhs.net" className="text-blue-600 underline">
-            d.webber-rookes2@nhs.net
-          </a>
+          © {new Date().getFullYear()} The Signposting Toolkit · Built by GPs for GPs and their care navigators
+        </p>
+        <p>
+          <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
+          · Contact:{' '}
+          <a href="mailto:d.webber-rookes2@nhs.net" className="text-blue-600 underline">d.webber-rookes2@nhs.net</a>
         </p>
       </footer>
     </div>
