@@ -53,3 +53,25 @@
     overflow: hidden;
   }
 }
+
+/* Scroll-reveal utility classes (accessible, lightweight) */
+.sr-init {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 600ms ease, transform 600ms ease;
+  will-change: opacity, transform;
+}
+
+.sr-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sr-init {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

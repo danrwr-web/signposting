@@ -2,9 +2,11 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { useScrollReveal } from '@/hooks/useScrollReveal'
 
 export default function LandingPageClient() {
   const [showDonationTooltip, setShowDonationTooltip] = useState(false)
+  const { register } = useScrollReveal()
 
   return (
     <div className="min-h-screen bg-white">
@@ -59,6 +61,9 @@ export default function LandingPageClient() {
             <p className="text-lg text-gray-600 mt-4 max-w-2xl mx-auto">
               A simple, safe toolkit that helps your reception and care navigation teams direct patients to the right service — with clear instructions, local clinical sign-off, and a full audit trail.
             </p>
+            <p className="mt-3 text-base text-gray-700">
+              Accessible anytime via browser — no installation needed for your reception team.
+            </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href="/login"
@@ -88,7 +93,7 @@ export default function LandingPageClient() {
           </div>
           
           <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="bg-gray-50 p-6 rounded-lg">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -100,7 +105,7 @@ export default function LandingPageClient() {
               </p>
             </div>
 
-            <div className="bg-gray-50 p-6 rounded-lg">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -112,7 +117,7 @@ export default function LandingPageClient() {
               </p>
             </div>
 
-            <div className="bg-gray-50 p-6 rounded-lg">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -146,19 +151,19 @@ export default function LandingPageClient() {
                 local contact details, and tailored instructions.
               </p>
               <ul className="text-gray-600 space-y-2">
-                <li className="flex items-center">
+                <li ref={register} className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   Practice-specific contact information
                 </li>
-                <li className="flex items-center">
+                <li ref={register} className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   Local service availability
                 </li>
-                <li className="flex items-center">
+                <li ref={register} className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -174,19 +179,19 @@ export default function LandingPageClient() {
                 to manage your practice's configuration.
               </p>
               <ul className="text-gray-600 space-y-2">
-                <li className="flex items-center">
+                <li ref={register} className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   Practice administrators
                 </li>
-                <li className="flex items-center">
+                <li ref={register} className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
                   Standard users
                 </li>
-                <li className="flex items-center">
+                <li ref={register} className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
@@ -223,22 +228,22 @@ export default function LandingPageClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  <tr>
+                  <tr ref={register}>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">Clinical Governance</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Built-in clinical sign-off and audit trail</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Vendor pre-approved content, limited local control.</td>
                   </tr>
-                  <tr className="bg-gray-50">
+                  <tr ref={register} className="bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">Customisation</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Editable symptoms, local overrides & highlight rules</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Basic edits within fixed structure.</td>
                   </tr>
-                  <tr>
+                  <tr ref={register}>
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">Technology</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Built using modern, sustainable technology with secure cloud hosting.</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Uses older web frameworks with limited flexibility.</td>
                   </tr>
-                  <tr className="bg-gray-50">
+                  <tr ref={register} className="bg-gray-50">
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">Audit & Security</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Role-based access, secure data model, no patient-identifiable information stored.</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Limited role differentiation.</td>
