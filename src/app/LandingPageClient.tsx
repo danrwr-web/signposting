@@ -215,6 +215,9 @@ export default function LandingPageClient() {
           <p className="text-base text-gray-700 max-w-3xl mx-auto mb-8">
             The Signposting Toolkit supports reception workflow, GP triage, Pharmacy First and self-care routing, and continuity of care. Each pathway is locally approved by a senior clinician, with an audit trail and clinical sign-off so practices can evidence safe care navigation.
           </p>
+          <p className="text-base text-gray-700 max-w-3xl mx-auto mb-8" ref={register}>
+            The Toolkit is already being used in live GP practice settings. Ide Lane Surgery is currently the highest referrer to Pharmacy First in Devon, and this approach supports safe diversion of same-day demand away from GP appointments.
+          </p>
           
           {/* Comparison Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
