@@ -539,6 +539,10 @@ npm run start            # Start production server
 npm run lint             # Run ESLint
 ```
 
+### Linting (Oct 2025)
+
+- ESLint is updated to **v9.38.0**. The project currently runs lint via `next lint`, which Next.js marks as deprecated ahead of Next 16. You may migrate to the ESLint CLI in future, but no functional changes are required for this project now.
+
 ## Security & Access Control (Oct 2025 Update)
 
 **All admin routes and APIs now require authenticated NextAuth sessions with role-based checks.**
