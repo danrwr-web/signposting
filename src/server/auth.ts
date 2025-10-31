@@ -49,6 +49,29 @@ export async function getSession(): Promise<Session | null> {
     const sessionCookie = cookieStore.get('session')
     
     if (!sessionCookie?.value) {
+      // Fallback to NextAuth session if our cookie is missing
+      try {
+        const nextAuthSession = await getServerSession(authOptions)
+        if (nextAuthSession?.user) {
+          const isSuper = nextAuthSession.user.globalRole === 'SUPERUSER'
+          if (isSuper) {
+            return {
+              type: 'superuser',
+              id: nextAuthSession.user.id,
+              email: nextAuthSession.user.email ?? '',
+            }
+          }
+          const defaultSurgeryId = (nextAuthSession.user as any).defaultSurgeryId as string | undefined
+          if (defaultSurgeryId) {
+            return {
+              type: 'surgery',
+              id: nextAuthSession.user.id,
+              email: nextAuthSession.user.email ?? '',
+              surgeryId: defaultSurgeryId,
+            }
+          }
+        }
+      } catch {}
       return null
     }
     
