@@ -56,11 +56,8 @@ export default function LandingPageClient() {
             <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
               Find the right place for care
             </h1>
-            <p className="mt-6 text-xl text-gray-600 max-w-3xl mx-auto">
-              Helping admin teams get patients to the right place, first time.
-            </p>
-            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-              A simple, safe toolkit that helps your reception and care navigation teams direct patients to the right service — with clear instructions, clinical sign-off, and built-in audit.
+            <p className="text-lg text-gray-600 mt-4 max-w-2xl mx-auto">
+              A simple, safe toolkit that helps your reception and care navigation teams direct patients to the right service — with clear instructions, local clinical sign-off, and a full audit trail.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
@@ -210,6 +207,9 @@ export default function LandingPageClient() {
               A modern, clinically governed signposting platform built by GPs for GPs and their care navigators.
             </p>
           </div>
+          <p className="text-base text-gray-700 max-w-3xl mx-auto mb-8">
+            The Signposting Toolkit supports reception workflow, GP triage, Pharmacy First and self-care routing, and continuity of care. Each pathway is locally approved by a senior clinician, with an audit trail and clinical sign-off so practices can evidence safe care navigation.
+          </p>
           
           {/* Comparison Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
