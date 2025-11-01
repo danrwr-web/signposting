@@ -49,6 +49,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [showAIModal, setShowAIModal] = useState(false)
   const [loadingAI, setLoadingAI] = useState(false)
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
+  const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [aiModel, setAiModel] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
@@ -190,6 +191,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const handleRequestAISuggestion = async () => {
     setLoadingAI(true)
     setAiSuggestion(null)
+    setAiBrief(null)
     setAiModel(null)
     
     try {
@@ -216,6 +218,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         throw new Error(`Failed to get AI suggestion: ${data.error || response.statusText}`)
       }
       setAiSuggestion(data.aiSuggestion)
+      setAiBrief(data.aiBrief || "")
       setAiModel(data.model)
       setShowAIModal(true)
     } catch (error) {
@@ -237,9 +240,10 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         },
         body: JSON.stringify({
           symptomId: symptom.id,
-          newText: aiSuggestion,
-          modelUsed: aiModel,
           source: symptom.source,
+          modelUsed: aiModel,
+          newBriefInstruction: aiBrief || '',
+          newInstructionsHtml: aiSuggestion,
         }),
       })
 
@@ -249,10 +253,14 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
       // Update local symptom object to reflect the change immediately
       symptom.instructionsHtml = aiSuggestion
+      if (aiBrief) {
+        symptom.briefInstruction = aiBrief
+      }
 
       // Close the modal and clear state
       setShowAIModal(false)
       setAiSuggestion(null)
+      setAiBrief(null)
       setAiModel(null)
 
       // Show success toast
@@ -269,6 +277,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const handleDiscardAISuggestion = () => {
     setShowAIModal(false)
     setAiSuggestion(null)
+    setAiBrief(null)
     setAiModel(null)
   }
 
@@ -1128,32 +1137,66 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             <div className="flex-1 overflow-y-auto p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Current version */}
-                <div>
+                <div className="space-y-6">
                   <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
                     Current version
                   </h3>
-                  <div className="prose max-w-none">
-                    <div 
-                      className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
-                      dangerouslySetInnerHTML={{ 
-                        __html: sanitizeAndFormatContent(highlightText(displayText))
-                      }}
-                    />
+                  
+                  {/* Current brief instruction */}
+                  <div>
+                    <h4 className="text-sm font-medium text-nhs-dark-blue mb-2">Brief instruction</h4>
+                    <div className="prose max-w-none">
+                      <div 
+                        className="text-nhs-grey leading-relaxed border border-gray-300 rounded-lg p-4 bg-gray-50"
+                      >
+                        {symptom.briefInstruction || '(none provided)'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Current full instruction */}
+                  <div>
+                    <h4 className="text-sm font-medium text-nhs-dark-blue mb-2">Full instruction</h4>
+                    <div className="prose max-w-none">
+                      <div 
+                        className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-gray-300 rounded-lg p-4 bg-gray-50"
+                        dangerouslySetInnerHTML={{ 
+                          __html: sanitizeAndFormatContent(highlightText(displayText))
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
 
                 {/* AI suggestion */}
-                <div>
+                <div className="space-y-6">
                   <h3 className="text-lg font-semibold text-nhs-green mb-4">
                     AI suggestion (not saved)
                   </h3>
-                  <div className="prose max-w-none">
-                    <div 
-                      className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-nhs-green rounded-lg p-4"
-                      dangerouslySetInnerHTML={{ 
-                        __html: sanitizeAndFormatContent(aiSuggestion)
-                      }}
-                    />
+
+                  {/* AI brief instruction */}
+                  <div>
+                    <h4 className="text-sm font-medium text-nhs-green mb-2">AI brief instruction</h4>
+                    <div className="prose max-w-none">
+                      <div 
+                        className="text-nhs-grey leading-relaxed border border-nhs-green rounded-lg p-4 bg-green-50"
+                      >
+                        {aiBrief || '(none provided)'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI full instruction */}
+                  <div>
+                    <h4 className="text-sm font-medium text-nhs-green mb-2">AI full instruction</h4>
+                    <div className="prose max-w-none">
+                      <div 
+                        className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-nhs-green rounded-lg p-4 bg-green-50"
+                        dangerouslySetInnerHTML={{ 
+                          __html: sanitizeAndFormatContent(aiSuggestion)
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

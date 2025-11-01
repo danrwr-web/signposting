@@ -8,9 +8,11 @@ export const runtime = 'nodejs'
 
 const updateInstructionSchema = z.object({
   symptomId: z.string(),
-  newText: z.string(),
-  modelUsed: z.string().optional(),
   source: z.enum(['base', 'override', 'custom']),
+  modelUsed: z.string().optional(),
+  newBriefInstruction: z.string().optional().default(''),
+  newInstructionsHtml: z.string(),
+  newInstructionsJson: z.any().optional(),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -27,31 +29,33 @@ export async function PATCH(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
-    const { symptomId, newText, modelUsed, source } = updateInstructionSchema.parse(body)
+    const { symptomId, source, modelUsed, newBriefInstruction, newInstructionsHtml, newInstructionsJson } = updateInstructionSchema.parse(body)
 
     // Fetch the current symptom based on source type
-    let previousText: string | null = null
+    let previousBriefInstruction: string | null = null
+    let previousInstructionsHtml: string | null = null
     
     if (source === 'base') {
       // Superusers edit BaseSymptom - this is the primary editable row for base symptoms
       const symptom = await prisma.baseSymptom.findUnique({
         where: { id: symptomId },
-        select: { instructionsHtml: true }
+        select: { briefInstruction: true, instructionsHtml: true }
       })
       
       if (!symptom) {
         return NextResponse.json({ error: 'Symptom not found' }, { status: 404 })
       }
       
-      previousText = symptom.instructionsHtml
+      previousBriefInstruction = symptom.briefInstruction
+      previousInstructionsHtml = symptom.instructionsHtml
       
       // Insert history record
       await prisma.symptomHistory.create({
         data: {
           symptomId,
           source,
-          previousText,
-          newText,
+          previousText: previousInstructionsHtml,
+          newText: newInstructionsHtml,
           editorName: user.name || undefined,
           editorEmail: user.email || undefined,
           modelUsed: modelUsed || 'unknown-model',
@@ -62,7 +66,9 @@ export async function PATCH(request: NextRequest) {
       await prisma.baseSymptom.update({
         where: { id: symptomId },
         data: {
-          instructionsHtml: newText,
+          briefInstruction: newBriefInstruction || undefined,
+          instructionsHtml: newInstructionsHtml,
+          instructionsJson: newInstructionsJson || undefined,
           lastEditedBy: user.name || undefined,
           lastEditedAt: new Date(),
         }
@@ -71,22 +77,23 @@ export async function PATCH(request: NextRequest) {
       // Superusers can edit custom symptoms created by surgeries
       const symptom = await prisma.surgeryCustomSymptom.findUnique({
         where: { id: symptomId },
-        select: { instructionsHtml: true }
+        select: { briefInstruction: true, instructionsHtml: true }
       })
       
       if (!symptom) {
         return NextResponse.json({ error: 'Symptom not found' }, { status: 404 })
       }
       
-      previousText = symptom.instructionsHtml
+      previousBriefInstruction = symptom.briefInstruction
+      previousInstructionsHtml = symptom.instructionsHtml
       
       // Insert history record
       await prisma.symptomHistory.create({
         data: {
           symptomId,
           source,
-          previousText,
-          newText,
+          previousText: previousInstructionsHtml,
+          newText: newInstructionsHtml,
           editorName: user.name || undefined,
           editorEmail: user.email || undefined,
           modelUsed: modelUsed || 'unknown-model',
@@ -97,7 +104,9 @@ export async function PATCH(request: NextRequest) {
       await prisma.surgeryCustomSymptom.update({
         where: { id: symptomId },
         data: {
-          instructionsHtml: newText,
+          briefInstruction: newBriefInstruction || undefined,
+          instructionsHtml: newInstructionsHtml,
+          instructionsJson: newInstructionsJson || undefined,
           lastEditedBy: user.name || undefined,
           lastEditedAt: new Date(),
         }

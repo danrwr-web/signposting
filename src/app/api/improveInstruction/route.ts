@@ -43,29 +43,43 @@ export async function POST(request: NextRequest) {
     const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
 
     // Create the prompt
-    const systemPrompt = `You are an AI assistant helping to improve medical instruction text for GP practice reception staff in an NHS symptom signposting system. Your role is to enhance the clarity and readability of clinical guidance while maintaining medical accuracy and clinical safety.
+    const systemPrompt = `
+You are improving internal signposting guidance used by GP practice admin / reception staff in UK primary care.
 
-CRITICAL SAFETY RULES:
-1. Do NOT invent new red flags, urgent symptoms, or escalation criteria
-2. Do NOT change urgency wording such as "call 999", "speak to duty GP urgently", etc. - only clarify phrasing if genuinely unclear
-3. Do NOT add or remove clinical advice - only improve clarity of existing guidance
-4. Maintain all existing medical terminology and clinical recommendations exactly as they are
-5. Keep guidance calm, step-by-step, and in plain English suitable for reception staff`
+RULES (MANDATORY):
+- Do NOT change the clinical meaning, urgency, or escalation thresholds.
+- Do NOT change or soften wording such as "call 999", "speak to duty GP urgently", "same day".
+- Do NOT invent new red flag criteria or new actions that were not present in the original text.
+- Preserve all deliberate wording choices that look like shorthand, e.g. slashes ("pink/purple", "red/swollen"), symbols, bullet styles, and colour descriptors. Do NOT expand "pink/purple" into "pink or purple".
+- Keep it calm, plain English, and easy for a non-clinical receptionist to read out.
+- Keep structure clear (bullet points, numbered steps) if it helps.
+- IMPORTANT: Output valid HTML for the full instructions. Keep basic tags like <p>, <ul>, <li>, <strong>, <em>, <br />.
+- Do not include any commentary about what you changed.
+`
 
-    const userPrompt = `Current instruction text for GP reception staff:
-${currentText}
+    const userPrompt = `
+You will be given the current triage / signposting guidance for GP practice admin staff.
 
-${briefInstruction ? `Brief instruction: ${briefInstruction}\n` : ''}
-${highlightedText ? `Highlighted text: ${highlightedText}\n` : ''}
+BRIEF INSTRUCTION (what the receptionist should usually say first to the caller):
+"""${briefInstruction || '(none provided)'}"""
 
-Please review this instruction text and suggest improvements to make it clearer and easier to read for GP reception staff. Focus on:
-- Plain English (reading age 9-12)
-- Clear, step-by-step actions
-- Professional but accessible language
-- Improved flow and readability
-- Maintaining all clinical content and urgency levels EXACTLY as written
+FULL INSTRUCTION (internal guidance / escalation steps for reception staff):
+"""${currentText || '(none provided)'}"""
 
-Provide your improved version of the instruction text.`
+TASK:
+1. Rewrite BOTH sections to improve clarity, flow, and readability for a non-clinical GP receptionist, without changing any clinical meaning, urgency wording, or escalation pathway.
+2. Keep all safety-critical triggers and emergency wording EXACTLY as given, unless you are only fixing obvious grammar.
+3. Preserve shorthand like "pink/purple" instead of changing it to "pink or purple".
+4. The full instruction must be returned as HTML using basic tags (<p>, <ul>, <li>, <strong>, etc.). Use paragraphs and bullet lists where helpful.
+
+OUTPUT FORMAT:
+Return ONLY valid JSON, with this exact structure:
+{
+  "briefInstruction": "string - the rewritten briefInstruction text, plain sentence form suitable to say to a caller",
+  "fullInstructionHtml": "string - the rewritten full instruction in HTML"
+}
+Do not include any other keys, explanations, or markdown. Return raw JSON only.
+`
 
     // Call Azure OpenAI API
     const response = await fetch(apiUrl, {
@@ -92,17 +106,29 @@ Provide your improved version of the instruction text.`
 
     const data = await response.json()
     
-    // Extract the AI suggestion from the response
-    const aiSuggestion = data.choices?.[0]?.message?.content || ''
+    const rawContent = data.choices?.[0]?.message?.content || ''
     
-    if (!aiSuggestion) {
-      console.error('Unexpected response structure from Azure OpenAI:', data)
+    let aiBrief = ''
+    let aiFullHtml = ''
+    
+    try {
+      const parsed = JSON.parse(rawContent)
+      aiBrief = parsed.briefInstruction || ''
+      aiFullHtml = parsed.fullInstructionHtml || ''
+    } catch (err) {
+      // fallback if the model didn't return JSON for some reason
+      aiFullHtml = rawContent
+    }
+    
+    if (!aiFullHtml) {
+      console.error('AI response missing fullInstructionHtml:', rawContent)
       return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
     }
-
+    
     // Return the result
     return NextResponse.json({
-      aiSuggestion,
+      aiSuggestion: aiFullHtml,
+      aiBrief,
       model: data.model || deployment,
       timestamp: new Date().toISOString(),
       symptomId,
