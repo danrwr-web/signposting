@@ -193,17 +193,20 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setAiModel(null)
     
     try {
+      const requestBody = {
+        symptomId: symptom.id,
+        currentText: displayText,
+        briefInstruction: symptom.briefInstruction || undefined,
+        highlightedText: symptom.highlightedText || undefined,
+      }
+      console.log('AI suggestion request body:', requestBody)
+      
       const response = await fetch('/api/improveInstruction', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          symptomId: symptom.id,
-          currentText: displayText,
-          briefInstruction: symptom.briefInstruction,
-          highlightedText: symptom.highlightedText,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await response.json()
