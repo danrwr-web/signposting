@@ -206,17 +206,18 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         }),
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI suggestion')
-      }
-
       const data = await response.json()
+      
+      if (!response.ok) {
+        console.error('AI suggestion API error:', response.status, data)
+        throw new Error(`Failed to get AI suggestion: ${data.error || response.statusText}`)
+      }
       setAiSuggestion(data.aiSuggestion)
       setAiModel(data.model)
       setShowAIModal(true)
     } catch (error) {
       console.error('Error getting AI suggestion:', error)
-      toast.error('AI suggestion failed')
+      toast.error(error instanceof Error ? error.message : 'AI suggestion failed')
     } finally {
       setLoadingAI(false)
     }

@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 const improveInstructionSchema = z.object({
   symptomId: z.string(),
-  currentText: z.string(),
+  currentText: z.string().optional(),
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
 })
@@ -109,12 +109,18 @@ Provide your improved version of the instruction text.`
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('Validation error:', error)
-      return NextResponse.json({ error: 'Invalid input', details: error.issues }, { status: 400 })
+      console.error('Validation error:', error.issues)
+      return NextResponse.json({ 
+        error: 'Invalid input', 
+        details: error.issues
+      }, { status: 400 })
     }
     
     console.error('Error in improveInstruction:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 })
   }
 }
 
