@@ -233,14 +233,22 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     if (!aiSuggestion) return
 
     try {
+      // For overrides, map to the base symptom for superuser editing
+      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
+      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+      
+      if (!effectiveSymptomId) {
+        throw new Error('Invalid symptom configuration')
+      }
+
       const response = await fetch('/api/updateInstruction', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          symptomId: symptom.id,
-          source: symptom.source,
+          symptomId: effectiveSymptomId,
+          source: effectiveSource,
           modelUsed: aiModel,
           newBriefInstruction: aiBrief || '',
           newInstructionsHtml: aiSuggestion,

@@ -29,6 +29,7 @@ export async function PATCH(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
+    console.log('Update instruction request body:', { ...body, newInstructionsHtml: body.newInstructionsHtml?.substring(0, 100) + '...' })
     const { symptomId, source, modelUsed, newBriefInstruction, newInstructionsHtml, newInstructionsJson } = updateInstructionSchema.parse(body)
 
     // Fetch the current symptom based on source type
