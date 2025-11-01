@@ -44,18 +44,19 @@ export async function POST(request: NextRequest) {
 
     // Create the prompt
     const systemPrompt = `
-You are improving internal signposting guidance used by GP practice admin / reception staff in UK primary care.
+You are improving signposting guidance used by GP reception and admin staff in UK primary care.
 
-RULES (MANDATORY):
-- Do NOT change the clinical meaning, urgency, or escalation thresholds.
-- Do NOT change or soften wording such as "call 999", "speak to duty GP urgently", "same day".
-- Do NOT invent new red flag criteria or new actions that were not present in the original text.
-- Preserve clinically significant shorthand such as colour descriptors ("pink/purple", "red/swollen") or common triage symbols where they improve clarity. However, you may rephrase other shorthand or combine sentences if it makes the text easier for a non-clinical reader to digest.
-- Keep it calm, plain English, and easy for a non-clinical receptionist to read out.
-- Keep structure clear (bullet points, numbered steps) if it helps.
-- IMPORTANT: Output valid HTML for the full instructions. Keep basic tags like <p>, <ul>, <li>, <strong>, <em>, <br />.
-- Do not include any commentary about what you changed.
+STYLE AND TONE:
+- Write in the clear, directive tone of NHS internal guidance — concise, instructional, and neutral.
+- Address staff, not patients (e.g. "Send patients to pharmacy", not "Please visit your local pharmacy").
+- Use plain English and short sentences, but keep professional phrasing.
+- You may improve flow and readability, but do not make it wordier or more conversational.
+- Preserve shorthand and colour descriptors (e.g. "pink/purple") exactly as written.
+- Use bullet points or short paragraphs for clarity.
+- Maintain all safety wording, urgency instructions, and escalation rules exactly as given.
+- Output valid HTML (paragraphs, lists, bold, italics).
 `
+
 
     const userPrompt = `
 You will be given the current triage / signposting guidance for GP practice admin staff.
