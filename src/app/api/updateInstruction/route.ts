@@ -10,7 +10,7 @@ const updateInstructionSchema = z.object({
   symptomId: z.string(),
   source: z.enum(['base', 'override', 'custom']),
   modelUsed: z.string().optional(),
-  newBriefInstruction: z.string().optional().default(''),
+  newBriefInstruction: z.string().optional(),
   newInstructionsHtml: z.string(),
   newInstructionsJson: z.any().optional(),
 })

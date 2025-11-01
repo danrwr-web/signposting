@@ -248,7 +248,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update instructions')
+        const errorData = await response.json()
+        console.error('Update instruction API error:', response.status, errorData)
+        throw new Error(`Failed to update instructions: ${errorData.error || response.statusText}`)
       }
 
       // Update local symptom object to reflect the change immediately
