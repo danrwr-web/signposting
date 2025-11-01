@@ -10,6 +10,7 @@ import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
 import { useSurgery } from '@/context/SurgeryContext'
+import { toast } from 'react-hot-toast'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
@@ -44,6 +45,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   // Image icon state
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
   const [imageIcon, setImageIcon] = useState<{ imageUrl: string; instructionSize: string } | null>(null)
+  // AI suggestion state
+  const [showAIModal, setShowAIModal] = useState(false)
+  const [loadingAI, setLoadingAI] = useState(false)
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
+  const [aiModel, setAiModel] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -179,6 +185,87 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     } finally {
       setIsLoadingLinkedSymptom(false)
     }
+  }
+
+  const handleRequestAISuggestion = async () => {
+    setLoadingAI(true)
+    setAiSuggestion(null)
+    setAiModel(null)
+    
+    try {
+      const response = await fetch('/api/improveInstruction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symptomId: symptom.id,
+          currentText: displayText,
+          briefInstruction: symptom.briefInstruction,
+          highlightedText: symptom.highlightedText,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get AI suggestion')
+      }
+
+      const data = await response.json()
+      setAiSuggestion(data.aiSuggestion)
+      setAiModel(data.model)
+      setShowAIModal(true)
+    } catch (error) {
+      console.error('Error getting AI suggestion:', error)
+      toast.error('AI suggestion failed')
+    } finally {
+      setLoadingAI(false)
+    }
+  }
+
+  const handleAcceptAISuggestion = async () => {
+    if (!aiSuggestion) return
+
+    try {
+      const response = await fetch('/api/updateInstruction', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symptomId: symptom.id,
+          newText: aiSuggestion,
+          modelUsed: aiModel,
+          source: symptom.source,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update instructions')
+      }
+
+      // Update local symptom object to reflect the change immediately
+      symptom.instructionsHtml = aiSuggestion
+
+      // Close the modal and clear state
+      setShowAIModal(false)
+      setAiSuggestion(null)
+      setAiModel(null)
+
+      // Show success toast
+      toast.success('Instructions updated and logged')
+
+      // Refresh the page to show updated content
+      router.refresh()
+    } catch (error) {
+      console.error('Error accepting AI suggestion:', error)
+      toast.error('Failed to update instructions')
+    }
+  }
+
+  const handleDiscardAISuggestion = () => {
+    setShowAIModal(false)
+    setAiSuggestion(null)
+    setAiModel(null)
   }
 
   const handleEditInstructions = () => {
@@ -613,14 +700,35 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 </span>
               )}
             </div>
-            {canEditInstructions && !isEditingInstructions && !isEditingAll && (
-              <button
-                onClick={handleEditInstructions}
-                className="px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
-              >
-                {isPracticeAdmin && symptom.source === 'base' ? 'Customise Instructions' : 'Edit Instructions'}
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {isSuperuser && !isEditingInstructions && !isEditingAll && (
+                <button
+                  onClick={handleRequestAISuggestion}
+                  disabled={loadingAI}
+                  className="px-4 py-2 text-sm font-medium text-white bg-nhs-green border border-nhs-green rounded-lg hover:bg-[#007d74] transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loadingAI ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Generating AI suggestion...
+                    </span>
+                  ) : (
+                    'Suggest improved wording (AI)'
+                  )}
+                </button>
+              )}
+              {canEditInstructions && !isEditingInstructions && !isEditingAll && (
+                <button
+                  onClick={handleEditInstructions}
+                  className="px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+                >
+                  {isPracticeAdmin && symptom.source === 'base' ? 'Customise Instructions' : 'Edit Instructions'}
+                </button>
+              )}
+            </div>
           </div>
           
           {isEditingInstructions || isEditingAll ? (
@@ -989,6 +1097,76 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 ) : (
                   'Delete Symptom'
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Suggestion Modal */}
+      {showAIModal && aiSuggestion && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-nhs-dark-blue">
+                AI Suggestion Preview
+              </h2>
+              <button
+                onClick={handleDiscardAISuggestion}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-nhs-blue rounded"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Current version */}
+                <div>
+                  <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+                    Current version
+                  </h3>
+                  <div className="prose max-w-none">
+                    <div 
+                      className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
+                      dangerouslySetInnerHTML={{ 
+                        __html: sanitizeAndFormatContent(highlightText(displayText))
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* AI suggestion */}
+                <div>
+                  <h3 className="text-lg font-semibold text-nhs-green mb-4">
+                    AI suggestion (not saved)
+                  </h3>
+                  <div className="prose max-w-none">
+                    <div 
+                      className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-nhs-green rounded-lg p-4"
+                      dangerouslySetInnerHTML={{ 
+                        __html: sanitizeAndFormatContent(aiSuggestion)
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t">
+              <button
+                onClick={handleDiscardAISuggestion}
+                className="px-6 py-2 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
+              >
+                Discard
+              </button>
+              <button
+                onClick={handleAcceptAISuggestion}
+                className="px-6 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2"
+              >
+                Replace current text
               </button>
             </div>
           </div>

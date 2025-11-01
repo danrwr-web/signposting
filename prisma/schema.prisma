@@ -100,6 +100,8 @@ model BaseSymptom {
   variants         Json?    // Optional age/scenario-tailored advice variants
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  lastEditedBy     String?  // Editor name
+  lastEditedAt     DateTime? // Last edit timestamp
 
   overrides SurgerySymptomOverride[]
   events    EngagementEvent[]
@@ -125,6 +127,8 @@ model SurgerySymptomOverride {
   linkToPage       String?
   // Soft delete: if true, this symptom is hidden for this surgery
   isHidden         Boolean  @default(false)
+  lastEditedBy     String?  // Editor name
+  lastEditedAt     DateTime? // Last edit timestamp
 
   surgery          Surgery     @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   baseSymptom      BaseSymptom @relation(fields: [baseSymptomId], references: [id], onDelete: Cascade)
@@ -145,6 +149,8 @@ model SurgeryCustomSymptom {
   instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String?  // HTML format with colour support
   linkToPage       String?
+  lastEditedBy     String?  // Editor name
+  lastEditedAt     DateTime? // Last edit timestamp
 
   surgery          Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
@@ -305,4 +311,20 @@ model SymptomReviewStatus {
   @@unique([surgeryId, symptomId, ageGroup])
   @@index([surgeryId])
   @@index([surgeryId, status])
+}
+
+model SymptomHistory {
+  id            String   @id @default(cuid())
+  symptomId     String   // ID of the symptom
+  source        String   // 'base' | 'override' | 'custom'
+  previousText  String?  // Previous instructions text
+  newText       String   // New instructions text
+  editorName    String?  // Name of the editor
+  editorEmail   String?  // Email of the editor
+  modelUsed     String?  // AI model used (if applicable)
+  changedAt     DateTime @default(now())
+
+  @@index([symptomId])
+  @@index([source])
+  @@index([changedAt])
 }
