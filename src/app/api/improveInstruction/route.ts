@@ -50,7 +50,7 @@ RULES (MANDATORY):
 - Do NOT change the clinical meaning, urgency, or escalation thresholds.
 - Do NOT change or soften wording such as "call 999", "speak to duty GP urgently", "same day".
 - Do NOT invent new red flag criteria or new actions that were not present in the original text.
-- Preserve all deliberate wording choices that look like shorthand, e.g. slashes ("pink/purple", "red/swollen"), symbols, bullet styles, and colour descriptors. Do NOT expand "pink/purple" into "pink or purple".
+- Preserve clinically significant shorthand such as colour descriptors ("pink/purple", "red/swollen") or common triage symbols where they improve clarity. However, you may rephrase other shorthand or combine sentences if it makes the text easier for a non-clinical reader to digest.
 - Keep it calm, plain English, and easy for a non-clinical receptionist to read out.
 - Keep structure clear (bullet points, numbered steps) if it helps.
 - IMPORTANT: Output valid HTML for the full instructions. Keep basic tags like <p>, <ul>, <li>, <strong>, <em>, <br />.
