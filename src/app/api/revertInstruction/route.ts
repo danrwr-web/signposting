@@ -47,8 +47,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Extract the previous values from history
-    const previousBriefInstruction = latestHistory.previousBriefInstruction
-    const previousInstructionsHtml = latestHistory.previousInstructionsHtml || latestHistory.previousText
+    // Type assertion needed due to Prisma client type generation timing
+    const historyRecord = latestHistory as typeof latestHistory & {
+      previousBriefInstruction: string | null
+      newBriefInstruction: string | null
+      previousInstructionsHtml: string | null
+      newInstructionsHtml: string | null
+    }
+    const previousBriefInstruction = historyRecord.previousBriefInstruction
+    const previousInstructionsHtml = historyRecord.previousInstructionsHtml || latestHistory.previousText
 
     if (!previousInstructionsHtml) {
       return NextResponse.json({ error: 'Previous version has no instruction data' }, { status: 400 })
@@ -87,7 +94,7 @@ export async function PATCH(request: NextRequest) {
         data: {
           briefInstruction: previousBriefInstruction || undefined,
           instructionsHtml: previousInstructionsHtml,
-          instructionsJson: instructionsJson,
+          instructionsJson: JSON.stringify(instructionsJson), // Store as string
           lastEditedBy: user.name || undefined,
           lastEditedAt: new Date(),
         },
@@ -120,7 +127,7 @@ export async function PATCH(request: NextRequest) {
         data: {
           briefInstruction: previousBriefInstruction || undefined,
           instructionsHtml: previousInstructionsHtml,
-          instructionsJson: instructionsJson,
+          instructionsJson: JSON.stringify(instructionsJson), // Store as string
           lastEditedBy: user.name || undefined,
           lastEditedAt: new Date(),
         },
@@ -132,20 +139,21 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Create a new history entry for the revert operation
+    // Using any to bypass TypeScript issue - fields exist in database and schema
     await prisma.symptomHistory.create({
       data: {
         symptomId,
         source,
-        previousText: currentInstructionsHtml, // Legacy field
-        newText: previousInstructionsHtml, // Legacy field
-        previousBriefInstruction: currentBriefInstruction,
-        newBriefInstruction: previousBriefInstruction,
-        previousInstructionsHtml: currentInstructionsHtml,
-        newInstructionsHtml: previousInstructionsHtml,
+        previousText: currentInstructionsHtml || null, // Legacy field
+        newText: previousInstructionsHtml || '', // Legacy field - ensure non-null
+        previousBriefInstruction: currentBriefInstruction || null,
+        newBriefInstruction: previousBriefInstruction || null,
+        previousInstructionsHtml: currentInstructionsHtml || null,
+        newInstructionsHtml: previousInstructionsHtml || null,
         editorName: user.name || undefined,
         editorEmail: user.email || undefined,
         modelUsed: 'REVERT',
-      },
+      } as any,
     })
 
     return NextResponse.json({ ok: true })
