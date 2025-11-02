@@ -55,6 +55,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [aiModel, setAiModel] = useState<string | null>(null)
+  const [hasChangeToUndo, setHasChangeToUndo] = useState(false)
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -117,6 +118,43 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     }
     loadHighlightRules()
   }, [surgeryId, symptom.briefInstruction])
+
+  // Check if there's a change to undo
+  useEffect(() => {
+    const checkUndoAvailability = async () => {
+      if (!isSuperuser) {
+        setHasChangeToUndo(false)
+        return
+      }
+
+      try {
+        // For overrides, map to the base symptom for superuser editing
+        const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
+        const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+        
+        if (!effectiveSymptomId) {
+          setHasChangeToUndo(false)
+          return
+        }
+
+        const response = await fetch(
+          `/api/revertInstruction?symptomId=${encodeURIComponent(effectiveSymptomId)}&source=${encodeURIComponent(effectiveSource)}`
+        )
+        
+        if (response.ok) {
+          const data = await response.json()
+          setHasChangeToUndo(data.hasHistory === true)
+        } else {
+          setHasChangeToUndo(false)
+        }
+      } catch (error) {
+        console.error('Error checking undo availability:', error)
+        setHasChangeToUndo(false)
+      }
+    }
+    
+    checkUndoAvailability()
+  }, [isSuperuser, symptom.id, symptom.source, symptom.baseSymptomId])
 
   const getSourceColor = (source: string) => {
     switch (source) {
@@ -444,6 +482,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
       // Show success toast
       toast.success('Reverted to previous version')
+
+      // Update undo availability state
+      setHasChangeToUndo(false)
 
       // Refresh the page to show restored content
       router.refresh()
@@ -905,12 +946,14 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                       'Suggest improved wording (AI)'
                     )}
                   </button>
-                  <button
-                    onClick={handleRevertLastChange}
-                    className="px-4 py-2 text-sm font-medium text-nhs-grey bg-white border border-nhs-grey rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
-                  >
-                    Undo last change
-                  </button>
+                  {hasChangeToUndo && (
+                    <button
+                      onClick={handleRevertLastChange}
+                      className="px-4 py-2 text-sm font-medium text-nhs-grey bg-white border border-nhs-grey rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
+                    >
+                      Undo last change
+                    </button>
+                  )}
                 </>
               )}
               {canEditInstructions && !isEditingInstructions && !isEditingAll && (

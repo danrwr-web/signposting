@@ -15,6 +15,63 @@ const revertInstructionSchema = z.object({
   source: z.enum(['base', 'override', 'custom']),
 })
 
+export async function GET(request: NextRequest) {
+  try {
+    // Check authentication and superuser role
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (user.globalRole !== 'SUPERUSER') {
+      return NextResponse.json({ error: 'Superuser access required' }, { status: 403 })
+    }
+
+    // Parse query parameters
+    const { searchParams } = new URL(request.url)
+    const symptomId = searchParams.get('symptomId')
+    const source = searchParams.get('source')
+
+    if (!symptomId || !source) {
+      return NextResponse.json({ error: 'symptomId and source are required' }, { status: 400 })
+    }
+
+    if (!['base', 'override', 'custom'].includes(source)) {
+      return NextResponse.json({ error: 'Invalid source type' }, { status: 400 })
+    }
+
+    // Check if there's history to revert
+    const latestHistory = await prisma.symptomHistory.findFirst({
+      where: {
+        symptomId,
+        source: source as 'base' | 'override' | 'custom',
+      },
+      orderBy: {
+        changedAt: 'desc',
+      },
+    })
+
+    // Check if the history entry has valid data to revert to
+    if (!latestHistory) {
+      return NextResponse.json({ hasHistory: false })
+    }
+
+    // Verify that there's actual instruction data to revert to
+    const historyRecord = latestHistory as typeof latestHistory & {
+      previousBriefInstruction: string | null
+      previousInstructionsHtml: string | null
+    }
+    const previousInstructionsHtml = historyRecord.previousInstructionsHtml || latestHistory.previousText
+
+    const hasHistory = !!previousInstructionsHtml
+
+    return NextResponse.json({ hasHistory })
+  } catch (error) {
+    console.error('Error checking revert history:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     // Check authentication and superuser role
