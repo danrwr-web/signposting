@@ -56,6 +56,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [aiModel, setAiModel] = useState<string | null>(null)
   const [hasChangeToUndo, setHasChangeToUndo] = useState(false)
+  // AI explanation state
+  const [showExplanationModal, setShowExplanationModal] = useState(false)
+  const [loadingExplanation, setLoadingExplanation] = useState(false)
+  const [explanationHtml, setExplanationHtml] = useState<string | null>(null)
+  const [explanationModel, setExplanationModel] = useState<string | null>(null)
   const router = useRouter()
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
@@ -451,6 +456,80 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setAiSuggestion(null)
     setAiBrief(null)
     setAiModel(null)
+  }
+
+  const handleRequestExplanation = async () => {
+    setLoadingExplanation(true)
+    setExplanationHtml(null)
+    setExplanationModel(null)
+    
+    try {
+      const requestBody = {
+        symptomId: symptom.id,
+        currentText: displayText,
+        briefInstruction: symptom.briefInstruction || undefined,
+      }
+      console.log('AI explanation request body:', requestBody)
+      
+      const response = await fetch('/api/explainInstruction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        console.error('AI explanation API error:', response.status, data)
+        if (response.status === 401 || response.status === 403) {
+          toast.error('Superuser access required')
+        } else if (response.status === 500) {
+          toast.error('AI explanation service unavailable')
+        } else {
+          throw new Error(`Failed to get AI explanation: ${data.error || response.statusText}`)
+        }
+        return
+      }
+
+      if (!data.explanationHtml || data.explanationHtml.trim() === '') {
+        toast.error('No explanation generated.')
+        return
+      }
+
+      setExplanationHtml(data.explanationHtml)
+      setExplanationModel(data.model)
+      setShowExplanationModal(true)
+    } catch (error) {
+      console.error('Error getting AI explanation:', error)
+      toast.error(error instanceof Error ? error.message : 'AI explanation failed')
+    } finally {
+      setLoadingExplanation(false)
+    }
+  }
+
+  const handleCloseExplanationModal = () => {
+    setShowExplanationModal(false)
+    setExplanationHtml(null)
+    setExplanationModel(null)
+  }
+
+  const handleCopyExplanation = async () => {
+    if (!explanationHtml) return
+    
+    try {
+      // Strip HTML tags for plain text copy
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = explanationHtml
+      const plainText = tempDiv.textContent || tempDiv.innerText || ''
+      
+      await navigator.clipboard.writeText(plainText)
+      toast.success('Explanation copied to clipboard')
+    } catch (error) {
+      console.error('Failed to copy explanation:', error)
+      toast.error('Failed to copy explanation')
+    }
   }
 
   const handleRevertLastChange = async () => {
@@ -944,6 +1023,29 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                       </span>
                     ) : (
                       'Suggest improved wording (AI)'
+                    )}
+                  </button>
+                  <button
+                    onClick={handleRequestExplanation}
+                    disabled={loadingExplanation}
+                    className="px-4 py-2 text-sm font-medium text-nhs-blue bg-white border border-nhs-blue rounded-lg hover:bg-nhs-light-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    aria-label="Explain this rule (AI)"
+                  >
+                    {loadingExplanation ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Generating explanation...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Explain this rule (AI)
+                      </>
                     )}
                   </button>
                   {hasChangeToUndo && (
@@ -1452,6 +1554,59 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 className="px-6 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Replace Both
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Explanation Modal */}
+      {showExplanationModal && explanationHtml && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-nhs-dark-blue">
+                AI Explanation / Training Guide
+              </h2>
+              <button
+                onClick={handleCloseExplanationModal}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-nhs-blue rounded"
+                aria-label="Close explanation modal"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="prose max-w-none prose-headings:text-nhs-dark-blue prose-h3:text-lg prose-h3:font-semibold prose-p:text-nhs-grey prose-ul:text-nhs-grey prose-li:text-nhs-grey">
+                <div 
+                  className="text-nhs-grey leading-relaxed"
+                  dangerouslySetInnerHTML={{ 
+                    __html: sanitizeAndFormatContent(explanationHtml)
+                  }}
+                />
+              </div>
+              {explanationModel && (
+                <p className="text-xs text-gray-500 mt-4">
+                  Generated by {explanationModel}
+                </p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 p-6 border-t flex-wrap">
+              <button
+                onClick={handleCloseExplanationModal}
+                className="px-6 py-2 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCopyExplanation}
+                className="px-6 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+              >
+                Copy to Clipboard
               </button>
             </div>
           </div>
