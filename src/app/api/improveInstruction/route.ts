@@ -2,6 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
@@ -143,6 +144,37 @@ Do not include any other keys, explanations, markdown code fences, or commentary
     if (!aiFullHtml) {
       console.error('AI response missing fullInstructionHtml:', rawContent)
       return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
+    }
+    
+    // Log token usage (non-blocking)
+    try {
+      const promptTokens = data.usage?.prompt_tokens ?? 0
+      const completionTokens = data.usage?.completion_tokens ?? 0
+      const totalTokens = data.usage?.total_tokens ?? (promptTokens + completionTokens)
+
+      const inputRate = parseFloat(process.env.AZURE_OPENAI_COST_INPUT_PER_1K_USD || '0')
+      const outputRate = parseFloat(process.env.AZURE_OPENAI_COST_OUTPUT_PER_1K_USD || '0')
+
+      // cost = (promptTokens * inputRate + completionTokens * outputRate) / 1000
+      const estimatedCostUsd =
+        ((promptTokens * inputRate) + (completionTokens * outputRate)) / 1000
+
+      const modelUsed = data.model || deployment
+
+      await prisma.tokenUsageLog.create({
+        data: {
+          userEmail: user.email,
+          route: 'improveInstruction',
+          modelUsed,
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          estimatedCostUsd,
+        },
+      })
+    } catch (error) {
+      // Don't block the API response if logging fails
+      console.error('Failed to log token usage:', error)
     }
     
     // Return the result

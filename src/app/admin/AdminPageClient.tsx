@@ -73,6 +73,39 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   const [showEditSymptomModal, setShowEditSymptomModal] = useState(false)
   const [editingSymptom, setEditingSymptom] = useState<EffectiveSymptom | null>(null)
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0)
+  const [aiUsageData, setAiUsageData] = useState<{
+    last7days: { byRoute: Array<{ route: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number }>; overall: { calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number } }
+    last30days: { byRoute: Array<{ route: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number }>; overall: { calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number } }
+  } | null>(null)
+  const [aiUsageLoading, setAiUsageLoading] = useState(false)
+  const [aiUsageError, setAiUsageError] = useState<string | null>(null)
+
+  // Load AI usage data when tab is active
+  useEffect(() => {
+    if (activeTab === 'aiUsage' && session.type === 'superuser' && !aiUsageData && !aiUsageLoading) {
+      setAiUsageLoading(true)
+      setAiUsageError(null)
+      fetch('/api/aiUsageSummary')
+        .then(async (res) => {
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              setAiUsageError('Superuser access required.')
+              return
+            }
+            setAiUsageError('Usage data not available.')
+            return
+          }
+          const data = await res.json()
+          setAiUsageData(data)
+        })
+        .catch(() => {
+          setAiUsageError('Usage data not available.')
+        })
+        .finally(() => {
+          setAiUsageLoading(false)
+        })
+    }
+  }, [activeTab, session.type, aiUsageData, aiUsageLoading])
 
   // Load highlight rules from API
   useEffect(() => {
@@ -715,7 +748,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 { id: 'engagement', label: 'Engagement' },
                 { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
                 ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
-                ...(session.type === 'superuser' ? [{ id: 'system', label: 'System Management' }] : []),
+                ...(session.type === 'superuser' ? [
+                  { id: 'system', label: 'System Management' },
+                  { id: 'aiUsage', label: 'AI usage / cost' },
+                ] : []),
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -989,6 +1025,168 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     </a>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* AI Usage / Cost Tab - Only for Superusers */}
+            {activeTab === 'aiUsage' && session.type === 'superuser' && (
+              <div>
+                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+                  AI Usage / Cost Dashboard
+                </h2>
+                <p className="text-nhs-grey mb-6">
+                  Monitor AI usage and estimated costs across the system.
+                </p>
+
+                {aiUsageLoading && (
+                  <div className="text-center py-8">
+                    <p className="text-nhs-grey">Loading usage data...</p>
+                  </div>
+                )}
+
+                {aiUsageError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                    <p className="text-red-800">{aiUsageError}</p>
+                  </div>
+                )}
+
+                {!aiUsageLoading && !aiUsageError && aiUsageData && (
+                  <div className="space-y-6">
+                    {/* Last 7 Days */}
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                      <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+                        Last 7 days
+                      </h3>
+                      <div className="mb-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm text-nhs-grey">Total Calls</p>
+                            <p className="text-xl font-semibold">{aiUsageData.last7days.overall.calls}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-nhs-grey">Estimated Cost</p>
+                            <p className="text-xl font-semibold">£{aiUsageData.last7days.overall.costGbp.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {aiUsageData.last7days.byRoute.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Route
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Calls
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Tokens In
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Tokens Out
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Estimated Cost
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {aiUsageData.last7days.byRoute.map((routeData) => (
+                                <tr key={routeData.route}>
+                                  <td className="px-4 py-3 text-sm text-gray-900">
+                                    {routeData.route === 'improveInstruction' ? 'Improve wording' : routeData.route === 'explainInstruction' ? 'Explain rule' : routeData.route}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {routeData.calls}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {routeData.promptTokens.toLocaleString()}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {routeData.completionTokens.toLocaleString()}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    £{routeData.costGbp.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-nhs-grey text-sm">No usage data for this period.</p>
+                      )}
+                    </div>
+
+                    {/* Last 30 Days */}
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                      <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
+                        Last 30 days
+                      </h3>
+                      <div className="mb-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div>
+                            <p className="text-sm text-nhs-grey">Total Calls</p>
+                            <p className="text-xl font-semibold">{aiUsageData.last30days.overall.calls}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-nhs-grey">Estimated Cost</p>
+                            <p className="text-xl font-semibold">£{aiUsageData.last30days.overall.costGbp.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {aiUsageData.last30days.byRoute.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Route
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Calls
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Tokens In
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Tokens Out
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                  Estimated Cost
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {aiUsageData.last30days.byRoute.map((routeData) => (
+                                <tr key={routeData.route}>
+                                  <td className="px-4 py-3 text-sm text-gray-900">
+                                    {routeData.route === 'improveInstruction' ? 'Improve wording' : routeData.route === 'explainInstruction' ? 'Explain rule' : routeData.route}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {routeData.calls}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {routeData.promptTokens.toLocaleString()}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    {routeData.completionTokens.toLocaleString()}
+                                  </td>
+                                  <td className="px-4 py-3 text-sm text-gray-700">
+                                    £{routeData.costGbp.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-nhs-grey text-sm">No usage data for this period.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

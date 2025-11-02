@@ -332,3 +332,18 @@ model SymptomHistory {
   @@index([source])
   @@index([changedAt])
 }
+
+model TokenUsageLog {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  userEmail         String?
+  route             String   // e.g. "improveInstruction", "explainInstruction"
+  modelUsed         String
+  promptTokens      Int
+  completionTokens  Int
+  totalTokens       Int
+  estimatedCostUsd  Float
+
+  @@index([createdAt])
+  @@index([route])
+}
