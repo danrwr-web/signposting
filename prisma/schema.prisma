@@ -84,6 +84,7 @@ model Surgery {
   suggestions   Suggestion[]
   events        EngagementEvent[]
   symptomReviews SymptomReviewStatus[]
+  symptomStatuses SurgerySymptomStatus[]
 }
 
 model BaseSymptom {
@@ -346,4 +347,32 @@ model TokenUsageLog {
 
   @@index([createdAt])
   @@index([route])
+}
+
+model SurgerySymptomStatus {
+  id               String   @id @default(cuid())
+
+  surgeryId        String
+  // If this references a global, base symptom that ships with the product:
+  baseSymptomId    String?
+
+  // If this is a surgery-created symptom that does not exist in the base library:
+  customSymptomId  String?
+
+  // True if this symptom is available/visible to reception/admins in this surgery.
+  isEnabled        Boolean   @default(true)
+
+  // True if this surgery is currently using its own modified wording
+  // instead of the base wording.
+  // (For a local-only symptom, this will effectively always be true.)
+  isOverridden     Boolean   @default(false)
+
+  lastEditedAt     DateTime? @default(now())
+  lastEditedBy     String?
+
+  surgery          Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@index([surgeryId])
+  @@index([baseSymptomId])
+  @@index([customSymptomId])
 }

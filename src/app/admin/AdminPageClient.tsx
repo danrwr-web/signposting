@@ -7,6 +7,7 @@ import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
 import ImageIconConfig from '@/components/ImageIconConfig'
+import SymptomLibrary from '@/components/SymptomLibrary'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
@@ -749,6 +750,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
                 ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
                 ...(session.type === 'superuser' ? [
+                  { id: 'library', label: 'Symptom Library' },
                   { id: 'system', label: 'System Management' },
                   { id: 'aiUsage', label: 'AI usage / cost' },
                 ] : []),
@@ -1025,6 +1027,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     </a>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Symptom Library Tab - Only for Superusers */}
+            {activeTab === 'library' && session.type === 'superuser' && (
+              <div>
+                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+                  Symptom Library
+                </h2>
+                <p className="text-nhs-grey mb-6">
+                  Manage which symptoms are available and how they're configured for each surgery.
+                </p>
+                <SymptomLibrary surgeryId={selectedSurgery || null} />
               </div>
             )}
 
