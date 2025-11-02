@@ -115,7 +115,7 @@ export default function CompactToolbar({
               showSurgerySelector ? (
                 <SurgerySelector 
                   surgeries={surgeries} 
-                  currentSurgeryId={currentSurgeryId}
+                  currentSurgeryId={surgery?.id || currentSurgeryId}
                   onClose={() => onShowSurgerySelector(false)}
                 />
               ) : (

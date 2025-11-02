@@ -121,7 +121,7 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
         }
       }
     }
-  }, [user, isSuperuser, memberships, availableSurgeries])
+  }, [searchParams, user, isSuperuser, memberships, availableSurgeries])
 
   // Cross-tab sync via storage event
   useEffect(() => {

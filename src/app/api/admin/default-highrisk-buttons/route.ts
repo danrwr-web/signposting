@@ -226,7 +226,7 @@ export async function PATCH(request: NextRequest) {
     if (surgeryId === GLOBAL_SURGERY_ID) {
       const existing = await prisma.surgery.findUnique({ where: { id: GLOBAL_SURGERY_ID } })
       if (!existing) {
-        await prisma.surgery.create({ data: { id: GLOBAL_SURGERY_ID, name: 'Global Default Buttons', slug: 'global' } })
+        await prisma.surgery.create({ data: { id: GLOBAL_SURGERY_ID, name: 'Global Default', slug: 'global' } })
       }
     }
 
@@ -318,7 +318,7 @@ export async function POST(request: NextRequest) {
       globalSurgery = await prisma.surgery.create({
         data: {
           id: globalSurgeryId,
-          name: 'Global Default Buttons',
+          name: 'Global Default',
           slug: 'global'
         }
       })

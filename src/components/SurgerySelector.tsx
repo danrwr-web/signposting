@@ -14,15 +14,19 @@ interface SurgerySelectorProps {
 export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }: SurgerySelectorProps) {
   const { setSurgery, clearSurgery, surgery } = useSurgery()
   const { data: session } = useSession()
-  const [selectedId, setSelectedId] = useState(currentSurgeryId || '')
+  // Use surgery from context as source of truth, fallback to currentSurgeryId prop
+  const actualSurgeryId = surgery?.id || currentSurgeryId || ''
+  const [selectedId, setSelectedId] = useState(actualSurgeryId)
   const selectRef = useRef<HTMLSelectElement>(null)
   
   // Check if user is a superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
 
+  // Sync selectedId with context surgery when it changes
   useEffect(() => {
-    setSelectedId(currentSurgeryId || '')
-  }, [currentSurgeryId])
+    const newId = surgery?.id || currentSurgeryId || ''
+    setSelectedId(newId)
+  }, [surgery?.id, currentSurgeryId])
 
   // Focus management for accessibility
   useEffect(() => {
@@ -35,9 +39,13 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
     setSelectedId(surgeryId)
     
     if (surgeryId) {
-      const surgery = surgeries.find(s => s.id === surgeryId)
-      if (surgery) {
-        setSurgery({ id: surgery.id, name: surgery.name })
+      const selectedSurgery = surgeries.find(s => s.id === surgeryId)
+      if (selectedSurgery) {
+        setSurgery({ 
+          id: selectedSurgery.id, 
+          name: selectedSurgery.name,
+          slug: selectedSurgery.slug || selectedSurgery.id 
+        })
       }
     } else {
       clearSurgery()
