@@ -58,29 +58,40 @@ STYLE AND TONE:
 `
 
 
-    const userPrompt = `
+const userPrompt = `
 You will be given the current triage / signposting guidance for GP practice admin staff.
 
-BRIEF INSTRUCTION (what the receptionist should usually say first to the caller):
+BRIEF INSTRUCTION (this is a short routing label used by staff, not wording said to the patient):
 """${briefInstruction || '(none provided)'}"""
 
 FULL INSTRUCTION (internal guidance / escalation steps for reception staff):
 """${currentText || '(none provided)'}"""
 
 TASK:
-1. Rewrite BOTH sections to improve clarity, flow, and readability for a non-clinical GP receptionist, without changing any clinical meaning, urgency wording, or escalation pathway.
-2. Keep all safety-critical triggers and emergency wording EXACTLY as given, unless you are only fixing obvious grammar.
-3. Preserve shorthand like "pink/purple" instead of changing it to "pink or purple".
-4. The full instruction must be returned as HTML using basic tags (<p>, <ul>, <li>, <strong>, etc.). Use paragraphs and bullet lists where helpful.
+1. Improve BOTH sections for clarity and consistency for non-clinical GP reception/admin staff.
+2. VERY IMPORTANT: The "briefInstruction" you return must stay as a short routing label, similar in style/length to the original. It can be adjusted for clarity, but it must:
+   - Remain concise (ideally a phrase, not a sentence).
+   - Keep all original pathways/options and escalation endpoints (e.g. if the original said "Community Pharmacy / Face to Face Consultation", do not drop "Face to Face Consultation").
+   - NOT become patient-facing language like "Please visit...".
+   - NOT become a full sentence or instruction.
+3. The "fullInstructionHtml" you return should:
+   - Use clear, directive staff-facing language ("Send patients to...", "Book a...").
+   - Keep escalation and urgency wording exactly the same (do not soften "urgent", "same day", "999", etc.).
+   - Preserve shorthand like "pink/purple" exactly.
+   - Be output as HTML using simple tags (<p>, <ul>, <li>, <strong>, etc.).
+   - Be broken into short paragraphs or bullet points for readability.
+4. Do not invent any new red flag criteria or escalation routes.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON, with this exact structure:
 {
-  "briefInstruction": "string - the rewritten briefInstruction text, plain sentence form suitable to say to a caller",
-  "fullInstructionHtml": "string - the rewritten full instruction in HTML"
+  "briefInstruction": "string - the improved brief routing label, still concise and still including all original routing destinations/options",
+  "fullInstructionHtml": "string - the rewritten full instruction in HTML for staff use"
 }
 Do not include any other keys, explanations, or markdown. Return raw JSON only.
 `
+;
+
 
     // Call Azure OpenAI API
     const response = await fetch(apiUrl, {
