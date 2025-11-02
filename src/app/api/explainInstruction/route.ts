@@ -49,36 +49,53 @@ You explain medical signposting rules in clear, reassuring language suitable for
 Keep tone factual, supportive, and consistent with NHS style.
 `
 
-    const userPrompt = `You will be given internal GP signposting guidance used by reception/admin staff.
+    const userPrompt = `
+You will be given internal GP signposting guidance used by reception/admin staff in UK primary care.
 
-BRIEF INSTRUCTION (routing label):
+BRIEF INSTRUCTION (routing label used by staff, not spoken to the patient):
 """${briefInstruction || '(none)'}"""
 
-FULL INSTRUCTION (staff guidance):
+FULL INSTRUCTION (internal guidance for staff, not read out word-for-word to the patient):
 """${currentText}"""
 
-Explain the reasoning behind this rule and what staff should understand about it.
+Your job is to create a short training explanation that helps a NEW, NON-CLINICAL GP RECEPTIONIST understand:
+- why this rule exists
+- what they should pay attention to
+- what can go wrong
+- how to act safely and confidently.
 
-Please output HTML with the following sections:
+IMPORTANT SAFETY AND STYLE RULES:
+- You MAY refer to other named screens, tabs, or pages if they are explicitly mentioned in the provided instruction text (for example, if the instruction mentions a 'chest pain' tab or 'sepsis screen', you can mention it).
+- Do NOT invent new UI elements, buttons, tabs, or processes that were not mentioned.
+- Do NOT invent new red-flag criteria, escalation routes, or time frames.
+- Do NOT soften or change escalation wording (e.g. 'call 999', 'same day GP', 'urgent').
+- Keep this focused on what the receptionist needs to understand in practical terms.
+- Use plain English, calm supportive tone, reading age ~11–12.
+- Assume the staff member is not clinically trained.
+
+OUTPUT FORMAT:
+You MUST return VALID HTML with the following sections, in this order:
 
 <h3>Why this rule exists</h3>
-<p>Short summary of the underlying clinical or workflow reasoning.</p>
+<p>Short summary of the underlying clinical or workflow reasoning if known. Explain the purpose of the rule in simple terms.</p>
 
 <h3>What to focus on</h3>
 <ul>
-  <li>3–5 key bullet points for reception/admin staff — what to ask or check</li>
+  <li>3–5 key bullet points explaining what the receptionist should ask or check, and what they should do next.</li>
 </ul>
 
 <h3>Common pitfalls</h3>
 <ul>
-  <li>Typical misunderstandings or errors to avoid</li>
+  <li>Typical misunderstandings, mistakes, or risks to avoid.</li>
 </ul>
 
 <h3>Quick recap</h3>
-<p>2–3 sentences reinforcing safe, confident signposting behaviour.</p>
+<p>2–3 sentences reinforcing safe, confident signposting behaviour for this scenario.</p>
 
-Style: plain English, reading age 10–12, supportive, non-judgemental.
-Do not add or remove any clinical criteria — just explain context.
+REQUIRED:
+- Do NOT wrap your answer in Markdown code fences.
+- Do NOT include \`\`\`html or any other \`\`\` fences.
+- Return RAW HTML ONLY, starting directly with <h3>...</h3>.
 `
 
     // Call Azure OpenAI API
@@ -106,12 +123,20 @@ Do not add or remove any clinical criteria — just explain context.
 
     const data = await response.json()
     
-    const explanationHtml = data.choices?.[0]?.message?.content || ''
+    let explanationHtml = data.choices?.[0]?.message?.content || ''
     
     if (!explanationHtml) {
       console.error('AI response missing explanation:', data)
       return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
     }
+
+    // Strip markdown code fences if the model wraps the output despite instructions
+    explanationHtml = explanationHtml.trim()
+    // Remove ```html or ``` at the start
+    explanationHtml = explanationHtml.replace(/^```html?\s*/i, '')
+    // Remove ``` at the end
+    explanationHtml = explanationHtml.replace(/\s*```\s*$/, '')
+    explanationHtml = explanationHtml.trim()
 
     const model = data.model || deployment
     const timestamp = new Date().toISOString()
