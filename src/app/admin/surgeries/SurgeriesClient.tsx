@@ -7,6 +7,7 @@ interface Surgery {
   id: string
   name: string
   slug: string | null
+  adminEmail: string | null
   createdAt: Date
   users: Array<{
     id: string
@@ -28,6 +29,9 @@ interface SurgeriesClientProps {
 
 export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [editingSurgery, setEditingSurgery] = useState<Surgery | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [surgeriesList, setSurgeriesList] = useState(surgeries)
   const [newSurgery, setNewSurgery] = useState({
     name: '',
     slug: ''
@@ -36,6 +40,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
   const handleCreateSurgery = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    setIsLoading(true)
     try {
       const response = await fetch('/api/admin/surgeries', {
         method: 'POST',
@@ -55,10 +60,52 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
     } catch (error) {
       console.error('Error creating surgery:', error)
       alert('Failed to create surgery. Please try again.')
+    } finally {
+      setIsLoading(false)
+      setShowCreateModal(false)
+      setNewSurgery({ name: '', slug: '' })
     }
+  }
+
+  const handleUpdateSurgery = async (e: React.FormEvent<HTMLFormElement>) => {
+    if (!editingSurgery) return
     
-    setShowCreateModal(false)
-    setNewSurgery({ name: '', slug: '' })
+    e.preventDefault()
+    setIsLoading(true)
+    
+    const formData = new FormData(e.currentTarget)
+    
+    try {
+      const response = await fetch(`/api/admin/surgeries/${editingSurgery.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.get('name'),
+          adminEmail: formData.get('adminEmail') || undefined,
+          adminPassword: formData.get('adminPassword') || undefined,
+        }),
+      })
+
+      const result = await response.json()
+      
+      if (response.ok) {
+        // Update the local state
+        setSurgeriesList(prev =>
+          prev.map(s => s.id === editingSurgery.id ? { ...s, name: result.surgery.name, adminEmail: result.surgery.adminEmail } : s)
+        )
+        setEditingSurgery(null)
+        alert('Surgery updated successfully!')
+      } else {
+        alert(`Error updating surgery: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error updating surgery:', error)
+      alert('Failed to update surgery. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -100,7 +147,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
             </p>
           </div>
           <ul className="divide-y divide-gray-200">
-            {surgeries.map((surgery) => (
+            {surgeriesList.map((surgery) => (
               <li key={surgery.id}>
                 <div className="px-4 py-4 sm:px-6">
                   <div className="flex items-center justify-between">
@@ -132,7 +179,10 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                       >
                         Manage Users
                       </Link>
-                      <button className="text-blue-600 hover:text-blue-500 text-sm font-medium">
+                      <button 
+                        onClick={() => setEditingSurgery(surgery)}
+                        className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                      >
                         Edit
                       </button>
                     </div>
@@ -215,6 +265,75 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Create Surgery
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Surgery Modal */}
+      {editingSurgery && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Edit Surgery
+              </h3>
+              <form onSubmit={handleUpdateSurgery}>
+                <div className="mb-4">
+                  <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Surgery Name
+                  </label>
+                  <input
+                    type="text"
+                    id="edit-name"
+                    name="name"
+                    required
+                    defaultValue={editingSurgery.name}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="edit-adminEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Email
+                  </label>
+                  <input
+                    type="email"
+                    id="edit-adminEmail"
+                    name="adminEmail"
+                    defaultValue={editingSurgery.adminEmail || ''}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+                <div className="mb-6">
+                  <label htmlFor="edit-adminPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Password (leave blank to keep current)
+                  </label>
+                  <input
+                    type="password"
+                    id="edit-adminPassword"
+                    name="adminPassword"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Leave blank to keep current"
+                  />
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditingSurgery(null)}
+                    disabled={isLoading}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    {isLoading ? 'Updating...' : 'Update Surgery'}
                   </button>
                 </div>
               </form>

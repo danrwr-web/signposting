@@ -28,6 +28,9 @@ interface SurgeryUsersClientProps {
 export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClientProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; name: string | null; role: string } | null>(null)
+  const [resettingPasswordFor, setResettingPasswordFor] = useState<{ id: string; email: string } | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [newUserEmail, setNewUserEmail] = useState('')
   const [newUserName, setNewUserName] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
@@ -154,6 +157,39 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
     }
   }
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    if (!resettingPasswordFor) return
+    
+    e.preventDefault()
+    setIsResettingPassword(true)
+    
+    try {
+      const response = await fetch(`/api/s/${surgery.id}/members/${resettingPasswordFor.id}/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          newPassword: newPassword,
+        }),
+      })
+
+      if (response.ok) {
+        alert('Password reset successfully')
+        setResettingPasswordFor(null)
+        setNewPassword('')
+      } else {
+        const error = await response.json()
+        alert(`Failed to reset password: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error resetting password:', error)
+      alert('Failed to reset password')
+    } finally {
+      setIsResettingPassword(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -235,6 +271,12 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                           className="text-blue-600 hover:text-blue-500 text-sm font-medium"
                         >
                           Edit
+                        </button>
+                        <button 
+                          onClick={() => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email })}
+                          className="text-orange-600 hover:text-orange-500 text-sm font-medium"
+                        >
+                          Reset Password
                         </button>
                         {membership.user.defaultSurgeryId !== surgery.id && (
                           <button
@@ -412,6 +454,58 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Update User
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {resettingPasswordFor && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                Reset Password
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Reset password for {resettingPasswordFor.email}
+              </p>
+              <form onSubmit={handleResetPassword}>
+                <div className="mb-6">
+                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    id="new-password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter new password"
+                  />
+                </div>
+                <div className="flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResettingPasswordFor(null)
+                      setNewPassword('')
+                    }}
+                    disabled={isResettingPassword}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isResettingPassword || !newPassword}
+                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50"
+                  >
+                    {isResettingPassword ? 'Resetting...' : 'Reset Password'}
                   </button>
                 </div>
               </form>

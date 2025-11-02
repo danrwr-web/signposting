@@ -19,7 +19,12 @@ export default async function SurgeriesPage() {
 
   // Get all surgeries with their user counts
   const surgeries = await prisma.surgery.findMany({
-    include: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      adminEmail: true,
+      createdAt: true,
       users: {
         include: {
           user: true
