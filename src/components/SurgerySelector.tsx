@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
+import { useSession } from 'next-auth/react'
 
 interface SurgerySelectorProps {
   surgeries: Surgery[]
@@ -11,9 +12,13 @@ interface SurgerySelectorProps {
 }
 
 export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }: SurgerySelectorProps) {
-  const { setSurgery, clearSurgery } = useSurgery()
+  const { setSurgery, clearSurgery, surgery } = useSurgery()
+  const { data: session } = useSession()
   const [selectedId, setSelectedId] = useState(currentSurgeryId || '')
   const selectRef = useRef<HTMLSelectElement>(null)
+  
+  // Check if user is a superuser
+  const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
 
   useEffect(() => {
     setSelectedId(currentSurgeryId || '')
@@ -41,6 +46,19 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
     onClose?.()
   }
 
+  // If not superuser, just show the surgery name
+  if (!isSuperuser) {
+    const currentSurgery = surgery || surgeries.find(s => s.id === currentSurgeryId)
+    return (
+      <div className="flex items-center">
+        <span className="text-sm font-medium text-nhs-grey">
+          {currentSurgery ? currentSurgery.name : 'No surgery selected'}
+        </span>
+      </div>
+    )
+  }
+
+  // For superusers, show the dropdown
   return (
     <div className="flex items-center space-x-2">
       <label htmlFor="surgery-select" className="text-sm font-medium text-nhs-grey">

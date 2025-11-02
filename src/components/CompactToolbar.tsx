@@ -51,9 +51,12 @@ export default function CompactToolbar({
   const { surgery } = useSurgery()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   
+  // Check if user is a superuser
+  const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
+  
   // Check if user can access admin features
   const canAccessAdmin = session?.user && (
-    (session.user as any).globalRole === 'SUPERUSER' ||
+    isSuperuser ||
     (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
   )
 
@@ -107,20 +110,28 @@ export default function CompactToolbar({
 
           {/* Surgery Selector and Admin Link */}
           <div className="flex items-center space-x-4">
-            {showSurgerySelector ? (
-              <SurgerySelector 
-                surgeries={surgeries} 
-                currentSurgeryId={currentSurgeryId}
-                onClose={() => onShowSurgerySelector(false)}
-              />
+            {isSuperuser ? (
+              // Superusers can change surgery
+              showSurgerySelector ? (
+                <SurgerySelector 
+                  surgeries={surgeries} 
+                  currentSurgeryId={currentSurgeryId}
+                  onClose={() => onShowSurgerySelector(false)}
+                />
+              ) : (
+                <button
+                  onClick={() => onShowSurgerySelector(true)}
+                  className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
+                  aria-label="Change surgery"
+                >
+                  {surgery ? `You're viewing: ${surgery.name} — Change` : 'Select Surgery'}
+                </button>
+              )
             ) : (
-              <button
-                onClick={() => onShowSurgerySelector(true)}
-                className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
-                aria-label="Change surgery"
-              >
-                {surgery ? `You're viewing: ${surgery.name} — Change` : 'Select Surgery'}
-              </button>
+              // Non-superusers just see their surgery name
+              <span className="text-sm text-nhs-grey font-medium">
+                {surgery ? surgery.name : 'No surgery selected'}
+              </span>
             )}
             
             {canAccessAdmin && (
