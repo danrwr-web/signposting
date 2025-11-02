@@ -47,40 +47,49 @@ export async function POST(request: NextRequest) {
 You are improving signposting guidance used by GP reception and admin staff in UK primary care.
 
 STYLE AND TONE:
-- Write in the clear, directive tone of NHS internal guidance — concise, instructional, and neutral.
-- Address staff, not patients (e.g. "Send patients to pharmacy", not "Please visit your local pharmacy").
-- Use plain English and short sentences, but keep professional phrasing.
-- You may improve flow and readability, but do not make it wordier or more conversational.
-- Preserve shorthand and colour descriptors (e.g. "pink/purple") exactly as written.
-- Use bullet points or short paragraphs for clarity.
-- Maintain all safety wording, urgency instructions, and escalation rules exactly as given.
-- Output valid HTML (paragraphs, lists, bold, italics).
+- Write in the clear, directive tone of internal NHS guidance: concise, instructional, neutral.
+- Address staff, not patients. For example: "Send patients to pharmacy", "Book a telephone consultation", "Offer a female GP if requested." Do NOT rewrite it as patient-facing text like "Please visit your local pharmacy".
+- Keep sentences short and readable for non-clinical staff.
+- You may reorganise or clarify wording to make it easier to follow, but do not make it more wordy.
+- You may improve readability and structure (e.g. short paragraphs, bullet points) if this helps a receptionist follow the steps.
+
+SAFETY / CLINICAL RULES:
+- Do NOT change the clinical meaning, escalation pathway, or urgency wording.
+- Do NOT soften or alter phrases like "urgent", "same day", "999", "duty GP", "emergency".
+- Do NOT invent new red flag criteria, new options, or new escalation routes.
+- Preserve any shorthand and descriptors that carry meaning, including colour or symptom shorthand such as "pink/purple", "red/swollen", etc. Do NOT expand these to longer wording unless there is an obvious spelling/grammar error.
+
+OUTPUT FORMAT:
+- For the full instruction, return valid HTML using simple tags (<p>, <ul>, <li>, <strong>, <em>, <br />).
+- Do not include commentary about what you changed.
 `
 
+    const userPrompt = `
+You will be given the current triage / signposting guidance used by GP practice admin and reception staff.
 
-const userPrompt = `
-You will be given the current triage / signposting guidance for GP practice admin staff.
-
-BRIEF INSTRUCTION (this is a short routing label used by staff, not wording said to the patient):
+BRIEF INSTRUCTION:
 """${briefInstruction || '(none provided)'}"""
 
-FULL INSTRUCTION (internal guidance / escalation steps for reception staff):
+FULL INSTRUCTION:
 """${currentText || '(none provided)'}"""
 
 TASK:
 1. Improve BOTH sections for clarity and consistency for non-clinical GP reception/admin staff.
-2. VERY IMPORTANT: The "briefInstruction" you return must stay as a short routing label, similar in style/length to the original. It can be adjusted for clarity, but it must:
-   - Remain concise (ideally a phrase, not a sentence).
-   - Keep all original pathways/options and escalation endpoints (e.g. if the original said "Community Pharmacy / Face to Face Consultation", do not drop "Face to Face Consultation").
-   - NOT become patient-facing language like "Please visit...".
-   - NOT become a full sentence or instruction.
+
+2. The "briefInstruction" you return MUST stay as a short routing label, not a full sentence. Rules for briefInstruction:
+   - Keep it concise and in the same style as the original (e.g. "Community Pharmacy / Face to Face Consultation").
+   - You MUST keep all escalation destinations or options that appear in the original. Do NOT drop or merge pathways. For example, if the original includes "Community Pharmacy / Face to Face Consultation", you must still include both pharmacy and face to face.
+   - Do NOT turn it into patient-facing speech like "Please visit your pharmacy".
+   - Do NOT rewrite it as a long explanatory sentence. It should read like a category or disposition, not a script.
+
 3. The "fullInstructionHtml" you return should:
-   - Use clear, directive staff-facing language ("Send patients to...", "Book a...").
-   - Keep escalation and urgency wording exactly the same (do not soften "urgent", "same day", "999", etc.).
+   - Be written in a clear, directive, staff-facing voice (e.g. "Send patients to...", "Book a telephone consultation...").
+   - Use plain English and short sentences so that a non-clinical receptionist can follow it.
+   - Preserve clinical meaning, safety triggers, escalation criteria, time frames, and urgency wording exactly.
    - Preserve shorthand like "pink/purple" exactly.
-   - Be output as HTML using simple tags (<p>, <ul>, <li>, <strong>, etc.).
-   - Be broken into short paragraphs or bullet points for readability.
-4. Do not invent any new red flag criteria or escalation routes.
+   - Use valid HTML (<p>, <ul>, <li>, <strong>, etc.). Use paragraphs and bullet lists where it helps.
+
+4. Do NOT invent any new red flag criteria, new actions, or new escalation routes. Only clarify what is already there.
 
 OUTPUT FORMAT:
 Return ONLY valid JSON, with this exact structure:
@@ -88,10 +97,9 @@ Return ONLY valid JSON, with this exact structure:
   "briefInstruction": "string - the improved brief routing label, still concise and still including all original routing destinations/options",
   "fullInstructionHtml": "string - the rewritten full instruction in HTML for staff use"
 }
-Do not include any other keys, explanations, or markdown. Return raw JSON only.
-`
-;
 
+Do not include any other keys, explanations, markdown code fences, or commentary. Return raw JSON only.
+`
 
     // Call Azure OpenAI API
     const response = await fetch(apiUrl, {

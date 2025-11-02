@@ -11,6 +11,10 @@ import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
 import { useSurgery } from '@/context/SurgeryContext'
 import { toast } from 'react-hot-toast'
+import { generateJSON } from '@tiptap/html'
+import StarterKit from '@tiptap/starter-kit'
+import { TextStyle } from '@tiptap/extension-text-style'
+import { Color } from '@tiptap/extension-color'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
@@ -229,8 +233,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     }
   }
 
-  const handleAcceptAISuggestion = async () => {
-    if (!aiSuggestion) return
+  const handleAcceptBriefOnly = async () => {
+    if (!aiBrief) return
 
     try {
       // For overrides, map to the base symptom for superuser editing
@@ -250,8 +254,68 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           symptomId: effectiveSymptomId,
           source: effectiveSource,
           modelUsed: aiModel,
-          newBriefInstruction: aiBrief || '',
+          newBriefInstruction: aiBrief,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Update instruction API error:', response.status, errorData)
+        throw new Error(`Failed to update instructions: ${errorData.error || response.statusText}`)
+      }
+
+      // Update local symptom object to reflect the change immediately
+      symptom.briefInstruction = aiBrief
+
+      // Close the modal and clear state
+      setShowAIModal(false)
+      setAiSuggestion(null)
+      setAiBrief(null)
+      setAiModel(null)
+
+      // Show success toast
+      toast.success('Brief instruction updated and logged')
+
+      // Refresh the page to show updated content
+      router.refresh()
+    } catch (error) {
+      console.error('Error accepting AI brief suggestion:', error)
+      toast.error('Failed to update brief instruction')
+    }
+  }
+
+  const handleAcceptFullOnly = async () => {
+    if (!aiSuggestion) return
+
+    try {
+      // For overrides, map to the base symptom for superuser editing
+      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
+      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+      
+      if (!effectiveSymptomId) {
+        throw new Error('Invalid symptom configuration')
+      }
+
+      // Generate ProseMirror JSON from HTML
+      const instructionsJson = generateJSON(aiSuggestion, [
+        StarterKit,
+        TextStyle,
+        Color.configure({
+          types: ['textStyle'],
+        }),
+      ])
+
+      const response = await fetch('/api/updateInstruction', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symptomId: effectiveSymptomId,
+          source: effectiveSource,
+          modelUsed: aiModel,
           newInstructionsHtml: aiSuggestion,
+          newInstructionsJson: instructionsJson,
         }),
       })
 
@@ -263,9 +327,69 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
       // Update local symptom object to reflect the change immediately
       symptom.instructionsHtml = aiSuggestion
-      if (aiBrief) {
-        symptom.briefInstruction = aiBrief
+
+      // Close the modal and clear state
+      setShowAIModal(false)
+      setAiSuggestion(null)
+      setAiBrief(null)
+      setAiModel(null)
+
+      // Show success toast
+      toast.success('Full instruction updated and logged')
+
+      // Refresh the page to show updated content
+      router.refresh()
+    } catch (error) {
+      console.error('Error accepting AI full suggestion:', error)
+      toast.error('Failed to update full instruction')
+    }
+  }
+
+  const handleAcceptBoth = async () => {
+    if (!aiSuggestion || !aiBrief) return
+
+    try {
+      // For overrides, map to the base symptom for superuser editing
+      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
+      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+      
+      if (!effectiveSymptomId) {
+        throw new Error('Invalid symptom configuration')
       }
+
+      // Generate ProseMirror JSON from HTML
+      const instructionsJson = generateJSON(aiSuggestion, [
+        StarterKit,
+        TextStyle,
+        Color.configure({
+          types: ['textStyle'],
+        }),
+      ])
+
+      const response = await fetch('/api/updateInstruction', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symptomId: effectiveSymptomId,
+          source: effectiveSource,
+          modelUsed: aiModel,
+          newBriefInstruction: aiBrief,
+          newInstructionsHtml: aiSuggestion,
+          newInstructionsJson: instructionsJson,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Update instruction API error:', response.status, errorData)
+        throw new Error(`Failed to update instructions: ${errorData.error || response.statusText}`)
+      }
+
+      // Update local symptom object to reflect the change immediately
+      symptom.instructionsHtml = aiSuggestion
+      symptom.briefInstruction = aiBrief
 
       // Close the modal and clear state
       setShowAIModal(false)
@@ -289,6 +413,44 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setAiSuggestion(null)
     setAiBrief(null)
     setAiModel(null)
+  }
+
+  const handleRevertLastChange = async () => {
+    try {
+      // For overrides, map to the base symptom for superuser editing
+      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
+      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+      
+      if (!effectiveSymptomId) {
+        throw new Error('Invalid symptom configuration')
+      }
+
+      const response = await fetch('/api/revertInstruction', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          symptomId: effectiveSymptomId,
+          source: effectiveSource,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        console.error('Revert instruction API error:', response.status, errorData)
+        throw new Error(errorData.error || 'Failed to revert instruction')
+      }
+
+      // Show success toast
+      toast.success('Reverted to previous version')
+
+      // Refresh the page to show restored content
+      router.refresh()
+    } catch (error) {
+      console.error('Error reverting instruction:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to revert instruction')
+    }
   }
 
   const handleEditInstructions = () => {
@@ -725,23 +887,31 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             </div>
             <div className="flex items-center gap-3">
               {isSuperuser && !isEditingInstructions && !isEditingAll && (
-                <button
-                  onClick={handleRequestAISuggestion}
-                  disabled={loadingAI}
-                  className="px-4 py-2 text-sm font-medium text-white bg-nhs-green border border-nhs-green rounded-lg hover:bg-[#007d74] transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loadingAI ? (
-                    <span className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      Generating AI suggestion...
-                    </span>
-                  ) : (
-                    'Suggest improved wording (AI)'
-                  )}
-                </button>
+                <>
+                  <button
+                    onClick={handleRequestAISuggestion}
+                    disabled={loadingAI}
+                    className="px-4 py-2 text-sm font-medium text-white bg-nhs-green border border-nhs-green rounded-lg hover:bg-[#007d74] transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loadingAI ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Generating AI suggestion...
+                      </span>
+                    ) : (
+                      'Suggest improved wording (AI)'
+                    )}
+                  </button>
+                  <button
+                    onClick={handleRevertLastChange}
+                    className="px-4 py-2 text-sm font-medium text-nhs-grey bg-white border border-nhs-grey rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
+                  >
+                    Undo last change
+                  </button>
+                </>
               )}
               {canEditInstructions && !isEditingInstructions && !isEditingAll && (
                 <button
@@ -1212,18 +1382,33 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 p-6 border-t">
+            <div className="flex justify-end gap-3 p-6 border-t flex-wrap">
               <button
                 onClick={handleDiscardAISuggestion}
                 className="px-6 py-2 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
               >
-                Discard
+                Cancel
               </button>
               <button
-                onClick={handleAcceptAISuggestion}
-                className="px-6 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2"
+                onClick={handleAcceptBriefOnly}
+                disabled={!aiBrief}
+                className="px-6 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Replace current text
+                Replace Brief only
+              </button>
+              <button
+                onClick={handleAcceptFullOnly}
+                disabled={!aiSuggestion}
+                className="px-6 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Replace Full only
+              </button>
+              <button
+                onClick={handleAcceptBoth}
+                disabled={!aiSuggestion || !aiBrief}
+                className="px-6 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Replace Both
               </button>
             </div>
           </div>

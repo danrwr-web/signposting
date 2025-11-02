@@ -11,7 +11,7 @@ const updateInstructionSchema = z.object({
   source: z.enum(['base', 'override', 'custom']),
   modelUsed: z.string().optional(),
   newBriefInstruction: z.string().optional(),
-  newInstructionsHtml: z.string(),
+  newInstructionsHtml: z.string().optional(),
   newInstructionsJson: z.any().optional(),
 })
 
@@ -29,8 +29,16 @@ export async function PATCH(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
-    console.log('Update instruction request body:', { ...body, newInstructionsHtml: body.newInstructionsHtml?.substring(0, 100) + '...' })
+    console.log('Update instruction request body:', { 
+      ...body, 
+      newInstructionsHtml: body.newInstructionsHtml?.substring(0, 100) + '...' 
+    })
     const { symptomId, source, modelUsed, newBriefInstruction, newInstructionsHtml, newInstructionsJson } = updateInstructionSchema.parse(body)
+
+    // Ensure at least one field is being updated
+    if (!newBriefInstruction && !newInstructionsHtml) {
+      return NextResponse.json({ error: 'At least one of newBriefInstruction or newInstructionsHtml must be provided' }, { status: 400 })
+    }
 
     // Fetch the current symptom based on source type
     let previousBriefInstruction: string | null = null
@@ -50,13 +58,44 @@ export async function PATCH(request: NextRequest) {
       previousBriefInstruction = symptom.briefInstruction
       previousInstructionsHtml = symptom.instructionsHtml
       
-      // Insert history record
+      // Build update data - only include fields that are being changed
+      const updateData: {
+        briefInstruction?: string
+        instructionsHtml?: string
+        instructionsJson?: any
+        lastEditedBy?: string
+        lastEditedAt: Date
+      } = {
+        lastEditedAt: new Date(),
+      }
+      
+      if (newBriefInstruction !== undefined) {
+        updateData.briefInstruction = newBriefInstruction
+      }
+      
+      if (newInstructionsHtml !== undefined) {
+        updateData.instructionsHtml = newInstructionsHtml
+      }
+      
+      if (newInstructionsJson !== undefined) {
+        updateData.instructionsJson = newInstructionsJson
+      }
+      
+      if (user.name) {
+        updateData.lastEditedBy = user.name
+      }
+      
+      // Insert history record with both brief and full instructions
       await prisma.symptomHistory.create({
         data: {
           symptomId,
           source,
-          previousText: previousInstructionsHtml,
-          newText: newInstructionsHtml,
+          previousText: previousInstructionsHtml, // Legacy field for backward compatibility
+          newText: newInstructionsHtml || previousInstructionsHtml, // Legacy field
+          previousBriefInstruction: previousBriefInstruction,
+          newBriefInstruction: newBriefInstruction !== undefined ? newBriefInstruction : previousBriefInstruction,
+          previousInstructionsHtml: previousInstructionsHtml,
+          newInstructionsHtml: newInstructionsHtml !== undefined ? newInstructionsHtml : previousInstructionsHtml,
           editorName: user.name || undefined,
           editorEmail: user.email || undefined,
           modelUsed: modelUsed || 'unknown-model',
@@ -66,13 +105,7 @@ export async function PATCH(request: NextRequest) {
       // Update the symptom
       await prisma.baseSymptom.update({
         where: { id: symptomId },
-        data: {
-          briefInstruction: newBriefInstruction || undefined,
-          instructionsHtml: newInstructionsHtml,
-          instructionsJson: newInstructionsJson || undefined,
-          lastEditedBy: user.name || undefined,
-          lastEditedAt: new Date(),
-        }
+        data: updateData
       })
     } else if (source === 'custom') {
       // Superusers can edit custom symptoms created by surgeries
@@ -88,13 +121,44 @@ export async function PATCH(request: NextRequest) {
       previousBriefInstruction = symptom.briefInstruction
       previousInstructionsHtml = symptom.instructionsHtml
       
-      // Insert history record
+      // Build update data - only include fields that are being changed
+      const updateData: {
+        briefInstruction?: string
+        instructionsHtml?: string
+        instructionsJson?: any
+        lastEditedBy?: string
+        lastEditedAt: Date
+      } = {
+        lastEditedAt: new Date(),
+      }
+      
+      if (newBriefInstruction !== undefined) {
+        updateData.briefInstruction = newBriefInstruction
+      }
+      
+      if (newInstructionsHtml !== undefined) {
+        updateData.instructionsHtml = newInstructionsHtml
+      }
+      
+      if (newInstructionsJson !== undefined) {
+        updateData.instructionsJson = newInstructionsJson
+      }
+      
+      if (user.name) {
+        updateData.lastEditedBy = user.name
+      }
+      
+      // Insert history record with both brief and full instructions
       await prisma.symptomHistory.create({
         data: {
           symptomId,
           source,
-          previousText: previousInstructionsHtml,
-          newText: newInstructionsHtml,
+          previousText: previousInstructionsHtml, // Legacy field for backward compatibility
+          newText: newInstructionsHtml || previousInstructionsHtml, // Legacy field
+          previousBriefInstruction: previousBriefInstruction,
+          newBriefInstruction: newBriefInstruction !== undefined ? newBriefInstruction : previousBriefInstruction,
+          previousInstructionsHtml: previousInstructionsHtml,
+          newInstructionsHtml: newInstructionsHtml !== undefined ? newInstructionsHtml : previousInstructionsHtml,
           editorName: user.name || undefined,
           editorEmail: user.email || undefined,
           modelUsed: modelUsed || 'unknown-model',
@@ -104,13 +168,7 @@ export async function PATCH(request: NextRequest) {
       // Update the symptom
       await prisma.surgeryCustomSymptom.update({
         where: { id: symptomId },
-        data: {
-          briefInstruction: newBriefInstruction || undefined,
-          instructionsHtml: newInstructionsHtml,
-          instructionsJson: newInstructionsJson || undefined,
-          lastEditedBy: user.name || undefined,
-          lastEditedAt: new Date(),
-        }
+        data: updateData
       })
     } else if (source === 'override') {
       // Overrides are surgery-specific customizations - not directly editable by superusers in this flow
