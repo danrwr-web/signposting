@@ -11,13 +11,13 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
   {
     key: 'ai_instructions',
     name: 'AI instruction editor',
-    description: 'AI-powered suggestions to improve instruction wording'
+    description: 'Allow staff to generate and improve signposting instructions with AI.',
   },
   {
     key: 'ai_training',
     name: 'AI explanation / training guide',
-    description: 'AI-generated explanations for clinical guidance'
-  }
+    description: 'Show AI-generated explanations for why a rule exists and how to apply it.',
+  },
 ]
 
 /**
@@ -25,25 +25,19 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
  * This should be called on server start or first admin page load.
  */
 export async function ensureFeatures(): Promise<void> {
-  try {
-    for (const featureDef of DEFAULT_FEATURES) {
-      await prisma.feature.upsert({
-        where: { key: featureDef.key },
-        update: {
-          // Only update if fields changed
-          name: featureDef.name,
-          description: featureDef.description
-        },
-        create: {
-          key: featureDef.key,
-          name: featureDef.name,
-          description: featureDef.description || null
-        }
-      })
-    }
-  } catch (error) {
-    console.error('Error ensuring features:', error)
-    // Don't throw - this shouldn't break the app
+  for (const f of DEFAULT_FEATURES) {
+    await prisma.feature.upsert({
+      where: { key: f.key },
+      update: {
+        name: f.name,
+        description: f.description,
+      },
+      create: {
+        key: f.key,
+        name: f.name,
+        description: f.description || null,
+      },
+    })
   }
 }
 

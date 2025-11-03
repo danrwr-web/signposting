@@ -2,6 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { ensureFeatures } from '@/lib/ensureFeatures'
 
 // GET /api/features
 // Returns the list of features (id, key, name, description)
@@ -21,7 +22,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const features = await prisma.feature.findMany({
+    // Fetch first
+    let features = await prisma.feature.findMany({
       select: {
         id: true,
         key: true,
@@ -32,6 +34,22 @@ export async function GET(request: NextRequest) {
         name: 'asc'
       }
     })
+
+    // If none, seed then fetch again
+    if (!features || features.length === 0) {
+      await ensureFeatures()
+      features = await prisma.feature.findMany({
+        select: {
+          id: true,
+          key: true,
+          name: true,
+          description: true
+        },
+        orderBy: {
+          name: 'asc'
+        }
+      })
+    }
 
     return NextResponse.json({ features })
   } catch (error) {

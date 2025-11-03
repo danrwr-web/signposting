@@ -285,6 +285,8 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
 
             {loading ? (
               <p className="text-nhs-grey">Loading...</p>
+            ) : surgeryFeatures.length === 0 ? (
+              <p className="text-nhs-grey">No features found</p>
             ) : (
               <div className="space-y-4">
                 {surgeryFeatures.map(feature => (
