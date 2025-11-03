@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
+import { isFeatureEnabledForUser } from '@/lib/features'
 
 export const runtime = 'nodejs'
 
@@ -15,14 +16,16 @@ const improveInstructionSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    // Check authentication and superuser role
+    // Check authentication and feature flag
     const user = await getSessionUser()
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if (user.globalRole !== 'SUPERUSER') {
-      return NextResponse.json({ error: 'Superuser access required' }, { status: 403 })
+    // Check if user has access to ai_instructions feature
+    const canUse = await isFeatureEnabledForUser(user.id, 'ai_instructions')
+    if (!canUse) {
+      return NextResponse.json({ error: 'Feature not enabled for this user' }, { status: 403 })
     }
 
     // Parse and validate request body
