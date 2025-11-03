@@ -17,6 +17,8 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   const [targetSurgeryId, setTargetSurgeryId] = useState<string | ''>(currentSurgeryId || '')
   const [name, setName] = useState('')
   const [briefInstruction, setBriefInstruction] = useState('')
+  const [highlightedText, setHighlightedText] = useState('')
+  const [linkToPage, setLinkToPage] = useState('')
   const [instructionsHtml, setInstructionsHtml] = useState('')
   const [instructionsJson, setInstructionsJson] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -52,6 +54,8 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         surgeryId: target === 'SURGERY' ? (isSuperuser ? targetSurgeryId : currentSurgeryId) : undefined,
         name: name.trim(),
         briefInstruction: briefInstruction.trim() || null,
+        highlightedText: highlightedText.trim() || undefined,
+        linkToPage: linkToPage.trim() || undefined,
         instructionsHtml,
         instructionsJson: instructionsJson || undefined,
       }
@@ -141,6 +145,30 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             placeholder="e.g., Ask the patient to..."
           />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Important notice (optional)</label>
+          <textarea
+            value={highlightedText}
+            onChange={(e) => setHighlightedText(e.target.value)}
+            rows={2}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            placeholder="Shown prominently in red. Keep concise."
+          />
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Related information (optional)</label>
+          <input
+            type="text"
+            value={linkToPage}
+            onChange={(e) => setLinkToPage(e.target.value)}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            placeholder="Name of another symptom to link to"
+            aria-describedby="related-info-hint"
+          />
+          <p id="related-info-hint" className="text-xs text-gray-500 mt-1">Enter the exact name of the other symptom. Users can click through for more detail.</p>
         </div>
 
         <div className="mb-4">

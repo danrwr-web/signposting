@@ -8,6 +8,8 @@ const CreateSchema = z.object({
   surgeryId: z.string().uuid().optional(),
   name: z.string().min(1).max(120),
   briefInstruction: z.string().max(500).optional().nullable(),
+  highlightedText: z.string().max(2000).optional(),
+  linkToPage: z.string().max(200).optional(),
   instructionsHtml: z.string().min(1),
   instructionsJson: z.any().optional()
 })
@@ -55,6 +57,8 @@ export async function POST(req: NextRequest) {
         data: {
           name: nameCi,
           briefInstruction: parsed.data.briefInstruction ?? null,
+          highlightedText: parsed.data.highlightedText ?? null,
+          linkToPage: parsed.data.linkToPage ?? null,
           instructionsHtml: parsed.data.instructionsHtml,
           instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
         }
@@ -84,6 +88,8 @@ export async function POST(req: NextRequest) {
         name: nameCi,
         ageGroup: 'Adult',
         briefInstruction: parsed.data.briefInstruction ?? null,
+        highlightedText: parsed.data.highlightedText ?? null,
+        linkToPage: parsed.data.linkToPage ?? null,
         instructions: null,
         instructionsHtml: parsed.data.instructionsHtml,
         instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
