@@ -27,7 +27,9 @@ export async function GET(request: NextRequest) {
     }
 
     const isSuper = user.globalRole === 'SUPERUSER'
-    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
+    const isPracticeAdmin = Array.isArray((user as any).memberships)
+      ? (user as any).memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN')
+      : false
 
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
@@ -41,14 +43,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    if (!isSuper) {
-      if (isPracticeAdmin) {
-        if ((user as any).surgeryId !== surgeryId) {
-          return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
-        }
-      } else {
-        return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
-      }
+    if (!isSuper && !isPracticeAdmin) {
+      return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
     }
 
     if (!baseSymptomId && !customSymptomId) {

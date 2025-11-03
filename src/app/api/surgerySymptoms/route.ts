@@ -59,20 +59,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     const isSuper = user.globalRole === 'SUPERUSER'
-    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
+    const isPracticeAdmin = Array.isArray((user as any).memberships)
+      ? (user as any).memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN')
+      : false
 
     if (!surgeryId) {
       return NextResponse.json({ error: 'surgeryId parameter is required' }, { status: 400 })
     }
 
-    if (!isSuper) {
-      if (isPracticeAdmin) {
-        if ((user as any).surgeryId !== surgeryId) {
-          return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
-        }
-      } else {
-        return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
-      }
+    if (!isSuper && !isPracticeAdmin) {
+      return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
     }
 
     if (!surgeryId) {
@@ -274,24 +270,14 @@ export async function PATCH(request: NextRequest) {
     const { action, surgeryId, baseSymptomId, customSymptomId, statusRowId } = body
 
     const isSuper = user.globalRole === 'SUPERUSER'
-    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
+    // we'll validate resolved surgery after it's computed
 
     if (!surgeryId && action !== 'ENABLE_ALL_BASE' && !statusRowId) {
       return NextResponse.json({ error: 'surgeryId is required for this action' }, { status: 400 })
     }
 
     // If not superuser, ensure practice admin acts only on their own surgery
-    if (!isSuper) {
-      if (isPracticeAdmin) {
-        const intendedSurgeryId = surgeryId || null
-        // If not directly provided, try to resolve from statusRowId below as we might set resolvedSurgeryId later
-        if (intendedSurgeryId && (user as any).surgeryId !== intendedSurgeryId) {
-          return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
-        }
-      } else {
-        return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
-      }
-    }
+    // defer non-superuser validation until after resolvedSurgeryId is known
 
     // Most actions require surgeryId
     let resolvedSurgeryId = surgeryId
@@ -321,8 +307,13 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Final RBAC guard: for PRACTICE_ADMIN ensure resolved surgery matches session
-    if (!isSuper && isPracticeAdmin && resolvedSurgeryId && (user as any).surgeryId !== resolvedSurgeryId) {
-      return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
+    if (!isSuper) {
+      const hasAdmin = Array.isArray((user as any).memberships)
+        ? (user as any).memberships.some((m: any) => m.surgeryId === resolvedSurgeryId && m.role === 'ADMIN')
+        : false
+      if (!hasAdmin) {
+        return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
+      }
     }
 
     // Verify surgery exists
