@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
+import NewSymptomModal from '@/components/NewSymptomModal'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 
@@ -51,37 +52,47 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const [sort, setSort] = useState<'name-asc' | 'name-desc' | 'changed-new' | 'changed-old' | 'status'>('name-asc')
   const [activeFilter, setActiveFilter] = useState<FilterKey>('inuse')
   const [isSuperuser, setIsSuperuser] = useState<boolean>(false)
+  const [sessionUser, setSessionUser] = useState<{ globalRole?: string; surgeryId?: string } | null>(null)
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerIds, setDrawerIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null)
+  const [isAddOpen, setIsAddOpen] = useState(false)
+  const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
 
-  const currentSurgeryId = surgeryId
+  const effectiveSurgeryId = useMemo(() => {
+    return surgeryId || sessionUser?.surgeryId || null
+  }, [surgeryId, sessionUser])
 
   const loadRole = async () => {
     try {
-      const me = await fetch('/api/user/profile')
+      const me = await fetch('/api/user/profile', { cache: 'no-store' })
       if (me.ok) {
         const meJson = await me.json()
         const role = meJson?.globalRole || meJson?.user?.globalRole
         setIsSuperuser(role === 'SUPERUSER')
+        setSessionUser({ globalRole: role, surgeryId: meJson?.surgeryId || meJson?.user?.surgeryId })
       }
     } catch {}
   }
 
-  const loadLibraryData = async () => {
-    if (!currentSurgeryId) return
+  const loadLibraryData = async (sid: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`/api/surgerySymptoms?surgeryId=${currentSurgeryId}`, { cache: 'no-store' })
+      const response = await fetch(`/api/surgerySymptoms?surgeryId=${sid}`, { cache: 'no-store' })
       if (!response.ok) {
-        if (response.status === 403) toast.error('Superuser access required')
-        else toast.error('Failed to load symptom library')
+        const err = await response.json().catch(() => ({}))
+        toast.error(err?.error || 'Failed to load symptom library')
+        setLibraryData({ inUse: [], available: [], customOnly: [] })
         return
       }
       const data = await response.json()
-      setLibraryData(data)
+      setLibraryData({
+        inUse: data?.inUse ?? [],
+        available: data?.available ?? [],
+        customOnly: data?.customOnly ?? []
+      })
     } catch (e) {
       console.error(e)
       toast.error('Failed to load symptom library')
@@ -95,20 +106,22 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   }, [])
 
   useEffect(() => {
-    if (currentSurgeryId) {
-      loadLibraryData()
+    if (effectiveSurgeryId) {
+      loadLibraryData(effectiveSurgeryId)
+    } else {
+      setLibraryData(null)
     }
-  }, [currentSurgeryId])
+  }, [effectiveSurgeryId])
 
   // Actions to backend
   const handleAction = async (action: string, payload: Record<string, any>) => {
-    if (!currentSurgeryId) return
+    if (!effectiveSurgeryId) return
     setLoading(true)
     try {
       const response = await fetch('/api/surgerySymptoms', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, surgeryId: currentSurgeryId, ...payload })
+        body: JSON.stringify({ action, surgeryId: effectiveSurgeryId, ...payload })
       })
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
@@ -116,7 +129,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
         return
       }
       toast.success('Operation successful')
-      await loadLibraryData()
+      await loadLibraryData(effectiveSurgeryId)
     } catch (e) {
       console.error(e)
       toast.error('Operation failed')
@@ -134,6 +147,17 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const closeDrawer = () => {
     setDrawerOpen(false)
     setDrawerIds(null)
+  }
+
+  const ensureSurgeries = async () => {
+    if (!isSuperuser || surgeries.length) return
+    try {
+      const res = await fetch('/api/surgeries/list', { cache: 'no-store' })
+      if (res.ok) {
+        const list = await res.json()
+        setSurgeries(Array.isArray(list) ? list : [])
+      }
+    } catch {}
   }
 
   const formatLastEdited = (lastEditedAt?: string | null, lastEditedBy?: string | null) => {
@@ -266,7 +290,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     }
   }
 
-  if (!currentSurgeryId) {
+  if (!effectiveSurgeryId) {
     return (
       <div className="p-6 text-gray-600">Select a surgery to view its symptom library</div>
     )
@@ -326,7 +350,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
             <option value="status">Status</option>
           </select>
           <button
-            onClick={() => toast('Use Data Management to add new base symptoms')}
+            onClick={async () => { await ensureSurgeries(); setIsAddOpen(true) }}
             className="px-4 py-2 rounded-md text-sm font-medium bg-nhs-green text-white hover:bg-green-600"
           >
             Add Symptom
@@ -422,18 +446,30 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       </div>
 
       {/* Drawer */}
-      {drawerOpen && currentSurgeryId && (
+      {drawerOpen && effectiveSurgeryId && (
         <SymptomPreviewDrawer
           isOpen={drawerOpen}
           onClose={closeDrawer}
-          surgeryId={currentSurgeryId}
+          surgeryId={effectiveSurgeryId}
           baseSymptomId={drawerIds?.baseSymptomId}
           customSymptomId={drawerIds?.customSymptomId}
           onEnabled={() => {
-            loadLibraryData()
+            loadLibraryData(effectiveSurgeryId)
             closeDrawer()
           }}
           closeButtonRef={drawerCloseButtonRef}
+        />
+      )}
+
+      {/* Add Symptom modal */}
+      {isAddOpen && (
+        <NewSymptomModal
+          isOpen={isAddOpen}
+          onClose={() => setIsAddOpen(false)}
+          isSuperuser={isSuperuser}
+          currentSurgeryId={effectiveSurgeryId}
+          surgeries={surgeries}
+          onCreated={() => { setIsAddOpen(false); if (effectiveSurgeryId) loadLibraryData(effectiveSurgeryId) }}
         />
       )}
     </div>

@@ -998,7 +998,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <p className="text-nhs-grey mb-6">
                   Manage which symptoms are available and how they're configured for each surgery.
                 </p>
-                <SymptomLibraryExplorer surgeryId={selectedSurgery || null} />
+                {(() => {
+                  const isSuper = session?.type === 'superuser'
+                  const surgeryIdForLibrary = isSuper ? (selectedSurgery || null) : (session?.surgeryId || null)
+                  return (
+                    <SymptomLibraryExplorer surgeryId={surgeryIdForLibrary} />
+                  )
+                })()}
               </div>
             )}
 
