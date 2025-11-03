@@ -1012,7 +1012,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
         {/* Main Instructions */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-semibold text-nhs-dark-blue">
                 Instructions
@@ -1028,25 +1028,24 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {!isEditingInstructions && !isEditingAll && (
                 <>
                   {canUseAiInstructions && (
                     <button
                       onClick={handleRequestAISuggestion}
                       disabled={loadingAI}
-                      className="px-4 py-2 text-sm font-medium text-white bg-nhs-green border border-nhs-green rounded-lg hover:bg-[#007d74] transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Suggest improved wording (AI)"
+                      aria-label="Suggest improved wording (AI)"
                     >
                       {loadingAI ? (
-                        <span className="flex items-center gap-2">
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Generating AI suggestion...
-                        </span>
+                        <svg className="animate-spin h-4 w-4 text-nhs-green" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
                       ) : (
-                        'Suggest improved wording (AI)'
+                        <span className="text-xs font-semibold text-nhs-green">AI</span>
                       )}
                     </button>
                   )}
@@ -1054,33 +1053,20 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                     <button
                       onClick={handleRequestExplanation}
                       disabled={loadingExplanation}
-                      className="px-4 py-2 text-sm font-medium text-nhs-blue bg-white border border-nhs-blue rounded-lg hover:bg-nhs-light-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Explain this rule (AI)"
                       aria-label="Explain this rule (AI)"
                     >
                       {loadingExplanation ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Generating explanation...
-                        </>
+                        <svg className="animate-spin h-4 w-4 text-nhs-blue" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
                       ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          Explain this rule (AI)
-                        </>
+                        <svg className="w-4 h-4 text-nhs-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
                       )}
-                    </button>
-                  )}
-                  {hasChangeToUndo && (
-                    <button
-                      onClick={handleRevertLastChange}
-                      className="px-4 py-2 text-sm font-medium text-nhs-grey bg-white border border-nhs-grey rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-grey focus:ring-offset-2"
-                    >
-                      Undo last change
                     </button>
                   )}
                 </>
@@ -1266,6 +1252,53 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               )}
             </div>
           )}
+          
+          {/* Footer Actions */}
+          <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2 justify-between">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowSuggestionModal(true)}
+                className="px-4 py-2 rounded-md bg-white border border-gray-300 text-sm hover:bg-gray-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-1"
+              >
+                Suggest an improvement
+              </button>
+              
+              {isPracticeAdmin && symptom.source === 'base' && !isEditingInstructions && !isEditingAll && (
+                <button
+                  onClick={handleHideSymptom}
+                  disabled={isHidingSymptom}
+                  className="px-4 py-2 rounded-md bg-red-50 text-red-700 border border-red-100 text-sm hover:bg-red-100 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                >
+                  {isHidingSymptom ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Hiding...
+                    </span>
+                  ) : (
+                    'Hide symptom for practice'
+                  )}
+                </button>
+              )}
+              
+              {(isSuperuser || isPracticeAdmin) && symptom.source === 'custom' && !isEditingInstructions && !isEditingAll && (
+                <button
+                  onClick={() => setShowDeleteDialog(true)}
+                  className="px-4 py-2 rounded-md bg-red-50 text-red-700 border border-red-100 text-sm hover:bg-red-100 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                >
+                  Delete symptom
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => window.history.back()}
+              className="px-4 py-2 rounded-md bg-white border border-gray-200 text-sm hover:bg-gray-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1"
+            >
+              Back to symptoms
+            </button>
+          </div>
         </div>
 
         {/* Link to Page */}
@@ -1365,52 +1398,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             )}
           </div>
         )}
-
-        {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4">
-          <button
-            onClick={() => setShowSuggestionModal(true)}
-            className="px-6 py-3 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
-          >
-            Suggest an Improvement
-          </button>
-          
-          {isPracticeAdmin && symptom.source === 'base' && (
-            <button
-              onClick={handleHideSymptom}
-              disabled={isHidingSymptom}
-              className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isHidingSymptom ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  Hiding...
-                </span>
-              ) : (
-                'Hide Symptom for Practice'
-              )}
-            </button>
-          )}
-          
-          {(isSuperuser || isPracticeAdmin) && symptom.source === 'custom' && (
-            <button
-              onClick={() => setShowDeleteDialog(true)}
-              className="px-6 py-3 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors font-medium"
-            >
-              Delete Symptom
-            </button>
-          )}
-          
-          <button
-            onClick={() => window.history.back()}
-            className="px-6 py-3 border border-nhs-grey text-nhs-grey rounded-lg hover:bg-nhs-light-grey transition-colors font-medium"
-          >
-            Back to Symptoms
-          </button>
-        </div>
         
         {hideError && (
           <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
