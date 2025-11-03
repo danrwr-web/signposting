@@ -65,6 +65,12 @@ export async function GET(request: NextRequest) {
 
     // Handle base symptom
     if (baseSymptomId) {
+      // Validate surgery exists (avoid Prisma errors later)
+      const surgeryExists = await prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true } })
+      if (!surgeryExists) {
+        return NextResponse.json({ error: 'Surgery not found' }, { status: 404 })
+      }
+
       // Get the base symptom
       const baseSymptom = await prisma.baseSymptom.findUnique({
         where: { id: baseSymptomId },
@@ -84,18 +90,24 @@ export async function GET(request: NextRequest) {
       }
 
       // Check for override
-      const override = await prisma.surgerySymptomOverride.findUnique({
-        where: {
-          surgeryId_baseSymptomId: {
-            surgeryId,
-            baseSymptomId
+      let override: { briefInstruction: string | null; instructionsHtml: string | null } | null = null
+      try {
+        override = await prisma.surgerySymptomOverride.findUnique({
+          where: {
+            surgeryId_baseSymptomId: {
+              surgeryId,
+              baseSymptomId
+            }
+          },
+          select: {
+            briefInstruction: true,
+            instructionsHtml: true
           }
-        },
-        select: {
-          briefInstruction: true,
-          instructionsHtml: true
-        }
-      })
+        })
+      } catch (e) {
+        // If composite key invalid, treat as no override rather than erroring
+        override = null
+      }
 
       // Get status row
       const statusRow = await prisma.surgerySymptomStatus.findFirst({
@@ -115,11 +127,11 @@ export async function GET(request: NextRequest) {
       const hasOverride = !!override
       const isEnabled = statusRow?.isEnabled ?? false
       
-      const effectiveBriefInstruction = hasOverride && typeof override.briefInstruction === 'string' && override.briefInstruction.trim() !== ''
+      const effectiveBriefInstruction = hasOverride && typeof override?.briefInstruction === 'string' && override!.briefInstruction!.trim() !== ''
         ? override.briefInstruction
         : baseSymptom.briefInstruction
       
-      const effectiveInstructionsHtml = hasOverride && typeof override.instructionsHtml === 'string' && override.instructionsHtml.trim() !== ''
+      const effectiveInstructionsHtml = hasOverride && typeof override?.instructionsHtml === 'string' && override!.instructionsHtml!.trim() !== ''
         ? override.instructionsHtml
         : baseSymptom.instructionsHtml
 
