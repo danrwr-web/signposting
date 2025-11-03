@@ -1,7 +1,7 @@
-# 🏥 Signposting Toolkit – User Guide (Ide Lane Surgery)
-**Version:** Beta (Web Release)  
+# 🏥 Signposting Toolkit – User Guide
+**Version:** 1.0 (Web Release, November 2025)  
 **Author:** Dr Daniel Webber-Rookes  
-**Date:** October 2025  
+**Date:** November 2025
 
 ---
 
@@ -10,6 +10,8 @@
 The **Signposting Toolkit** was developed at **Ide Lane Surgery, Exeter**, to support the administrative team in safely and efficiently navigating patient requests. It provides clear, structured guidance on what to ask, how to prioritise, and when to escalate to a clinician.
 
 The toolkit enables consistent, accurate signposting to the most appropriate service — whether that's a GP, nurse, pharmacist, or self-care option — while ensuring patient safety and continuity of care remain at the centre of our approach.
+
+Now available as a browser-based web application, the toolkit no longer requires PowerApps or Excel. It includes over 200 preloaded symptoms and enhanced AI features to support staff training and content management.
 
 ---
 
@@ -27,13 +29,52 @@ It is **not** a clinical decision-support system and does not replace profession
 
 ---
 
-## 3. How the Toolkit Works
+## 3. New in Version 1.0
 
-### 3.1 Workflow Overview
+### 3.1 Symptom Library
+
+A new, intuitive interface allows admins and superusers to manage the symptom library directly from the Admin dashboard. The library functions like a file explorer, enabling you to:
+
+- **Enable or disable** any symptom for your surgery
+- **Preview** full guidance even for disabled symptoms via a preview drawer
+- **Search and filter** symptoms for easy navigation
+- Make informed decisions about which symptoms to activate based on local needs
+
+### 3.2 AI Tools
+
+Two powerful AI features are now available (when enabled by your surgery):
+
+- **Generate Explanation** – Automatically produces a plain-English explanation for any symptom's guidance, helping translate clinical text into patient-friendly language.
+
+- **Training Mode** – Helps staff test their understanding through short practice questions and simulated triage scenarios to reinforce learning.
+
+All AI functionality runs securely via Azure OpenAI, with no patient data stored. Usage tracking is visible to superusers for transparency.
+
+### 3.3 Feature Flags
+
+Superusers can enable or disable features (e.g. AI tools) for each surgery, while admins can toggle access for individual users. This provides flexible control over which capabilities are available to your team.
+
+### 3.4 User Management Redesign
+
+The user management interface has been modernised with:
+
+- Cleaner layout with avatars and badges
+- Compact action buttons for clarity
+- Improved visual hierarchy and navigation
+
+### 3.5 Clinical Review Workflow
+
+The clinical review workflow remains unchanged in logic but has been visually improved for easier navigation and clearer status indicators.
+
+---
+
+## 4. How the Toolkit Works
+
+### 4.1 Workflow Overview
 
 1. A patient contacts the surgery (by phone or eConsult).  
 2. The admin team identifies the symptom or reason for contact.  
-3. They open the **Signposting Toolkit** and select the corresponding symptom.  
+3. They open the **Signposting Toolkit** and select the corresponding symptom from the Symptom Library.  
 4. The toolkit provides:  
    - A **brief instruction** (one-line summary)  
    - **Detailed guidance** on what to ask and what action to take  
@@ -44,7 +85,11 @@ It is **not** a clinical decision-support system and does not replace profession
    - **Signpost** the patient to a community service (e.g. Pharmacy First)  
    - Or **escalate** to a clinician if unsure or a red flag is present  
 
-### 3.2 Red Flag Pathways
+Admins and superusers can manage their Symptom Library directly from the Admin dashboard, enabling, disabling, or previewing symptoms as needed. The preview drawer allows users to view full guidance even for disabled symptoms before deciding to re-enable them.
+
+The toolkit includes automatic highlighting for **Pharmacy First** and **Red Slot** keywords to assist with consistent routing.
+
+### 4.2 Red Flag Pathways
 
 Certain symptoms automatically link to specific triage screens:
 - **Stroke** → opens a stroke assessment screen  
@@ -54,7 +99,7 @@ These screens prompt yes/no questions and provide clear instructions on when to 
 
 ---
 
-## 4. Appointment Slot Types
+## 5. Appointment Slot Types
 
 | **Colour** | **Type** | **Purpose / Use** |
 |-------------|-----------|------------------|
@@ -77,19 +122,28 @@ Other practices with a duty system in place could **adapt the toolkit accordingl
 
 ---
 
-## 5. Key Features
+## 6. Customisation and Administration
 
-- **Age Filters:** Toggle between Under-5 / Over-5 / Adult guidance.  
-- **Linked Pages:** Some instructions include links to related pages (e.g. "Allergy" → "Anaphylaxis").  
-- **Highlight Text:** Important warnings appear in **bold red text** for clarity.  
-- **User Tracking:** The system logs which users and symptoms are accessed most frequently.  
-- **Editable Content:** Admins with permission can add, edit, or remove symptoms.  
+Each practice can adapt the toolkit to reflect local policies and clinical preferences. The toolkit now provides enhanced administrative capabilities through the web interface.
 
----
+### 6.1 Symptom Library Management
 
-## 6. Customisation
+Admins and superusers can manage the symptom library directly from the Admin dashboard:
 
-Each practice can adapt the toolkit to reflect local policies and clinical preferences.
+- **Enable or disable** symptoms for your surgery
+- **Preview** symptoms before enabling (via the preview drawer)
+- **Search and filter** the library for easy navigation
+- **View usage statistics** to understand which symptoms are most commonly accessed
+
+### 6.2 Add, Edit, Delete Functions
+
+Administrators can:
+
+- **Add** new symptoms specific to their surgery
+- **Edit** existing symptoms (with confirmation prompts to prevent accidental changes)
+- **Delete** symptoms (requires confirmation)
+
+Practice admins can modify symptoms for their own surgery, while superusers can manage base symptoms and promote practice-specific ones to the shared library for use by other surgeries.
 
 **Editable fields include:**
 - Symptom name  
@@ -97,17 +151,68 @@ Each practice can adapt the toolkit to reflect local policies and clinical prefe
 - Highlighted text (warnings or alerts)  
 - Detailed instructions (actions and questions to ask)  
 - Links to other pages or resources  
+- Age-specific guidance (Under-5, Over-5, Adult)
 
-Customisation can be done through the linked data source (e.g. Excel or SharePoint list).  
+### 6.3 AI Permissions via Features Tab
+
+Access to AI features is controlled through the Features tab, where:
+
+- **Superusers** can enable or disable AI features for each surgery
+- **Admins** can toggle AI access for individual users within their surgery
+- All AI usage is tracked and visible to superusers for transparency
+
+### 6.4 User and Surgery Management
+
+The modernised user management interface provides:
+
+- **User management** with avatars, badges, and clear role indicators
+- **Surgery management** for multi-site organisations
+- **Permission management** with granular control over features
+- Compact action buttons for clarity and efficiency
 
 Practices adopting the toolkit are strongly encouraged to review all wording for local accuracy, governance, and safety.
 
 ---
 
-## 7. Governance and Disclaimer
+## 7. AI Features
+
+AI functionality is optional and controlled via the Features tab. When enabled for your surgery or user account, you have access to two powerful tools:
+
+### 7.1 Generate Explanation
+
+The Generate Explanation feature automatically produces a plain-English explanation for any symptom's guidance. This tool helps:
+
+- Translate clinical text into patient-friendly language
+- Create accessible explanations for complex medical concepts
+- Support staff training and patient communication
+
+**Important:** All AI-generated text must be reviewed by a clinician before inclusion in live symptom guidance.
+
+### 7.2 Training Mode
+
+Training Mode helps staff test their understanding through:
+
+- Short practice questions based on symptom scenarios
+- Simulated triage situations to reinforce learning
+- Feedback on decision-making to improve confidence
+
+This mode provides a safe environment for staff to practice without impacting real patient care.
+
+### 7.3 Security and Privacy
+
+- All AI actions run securely via Azure OpenAI
+- No patient data is stored or transmitted to AI services
+- Usage tracking is visible to superusers for transparency
+- All AI-generated content requires clinical review before use
+
+---
+
+## 8. Governance and Safety
 
 This toolkit was developed at **Ide Lane Surgery** as an internal administrative aid.  
 It is **not an approved clinical triage or diagnostic system** and should not be used as such.
+
+The toolkit is for **administrative use only**. All AI-generated text must be reviewed by a clinician before inclusion in live symptom guidance.
 
 Practices using or adapting this toolkit do so **at their own risk** and must ensure:
 
@@ -120,34 +225,34 @@ If in doubt, err on the side of escalation.
 
 ---
 
-## 8. Clinical Review and Local Sign‑off
+## 9. Clinical Review and Local Sign‑off
 
 Each practice must review and approve its own symptom guidance. Until approved, staff will see a banner stating the content is awaiting local clinical review.
 
-### 8.1 For Admins / Senior Clinicians
+### 9.1 For Admins / Senior Clinicians
 
 1. Open the Admin dashboard and select your surgery.
 2. Click **Clinical Review** to see all symptoms for that surgery.
 3. For each symptom, choose:
    - **Approved** – content is appropriate
-   - **Needs Change** – content requires editing (use “View / Edit” to open the instruction page)
+   - **Needs Change** – content requires editing (use "View / Edit" to open the instruction page)
    - **Set Pending** – revert back to pending if needed
 4. When no items are pending, click **Complete Review and Sign Off**.
 5. To re‑inspect annually (or after substantive changes), click **Request Re‑review**. This resets all statuses to Pending and shows the staff banner again.
 
 On each instruction page (when accessed from Clinical Review), you can also approve/mark needs‑change directly and navigate Previous/Next.
 
-### 8.2 For Staff (Reception / Navigation)
+### 9.2 For Staff (Reception / Navigation)
 
-- If a yellow banner appears, the content is awaiting your practice’s clinical review. Use the guidance as an aid, but check with a clinician if unsure.
+- If a yellow banner appears, the content is awaiting your practice's clinical review. Use the guidance as an aid, but check with a clinician if unsure.
 - Once signed off, the banner disappears. The instruction page will show who approved it and when.
 
 ---
 
-## 9. Using the Toolkit (Step-by-Step)
+## 10. Using the Toolkit (Step-by-Step)
 
 1. **Open the web app** and log in (if required).  
-2. **Select the symptom** that best matches the patient's presentation.  
+2. **Select the symptom** that best matches the patient's presentation from the Symptom Library.  
 3. **Read the brief instruction** to orient yourself.  
 4. **Confirm the patient's age group** (Under-5, Over-5, Adult).  
 5. Follow the **detailed instructions**, noting any highlighted red flags.  
@@ -160,7 +265,19 @@ On each instruction page (when accessed from Clinical Review), you can also appr
 
 ---
 
-## 10. Example Scenarios
+## 11. Key Features
+
+- **Age Filters:** Toggle between Under-5 / Over-5 / Adult guidance.  
+- **Linked Pages:** Some instructions include links to related pages (e.g. "Allergy" → "Anaphylaxis").  
+- **Highlight Text:** Important warnings appear in **bold red text** for clarity.  
+- **Automatic Highlighting:** Pharmacy First and Red Slot keywords are automatically highlighted.  
+- **User Tracking:** The system logs which users and symptoms are accessed most frequently.  
+- **Editable Content:** Admins with permission can add, edit, or remove symptoms.  
+- **Symptom Library:** Intuitive management interface for enabling, disabling, and previewing symptoms.
+
+---
+
+## 12. Example Scenarios
 
 ### Example 1 – Sore Throat
 - Select *Sore Throat* → toolkit shows pharmacy/self-care guidance.  
@@ -174,7 +291,7 @@ On each instruction page (when accessed from Clinical Review), you can also appr
 
 ---
 
-## 11. Support and Feedback
+## 13. Support and Feedback
 
 For issues, suggestions, or feedback:
 - Use the **"Suggest a Change"** form within the app to submit your idea.  
@@ -183,30 +300,32 @@ For issues, suggestions, or feedback:
 
 ---
 
-## 12. Donations and Support
+## 14. Donations and Support
 
 The Signposting Toolkit is shared in good faith to help other surgeries improve patient access and workflow safety.  
 It is self-funded and maintained voluntarily.  
 
+The toolkit is now shared with other surgeries beyond Ide Lane, helping improve patient care across multiple practices.
+
 If you find it valuable, please consider contributing to its ongoing development:  
 
-👉 **[Buy Me a Coffee / Support Development]** *(coming soon)*  
+👉 **[Support Development]** *(now available via Support Development link)*  
 
 *(Voluntary donations help cover hosting and update costs.)*
 
 ---
 
-## 13. Version Control and Updates
+## 15. Version Control and Updates
 
 | **Date** | **Version** | **Changes** |
 |-----------|--------------|--------------|
-| Oct 2025 | 0.9 (Beta) | Initial release for web version |
-| *(future entries to follow)* |
+| Nov 2025 | 1.0 | Major update: web release with Symptom Library, AI features, and feature-flag system |
+| Oct 2025 | 0.9 (Beta) | Initial web beta release |
 
 ---
 
 > Developed by **Dr Daniel Webber-Rookes** and the team at Ide Lane Surgery, Exeter  
 > © 2025 Signposting Toolkit – All rights reserved  
-> Version 0.9 (Beta)
+> Version 1.0 (Web Release, November 2025)
 
 **If at any point you are worried about safety, or something does not fit one of the options given, stop and check with a clinician immediately rather than booking a routine slot.**
