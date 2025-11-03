@@ -74,6 +74,18 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
     }
   })
 
+  // Status rows (enable/disable) for this surgery
+  const statuses = await prisma.surgerySymptomStatus.findMany({
+    where: { surgeryId },
+    select: { id: true, baseSymptomId: true, customSymptomId: true, isEnabled: true }
+  })
+  const disabledBaseIds = new Set(
+    statuses.filter(s => s.baseSymptomId && s.isEnabled === false).map(s => s.baseSymptomId!)
+  )
+  const disabledCustomIds = new Set(
+    statuses.filter(s => s.customSymptomId && s.isEnabled === false).map(s => s.customSymptomId!)
+  )
+
   // Merge base+overrides; include customs
   const byBaseId = new Map<string, EffectiveSymptom>(base.map(b => [b.id, { ...b, ageGroup: b.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }]))
   
@@ -83,6 +95,11 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
     
     // If symptom is hidden, skip it entirely
     if (o.isHidden) {
+      byBaseId.delete(o.baseSymptomId)
+      continue
+    }
+    // If explicitly disabled via status row, remove from list
+    if (disabledBaseIds.has(o.baseSymptomId)) {
       byBaseId.delete(o.baseSymptomId)
       continue
     }
@@ -101,8 +118,17 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
     })
   }
   
+  // Apply disables for base symptoms without overrides (status row may still disable)
+  for (const baseId of disabledBaseIds) {
+    if (byBaseId.has(baseId)) {
+      byBaseId.delete(baseId)
+    }
+  }
+
   const effective = Array.from(byBaseId.values())
-  const customsProjected = customs.map(c => ({ 
+  const customsProjected = customs
+    .filter(c => !disabledCustomIds.has(c.id))
+    .map(c => ({ 
     ...c, 
     ageGroup: c.ageGroup as 'U5' | 'O5' | 'Adult',
     source: 'custom' as const 
