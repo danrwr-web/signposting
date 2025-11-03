@@ -223,7 +223,10 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
                       <div className="flex items-center space-x-2">
                         {symptom.isEnabled ? (
                           <button
-                            onClick={() => handleAction('DISABLE', { statusRowId: symptom.statusRowId })}
+                            onClick={() => handleAction('DISABLE', { 
+                              statusRowId: symptom.statusRowId,
+                              baseSymptomId: symptom.statusRowId ? undefined : symptom.symptomId
+                            })}
                             className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
                             disabled={loading}
                           >
@@ -231,7 +234,10 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleAction('ENABLE_EXISTING', { statusRowId: symptom.statusRowId })}
+                            onClick={() => handleAction('ENABLE_EXISTING', { 
+                              statusRowId: symptom.statusRowId,
+                              baseSymptomId: symptom.statusRowId ? undefined : symptom.symptomId
+                            })}
                             className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
                             disabled={loading}
                           >

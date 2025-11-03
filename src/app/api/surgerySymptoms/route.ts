@@ -122,12 +122,21 @@ export async function GET(request: NextRequest) {
     // Build a set of base symptom IDs that have overrides (modified wording)
     const overriddenBaseIds = new Set(overrides.map(o => o.baseSymptomId))
 
+    // Build a set of hidden symptom IDs (from old system)
+    const hiddenBaseIds = new Set(
+      overrides
+        .filter(o => o.isHidden === true)
+        .map(o => o.baseSymptomId)
+    )
+
     // Build "inUse" array - anything with a status row
     const inUse: InUseSymptom[] = []
 
     // Add base-linked symptoms
     for (const baseSymptom of baseSymptoms) {
       const status = statusByBaseId.get(baseSymptom.id)
+      
+      // In the NEW system: if there's a status row, use it
       if (status) {
         let symptomStatus: SymptomStatus
         if (!status.isEnabled) {
@@ -149,6 +158,25 @@ export async function GET(request: NextRequest) {
           lastEditedBy: status.lastEditedBy
         })
       }
+      // In the OLD system: if no status row exists but symptom is not hidden via override, it's in use
+      else if (!hiddenBaseIds.has(baseSymptom.id)) {
+        // Symptom is effectively in use via old system but no status row yet
+        // We'll treat this as enabled by default and show it as BASE or MODIFIED
+        let symptomStatus: SymptomStatus = 'BASE'
+        if (overriddenBaseIds.has(baseSymptom.id)) {
+          symptomStatus = 'MODIFIED'
+        }
+
+        inUse.push({
+          symptomId: baseSymptom.id,
+          name: baseSymptom.name,
+          status: symptomStatus,
+          isEnabled: true, // Default to enabled
+          canRevertToBase: symptomStatus === 'MODIFIED',
+          lastEditedAt: null,
+          lastEditedBy: null
+        })
+      }
     }
 
     // Add custom-only symptoms
@@ -165,13 +193,24 @@ export async function GET(request: NextRequest) {
           lastEditedAt: status.lastEditedAt,
           lastEditedBy: status.lastEditedBy
         })
+      } else {
+        // Custom symptom without status row - assume it's enabled
+        inUse.push({
+          symptomId: customSymptom.id,
+          name: customSymptom.name,
+          status: 'LOCAL_ONLY',
+          isEnabled: true,
+          canRevertToBase: false,
+          lastEditedAt: null,
+          lastEditedBy: null
+        })
       }
     }
 
-    // Build "available" array - base symptoms without a status row
+    // Build "available" array - base symptoms without a status row AND hidden via old system
     const available: AvailableSymptom[] = []
     for (const baseSymptom of baseSymptoms) {
-      if (!statusByBaseId.has(baseSymptom.id)) {
+      if (!statusByBaseId.has(baseSymptom.id) && hiddenBaseIds.has(baseSymptom.id)) {
         available.push({
           baseSymptomId: baseSymptom.id,
           name: baseSymptom.name
@@ -324,75 +363,194 @@ export async function PATCH(request: NextRequest) {
       }
 
       case 'DISABLE': {
-        if (!statusRowId) {
+        if (!statusRowId && !baseSymptomId) {
           return NextResponse.json(
-            { error: 'statusRowId is required' },
+            { error: 'statusRowId or baseSymptomId is required' },
             { status: 400 }
           )
         }
 
-        await prisma.surgerySymptomStatus.update({
-          where: { id: statusRowId },
-          data: {
-            isEnabled: false,
-            lastEditedAt: now,
-            lastEditedBy: editedBy
+        // If we have statusRowId, update directly
+        if (statusRowId) {
+          await prisma.surgerySymptomStatus.update({
+            where: { id: statusRowId },
+            data: {
+              isEnabled: false,
+              lastEditedAt: now,
+              lastEditedBy: editedBy
+            }
+          })
+        }
+        // Otherwise, find or create status row by baseSymptomId
+        else if (baseSymptomId && resolvedSurgeryId) {
+          const existing = await prisma.surgerySymptomStatus.findFirst({
+            where: {
+              surgeryId: resolvedSurgeryId,
+              baseSymptomId
+            }
+          })
+
+          if (existing) {
+            await prisma.surgerySymptomStatus.update({
+              where: { id: existing.id },
+              data: {
+                isEnabled: false,
+                lastEditedAt: now,
+                lastEditedBy: editedBy
+              }
+            })
+          } else {
+            await prisma.surgerySymptomStatus.create({
+              data: {
+                surgeryId: resolvedSurgeryId,
+                baseSymptomId,
+                isEnabled: false,
+                isOverridden: false,
+                lastEditedAt: now,
+                lastEditedBy: editedBy
+              }
+            })
           }
-        })
+        }
 
         return NextResponse.json({ ok: true })
       }
 
       case 'ENABLE_EXISTING': {
-        if (!statusRowId) {
+        if (!statusRowId && !baseSymptomId) {
           return NextResponse.json(
-            { error: 'statusRowId is required' },
+            { error: 'statusRowId or baseSymptomId is required' },
             { status: 400 }
           )
         }
 
-        await prisma.surgerySymptomStatus.update({
-          where: { id: statusRowId },
-          data: {
-            isEnabled: true,
-            lastEditedAt: now,
-            lastEditedBy: editedBy
+        // If we have statusRowId, update directly
+        if (statusRowId) {
+          await prisma.surgerySymptomStatus.update({
+            where: { id: statusRowId },
+            data: {
+              isEnabled: true,
+              lastEditedAt: now,
+              lastEditedBy: editedBy
+            }
+          })
+        }
+        // Otherwise, find or create status row by baseSymptomId
+        else if (baseSymptomId && resolvedSurgeryId) {
+          const existing = await prisma.surgerySymptomStatus.findFirst({
+            where: {
+              surgeryId: resolvedSurgeryId,
+              baseSymptomId
+            }
+          })
+
+          if (existing) {
+            await prisma.surgerySymptomStatus.update({
+              where: { id: existing.id },
+              data: {
+                isEnabled: true,
+                lastEditedAt: now,
+                lastEditedBy: editedBy
+              }
+            })
+          } else {
+            await prisma.surgerySymptomStatus.create({
+              data: {
+                surgeryId: resolvedSurgeryId,
+                baseSymptomId,
+                isEnabled: true,
+                isOverridden: false,
+                lastEditedAt: now,
+                lastEditedBy: editedBy
+              }
+            })
           }
-        })
+        }
 
         return NextResponse.json({ ok: true })
       }
 
       case 'REVERT_TO_BASE': {
-        if (!statusRowId) {
+        if (!statusRowId && !baseSymptomId) {
           return NextResponse.json(
-            { error: 'statusRowId is required' },
+            { error: 'statusRowId or baseSymptomId is required' },
             { status: 400 }
           )
         }
 
-        const status = await prisma.surgerySymptomStatus.findUnique({
-          where: { id: statusRowId },
-          select: { baseSymptomId: true, surgeryId: true, isOverridden: true }
-        })
+        let actualStatusRowId = statusRowId
+        let targetBaseSymptomId: string
+        let targetSurgeryId: string
 
-        if (!status) {
-          return NextResponse.json(
-            { error: 'Status row not found' },
-            { status: 404 }
-          )
+        // If we have statusRowId, use it directly
+        if (statusRowId) {
+          const status = await prisma.surgerySymptomStatus.findUnique({
+            where: { id: statusRowId },
+            select: { baseSymptomId: true, surgeryId: true, isOverridden: true }
+          })
+
+          if (!status) {
+            return NextResponse.json(
+              { error: 'Status row not found' },
+              { status: 404 }
+            )
+          }
+
+          if (!status.baseSymptomId) {
+            return NextResponse.json(
+              { error: 'Cannot revert custom-only symptom to base' },
+              { status: 400 }
+            )
+          }
+
+          if (!status.isOverridden) {
+            return NextResponse.json(
+              { error: 'Nothing to revert' },
+              { status: 400 }
+            )
+          }
+
+          targetBaseSymptomId = status.baseSymptomId
+          targetSurgeryId = status.surgeryId
         }
+        // Otherwise, find or create status row by baseSymptomId
+        else if (baseSymptomId && resolvedSurgeryId) {
+          const existing = await prisma.surgerySymptomStatus.findFirst({
+            where: {
+              surgeryId: resolvedSurgeryId,
+              baseSymptomId
+            },
+            select: { id: true, isOverridden: true }
+          })
 
-        if (!status.baseSymptomId) {
-          return NextResponse.json(
-            { error: 'Cannot revert custom-only symptom to base' },
-            { status: 400 }
-          )
-        }
+          if (existing) {
+            actualStatusRowId = existing.id
+            if (!existing.isOverridden) {
+              return NextResponse.json(
+                { error: 'Nothing to revert' },
+                { status: 400 }
+              )
+            }
+          } else {
+            // Create status row first
+            const newStatus = await prisma.surgerySymptomStatus.create({
+              data: {
+                surgeryId: resolvedSurgeryId,
+                baseSymptomId,
+                isEnabled: true,
+                isOverridden: false, // We're about to revert, so this should be false
+                lastEditedAt: now,
+                lastEditedBy: editedBy
+              }
+            })
+            actualStatusRowId = newStatus.id
+          }
 
-        if (!status.isOverridden) {
+          targetBaseSymptomId = baseSymptomId
+          targetSurgeryId = resolvedSurgeryId
+        } else {
           return NextResponse.json(
-            { error: 'Nothing to revert' },
+            { error: 'Insufficient parameters' },
             { status: 400 }
           )
         }
@@ -401,20 +559,22 @@ export async function PATCH(request: NextRequest) {
         // This removes the custom wording so the base symptom text will be used
         await prisma.surgerySymptomOverride.deleteMany({
           where: {
-            surgeryId: status.surgeryId,
-            baseSymptomId: status.baseSymptomId
+            surgeryId: targetSurgeryId,
+            baseSymptomId: targetBaseSymptomId
           }
         })
 
         // Update status row to indicate we're no longer using override
-        await prisma.surgerySymptomStatus.update({
-          where: { id: statusRowId },
-          data: {
-            isOverridden: false,
-            lastEditedAt: now,
-            lastEditedBy: editedBy
-          }
-        })
+        if (actualStatusRowId) {
+          await prisma.surgerySymptomStatus.update({
+            where: { id: actualStatusRowId },
+            data: {
+              isOverridden: false,
+              lastEditedAt: now,
+              lastEditedBy: editedBy
+            }
+          })
+        }
 
         return NextResponse.json({ ok: true })
       }
