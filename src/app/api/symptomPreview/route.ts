@@ -115,11 +115,11 @@ export async function GET(request: NextRequest) {
       const hasOverride = !!override
       const isEnabled = statusRow?.isEnabled ?? false
       
-      const effectiveBriefInstruction = hasOverride && (override.briefInstruction ?? '').trim() !== ''
+      const effectiveBriefInstruction = hasOverride && typeof override.briefInstruction === 'string' && override.briefInstruction.trim() !== ''
         ? override.briefInstruction
         : baseSymptom.briefInstruction
       
-      const effectiveInstructionsHtml = hasOverride && (override.instructionsHtml ?? '').trim() !== ''
+      const effectiveInstructionsHtml = hasOverride && typeof override.instructionsHtml === 'string' && override.instructionsHtml.trim() !== ''
         ? override.instructionsHtml
         : baseSymptom.instructionsHtml
 

@@ -429,7 +429,10 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                       )}
                       {row.kind === 'inuse' && row.canRevertToBase && (
                         <button
-                          onClick={() => handleAction('REVERT_TO_BASE', { statusRowId: row.statusRowId })}
+                          onClick={() => handleAction('REVERT_TO_BASE', {
+                            statusRowId: row.statusRowId,
+                            baseSymptomId: row.baseSymptomId
+                          })}
                           className={btnBlue}
                           disabled={loading}
                         >
