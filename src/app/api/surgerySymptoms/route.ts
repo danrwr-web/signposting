@@ -166,7 +166,7 @@ export async function GET(request: NextRequest) {
         })
       }
       // In the OLD system: if no status row exists but symptom is not hidden via override, it's in use
-      else if (!hiddenBaseIds.has(baseSymptom.id)) {
+      else if (!hiddenBaseIds.has(baseSymptom.id) && !statusByBaseId.has(baseSymptom.id)) {
         // Symptom is effectively in use via old system but no status row yet
         // We'll treat this as enabled by default and show it as BASE or MODIFIED
         let symptomStatus: SymptomStatus = 'BASE'
