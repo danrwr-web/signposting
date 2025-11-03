@@ -12,6 +12,7 @@ import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
 import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
+import FeaturesAdmin from '@/components/FeaturesAdmin'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -751,6 +752,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 { id: 'highrisk', label: 'High-Risk Buttons' },
                 { id: 'engagement', label: 'Engagement' },
                 { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
+                // Features: visible to SUPERUSER and PRACTICE_ADMIN
+                ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'features', label: 'Features' }] : []),
                 ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
                 ...(session.type === 'superuser' ? [
                   { id: 'system', label: 'System Management' },
@@ -906,6 +909,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             {/* Suggestions Tab */}
             {activeTab === 'suggestions' && (
               <SuggestionsAnalytics session={session} />
+            )}
+
+            {/* Features Tab */}
+            {activeTab === 'features' && (session.type === 'superuser' || session.type === 'surgery') && (
+              <FeaturesAdmin
+                currentUser={{
+                  id: session.id,
+                  email: session.email,
+                  globalRole: session.type === 'superuser' ? 'SUPERUSER' : 'USER',
+                  surgeryId: session.surgeryId
+                }}
+                selectedSurgeryId={selectedSurgery || session.surgeryId || null}
+              />
             )}
 
             {/* User Management Tab - Only for Surgery Admins */}

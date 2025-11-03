@@ -13,40 +13,43 @@ datasource db {
 
 // RBAC Models (using String fields instead of enums for SQLite compatibility)
 model User {
-  id                String        @id @default(cuid())
-  email             String        @unique
-  name              String?
-  password          String?       // Store hashed passwords
-  globalRole        String        @default("USER") // "USER" | "SUPERUSER"
-  defaultSurgeryId  String?
-  defaultSurgery    Surgery?      @relation("DefaultSurgery", fields: [defaultSurgeryId], references: [id])
-  memberships       UserSurgery[]
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
+  id               String        @id @default(cuid())
+  email            String        @unique
+  name             String?
+  password         String? // Store hashed passwords
+  globalRole       String        @default("USER") // "USER" | "SUPERUSER"
+  defaultSurgeryId String?
+  defaultSurgery   Surgery?      @relation("DefaultSurgery", fields: [defaultSurgeryId], references: [id])
+  memberships      UserSurgery[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
   // Test user fields
-  isTestUser        Boolean       @default(false)
-  symptomUsageLimit Int?          // null = unlimited, number = limit
-  symptomsUsed      Int           @default(0)
-  
+  isTestUser        Boolean @default(false)
+  symptomUsageLimit Int? // null = unlimited, number = limit
+  symptomsUsed      Int     @default(0)
+
   // Clinical review relationships
-  clinicalReviews   Surgery[]     @relation("ClinicalReviews")
+  clinicalReviews       Surgery[]             @relation("ClinicalReviews")
   symptomReviewStatuses SymptomReviewStatus[]
-  
+
+  // Feature flags
+  userFeatureFlags UserFeatureFlag[]
+
   // NextAuth.js fields
-  emailVerified     DateTime?
-  image             String?
-  accounts          Account[]
-  sessions          Session[]
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
 }
 
 model UserSurgery {
-  id         String      @id @default(cuid())
-  userId     String
-  surgeryId  String
-  role       String      @default("STANDARD") // "STANDARD" | "ADMIN"
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  surgery    Surgery     @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  userId    String
+  surgeryId String
+  role      String  @default("STANDARD") // "STANDARD" | "ADMIN"
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery   Surgery @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, surgeryId])
 }
@@ -58,51 +61,52 @@ model Surgery {
   name          String   @unique
   slug          String?  @unique // Made optional for backward compatibility
   adminEmail    String?  @unique
-  adminPassHash String?  // bcrypt hash; nullable until set
+  adminPassHash String? // bcrypt hash; nullable until set
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   // RBAC relationships
-  users         UserSurgery[] @relation("SurgeryUsers")
-  defaultUsers  User[]        @relation("DefaultSurgery")
+  users        UserSurgery[] @relation("SurgeryUsers")
+  defaultUsers User[]        @relation("DefaultSurgery")
 
   // Clinical governance / sign-off
-  requiresClinicalReview  Boolean   @default(true)
-  lastClinicalReviewAt    DateTime?
-  lastClinicalReviewerId  String?
-  lastClinicalReviewer    User?     @relation("ClinicalReviews", fields: [lastClinicalReviewerId], references: [id])
+  requiresClinicalReview Boolean   @default(true)
+  lastClinicalReviewAt   DateTime?
+  lastClinicalReviewerId String?
+  lastClinicalReviewer   User?     @relation("ClinicalReviews", fields: [lastClinicalReviewerId], references: [id])
 
   // Config
-  enableDefaultHighRisk Boolean @default(true) // Enable/disable default high-risk buttons
-  enableBuiltInHighlights Boolean @default(true) // Enable/disable built-in highlight rules
-  enableImageIcons Boolean @default(true) // Enable/disable image icons on symptom cards
-  highRiskLinks HighRiskLink[]
-  defaultHighRiskButtons DefaultHighRiskButtonConfig[]
-  highlightRules HighlightRule[]
-  symptomOverrides SurgerySymptomOverride[]
-  customSymptoms  SurgeryCustomSymptom[]
-  suggestions   Suggestion[]
-  events        EngagementEvent[]
-  symptomReviews SymptomReviewStatus[]
-  symptomStatuses SurgerySymptomStatus[]
+  enableDefaultHighRisk   Boolean                       @default(true) // Enable/disable default high-risk buttons
+  enableBuiltInHighlights Boolean                       @default(true) // Enable/disable built-in highlight rules
+  enableImageIcons        Boolean                       @default(true) // Enable/disable image icons on symptom cards
+  highRiskLinks           HighRiskLink[]
+  defaultHighRiskButtons  DefaultHighRiskButtonConfig[]
+  highlightRules          HighlightRule[]
+  symptomOverrides        SurgerySymptomOverride[]
+  customSymptoms          SurgeryCustomSymptom[]
+  suggestions             Suggestion[]
+  events                  EngagementEvent[]
+  symptomReviews          SymptomReviewStatus[]
+  symptomStatuses         SurgerySymptomStatus[]
+  surgeryFeatureFlags     SurgeryFeatureFlag[]
 }
 
 model BaseSymptom {
-  id               String   @id @default(cuid())
-  slug             String   @unique
+  id               String    @id @default(cuid())
+  slug             String    @unique
   name             String
-  ageGroup         String   // 'U5' | 'O5' | 'Adult'
+  ageGroup         String // 'U5' | 'O5' | 'Adult'
   briefInstruction String?
   highlightedText  String?
-  instructions     String?  // Legacy markdown field for back-compat
-  instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
-  instructionsHtml String?  // HTML format with colour support
+  instructions     String? // Legacy markdown field for back-compat
+  instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
+  instructionsHtml String? // HTML format with colour support
   linkToPage       String?
-  variants         Json?    // Optional age/scenario-tailored advice variants
-  isDeleted        Boolean  @default(false)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  lastEditedBy     String?  // Editor name
+  variants         Json? // Optional age/scenario-tailored advice variants
+  isDeleted        Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastEditedBy     String? // Editor name
   lastEditedAt     DateTime? // Last edit timestamp
 
   overrides SurgerySymptomOverride[]
@@ -115,47 +119,47 @@ model BaseSymptom {
 }
 
 model SurgerySymptomOverride {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   surgeryId        String
   baseSymptomId    String
   // Any field that, if non-null, overrides the base:
   name             String?
-  ageGroup         String?  // 'U5' | 'O5' | 'Adult'
+  ageGroup         String? // 'U5' | 'O5' | 'Adult'
   briefInstruction String?
   highlightedText  String?
-  instructions     String?  // Legacy markdown field for back-compat
-  instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
-  instructionsHtml String?  // HTML format with colour support
+  instructions     String? // Legacy markdown field for back-compat
+  instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
+  instructionsHtml String? // HTML format with colour support
   linkToPage       String?
   // Soft delete: if true, this symptom is hidden for this surgery
-  isHidden         Boolean  @default(false)
-  lastEditedBy     String?  // Editor name
+  isHidden         Boolean   @default(false)
+  lastEditedBy     String? // Editor name
   lastEditedAt     DateTime? // Last edit timestamp
 
-  surgery          Surgery     @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  baseSymptom      BaseSymptom @relation(fields: [baseSymptomId], references: [id], onDelete: Cascade)
+  surgery     Surgery     @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  baseSymptom BaseSymptom @relation(fields: [baseSymptomId], references: [id], onDelete: Cascade)
 
   @@unique([surgeryId, baseSymptomId])
   @@index([surgeryId, baseSymptomId])
 }
 
 model SurgeryCustomSymptom {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   surgeryId        String
-  slug             String   // unique per surgery
+  slug             String // unique per surgery
   name             String
-  ageGroup         String   // 'U5' | 'O5' | 'Adult'
+  ageGroup         String // 'U5' | 'O5' | 'Adult'
   briefInstruction String?
   highlightedText  String?
-  instructions     String?  // Legacy markdown field for back-compat
-  instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
-  instructionsHtml String?  // HTML format with colour support
+  instructions     String? // Legacy markdown field for back-compat
+  instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
+  instructionsHtml String? // HTML format with colour support
   linkToPage       String?
-  isDeleted        Boolean  @default(false)
-  lastEditedBy     String?  // Editor name
+  isDeleted        Boolean   @default(false)
+  lastEditedBy     String? // Editor name
   lastEditedAt     DateTime? // Last edit timestamp
 
-  surgery          Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@unique([surgeryId, slug])
   @@index([surgeryId, slug])
@@ -163,76 +167,76 @@ model SurgeryCustomSymptom {
 }
 
 model Suggestion {
-  id         String   @id @default(cuid())
-  surgeryId  String?
-  baseId     String?      // optional link to the affected base symptom
-  symptom    String       // captured as user typed/selected
-  userEmail  String?
-  text       String
+  id        String   @id @default(cuid())
+  surgeryId String?
+  baseId    String? // optional link to the affected base symptom
+  symptom   String // captured as user typed/selected
+  userEmail String?
+  text      String
   // TODO: Add these fields back when database schema is updated
   // status     String   @default("pending") // "pending" | "actioned" | "discarded"
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
   // updatedAt  DateTime @updatedAt
-  surgery    Surgery? @relation(fields: [surgeryId], references: [id])
+  surgery   Surgery? @relation(fields: [surgeryId], references: [id])
 }
 
 model EngagementEvent {
-  id         String   @id @default(cuid())
-  surgeryId  String?
-  baseId     String
-  userEmail  String?
-  event      String    // "view_symptom"
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  surgeryId String?
+  baseId    String
+  userEmail String?
+  event     String // "view_symptom"
+  createdAt DateTime @default(now())
 
-  surgery Surgery?     @relation(fields: [surgeryId], references: [id])
+  surgery Surgery?    @relation(fields: [surgeryId], references: [id])
   base    BaseSymptom @relation(fields: [baseId], references: [id], onDelete: Cascade)
 }
 
 model HighlightRule {
-  id         String   @id @default(cuid())
+  id        String   @id @default(cuid())
   // If null => global rule (applies to all unless overridden/disabled per surgery later)
-  surgeryId  String?
-  phrase     String
-  textColor  String   @default("#FFFFFF")
-  bgColor    String   @default("#6A0DAD") // purple default
-  isEnabled  Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  surgeryId String?
+  phrase    String
+  textColor String   @default("#FFFFFF")
+  bgColor   String   @default("#6A0DAD") // purple default
+  isEnabled Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  surgery    Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@unique([surgeryId, phrase])
   @@index([surgeryId, phrase])
 }
 
 model HighRiskLink {
-  id         String   @id @default(cuid())
-  surgeryId  String
-  label      String   // e.g., "Anaphylaxis", "Stroke"
+  id          String  @id @default(cuid())
+  surgeryId   String
+  label       String // e.g., "Anaphylaxis", "Stroke"
   // Either link by slug or by id; slug is friendlier for admins:
   symptomSlug String?
   symptomId   String?
 
-  orderIndex Int      @default(0)
+  orderIndex Int @default(0)
 
-  surgery    Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   // No explicit FK to Base/Custom because it can point to either via slug resolution.
-  
+
   @@unique([surgeryId, label])
   @@index([surgeryId, orderIndex])
 }
 
 model DefaultHighRiskButtonConfig {
-  id         String   @id @default(cuid())
-  surgeryId  String?  // If null, this is a system-wide default button
-  buttonKey  String   // e.g., "anaphylaxis", "stroke", "chest-pain", "sepsis", "meningitis"
-  label      String   // e.g., "Anaphylaxis", "Stroke"
-  symptomSlug String   // e.g., "anaphylaxis", "stroke"
-  isEnabled  Boolean  @default(true)
-  orderIndex Int      @default(0)
+  id          String  @id @default(cuid())
+  surgeryId   String? // If null, this is a system-wide default button
+  buttonKey   String // e.g., "anaphylaxis", "stroke", "chest-pain", "sepsis", "meningitis"
+  label       String // e.g., "Anaphylaxis", "Stroke"
+  symptomSlug String // e.g., "anaphylaxis", "stroke"
+  isEnabled   Boolean @default(true)
+  orderIndex  Int     @default(0)
 
-  surgery    Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  
+  surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
   @@unique([surgeryId, buttonKey])
   @@index([surgeryId, buttonKey])
 }
@@ -275,17 +279,17 @@ model VerificationToken {
 
 model ImageIcon {
   id              String   @id @default(cuid())
-  phrase          String   // Phrase to match in briefInstruction
-  filePath        String   // Path to uploaded image file
-  imageUrl        String   // URL for serving the image
-  alt             String?  // Alt text for accessibility
-  width           Int?     // Image width in pixels
-  height          Int?     // Image height in pixels
+  phrase          String // Phrase to match in briefInstruction
+  filePath        String // Path to uploaded image file
+  imageUrl        String // URL for serving the image
+  alt             String? // Alt text for accessibility
+  width           Int? // Image width in pixels
+  height          Int? // Image height in pixels
   cardSize        String   @default("medium") // Size on symptom cards: "small", "medium", "large"
   instructionSize String   @default("medium") // Size on instruction pages: "small", "medium", "large"
   isEnabled       Boolean  @default(true) // Enable/disable this icon
-  surgeryId       String?  // Surgery-specific icon (null = global)
-  createdBy       String   // Email of superuser who created it
+  surgeryId       String? // Surgery-specific icon (null = global)
+  createdBy       String // Email of superuser who created it
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -301,15 +305,15 @@ enum SymptomReviewState {
 }
 
 model SymptomReviewStatus {
-  id               String                @id @default(cuid())
+  id               String             @id @default(cuid())
   surgeryId        String
-  surgery          Surgery               @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  symptomId        String                // Effective symptom ID (base symptom ID or custom symptom ID)
-  ageGroup         String?               // e.g. "U5" | "O5" | "Adult" if relevant. Can be null if not age-specific.
-  status           SymptomReviewState    @default(PENDING)
+  surgery          Surgery            @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  symptomId        String // Effective symptom ID (base symptom ID or custom symptom ID)
+  ageGroup         String? // e.g. "U5" | "O5" | "Adult" if relevant. Can be null if not age-specific.
+  status           SymptomReviewState @default(PENDING)
   lastReviewedAt   DateTime?
   lastReviewedById String?
-  lastReviewedBy   User?                 @relation(fields: [lastReviewedById], references: [id])
+  lastReviewedBy   User?              @relation(fields: [lastReviewedById], references: [id])
 
   @@unique([surgeryId, symptomId, ageGroup])
   @@index([surgeryId])
@@ -317,19 +321,19 @@ model SymptomReviewStatus {
 }
 
 model SymptomHistory {
-  id                        String   @id @default(cuid())
-  symptomId                 String   // ID of the symptom
-  source                    String   // 'base' | 'override' | 'custom'
-  previousText              String?  // Legacy: Previous instructions text (deprecated, use previousInstructionsHtml)
-  newText                   String   // Legacy: New instructions text (deprecated, use newInstructionsHtml)
-  previousBriefInstruction  String?  // Brief instruction before change
-  newBriefInstruction       String?  // Brief instruction after change
-  previousInstructionsHtml  String?  // Full instruction HTML before change
-  newInstructionsHtml        String?  // Full instruction HTML after change
-  editorName                String?  // Name of the editor
-  editorEmail               String?  // Email of the editor
-  modelUsed                 String?  // AI model used (if applicable, or "REVERT" for revert operations)
-  changedAt                 DateTime @default(now())
+  id                       String   @id @default(cuid())
+  symptomId                String // ID of the symptom
+  source                   String // 'base' | 'override' | 'custom'
+  previousText             String? // Legacy: Previous instructions text (deprecated, use previousInstructionsHtml)
+  newText                  String // Legacy: New instructions text (deprecated, use newInstructionsHtml)
+  previousBriefInstruction String? // Brief instruction before change
+  newBriefInstruction      String? // Brief instruction after change
+  previousInstructionsHtml String? // Full instruction HTML before change
+  newInstructionsHtml      String? // Full instruction HTML after change
+  editorName               String? // Name of the editor
+  editorEmail              String? // Email of the editor
+  modelUsed                String? // AI model used (if applicable, or "REVERT" for revert operations)
+  changedAt                DateTime @default(now())
 
   @@index([symptomId])
   @@index([source])
@@ -337,44 +341,85 @@ model SymptomHistory {
 }
 
 model TokenUsageLog {
-  id                String   @id @default(cuid())
-  createdAt         DateTime @default(now())
-  userEmail         String?
-  route             String   // e.g. "improveInstruction", "explainInstruction"
-  modelUsed         String
-  promptTokens      Int
-  completionTokens  Int
-  totalTokens       Int
-  estimatedCostUsd  Float
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  userEmail        String?
+  route            String // e.g. "improveInstruction", "explainInstruction"
+  modelUsed        String
+  promptTokens     Int
+  completionTokens Int
+  totalTokens      Int
+  estimatedCostUsd Float
 
   @@index([createdAt])
   @@index([route])
 }
 
 model SurgerySymptomStatus {
-  id               String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  surgeryId        String
+  surgeryId     String
   // If this references a global, base symptom that ships with the product:
-  baseSymptomId    String?
+  baseSymptomId String?
 
   // If this is a surgery-created symptom that does not exist in the base library:
-  customSymptomId  String?
+  customSymptomId String?
 
   // True if this symptom is available/visible to reception/admins in this surgery.
-  isEnabled        Boolean   @default(true)
+  isEnabled Boolean @default(true)
 
   // True if this surgery is currently using its own modified wording
   // instead of the base wording.
   // (For a local-only symptom, this will effectively always be true.)
-  isOverridden     Boolean   @default(false)
+  isOverridden Boolean @default(false)
 
-  lastEditedAt     DateTime? @default(now())
-  lastEditedBy     String?
+  lastEditedAt DateTime? @default(now())
+  lastEditedBy String?
 
-  surgery          Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@index([surgeryId])
   @@index([baseSymptomId])
   @@index([customSymptomId])
+}
+
+// Feature flags
+model Feature {
+  id          String   @id @default(cuid())
+  key         String   @unique // e.g. "ai_instructions", "ai_training"
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  surgeryFlags SurgeryFeatureFlag[]
+  userFlags    UserFeatureFlag[]
+}
+
+// Surgery-level feature flag (superuser controls this)
+model SurgeryFeatureFlag {
+  id        String   @id @default(cuid())
+  surgeryId String
+  featureId String
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @default(now())
+
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([surgeryId, featureId])
+}
+
+// Per-user override inside a surgery (practice admin controls this, but only if the surgery flag is enabled)
+model UserFeatureFlag {
+  id        String   @id @default(cuid())
+  userId    String
+  featureId String
+  enabled   Boolean  @default(false)
+  updatedAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, featureId])
 }

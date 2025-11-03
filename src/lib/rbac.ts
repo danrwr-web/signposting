@@ -57,12 +57,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       return null
     }
 
-    // Derive admin surgeryId for PRACTICE_ADMINs
-    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
+    // Derive admin surgeryId for users with ADMIN membership
     const adminMembership = user.memberships.find(m => m.role === 'ADMIN')
-    const derivedSurgeryId = isPracticeAdmin
-      ? (adminMembership?.surgeryId || user.defaultSurgeryId || undefined)
-      : undefined
+    const isPracticeAdmin = !!adminMembership
+    const derivedSurgeryId = adminMembership?.surgeryId || user.defaultSurgeryId || undefined
 
     return {
       id: user.id,
