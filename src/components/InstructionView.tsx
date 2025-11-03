@@ -150,7 +150,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   // Check if there's a change to undo
   useEffect(() => {
     const checkUndoAvailability = async () => {
-      if (!isSuperuser) {
+      if (!canUseAiInstructions) {
         setHasChangeToUndo(false)
         return
       }
@@ -182,7 +182,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     }
     
     checkUndoAvailability()
-  }, [isSuperuser, symptom.id, symptom.source, symptom.baseSymptomId])
+  }, [canUseAiInstructions, symptom.id, symptom.source, symptom.baseSymptomId])
 
   const getSourceColor = (source: string) => {
     switch (source) {
