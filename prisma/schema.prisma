@@ -99,6 +99,7 @@ model BaseSymptom {
   instructionsHtml String?  // HTML format with colour support
   linkToPage       String?
   variants         Json?    // Optional age/scenario-tailored advice variants
+  isDeleted        Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   lastEditedBy     String?  // Editor name
@@ -150,6 +151,7 @@ model SurgeryCustomSymptom {
   instructionsJson String?  // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String?  // HTML format with colour support
   linkToPage       String?
+  isDeleted        Boolean  @default(false)
   lastEditedBy     String?  // Editor name
   lastEditedAt     DateTime? // Last edit timestamp
 

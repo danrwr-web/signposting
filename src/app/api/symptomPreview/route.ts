@@ -65,8 +65,8 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Surgery not found' }, { status: 404 })
       }
 
-      const baseSymptom = await prisma.baseSymptom.findUnique({
-        where: { id: baseSymptomId },
+      const baseSymptom = await prisma.baseSymptom.findFirst({
+        where: { id: baseSymptomId, isDeleted: false },
         select: { id: true, name: true, briefInstruction: true, instructionsHtml: true }
       })
       if (!baseSymptom) {
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
       }
 
       const customSymptom = await prisma.surgeryCustomSymptom.findFirst({
-        where: { id: customSymptomId, surgeryId },
+        where: { id: customSymptomId, surgeryId, isDeleted: false },
         select: { id: true, name: true, briefInstruction: true, instructionsHtml: true }
       })
       if (!customSymptom) {

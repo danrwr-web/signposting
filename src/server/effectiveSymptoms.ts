@@ -26,6 +26,7 @@ export interface EffectiveSymptom {
 export async function getEffectiveSymptoms(surgeryId: string): Promise<EffectiveSymptom[]> {
   // Base symptoms
   const base = await prisma.baseSymptom.findMany({
+    where: { isDeleted: false },
     select: { 
       id: true, 
       slug: true, 
@@ -59,7 +60,7 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
     }
   })
   const customs = await prisma.surgeryCustomSymptom.findMany({ 
-    where: { surgeryId },
+    where: { surgeryId, isDeleted: false },
     select: {
       id: true,
       slug: true,

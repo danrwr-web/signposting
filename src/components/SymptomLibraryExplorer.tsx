@@ -60,10 +60,12 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(surgeryId)
 
   const effectiveSurgeryId = useMemo(() => {
+    if (isSuperuser) return selectedSurgeryId || surgeryId || null
     return surgeryId || sessionUser?.surgeryId || null
-  }, [surgeryId, sessionUser])
+  }, [surgeryId, sessionUser, isSuperuser, selectedSurgeryId])
 
   const loadRole = async () => {
     try {
@@ -152,10 +154,14 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const ensureSurgeries = async () => {
     if (!isSuperuser || surgeries.length) return
     try {
-      const res = await fetch('/api/surgeries/list', { cache: 'no-store' })
+      const res = await fetch('/api/admin/surgeries', { cache: 'no-store' })
       if (res.ok) {
-        const list = await res.json()
-        setSurgeries(Array.isArray(list) ? list : [])
+        const data = await res.json()
+        const list: Array<{ id: string; name: string }> = Array.isArray(data?.surgeries)
+          ? data.surgeries.map((s: any) => ({ id: s.id, name: s.name }))
+          : []
+        setSurgeries(list)
+        if (!selectedSurgeryId && list.length > 0) setSelectedSurgeryId(list[0].id)
       }
     } catch {}
   }
@@ -330,6 +336,18 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       <div className="flex-1 min-w-0">
         {/* Top bar */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end mb-3">
+          {isSuperuser && (
+            <select
+              value={effectiveSurgeryId || ''}
+              onChange={(e) => setSelectedSurgeryId(e.target.value || null)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
+              aria-label="Select surgery"
+            >
+              {surgeries.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
           <input
             type="text"
             placeholder="Search symptoms..."
@@ -461,6 +479,25 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
             closeDrawer()
           }}
           closeButtonRef={drawerCloseButtonRef}
+          onDelete={async (payload) => {
+            try {
+              const res = await fetch('/api/admin/symptoms', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              })
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                toast.error(err?.error || 'Delete failed')
+                return
+              }
+              toast.success('Deleted')
+              loadLibraryData(effectiveSurgeryId)
+              closeDrawer()
+            } catch (e) {
+              toast.error('Delete failed')
+            }
+          }}
         />
       )}
 
@@ -647,7 +684,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
           </div>
           <button ref={closeButtonRef} onClick={onClose} className={btnGrey} aria-label="Close preview">Close</button>
         </div>
-        <div className="px-6 py-4 h-[calc(100%-156px)] overflow-y-auto">
+        <div className="px-6 py-4 h-[calc(100%-176px)] overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center p-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -689,11 +726,14 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
             <p className="text-gray-600">No preview data available</p>
           )}
         </div>
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-2">
-          <button onClick={onClose} className={btnGrey}>Close</button>
-          {data && !data.isEnabled && data.canEnable && (
-            <button onClick={handleEnable} className={btnBlue}>Enable at this surgery</button>
-          )}
+        <div className="px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+          <div className="pointer-events-none h-3 -mt-3 bg-gradient-to-t from-white to-transparent" />
+          <div className="flex justify-end gap-2">
+            {data && !data.isEnabled && data.canEnable && (
+              <button onClick={handleEnable} className={btnBlue}>Enable at this surgery</button>
+            )}
+            <button onClick={onClose} className={btnGrey}>Close</button>
+          </div>
         </div>
       </div>
     </div>

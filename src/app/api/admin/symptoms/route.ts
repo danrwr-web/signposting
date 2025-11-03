@@ -9,6 +9,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
+import { z } from 'zod'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 
 export const runtime = 'nodejs'
@@ -213,5 +214,68 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to create symptom' },
       { status: 500 }
     )
+  }
+}
+
+// DELETE - Soft delete base/custom symptoms with RBAC
+export async function DELETE(request: NextRequest) {
+  try {
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const BodySchema = z.object({
+      scope: z.enum(['BASE', 'SURGERY']),
+      baseSymptomId: z.string().optional(),
+      surgeryId: z.string().optional(),
+      customSymptomId: z.string().optional(),
+    }).refine(b => (b.scope === 'BASE' && !!b.baseSymptomId) || (b.scope === 'SURGERY' && !!b.surgeryId && !!b.customSymptomId), {
+      message: 'Invalid delete payload',
+    })
+
+    const json = await request.json().catch(() => ({}))
+    const parsed = BodySchema.safeParse(json)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid request', details: parsed.error.flatten() }, { status: 400 })
+    }
+    const { scope, baseSymptomId, surgeryId, customSymptomId } = parsed.data
+
+    const isSuper = user.globalRole === 'SUPERUSER'
+
+    if (scope === 'BASE') {
+      if (!isSuper) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+      const base = await prisma.baseSymptom.findUnique({ where: { id: baseSymptomId! }, select: { id: true } })
+      if (!base) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+      // Soft delete base and clean related rows
+      await prisma.$transaction([
+        prisma.baseSymptom.update({ where: { id: baseSymptomId! }, data: { isDeleted: true } }),
+        prisma.surgerySymptomOverride.deleteMany({ where: { baseSymptomId: baseSymptomId! } }),
+        prisma.surgerySymptomStatus.deleteMany({ where: { baseSymptomId: baseSymptomId! } }),
+      ])
+      return NextResponse.json({ ok: true })
+    }
+
+    // SURGERY scope
+    const isAdminOfSurgery = isSuper || (Array.isArray((user as any).memberships) && (user as any).memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN'))
+    if (!isAdminOfSurgery) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const custom = await prisma.surgeryCustomSymptom.findFirst({ where: { id: customSymptomId!, surgeryId: surgeryId! }, select: { id: true } })
+    if (!custom) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+    await prisma.$transaction([
+      prisma.surgeryCustomSymptom.update({ where: { id: customSymptomId! }, data: { isDeleted: true } }),
+      prisma.surgerySymptomStatus.deleteMany({ where: { surgeryId: surgeryId!, customSymptomId: customSymptomId! } }),
+    ])
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('ERROR_DELETE_SYMPTOM', { error: (error as any)?.message })
+    return NextResponse.json({ error: 'Failed to delete symptom' }, { status: 500 })
   }
 }

@@ -93,12 +93,13 @@ export async function GET(request: NextRequest) {
 
     // Get all base symptoms
     const baseSymptoms = await prisma.baseSymptom.findMany({
+      where: { isDeleted: false },
       orderBy: { name: 'asc' }
     })
 
     // Get all custom symptoms for this surgery
     const customSymptoms = await prisma.surgeryCustomSymptom.findMany({
-      where: { surgeryId },
+      where: { surgeryId, isDeleted: false },
       orderBy: { name: 'asc' }
     })
 
