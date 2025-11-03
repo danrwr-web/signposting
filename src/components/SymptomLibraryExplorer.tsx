@@ -157,14 +157,19 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       const res = await fetch('/api/admin/surgeries', { cache: 'no-store' })
       if (res.ok) {
         const data = await res.json()
-        const list: Array<{ id: string; name: string }> = Array.isArray(data?.surgeries)
-          ? data.surgeries.map((s: any) => ({ id: s.id, name: s.name }))
-          : []
+        const arr = Array.isArray(data) ? data : (Array.isArray(data?.surgeries) ? data.surgeries : [])
+        const list: Array<{ id: string; name: string }> = arr.map((s: any) => ({ id: s.id, name: s.name }))
         setSurgeries(list)
         if (!selectedSurgeryId && list.length > 0) setSelectedSurgeryId(list[0].id)
       }
     } catch {}
   }
+
+  useEffect(() => {
+    if (isSuperuser) {
+      ensureSurgeries()
+    }
+  }, [isSuperuser])
 
   const formatLastEdited = (lastEditedAt?: string | null, lastEditedBy?: string | null) => {
     if (!lastEditedAt || !lastEditedBy) return '—'
