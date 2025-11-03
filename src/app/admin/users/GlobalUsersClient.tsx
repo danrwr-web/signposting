@@ -69,7 +69,9 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
     password: '',
     globalRole: 'USER',
     isTestUser: false,
-    symptomUsageLimit: 25
+    symptomUsageLimit: 25,
+    initialSurgeryId: '',
+    initialSurgeryRole: 'STANDARD' as 'STANDARD' | 'ADMIN'
   })
   const [newMembership, setNewMembership] = useState({
     surgeryId: '',
@@ -116,16 +118,44 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
     e.preventDefault()
     
     try {
+      // First, create the user
+      const { initialSurgeryId, initialSurgeryRole, ...userData } = newUser
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify(userData),
       })
 
       if (response.ok) {
-        // Success - refresh the page to show the new user
+        const createdUser = await response.json()
+        
+        // If a surgery was selected, create the membership
+        if (initialSurgeryId) {
+          try {
+            const membershipResponse = await fetch(`/api/admin/users/${createdUser.id}/memberships`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                surgeryId: initialSurgeryId,
+                role: initialSurgeryRole
+              }),
+            })
+
+            if (!membershipResponse.ok) {
+              const error = await membershipResponse.json()
+              alert(`User created but failed to add surgery membership: ${error.error}`)
+            }
+          } catch (membershipError) {
+            console.error('Error creating membership:', membershipError)
+            alert('User created but failed to add surgery membership. You can add it manually later.')
+          }
+        }
+        
+        // Refresh the page to show the new user
         window.location.reload()
       } else {
         const error = await response.json()
@@ -137,7 +167,16 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
     }
     
     setShowCreateModal(false)
-    setNewUser({ email: '', name: '', password: '', globalRole: 'USER', isTestUser: false, symptomUsageLimit: 25 })
+    setNewUser({ 
+      email: '', 
+      name: '', 
+      password: '', 
+      globalRole: 'USER', 
+      isTestUser: false, 
+      symptomUsageLimit: 25,
+      initialSurgeryId: '',
+      initialSurgeryRole: 'STANDARD'
+    })
   }
 
   const handleResetTestUserUsage = async (userId: string) => {
@@ -509,7 +548,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                   </label>
                 </div>
                 {newUser.isTestUser && (
-                  <div className="mb-6">
+                  <div className="mb-4">
                     <label htmlFor="symptomUsageLimit" className="block text-sm font-medium text-gray-700 mb-1">
                       Symptom Usage Limit
                     </label>
@@ -527,10 +566,59 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                     </p>
                   </div>
                 )}
+                <div className="mb-4">
+                  <label htmlFor="initialSurgery" className="block text-sm font-medium text-gray-700 mb-1">
+                    Initial Surgery Membership (Optional)
+                  </label>
+                  <select
+                    id="initialSurgery"
+                    value={newUser.initialSurgeryId}
+                    onChange={(e) => setNewUser({ ...newUser, initialSurgeryId: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">None - Add later</option>
+                    {surgeries.map((surgery) => (
+                      <option key={surgery.id} value={surgery.id}>
+                        {surgery.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Optionally add this user to a surgery immediately
+                  </p>
+                </div>
+                {newUser.initialSurgeryId && (
+                  <div className="mb-6">
+                    <label htmlFor="initialSurgeryRole" className="block text-sm font-medium text-gray-700 mb-1">
+                      Role in Surgery
+                    </label>
+                    <select
+                      id="initialSurgeryRole"
+                      value={newUser.initialSurgeryRole}
+                      onChange={(e) => setNewUser({ ...newUser, initialSurgeryRole: e.target.value as 'STANDARD' | 'ADMIN' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="STANDARD">Standard</option>
+                      <option value="ADMIN">Admin</option>
+                    </select>
+                  </div>
+                )}
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
-                    onClick={() => setShowCreateModal(false)}
+                    onClick={() => {
+                      setShowCreateModal(false)
+                      setNewUser({ 
+                        email: '', 
+                        name: '', 
+                        password: '', 
+                        globalRole: 'USER', 
+                        isTestUser: false, 
+                        symptomUsageLimit: 25,
+                        initialSurgeryId: '',
+                        initialSurgeryRole: 'STANDARD'
+                      })
+                    }}
                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
                     Cancel
