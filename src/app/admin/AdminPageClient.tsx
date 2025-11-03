@@ -26,7 +26,7 @@ interface AdminPageClientProps {
 }
 
 export default function AdminPageClient({ surgeries, symptoms, session, currentSurgerySlug }: AdminPageClientProps) {
-  const [activeTab, setActiveTab] = useState('data')
+  const [activeTab, setActiveTab] = useState('library')
   const [selectedSurgery, setSelectedSurgery] = useState('')
   const [selectedSymptom, setSelectedSymptom] = useState('')
   const [overrideData, setOverrideData] = useState<any>(null)
@@ -743,14 +743,16 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
               {[
-                { id: 'data', label: 'Data Management' },
+                // Symptom Library first; visible to superusers and surgery admins
+                { id: 'library', label: 'Symptom Library' },
+                // Data Management is superuser-only
+                ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
                 { id: 'highlights', label: 'Highlight Config' },
                 { id: 'highrisk', label: 'High-Risk Buttons' },
                 { id: 'engagement', label: 'Engagement' },
                 { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
                 ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
                 ...(session.type === 'superuser' ? [
-                  { id: 'library', label: 'Symptom Library' },
                   { id: 'system', label: 'System Management' },
                   { id: 'aiUsage', label: 'AI usage / cost' },
                 ] : []),
@@ -778,58 +780,15 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           </div>
 
           <div className="p-6">
-            {/* Data Management Tab */}
-            {activeTab === 'data' && (
+            {/* Data Management Tab - Superuser only */}
+            {activeTab === 'data' && session.type === 'superuser' && (
               <div className="space-y-6">
-                {/* Symptom Management */}
+                {/* Superuser area: day-to-day controls moved to Symptom Library */}
                 <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-xl font-semibold text-nhs-dark-blue">
-                      Symptom Management
-                    </h2>
-                    <div className="space-x-2">
-                      {session.type === 'surgery' && selectedSurgery && (
-                        <a
-                          href={`/s/${selectedSurgery}/clinical-review`}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
-                        >
-                          Clinical Review
-                        </a>
-                      )}
-                      <button
-                        onClick={() => setShowAddSymptomForm(true)}
-                        className="px-4 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
-                      >
-                        Add Symptom
-                      </button>
-                      <button
-                        onClick={() => setShowRemoveSymptomDialog(true)}
-                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
-                      >
-                        {session.type === 'superuser' ? 'Delete Symptom' : 'Hide Symptom'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setShowHiddenSymptomsDialog(true)
-                          loadHiddenSymptoms()
-                        }}
-                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors text-sm"
-                      >
-                        Manage Hidden Symptoms
-                      </button>
-                      {session.type === 'superuser' && (
-                        <button
-                          onClick={() => setShowClearAllDialog(true)}
-                          className="px-4 py-2 bg-red-800 text-white rounded-lg hover:bg-red-900 transition-colors text-sm font-semibold"
-                        >
-                          🗑️ Clear All Data
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <p className="text-nhs-grey mb-4">
-                    Add new symptoms manually or remove existing ones from the database.
+                  <h2 className="text-xl font-semibold text-nhs-dark-blue mb-2">Superuser Data Management</h2>
+                  <p className="text-sm text-nhs-grey">
+                    Day-to-day symptom enable/disable and revert-to-base are now managed in the <strong>Symptom Library</strong>.
+                    This area is for global tools only (imports, audits, bulk ops).
                   </p>
                 </div>
 
@@ -1030,8 +989,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               </div>
             )}
 
-            {/* Symptom Library Tab - Only for Superusers */}
-            {activeTab === 'library' && session.type === 'superuser' && (
+            {/* Symptom Library Tab */}
+            {activeTab === 'library' && (
               <div>
                 <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
                   Symptom Library

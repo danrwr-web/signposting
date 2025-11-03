@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import SymptomPreviewModal from './SymptomPreviewModal'
+import NewSymptomModal from './NewSymptomModal'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 
@@ -44,13 +45,17 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
   const [search, setSearch] = useState('')
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewIds, setPreviewIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
+  const [currentSurgeryId, setCurrentSurgeryId] = useState<string | null>(surgeryId)
+  const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
+  const [isSuperuser, setIsSuperuser] = useState<boolean>(false)
+  const [showNewModal, setShowNewModal] = useState(false)
 
   const loadLibraryData = async () => {
-    if (!surgeryId) return
+    if (!currentSurgeryId) return
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/surgerySymptoms?surgeryId=${surgeryId}`, {
+      const response = await fetch(`/api/surgerySymptoms?surgeryId=${currentSurgeryId}`, {
         cache: 'no-store'
       })
 
@@ -74,10 +79,42 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
   }
 
   useEffect(() => {
-    if (surgeryId) {
+    setCurrentSurgeryId(surgeryId)
+  }, [surgeryId])
+
+  useEffect(() => {
+    if (currentSurgeryId) {
       loadLibraryData()
     }
-  }, [surgeryId])
+  }, [currentSurgeryId])
+
+  // Load surgeries and role for superuser context label
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const me = await fetch('/api/user/profile')
+        if (me.ok) {
+          const meJson = await me.json()
+          const role = meJson?.globalRole || meJson?.user?.globalRole
+          setIsSuperuser(role === 'SUPERUSER')
+        }
+      } catch {}
+
+      try {
+        const res = await fetch('/api/surgeries/list')
+        if (!res.ok) return
+        const data = await res.json()
+        setSurgeries(data)
+        if (!surgeryId && data.length > 0) {
+          setCurrentSurgeryId(data[0].id)
+        }
+      } catch (e) {
+        console.error('Failed to load surgeries', e)
+      }
+    }
+    init()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleAction = async (action: string, payload: Record<string, any>) => {
     if (!surgeryId) return
@@ -194,6 +231,36 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
 
   return (
     <div className="space-y-6">
+      {/* Management bar */}
+      <div className="flex items-center justify-between bg-white rounded-lg border border-gray-200 p-4">
+        <div className="text-sm text-gray-700">
+          {isSuperuser ? (
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600">Managing:</span>
+              <select
+                className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                value={currentSurgeryId || ''}
+                onChange={(e) => setCurrentSurgeryId(e.target.value)}
+              >
+                {surgeries.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <span>Managing: this surgery</span>
+          )}
+        </div>
+        <div>
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="px-4 py-2 rounded-md text-sm font-medium bg-nhs-green text-white hover:bg-green-600"
+            disabled={!currentSurgeryId && !isSuperuser}
+          >
+            Add Symptom
+          </button>
+        </div>
+      </div>
       {/* Intro text */}
       <p className="text-sm text-gray-600 mb-4">
         This page controls which symptoms your reception/admin team can use, and whether they use the standard wording or a customised local version.
@@ -441,6 +508,33 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
                           >
                             {symptom.isEnabled ? 'Disable' : 'Enable'}
                           </button>
+                          {isSuperuser && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/symptoms/promote', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ customSymptomId: symptom.customSymptomId })
+                                  })
+                                  const data = await res.json().catch(() => ({}))
+                                  if (!res.ok) {
+                                    toast.error(data.error || 'Promote failed')
+                                    return
+                                  }
+                                  toast.success('Promoted to Base')
+                                  loadLibraryData()
+                                } catch (e) {
+                                  console.error(e)
+                                  toast.error('Promote failed')
+                                }
+                              }}
+                              className={buttonBlue}
+                              disabled={loading}
+                            >
+                              Promote to Base
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -453,14 +547,33 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
       </div>
 
       {/* Preview modal */}
-      {surgeryId && (
+      {currentSurgeryId && (
         <SymptomPreviewModal
           isOpen={previewOpen}
           onClose={() => setPreviewOpen(false)}
-          surgeryId={surgeryId}
+          surgeryId={currentSurgeryId}
           baseSymptomId={previewIds?.baseSymptomId}
           customSymptomId={previewIds?.customSymptomId}
           onRefetch={loadLibraryData}
+        />
+      )}
+
+      {/* New Symptom modal */}
+      {showNewModal && (
+        <NewSymptomModal
+          isOpen={showNewModal}
+          onClose={() => setShowNewModal(false)}
+          isSuperuser={isSuperuser}
+          currentSurgeryId={currentSurgeryId}
+          surgeries={surgeries}
+          onCreated={(scope) => {
+            if (scope === 'BASE') {
+              toast.success('Created in Base. Practices can enable it from Available.')
+            } else {
+              toast.success('Created for this surgery and made visible to reception.')
+            }
+            loadLibraryData()
+          }}
         />
       )}
     </div>

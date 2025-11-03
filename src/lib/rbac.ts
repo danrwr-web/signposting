@@ -9,6 +9,8 @@ export interface SessionUser {
   name?: string
   globalRole: string
   defaultSurgeryId?: string
+  // For PRACTICE_ADMIN users, expose their primary surgery for admin actions
+  surgeryId?: string
   isTestUser: boolean
   symptomUsageLimit?: number | null
   symptomsUsed: number
@@ -55,12 +57,20 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       return null
     }
 
+    // Derive admin surgeryId for PRACTICE_ADMINs
+    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
+    const adminMembership = user.memberships.find(m => m.role === 'ADMIN')
+    const derivedSurgeryId = isPracticeAdmin
+      ? (adminMembership?.surgeryId || user.defaultSurgeryId || undefined)
+      : undefined
+
     return {
       id: user.id,
       email: user.email,
       name: user.name || undefined,
       globalRole: user.globalRole,
       defaultSurgeryId: user.defaultSurgeryId || undefined,
+      surgeryId: derivedSurgeryId,
       isTestUser: user.isTestUser,
       symptomUsageLimit: user.symptomUsageLimit,
       symptomsUsed: user.symptomsUsed,
