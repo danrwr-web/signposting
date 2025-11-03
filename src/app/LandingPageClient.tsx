@@ -27,8 +27,7 @@ export default function LandingPageClient() {
             </div>
             <div className="flex items-center space-x-4">
               <button
-                className="relative px-4 py-2 text-sm font-medium text-gray-500 bg-transparent border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-                aria-disabled="false"
+                className="relative px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 onMouseEnter={() => setShowDonationTooltip(true)}
                 onMouseLeave={() => setShowDonationTooltip(false)}
               >
@@ -59,7 +58,7 @@ export default function LandingPageClient() {
               Helping reception and care navigation teams send patients to the right place — first time.
             </h1>
             <p className="text-lg text-gray-600 mt-4 max-w-3xl mx-auto">
-              A ready-to-use toolkit for primary care admin teams — with over 200 preloaded symptoms and optional AI tools for clearer instructions and staff training.
+              A ready-to-use toolkit for primary care admin teams — with over 200 preloaded symptoms, clear guidance, and optional AI tools for improving clarity and training.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
@@ -79,50 +78,46 @@ export default function LandingPageClient() {
         </div>
       </section>
 
-      {/* What's New / AI-Enabled Section */}
+      {/* AI-Enabled Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">AI-Enabled Features</h2>
-            <p className="mt-4 text-lg text-gray-600">
-              New AI tools to help your team deliver clearer guidance
-            </p>
+            <h2 className="text-3xl font-bold text-gray-900">AI-Enabled</h2>
           </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div ref={register} className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">AI instruction editor</h3>
               <p className="text-gray-600">
-                Take an existing instruction and generate a clearer, plain-English version. Superusers and admins can review before publishing.
+                Instantly improve clarity and tone. Generate clearer, patient-friendly instructions — ready for review before publishing.
               </p>
             </div>
 
-            <div ref={register} className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">AI explanation & training mode</h3>
               <p className="text-gray-600">
-                Turn a rule into staff-friendly guidance — why it exists, what to ask, and common pitfalls.
+                Turn your signposting guidance into quick training notes — helping teams understand the reasoning behind each decision.
               </p>
             </div>
 
-            <div ref={register} className="bg-blue-50 p-6 rounded-lg border border-blue-100">
-              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Per-surgery feature control</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Smart symptom updates</h3>
               <p className="text-gray-600">
-                Enable AI for a whole practice or selected users with the new Features tab.
+                Stay current with centrally maintained content and automatic improvements as new guidance evolves.
               </p>
             </div>
           </div>
@@ -130,49 +125,46 @@ export default function LandingPageClient() {
       </section>
 
       {/* What it does section */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h2 className="text-3xl font-bold text-gray-900">What it does</h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Our toolkit helps healthcare admin teams provide accurate, consistent guidance to patients
-            </p>
           </div>
           
           <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div ref={register} className="bg-white p-6 rounded-lg shadow-sm">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Smart Symptom Library</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Comprehensive symptom library</h3>
               <p className="text-gray-600">
-                Over 200 symptoms out of the box, ready for customisation by each practice.
+                Over 200 symptoms pre-loaded, all standardised and editable for your practice.
               </p>
             </div>
 
-            <div ref={register} className="bg-white p-6 rounded-lg shadow-sm">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Practice-specific wording</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Local customisation</h3>
               <p className="text-gray-600">
-                Override shared content with local processes or Pharmacy First messaging.
+                Adapt shared wording to reflect your local processes and services.
               </p>
             </div>
 
-            <div ref={register} className="bg-white p-6 rounded-lg shadow-sm">
+            <div ref={register} className="bg-gray-50 p-6 rounded-lg">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Admin dashboard</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Simple daily workflow</h3>
               <p className="text-gray-600">
-                Manage users, feature flags (AI), and visibility settings — all in one place.
+                Designed for fast use at the front desk, with colour-coded urgency and plain-English instructions.
               </p>
             </div>
           </div>
@@ -180,41 +172,47 @@ export default function LandingPageClient() {
       </section>
 
       {/* How it works section */}
-      <section id="how-it-works" className="py-16 bg-white">
+      <section id="how-it-works" className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">How it works in practice</h2>
           </div>
           
-          <div className="mt-12 grid grid-cols-1 gap-8 md:grid-cols-3">
-            <div ref={register} className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full">
-                <span className="text-2xl font-bold text-blue-600">1</span>
+          <div className="mt-12 space-y-8 max-w-3xl mx-auto">
+            <div ref={register} className="flex items-start">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                1
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Set up your surgeries</h3>
-              <p className="text-gray-600">
-                Choose which symptoms to use or hide.
-              </p>
+              <div className="ml-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Set up once</h3>
+                <p className="text-gray-600">
+                  Choose which symptoms your team uses.
+                </p>
+              </div>
             </div>
 
-            <div ref={register} className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full">
-                <span className="text-2xl font-bold text-blue-600">2</span>
+            <div ref={register} className="flex items-start">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                2
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Daily use by reception team</h3>
-              <p className="text-gray-600">
-                Always sees up-to-date guidance.
-              </p>
+              <div className="ml-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Reception uses it daily</h3>
+                <p className="text-gray-600">
+                  Always the latest, approved guidance.
+                </p>
+              </div>
             </div>
 
-            <div ref={register} className="text-center">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full">
-                <span className="text-2xl font-bold text-blue-600">3</span>
+            <div ref={register} className="flex items-start">
+              <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                3
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Optionally enable AI</h3>
-              <p className="text-gray-600">
-                Superusers can activate AI tools for training or wording improvements.
-              </p>
+              <div className="ml-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Improve over time</h3>
+                <p className="text-gray-600">
+                  Add local notes or use AI to refine clarity.
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -223,22 +221,16 @@ export default function LandingPageClient() {
       {/* Personalisation section */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900">Personalise it for your practice</h2>
-          </div>
-          
-          <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <div className="bg-white p-8 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Customise your symptom library</h3>
-              <p className="text-gray-600">
-                Pick from the shared symptom library, add your own, or modify the local version — while keeping a clean view of base content.
+              <p className="text-gray-700 text-lg">
+                Choose from the shared library or add your own symptoms. Every surgery can shape the toolkit around its own services.
               </p>
             </div>
 
             <div className="bg-white p-8 rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Control access and features</h3>
-              <p className="text-gray-600">
-                Control who sees what — from everyday users to superusers. Feature-level toggles let you enable AI per user or per surgery.
+              <p className="text-gray-700 text-lg">
+                Built for every team member — from reception to clinical admin — with clear, consistent language and easy navigation.
               </p>
             </div>
           </div>
@@ -251,15 +243,9 @@ export default function LandingPageClient() {
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">Why Practices Choose the Signposting Toolkit</h2>
             <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-              Developed in a live NHS practice and now enhanced with AI support and a 200+ symptom library.
+              Developed in a working NHS practice, the Signposting Toolkit is trusted by teams who want clarity, speed, and confidence when helping patients find the right care.
             </p>
           </div>
-          <p className="text-base text-gray-700 max-w-3xl mx-auto mb-8">
-            The Signposting Toolkit supports reception workflow, GP triage, Pharmacy First and self-care routing, and continuity of care. Each pathway is locally approved by a senior clinician, with an audit trail and clinical sign-off so practices can evidence safe care navigation.
-          </p>
-          <p className="text-base text-gray-700 max-w-3xl mx-auto mb-8" ref={register}>
-            The Toolkit is already being used in live GP practice settings. Ide Lane Surgery is currently the highest referrer to Pharmacy First in Devon, and this approach supports safe diversion of same-day demand away from GP appointments.
-          </p>
           
           {/* Comparison Table */}
           <div className="bg-white rounded-lg shadow-sm overflow-hidden mb-8">
@@ -292,6 +278,11 @@ export default function LandingPageClient() {
                     <td className="px-6 py-4 text-sm font-medium text-gray-900">Audit & Security</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Role-based access, secure data model, no patient-identifiable information stored.</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Limited role differentiation.</td>
+                  </tr>
+                  <tr ref={register}>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">AI support for clarity and training</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">✓ AI-powered instruction editor and training mode</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">Manual editing only.</td>
                   </tr>
                 </tbody>
               </table>
