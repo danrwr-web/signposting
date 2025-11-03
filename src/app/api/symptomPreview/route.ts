@@ -115,12 +115,11 @@ export async function GET(request: NextRequest) {
       const hasOverride = !!override
       const isEnabled = statusRow?.isEnabled ?? false
       
-      // Get effective instructions (local if override exists, otherwise base)
-      const effectiveBriefInstruction = hasOverride && override.briefInstruction?.trim()
+      const effectiveBriefInstruction = hasOverride && (override.briefInstruction ?? '').trim() !== ''
         ? override.briefInstruction
         : baseSymptom.briefInstruction
       
-      const effectiveInstructionsHtml = hasOverride && override.instructionsHtml?.trim()
+      const effectiveInstructionsHtml = hasOverride && (override.instructionsHtml ?? '').trim() !== ''
         ? override.instructionsHtml
         : baseSymptom.instructionsHtml
 
@@ -133,7 +132,7 @@ export async function GET(request: NextRequest) {
         lastEditedAt: statusRow?.lastEditedAt?.toISOString(),
         briefInstruction: effectiveBriefInstruction,
         instructionsHtml: effectiveInstructionsHtml,
-        baseInstructionsHtml: hasOverride ? baseSymptom.instructionsHtml : undefined,
+        baseInstructionsHtml: hasOverride ? (baseSymptom.instructionsHtml || null) : undefined,
         statusRowId: statusRow?.id
       }
     }

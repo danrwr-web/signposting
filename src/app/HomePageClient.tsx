@@ -47,8 +47,8 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms, r
     if (currentSurgeryId && surgerySlug) {
       setIsLoadingSymptoms(true)
       
-      // Use cached API response - cache headers handle freshness
-      fetch(`/api/symptoms?surgery=${surgerySlug}`)
+      // Force fresh data after admin changes
+      fetch(`/api/symptoms?surgery=${surgerySlug}&t=${Date.now()}` , { cache: 'no-store' })
         .then(response => response.json())
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
