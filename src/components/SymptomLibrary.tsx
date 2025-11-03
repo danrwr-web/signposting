@@ -40,6 +40,7 @@ interface SymptomLibraryProps {
 export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
   const [libraryData, setLibraryData] = useState<SurgerySymptomsResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState('')
 
   const loadLibraryData = async () => {
     if (!surgeryId) return
@@ -148,6 +149,19 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
     }
   }
 
+  // Filter symptoms by search query
+  const filteredInUseSymptoms = libraryData?.inUse.filter(symptom =>
+    symptom.name.toLowerCase().includes(search.toLowerCase())
+  ) || []
+
+  const filteredAvailableSymptoms = libraryData?.available.filter(symptom =>
+    symptom.name.toLowerCase().includes(search.toLowerCase())
+  ) || []
+
+  const filteredCustomSymptoms = libraryData?.customOnly.filter(symptom =>
+    symptom.name.toLowerCase().includes(search.toLowerCase())
+  ) || []
+
   if (loading && !libraryData) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -163,6 +177,11 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
       </div>
     )
   }
+
+  // Button style classes
+  const buttonBase = 'px-3 py-1 rounded-md text-sm font-medium transition-colors'
+  const buttonRed = `${buttonBase} bg-red-600 text-white hover:bg-red-700`
+  const buttonBlue = `${buttonBase} border border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white`
 
   return (
     <div className="space-y-6">
@@ -181,85 +200,96 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
         {libraryData.inUse.length === 0 ? (
           <p className="text-gray-600 italic">No symptoms currently in use</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Symptom
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Visible to reception?
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Last changed
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {libraryData.inUse.map((symptom) => (
-                  <tr key={symptom.symptomId}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {symptom.name}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(symptom.status)}`}>
-                        {getStatusLabel(symptom.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {symptom.isEnabled ? 'Yes' : 'No'}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                      {formatLastEdited(symptom.lastEditedAt, symptom.lastEditedBy)}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                      <div className="flex items-center space-x-2">
-                        {symptom.isEnabled ? (
-                          <button
-                            onClick={() => handleAction('DISABLE', { 
-                              statusRowId: symptom.statusRowId,
-                              baseSymptomId: symptom.statusRowId ? undefined : symptom.symptomId
-                            })}
-                            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-sm"
-                            disabled={loading}
-                          >
-                            Disable
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleAction('ENABLE_EXISTING', { 
-                              statusRowId: symptom.statusRowId,
-                              baseSymptomId: symptom.statusRowId ? undefined : symptom.symptomId
-                            })}
-                            className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
-                            disabled={loading}
-                          >
-                            Enable
-                          </button>
-                        )}
-                        {symptom.canRevertToBase && (
-                          <button
-                            onClick={() => handleAction('REVERT_TO_BASE', { statusRowId: symptom.statusRowId })}
-                            className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm"
-                            disabled={loading}
-                          >
-                            Revert to standard wording
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <>
+            <div className="flex justify-end mb-3">
+              <input
+                type="text"
+                placeholder="Search symptoms..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
+              <table className="min-w-full divide-y divide-gray-200 table-fixed">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="w-[40%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Symptom
+                    </th>
+                    <th className="w-[20%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Visible to reception?
+                    </th>
+                    <th className="w-[15%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Last changed
+                    </th>
+                    <th className="w-[10%] px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredInUseSymptoms.map((symptom) => (
+                    <tr key={symptom.symptomId}>
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                        {symptom.name}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(symptom.status)}`}>
+                          {getStatusLabel(symptom.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {symptom.isEnabled ? 'Yes' : 'No'}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600">
+                        {formatLastEdited(symptom.lastEditedAt, symptom.lastEditedBy)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          {symptom.isEnabled ? (
+                            <button
+                              onClick={() => handleAction('DISABLE', { 
+                                statusRowId: symptom.statusRowId,
+                                baseSymptomId: symptom.statusRowId ? undefined : symptom.symptomId
+                              })}
+                              className={buttonRed}
+                              disabled={loading}
+                            >
+                              Disable
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleAction('ENABLE_EXISTING', { 
+                                statusRowId: symptom.statusRowId,
+                                baseSymptomId: symptom.statusRowId ? undefined : symptom.symptomId
+                              })}
+                              className={buttonBlue}
+                              disabled={loading}
+                            >
+                              Enable
+                            </button>
+                          )}
+                          {symptom.canRevertToBase && (
+                            <button
+                              onClick={() => handleAction('REVERT_TO_BASE', { statusRowId: symptom.statusRowId })}
+                              className={buttonBlue}
+                              disabled={loading}
+                            >
+                              Revert to standard wording
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 
@@ -284,28 +314,28 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
         {libraryData.available.length === 0 ? (
           <p className="text-gray-600 italic">All available symptoms are already in use</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 table-fixed">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-[70%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Symptom
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-[30%] px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Action
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {libraryData.available.map((symptom) => (
+                {filteredAvailableSymptoms.map((symptom) => (
                   <tr key={symptom.baseSymptomId}>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
                       {symptom.name}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => handleAction('ENABLE_BASE', { baseSymptomId: symptom.baseSymptomId })}
-                        className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-sm"
+                        className={buttonBlue}
                         disabled={loading}
                       >
                         Enable at this surgery
@@ -329,48 +359,44 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
         {libraryData.customOnly.length === 0 ? (
           <p className="text-gray-600 italic">No custom-only symptoms</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          <div className="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
+            <table className="min-w-full divide-y divide-gray-200 table-fixed">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-[50%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Symptom
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-[20%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Visible to reception?
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-[20%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last changed
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="w-[10%] px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {libraryData.customOnly.map((symptom) => {
+                {filteredCustomSymptoms.map((symptom) => {
                   const inUseEntry = libraryData.inUse.find(s => s.symptomId === symptom.customSymptomId)
                   return (
                     <tr key={symptom.customSymptomId}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
                         {symptom.name}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-gray-600">
                         {symptom.isEnabled ? 'Yes' : 'No'}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                      <td className="px-4 py-3 text-sm text-gray-600">
                         {inUseEntry ? formatLastEdited(inUseEntry.lastEditedAt, inUseEntry.lastEditedBy) : '-'}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
+                      <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => handleAction(symptom.isEnabled ? 'DISABLE' : 'ENABLE_EXISTING', { 
                             statusRowId: inUseEntry?.statusRowId 
                           })}
-                          className={`px-3 py-1 rounded hover:opacity-80 transition-colors text-sm ${
-                            symptom.isEnabled 
-                              ? 'bg-red-600 text-white' 
-                              : 'bg-green-600 text-white'
-                          }`}
+                          className={symptom.isEnabled ? buttonRed : buttonBlue}
                           disabled={loading}
                         >
                           {symptom.isEnabled ? 'Disable' : 'Enable'}
