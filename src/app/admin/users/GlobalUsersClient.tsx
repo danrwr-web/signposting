@@ -37,7 +37,25 @@ interface GlobalUsersClientProps {
   surgeries: Surgery[]
 }
 
+// Helper function to get user initials
+function getUserInitials(name: string | null, email: string): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    }
+    return name.charAt(0).toUpperCase()
+  }
+  return email.charAt(0).toUpperCase()
+}
+
 export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClientProps) {
+  // Sort users alphabetically by name
+  const sortedUsers = [...users].sort((a, b) => {
+    const nameA = (a.name || a.email).toLowerCase()
+    const nameB = (b.name || b.email).toLowerCase()
+    return nameA.localeCompare(nameB)
+  })
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [showMembershipModal, setShowMembershipModal] = useState(false)
@@ -325,115 +343,92 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
             </p>
           </div>
           <ul className="divide-y divide-gray-200">
-            {users.map((user) => (
-              <li key={user.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-700">
-                            {user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name || 'No name set'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {user.email}
-                        </div>
-                      </div>
+            {sortedUsers.map((user) => {
+              const surgeryCount = user.memberships.length
+              return (
+                <li 
+                  key={user.id}
+                  className="flex items-start justify-between gap-4 py-4 px-4 border-b last:border-b-0 hover:bg-gray-50"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
+                      {getUserInitials(user.name, user.email)}
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm text-gray-500">
-                        <div className="flex items-center">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.globalRole === 'SUPERUSER' 
-                              ? 'bg-purple-100 text-purple-800' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {user.globalRole}
-                          </span>
-                          {user.isTestUser && (
-                            <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                              TEST USER
-                            </span>
-                          )}
-                        </div>
-                        {user.defaultSurgery && (
-                          <div className="mt-1 text-xs text-gray-400">
-                            Default: {user.defaultSurgery.name}
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.name || 'No name set'}
+                      </p>
+                      <p className="text-xs text-gray-500">{user.email}</p>
+                      {user.memberships.length > 0 && (
+                        <>
+                          <p className="text-xs text-gray-400 mt-2">Surgery memberships:</p>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {user.memberships.map((membership) => (
+                              <span
+                                key={membership.id}
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
+                                  membership.role === 'ADMIN'
+                                    ? 'bg-green-50 text-green-700 border border-green-100'
+                                    : 'bg-blue-50 text-blue-700 border border-blue-100'
+                                }`}
+                              >
+                                {membership.surgery.name} ({membership.role})
+                              </span>
+                            ))}
                           </div>
-                        )}
-                        {user.isTestUser && user.symptomUsageLimit && (
-                          <div className="mt-1 text-xs text-gray-400">
-                            Usage: {user.symptomsUsed}/{user.symptomUsageLimit} symptoms
-                          </div>
-                        )}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {user.memberships.length} surgery{user.memberships.length !== 1 ? 'ies' : ''}
-                      </div>
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleEditUser(user)}
-                          className="text-blue-600 hover:text-blue-500 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          onClick={() => setResettingPasswordFor(user)}
-                          className="text-orange-600 hover:text-orange-500 text-sm font-medium"
-                        >
-                          Reset Password
-                        </button>
-                        <button 
-                          onClick={() => handleManageMemberships(user)}
-                          className="text-purple-600 hover:text-purple-500 text-sm font-medium"
-                        >
-                          Memberships
-                        </button>
-                        {user.isTestUser && (
-                          <button 
-                            onClick={() => handleResetTestUserUsage(user.id)}
-                            className="text-green-600 hover:text-green-500 text-sm font-medium"
-                          >
-                            Reset Usage
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => handleDeleteUser(user.id, user.email)}
-                          className="text-red-600 hover:text-red-500 text-sm font-medium"
-                        >
-                          Delete
-                        </button>
-                      </div>
+                        </>
+                      )}
                     </div>
                   </div>
-                  {user.memberships.length > 0 && (
-                    <div className="mt-2">
-                      <div className="text-xs text-gray-500 mb-1">Surgery Memberships:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {user.memberships.map((membership) => (
-                          <span
-                            key={membership.id}
-                            className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                              membership.role === 'ADMIN'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {membership.surgery.name} ({membership.role})
-                          </span>
-                        ))}
-                      </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      user.globalRole === 'SUPERUSER'
+                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                        : 'bg-gray-50 text-gray-700 border border-gray-100'
+                    }`}>
+                      {user.globalRole === 'SUPERUSER' ? 'Superuser' : 'User'}
+                    </span>
+                    <p className="text-xs text-gray-400">
+                      {surgeryCount} {surgeryCount === 1 ? 'surgery' : 'surgeries'}
+                    </p>
+                    <div className="flex gap-1">
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-gray-200 text-orange-700 hover:bg-orange-50"
+                        onClick={() => setResettingPasswordFor(user)}
+                      >
+                        Reset
+                      </button>
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
+                        onClick={() => handleManageMemberships(user)}
+                      >
+                        Memberships
+                      </button>
+                      {user.isTestUser && (
+                        <button
+                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
+                          onClick={() => handleResetTestUserUsage(user.id)}
+                        >
+                          Reset Usage
+                        </button>
+                      )}
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-red-100 text-red-600 hover:bg-red-50"
+                        onClick={() => handleDeleteUser(user.id, user.email)}
+                      >
+                        Delete
+                      </button>
                     </div>
-                  )}
-                </div>
-              </li>
-            ))}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         </div>
       </main>

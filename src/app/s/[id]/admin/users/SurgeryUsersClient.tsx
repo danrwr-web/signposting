@@ -25,6 +25,18 @@ interface SurgeryUsersClientProps {
   user: SessionUser
 }
 
+// Helper function to get user initials
+function getUserInitials(name: string | null, email: string): string {
+  if (name) {
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    }
+    return name.charAt(0).toUpperCase()
+  }
+  return email.charAt(0).toUpperCase()
+}
+
 export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClientProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; name: string | null; role: string } | null>(null)
@@ -35,6 +47,13 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
   const [newUserName, setNewUserName] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState('STANDARD')
+
+  // Sort users alphabetically by name
+  const sortedUsers = [...surgery.users].sort((a, b) => {
+    const nameA = (a.user.name || a.user.email).toLowerCase()
+    const nameB = (b.user.name || b.user.email).toLowerCase()
+    return nameA.localeCompare(nameB)
+  })
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -228,77 +247,72 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
               Manage user access and roles within {surgery.name}.
             </p>
           </div>
-          <ul className="divide-y divide-gray-200">
-            {surgery.users.map((membership) => (
-              <li key={membership.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-700">
-                            {membership.user.name ? membership.user.name.charAt(0).toUpperCase() : membership.user.email.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {membership.user.name || 'No name set'}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {membership.user.email}
-                        </div>
-                      </div>
+          {sortedUsers.length === 0 ? (
+            <div className="px-4 py-12 text-center">
+              <p className="text-sm text-gray-500">No users found. Add your first user to get started.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-200">
+              {sortedUsers.map((membership) => (
+                <li 
+                  key={membership.id}
+                  className="flex items-center justify-between gap-4 py-3 px-4 border-b last:border-b-0 hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
+                      {getUserInitials(membership.user.name, membership.user.email)}
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm text-gray-500">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          membership.role === 'ADMIN' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {membership.role}
-                        </span>
-                        {membership.user.defaultSurgeryId === surgery.id && (
-                          <div className="mt-1 text-xs text-gray-400">
-                            Default surgery
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => handleEditUser(membership)}
-                          className="text-blue-600 hover:text-blue-500 text-sm font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button 
-                          onClick={() => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email })}
-                          className="text-orange-600 hover:text-orange-500 text-sm font-medium"
-                        >
-                          Reset Password
-                        </button>
-                        {membership.user.defaultSurgeryId !== surgery.id && (
-                          <button
-                            onClick={() => handleSetDefaultSurgery(membership.user.id)}
-                            className="text-blue-600 hover:text-blue-500 text-sm font-medium"
-                          >
-                            Set as Default
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleRemoveUser(membership.user.id)}
-                          className="text-red-600 hover:text-red-500 text-sm font-medium"
-                        >
-                          Remove
-                        </button>
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {membership.user.name || 'No name set'}
+                      </p>
+                      <p className="text-xs text-gray-500">{membership.user.email}</p>
                     </div>
                   </div>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                      membership.role === 'ADMIN'
+                        ? 'bg-green-50 text-green-700 border border-green-100'
+                        : 'bg-blue-50 text-blue-700 border border-blue-100'
+                    }`}>
+                      {membership.role === 'ADMIN' ? 'Admin' : 'Standard'}
+                    </span>
+                    {membership.user.defaultSurgeryId === surgery.id && (
+                      <span className="text-xs text-gray-400">Default</span>
+                    )}
+                    <div className="flex gap-1">
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
+                        onClick={() => handleEditUser(membership)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-gray-200 text-orange-700 hover:bg-orange-50"
+                        onClick={() => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email })}
+                      >
+                        Reset
+                      </button>
+                      {membership.user.defaultSurgeryId !== surgery.id && (
+                        <button
+                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
+                          onClick={() => handleSetDefaultSurgery(membership.user.id)}
+                        >
+                          Set Default
+                        </button>
+                      )}
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-red-100 text-red-600 hover:bg-red-50"
+                        onClick={() => handleRemoveUser(membership.user.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </main>
 

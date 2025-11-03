@@ -27,11 +27,27 @@ interface SurgeriesClientProps {
   surgeries: Surgery[]
 }
 
+// Helper function to get surgery initial from name
+function getSurgeryInitial(name: string): string {
+  return name.charAt(0).toUpperCase()
+}
+
 export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingSurgery, setEditingSurgery] = useState<Surgery | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [surgeriesList, setSurgeriesList] = useState(surgeries)
+  
+  // Sort surgeries alphabetically by name
+  const sortedSurgeries = [...surgeries].sort((a, b) => {
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  })
+  
+  const [surgeriesList, setSurgeriesList] = useState(sortedSurgeries)
+  
+  // Sort the list whenever it's updated
+  const displaySurgeries = [...surgeriesList].sort((a, b) => {
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  })
   const [newSurgery, setNewSurgery] = useState({
     name: '',
     slug: ''
@@ -147,68 +163,70 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
             </p>
           </div>
           <ul className="divide-y divide-gray-200">
-            {surgeriesList.map((surgery) => (
-              <li key={surgery.id}>
-                <div className="px-4 py-4 sm:px-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                          <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {surgery.name}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {surgery.slug && `Slug: ${surgery.slug}`}
-                          {!surgery.slug && 'No slug set'}
-                        </div>
-                      </div>
+            {displaySurgeries.map((surgery) => {
+              const userCount = surgery._count.users
+              const first3Users = surgery.users.slice(0, 3)
+              const extraCount = surgery.users.length - 3
+              
+              return (
+                <li 
+                  key={surgery.id}
+                  className="flex items-center justify-between gap-4 py-4 px-4 border-b last:border-b-0 hover:bg-gray-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-sm font-medium text-green-800">
+                      {getSurgeryInitial(surgery.name)}
                     </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-sm text-gray-500">
-                        {surgery._count.users} user{surgery._count.users !== 1 ? 's' : ''}
-                      </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{surgery.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {surgery.slug ? `Slug: ${surgery.slug}` : 'No slug set'}
+                      </p>
+                      {surgery.users.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {first3Users.map((membership) => (
+                            <span
+                              key={membership.id}
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
+                                membership.role === 'ADMIN'
+                                  ? 'bg-green-50 text-green-700 border border-green-100'
+                                  : 'bg-blue-50 text-blue-700 border border-blue-100'
+                              }`}
+                            >
+                              {membership.user.name || membership.user.email} ({membership.role})
+                            </span>
+                          ))}
+                          {extraCount > 0 && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
+                              +{extraCount} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <p className="text-xs text-gray-400">
+                      {userCount} {userCount === 1 ? 'user' : 'users'}
+                    </p>
+                    <div className="flex gap-1">
                       <Link
                         href={`/s/${surgery.id}/admin/users`}
-                        className="text-blue-600 hover:text-blue-500 text-sm font-medium"
+                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
                       >
-                        Manage Users
+                        Manage users
                       </Link>
-                      <button 
+                      <button
+                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
                         onClick={() => setEditingSurgery(surgery)}
-                        className="text-blue-600 hover:text-blue-500 text-sm font-medium"
                       >
                         Edit
                       </button>
                     </div>
                   </div>
-                  {surgery.users.length > 0 && (
-                    <div className="mt-2">
-                      <div className="text-xs text-gray-500 mb-1">Users:</div>
-                      <div className="flex flex-wrap gap-1">
-                        {surgery.users.map((membership) => (
-                          <span
-                            key={membership.id}
-                            className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                              membership.role === 'ADMIN'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}
-                          >
-                            {membership.user.name || membership.user.email} ({membership.role})
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </li>
-            ))}
+                </li>
+              )
+            })}
           </ul>
         </div>
       </main>
