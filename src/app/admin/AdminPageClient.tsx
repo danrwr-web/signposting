@@ -7,7 +7,7 @@ import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
 import ImageIconConfig from '@/components/ImageIconConfig'
-import SymptomLibrary from '@/components/SymptomLibrary'
+import SymptomLibraryExplorer from '@/components/SymptomLibraryExplorer'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
@@ -998,7 +998,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <p className="text-nhs-grey mb-6">
                   Manage which symptoms are available and how they're configured for each surgery.
                 </p>
-                <SymptomLibrary surgeryId={selectedSurgery || null} />
+                <SymptomLibraryExplorer surgeryId={selectedSurgery || null} />
               </div>
             )}
 

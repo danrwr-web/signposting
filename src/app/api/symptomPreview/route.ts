@@ -26,14 +26,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // TODO: allow PRACTICE ADMIN for their own surgery only
-    // For now, require SUPERUSER only
-    if (user.globalRole !== 'SUPERUSER') {
-      return NextResponse.json(
-        { error: 'Superuser access required' },
-        { status: 403 }
-      )
-    }
+    const isSuper = user.globalRole === 'SUPERUSER'
+    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
 
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
@@ -45,6 +39,16 @@ export async function GET(request: NextRequest) {
         { error: 'surgeryId is required' },
         { status: 400 }
       )
+    }
+
+    if (!isSuper) {
+      if (isPracticeAdmin) {
+        if ((user as any).surgeryId !== surgeryId) {
+          return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
+        }
+      } else {
+        return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
+      }
     }
 
     if (!baseSymptomId && !customSymptomId) {
@@ -61,7 +65,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    let response: SymptomPreviewResponse
+    let response: SymptomPreviewResponse & { statusRowId?: string }
 
     // Handle base symptom
     if (baseSymptomId) {
@@ -104,6 +108,7 @@ export async function GET(request: NextRequest) {
           baseSymptomId
         },
         select: {
+          id: true,
           isEnabled: true,
           lastEditedBy: true,
           lastEditedAt: true
@@ -132,7 +137,8 @@ export async function GET(request: NextRequest) {
         lastEditedAt: statusRow?.lastEditedAt?.toISOString(),
         briefInstruction: effectiveBriefInstruction,
         instructionsHtml: effectiveInstructionsHtml,
-        baseInstructionsHtml: hasOverride ? baseSymptom.instructionsHtml : undefined
+        baseInstructionsHtml: hasOverride ? baseSymptom.instructionsHtml : undefined,
+        statusRowId: statusRow?.id
       }
     }
     // Handle custom symptom
@@ -164,6 +170,7 @@ export async function GET(request: NextRequest) {
           customSymptomId
         },
         select: {
+          id: true,
           isEnabled: true,
           lastEditedBy: true,
           lastEditedAt: true
@@ -181,7 +188,8 @@ export async function GET(request: NextRequest) {
         lastEditedAt: statusRow?.lastEditedAt?.toISOString(),
         briefInstruction: customSymptom.briefInstruction,
         instructionsHtml: customSymptom.instructionsHtml,
-        baseInstructionsHtml: undefined
+        baseInstructionsHtml: undefined,
+        statusRowId: statusRow?.id
       }
     } else {
       return NextResponse.json(

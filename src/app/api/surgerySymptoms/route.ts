@@ -52,17 +52,28 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // TODO: allow PRACTICE ADMIN role to view/edit their own surgery only
-    // For now, require SUPERUSER only
-    if (user.globalRole !== 'SUPERUSER') {
-      return NextResponse.json(
-        { error: 'Superuser access required' },
-        { status: 403 }
-      )
-    }
-
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    const isSuper = user.globalRole === 'SUPERUSER'
+    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
+
+    if (!surgeryId) {
+      return NextResponse.json({ error: 'surgeryId parameter is required' }, { status: 400 })
+    }
+
+    if (!isSuper) {
+      if (isPracticeAdmin) {
+        if ((user as any).surgeryId !== surgeryId) {
+          return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
+        }
+      } else {
+        return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
+      }
+    }
 
     if (!surgeryId) {
       return NextResponse.json(
@@ -259,17 +270,28 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
-    // TODO: allow PRACTICE ADMIN role to view/edit their own surgery only
-    // For now, require SUPERUSER only
-    if (user.globalRole !== 'SUPERUSER') {
-      return NextResponse.json(
-        { error: 'Superuser access required' },
-        { status: 403 }
-      )
-    }
-
     const body = await request.json()
     const { action, surgeryId, baseSymptomId, customSymptomId, statusRowId } = body
+
+    const isSuper = user.globalRole === 'SUPERUSER'
+    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN'
+
+    if (!surgeryId && action !== 'ENABLE_ALL_BASE' && !statusRowId) {
+      return NextResponse.json({ error: 'surgeryId is required for this action' }, { status: 400 })
+    }
+
+    // If not superuser, ensure practice admin acts only on their own surgery
+    if (!isSuper) {
+      if (isPracticeAdmin) {
+        const intendedSurgeryId = surgeryId || null
+        // If not directly provided, try to resolve from statusRowId below as we might set resolvedSurgeryId later
+        if (intendedSurgeryId && (user as any).surgeryId !== intendedSurgeryId) {
+          return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
+        }
+      } else {
+        return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
+      }
+    }
 
     // Most actions require surgeryId
     let resolvedSurgeryId = surgeryId
@@ -296,6 +318,11 @@ export async function PATCH(request: NextRequest) {
         { error: 'surgeryId is required for this action' },
         { status: 400 }
       )
+    }
+
+    // Final RBAC guard: for PRACTICE_ADMIN ensure resolved surgery matches session
+    if (!isSuper && isPracticeAdmin && resolvedSurgeryId && (user as any).surgeryId !== resolvedSurgeryId) {
+      return NextResponse.json({ error: 'Forbidden (wrong surgery)' }, { status: 403 })
     }
 
     // Verify surgery exists

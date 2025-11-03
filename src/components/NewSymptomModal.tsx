@@ -83,11 +83,17 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-lg shadow-lg w-full max-w-2xl p-6">
-        <h3 className="text-lg font-semibold mb-4">Add Symptom</h3>
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
+      <div role="dialog" aria-modal="true" className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-3xl max-h-[90vh] rounded-2xl shadow-xl border border-gray-200 flex flex-col">
+          {/* Header */}
+          <div className="px-6 py-4 border-b">
+            <h2 className="text-lg font-semibold">Add symptom</h2>
+          </div>
 
+          {/* Body (scrollable) */}
+          <div className="px-6 py-4 overflow-y-auto">
         {isSuperuser ? (
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-1">Target</label>
@@ -131,6 +137,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            autoFocus
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             placeholder="Symptom name"
           />
@@ -173,32 +180,39 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-2">Full instruction</label>
-          <RichTextEditor
-            initialHtml=""
-            onChangeHtml={(html) => setInstructionsHtml(html)}
-            onChangeJson={(json) => setInstructionsJson(json)}
-          />
+          <div className="border rounded-md">
+            <RichTextEditor
+              initialHtml=""
+              onChangeHtml={(html) => setInstructionsHtml(html)}
+              onChangeJson={(json) => setInstructionsJson(json)}
+              className="min-h-[160px] max-h-[40vh] overflow-y-auto"
+            />
+          </div>
         </div>
 
         {error && (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>
         )}
 
-        <div className="flex justify-end gap-2 mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
-            disabled={submitting}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-nhs-green text-white rounded-md text-sm hover:bg-green-600 disabled:opacity-50"
-            disabled={!canSubmit() || submitting}
-          >
-            {submitting ? 'Creating...' : 'Confirm & Create'}
-          </button>
+          </div>
+
+          {/* Footer (sticky) */}
+          <div className="px-6 py-4 border-t flex justify-end gap-2 sticky bottom-0 bg-white">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 rounded-md bg-nhs-green text-white hover:bg-green-600 disabled:opacity-50"
+              disabled={!canSubmit() || submitting}
+            >
+              {submitting ? 'Creating...' : 'Confirm & Create'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
