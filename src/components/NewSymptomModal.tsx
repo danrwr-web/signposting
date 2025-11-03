@@ -182,9 +182,8 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
           <label className="block text-sm font-medium text-gray-700 mb-2">Full instruction</label>
           <div className="border rounded-md">
             <RichTextEditor
-              initialHtml=""
-              onChangeHtml={(html) => setInstructionsHtml(html)}
-              onChangeJson={(json) => setInstructionsJson(json)}
+              value={instructionsHtml}
+              onChange={(html) => setInstructionsHtml(html)}
               className="min-h-[160px] max-h-[40vh] overflow-y-auto"
             />
           </div>
