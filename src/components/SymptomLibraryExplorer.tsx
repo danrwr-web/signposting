@@ -425,16 +425,24 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                       </button>
                       {row.kind === 'inuse' && row.isEnabled && (
                         <button
-                          onClick={() => handleAction('DISABLE', { statusRowId: row.statusRowId, baseSymptomId: row.statusRowId ? undefined : row.baseSymptomId })}
+                          onClick={() => handleAction('DISABLE', {
+                            statusRowId: row.statusRowId,
+                            baseSymptomId: row.statusRowId ? undefined : (row.status !== 'LOCAL_ONLY' ? row.baseSymptomId : undefined),
+                            customSymptomId: row.status === 'LOCAL_ONLY' ? row.customSymptomId : undefined
+                          })}
                           className={btnRed}
                           disabled={loading}
                         >
                           Disable
                         </button>
                       )}
-                      {row.kind === 'inuse' && !row.isEnabled && row.status !== 'LOCAL_ONLY' && (
+                      {row.kind === 'inuse' && !row.isEnabled && (
                         <button
-                          onClick={() => handleAction('ENABLE_EXISTING', { statusRowId: row.statusRowId, baseSymptomId: row.statusRowId ? undefined : row.baseSymptomId })}
+                          onClick={() => handleAction('ENABLE_EXISTING', {
+                            statusRowId: row.statusRowId,
+                            baseSymptomId: row.statusRowId ? undefined : (row.status !== 'LOCAL_ONLY' ? row.baseSymptomId : undefined),
+                            customSymptomId: row.status === 'LOCAL_ONLY' ? row.customSymptomId : undefined
+                          })}
                           className={btnBlue}
                           disabled={loading}
                         >
@@ -460,6 +468,38 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                           disabled={loading}
                         >
                           Revert
+                        </button>
+                      )}
+                      {/* Delete buttons with RBAC */}
+                      {(isSuperuser || row.status === 'LOCAL_ONLY') && (
+                        <button
+                          onClick={async () => {
+                            const ok = typeof window !== 'undefined' ? (prompt('Type DELETE to confirm deletion') === 'DELETE') : false
+                            if (!ok) return
+                            const payload = row.status === 'LOCAL_ONLY'
+                              ? { scope: 'SURGERY', surgeryId: effectiveSurgeryId, customSymptomId: row.customSymptomId }
+                              : { scope: 'BASE', baseSymptomId: row.baseSymptomId }
+                            try {
+                              const res = await fetch('/api/admin/symptoms', {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                              })
+                              if (!res.ok) {
+                                const err = await res.json().catch(() => ({}))
+                                toast.error(err?.error || 'Delete failed')
+                                return
+                              }
+                              toast.success('Deleted')
+                              loadLibraryData(effectiveSurgeryId)
+                            } catch (e) {
+                              toast.error('Delete failed')
+                            }
+                          }}
+                          className={btnRed}
+                          disabled={loading}
+                        >
+                          Delete
                         </button>
                       )}
                     </div>

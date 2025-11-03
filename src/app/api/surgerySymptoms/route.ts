@@ -382,9 +382,9 @@ export async function PATCH(request: NextRequest) {
       }
 
       case 'DISABLE': {
-        if (!statusRowId && !baseSymptomId) {
+        if (!statusRowId && !baseSymptomId && !customSymptomId) {
           return NextResponse.json(
-            { error: 'statusRowId or baseSymptomId is required' },
+            { error: 'statusRowId or baseSymptomId or customSymptomId is required' },
             { status: 400 }
           )
         }
@@ -401,11 +401,12 @@ export async function PATCH(request: NextRequest) {
           })
         }
         // Otherwise, find or create status row by baseSymptomId
-        else if (baseSymptomId && resolvedSurgeryId) {
+        else if ((baseSymptomId || customSymptomId) && resolvedSurgeryId) {
           const existing = await prisma.surgerySymptomStatus.findFirst({
             where: {
               surgeryId: resolvedSurgeryId,
-              baseSymptomId
+              ...(baseSymptomId ? { baseSymptomId } : {}),
+              ...(customSymptomId ? { customSymptomId } : {}),
             }
           })
 
@@ -422,7 +423,8 @@ export async function PATCH(request: NextRequest) {
             await prisma.surgerySymptomStatus.create({
               data: {
                 surgeryId: resolvedSurgeryId,
-                baseSymptomId,
+                ...(baseSymptomId ? { baseSymptomId } : {}),
+                ...(customSymptomId ? { customSymptomId } : {}),
                 isEnabled: false,
                 isOverridden: false,
                 lastEditedAt: now,
