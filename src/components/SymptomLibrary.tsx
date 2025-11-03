@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
+import SymptomPreviewModal from './SymptomPreviewModal'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 
@@ -41,6 +42,8 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
   const [libraryData, setLibraryData] = useState<SurgerySymptomsResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewIds, setPreviewIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
 
   const loadLibraryData = async () => {
     if (!surgeryId) return
@@ -119,6 +122,11 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
     await handleAction('ENABLE_ALL_BASE', {})
   }
 
+  const handlePreview = (ids: { baseSymptomId?: string; customSymptomId?: string }) => {
+    setPreviewIds(ids)
+    setPreviewOpen(true)
+  }
+
   const getStatusBadgeColor = (status: SymptomStatus) => {
     switch (status) {
       case 'BASE':
@@ -182,6 +190,7 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
   const buttonBase = 'px-3 py-1 rounded-md text-sm font-medium transition-colors'
   const buttonRed = `${buttonBase} bg-red-600 text-white hover:bg-red-700`
   const buttonBlue = `${buttonBase} border border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white`
+  const buttonGray = `${buttonBase} border border-gray-300 text-gray-700 hover:bg-gray-50`
 
   return (
     <div className="space-y-6">
@@ -250,6 +259,20 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex justify-end gap-2 flex-wrap">
+                          <button
+                            onClick={() => {
+                              // Determine if this is a base or custom symptom
+                              const isBase = symptom.status !== 'LOCAL_ONLY'
+                              handlePreview(isBase 
+                                ? { baseSymptomId: symptom.symptomId }
+                                : { customSymptomId: symptom.symptomId }
+                              )
+                            }}
+                            className={buttonGray}
+                            disabled={loading}
+                          >
+                            View
+                          </button>
                           {symptom.isEnabled ? (
                             <button
                               onClick={() => handleAction('DISABLE', { 
@@ -333,13 +356,22 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
                       {symptom.name}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleAction('ENABLE_BASE', { baseSymptomId: symptom.baseSymptomId })}
-                        className={buttonBlue}
-                        disabled={loading}
-                      >
-                        Enable at this surgery
-                      </button>
+                      <div className="flex justify-end gap-2 flex-wrap">
+                        <button
+                          onClick={() => handlePreview({ baseSymptomId: symptom.baseSymptomId })}
+                          className={buttonGray}
+                          disabled={loading}
+                        >
+                          Preview
+                        </button>
+                        <button
+                          onClick={() => handleAction('ENABLE_BASE', { baseSymptomId: symptom.baseSymptomId })}
+                          className={buttonBlue}
+                          disabled={loading}
+                        >
+                          Enable at this surgery
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -392,15 +424,24 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
                         {inUseEntry ? formatLastEdited(inUseEntry.lastEditedAt, inUseEntry.lastEditedBy) : '-'}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleAction(symptom.isEnabled ? 'DISABLE' : 'ENABLE_EXISTING', { 
-                            statusRowId: inUseEntry?.statusRowId 
-                          })}
-                          className={symptom.isEnabled ? buttonRed : buttonBlue}
-                          disabled={loading}
-                        >
-                          {symptom.isEnabled ? 'Disable' : 'Enable'}
-                        </button>
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          <button
+                            onClick={() => handlePreview({ customSymptomId: symptom.customSymptomId })}
+                            className={buttonGray}
+                            disabled={loading}
+                          >
+                            View
+                          </button>
+                          <button
+                            onClick={() => handleAction(symptom.isEnabled ? 'DISABLE' : 'ENABLE_EXISTING', { 
+                              statusRowId: inUseEntry?.statusRowId 
+                            })}
+                            className={symptom.isEnabled ? buttonRed : buttonBlue}
+                            disabled={loading}
+                          >
+                            {symptom.isEnabled ? 'Disable' : 'Enable'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -410,6 +451,18 @@ export default function SymptomLibrary({ surgeryId }: SymptomLibraryProps) {
           </div>
         )}
       </div>
+
+      {/* Preview modal */}
+      {surgeryId && (
+        <SymptomPreviewModal
+          isOpen={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          surgeryId={surgeryId}
+          baseSymptomId={previewIds?.baseSymptomId}
+          customSymptomId={previewIds?.customSymptomId}
+          onRefetch={loadLibraryData}
+        />
+      )}
     </div>
   )
 }

@@ -269,7 +269,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { action, surgeryId, baseSymptomId, statusRowId } = body
+    const { action, surgeryId, baseSymptomId, customSymptomId, statusRowId } = body
 
     // Most actions require surgeryId
     let resolvedSurgeryId = surgeryId
@@ -417,9 +417,9 @@ export async function PATCH(request: NextRequest) {
       }
 
       case 'ENABLE_EXISTING': {
-        if (!statusRowId && !baseSymptomId) {
+        if (!statusRowId && !baseSymptomId && !customSymptomId) {
           return NextResponse.json(
-            { error: 'statusRowId or baseSymptomId is required' },
+            { error: 'statusRowId, baseSymptomId, or customSymptomId is required' },
             { status: 400 }
           )
         }
@@ -435,13 +435,14 @@ export async function PATCH(request: NextRequest) {
             }
           })
         }
-        // Otherwise, find or create status row by baseSymptomId
-        else if (baseSymptomId && resolvedSurgeryId) {
+        // Otherwise, find or create status row by baseSymptomId or customSymptomId
+        else if (resolvedSurgeryId) {
+          const whereClause: any = { surgeryId: resolvedSurgeryId }
+          if (baseSymptomId) whereClause.baseSymptomId = baseSymptomId
+          if (customSymptomId) whereClause.customSymptomId = customSymptomId
+
           const existing = await prisma.surgerySymptomStatus.findFirst({
-            where: {
-              surgeryId: resolvedSurgeryId,
-              baseSymptomId
-            }
+            where: whereClause
           })
 
           if (existing) {
@@ -454,15 +455,18 @@ export async function PATCH(request: NextRequest) {
               }
             })
           } else {
+            const createData: any = {
+              surgeryId: resolvedSurgeryId,
+              isEnabled: true,
+              isOverridden: false,
+              lastEditedAt: now,
+              lastEditedBy: editedBy
+            }
+            if (baseSymptomId) createData.baseSymptomId = baseSymptomId
+            if (customSymptomId) createData.customSymptomId = customSymptomId
+
             await prisma.surgerySymptomStatus.create({
-              data: {
-                surgeryId: resolvedSurgeryId,
-                baseSymptomId,
-                isEnabled: true,
-                isOverridden: false,
-                lastEditedAt: now,
-                lastEditedBy: editedBy
-              }
+              data: createData
             })
           }
         }
