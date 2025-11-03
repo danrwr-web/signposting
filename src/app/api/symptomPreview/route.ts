@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
-import { getSessionUser } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { getSessionUser } from '@/lib/rbac'
 
 interface SymptomPreviewResponse {
   name: string
