@@ -496,12 +496,12 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
     status: 'BASE' | 'MODIFIED' | 'LOCAL_ONLY'
     isEnabled: boolean
     canEnable: boolean
-    lastEditedBy?: string | null
-    lastEditedAt?: string | null
-    briefInstruction?: string | null
-    instructionsHtml?: string | null
-    baseInstructionsHtml?: string | null
-    statusRowId?: string
+    lastEditedBy: string | null
+    lastEditedAt: string | null
+    briefInstruction: string | null
+    instructionsHtml: string | null
+    baseInstructionsHtml: string | null
+    statusRowId: string | null
   }>(null)
   const [viewMode, setViewMode] = useState<'local' | 'base'>('local')
   const drawerRef = useRef<HTMLDivElement | null>(null)
@@ -552,7 +552,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
       try {
         const params = new URLSearchParams({ surgeryId })
         if (baseSymptomId) params.append('baseSymptomId', baseSymptomId)
-        if (customSymptomId) params.append('customSymptomId', customSymptomId)
+        else if (customSymptomId) params.append('customSymptomId', customSymptomId)
         const response = await fetch(`/api/symptomPreview?${params.toString()}`)
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))

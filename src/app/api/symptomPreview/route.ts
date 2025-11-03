@@ -1,29 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
+import { z } from 'zod'
 
 interface SymptomPreviewResponse {
   name: string
   status: 'BASE' | 'MODIFIED' | 'LOCAL_ONLY'
   isEnabled: boolean
   canEnable: boolean
-  lastEditedBy?: string | null
-  lastEditedAt?: string | null
-  briefInstruction?: string | null
-  instructionsHtml?: string | null
-  baseInstructionsHtml?: string | null
+  lastEditedBy: string | null
+  lastEditedAt: string | null
+  briefInstruction: string | null
+  instructionsHtml: string | null
+  baseInstructionsHtml: string | null
+  statusRowId: string | null
 }
+
+const QuerySchema = z
+  .object({
+    surgeryId: z.string().min(1, 'surgeryId required'),
+    baseSymptomId: z.string().optional(),
+    customSymptomId: z.string().optional(),
+  })
+  .refine(q => !!q.baseSymptomId || !!q.customSymptomId, {
+    message: 'Either baseSymptomId or customSymptomId must be provided',
+    path: ['baseSymptomId'],
+  })
 
 // GET - Fetch symptom preview data
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url)
+    const parsed = QuerySchema.safeParse({
+      surgeryId: searchParams.get('surgeryId') || '',
+      baseSymptomId: searchParams.get('baseSymptomId') || undefined,
+      customSymptomId: searchParams.get('customSymptomId') || undefined,
+    })
+
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid query', details: parsed.error.flatten() }, { status: 400 })
+    }
+
+    const { surgeryId, baseSymptomId, customSymptomId } = parsed.data
+
     const user = await getSessionUser()
-    
     if (!user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      )
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
     const isSuper = user.globalRole === 'SUPERUSER'
@@ -31,186 +53,112 @@ export async function GET(request: NextRequest) {
       ? (user as any).memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN')
       : false
 
-    const { searchParams } = new URL(request.url)
-    const surgeryId = searchParams.get('surgeryId')
-    const baseSymptomId = searchParams.get('baseSymptomId')
-    const customSymptomId = searchParams.get('customSymptomId')
-
-    if (!surgeryId) {
-      return NextResponse.json(
-        { error: 'surgeryId is required' },
-        { status: 400 }
-      )
-    }
-
     if (!isSuper && !isPracticeAdmin) {
       return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
     }
 
-    if (!baseSymptomId && !customSymptomId) {
-      return NextResponse.json(
-        { error: 'Either baseSymptomId or customSymptomId is required' },
-        { status: 400 }
-      )
-    }
+    let response: SymptomPreviewResponse
 
-    if (baseSymptomId && customSymptomId) {
-      return NextResponse.json(
-        { error: 'Only one of baseSymptomId or customSymptomId should be provided' },
-        { status: 400 }
-      )
-    }
-
-    let response: SymptomPreviewResponse & { statusRowId?: string }
-
-    // Handle base symptom
     if (baseSymptomId) {
-      // Validate surgery exists (avoid Prisma errors later)
       const surgeryExists = await prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true } })
       if (!surgeryExists) {
         return NextResponse.json({ error: 'Surgery not found' }, { status: 404 })
       }
 
-      // Get the base symptom
       const baseSymptom = await prisma.baseSymptom.findUnique({
         where: { id: baseSymptomId },
-        select: {
-          id: true,
-          name: true,
-          briefInstruction: true,
-          instructionsHtml: true
-        }
+        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true }
       })
-
       if (!baseSymptom) {
-        return NextResponse.json(
-          { error: 'Base symptom not found' },
-          { status: 404 }
-        )
+        return NextResponse.json({ error: 'Base symptom not found' }, { status: 404 })
       }
 
-      // Check for override
       let override: { briefInstruction: string | null; instructionsHtml: string | null } | null = null
       try {
         override = await prisma.surgerySymptomOverride.findUnique({
-          where: {
-            surgeryId_baseSymptomId: {
-              surgeryId,
-              baseSymptomId
-            }
-          },
-          select: {
-            briefInstruction: true,
-            instructionsHtml: true
-          }
+          where: { surgeryId_baseSymptomId: { surgeryId, baseSymptomId } },
+          select: { briefInstruction: true, instructionsHtml: true }
         })
-      } catch (e) {
-        // If composite key invalid, treat as no override rather than erroring
+      } catch {
         override = null
       }
 
-      // Get status row
       const statusRow = await prisma.surgerySymptomStatus.findFirst({
-        where: {
-          surgeryId,
-          baseSymptomId
-        },
-        select: {
-          id: true,
-          isEnabled: true,
-          lastEditedBy: true,
-          lastEditedAt: true
-        }
+        where: { surgeryId, baseSymptomId },
+        select: { id: true, isEnabled: true, lastEditedBy: true, lastEditedAt: true }
       })
 
-      // Determine status and instructions
       const hasOverride = !!override
-      const isEnabled = statusRow?.isEnabled ?? false
-      
-      const effectiveBriefInstruction = hasOverride && typeof override?.briefInstruction === 'string' && override!.briefInstruction!.trim() !== ''
-        ? override.briefInstruction
-        : baseSymptom.briefInstruction
-      
-      const effectiveInstructionsHtml = hasOverride && typeof override?.instructionsHtml === 'string' && override!.instructionsHtml!.trim() !== ''
-        ? override.instructionsHtml
-        : baseSymptom.instructionsHtml
+      const isEnabled = !!statusRow?.isEnabled
+      const effectiveBriefInstruction = hasOverride
+        ? (override?.briefInstruction ?? baseSymptom.briefInstruction ?? null)
+        : (baseSymptom.briefInstruction ?? null)
+      const effectiveInstructionsHtml = hasOverride
+        ? (override?.instructionsHtml ?? baseSymptom.instructionsHtml ?? null)
+        : (baseSymptom.instructionsHtml ?? null)
 
       response = {
         name: baseSymptom.name,
         status: hasOverride ? 'MODIFIED' : 'BASE',
         isEnabled,
-        canEnable: true, // Can always enable a base symptom
-        lastEditedBy: statusRow?.lastEditedBy,
-        lastEditedAt: statusRow?.lastEditedAt?.toISOString(),
+        canEnable: true,
+        lastEditedBy: statusRow?.lastEditedBy ?? null,
+        lastEditedAt: statusRow?.lastEditedAt ? statusRow.lastEditedAt.toISOString() : null,
         briefInstruction: effectiveBriefInstruction,
         instructionsHtml: effectiveInstructionsHtml,
-        baseInstructionsHtml: hasOverride ? (baseSymptom.instructionsHtml || null) : undefined,
-        statusRowId: statusRow?.id
+        baseInstructionsHtml: hasOverride ? (baseSymptom.instructionsHtml ?? null) : null,
+        statusRowId: statusRow?.id ?? null,
       }
-    }
-    // Handle custom symptom
-    else if (customSymptomId) {
+    } else if (customSymptomId) {
+      const surgeryExists = await prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true } })
+      if (!surgeryExists) {
+        return NextResponse.json({ error: 'Surgery not found' }, { status: 404 })
+      }
+
       const customSymptom = await prisma.surgeryCustomSymptom.findFirst({
-        where: {
-          id: customSymptomId,
-          surgeryId
-        },
-        select: {
-          id: true,
-          name: true,
-          briefInstruction: true,
-          instructionsHtml: true
-        }
+        where: { id: customSymptomId, surgeryId },
+        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true }
       })
-
       if (!customSymptom) {
-        return NextResponse.json(
-          { error: 'Custom symptom not found' },
-          { status: 404 }
-        )
+        return NextResponse.json({ error: 'Custom symptom not found' }, { status: 404 })
       }
 
-      // Get status row
       const statusRow = await prisma.surgerySymptomStatus.findFirst({
-        where: {
-          surgeryId,
-          customSymptomId
-        },
-        select: {
-          id: true,
-          isEnabled: true,
-          lastEditedBy: true,
-          lastEditedAt: true
-        }
+        where: { surgeryId, customSymptomId },
+        select: { id: true, isEnabled: true, lastEditedBy: true, lastEditedAt: true }
       })
-
-      const isEnabled = statusRow?.isEnabled ?? false
 
       response = {
         name: customSymptom.name,
         status: 'LOCAL_ONLY',
-        isEnabled,
-        canEnable: true, // Can always enable a custom symptom
-        lastEditedBy: statusRow?.lastEditedBy,
-        lastEditedAt: statusRow?.lastEditedAt?.toISOString(),
-        briefInstruction: customSymptom.briefInstruction,
-        instructionsHtml: customSymptom.instructionsHtml,
-        baseInstructionsHtml: undefined,
-        statusRowId: statusRow?.id
+        isEnabled: !!statusRow?.isEnabled,
+        canEnable: true,
+        lastEditedBy: statusRow?.lastEditedBy ?? null,
+        lastEditedAt: statusRow?.lastEditedAt ? statusRow.lastEditedAt.toISOString() : null,
+        briefInstruction: customSymptom.briefInstruction ?? null,
+        instructionsHtml: customSymptom.instructionsHtml ?? null,
+        baseInstructionsHtml: null,
+        statusRowId: statusRow?.id ?? null,
       }
     } else {
-      return NextResponse.json(
-        { error: 'Invalid request' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
     }
 
     return NextResponse.json(response)
   } catch (error) {
-    console.error('Error fetching symptom preview:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch symptom preview' },
-      { status: 500 }
-    )
+    try {
+      const url = new URL(request.url)
+      const surgeryId = url.searchParams.get('surgeryId') || ''
+      const baseSymptomId = url.searchParams.get('baseSymptomId') || ''
+      const customSymptomId = url.searchParams.get('customSymptomId') || ''
+      console.error('SYMPTOM_PREVIEW_ERROR', {
+        surgeryId,
+        baseSymptomId,
+        customSymptomId,
+        error: (error as any)?.code || (error as any)?.name || 'Unknown',
+        message: (error as any)?.message,
+      })
+    } catch {}
+    return NextResponse.json({ error: 'Preview failed unexpectedly' }, { status: 500 })
   }
 }
