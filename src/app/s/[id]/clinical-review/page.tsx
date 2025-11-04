@@ -1,8 +1,7 @@
 import { requireSurgeryAdmin } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
-import ClinicalReviewClient from './ClinicalReviewClient'
+import ClinicalReviewPanel from '@/components/ClinicalReviewPanel'
 
 interface ClinicalReviewPageProps {
   params: Promise<{
@@ -16,28 +15,12 @@ export default async function ClinicalReviewPage({ params }: ClinicalReviewPageP
   try {
     const user = await requireSurgeryAdmin(surgeryId)
     
-    // Get surgery details with review information
+    // Get surgery details
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
-      include: {
-        lastClinicalReviewer: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-          }
-        },
-        symptomReviews: {
-          include: {
-            lastReviewedBy: {
-              select: {
-                id: true,
-                email: true,
-                name: true,
-              }
-            }
-          }
-        }
+      select: {
+        id: true,
+        name: true,
       }
     })
 
@@ -45,15 +28,19 @@ export default async function ClinicalReviewPage({ params }: ClinicalReviewPageP
       redirect('/unauthorized')
     }
 
-    // Get all effective symptoms for this surgery
-    const symptoms = await getEffectiveSymptoms(surgeryId)
-
-    return <ClinicalReviewClient 
-      surgery={surgery} 
-      symptoms={symptoms} 
-      reviewStatuses={surgery.symptomReviews}
-      user={user}
-    />
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">
+            Clinical Review - {surgery.name}
+          </h1>
+          <ClinicalReviewPanel 
+            selectedSurgery={surgeryId}
+            isSuperuser={user.globalRole === 'SUPERUSER'}
+          />
+        </div>
+      </div>
+    )
   } catch (error) {
     redirect('/unauthorized')
   }

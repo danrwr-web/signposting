@@ -8,6 +8,7 @@ import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
 import ImageIconConfig from '@/components/ImageIconConfig'
 import SymptomLibraryExplorer from '@/components/SymptomLibraryExplorer'
+import ClinicalReviewPanel from '@/components/ClinicalReviewPanel'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
@@ -75,6 +76,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   const [showEditSymptomModal, setShowEditSymptomModal] = useState(false)
   const [editingSymptom, setEditingSymptom] = useState<EffectiveSymptom | null>(null)
   const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0)
+  const [clinicalReviewCount, setClinicalReviewCount] = useState(0)
   const [aiUsageData, setAiUsageData] = useState<{
     last7days: { byRoute: Array<{ route: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number }>; overall: { calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number } }
     last30days: { byRoute: Array<{ route: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number }>; overall: { calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number } }
@@ -746,6 +748,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               {[
                 // Symptom Library first; visible to superusers and surgery admins
                 { id: 'library', label: 'Symptom Library' },
+                // Clinical Review: visible to superusers and surgery admins
+                ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'clinical-review', label: 'Clinical Review', badge: clinicalReviewCount }] : []),
                 // Data Management is superuser-only
                 ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
                 { id: 'highlights', label: 'Highlight Config' },
@@ -1019,6 +1023,29 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   const surgeryIdForLibrary = isSuper ? (selectedSurgery || null) : (session?.surgeryId || null)
                   return (
                     <SymptomLibraryExplorer surgeryId={surgeryIdForLibrary} />
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* Clinical Review Tab */}
+            {activeTab === 'clinical-review' && (session.type === 'superuser' || session.type === 'surgery') && (
+              <div>
+                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+                  Clinical Review
+                </h2>
+                <p className="text-nhs-grey mb-6">
+                  Review symptoms for clinical approval.
+                </p>
+                {(() => {
+                  const isSuper = session?.type === 'superuser'
+                  const surgeryIdForReview = isSuper ? (selectedSurgery || null) : (session?.surgeryId || null)
+                  return (
+                    <ClinicalReviewPanel 
+                      selectedSurgery={surgeryIdForReview}
+                      isSuperuser={isSuper}
+                      onPendingCountChange={setClinicalReviewCount}
+                    />
                   )
                 })()}
               </div>
