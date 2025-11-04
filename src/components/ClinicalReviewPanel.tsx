@@ -35,7 +35,7 @@ interface ClinicalReviewPanelProps {
   onPendingCountChange?: (count: number) => void
 }
 
-type FilterKey = 'pending' | 'approved' | 'all'
+type FilterKey = 'pending' | 'changes-requested' | 'approved' | 'all'
 
 export default function ClinicalReviewPanel({ 
   selectedSurgery, 
@@ -51,6 +51,10 @@ export default function ClinicalReviewPanel({
   const [sort, setSort] = useState<'name-asc' | 'name-desc' | 'changed-new' | 'status'>('name-asc')
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   
+  // Surgery switcher for superusers
+  const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(selectedSurgery)
+  
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerIds, setDrawerIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
@@ -58,8 +62,40 @@ export default function ClinicalReviewPanel({
 
   // Determine effective surgery ID
   const effectiveSurgeryId = useMemo(() => {
-    if (!selectedSurgery) return null
-    return selectedSurgery
+    if (isSuperuser) {
+      return selectedSurgeryId || selectedSurgery || null
+    }
+    return selectedSurgery || null
+  }, [selectedSurgery, selectedSurgeryId, isSuperuser])
+
+  // Load surgeries list for superusers
+  const ensureSurgeries = async () => {
+    if (!isSuperuser || surgeries.length) return
+    try {
+      const res = await fetch('/api/admin/surgeries', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        const arr = Array.isArray(data) ? data : (Array.isArray(data?.surgeries) ? data.surgeries : [])
+        const list: Array<{ id: string; name: string }> = arr.map((s: any) => ({ id: s.id, name: s.name }))
+        setSurgeries(list)
+        if (!selectedSurgeryId && list.length > 0) {
+          setSelectedSurgeryId(list[0].id)
+        }
+      }
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (isSuperuser) {
+      ensureSurgeries()
+    }
+  }, [isSuperuser])
+
+  // Update selectedSurgeryId when selectedSurgery prop changes
+  useEffect(() => {
+    if (selectedSurgery) {
+      setSelectedSurgeryId(selectedSurgery)
+    }
   }, [selectedSurgery])
 
   // Load clinical review data
@@ -174,7 +210,7 @@ export default function ClinicalReviewPanel({
         return next
       })
 
-      toast.success(`Symptom marked as ${newStatus === 'APPROVED' ? 'Approved' : newStatus === 'CHANGES_REQUIRED' ? 'Needs Change' : 'Pending'}`)
+      toast.success(`Symptom marked as ${newStatus === 'APPROVED' ? 'Approved' : newStatus === 'CHANGES_REQUIRED' ? 'Changes requested' : 'Pending'}`)
     } catch (error) {
       console.error('Error updating review status:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update review status')
@@ -214,10 +250,12 @@ export default function ClinicalReviewPanel({
     const explicitPending = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'PENDING').length
     const pending = unreviewed + explicitPending
     const approved = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'APPROVED').length
+    const changesRequested = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'CHANGES_REQUIRED').length
     const all = symptoms.length
 
     return {
       pending,
+      'changes-requested': changesRequested,
       approved,
       all
     }
@@ -242,6 +280,9 @@ export default function ClinicalReviewPanel({
     switch (activeFilter) {
       case 'pending':
         rows = rows.filter(r => r.status === 'PENDING')
+        break
+      case 'changes-requested':
+        rows = rows.filter(r => r.status === 'CHANGES_REQUIRED')
         break
       case 'approved':
         rows = rows.filter(r => r.status === 'APPROVED')
@@ -302,6 +343,7 @@ export default function ClinicalReviewPanel({
         <div className="bg-white rounded-lg border border-gray-200 p-3">
           {([
             { key: 'pending' as FilterKey, label: 'Pending' },
+            { key: 'changes-requested' as FilterKey, label: 'Changes requested' },
             { key: 'approved' as FilterKey, label: 'Approved' },
             { key: 'all' as FilterKey, label: 'All' },
           ]).map(item => (
@@ -326,6 +368,20 @@ export default function ClinicalReviewPanel({
       <div className="flex-1 min-w-0">
         {/* Top bar */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end mb-3">
+          {isSuperuser && (
+            <select
+              value={effectiveSurgeryId || ''}
+              onChange={(e) => {
+                setSelectedSurgeryId(e.target.value || null)
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
+              aria-label="Select surgery"
+            >
+              {surgeries.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
           <input
             type="text"
             placeholder="Search symptoms..."
@@ -379,7 +435,7 @@ export default function ClinicalReviewPanel({
                     <td className="px-4 py-3 text-sm font-medium text-gray-900">{row.symptom.name}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(row.status)}`}>
-                        {row.status === 'CHANGES_REQUIRED' ? 'Modified locally' : row.status}
+                        {row.status === 'CHANGES_REQUIRED' ? 'Changes requested' : row.status}
                       </span>
                     </td>
                     {isSuperuser && surgeryData && (
@@ -409,19 +465,20 @@ export default function ClinicalReviewPanel({
                           View
                         </button>
                         <div className="flex flex-col gap-1">
-                          <label className="inline-flex items-center space-x-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={row.status === 'APPROVED'}
-                              onChange={() => {
-                                const newStatus: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' = row.status === 'APPROVED' ? 'PENDING' : 'APPROVED'
-                                updateReviewStatus(row.symptom.id, row.symptom.ageGroup || null, newStatus)
-                              }}
-                              disabled={isUpdating}
-                              className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            />
-                            <span className="text-green-700 font-medium text-sm">Mark reviewed</span>
-                          </label>
+                          <button
+                            onClick={() => updateReviewStatus(row.symptom.id, row.symptom.ageGroup || null, 'APPROVED')}
+                            disabled={isUpdating || row.status === 'APPROVED'}
+                            className="px-3 py-1 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {row.status === 'APPROVED' ? '✓ Approved' : 'Approve'}
+                          </button>
+                          <button
+                            onClick={() => updateReviewStatus(row.symptom.id, row.symptom.ageGroup || null, 'CHANGES_REQUIRED')}
+                            disabled={isUpdating || row.status === 'CHANGES_REQUIRED'}
+                            className="px-3 py-1 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {row.status === 'CHANGES_REQUIRED' ? '✓ Changes requested' : 'Request changes'}
+                          </button>
                         </div>
                       </div>
                     </td>
