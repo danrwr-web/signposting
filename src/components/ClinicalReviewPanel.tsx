@@ -128,7 +128,7 @@ export default function ClinicalReviewPanel({
     try {
       // Fetch symptoms and review statuses
       const [symptomsRes, reviewRes] = await Promise.all([
-        fetch(`/api/effectiveSymptoms?surgeryId=${effectiveSurgeryId}`, { cache: 'no-store' }),
+        fetch(`/api/effectiveSymptoms?surgeryId=${effectiveSurgeryId}&includeDisabled=1`, { cache: 'no-store' }),
         fetch(`/api/admin/clinical-review-data?surgeryId=${effectiveSurgeryId}`, { cache: 'no-store' })
       ])
 

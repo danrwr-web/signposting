@@ -23,7 +23,7 @@ export interface EffectiveSymptom {
   variants?: unknown | null // Optional variants JSON from BaseSymptom
 }
 
-export async function getEffectiveSymptoms(surgeryId: string): Promise<EffectiveSymptom[]> {
+export async function getEffectiveSymptoms(surgeryId: string, includeDisabled: boolean = false): Promise<EffectiveSymptom[]> {
   // Base symptoms
   const base = await prisma.baseSymptom.findMany({
     where: { isDeleted: false },
@@ -99,8 +99,8 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
       byBaseId.delete(o.baseSymptomId)
       continue
     }
-    // If explicitly disabled via status row, remove from list
-    if (disabledBaseIds.has(o.baseSymptomId)) {
+    // If explicitly disabled via status row, remove from list unless including disabled
+    if (!includeDisabled && disabledBaseIds.has(o.baseSymptomId)) {
       byBaseId.delete(o.baseSymptomId)
       continue
     }
@@ -120,15 +120,17 @@ export async function getEffectiveSymptoms(surgeryId: string): Promise<Effective
   }
   
   // Apply disables for base symptoms without overrides (status row may still disable)
-  for (const baseId of disabledBaseIds) {
-    if (byBaseId.has(baseId)) {
-      byBaseId.delete(baseId)
+  if (!includeDisabled) {
+    for (const baseId of disabledBaseIds) {
+      if (byBaseId.has(baseId)) {
+        byBaseId.delete(baseId)
+      }
     }
   }
 
   const effective = Array.from(byBaseId.values())
   const customsProjected = customs
-    .filter(c => !disabledCustomIds.has(c.id))
+    .filter(c => includeDisabled ? true : !disabledCustomIds.has(c.id))
     .map(c => ({ 
     ...c, 
     ageGroup: c.ageGroup as 'U5' | 'O5' | 'Adult',

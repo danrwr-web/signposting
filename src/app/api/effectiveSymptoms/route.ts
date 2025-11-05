@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
+    const includeDisabled = searchParams.get('includeDisabled') === '1' || searchParams.get('includeDisabled') === 'true'
 
     if (!surgeryId) {
       return NextResponse.json(
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Check permissions - user must be superuser or admin of this surgery
     await requireSurgeryAdmin(surgeryId)
 
-    const symptoms = await getEffectiveSymptoms(surgeryId)
+    const symptoms = await getEffectiveSymptoms(surgeryId, includeDisabled)
 
     return NextResponse.json({ symptoms })
   } catch (error) {
