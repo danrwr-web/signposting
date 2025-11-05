@@ -4,6 +4,10 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import HomePageClient from '@/app/HomePageClient'
 
+// Disable caching for this page to ensure fresh requiresClinicalReview data
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface SignpostingToolPageProps {
   params: Promise<{
     id: string

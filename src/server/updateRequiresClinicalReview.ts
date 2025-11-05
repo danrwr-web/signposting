@@ -1,6 +1,7 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { revalidatePath } from 'next/cache'
 
 /**
  * Updates the requiresClinicalReview flag on a surgery based on whether
@@ -35,6 +36,12 @@ export async function updateRequiresClinicalReview(
   
   const hasPendingItems = pendingReviewCount > 0 || unreviewedCount > 0
   
+  // Get surgery slug for revalidation
+  const surgery = await prisma.surgery.findUnique({
+    where: { id: surgeryId },
+    select: { slug: true }
+  })
+  
   await prisma.surgery.update({
     where: { id: surgeryId },
     data: {
@@ -44,5 +51,13 @@ export async function updateRequiresClinicalReview(
       lastClinicalReviewerId: hasPendingItems ? null : reviewerId || null,
     },
   })
+  
+  // Revalidate the page cache for this surgery
+  // The route is /s/[id]/page.tsx where id is the surgeryId
+  revalidatePath(`/s/${surgeryId}`)
+  // Also revalidate by slug if available (in case middleware redirects)
+  if (surgery?.slug) {
+    revalidatePath(`/s/${surgery.slug}`)
+  }
 }
 
