@@ -7,6 +7,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 
 export const runtime = 'nodejs'
 
@@ -434,6 +435,11 @@ export async function PATCH(request: NextRequest) {
           }
         }
 
+        // Update requiresClinicalReview flag after disabling
+        if (resolvedSurgeryId) {
+          await updateRequiresClinicalReview(resolvedSurgeryId)
+        }
+
         return NextResponse.json({ ok: true })
       }
 
@@ -490,6 +496,11 @@ export async function PATCH(request: NextRequest) {
               data: createData
             })
           }
+        }
+
+        // Update requiresClinicalReview flag after enabling
+        if (resolvedSurgeryId) {
+          await updateRequiresClinicalReview(resolvedSurgeryId)
         }
 
         return NextResponse.json({ ok: true })

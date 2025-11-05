@@ -46,6 +46,7 @@ export default function ClinicalReviewPanel({
   onPendingCountChange 
 }: ClinicalReviewPanelProps) {
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
+  const [enabledSymptomKeys, setEnabledSymptomKeys] = useState<Set<string>>(new Set())
   const [reviewStatuses, setReviewStatuses] = useState<Map<string, SymptomReviewStatus>>(new Map())
   const [surgeryData, setSurgeryData] = useState<Surgery | null>(null)
   const [loading, setLoading] = useState(false)
@@ -70,7 +71,7 @@ export default function ClinicalReviewPanel({
   
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
-    type: 'reset-all' | 'request-changes' | 'bulk-approve'
+    type: 'reset-all' | 'request-changes' | 'bulk-approve' | 'approve-disabled'
     symptomId?: string
     ageGroup?: string | null
   } | null>(null)
@@ -127,23 +128,34 @@ export default function ClinicalReviewPanel({
 
     setLoading(true)
     try {
-      // Fetch symptoms and review statuses
-      const [symptomsRes, reviewRes] = await Promise.all([
+      // Fetch symptoms (including disabled) and enabled symptoms separately, plus review statuses
+      const [symptomsRes, enabledSymptomsRes, reviewRes] = await Promise.all([
         fetch(`/api/effectiveSymptoms?surgeryId=${effectiveSurgeryId}&includeDisabled=1`, { cache: 'no-store' }),
+        fetch(`/api/effectiveSymptoms?surgeryId=${effectiveSurgeryId}&includeDisabled=0`, { cache: 'no-store' }),
         fetch(`/api/admin/clinical-review-data?surgeryId=${effectiveSurgeryId}`, { cache: 'no-store' })
       ])
 
       if (!symptomsRes.ok) {
         throw new Error('Failed to load symptoms')
       }
+      if (!enabledSymptomsRes.ok) {
+        throw new Error('Failed to load enabled symptoms')
+      }
       if (!reviewRes.ok) {
         throw new Error('Failed to load review data')
       }
 
       const symptomsData = await symptomsRes.json()
+      const enabledSymptomsData = await enabledSymptomsRes.json()
       const reviewData = await reviewRes.json()
 
       setSymptoms(symptomsData.symptoms || [])
+      
+      // Build set of enabled symptom keys for quick lookup
+      const enabledKeys = new Set(
+        (enabledSymptomsData.symptoms || []).map((s: EffectiveSymptom) => `${s.id}-${s.ageGroup || ''}`)
+      )
+      setEnabledSymptomKeys(enabledKeys)
       
       // Convert review statuses array to Map
       const statusMap = new Map<string, SymptomReviewStatus>()
@@ -283,6 +295,74 @@ export default function ClinicalReviewPanel({
 
   const handleResetAll = () => {
     setConfirmDialog({ type: 'reset-all' })
+  }
+
+  const handleApprove = (symptomId: string, ageGroup: string | null) => {
+    // Check if symptom is disabled
+    const key = `${symptomId}-${ageGroup || ''}`
+    const isDisabled = !enabledSymptomKeys.has(key)
+    
+    if (isDisabled) {
+      // Show confirmation dialog to re-enable
+      setConfirmDialog({
+        type: 'approve-disabled',
+        symptomId,
+        ageGroup,
+      })
+    } else {
+      // Approve directly
+      updateReviewStatus(symptomId, ageGroup, 'APPROVED')
+    }
+  }
+
+  const approveWithReEnable = async (symptomId: string, ageGroup: string | null, alsoEnable: boolean) => {
+    if (!effectiveSurgeryId) return
+    
+    const key = `${symptomId}-${ageGroup || ''}`
+    
+    try {
+      // First approve the symptom (this handles its own loading state)
+      await updateReviewStatus(symptomId, ageGroup, 'APPROVED')
+      
+      // If user chose to re-enable, do that too
+      if (alsoEnable) {
+        const symptom = symptoms.find(s => s.id === symptomId)
+        if (symptom) {
+          try {
+            const enableBody: any = {
+              action: 'ENABLE_EXISTING',
+              surgeryId: effectiveSurgeryId,
+            }
+            
+            if (symptom.source === 'base' || symptom.source === 'override') {
+              enableBody.baseSymptomId = symptom.baseSymptomId || symptom.id
+            } else if (symptom.source === 'custom') {
+              enableBody.customSymptomId = symptom.id
+            }
+            
+            const enableRes = await fetch('/api/surgerySymptoms', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(enableBody),
+            })
+            
+            if (!enableRes.ok) {
+              console.error('Failed to enable symptom')
+              toast.error('Approved but failed to enable symptom')
+            } else {
+              toast.success('Approved and re-enabled for this surgery')
+              // Refresh data to update enabled status
+              await loadData()
+            }
+          } catch (enableError) {
+            console.error('Error enabling symptom:', enableError)
+            toast.error('Approved but failed to enable symptom')
+          }
+        }
+      }
+    } finally {
+      setConfirmDialog(null)
+    }
   }
 
   const handleBulkApprove = () => {
@@ -661,7 +741,7 @@ export default function ClinicalReviewPanel({
                         </button>
                         <div className="flex flex-col gap-1">
                           <button
-                            onClick={() => updateReviewStatus(row.symptom.id, row.symptom.ageGroup || null, 'APPROVED')}
+                            onClick={() => handleApprove(row.symptom.id, row.symptom.ageGroup || null)}
                             disabled={isUpdating || row.status === 'APPROVED'}
                             className="px-3 py-1 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -730,6 +810,43 @@ export default function ClinicalReviewPanel({
                     className="px-4 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                   >
                     {bulkApproving ? 'Approving...' : 'Approve all'}
+                  </button>
+                </div>
+              </>
+            ) : confirmDialog.type === 'approve-disabled' ? (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Approve symptom</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  This symptom is currently disabled. Do you also want to re-enable it now?
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setConfirmDialog(null)}
+                    className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirmDialog.symptomId) {
+                        approveWithReEnable(confirmDialog.symptomId, confirmDialog.ageGroup || null, false)
+                      }
+                    }}
+                    disabled={updatingStatus !== null}
+                    className="px-4 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                  >
+                    Approve only
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirmDialog.symptomId) {
+                        approveWithReEnable(confirmDialog.symptomId, confirmDialog.ageGroup || null, true)
+                      }
+                    }}
+                    disabled={updatingStatus !== null}
+                    className="px-4 py-2 rounded-md text-sm font-medium bg-green-700 text-white hover:bg-green-800 disabled:opacity-50"
+                  >
+                    Approve and re-enable
                   </button>
                 </div>
               </>
