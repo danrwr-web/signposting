@@ -720,6 +720,9 @@ export default function ClinicalReviewPanel({
           baseSymptomId={drawerIds?.baseSymptomId}
           customSymptomId={drawerIds?.customSymptomId}
           reviewStatus={drawerReviewStatus}
+          reviewedBy={drawerReviewedBy}
+          reviewedAt={drawerReviewedAt}
+          reviewNote={drawerReviewNote}
           onReEnable={() => loadData()}
           closeButtonRef={drawerCloseButtonRef}
         />
@@ -736,11 +739,14 @@ interface DrawerProps {
   baseSymptomId?: string
   customSymptomId?: string
   reviewStatus?: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' | null
+  reviewedBy?: string | null
+  reviewedAt?: string | null
+  reviewNote?: string | null
   onReEnable?: () => void
   closeButtonRef?: React.RefObject<HTMLButtonElement>
 }
 
-function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, reviewStatus, onReEnable, closeButtonRef }: DrawerProps) {
+function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, reviewStatus, reviewedBy, reviewedAt, reviewNote, onReEnable, closeButtonRef }: DrawerProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<null | {
     name: string
@@ -915,15 +921,15 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
             {data && (
               <p className="text-sm text-gray-600 mt-2">Last changed: {formatLastEdited(data.lastEditedAt, data.lastEditedBy)}</p>
             )}
-          {(drawerReviewedBy && drawerReviewedAt) && (
-            <p className="text-sm text-gray-700 mt-2">Last reviewed by {drawerReviewedBy} on {new Date(drawerReviewedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
-          )}
-          {drawerReviewStatus === 'CHANGES_REQUIRED' && drawerReviewNote && (
-            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm font-semibold text-red-800 mb-1">Reviewer note</p>
-              <p className="text-sm text-red-800 whitespace-pre-wrap">{drawerReviewNote}</p>
-            </div>
-          )}
+            {(reviewedBy && reviewedAt) && (
+              <p className="text-sm text-gray-700 mt-2">Last reviewed by {reviewedBy} on {new Date(reviewedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+            )}
+            {reviewStatus === 'CHANGES_REQUIRED' && reviewNote && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm font-semibold text-red-800 mb-1">Reviewer note</p>
+                <p className="text-sm text-red-800 whitespace-pre-wrap">{reviewNote}</p>
+              </div>
+            )}
             {data && !data.isEnabled && reviewStatus === 'CHANGES_REQUIRED' && (
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                 <p className="text-sm text-yellow-800 mb-2">
@@ -985,11 +991,11 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
         </div>
         <div className="px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
           <div className="pointer-events-none h-3 -mt-3 bg-gradient-to-t from-white to-transparent" />
-          {drawerReviewStatus === 'CHANGES_REQUIRED' && (
+          {reviewStatus === 'CHANGES_REQUIRED' && (
             <p className="text-sm text-gray-600 mb-3">Make the change on the symptom page, then come back here and click 'Approve'.</p>
           )}
           <div className="flex justify-end gap-2">
-            {drawerReviewStatus === 'CHANGES_REQUIRED' && (baseSymptomId || customSymptomId) && (
+            {reviewStatus === 'CHANGES_REQUIRED' && (baseSymptomId || customSymptomId) && (
               <a
                 href={baseSymptomId ? `/symptom/${baseSymptomId}?surgery=${surgeryId}` : `/symptom/${customSymptomId}?surgery=${surgeryId}`}
                 className="px-3 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
