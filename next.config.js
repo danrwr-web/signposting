@@ -20,11 +20,7 @@ const nextConfig = {
       'parse5': false,
     }
     
-    // Ignore jsdom completely during bundling
-    config.module.rules.push({
-      test: /node_modules\/jsdom/,
-      use: 'null-loader',
-    });
+    // Rely on alias/fallback instead of null-loader to avoid runtime type errors
     
     return config;
   },
