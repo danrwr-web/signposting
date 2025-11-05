@@ -314,6 +314,7 @@ model SymptomReviewStatus {
   lastReviewedAt   DateTime?
   lastReviewedById String?
   lastReviewedBy   User?              @relation(fields: [lastReviewedById], references: [id])
+  reviewNote       String?
 
   @@unique([surgeryId, symptomId, ageGroup])
   @@index([surgeryId])
