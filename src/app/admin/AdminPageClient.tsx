@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
@@ -28,6 +29,8 @@ interface AdminPageClientProps {
 }
 
 export default function AdminPageClient({ surgeries, symptoms, session, currentSurgerySlug }: AdminPageClientProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('library')
   const [selectedSurgery, setSelectedSurgery] = useState('')
   const [selectedSymptom, setSelectedSymptom] = useState('')
@@ -236,6 +239,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       setSelectedSurgery(surgeries[0].id)
     }
   }, [session, surgeries])
+
+  // Initialize active tab from URL params
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam && ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'aiUsage'].includes(tabParam)) {
+      setActiveTab(tabParam)
+    }
+  }, [searchParams])
 
   // Load effective symptoms when surgery is selected or editing mode changes
   useEffect(() => {
@@ -766,7 +777,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               ].map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    setActiveTab(tab.id)
+                    router.push(`/admin?tab=${tab.id}`, { scroll: false })
+                  }}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? 'border-nhs-blue text-nhs-blue'
