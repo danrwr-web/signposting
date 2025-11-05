@@ -1044,6 +1044,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     <ClinicalReviewPanel 
                       selectedSurgery={surgeryIdForReview}
                       isSuperuser={isSuper}
+                      adminSurgeryId={session?.surgeryId || null}
                       onPendingCountChange={setClinicalReviewCount}
                     />
                   )

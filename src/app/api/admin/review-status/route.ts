@@ -10,7 +10,8 @@ const reviewStatusSchema = z.object({
   surgeryId: z.string().min(1),
   symptomId: z.string().min(1),
   ageGroup: z.string().nullable().optional(),
-  newStatus: z.enum(['PENDING', 'APPROVED', 'CHANGES_REQUIRED'])
+  newStatus: z.enum(['PENDING', 'APPROVED', 'CHANGES_REQUIRED']),
+  reviewNote: z.string().max(1000).optional().nullable(),
 })
 
 // POST /api/admin/review-status
@@ -18,7 +19,7 @@ const reviewStatusSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { surgeryId, symptomId, ageGroup, newStatus } = reviewStatusSchema.parse(body)
+    const { surgeryId, symptomId, ageGroup, newStatus, reviewNote } = reviewStatusSchema.parse(body)
 
     // Auth: SUPERUSER OR ADMIN of that surgery
     const user = await requireSurgeryAdmin(surgeryId)
@@ -47,6 +48,8 @@ export async function POST(request: NextRequest) {
         status: newStatus,
         lastReviewedAt: new Date(),
         lastReviewedById: user.id,
+        // Only set note when changes requested; clear on approve/pending
+        reviewNote: newStatus === 'CHANGES_REQUIRED' ? (reviewNote ?? null) : null,
       },
       create: {
         surgeryId,
@@ -55,6 +58,7 @@ export async function POST(request: NextRequest) {
         status: newStatus,
         lastReviewedAt: new Date(),
         lastReviewedById: user.id,
+        reviewNote: newStatus === 'CHANGES_REQUIRED' ? (reviewNote ?? null) : null,
       },
       include: {
         lastReviewedBy: {

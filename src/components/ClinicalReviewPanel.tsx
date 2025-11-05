@@ -27,11 +27,13 @@ interface SymptomReviewStatus {
     email: string
     name: string | null
   } | null
+  reviewNote?: string | null
 }
 
 interface ClinicalReviewPanelProps {
   selectedSurgery: string | null
   isSuperuser?: boolean
+  adminSurgeryId?: string | null
   onPendingCountChange?: (count: number) => void
 }
 
@@ -40,6 +42,7 @@ type FilterKey = 'pending' | 'changes-requested' | 'approved' | 'all'
 export default function ClinicalReviewPanel({ 
   selectedSurgery, 
   isSuperuser = false,
+  adminSurgeryId = null,
   onPendingCountChange 
 }: ClinicalReviewPanelProps) {
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
@@ -50,6 +53,7 @@ export default function ClinicalReviewPanel({
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<'name-asc' | 'name-desc' | 'changed-new' | 'status'>('name-asc')
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
+  const [resettingAll, setResettingAll] = useState(false)
   
   // Surgery switcher for superusers
   const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
@@ -58,7 +62,19 @@ export default function ClinicalReviewPanel({
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerIds, setDrawerIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
+  const [drawerReviewStatus, setDrawerReviewStatus] = useState<'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' | null>(null)
+  const [drawerReviewedBy, setDrawerReviewedBy] = useState<string | null>(null)
+  const [drawerReviewedAt, setDrawerReviewedAt] = useState<string | null>(null)
+  const [drawerReviewNote, setDrawerReviewNote] = useState<string | null>(null)
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null)
+  
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'reset-all' | 'request-changes'
+    symptomId?: string
+    ageGroup?: string | null
+  } | null>(null)
+  const [changeRequestNote, setChangeRequestNote] = useState<string>('')
 
   // Determine effective surgery ID
   const effectiveSurgeryId = useMemo(() => {
@@ -165,7 +181,7 @@ export default function ClinicalReviewPanel({
     loadData()
   }, [effectiveSurgeryId])
 
-  const updateReviewStatus = async (symptomId: string, ageGroup: string | null, newStatus: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED') => {
+  const updateReviewStatus = async (symptomId: string, ageGroup: string | null, newStatus: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED', alsoDisable?: boolean, note?: string) => {
     if (!effectiveSurgeryId) return
 
     const key = `${symptomId}-${ageGroup || ''}`
@@ -182,6 +198,7 @@ export default function ClinicalReviewPanel({
           symptomId,
           ageGroup: ageGroup || null,
           newStatus,
+          reviewNote: note || undefined,
         }),
       })
 
@@ -191,6 +208,39 @@ export default function ClinicalReviewPanel({
       }
 
       const updatedStatus = await response.json()
+      
+      // If also disabling, call the surgerySymptoms API
+      if (alsoDisable && newStatus === 'CHANGES_REQUIRED') {
+        const symptom = symptoms.find(s => s.id === symptomId)
+        if (symptom) {
+          try {
+            const disableBody: any = {
+              action: 'DISABLE',
+              surgeryId: effectiveSurgeryId,
+            }
+            
+            if (symptom.source === 'base' || symptom.source === 'override') {
+              disableBody.baseSymptomId = symptom.baseSymptomId || symptom.id
+            } else if (symptom.source === 'custom') {
+              disableBody.customSymptomId = symptom.id
+            }
+            
+            const disableRes = await fetch('/api/surgerySymptoms', {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(disableBody),
+            })
+            
+            if (!disableRes.ok) {
+              console.error('Failed to disable symptom')
+            } else {
+              toast.success('Disabled for this surgery')
+            }
+          } catch (disableError) {
+            console.error('Error disabling symptom:', disableError)
+          }
+        }
+      }
       
       // Update local state and recalculate pending count
       setReviewStatuses(prev => {
@@ -211,11 +261,61 @@ export default function ClinicalReviewPanel({
       })
 
       toast.success(`Symptom marked as ${newStatus === 'APPROVED' ? 'Approved' : newStatus === 'CHANGES_REQUIRED' ? 'Changes requested' : 'Pending'}`)
+      
+      // Refresh data to reflect disable status
+      await loadData()
     } catch (error) {
       console.error('Error updating review status:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update review status')
     } finally {
       setUpdatingStatus(null)
+    }
+  }
+
+  const handleRequestChanges = (symptomId: string, ageGroup: string | null) => {
+    setConfirmDialog({
+      type: 'request-changes',
+      symptomId,
+      ageGroup,
+    })
+  }
+
+  const handleResetAll = () => {
+    setConfirmDialog({ type: 'reset-all' })
+  }
+
+  const resetAllToPending = async () => {
+    if (!effectiveSurgeryId) return
+    
+    setResettingAll(true)
+    try {
+      const response = await fetch('/api/admin/clinical-review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'RESET_ALL',
+          surgeryId: effectiveSurgeryId,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to reset review statuses')
+      }
+
+      const result = await response.json()
+      toast.success(`Reset ${result.updated || 0} review statuses to pending`)
+      
+      // Refresh data
+      await loadData()
+    } catch (error) {
+      console.error('Error resetting review statuses:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to reset review statuses')
+    } finally {
+      setResettingAll(false)
+      setConfirmDialog(null)
     }
   }
 
@@ -314,6 +414,9 @@ export default function ClinicalReviewPanel({
 
   const openDrawer = (symptom: EffectiveSymptom) => {
     // Determine if it's a base or custom symptom
+    const key = `${symptom.id}-${symptom.ageGroup || ''}`
+    const reviewStatus = reviewStatuses.get(key)
+    
     if (symptom.source === 'base') {
       setDrawerIds({ baseSymptomId: symptom.id })
     } else if (symptom.source === 'custom') {
@@ -322,12 +425,22 @@ export default function ClinicalReviewPanel({
       // For override, use baseSymptomId if available
       setDrawerIds({ baseSymptomId: symptom.baseSymptomId || symptom.id })
     }
+    setDrawerReviewStatus(reviewStatus?.status || null)
+    const reviewerName = reviewStatus?.lastReviewedBy?.name || reviewStatus?.lastReviewedBy?.email || null
+    setDrawerReviewedBy(reviewerName)
+    setDrawerReviewedAt(reviewStatus?.lastReviewedAt ? new Date(reviewStatus.lastReviewedAt).toISOString() : null)
+    // @ts-ignore (optional field)
+    setDrawerReviewNote((reviewStatus as any)?.reviewNote ?? null)
     setDrawerOpen(true)
   }
 
   const closeDrawer = () => {
     setDrawerOpen(false)
     setDrawerIds(null)
+    setDrawerReviewStatus(null)
+    setDrawerReviewedBy(null)
+    setDrawerReviewedAt(null)
+    setDrawerReviewNote(null)
   }
 
   if (!effectiveSurgeryId) {
@@ -367,39 +480,52 @@ export default function ClinicalReviewPanel({
       {/* Right pane */}
       <div className="flex-1 min-w-0">
         {/* Top bar */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end mb-3">
-          {isSuperuser && (
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-3">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && (
+              <select
+                value={effectiveSurgeryId || ''}
+                onChange={(e) => {
+                  setSelectedSurgeryId(e.target.value || null)
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
+                aria-label="Select surgery"
+              >
+                {surgeries.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            )}
+            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && effectiveSurgeryId && (
+              <button
+                onClick={handleResetAll}
+                disabled={resettingAll || !effectiveSurgeryId}
+                className="px-3 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {resettingAll ? 'Resetting...' : 'Request re-review'}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <input
+              type="text"
+              placeholder="Search symptoms..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
             <select
-              value={effectiveSurgeryId || ''}
-              onChange={(e) => {
-                setSelectedSurgeryId(e.target.value || null)
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
-              aria-label="Select surgery"
+              value={sort}
+              onChange={e => setSort(e.target.value as any)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-56"
+              aria-label="Sort"
             >
-              {surgeries.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
+              <option value="name-asc">Name A–Z</option>
+              <option value="name-desc">Name Z–A</option>
+              <option value="changed-new">Last changed — newest</option>
+              <option value="status">Status</option>
             </select>
-          )}
-          <input
-            type="text"
-            placeholder="Search symptoms..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <select
-            value={sort}
-            onChange={e => setSort(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-56"
-            aria-label="Sort"
-          >
-            <option value="name-asc">Name A–Z</option>
-            <option value="name-desc">Name Z–A</option>
-            <option value="changed-new">Last changed — newest</option>
-            <option value="status">Status</option>
-          </select>
+          </div>
         </div>
 
         {/* Table */}
@@ -473,7 +599,7 @@ export default function ClinicalReviewPanel({
                             {row.status === 'APPROVED' ? '✓ Approved' : 'Approve'}
                           </button>
                           <button
-                            onClick={() => updateReviewStatus(row.symptom.id, row.symptom.ageGroup || null, 'CHANGES_REQUIRED')}
+                            onClick={() => handleRequestChanges(row.symptom.id, row.symptom.ageGroup || null)}
                             disabled={isUpdating || row.status === 'CHANGES_REQUIRED'}
                             className="px-3 py-1 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -490,6 +616,87 @@ export default function ClinicalReviewPanel({
         </div>
       </div>
 
+      {/* Confirmation Dialogs */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            {confirmDialog.type === 'reset-all' ? (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Request re-review</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  This will set all clinically reviewed symptoms for this surgery back to 'Pending', so they can be reviewed again. Continue?
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setConfirmDialog(null)}
+                    className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={resetAllToPending}
+                    disabled={resettingAll}
+                    className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {resettingAll ? 'Resetting...' : 'Continue'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Changes requested</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Do you also want to disable this symptom for this surgery until the changes are made?
+                </p>
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-gray-700" htmlFor="change-note">Note to surgery (optional)</label>
+                  <textarea
+                    id="change-note"
+                    rows={3}
+                    value={changeRequestNote}
+                    onChange={e => setChangeRequestNote(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                    placeholder="E.g. Please remove the A&E advice; we don't do that locally."
+                  />
+                  <button
+                    onClick={() => {
+                      if (confirmDialog.symptomId) {
+                        updateReviewStatus(confirmDialog.symptomId, confirmDialog.ageGroup || null, 'CHANGES_REQUIRED', false, changeRequestNote?.trim() || undefined)
+                      }
+                      setConfirmDialog(null)
+                      setChangeRequestNote('')
+                    }}
+                    disabled={updatingStatus !== null}
+                    className="px-4 py-2 rounded-md text-sm font-medium bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Request changes only
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirmDialog.symptomId) {
+                        updateReviewStatus(confirmDialog.symptomId, confirmDialog.ageGroup || null, 'CHANGES_REQUIRED', true, changeRequestNote?.trim() || undefined)
+                      }
+                      setConfirmDialog(null)
+                      setChangeRequestNote('')
+                    }}
+                    disabled={updatingStatus !== null}
+                    className="px-4 py-2 rounded-md text-sm font-medium bg-red-700 text-white hover:bg-red-800 disabled:opacity-50"
+                  >
+                    Request changes and disable
+                  </button>
+                  <button
+                    onClick={() => { setConfirmDialog(null); setChangeRequestNote('') }}
+                    className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Drawer */}
       {drawerOpen && effectiveSurgeryId && (
         <SymptomPreviewDrawer
@@ -498,6 +705,8 @@ export default function ClinicalReviewPanel({
           surgeryId={effectiveSurgeryId}
           baseSymptomId={drawerIds?.baseSymptomId}
           customSymptomId={drawerIds?.customSymptomId}
+          reviewStatus={drawerReviewStatus}
+          onReEnable={() => loadData()}
           closeButtonRef={drawerCloseButtonRef}
         />
       )}
@@ -512,10 +721,12 @@ interface DrawerProps {
   surgeryId: string
   baseSymptomId?: string
   customSymptomId?: string
+  reviewStatus?: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' | null
+  onReEnable?: () => void
   closeButtonRef?: React.RefObject<HTMLButtonElement>
 }
 
-function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, closeButtonRef }: DrawerProps) {
+function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, reviewStatus, onReEnable, closeButtonRef }: DrawerProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<null | {
     name: string
@@ -530,10 +741,54 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
     statusRowId: string | null
   }>(null)
   const [viewMode, setViewMode] = useState<'local' | 'base'>('local')
+  const [reEnabling, setReEnabling] = useState(false)
   const drawerRef = useRef<HTMLDivElement | null>(null)
 
   const btnGrey = "px-3 py-1 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-100"
   const btnBlue = "px-3 py-1 rounded-md text-sm font-medium border border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white"
+
+  const handleReEnable = async () => {
+    if (!data || !data.statusRowId) return
+    
+    setReEnabling(true)
+    try {
+      const response = await fetch('/api/surgerySymptoms', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'ENABLE_EXISTING',
+          statusRowId: data.statusRowId,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to re-enable symptom')
+      }
+
+      toast.success('Symptom re-enabled for this surgery')
+      
+      // Refresh preview data
+      const params = new URLSearchParams({ surgeryId })
+      if (baseSymptomId) params.append('baseSymptomId', baseSymptomId)
+      else if (customSymptomId) params.append('customSymptomId', customSymptomId)
+      const previewRes = await fetch(`/api/symptomPreview?${params.toString()}`)
+      if (previewRes.ok) {
+        const previewData = await previewRes.json()
+        setData(previewData)
+      }
+      
+      // Refresh parent panel
+      onReEnable?.()
+    } catch (error) {
+      console.error('Error re-enabling symptom:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to re-enable symptom')
+    } finally {
+      setReEnabling(false)
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -633,7 +888,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
       {/* panel */}
       <div ref={drawerRef} className="absolute top-0 right-0 h-full w-full sm:w-[560px] bg-white shadow-xl border-l border-gray-200 focus:outline-none" role="dialog" aria-modal="true">
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200">
-          <div>
+          <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900">{data?.name || 'Loading...'} — Preview (read-only)</h2>
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {statusBadge}
@@ -645,6 +900,29 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
             </div>
             {data && (
               <p className="text-sm text-gray-600 mt-2">Last changed: {formatLastEdited(data.lastEditedAt, data.lastEditedBy)}</p>
+            )}
+          {(drawerReviewedBy && drawerReviewedAt) && (
+            <p className="text-sm text-gray-700 mt-2">Last reviewed by {drawerReviewedBy} on {new Date(drawerReviewedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+          )}
+          {drawerReviewStatus === 'CHANGES_REQUIRED' && drawerReviewNote && (
+            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm font-medium text-red-800 mb-1">Reviewer note:</p>
+              <p className="text-sm text-red-800 whitespace-pre-wrap">{drawerReviewNote}</p>
+            </div>
+          )}
+            {data && !data.isEnabled && reviewStatus === 'CHANGES_REQUIRED' && (
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-800 mb-2">
+                  This symptom is currently disabled for this surgery because changes were requested.
+                </p>
+                <button
+                  onClick={handleReEnable}
+                  disabled={reEnabling}
+                  className="px-3 py-1 rounded-md text-sm font-medium bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50"
+                >
+                  {reEnabling ? 'Re-enabling...' : 'Re-enable for this surgery'}
+                </button>
+              </div>
             )}
           </div>
           <button ref={closeButtonRef} onClick={onClose} className={btnGrey} aria-label="Close preview">Close</button>
