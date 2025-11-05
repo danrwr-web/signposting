@@ -558,11 +558,25 @@ export default function ClinicalReviewPanel({
                 const isUpdating = updatingStatus === key
                 return (
                   <tr key={row.symptom.id}>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{row.symptom.name}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(row.status)}`}>
-                        {row.status === 'CHANGES_REQUIRED' ? 'Changes requested' : row.status}
-                      </span>
+                      <div className="text-sm font-medium text-gray-900">{row.symptom.name}</div>
+                      {row.reviewStatus?.reviewNote && (
+                        <p className="text-xs text-red-700 mt-1 line-clamp-1">
+                          Reviewer note: {row.reviewStatus.reviewNote}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(row.status)}`}>
+                          {row.status === 'CHANGES_REQUIRED' ? 'Changes requested' : row.status}
+                        </span>
+                        {row.reviewStatus?.reviewNote && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                            Note
+                          </span>
+                        )}
+                      </div>
                     </td>
                     {isSuperuser && surgeryData && (
                       <td className="px-4 py-3 text-sm text-gray-600">{surgeryData.name}</td>
@@ -906,7 +920,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
           )}
           {drawerReviewStatus === 'CHANGES_REQUIRED' && drawerReviewNote && (
             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm font-medium text-red-800 mb-1">Reviewer note:</p>
+              <p className="text-sm font-semibold text-red-800 mb-1">Reviewer note</p>
               <p className="text-sm text-red-800 whitespace-pre-wrap">{drawerReviewNote}</p>
             </div>
           )}
@@ -971,7 +985,18 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
         </div>
         <div className="px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
           <div className="pointer-events-none h-3 -mt-3 bg-gradient-to-t from-white to-transparent" />
+          {drawerReviewStatus === 'CHANGES_REQUIRED' && (
+            <p className="text-sm text-gray-600 mb-3">Make the change on the symptom page, then come back here and click 'Approve'.</p>
+          )}
           <div className="flex justify-end gap-2">
+            {drawerReviewStatus === 'CHANGES_REQUIRED' && (baseSymptomId || customSymptomId) && (
+              <a
+                href={baseSymptomId ? `/symptom/${baseSymptomId}?surgery=${surgeryId}` : `/symptom/${customSymptomId}?surgery=${surgeryId}`}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Open symptom page
+              </a>
+            )}
             <button onClick={onClose} className={btnGrey}>Close</button>
           </div>
         </div>

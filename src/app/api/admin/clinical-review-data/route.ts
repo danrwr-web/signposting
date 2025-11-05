@@ -33,7 +33,15 @@ export async function GET(request: NextRequest) {
           }
         },
         symptomReviews: {
-          include: {
+          select: {
+            id: true,
+            surgeryId: true,
+            symptomId: true,
+            ageGroup: true,
+            status: true,
+            lastReviewedAt: true,
+            lastReviewedById: true,
+            reviewNote: true,
             lastReviewedBy: {
               select: {
                 id: true,
