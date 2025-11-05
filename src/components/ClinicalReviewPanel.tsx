@@ -759,6 +759,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
     instructionsHtml: string | null
     baseInstructionsHtml: string | null
     statusRowId: string | null
+    highlightedText: string | null
   }>(null)
   const [viewMode, setViewMode] = useState<'local' | 'base'>('local')
   const [reEnabling, setReEnabling] = useState(false)
@@ -906,8 +907,9 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
       {/* backdrop */}
       <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
       {/* panel */}
-      <div ref={drawerRef} className="absolute top-0 right-0 h-full w-full sm:w-[560px] bg-white shadow-xl border-l border-gray-200 focus:outline-none" role="dialog" aria-modal="true">
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200">
+      <div ref={drawerRef} className="absolute top-0 right-0 h-full w-full sm:w-[560px] bg-white shadow-xl border-l border-gray-200 focus:outline-none flex flex-col" role="dialog" aria-modal="true">
+        {/* Header - fixed */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 flex-shrink-0">
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900">{data?.name || 'Loading...'} — Preview (read-only)</h2>
             <div className="flex flex-wrap items-center gap-2 mt-2">
@@ -947,13 +949,20 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
           </div>
           <button ref={closeButtonRef} onClick={onClose} className={btnGrey} aria-label="Close preview">Close</button>
         </div>
-        <div className="px-6 py-4 h-[calc(100%-176px)] overflow-y-auto">
+        {/* Content - scrollable */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
           {loading ? (
             <div className="flex items-center justify-center p-8">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
           ) : data ? (
             <div className="space-y-6">
+              {data.highlightedText && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-red-800 mb-2">Important message</h3>
+                  <p className="text-sm text-red-800 whitespace-pre-wrap">{data.highlightedText}</p>
+                </div>
+              )}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h3 className="text-sm font-semibold text-gray-900 mb-2">Brief instruction</h3>
                 <p className="text-sm text-gray-700">{data.briefInstruction || '—'}</p>
@@ -989,7 +998,8 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
             <p className="text-gray-600">No preview data available</p>
           )}
         </div>
-        <div className="px-6 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+        {/* Footer - fixed */}
+        <div className="px-6 py-4 border-t border-gray-200 bg-white flex-shrink-0">
           <div className="pointer-events-none h-3 -mt-3 bg-gradient-to-t from-white to-transparent" />
           {reviewStatus === 'CHANGES_REQUIRED' && (
             <p className="text-sm text-gray-600 mb-3">Make the change on the symptom page, then come back here and click 'Approve'.</p>
@@ -997,7 +1007,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
           <div className="flex justify-end gap-2">
             {reviewStatus === 'CHANGES_REQUIRED' && (baseSymptomId || customSymptomId) && (
               <a
-                href={baseSymptomId ? `/symptom/${baseSymptomId}?surgery=${surgeryId}` : `/symptom/${customSymptomId}?surgery=${surgeryId}`}
+                href={baseSymptomId ? `/symptom/${baseSymptomId}?surgery=${surgeryId}&from=clinical-review` : `/symptom/${customSymptomId}?surgery=${surgeryId}&from=clinical-review`}
                 className="px-3 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700"
               >
                 Open symptom page

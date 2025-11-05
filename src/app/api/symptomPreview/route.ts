@@ -14,6 +14,7 @@ interface SymptomPreviewResponse {
   instructionsHtml: string | null
   baseInstructionsHtml: string | null
   statusRowId: string | null
+  highlightedText: string | null
 }
 
 const QuerySchema = z
@@ -67,17 +68,17 @@ export async function GET(request: NextRequest) {
 
       const baseSymptom = await prisma.baseSymptom.findFirst({
         where: { id: baseSymptomId, isDeleted: false },
-        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true }
+        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true }
       })
       if (!baseSymptom) {
         return NextResponse.json({ error: 'Base symptom not found' }, { status: 404 })
       }
 
-      let override: { briefInstruction: string | null; instructionsHtml: string | null } | null = null
+      let override: { briefInstruction: string | null; instructionsHtml: string | null; highlightedText: string | null } | null = null
       try {
         override = await prisma.surgerySymptomOverride.findUnique({
           where: { surgeryId_baseSymptomId: { surgeryId, baseSymptomId } },
-          select: { briefInstruction: true, instructionsHtml: true }
+          select: { briefInstruction: true, instructionsHtml: true, highlightedText: true }
         })
       } catch {
         override = null
@@ -96,6 +97,9 @@ export async function GET(request: NextRequest) {
       const effectiveInstructionsHtml = hasOverride
         ? (override?.instructionsHtml ?? baseSymptom.instructionsHtml ?? null)
         : (baseSymptom.instructionsHtml ?? null)
+      const effectiveHighlightedText = hasOverride
+        ? (override?.highlightedText ?? baseSymptom.highlightedText ?? null)
+        : (baseSymptom.highlightedText ?? null)
 
       response = {
         name: baseSymptom.name,
@@ -108,6 +112,7 @@ export async function GET(request: NextRequest) {
         instructionsHtml: effectiveInstructionsHtml,
         baseInstructionsHtml: hasOverride ? (baseSymptom.instructionsHtml ?? null) : null,
         statusRowId: statusRow?.id ?? null,
+        highlightedText: effectiveHighlightedText,
       }
     } else if (customSymptomId) {
       const surgeryExists = await prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true } })
@@ -117,7 +122,7 @@ export async function GET(request: NextRequest) {
 
       const customSymptom = await prisma.surgeryCustomSymptom.findFirst({
         where: { id: customSymptomId, surgeryId, isDeleted: false },
-        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true }
+        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true }
       })
       if (!customSymptom) {
         return NextResponse.json({ error: 'Custom symptom not found' }, { status: 404 })
@@ -139,6 +144,7 @@ export async function GET(request: NextRequest) {
         instructionsHtml: customSymptom.instructionsHtml ?? null,
         baseInstructionsHtml: null,
         statusRowId: statusRow?.id ?? null,
+        highlightedText: customSymptom.highlightedText ?? null,
       }
     } else {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

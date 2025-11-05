@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
@@ -65,6 +65,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [canUseAiInstructions, setCanUseAiInstructions] = useState(false)
   const [canUseAiTraining, setCanUseAiTraining] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromParam = searchParams.get('from')
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
 
@@ -1293,10 +1295,16 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               )}
             </div>
             <button
-              onClick={() => window.history.back()}
+              onClick={() => {
+                if (fromParam === 'clinical-review') {
+                  router.push('/admin?tab=clinical-review')
+                } else {
+                  window.history.back()
+                }
+              }}
               className="px-4 py-2 rounded-md bg-white border border-gray-200 text-sm hover:bg-gray-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1"
             >
-              Back to symptoms
+              {fromParam === 'clinical-review' ? 'Back to Clinical Review' : 'Back to symptoms'}
             </button>
           </div>
         </div>
