@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['@prisma/client', 'jsdom', 'jest-environment-jsdom'],
+  serverExternalPackages: ['@prisma/client'],
   webpack: (config, { isServer }) => {
     // Exclude jsdom from bundling completely
     config.resolve.fallback = {
@@ -12,19 +12,12 @@ const nextConfig = {
     
     // Prevent jsdom from being imported
     config.externals = config.externals || [];
-    if (!isServer) {
-      // For client-side, mark as external or false
-      config.externals.push({
-        'jsdom': false,
-        'jest-environment-jsdom': false,
-        'parse5': false,
-      });
-    } else {
-      // For server-side, mark as external
-      config.externals.push({
-        'jsdom': 'commonjs jsdom',
-        'jest-environment-jsdom': 'commonjs jest-environment-jsdom',
-      });
+    // Alias to false on both client and server to prevent runtime requires
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      jsdom: false,
+      'jest-environment-jsdom': false,
+      'parse5': false,
     }
     
     // Ignore jsdom completely during bundling
