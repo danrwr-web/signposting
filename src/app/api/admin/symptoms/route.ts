@@ -11,6 +11,7 @@ import { prisma } from '@/lib/prisma'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
 import { z } from 'zod'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 
 export const runtime = 'nodejs'
 
@@ -199,6 +200,53 @@ export async function POST(request: NextRequest) {
           linkToPage: true,
         }
       })
+
+      // Practice-admin created symptoms start as pending and disabled
+      // to ensure local clinical review before becoming visible.
+      await prisma.surgerySymptomStatus.upsert({
+        where: {
+          surgeryId_customSymptomId: {
+            surgeryId: surgeryId,
+            customSymptomId: symptom.id,
+          }
+        },
+        update: {
+          isEnabled: false,
+          lastEditedAt: new Date(),
+          lastEditedBy: user.name || user.email || null,
+        },
+        create: {
+          surgeryId: surgeryId,
+          customSymptomId: symptom.id,
+          isEnabled: false,
+          isOverridden: false,
+          lastEditedAt: new Date(),
+          lastEditedBy: user.name || user.email || null,
+        }
+      })
+
+      // Create review status as PENDING
+      await prisma.symptomReviewStatus.upsert({
+        where: {
+          surgeryId_symptomId_ageGroup: {
+            surgeryId: surgeryId,
+            symptomId: symptom.id,
+            ageGroup: ageGroup || null,
+          }
+        },
+        update: {
+          status: 'PENDING',
+        },
+        create: {
+          surgeryId: surgeryId,
+          symptomId: symptom.id,
+          ageGroup: ageGroup || null,
+          status: 'PENDING',
+        }
+      })
+
+      // Update requiresClinicalReview flag (will be true since symptom is disabled but pending)
+      await updateRequiresClinicalReview(surgeryId)
 
       return NextResponse.json({ symptom }, { status: 201 })
     }

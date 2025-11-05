@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 
 const CreateSchema = z.object({
   target: z.enum(['BASE', 'SURGERY']),
@@ -96,12 +97,54 @@ export async function POST(req: NextRequest) {
       }
     })
 
-    // Upsert SurgerySymptomStatus enablement
+    // Practice-admin created symptoms start as pending and disabled
+    // to ensure local clinical review before becoming visible.
+    // Superusers creating SURGERY symptoms should still be enabled (they're acting as admins)
+    const isPracticeAdmin = user.globalRole === 'PRACTICE_ADMIN' || 
+      (user.globalRole !== 'SUPERUSER' &&
+       Array.isArray((user as any).memberships) && 
+       (user as any).memberships.some((m: any) => m.surgeryId === sid && m.role === 'ADMIN'))
+
     await prisma.surgerySymptomStatus.upsert({
       where: { surgeryId_customSymptomId: { surgeryId: sid, customSymptomId: created.id } },
-      update: { isEnabled: true, lastEditedBy: user.name || user.email, lastEditedAt: new Date() },
-      create: { surgeryId: sid, customSymptomId: created.id, isEnabled: true, lastEditedBy: user.name || user.email, lastEditedAt: new Date() }
+      update: { 
+        isEnabled: isPracticeAdmin ? false : true, 
+        lastEditedBy: user.name || user.email, 
+        lastEditedAt: new Date() 
+      },
+      create: { 
+        surgeryId: sid, 
+        customSymptomId: created.id, 
+        isEnabled: isPracticeAdmin ? false : true, 
+        lastEditedBy: user.name || user.email, 
+        lastEditedAt: new Date() 
+      }
     })
+
+    // If created by practice admin, create review status as PENDING
+    if (isPracticeAdmin) {
+      await prisma.symptomReviewStatus.upsert({
+        where: {
+          surgeryId_symptomId_ageGroup: {
+            surgeryId: sid,
+            symptomId: created.id,
+            ageGroup: 'Adult', // Default age group for created symptoms
+          }
+        },
+        update: {
+          status: 'PENDING',
+        },
+        create: {
+          surgeryId: sid,
+          symptomId: created.id,
+          ageGroup: 'Adult',
+          status: 'PENDING',
+        }
+      })
+
+      // Update requiresClinicalReview flag (will be true since symptom is disabled but pending)
+      await updateRequiresClinicalReview(sid)
+    }
 
     // TODO: Improve duplicate check with fuzzy matching (Levenshtein/trigram) later
     // TODO: Add audit logging for create/promote actions (SymptomHistory)
