@@ -70,11 +70,12 @@ export default function ClinicalReviewPanel({
   
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
-    type: 'reset-all' | 'request-changes'
+    type: 'reset-all' | 'request-changes' | 'bulk-approve'
     symptomId?: string
     ageGroup?: string | null
   } | null>(null)
   const [changeRequestNote, setChangeRequestNote] = useState<string>('')
+  const [bulkApproving, setBulkApproving] = useState(false)
 
   // Determine effective surgery ID
   const effectiveSurgeryId = useMemo(() => {
@@ -282,6 +283,51 @@ export default function ClinicalReviewPanel({
 
   const handleResetAll = () => {
     setConfirmDialog({ type: 'reset-all' })
+  }
+
+  const handleBulkApprove = () => {
+    const pendingCount = counts.pending || 0
+    if (pendingCount === 0) {
+      toast.error('No pending symptoms to approve.')
+      return
+    }
+    setConfirmDialog({ type: 'bulk-approve' })
+  }
+
+  const bulkApprovePending = async () => {
+    if (!effectiveSurgeryId) return
+    
+    setBulkApproving(true)
+    try {
+      const response = await fetch('/api/admin/clinical-review/bulk-approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          surgeryId: effectiveSurgeryId,
+          search: search.trim() || undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to bulk approve')
+      }
+
+      const result = await response.json()
+      toast.success(`Approved ${result.approvedCount || 0} symptoms.`)
+      
+      // Refresh data and switch to pending filter to show "No results"
+      await loadData()
+      setActiveFilter('pending')
+    } catch (error) {
+      console.error('Error bulk approving:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to bulk approve')
+    } finally {
+      setBulkApproving(false)
+      setConfirmDialog(null)
+    }
   }
 
   const resetAllToPending = async () => {
@@ -505,6 +551,15 @@ export default function ClinicalReviewPanel({
                 {resettingAll ? 'Resetting...' : 'Request re-review'}
               </button>
             )}
+            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && effectiveSurgeryId && (
+              <button
+                onClick={handleBulkApprove}
+                disabled={bulkApproving || !effectiveSurgeryId}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bulkApproving ? 'Approving...' : 'Bulk approve pending'}
+              </button>
+            )}
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <input
@@ -653,6 +708,28 @@ export default function ClinicalReviewPanel({
                     className="px-4 py-2 rounded-md text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
                   >
                     {resettingAll ? 'Resetting...' : 'Continue'}
+                  </button>
+                </div>
+              </>
+            ) : confirmDialog.type === 'bulk-approve' ? (
+              <>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Bulk approve pending?</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  This will approve {counts.pending || 0} symptoms for {surgeryData?.name || 'this surgery'}. Changes-required items will not be approved.
+                </p>
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setConfirmDialog(null)}
+                    className="px-4 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={bulkApprovePending}
+                    disabled={bulkApproving}
+                    className="px-4 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {bulkApproving ? 'Approving...' : 'Approve all'}
                   </button>
                 </div>
               </>

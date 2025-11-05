@@ -4,6 +4,7 @@ import { requireSurgeryAdmin, requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 
 export const runtime = 'nodejs'
 
@@ -52,6 +53,9 @@ export async function POST(request: NextRequest) {
           reviewNote: null
         }
       })
+      
+      // Update requiresClinicalReview flag
+      await updateRequiresClinicalReview(surgeryId)
       
       return NextResponse.json({ 
         ok: true, 

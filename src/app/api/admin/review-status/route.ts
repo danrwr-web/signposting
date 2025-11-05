@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 
 export const runtime = 'nodejs'
 
@@ -70,6 +71,9 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Update requiresClinicalReview flag
+    await updateRequiresClinicalReview(surgeryId)
 
     return NextResponse.json(reviewStatus)
   } catch (error) {
