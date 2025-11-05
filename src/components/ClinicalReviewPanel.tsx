@@ -769,19 +769,38 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
   const btnBlue = "px-3 py-1 rounded-md text-sm font-medium border border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white"
 
   const handleReEnable = async () => {
-    if (!data || !data.statusRowId) return
+    if (!data) {
+      toast.error('Symptom data not loaded')
+      return
+    }
     
     setReEnabling(true)
     try {
+      const body: any = {
+        action: 'ENABLE_EXISTING',
+      }
+      
+      // Use statusRowId if available, otherwise fall back to baseSymptomId/customSymptomId
+      if (data.statusRowId) {
+        body.statusRowId = data.statusRowId
+      } else if (baseSymptomId) {
+        body.baseSymptomId = baseSymptomId
+        body.surgeryId = surgeryId
+      } else if (customSymptomId) {
+        body.customSymptomId = customSymptomId
+        body.surgeryId = surgeryId
+      } else {
+        toast.error('Cannot re-enable: missing symptom identifier')
+        setReEnabling(false)
+        return
+      }
+      
       const response = await fetch('/api/surgerySymptoms', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'ENABLE_EXISTING',
-          statusRowId: data.statusRowId,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
