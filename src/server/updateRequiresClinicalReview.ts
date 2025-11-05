@@ -5,7 +5,8 @@ import { revalidatePath } from 'next/cache'
 
 /**
  * Updates the requiresClinicalReview flag on a surgery based on whether
- * there are any PENDING or CHANGES_REQUIRED review statuses.
+ * there are any ENABLED symptoms with PENDING or CHANGES_REQUIRED review statuses.
+ * The banner only shows if at least one enabled symptom requires review.
  * @param surgeryId The surgery ID to update
  * @param reviewerId Optional user ID to set as lastClinicalReviewerId when all items are approved
  */
@@ -13,23 +14,37 @@ export async function updateRequiresClinicalReview(
   surgeryId: string,
   reviewerId?: string
 ): Promise<void> {
-  // Check if there are any PENDING or CHANGES_REQUIRED review statuses
-  const pendingReviewCount = await prisma.symptomReviewStatus.count({
-    where: {
-      surgeryId,
-      status: { in: ['PENDING', 'CHANGES_REQUIRED'] },
-    },
+  // Get only ENABLED symptoms (exclude disabled ones)
+  const enabledSymptoms = await getEffectiveSymptoms(surgeryId, false) // includeDisabled = false
+  
+  // Build a set of enabled symptom keys (symptomId-ageGroup)
+  const enabledKeys = new Set(
+    enabledSymptoms.map(s => `${s.id}-${s.ageGroup || ''}`)
+  )
+  
+  // Get all review statuses for this surgery
+  const allReviewStatuses = await prisma.symptomReviewStatus.findMany({
+    where: { surgeryId },
   })
   
-  // Also check if there are symptoms without review statuses (implicitly pending)
-  const totalSymptoms = await getEffectiveSymptoms(surgeryId, true)
+  // Filter to only review statuses for ENABLED symptoms
+  const enabledReviewStatuses = allReviewStatuses.filter(rs => {
+    const key = `${rs.symptomId}-${rs.ageGroup || ''}`
+    return enabledKeys.has(key)
+  })
+  
+  // Count PENDING or CHANGES_REQUIRED statuses for enabled symptoms only
+  const pendingReviewCount = enabledReviewStatuses.filter(
+    rs => rs.status === 'PENDING' || rs.status === 'CHANGES_REQUIRED'
+  ).length
+  
+  // Build a set of reviewed symptom keys (for enabled symptoms)
   const reviewedKeys = new Set(
-    (await prisma.symptomReviewStatus.findMany({
-      where: { surgeryId },
-      select: { symptomId: true, ageGroup: true },
-    })).map(rs => `${rs.symptomId}-${rs.ageGroup || ''}`)
+    enabledReviewStatuses.map(rs => `${rs.symptomId}-${rs.ageGroup || ''}`)
   )
-  const unreviewedCount = totalSymptoms.filter(s => {
+  
+  // Count enabled symptoms without review statuses (implicitly pending)
+  const unreviewedCount = enabledSymptoms.filter(s => {
     const key = `${s.id}-${s.ageGroup || ''}`
     return !reviewedKeys.has(key)
   }).length
