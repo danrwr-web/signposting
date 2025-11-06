@@ -35,6 +35,17 @@ export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHead
               currentSurgeryId={currentSurgeryId}
             />
             
+            {/* Appointments Link - visible when a surgery is selected */}
+            {currentSurgeryId && (
+              <Link 
+                href={`/s/${currentSurgeryId}/appointments`}
+                prefetch={false}
+                className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
+              >
+                Appointments
+              </Link>
+            )}
+            
             {/* Admin Link */}
             <Link 
               href="/admin" 

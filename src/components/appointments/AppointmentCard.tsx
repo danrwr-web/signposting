@@ -16,31 +16,32 @@ interface AppointmentCardProps {
   onEdit: (appointment: AppointmentType) => void
 }
 
-// Get colour for staff type
+// Get colour for staff type - very pale colors
 function getStaffColour(staffType: string | null, defaultColour: string | null): string {
   if (defaultColour) {
+    // If custom colour is provided, use it but ensure it's pale
     return defaultColour
   }
   
   if (!staffType) {
-    return 'bg-yellow-100 border-yellow-300'
+    return 'bg-yellow-50 border-yellow-200'
   }
 
   const normalized = staffType.trim()
   if (normalized === 'PN' || normalized.includes('PN')) {
-    return 'bg-green-100 border-green-300'
+    return 'bg-green-50 border-green-200'
   }
   if (normalized === 'HCA' || normalized.includes('HCA')) {
-    return 'bg-red-100 border-red-300'
+    return 'bg-red-50 border-red-200'
   }
   if (normalized.includes('Dr') || normalized.includes('Doctor')) {
-    return 'bg-blue-100 border-blue-300'
+    return 'bg-blue-50 border-blue-200'
   }
   if (normalized === 'All') {
-    return 'bg-yellow-100 border-yellow-300'
+    return 'bg-yellow-50 border-yellow-200'
   }
   
-  return 'bg-gray-100 border-gray-300'
+  return 'bg-gray-50 border-gray-200'
 }
 
 export default function AppointmentCard({ appointment, isAdmin, onEdit }: AppointmentCardProps) {

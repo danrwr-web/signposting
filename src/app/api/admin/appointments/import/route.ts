@@ -29,8 +29,11 @@ function parseCSV(csvText: string): Record<string, string>[] {
   const lines = csvText.split('\n').filter(line => line.trim())
   if (lines.length === 0) return []
 
-  // Parse header
-  const headers = parseCSVLine(lines[0])
+  // Parse header and filter out columns starting with __
+  const allHeaders = parseCSVLine(lines[0])
+  const headers = allHeaders.filter(h => !h.startsWith('__'))
+  const headerIndices = allHeaders.map((h, i) => headers.includes(h) ? i : -1).filter(i => i !== -1)
+  
   const rows: Record<string, string>[] = []
 
   // Parse data rows
@@ -39,8 +42,9 @@ function parseCSV(csvText: string): Record<string, string>[] {
     if (values.length === 0) continue
 
     const row: Record<string, string> = {}
-    headers.forEach((header, index) => {
-      row[header] = values[index] || ''
+    headers.forEach((header, headerIdx) => {
+      const valueIdx = headerIndices[headerIdx]
+      row[header] = values[valueIdx] || ''
     })
     rows.push(row)
   }
