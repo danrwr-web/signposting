@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { useSurgery } from '@/context/SurgeryContext'
+import { useCardStyle } from '@/hooks/useCardStyle'
 
 interface SymptomCardProps {
   symptom: EffectiveSymptom
@@ -14,6 +15,7 @@ interface SymptomCardProps {
 
 export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
   const { currentSurgerySlug } = useSurgery()
+  const { cardStyle } = useCardStyle()
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
@@ -75,6 +77,20 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   }, [effectiveSurgerySlug, symptom.briefInstruction])
 
   const getSourceColor = (source: string) => {
+    if (cardStyle === 'powerappsBlue') {
+      // Lighter backgrounds for visibility on blue
+      switch (source) {
+        case 'base':
+          return 'bg-gray-300 text-gray-900'
+        case 'override':
+          return 'bg-blue-300 text-blue-900'
+        case 'custom':
+          return 'bg-green-300 text-green-900'
+        default:
+          return 'bg-gray-300 text-gray-900'
+      }
+    }
+    // Default style
     switch (source) {
       case 'base':
         return 'bg-gray-200 text-gray-700'
@@ -88,6 +104,20 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
   }
 
   const getAgeGroupColor = (ageGroup: string) => {
+    if (cardStyle === 'powerappsBlue') {
+      // Lighter backgrounds for visibility on blue
+      switch (ageGroup) {
+        case 'U5':
+          return 'bg-blue-200 text-blue-900'
+        case 'O5':
+          return 'bg-green-200 text-green-900'
+        case 'Adult':
+          return 'bg-purple-200 text-purple-900'
+        default:
+          return 'bg-gray-200 text-gray-900'
+      }
+    }
+    // Default style
     switch (ageGroup) {
       case 'U5':
         return 'bg-blue-100 text-blue-800'
@@ -119,13 +149,34 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
 
   const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgerySlug ? `?surgery=${effectiveSurgerySlug}` : ''}`
 
+  // Style classes based on cardStyle
+  const cardClasses = cardStyle === 'powerappsBlue'
+    ? 'bg-[#264c96] text-white hover:bg-[#305cae] rounded-xl shadow-sm px-4 py-3 cursor-pointer h-full flex flex-col group'
+    : 'bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col group'
+
+  const titleClasses = cardStyle === 'powerappsBlue'
+    ? 'text-base font-bold text-white leading-tight pr-2'
+    : 'text-base font-semibold text-nhs-dark-blue leading-tight pr-2'
+
+  const instructionClasses = cardStyle === 'powerappsBlue'
+    ? 'text-white text-sm leading-relaxed line-clamp-3'
+    : 'text-nhs-grey text-sm leading-relaxed line-clamp-3'
+
+  const linkTextClasses = cardStyle === 'powerappsBlue'
+    ? 'text-xs text-white font-medium truncate flex-1'
+    : 'text-xs text-nhs-blue font-medium truncate flex-1'
+
+  const openTextClasses = cardStyle === 'powerappsBlue'
+    ? 'text-xs text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity'
+    : 'text-xs text-nhs-blue font-medium opacity-0 group-hover:opacity-100 transition-opacity'
+
   return (
     <Link href={linkUrl}>
-      <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col group">
+      <div className={cardClasses}>
         {/* Header with title and badges */}
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-2 flex-1">
-            <h3 className="text-base font-semibold text-nhs-dark-blue leading-tight pr-2">
+            <h3 className={titleClasses}>
               {symptom.name || 'Unknown Symptom'}
             </h3>
           </div>
@@ -144,7 +195,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
         {/* Brief instruction - truncated */}
         <div className="flex-1 mb-3">
           <p 
-            className="text-nhs-grey text-sm leading-relaxed line-clamp-3"
+            className={instructionClasses}
             dangerouslySetInnerHTML={{ 
               __html: highlightText(symptom.briefInstruction || "") 
             }}
@@ -153,9 +204,13 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
         
         {/* Highlight preview - compact */}
         {symptom.highlightedText && (
-          <div className="bg-red-50 border-l-2 border-nhs-red p-2 mb-3 rounded-r">
+          <div className={cardStyle === 'powerappsBlue' 
+            ? 'bg-red-100 border-l-2 border-red-400 p-2 mb-3 rounded-r' 
+            : 'bg-red-50 border-l-2 border-nhs-red p-2 mb-3 rounded-r'}>
             <p 
-              className="text-xs font-medium text-nhs-red line-clamp-2"
+              className={cardStyle === 'powerappsBlue'
+                ? 'text-xs font-medium text-red-900 line-clamp-2'
+                : 'text-xs font-medium text-nhs-red line-clamp-2'}
               dangerouslySetInnerHTML={{ 
                 __html: highlightText(symptom.highlightedText || "") 
               }}
@@ -166,7 +221,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
         {/* Footer with link and open affordance */}
         <div className="flex items-center justify-between mt-auto">
           {symptom.linkToPage && (
-            <div className="text-xs text-nhs-blue font-medium truncate flex-1">
+            <div className={linkTextClasses}>
               → {symptom.linkToPage}
             </div>
           )}
@@ -191,7 +246,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
                 </div>
               )
             })()}
-            <div className="text-xs text-nhs-blue font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className={openTextClasses}>
               Open →
             </div>
           </div>

@@ -13,6 +13,7 @@ import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
 import LogoSizeControl from './LogoSizeControl'
+import { useCardStyle } from '@/hooks/useCardStyle'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -50,6 +51,7 @@ export default function CompactToolbar({
   const { data: session } = useSession()
   const { surgery } = useSurgery()
   const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const { cardStyle, setCardStyle } = useCardStyle()
   
   // Check if user is a superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
@@ -193,6 +195,40 @@ export default function CompactToolbar({
               value={selectedAge}
               onChange={onAgeChange}
             />
+          </div>
+
+          {/* Card Appearance Control */}
+          <div className="flex-shrink-0">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-nhs-grey font-medium">Card appearance</label>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCardStyle('default')}
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                    cardStyle === 'default'
+                      ? 'bg-nhs-blue text-white'
+                      : 'bg-gray-100 text-nhs-grey hover:bg-gray-200'
+                  }`}
+                  aria-pressed={cardStyle === 'default'}
+                  aria-label="Modern card style"
+                >
+                  Modern
+                </button>
+                <button
+                  onClick={() => setCardStyle('powerappsBlue')}
+                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+                    cardStyle === 'powerappsBlue'
+                      ? 'bg-nhs-blue text-white'
+                      : 'bg-gray-100 text-nhs-grey hover:bg-gray-200'
+                  }`}
+                  aria-pressed={cardStyle === 'powerappsBlue'}
+                  aria-label="PowerApps blue card style"
+                >
+                  PowerApps blue
+                </button>
+              </div>
+              <p className="text-xs text-nhs-grey italic">This only changes how cards look on this device.</p>
+            </div>
           </div>
 
           {/* Results Count */}
