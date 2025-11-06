@@ -177,72 +177,78 @@ export default function CompactToolbar({
 
       {/* Row 2: Search, Age Filter, Results Count */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
-        <div className="flex items-center gap-4">
-          {/* Search Box */}
-          <div className="flex-1 max-w-md">
-            <SearchBox 
-              ref={searchInputRef}
-              value={searchTerm}
-              onChange={onSearchChange}
-              placeholder="Search symptoms... (Press / to focus)"
-              debounceMs={250}
-            />
-          </div>
+        <div className="flex items-center gap-4 justify-between">
+          {/* Left side: Search Box and Age Filter */}
+          <div className="flex items-center gap-4 flex-1">
+            {/* Search Box */}
+            <div className="flex-1 max-w-md">
+              <SearchBox 
+                ref={searchInputRef}
+                value={searchTerm}
+                onChange={onSearchChange}
+                placeholder="Search symptoms... (Press / to focus)"
+                debounceMs={250}
+              />
+            </div>
 
-          {/* Age Filter */}
-          <div className="flex-shrink-0">
-            <AgeFilter 
-              value={selectedAge}
-              onChange={onAgeChange}
-            />
-          </div>
-
-          {/* Card Appearance Control */}
-          <div className="flex-shrink-0">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-nhs-grey font-medium">Card appearance</label>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setCardStyle('default')
-                  }}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    cardStyle === 'default'
-                      ? 'bg-nhs-blue text-white'
-                      : 'bg-gray-100 text-nhs-grey hover:bg-gray-200'
-                  }`}
-                  aria-pressed={cardStyle === 'default'}
-                  aria-label="Modern card style"
-                >
-                  Modern
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    setCardStyle('powerappsBlue')
-                  }}
-                  className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
-                    cardStyle === 'powerappsBlue'
-                      ? 'bg-nhs-blue text-white'
-                      : 'bg-gray-100 text-nhs-grey hover:bg-gray-200'
-                  }`}
-                  aria-pressed={cardStyle === 'powerappsBlue'}
-                  aria-label="PowerApps blue card style"
-                >
-                  PowerApps blue
-                </button>
-              </div>
-              <p className="text-xs text-nhs-grey italic">This only changes how cards look on this device.</p>
+            {/* Age Filter */}
+            <div className="flex-shrink-0">
+              <AgeFilter 
+                value={selectedAge}
+                onChange={onAgeChange}
+              />
             </div>
           </div>
 
-          {/* Results Count */}
-          <div className="flex-shrink-0 text-sm text-nhs-grey">
-            {resultsCount} of {totalCount}
-            {selectedLetter !== 'All' && ` (${selectedLetter})`}
+          {/* Right side: Display Toggle and Results Count */}
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {/* Display Toggle */}
+            <div className="flex flex-col items-end">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">Display:</span>
+                <div className="inline-flex rounded-full bg-slate-100 p-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setCardStyle('default')
+                    }}
+                    className={`px-3 py-1 text-xs rounded-full transition ${
+                      cardStyle === 'default'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500'
+                    }`}
+                    aria-pressed={cardStyle === 'default'}
+                    aria-label="Modern card style"
+                  >
+                    Modern
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      setCardStyle('powerappsBlue')
+                    }}
+                    className={`px-3 py-1 text-xs rounded-full transition ${
+                      cardStyle === 'powerappsBlue'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500'
+                    }`}
+                    aria-pressed={cardStyle === 'powerappsBlue'}
+                    aria-label="Blue card style"
+                  >
+                    Blue
+                  </button>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 text-right mt-1">Saved in this browser only.</p>
+            </div>
+
+            {/* Results Count */}
+            <div className="flex-shrink-0 text-sm text-nhs-grey">
+              {resultsCount} of {totalCount}
+              {selectedLetter !== 'All' && ` (${selectedLetter})`}
+            </div>
           </div>
         </div>
       </div>
