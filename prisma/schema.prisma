@@ -89,6 +89,7 @@ model Surgery {
   symptomReviews          SymptomReviewStatus[]
   symptomStatuses         SurgerySymptomStatus[]
   surgeryFeatureFlags     SurgeryFeatureFlag[]
+  appointmentTypes        AppointmentType[]
 }
 
 model BaseSymptom {
@@ -423,4 +424,22 @@ model UserFeatureFlag {
   feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
 
   @@unique([userId, featureId])
+}
+
+model AppointmentType {
+  id           String    @id @default(cuid())
+  surgeryId    String?
+  name         String
+  staffType    String? // e.g. "PN" | "HCA" | "Dr" | "All"
+  durationMins Int?
+  colour       String? // hex or tailwind token; optional
+  notes        String? // store as text
+  isEnabled    Boolean   @default(true)
+  isDefault    Boolean   @default(false)
+  lastEditedBy String?
+  lastEditedAt DateTime? @updatedAt
+
+  Surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@index([surgeryId])
 }
