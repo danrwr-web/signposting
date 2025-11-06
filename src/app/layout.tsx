@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { SurgeryProvider } from '@/context/SurgeryContext'
+import { CardStyleProvider } from '@/context/CardStyleContext'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import Providers from '@/components/Providers'
@@ -49,9 +50,11 @@ export default async function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
-          <SurgeryProvider initialSurgery={initialSurgery} availableSurgeries={surgeries}>
-            {children}
-          </SurgeryProvider>
+          <CardStyleProvider>
+            <SurgeryProvider initialSurgery={initialSurgery} availableSurgeries={surgeries}>
+              {children}
+            </SurgeryProvider>
+          </CardStyleProvider>
         </Providers>
         <Toaster 
           position="top-right"

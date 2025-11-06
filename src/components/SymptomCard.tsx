@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { useSurgery } from '@/context/SurgeryContext'
-import { useCardStyle } from '@/hooks/useCardStyle'
+import { useCardStyle } from '@/context/CardStyleContext'
 
 interface SymptomCardProps {
   symptom: EffectiveSymptom
