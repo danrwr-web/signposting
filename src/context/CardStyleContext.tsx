@@ -20,6 +20,7 @@ interface ProviderProps {
 export function CardStyleProvider({ children }: ProviderProps) {
   const [cardStyle, setCardStyleState] = useState<CardStyle>('default')
   const [isHydrated, setIsHydrated] = useState(false)
+  const [version, setVersion] = useState(0)
 
   // Load from localStorage on mount (client-side only)
   useEffect(() => {
@@ -34,19 +35,21 @@ export function CardStyleProvider({ children }: ProviderProps) {
 
   // Update state and localStorage when style changes
   const setCardStyle = useCallback((style: CardStyle) => {
-    setCardStyleState((current) => {
-      // Always update even if same value to ensure re-render
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY, style)
-      }
-      return style
-    })
+    // Update localStorage first
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, style)
+    }
+    // Update state - React will detect this change and re-render all consumers
+    setCardStyleState(style)
+    // Force a version bump to ensure re-render
+    setVersion(v => v + 1)
   }, [])
 
   const value = useMemo(() => ({
     cardStyle,
-    setCardStyle
-  }), [cardStyle, setCardStyle])
+    setCardStyle,
+    version // Include version to force new object reference
+  }), [cardStyle, setCardStyle, version])
 
   return (
     <CardStyleContext.Provider value={value}>
