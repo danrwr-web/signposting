@@ -743,22 +743,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             </p>
           </div>
           <div className="flex gap-2">
-            {session.type === 'surgery' && session.surgeryId && (
-              <a
-                href={`/s/${session.surgeryId}/appointments`}
-                className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Nurse / HCA Appointments
-              </a>
-            )}
-            {session.type === 'superuser' && (selectedSurgery || surgeries[0]?.id) && (
-              <a
-                href={`/s/${selectedSurgery || surgeries[0]?.id}/appointments`}
-                className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Nurse / HCA Appointments
-              </a>
-            )}
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"

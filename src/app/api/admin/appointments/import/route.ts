@@ -138,6 +138,30 @@ export async function POST(request: NextRequest) {
       }
 
       const name = row['Appointment Name'].trim()
+      
+      // Skip junk rows
+      if (name === '') {
+        continue
+      }
+      
+      // Skip if name starts with comma
+      if (name.startsWith(',')) {
+        continue
+      }
+      
+      // Skip if name is GUID-like (e.g., "21b2af26-...")
+      if (/^[0-9a-fA-F-]{20,}$/.test(name)) {
+        continue
+      }
+      
+      // Skip if row only has columns starting with "__"
+      const hasNonUnderscoreColumn = Object.keys(row).some(key => 
+        !key.startsWith('__') && row[key] && row[key].trim() !== ''
+      )
+      if (!hasNonUnderscoreColumn) {
+        continue
+      }
+
       const durationMins = parseDuration(row.Duration)
       const staffType = pickStaff(row)
       const notes = row.Notes?.trim() || null

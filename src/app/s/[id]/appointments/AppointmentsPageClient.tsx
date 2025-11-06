@@ -140,7 +140,7 @@ export default function AppointmentsPageClient({
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-nhs-dark-blue mb-2">
-            Practice Nurse & HCA Appointments
+            Appointment Directory
           </h1>
           <p className="text-nhs-grey">
             {surgeryName}
