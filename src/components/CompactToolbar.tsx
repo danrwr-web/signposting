@@ -145,6 +145,16 @@ export default function CompactToolbar({
               </Link>
             )}
 
+            {/* Appointment Directory Link - visible to all logged-in surgery users */}
+            {currentSurgeryId && (
+              <Link
+                href={`/s/${currentSurgeryId}/appointments`}
+                className="text-sm font-medium text-slate-700 hover:text-sky-700"
+              >
+                Appointment Directory
+              </Link>
+            )}
+
             {/* Help Link - visible to all authenticated users */}
             <Link 
               href="/help" 
