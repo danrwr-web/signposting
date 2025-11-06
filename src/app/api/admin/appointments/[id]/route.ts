@@ -94,3 +94,55 @@ export async function PATCH(
   }
 }
 
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    
+    // Get existing appointment to check surgeryId
+    const existing = await prisma.appointmentType.findUnique({
+      where: { id },
+      select: { surgeryId: true }
+    })
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Appointment not found' },
+        { status: 404 }
+      )
+    }
+
+    if (!existing.surgeryId) {
+      return NextResponse.json(
+        { error: 'Cannot delete appointment without surgeryId' },
+        { status: 400 }
+      )
+    }
+
+    // Check permissions - user must be surgery admin or superuser
+    const user = await requireSurgeryAdmin(existing.surgeryId)
+
+    // Delete appointment
+    await prisma.appointmentType.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting appointment:', error)
+    
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 403 }
+      )
+    }
+    
+    return NextResponse.json(
+      { error: 'Failed to delete appointment' },
+      { status: 500 }
+    )
+  }
+}

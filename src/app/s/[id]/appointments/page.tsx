@@ -16,7 +16,14 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
   const { id: surgeryId } = await params
   
   try {
-    const user = await requireSurgeryAccess(surgeryId)
+    // Get user with memberships
+    const user = await getSessionUser()
+    if (!user) {
+      redirect('/unauthorized')
+    }
+
+    // Verify user has access to this surgery
+    await requireSurgeryAccess(surgeryId)
     
     // Get surgery details
     const surgery = await prisma.surgery.findUnique({
@@ -31,9 +38,9 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
       redirect('/unauthorized')
     }
 
-    // Check if user is admin
-    const isAdmin = user.globalRole === 'SUPERUSER' || 
-      user.memberships.some(m => m.surgeryId === surgeryId && m.role === 'ADMIN')
+    // Check if user is admin for this surgery
+    const membership = user.memberships.find(m => m.surgeryId === surgeryId)
+    const isAdmin = user.globalRole === 'SUPERUSER' || membership?.role === 'ADMIN'
 
     return (
       <AppointmentsPageClient 

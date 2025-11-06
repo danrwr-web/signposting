@@ -116,6 +116,24 @@ export default function AppointmentsPageClient({
     fetchAppointments()
   }
 
+  const handleDelete = async (appointment: AppointmentType) => {
+    if (!confirm(`Are you sure you want to delete "${appointment.name}"?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/appointments/${appointment.id}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) throw new Error('Failed to delete appointment')
+      toast.success('Appointment deleted')
+      fetchAppointments()
+    } catch (error) {
+      console.error('Error deleting appointment:', error)
+      toast.error('Failed to delete appointment')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -193,6 +211,7 @@ export default function AppointmentsPageClient({
                 appointment={appointment}
                 isAdmin={isAdmin}
                 onEdit={handleEdit}
+                onDelete={isAdmin ? handleDelete : undefined}
               />
             ))}
           </div>
