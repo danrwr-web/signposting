@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 export type CardStyle = 'default' | 'powerappsBlue'
 
@@ -33,17 +33,20 @@ export function CardStyleProvider({ children }: ProviderProps) {
   }, [])
 
   // Update state and localStorage when style changes
-  const setCardStyle = (style: CardStyle) => {
-    setCardStyleState(style)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, style)
-    }
-  }
+  const setCardStyle = useCallback((style: CardStyle) => {
+    setCardStyleState((current) => {
+      // Always update even if same value to ensure re-render
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, style)
+      }
+      return style
+    })
+  }, [])
 
   const value = useMemo(() => ({
     cardStyle,
     setCardStyle
-  }), [cardStyle])
+  }), [cardStyle, setCardStyle])
 
   return (
     <CardStyleContext.Provider value={value}>

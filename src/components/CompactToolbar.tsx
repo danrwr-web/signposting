@@ -203,7 +203,11 @@ export default function CompactToolbar({
               <label className="text-xs text-nhs-grey font-medium">Card appearance</label>
               <div className="flex gap-1">
                 <button
-                  onClick={() => setCardStyle('default')}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setCardStyle('default')
+                  }}
                   className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                     cardStyle === 'default'
                       ? 'bg-nhs-blue text-white'
@@ -215,7 +219,11 @@ export default function CompactToolbar({
                   Modern
                 </button>
                 <button
-                  onClick={() => setCardStyle('powerappsBlue')}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    setCardStyle('powerappsBlue')
+                  }}
                   className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
                     cardStyle === 'powerappsBlue'
                       ? 'bg-nhs-blue text-white'
