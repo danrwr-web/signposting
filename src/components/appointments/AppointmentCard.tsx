@@ -1,6 +1,7 @@
 'use client'
 
 import type { CSSProperties } from 'react'
+import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
 
 interface AppointmentType {
   id: string
@@ -17,6 +18,7 @@ interface AppointmentCardProps {
   isAdmin: boolean
   onEdit: (appointment: AppointmentType) => void
   onDelete?: (appointment: AppointmentType) => void
+  staffTypeMap: Map<string, StaffTypeResponse>
 }
 
 interface StaffColour {
@@ -25,67 +27,26 @@ interface StaffColour {
   customStyle?: CSSProperties
 }
 
-function resolveCustomColour(defaultColour: string): StaffColour {
-  if (defaultColour.startsWith('#')) {
-    return {
-      backgroundClass: 'bg-white',
-      borderClass: 'border-nhs-light-grey',
-      customStyle: { backgroundColor: defaultColour }
-    }
-  }
-
-  if (defaultColour.startsWith('bg-')) {
-    return {
-      backgroundClass: defaultColour,
-      borderClass: 'border-nhs-light-grey'
-    }
-  }
-
-  return {
-    backgroundClass: 'bg-nhs-light-grey',
-    borderClass: 'border-nhs-light-grey'
-  }
-}
-
-function getStaffColour(staffType: string | null, defaultColour: string | null): StaffColour {
-  if (defaultColour) {
-    return resolveCustomColour(defaultColour)
-  }
-
-  if (!staffType) {
+function resolveColourToken(colour: string | null): StaffColour {
+  if (!colour) {
     return {
       backgroundClass: 'bg-nhs-light-grey',
       borderClass: 'border-nhs-light-grey'
     }
   }
 
-  const normalized = staffType.trim().toLowerCase()
-
-  if (normalized === 'pn' || normalized.includes('pn')) {
+  if (colour.startsWith('#')) {
     return {
-      backgroundClass: 'bg-nhs-green-tint',
-      borderClass: 'border-nhs-green'
+      backgroundClass: 'bg-white',
+      borderClass: 'border-nhs-light-grey',
+      customStyle: { backgroundColor: colour }
     }
   }
 
-  if (normalized === 'hca' || normalized.includes('hca')) {
+  if (colour.startsWith('bg-')) {
     return {
-      backgroundClass: 'bg-nhs-red-tint',
-      borderClass: 'border-nhs-red'
-    }
-  }
-
-  if (normalized.includes('dr') || normalized.includes('doctor')) {
-    return {
-      backgroundClass: 'bg-nhs-light-blue',
-      borderClass: 'border-nhs-blue'
-    }
-  }
-
-  if (normalized === 'all') {
-    return {
-      backgroundClass: 'bg-nhs-yellow-tint',
-      borderClass: 'border-nhs-yellow'
+      backgroundClass: colour,
+      borderClass: 'border-nhs-light-grey'
     }
   }
 
@@ -95,11 +56,42 @@ function getStaffColour(staffType: string | null, defaultColour: string | null):
   }
 }
 
-export default function AppointmentCard({ appointment, isAdmin, onEdit, onDelete }: AppointmentCardProps) {
-  const { backgroundClass, borderClass, customStyle } = getStaffColour(
+function deriveStaffColour(
+  staffType: string | null,
+  appointmentColour: string | null,
+  staffTypeMap: Map<string, StaffTypeResponse>
+): StaffColour {
+  if (appointmentColour) {
+    return resolveColourToken(appointmentColour)
+  }
+
+  if (staffType) {
+    const normalized = normalizeStaffLabel(staffType)
+    const match = staffTypeMap.get(normalized)
+    if (match?.defaultColour) {
+      return resolveColourToken(match.defaultColour)
+    }
+  }
+
+  return resolveColourToken(null)
+}
+
+export default function AppointmentCard({
+  appointment,
+  isAdmin,
+  onEdit,
+  onDelete,
+  staffTypeMap
+}: AppointmentCardProps) {
+  const { backgroundClass, borderClass, customStyle } = deriveStaffColour(
     appointment.staffType,
-    appointment.colour
+    appointment.colour,
+    staffTypeMap
   )
+
+  const staffLabel = appointment.staffType
+    ? staffTypeMap.get(normalizeStaffLabel(appointment.staffType))?.label ?? appointment.staffType
+    : null
 
   return (
     <div
@@ -167,10 +159,10 @@ export default function AppointmentCard({ appointment, isAdmin, onEdit, onDelete
       )}
 
       {/* Staff Type Badge */}
-      {appointment.staffType && (
+      {staffLabel && (
         <div className="mb-2">
           <span className="inline-block rounded-full bg-white/80 px-2 py-1 text-xs font-medium text-nhs-grey">
-            {appointment.staffType}
+            {staffLabel}
           </span>
         </div>
       )}

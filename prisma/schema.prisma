@@ -90,6 +90,7 @@ model Surgery {
   symptomStatuses         SurgerySymptomStatus[]
   surgeryFeatureFlags     SurgeryFeatureFlag[]
   appointmentTypes        AppointmentType[]
+  appointmentStaffTypes   AppointmentStaffType[]
 }
 
 model BaseSymptom {
@@ -442,4 +443,22 @@ model AppointmentType {
   Surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@index([surgeryId])
+}
+
+model AppointmentStaffType {
+  id               String   @id @default(cuid())
+  surgeryId        String?
+  label            String
+  normalizedLabel  String
+  defaultColour    String?
+  orderIndex       Int      @default(0)
+  isBuiltIn        Boolean  @default(false)
+  isEnabled        Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@unique([surgeryId, normalizedLabel])
+  @@index([surgeryId, orderIndex])
 }

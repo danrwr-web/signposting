@@ -6,8 +6,10 @@ import { Surgery } from '@prisma/client'
 import AppointmentCsvUpload from '@/components/appointments/AppointmentCsvUpload'
 import AppointmentCard from '@/components/appointments/AppointmentCard'
 import AppointmentEditModal from '@/components/appointments/AppointmentEditModal'
+import StaffTypesManager from '@/components/appointments/StaffTypesManager'
 import Modal from '@/components/appointments/Modal'
 import SimpleHeader from '@/components/SimpleHeader'
+import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
 
 interface AppointmentType {
   id: string
@@ -24,23 +26,27 @@ interface AppointmentsPageClientProps {
   surgeryName: string
   isAdmin: boolean
   surgeries: Surgery[]
+  initialStaffTypes: StaffTypeResponse[]
 }
 
 export default function AppointmentsPageClient({ 
   surgeryId, 
   surgeryName,
   isAdmin,
-  surgeries
+  surgeries,
+  initialStaffTypes
 }: AppointmentsPageClientProps) {
   const [appointments, setAppointments] = useState<AppointmentType[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedFilter, setSelectedFilter] = useState<string>('All')
+  const [staffTypes, setStaffTypes] = useState<StaffTypeResponse[]>(initialStaffTypes)
+  const [selectedFilter, setSelectedFilter] = useState<string>('ALL')
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<AppointmentType | null>(null)
   const [appointmentPendingDelete, setAppointmentPendingDelete] = useState<AppointmentType | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [showStaffTypesModal, setShowStaffTypesModal] = useState(false)
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const deleteCancelButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -66,6 +72,72 @@ export default function AppointmentsPageClient({
     fetchAppointments()
   }, [surgeryId])
 
+  const fetchStaffTypes = async () => {
+    try {
+      const response = await fetch(`/api/appointments/staff-types?surgeryId=${surgeryId}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch staff teams')
+      }
+      const data = await response.json()
+      if (Array.isArray(data.staffTypes)) {
+        setStaffTypes(data.staffTypes)
+      }
+    } catch (error) {
+      console.error('Error fetching staff types:', error)
+      toast.error('Failed to load staff teams')
+    }
+  }
+
+  useEffect(() => {
+    fetchStaffTypes()
+  }, [surgeryId])
+
+  const staffTypeMap = useMemo(() => {
+    const map = new Map<string, StaffTypeResponse>()
+    staffTypes.forEach((type) => {
+      map.set(type.normalizedLabel, type)
+    })
+    return map
+  }, [staffTypes])
+
+  const filterOptions = useMemo(() => {
+    const enabledTypes = staffTypes
+      .filter((type) => type.isEnabled !== false)
+      .sort((a, b) => {
+        if (a.orderIndex === b.orderIndex) {
+          return a.label.localeCompare(b.label)
+        }
+        return a.orderIndex - b.orderIndex
+      })
+
+    return [
+      {
+        id: 'ALL',
+        label: 'All',
+        normalizedLabel: 'ALL',
+        defaultColour: 'bg-nhs-yellow-tint'
+      },
+      ...enabledTypes.map((type) => ({
+        id: type.id,
+        label: type.label,
+        normalizedLabel: type.normalizedLabel,
+        defaultColour: type.defaultColour ?? null
+      }))
+    ]
+  }, [staffTypes])
+
+  useEffect(() => {
+    if (selectedFilter === 'ALL') {
+      return
+    }
+    const stillExists = staffTypes.some(
+      (type) => type.isEnabled !== false && type.normalizedLabel === selectedFilter
+    )
+    if (!stillExists) {
+      setSelectedFilter('ALL')
+    }
+  }, [staffTypes, selectedFilter])
+
   // Filter appointments
   const filteredAppointments = useMemo(() => {
     return appointments.filter(apt => {
@@ -73,9 +145,11 @@ export default function AppointmentsPageClient({
         apt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (apt.notes && apt.notes.toLowerCase().includes(searchTerm.toLowerCase()))
       
-      const matchesFilter = selectedFilter === 'All' || 
-        apt.staffType === selectedFilter ||
-        (selectedFilter === 'Dr' && apt.staffType?.includes('Dr'))
+      const matchesFilter = selectedFilter === 'ALL' || (
+        apt.staffType
+          ? normalizeStaffLabel(apt.staffType) === selectedFilter
+          : false
+      )
       
       return matchesSearch && matchesFilter
     })
@@ -187,24 +261,24 @@ export default function AppointmentsPageClient({
 
             {/* Filter Buttons */}
             <div className="flex gap-2 flex-wrap">
-              {['All', 'PN', 'HCA', 'Dr'].map((filter) => (
+              {filterOptions.map((option) => (
                 <button
-                  key={filter}
-                  onClick={() => setSelectedFilter(filter)}
+                  key={option.normalizedLabel}
+                  onClick={() => setSelectedFilter(option.normalizedLabel)}
                   className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    selectedFilter === filter
+                    selectedFilter === option.normalizedLabel
                       ? 'bg-nhs-blue text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {filter}
+                  {option.label}
                 </button>
               ))}
             </div>
 
             {/* Admin Actions */}
             {isAdmin && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setShowUploadModal(true)}
                   className="rounded-md bg-nhs-green px-4 py-2 text-white transition-colors hover:bg-nhs-green-dark focus:outline-none focus:ring-2 focus:ring-nhs-green"
@@ -216,6 +290,12 @@ export default function AppointmentsPageClient({
                   className="rounded-md bg-nhs-blue px-4 py-2 text-white transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
                 >
                   Add New Entry
+                </button>
+                <button
+                  onClick={() => setShowStaffTypesModal(true)}
+                  className="rounded-md border border-nhs-blue px-4 py-2 text-nhs-blue transition-colors hover:bg-nhs-light-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+                >
+                  Manage Staff Teams
                 </button>
               </div>
             )}
@@ -236,6 +316,7 @@ export default function AppointmentsPageClient({
                 isAdmin={isAdmin}
                 onEdit={handleEdit}
                 onDelete={isAdmin ? handleDelete : undefined}
+                staffTypeMap={staffTypeMap}
               />
             ))}
           </div>
@@ -278,6 +359,7 @@ export default function AppointmentsPageClient({
         {(showAddModal || editingAppointment) && (
           <AppointmentEditModal
             appointment={editingAppointment}
+            staffTypes={filterOptions}
             onSave={handleSave}
             onCancel={() => {
               setShowAddModal(false)
@@ -322,6 +404,17 @@ export default function AppointmentsPageClient({
               </button>
             </div>
           </Modal>
+        )}
+
+        {showStaffTypesModal && (
+          <StaffTypesManager
+            surgeryId={surgeryId}
+            staffTypes={staffTypes}
+            onClose={() => setShowStaffTypesModal(false)}
+            onUpdated={() => {
+              fetchStaffTypes()
+            }}
+          />
         )}
       </div>
     </div>

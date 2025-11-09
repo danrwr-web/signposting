@@ -42,6 +42,30 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
       orderBy: { name: 'asc' }
     })
 
+    const staffTypeRecords = await prisma.appointmentStaffType.findMany({
+      where: {
+        OR: [
+          { surgeryId },
+          { surgeryId: null }
+        ]
+      },
+      orderBy: [
+        { orderIndex: 'asc' },
+        { label: 'asc' }
+      ]
+    })
+
+    const staffTypes = staffTypeRecords.map((record) => ({
+      id: record.id,
+      label: record.label,
+      normalizedLabel: record.normalizedLabel,
+      defaultColour: record.defaultColour,
+      isBuiltIn: record.isBuiltIn,
+      isEnabled: record.isEnabled,
+      orderIndex: record.orderIndex,
+      surgeryId: record.surgeryId
+    }))
+
     // Check if user is admin for this surgery
     const membership = user.memberships.find(m => m.surgeryId === surgeryId)
     const isAdmin = user.globalRole === 'SUPERUSER' || membership?.role === 'ADMIN'
@@ -52,6 +76,7 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
         surgeryName={surgery.name}
         isAdmin={isAdmin}
         surgeries={surgeries}
+        initialStaffTypes={staffTypes}
       />
     )
   } catch (error) {

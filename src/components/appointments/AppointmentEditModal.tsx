@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Modal from './Modal'
+import { normalizeStaffLabel } from '@/lib/staffTypes'
 
 interface AppointmentType {
   id: string
@@ -13,17 +14,18 @@ interface AppointmentType {
   isEnabled: boolean
 }
 
-interface AppointmentEditModalProps {
-  appointment: AppointmentType | null
-  onSave: (data: Partial<AppointmentType>) => void
-  onCancel: () => void
+interface StaffTypeOption {
+  id: string
+  label: string
+  normalizedLabel: string
+  defaultColour: string | null
 }
 
-const STAFF_TYPE_DEFAULT_COLOURS: Record<string, string> = {
-  ALL: 'bg-nhs-yellow-tint',
-  PN: 'bg-nhs-green-tint',
-  HCA: 'bg-nhs-red-tint',
-  DR: 'bg-nhs-light-blue'
+interface AppointmentEditModalProps {
+  appointment: AppointmentType | null
+  staffTypes: StaffTypeOption[]
+  onSave: (data: Partial<AppointmentType>) => void
+  onCancel: () => void
 }
 
 const COLOUR_PRESETS: Array<{ label: string; value: string }> = [
@@ -37,20 +39,13 @@ const COLOUR_PRESETS: Array<{ label: string; value: string }> = [
   { label: 'Charcoal', value: '#2F3133' }
 ]
 
-function getDefaultColourForStaff(staffType: string | null | undefined): string {
-  if (!staffType) {
-    return STAFF_TYPE_DEFAULT_COLOURS.ALL
-  }
-  const key = staffType.trim().toUpperCase()
-  return STAFF_TYPE_DEFAULT_COLOURS[key] ?? STAFF_TYPE_DEFAULT_COLOURS.ALL
-}
-
 function isHexColour(value: string): boolean {
   return value.startsWith('#')
 }
 
 export default function AppointmentEditModal({
   appointment,
+  staffTypes,
   onSave,
   onCancel
 }: AppointmentEditModalProps) {
@@ -61,6 +56,22 @@ export default function AppointmentEditModal({
   const [colour, setColour] = useState('')
   const [hasCustomColour, setHasCustomColour] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
+
+  const staffTypeMap = useMemo(() => {
+    const map = new Map<string, StaffTypeOption>()
+    staffTypes.forEach((type) => {
+      map.set(type.normalizedLabel, type)
+    })
+    return map
+  }, [staffTypes])
+
+  const getDefaultColourForStaff = (value: string | null): string => {
+    if (!value) {
+      return staffTypeMap.get('ALL')?.defaultColour || 'bg-nhs-yellow-tint'
+    }
+    const normalized = normalizeStaffLabel(value)
+    return staffTypeMap.get(normalized)?.defaultColour || staffTypeMap.get('ALL')?.defaultColour || 'bg-nhs-yellow-tint'
+  }
 
   useEffect(() => {
     if (appointment) {
@@ -86,18 +97,18 @@ export default function AppointmentEditModal({
       setColour(defaultColour)
       setHasCustomColour(false)
     }
-  }, [appointment])
+  }, [appointment, staffTypes])
 
   useEffect(() => {
     if (!hasCustomColour) {
       const defaultColour = getDefaultColourForStaff(staffType)
       setColour(defaultColour)
     }
-  }, [staffType, hasCustomColour])
+  }, [staffType, hasCustomColour, staffTypes])
 
   const defaultColour = useMemo(
     () => getDefaultColourForStaff(staffType),
-    [staffType]
+    [staffType, staffTypes]
   )
 
   const effectiveColour = hasCustomColour
@@ -183,10 +194,11 @@ export default function AppointmentEditModal({
             onChange={(event) => setStaffType(event.target.value)}
             className="w-full rounded-md border border-nhs-light-grey px-3 py-2 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
           >
-            <option value="All">All</option>
-            <option value="PN">PN</option>
-            <option value="HCA">HCA</option>
-            <option value="Dr">Dr</option>
+            {staffTypes.map((type) => (
+              <option key={type.normalizedLabel} value={type.label}>
+                {type.label}
+              </option>
+            ))}
           </select>
         </div>
 

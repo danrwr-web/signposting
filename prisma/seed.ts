@@ -2,8 +2,42 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+const normalizeStaffLabel = (label: string) =>
+  label.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_') || 'STAFF'
+
+async function ensureBuiltInStaffTypes() {
+  const builtInTypes = [
+    { label: 'All', defaultColour: 'bg-nhs-yellow-tint', orderIndex: 0 },
+    { label: 'PN', defaultColour: 'bg-nhs-green-tint', orderIndex: 1 },
+    { label: 'HCA', defaultColour: 'bg-nhs-red-tint', orderIndex: 2 },
+    { label: 'Dr', defaultColour: 'bg-nhs-light-blue', orderIndex: 3 }
+  ]
+
+  for (const type of builtInTypes) {
+    await prisma.appointmentStaffType.upsert({
+      where: {
+        surgeryId_normalizedLabel: {
+          surgeryId: null,
+          normalizedLabel: normalizeStaffLabel(type.label)
+        }
+      },
+      update: {},
+      create: {
+        label: type.label,
+        normalizedLabel: normalizeStaffLabel(type.label),
+        defaultColour: type.defaultColour,
+        orderIndex: type.orderIndex,
+        isBuiltIn: true,
+        isEnabled: true
+      }
+    })
+  }
+}
+
 async function main() {
   console.log('Starting seed...')
+
+  await ensureBuiltInStaffTypes()
 
   // Create sample surgeries
   const surgery1 = await prisma.surgery.upsert({
