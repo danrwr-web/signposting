@@ -8,12 +8,11 @@ import SearchBox from './SearchBox'
 import AlphabetStrip from './AlphabetStrip'
 import AgeFilter from './AgeFilter'
 import HighRiskButtons from './HighRiskButtons'
-import PasswordChangeModal from './PasswordChangeModal'
+import UserPreferencesModal from './UserPreferencesModal'
 import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
 import LogoSizeControl from './LogoSizeControl'
-import { useCardStyle } from '@/context/CardStyleContext'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -50,8 +49,7 @@ export default function CompactToolbar({
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { data: session } = useSession()
   const { surgery } = useSurgery()
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const { cardStyle, setCardStyle } = useCardStyle()
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   
   // Check if user is a superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
@@ -165,9 +163,9 @@ export default function CompactToolbar({
 
             {/* Settings Gear Icon */}
             <button
-              onClick={() => setShowPasswordModal(true)}
+              onClick={() => setShowPreferencesModal(true)}
               className="p-2 text-nhs-grey hover:text-nhs-blue transition-colors"
-              title="Change Password"
+              title="Open preferences"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -210,51 +208,8 @@ export default function CompactToolbar({
             </div>
           </div>
 
-          {/* Right side: Display Toggle and Results Count */}
+          {/* Right side: Results Count */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            {/* Display Toggle */}
-            <div className="flex flex-col items-end">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Display:</span>
-                <div className="inline-flex rounded-full bg-slate-100 p-1">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setCardStyle('default')
-                    }}
-                    className={`px-3 py-1 text-xs rounded-full transition ${
-                      cardStyle === 'default'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500'
-                    }`}
-                    aria-pressed={cardStyle === 'default'}
-                    aria-label="Modern card style"
-                  >
-                    Modern
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      setCardStyle('powerappsBlue')
-                    }}
-                    className={`px-3 py-1 text-xs rounded-full transition ${
-                      cardStyle === 'powerappsBlue'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-500'
-                    }`}
-                    aria-pressed={cardStyle === 'powerappsBlue'}
-                    aria-label="Blue card style"
-                  >
-                    Blue
-                  </button>
-                </div>
-              </div>
-              <p className="text-[10px] text-slate-400 text-right mt-1">Saved in this browser only.</p>
-            </div>
-
-            {/* Results Count */}
             <div className="flex-shrink-0 text-sm text-nhs-grey">
               {resultsCount} of {totalCount}
               {selectedLetter !== 'All' && ` (${selectedLetter})`}
@@ -285,10 +240,10 @@ export default function CompactToolbar({
         </div>
       </div>
 
-      {/* Password Change Modal */}
-      <PasswordChangeModal 
-        isOpen={showPasswordModal}
-        onClose={() => setShowPasswordModal(false)}
+      {/* User Preferences Modal */}
+      <UserPreferencesModal 
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
       />
     </div>
   )
