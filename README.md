@@ -17,6 +17,7 @@ The toolkit replaces the PowerApps version and includes 200+ pre-loaded symptoms
 - **Role-based access**: Three-tier system (Superuser / Admin / Standard)
 - **Multi-surgery data isolation**: Each surgery maintains independent symptom configurations
 - **Symptom Library**: Intuitive file-explorer layout for enabling, disabling, and previewing symptoms
+- **Appointments Directory**: Reception-friendly appointment catalogue with search, filtering by staff team, CSV import, and customisable entry cards
 - **Base + override data model**: Shared base symptoms with per-surgery customisations
 - **Clinical Review workflow**: Governance audit trail with reviewer tracking and sign-off
 - **Engagement tracking**: Monitor symptom views and user suggestions
@@ -38,6 +39,7 @@ The toolkit replaces the PowerApps version and includes 200+ pre-loaded symptoms
 - **Modernised layout**: Row-card design with badges and hover states
 - **Rich Text Editor**: TipTap + ProseMirror integration with highlight preview
 - **Image icon management**: Upload and configure icons that appear on symptom cards
+- **Appointment staff teams**: Create surgery-specific staff teams, manage colour defaults, and sync with directory filters
 
 ### 🔹 UI and Accessibility
 
