@@ -102,7 +102,7 @@ export default function AppointmentsPageClient({
 
   const filterOptions = useMemo(() => {
     const enabledTypes = staffTypes
-      .filter((type) => type.isEnabled !== false)
+      .filter((type) => type.isEnabled !== false && type.normalizedLabel !== 'ALL')
       .sort((a, b) => {
         if (a.orderIndex === b.orderIndex) {
           return a.label.localeCompare(b.label)
