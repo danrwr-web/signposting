@@ -25,19 +25,26 @@ interface StaffTypesManagerProps {
   onUpdated: () => void
 }
 
-export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUpdated }: StaffTypesManagerProps) {
+export default function StaffTypesManager({
+  surgeryId,
+  staffTypes,
+  onClose,
+  onUpdated
+}: StaffTypesManagerProps) {
   const [label, setLabel] = useState('')
   const [colour, setColour] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
-  const customStaffTypes = useMemo(() => {
-    return staffTypes.filter((type) => type.surgeryId === surgeryId)
-  }, [staffTypes, surgeryId])
+  const customStaffTypes = useMemo(
+    () => staffTypes.filter((type) => type.surgeryId === surgeryId),
+    [staffTypes, surgeryId]
+  )
 
-  const builtInStaffTypes = useMemo(() => {
-    return staffTypes.filter((type) => type.surgeryId === null)
-  }, [staffTypes])
+  const builtInStaffTypes = useMemo(
+    () => staffTypes.filter((type) => type.surgeryId === null),
+    [staffTypes]
+  )
 
   const handleCreate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -75,7 +82,7 @@ export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUp
   const handleUpdateColour = async (id: string, value: string) => {
     setUpdatingId(id)
     try {
-      const response = await fetch(/api/admin/appointments/staff-types/, {
+      const response = await fetch(`/api/admin/appointments/staff-types/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ defaultColour: value })
@@ -95,12 +102,12 @@ export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUp
   }
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(Remove staff team ""? Appointments using this team will move to All.)) {
+    if (!confirm(`Remove staff team "${name}"? Appointments using this team will move to All.`)) {
       return
     }
     setUpdatingId(id)
     try {
-      const response = await fetch(/api/admin/appointments/staff-types/, {
+      const response = await fetch(`/api/admin/appointments/staff-types/${id}`, {
         method: 'DELETE'
       })
       if (!response.ok) {
@@ -124,10 +131,10 @@ export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUp
       onClose={onClose}
     >
       <section className="space-y-6">
-        <form onSubmit={handleCreate} className="space-y-4 border border-nhs-light-grey rounded-lg p-4">
+        <form onSubmit={handleCreate} className="space-y-4 rounded-lg border border-nhs-light-grey p-4">
           <h3 className="text-sm font-semibold text-nhs-dark-blue">Add a new staff team</h3>
           <div>
-            <label className="block text-sm font-medium text-nhs-grey mb-1" htmlFor="staff-label">
+            <label className="mb-1 block text-sm font-medium text-nhs-grey" htmlFor="staff-label">
               Team name
             </label>
             <input
@@ -140,7 +147,7 @@ export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUp
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-nhs-grey mb-2">
+            <label className="mb-2 block text-sm font-medium text-nhs-grey">
               Default colour (optional)
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -149,7 +156,9 @@ export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUp
                   key={option.value}
                   type="button"
                   onClick={() => setColour(option.value)}
-                  className={lex h-10 w-full items-center justify-center rounded-md border  }
+                  className={`flex h-10 w-full items-center justify-center rounded-md border ${
+                    colour === option.value ? 'ring-2 ring-nhs-blue border-transparent' : 'border-nhs-light-grey'
+                  } ${option.value.startsWith('#') ? '' : option.value}`}
                   style={option.value.startsWith('#') ? { backgroundColor: option.value } : undefined}
                   title={option.label}
                 >
@@ -188,12 +197,14 @@ export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUp
               const swatchColour = type.defaultColour || DEFAULT_COLOUR
               return (
                 <div
-                  key={${type.surgeryId ?? 'global'}-}
+                  key={`${type.surgeryId ?? 'global'}-${type.id}`}
                   className="flex items-center justify-between rounded-lg border border-nhs-light-grey px-4 py-3"
                 >
                   <div className="flex items-center gap-4">
                     <div
-                      className={h-8 w-8 rounded-md border border-nhs-light-grey }
+                      className={`h-8 w-8 rounded-md border border-nhs-light-grey ${
+                        swatchColour.startsWith('#') ? '' : swatchColour
+                      }`}
                       style={swatchColour.startsWith('#') ? { backgroundColor: swatchColour } : undefined}
                       aria-hidden="true"
                     />
@@ -209,12 +220,16 @@ export default function StaffTypesManager({ surgeryId, staffTypes, onClose, onUp
                       <div className="flex items-center gap-2">
                         {COLOUR_PRESETS.map((option) => (
                           <button
-                            key={${type.id}-}
+                            key={`${type.id}-${option.value}`}
                             type="button"
                             onClick={() => handleUpdateColour(type.id, option.value)}
-                            className={h-6 w-6 rounded-full border  }
+                            className={`h-6 w-6 rounded-full border ${
+                              option.value === type.defaultColour
+                                ? 'ring-2 ring-nhs-blue border-transparent'
+                                : 'border-nhs-light-grey'
+                            } ${option.value.startsWith('#') ? '' : option.value}`}
                             style={option.value.startsWith('#') ? { backgroundColor: option.value } : undefined}
-                            title={Set colour to }
+                            title={`Set colour to ${option.label}`}
                             disabled={updatingId === type.id}
                           >
                             <span className="sr-only">Set to {option.label}</span>
