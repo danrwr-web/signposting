@@ -38,6 +38,10 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
       redirect('/unauthorized')
     }
 
+    const surgeries = await prisma.surgery.findMany({
+      orderBy: { name: 'asc' }
+    })
+
     // Check if user is admin for this surgery
     const membership = user.memberships.find(m => m.surgeryId === surgeryId)
     const isAdmin = user.globalRole === 'SUPERUSER' || membership?.role === 'ADMIN'
@@ -47,6 +51,7 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
         surgeryId={surgeryId}
         surgeryName={surgery.name}
         isAdmin={isAdmin}
+        surgeries={surgeries}
       />
     )
   } catch (error) {

@@ -5,12 +5,27 @@ import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
 import LogoSizeControl from './LogoSizeControl'
 
+interface DirectoryLinkOverride {
+  href: string
+  label: string
+}
+
 interface SimpleHeaderProps {
   surgeries: Surgery[]
   currentSurgeryId?: string
+  directoryLinkOverride?: DirectoryLinkOverride
 }
 
-export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHeaderProps) {
+export default function SimpleHeader({
+  surgeries,
+  currentSurgeryId,
+  directoryLinkOverride
+}: SimpleHeaderProps) {
+  const appointmentLinkHref =
+    directoryLinkOverride?.href ??
+    (currentSurgeryId ? `/s/${currentSurgeryId}/appointments` : '/')
+  const appointmentLinkLabel = directoryLinkOverride?.label ?? 'Appointment Directory'
+
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,11 +53,11 @@ export default function SimpleHeader({ surgeries, currentSurgeryId }: SimpleHead
             {/* Appointment Directory Link - visible when a surgery is selected */}
             {currentSurgeryId && (
               <Link 
-                href={`/s/${currentSurgeryId}/appointments`}
+                href={appointmentLinkHref}
                 prefetch={false}
                 className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
               >
-                Appointment Directory
+                {appointmentLinkLabel}
               </Link>
             )}
             
