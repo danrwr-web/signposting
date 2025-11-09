@@ -15,7 +15,7 @@ interface SymptomCardProps {
 
 export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
   const { currentSurgerySlug } = useSurgery()
-  const { cardStyle } = useCardStyle()
+  const { cardStyle, isSimplified } = useCardStyle()
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
@@ -159,56 +159,50 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
 
   const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgerySlug ? `?surgery=${effectiveSurgerySlug}` : ''}`
 
-  const isSimplified = cardStyle === 'simplified'
   const linkFocusClasses = cardStyle === 'powerappsBlue'
     ? 'focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#264c96]'
     : 'focus-visible:ring-nhs-blue focus-visible:ring-offset-2'
   const linkRadiusClass = cardStyle === 'powerappsBlue' ? 'rounded-xl' : 'rounded-lg'
+
   if (isSimplified) {
     const ageGroup = symptom.ageGroup || 'Adult'
     const ageLabel = getAgeGroupLabel(ageGroup)
     const sourceLabel = getSourceLabel(symptom.source || 'base')
-    const ageBadgeClasses = `inline-flex min-w-[4rem] justify-center rounded-full px-3 py-1 text-xs font-semibold ${getAgeGroupColor(ageGroup)}`
+    const simplifiedContainerClasses = cardStyle === 'powerappsBlue'
+      ? 'flex min-h-[180px] flex-col items-center justify-center gap-4 rounded-xl border border-[#173b80] bg-[#264c96] px-6 py-6 text-white shadow-sm transition hover:bg-[#305cae]'
+      : 'flex min-h-[180px] flex-col items-center justify-center gap-4 rounded-lg border border-slate-200 bg-white px-6 py-6 text-nhs-dark-blue shadow-sm transition hover:border-nhs-blue hover:shadow-md'
+    const ageBadgeClasses = `inline-flex min-w-[5rem] justify-center rounded-full px-4 py-1 text-sm font-semibold ${getAgeGroupColor(ageGroup)}`
 
     return (
       <Link
         href={linkUrl}
-        className={`group block ${linkRadiusClass} focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
+        className={`group block ${linkRadiusClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
       >
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-nhs-blue hover:shadow-md">
-          <div className="min-w-0 flex-1">
-            <h3 className="truncate text-base font-semibold text-nhs-dark-blue">
-              {symptom.name || 'Unknown Symptom'}
-            </h3>
-            {symptom.briefInstruction && (
-              <p
-                className="sr-only"
-                dangerouslySetInnerHTML={{
-                  __html: highlightText(symptom.briefInstruction)
-                }}
-              />
-            )}
-            {symptom.highlightedText && (
-              <p
-                className="sr-only"
-                dangerouslySetInnerHTML={{
-                  __html: highlightText(symptom.highlightedText)
-                }}
-              />
-            )}
-            <span className="sr-only">Source: {sourceLabel}</span>
-          </div>
-          <div className="flex flex-shrink-0 items-center gap-2">
-            <span className={ageBadgeClasses}>
-              {ageLabel}
-            </span>
-            <span
-              aria-hidden="true"
-              className="text-xs font-medium text-nhs-blue opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
-            >
-              Open →
-            </span>
-          </div>
+        <div className={simplifiedContainerClasses}>
+          <h3 className="text-center text-2xl font-semibold leading-snug">
+            {symptom.name || 'Unknown Symptom'}
+          </h3>
+          {symptom.briefInstruction && (
+            <p
+              className="sr-only"
+              dangerouslySetInnerHTML={{
+                __html: highlightText(symptom.briefInstruction)
+              }}
+            />
+          )}
+          {symptom.highlightedText && (
+            <p
+              className="sr-only"
+              dangerouslySetInnerHTML={{
+                __html: highlightText(symptom.highlightedText)
+              }}
+            />
+          )}
+          <span className={ageBadgeClasses}>
+            {ageLabel}
+          </span>
+          <span className="sr-only">Source: {sourceLabel}</span>
+          <span className="sr-only">Open symptom details</span>
         </div>
       </Link>
     )
@@ -216,8 +210,8 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
 
   // Style classes based on cardStyle
   const cardClasses = cardStyle === 'powerappsBlue'
-    ? 'bg-[#264c96] text-white hover:bg-[#305cae] rounded-xl shadow-sm px-4 py-3 cursor-pointer h-full flex flex-col'
-    : 'bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col'
+    ? 'bg-[#264c96] text-white hover:bg-[#305cae] rounded-xl shadow-sm px-4 py-3 cursor-pointer h-full min-h-[240px] flex flex-col'
+    : 'bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full min-h-[240px] flex flex-col'
 
   const titleClasses = cardStyle === 'powerappsBlue'
     ? 'text-base font-bold text-white leading-tight pr-2'
@@ -232,13 +226,13 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     : 'text-xs text-nhs-blue font-medium truncate flex-1'
 
   const openTextClasses = cardStyle === 'powerappsBlue'
-    ? 'text-xs text-white font-medium opacity-0 group-hover:opacity-100 transition-opacity'
-    : 'text-xs text-nhs-blue font-medium opacity-0 group-hover:opacity-100 transition-opacity'
+    ? 'text-xs text-white font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'
+    : 'text-xs text-nhs-blue font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'
 
   return (
     <Link
       href={linkUrl}
-      className={`group block ${linkRadiusClass} focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
+      className={`group block ${linkRadiusClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
     >
       <div className={cardClasses}>
         {/* Header with title and badges */}
@@ -259,7 +253,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
         </div>
         
         {/* Brief instruction - truncated */}
-        <div className="flex-1 mb-3">
+        <div className="flex-1 mb-3 min-h-[72px]">
           <p 
             className={instructionClasses}
             dangerouslySetInnerHTML={{ 
