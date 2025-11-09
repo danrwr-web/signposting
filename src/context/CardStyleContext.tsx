@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
-export type CardStyle = 'default' | 'powerappsBlue'
+export type CardStyle = 'default' | 'powerappsBlue' | 'simplified'
 
 interface CardStyleContextValue {
   cardStyle: CardStyle
@@ -26,7 +26,7 @@ export function CardStyleProvider({ children }: ProviderProps) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(STORAGE_KEY) as CardStyle | null
-      if (saved === 'default' || saved === 'powerappsBlue') {
+      if (saved === 'default' || saved === 'powerappsBlue' || saved === 'simplified') {
         setCardStyleState(saved)
       }
       setIsHydrated(true)

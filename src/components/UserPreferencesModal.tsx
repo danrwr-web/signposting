@@ -26,6 +26,11 @@ const CARD_APPEARANCE_OPTIONS: readonly CardAppearanceOption[] = [
     value: 'powerappsBlue',
     label: 'Blue',
     description: 'Classic blue cards that match the older design.'
+  },
+  {
+    value: 'simplified',
+    label: 'Simplified',
+    description: 'Compact cards that only show the symptom name and age group lozenge.'
   }
 ] as const
 

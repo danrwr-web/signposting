@@ -143,16 +143,81 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     }
   }
 
+  const getSourceLabel = (source: string) => {
+    if (source === 'override') {
+      return 'Practice Customised'
+    }
+    if (source === 'custom') {
+      return 'Practice Created'
+    }
+    return source || 'base'
+  }
+
   const highlightText = (text: string) => {
     return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
   }
 
   const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgerySlug ? `?surgery=${effectiveSurgerySlug}` : ''}`
 
+  const isSimplified = cardStyle === 'simplified'
+  const linkFocusClasses = cardStyle === 'powerappsBlue'
+    ? 'focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#264c96]'
+    : 'focus-visible:ring-nhs-blue focus-visible:ring-offset-2'
+  const linkRadiusClass = cardStyle === 'powerappsBlue' ? 'rounded-xl' : 'rounded-lg'
+  if (isSimplified) {
+    const ageGroup = symptom.ageGroup || 'Adult'
+    const ageLabel = getAgeGroupLabel(ageGroup)
+    const sourceLabel = getSourceLabel(symptom.source || 'base')
+    const ageBadgeClasses = `inline-flex min-w-[4rem] justify-center rounded-full px-3 py-1 text-xs font-semibold ${getAgeGroupColor(ageGroup)}`
+
+    return (
+      <Link
+        href={linkUrl}
+        className={`group block ${linkRadiusClass} focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
+      >
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:border-nhs-blue hover:shadow-md">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-base font-semibold text-nhs-dark-blue">
+              {symptom.name || 'Unknown Symptom'}
+            </h3>
+            {symptom.briefInstruction && (
+              <p
+                className="sr-only"
+                dangerouslySetInnerHTML={{
+                  __html: highlightText(symptom.briefInstruction)
+                }}
+              />
+            )}
+            {symptom.highlightedText && (
+              <p
+                className="sr-only"
+                dangerouslySetInnerHTML={{
+                  __html: highlightText(symptom.highlightedText)
+                }}
+              />
+            )}
+            <span className="sr-only">Source: {sourceLabel}</span>
+          </div>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <span className={ageBadgeClasses}>
+              {ageLabel}
+            </span>
+            <span
+              aria-hidden="true"
+              className="text-xs font-medium text-nhs-blue opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100"
+            >
+              Open →
+            </span>
+          </div>
+        </div>
+      </Link>
+    )
+  }
+
   // Style classes based on cardStyle
   const cardClasses = cardStyle === 'powerappsBlue'
-    ? 'bg-[#264c96] text-white hover:bg-[#305cae] rounded-xl shadow-sm px-4 py-3 cursor-pointer h-full flex flex-col group'
-    : 'bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col group'
+    ? 'bg-[#264c96] text-white hover:bg-[#305cae] rounded-xl shadow-sm px-4 py-3 cursor-pointer h-full flex flex-col'
+    : 'bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 p-4 cursor-pointer border border-gray-200 h-full flex flex-col'
 
   const titleClasses = cardStyle === 'powerappsBlue'
     ? 'text-base font-bold text-white leading-tight pr-2'
@@ -171,7 +236,10 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     : 'text-xs text-nhs-blue font-medium opacity-0 group-hover:opacity-100 transition-opacity'
 
   return (
-    <Link href={linkUrl}>
+    <Link
+      href={linkUrl}
+      className={`group block ${linkRadiusClass} focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
+    >
       <div className={cardClasses}>
         {/* Header with title and badges */}
         <div className="flex items-start justify-between mb-2">
@@ -185,9 +253,7 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
               {getAgeGroupLabel(symptom.ageGroup || 'Adult')}
             </span>
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSourceColor(symptom.source || 'base')}`}>
-              {symptom.source === 'override' ? 'Practice Customised' : 
-               symptom.source === 'custom' ? 'Practice Created' : 
-               symptom.source || 'base'}
+              {getSourceLabel(symptom.source || 'base')}
             </span>
           </div>
         </div>
