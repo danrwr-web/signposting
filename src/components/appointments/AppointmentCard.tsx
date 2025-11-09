@@ -1,5 +1,7 @@
 'use client'
 
+import type { CSSProperties } from 'react'
+
 interface AppointmentType {
   id: string
   name: string
@@ -17,49 +19,104 @@ interface AppointmentCardProps {
   onDelete?: (appointment: AppointmentType) => void
 }
 
-// Get colour for staff type - very pale colors
-function getStaffColour(staffType: string | null, defaultColour: string | null): string {
-  if (defaultColour) {
-    // If custom colour is provided, use it but ensure it's pale
-    return defaultColour
-  }
-  
-  if (!staffType) {
-    return 'bg-yellow-50 border-yellow-200'
+interface StaffColour {
+  backgroundClass: string
+  borderClass: string
+  customStyle?: CSSProperties
+}
+
+function resolveCustomColour(defaultColour: string): StaffColour {
+  if (defaultColour.startsWith('#')) {
+    return {
+      backgroundClass: 'bg-white',
+      borderClass: 'border-nhs-light-grey',
+      customStyle: { backgroundColor: defaultColour }
+    }
   }
 
-  const normalized = staffType.trim()
-  if (normalized === 'PN' || normalized.includes('PN')) {
-    return 'bg-green-50 border-green-200'
+  if (defaultColour.startsWith('bg-')) {
+    return {
+      backgroundClass: defaultColour,
+      borderClass: 'border-nhs-light-grey'
+    }
   }
-  if (normalized === 'HCA' || normalized.includes('HCA')) {
-    return 'bg-red-50 border-red-200'
+
+  return {
+    backgroundClass: 'bg-nhs-light-grey',
+    borderClass: 'border-nhs-light-grey'
   }
-  if (normalized.includes('Dr') || normalized.includes('Doctor')) {
-    return 'bg-blue-50 border-blue-200'
+}
+
+function getStaffColour(staffType: string | null, defaultColour: string | null): StaffColour {
+  if (defaultColour) {
+    return resolveCustomColour(defaultColour)
   }
-  if (normalized === 'All') {
-    return 'bg-yellow-50 border-yellow-200'
+
+  if (!staffType) {
+    return {
+      backgroundClass: 'bg-nhs-light-grey',
+      borderClass: 'border-nhs-light-grey'
+    }
   }
-  
-  return 'bg-gray-50 border-gray-200'
+
+  const normalized = staffType.trim().toLowerCase()
+
+  if (normalized === 'pn' || normalized.includes('pn')) {
+    return {
+      backgroundClass: 'bg-nhs-green-tint',
+      borderClass: 'border-nhs-green'
+    }
+  }
+
+  if (normalized === 'hca' || normalized.includes('hca')) {
+    return {
+      backgroundClass: 'bg-nhs-red-tint',
+      borderClass: 'border-nhs-red'
+    }
+  }
+
+  if (normalized.includes('dr') || normalized.includes('doctor')) {
+    return {
+      backgroundClass: 'bg-nhs-light-blue',
+      borderClass: 'border-nhs-blue'
+    }
+  }
+
+  if (normalized === 'all') {
+    return {
+      backgroundClass: 'bg-nhs-yellow-tint',
+      borderClass: 'border-nhs-yellow'
+    }
+  }
+
+  return {
+    backgroundClass: 'bg-nhs-light-grey',
+    borderClass: 'border-nhs-light-grey'
+  }
 }
 
 export default function AppointmentCard({ appointment, isAdmin, onEdit, onDelete }: AppointmentCardProps) {
-  const cardColour = getStaffColour(appointment.staffType, appointment.colour)
+  const { backgroundClass, borderClass, customStyle } = getStaffColour(
+    appointment.staffType,
+    appointment.colour
+  )
 
   return (
-    <div className={`rounded-lg shadow-md p-4 border-2 ${cardColour} h-full flex flex-col`}>
+    <div
+      className={`flex h-full flex-col rounded-lg border-2 ${borderClass} ${backgroundClass} p-4 shadow-md`}
+      style={customStyle}
+    >
       {/* Header with title and admin actions */}
       <div className="flex items-start justify-between mb-2">
-        <h3 className="text-base font-semibold text-gray-900 flex-1 pr-2">
+        <h3 className="flex-1 pr-2 text-base font-semibold text-gray-900">
           {appointment.name}
         </h3>
         {isAdmin && (
           <div className="flex gap-1">
             <button
+              type="button"
               onClick={() => onEdit(appointment)}
-              className="text-gray-600 hover:text-gray-900 transition-colors"
+              className="text-nhs-grey transition-colors hover:text-nhs-dark-grey focus:outline-none focus:ring-2 focus:ring-nhs-blue"
               aria-label="Edit appointment"
             >
               <svg
@@ -78,8 +135,9 @@ export default function AppointmentCard({ appointment, isAdmin, onEdit, onDelete
             </button>
             {onDelete && (
               <button
+                type="button"
                 onClick={() => onDelete(appointment)}
-                className="text-red-600 hover:text-red-900 transition-colors"
+                className="text-nhs-red transition-colors hover:text-nhs-red-dark focus:outline-none focus:ring-2 focus:ring-nhs-blue"
                 aria-label="Delete appointment"
               >
                 <svg
@@ -103,7 +161,7 @@ export default function AppointmentCard({ appointment, isAdmin, onEdit, onDelete
 
       {/* Duration */}
       {appointment.durationMins && (
-        <div className="text-sm text-gray-600 mb-2">
+        <div className="mb-2 text-sm text-nhs-grey">
           {appointment.durationMins} mins
         </div>
       )}
@@ -111,7 +169,7 @@ export default function AppointmentCard({ appointment, isAdmin, onEdit, onDelete
       {/* Staff Type Badge */}
       {appointment.staffType && (
         <div className="mb-2">
-          <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-70 text-gray-700">
+          <span className="inline-block rounded-full bg-white/80 px-2 py-1 text-xs font-medium text-nhs-grey">
             {appointment.staffType}
           </span>
         </div>
@@ -119,7 +177,7 @@ export default function AppointmentCard({ appointment, isAdmin, onEdit, onDelete
 
       {/* Notes */}
       {appointment.notes && (
-        <div className="text-sm text-gray-700 mt-auto pt-2 border-t border-gray-300">
+        <div className="mt-auto border-t border-nhs-light-grey pt-2 text-sm text-nhs-grey">
           {appointment.notes}
         </div>
       )}

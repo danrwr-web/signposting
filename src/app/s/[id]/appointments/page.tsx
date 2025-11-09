@@ -7,13 +7,13 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 interface AppointmentsPageProps {
-  params: Promise<{
+  params: {
     id: string
-  }>
+  }
 }
 
 export default async function AppointmentsPage({ params }: AppointmentsPageProps) {
-  const { id: surgeryId } = await params
+  const { id: surgeryId } = params
   
   try {
     // Get user with memberships

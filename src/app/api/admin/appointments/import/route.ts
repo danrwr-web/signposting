@@ -5,46 +5,73 @@ import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
-// Parse duration string like "20 mins" or "10 mins" to integer
-function parseDuration(raw: string | null | undefined): number | null {
+interface ParsedAppointmentRow {
+  name: string
+  durationMins: number | null
+  staffType: string
+  notes: string | null
+}
+
+interface RowIssue {
+  row: number
+  reason: string
+}
+
+// Parse duration string like "20 mins" or "10 minutes" to integer minutes
+export function parseDuration(raw: string | null | undefined): number | null {
   if (!raw) return null
-  const cleaned = raw.replace(/mins?/i, '').trim()
-  const n = Number(cleaned)
-  return Number.isFinite(n) ? n : null
+  const cleaned = raw.replace(/minutes?|mins?/i, '').trim()
+  if (!cleaned) return null
+  const value = Number(cleaned)
+  return Number.isFinite(value) && value > 0 ? value : null
 }
 
 // Pick staff type from Personnel or AppointmentType columns
-function pickStaff(row: Record<string, string>): string {
-  if (row.Personnel && row.Personnel.trim()) {
-    return row.Personnel.trim()
+export function pickStaff(row: Record<string, string>): string {
+  const personnel = row.Personnel?.trim()
+  if (personnel) {
+    return personnel
   }
-  if (row.AppointmentType && row.AppointmentType.trim()) {
-    return row.AppointmentType.trim()
+  const appointmentType = row.AppointmentType?.trim()
+  if (appointmentType) {
+    return appointmentType
+  }
+  const staffType = row['Staff Type']?.trim()
+  if (staffType) {
+    return staffType
   }
   return 'All'
 }
 
+function normaliseHeader(header: string): string {
+  return header.replace(/^\uFEFF/, '').trim()
+}
+
 // Simple CSV parser
-function parseCSV(csvText: string): Record<string, string>[] {
-  const lines = csvText.split('\n').filter(line => line.trim())
+export function parseCSV(csvText: string): Record<string, string>[] {
+  const lines = csvText.split(/\r?\n/).filter((line) => line.trim())
   if (lines.length === 0) return []
 
-  // Parse header and filter out columns starting with __
-  const allHeaders = parseCSVLine(lines[0])
-  const headers = allHeaders.filter(h => !h.startsWith('__'))
-  const headerIndices = allHeaders.map((h, i) => headers.includes(h) ? i : -1).filter(i => i !== -1)
-  
+  const allHeaders = parseCSVLine(lines[0]).map(normaliseHeader)
+  const headers = allHeaders.filter((header) => !header.startsWith('__') && header.length > 0)
+
+  if (!headers.includes('Appointment Name')) {
+    throw new Error('CSV is missing "Appointment Name" column')
+  }
+
+  const headerIndices = headers.map((header) => allHeaders.indexOf(header))
+
   const rows: Record<string, string>[] = []
 
-  // Parse data rows
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i])
+  for (let lineIndex = 1; lineIndex < lines.length; lineIndex++) {
+    const values = parseCSVLine(lines[lineIndex])
     if (values.length === 0) continue
 
     const row: Record<string, string> = {}
     headers.forEach((header, headerIdx) => {
       const valueIdx = headerIndices[headerIdx]
-      row[header] = values[valueIdx] || ''
+      const value = values[valueIdx] ?? ''
+      row[header] = value.trim()
     })
     rows.push(row)
   }
@@ -64,25 +91,79 @@ function parseCSVLine(line: string): string[] {
 
     if (char === '"') {
       if (inQuotes && nextChar === '"') {
-        // Escaped quote
         current += '"'
         i++
       } else {
-        // Toggle quote state
         inQuotes = !inQuotes
       }
     } else if (char === ',' && !inQuotes) {
-      // End of field
-      result.push(current.trim())
+      result.push(current)
       current = ''
     } else {
       current += char
     }
   }
 
-  // Add last field
-  result.push(current.trim())
+  result.push(current)
   return result
+}
+
+export function sanitiseRows(rows: Record<string, string>[]): {
+  valid: ParsedAppointmentRow[]
+  issues: RowIssue[]
+} {
+  const issues: RowIssue[] = []
+  const seenNames = new Map<string, number>()
+  const valid: ParsedAppointmentRow[] = []
+
+  rows.forEach((row, index) => {
+    const rowNumber = index + 2 // include header row
+    const nameRaw = row['Appointment Name']?.trim() ?? ''
+
+    if (!nameRaw) {
+      issues.push({ row: rowNumber, reason: 'Missing appointment name' })
+      return
+    }
+
+    if (nameRaw.startsWith(',')) {
+      issues.push({ row: rowNumber, reason: 'Name begins with a comma and looks invalid' })
+      return
+    }
+
+    if (/^[0-9a-f-]{20,}$/i.test(nameRaw)) {
+      issues.push({ row: rowNumber, reason: 'Name looks like an ID rather than a label' })
+      return
+    }
+
+    const hasContent = Object.entries(row).some(
+      ([key, value]) => !key.startsWith('__') && value.trim() !== ''
+    )
+
+    if (!hasContent) {
+      issues.push({ row: rowNumber, reason: 'Row is empty' })
+      return
+    }
+
+    if (seenNames.has(nameRaw.toLowerCase())) {
+      const originalRow = seenNames.get(nameRaw.toLowerCase()) ?? rowNumber
+      issues.push({
+        row: rowNumber,
+        reason: `Duplicate appointment name (already seen on row ${originalRow})`
+      })
+      return
+    }
+
+    seenNames.set(nameRaw.toLowerCase(), rowNumber)
+
+    valid.push({
+      name: nameRaw,
+      durationMins: parseDuration(row.Duration),
+      staffType: pickStaff(row),
+      notes: row.Notes?.trim() ? row.Notes.trim() : null
+    })
+  })
+
+  return { valid, issues }
 }
 
 export async function POST(request: NextRequest) {
@@ -105,10 +186,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check permissions
     const user = await requireSurgeryAdmin(surgeryId)
 
-    // Validate file type
     if (!file.name.endsWith('.csv')) {
       return NextResponse.json(
         { error: 'File must be a CSV file' },
@@ -116,7 +195,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Read file content
     const text = await file.text()
     const rows = parseCSV(text)
 
@@ -127,98 +205,95 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const { valid, issues } = sanitiseRows(rows)
+
+    if (valid.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'No valid appointments found in CSV',
+          issues
+        },
+        { status: 400 }
+      )
+    }
+
     let created = 0
     let updated = 0
 
-    // Process each row
-    for (const row of rows) {
-      // Skip rows without Appointment Name
-      if (!row['Appointment Name'] || !row['Appointment Name'].trim()) {
-        continue
-      }
-
-      const name = row['Appointment Name'].trim()
-      
-      // Skip junk rows
-      if (name === '') {
-        continue
-      }
-      
-      // Skip if name starts with comma
-      if (name.startsWith(',')) {
-        continue
-      }
-      
-      // Skip if name is GUID-like (e.g., "21b2af26-...")
-      if (/^[0-9a-fA-F-]{20,}$/.test(name)) {
-        continue
-      }
-      
-      // Skip if row only has columns starting with "__"
-      const hasNonUnderscoreColumn = Object.keys(row).some(key => 
-        !key.startsWith('__') && row[key] && row[key].trim() !== ''
-      )
-      if (!hasNonUnderscoreColumn) {
-        continue
-      }
-
-      const durationMins = parseDuration(row.Duration)
-      const staffType = pickStaff(row)
-      const notes = row.Notes?.trim() || null
-
-      // Check if appointment with same name exists for this surgery (idempotent)
-      const existing = await prisma.appointmentType.findFirst({
+    await prisma.$transaction(async (tx) => {
+      const existingAppointments = await tx.appointmentType.findMany({
         where: {
           surgeryId,
-          name
+          name: {
+            in: valid.map((row) => row.name)
+          }
+        },
+        select: {
+          id: true,
+          name: true
         }
       })
 
-      if (existing) {
-        // Update existing
-        await prisma.appointmentType.update({
-          where: { id: existing.id },
-          data: {
-            durationMins,
-            staffType,
-            notes,
-            lastEditedBy: user.email,
-            lastEditedAt: new Date()
-          }
-        })
-        updated++
-      } else {
-        // Create new
-        await prisma.appointmentType.create({
-          data: {
-            surgeryId,
-            name,
-            durationMins,
-            staffType,
-            notes,
-            isEnabled: true,
-            lastEditedBy: user.email
-          }
-        })
-        created++
+      const existingMap = new Map(
+        existingAppointments.map((appointment) => [appointment.name.toLowerCase(), appointment])
+      )
+
+      for (const row of valid) {
+        const existing = existingMap.get(row.name.toLowerCase())
+        if (existing) {
+          await tx.appointmentType.update({
+            where: { id: existing.id },
+            data: {
+              durationMins: row.durationMins,
+              staffType: row.staffType,
+              notes: row.notes,
+              lastEditedBy: user.email,
+              lastEditedAt: new Date()
+            }
+          })
+          updated++
+        } else {
+          const createdAppointment = await tx.appointmentType.create({
+            data: {
+              surgeryId,
+              name: row.name,
+              durationMins: row.durationMins,
+              staffType: row.staffType,
+              notes: row.notes,
+              isEnabled: true,
+              lastEditedBy: user.email
+            }
+          })
+          existingMap.set(createdAppointment.name.toLowerCase(), createdAppointment)
+          created++
+        }
       }
-    }
+    })
 
     return NextResponse.json({
       created,
       updated,
-      total: created + updated
+      total: created + updated,
+      skipped: issues.length,
+      issues
     })
   } catch (error) {
     console.error('Error importing appointments:', error)
-    
+
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json(
         { error: error.message },
         { status: 403 }
       )
     }
-    
+
+    if (error instanceof Error && error.message.includes('missing')) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Failed to import appointments' },
       { status: 500 }

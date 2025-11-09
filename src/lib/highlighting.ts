@@ -22,15 +22,11 @@ export function applyHighlightRules(
   rules: Array<{ phrase: string; textColor: string; bgColor: string; isEnabled: boolean }>,
   enableBuiltInHighlights: boolean = true
 ): string {
-  let highlightedText = text
+  let highlightedText = applyCustomRules(text, rules)
 
-  // Apply built-in slot highlighting first (if enabled)
   if (enableBuiltInHighlights) {
     highlightedText = applyBuiltInHighlighting(highlightedText)
   }
-
-  // Apply custom rules (they take precedence)
-  highlightedText = applyCustomRules(highlightedText, rules)
 
   return highlightedText
 }
@@ -39,18 +35,30 @@ export function applyHighlightRules(
  * Apply built-in slot type highlighting
  */
 function applyBuiltInHighlighting(text: string): string {
-  // Highlight green slots
-  text = text.replace(/(green slot)/gi, '<span class="bg-green-600 text-white px-1 py-0.5 rounded text-sm font-medium">$1</span>')
-  
-  // Highlight orange slots
-  text = text.replace(/(orange slot)/gi, '<span class="bg-orange-600 text-white px-1 py-0.5 rounded text-sm font-medium">$1</span>')
-  
-  // Highlight red slots
-  text = text.replace(/(red slot)/gi, '<span class="bg-red-600 text-white px-1 py-0.5 rounded text-sm font-medium">$1</span>')
-  
-  // Highlight pink/purple keywords (case-insensitive)
-  text = text.replace(/(pink|purple)/gi, '<span class="bg-purple-600 text-white px-1 py-0.5 rounded text-sm font-medium">$1</span>')
-  
+  text = wrapBuiltInHighlight(
+    text,
+    /(green slot)/gi,
+    'bg-green-600 text-white px-1 py-0.5 rounded text-sm font-medium'
+  )
+
+  text = wrapBuiltInHighlight(
+    text,
+    /(orange slot)/gi,
+    'bg-orange-600 text-white px-1 py-0.5 rounded text-sm font-medium'
+  )
+
+  text = wrapBuiltInHighlight(
+    text,
+    /(red slot)/gi,
+    'bg-red-600 text-white px-1 py-0.5 rounded text-sm font-medium'
+  )
+
+  text = wrapBuiltInHighlight(
+    text,
+    /(pink|purple)/gi,
+    'bg-purple-600 text-white px-1 py-0.5 rounded text-sm font-medium'
+  )
+
   return text
 }
 
@@ -72,18 +80,48 @@ function applyCustomRules(
 
   for (const rule of enabledRules) {
     const { phrase, textColor, bgColor } = rule
-    
-    // Escape special regex characters in phrase
+
+    if (!phrase) {
+      continue
+    }
+
     const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    
-    // Create regex pattern (case-insensitive, word boundaries)
-    const regex = new RegExp(`\\b${escapedPhrase}\\b`, 'gi')
-    
-    // Replace with styled span
+    const requiresWordBoundary = /^[\p{L}\p{N}\s]+$/u.test(phrase)
+    const pattern = requiresWordBoundary ? `\\b${escapedPhrase}\\b` : escapedPhrase
+    const regex = new RegExp(pattern, 'gi')
+
     text = text.replace(regex, (match) => {
       return `<span style="color: ${textColor}; background-color: ${bgColor}; padding: 2px 4px; border-radius: 4px; font-weight: 500;" class="text-sm">${match}</span>`
     })
   }
 
   return text
+}
+
+function wrapBuiltInHighlight(text: string, regex: RegExp, className: string): string {
+  return text.replace(regex, (match, _group, offset: number, original: string) => {
+    if (isInsideSpan(original, offset)) {
+      return match
+    }
+    return `<span class="${className}">${match}</span>`
+  })
+}
+
+function isInsideSpan(source: string, index: number): boolean {
+  const openIndex = source.lastIndexOf('<span', index)
+  if (openIndex === -1) {
+    return false
+  }
+
+  const openEnd = source.indexOf('>', openIndex)
+  if (openEnd === -1 || openEnd > index) {
+    return false
+  }
+
+  const closeIndex = source.indexOf('</span>', openEnd)
+  if (closeIndex === -1) {
+    return false
+  }
+
+  return closeIndex > index
 }

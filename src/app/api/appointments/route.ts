@@ -1,5 +1,6 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { getSessionUser, requireSurgeryAccess } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
     await requireSurgeryAccess(surgeryId)
 
     // Build where clause
-    const where: any = {
+    const where: Prisma.AppointmentTypeWhereInput = {
       surgeryId,
       isEnabled: true
     }

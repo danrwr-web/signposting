@@ -64,8 +64,9 @@ describe('applyHighlightRules', () => {
     const text = 'This is a disabled rule test'
     const result = applyHighlightRules(text, mockRules)
     
-    expect(result).not.toContain('disabled rule')
+    expect(result).toContain('disabled rule')
     expect(result).not.toContain('#059669')
+    expect(result).not.toContain('style="color: #ffffff; background-color: #059669')
   })
 
   test('applies pink/purple keyword highlighting', () => {
@@ -107,7 +108,7 @@ describe('applyHighlightRules', () => {
     const text = 'pharmacyfirst should not match'
     const result = applyHighlightRules(text, mockRules)
     
-    expect(result).not.toContain('pharmacyfirst')
+    expect(result).toContain('pharmacyfirst')
     expect(result).not.toContain('#6A0DAD')
   })
 })

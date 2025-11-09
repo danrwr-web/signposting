@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Modal from './Modal'
 
 interface AppointmentType {
   id: string
@@ -14,14 +15,12 @@ interface AppointmentType {
 
 interface AppointmentEditModalProps {
   appointment: AppointmentType | null
-  surgeryId: string
   onSave: (data: Partial<AppointmentType>) => void
   onCancel: () => void
 }
 
 export default function AppointmentEditModal({
   appointment,
-  surgeryId,
   onSave,
   onCancel
 }: AppointmentEditModalProps) {
@@ -30,6 +29,7 @@ export default function AppointmentEditModal({
   const [durationMins, setDurationMins] = useState<string>('')
   const [notes, setNotes] = useState('')
   const [colour, setColour] = useState('')
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (appointment) {
@@ -47,9 +47,9 @@ export default function AppointmentEditModal({
     }
   }, [appointment])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+
     const data: Partial<AppointmentType> = {
       name,
       staffType: staffType || null,
@@ -61,99 +61,120 @@ export default function AppointmentEditModal({
     onSave(data)
   }
 
+  const modalTitle = appointment ? 'Edit appointment' : 'Add new appointment'
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold mb-4">
-          {appointment ? 'Edit Appointment' : 'Add New Appointment'}
-        </h2>
+    <Modal
+      title={modalTitle}
+      onClose={onCancel}
+      initialFocusRef={nameInputRef}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label
+            htmlFor="appointment-name"
+            className="mb-1 block text-sm font-medium text-nhs-grey"
+          >
+            Appointment name<span className="text-nhs-red"> *</span>
+          </label>
+          <input
+            ref={nameInputRef}
+            id="appointment-name"
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            required
+            className="w-full rounded-md border border-nhs-light-grey px-3 py-2 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Appointment Name *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-            />
-          </div>
+        <div>
+          <label
+            htmlFor="appointment-staff"
+            className="mb-1 block text-sm font-medium text-nhs-grey"
+          >
+            Staff team
+          </label>
+          <select
+            id="appointment-staff"
+            value={staffType}
+            onChange={(event) => setStaffType(event.target.value)}
+            className="w-full rounded-md border border-nhs-light-grey px-3 py-2 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          >
+            <option value="All">All</option>
+            <option value="PN">PN</option>
+            <option value="HCA">HCA</option>
+            <option value="Dr">Dr</option>
+          </select>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Staff Type
-            </label>
-            <select
-              value={staffType}
-              onChange={(e) => setStaffType(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-            >
-              <option value="All">All</option>
-              <option value="PN">PN</option>
-              <option value="HCA">HCA</option>
-              <option value="Dr">Dr</option>
-            </select>
-          </div>
+        <div>
+          <label
+            htmlFor="appointment-duration"
+            className="mb-1 block text-sm font-medium text-nhs-grey"
+          >
+            Duration (minutes)
+          </label>
+          <input
+            id="appointment-duration"
+            type="number"
+            value={durationMins}
+            onChange={(event) => setDurationMins(event.target.value)}
+            min={1}
+            className="w-full rounded-md border border-nhs-light-grey px-3 py-2 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Duration (minutes)
-            </label>
-            <input
-              type="number"
-              value={durationMins}
-              onChange={(e) => setDurationMins(e.target.value)}
-              min="1"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-            />
-          </div>
+        <div>
+          <label
+            htmlFor="appointment-colour"
+            className="mb-1 block text-sm font-medium text-nhs-grey"
+          >
+            Colour (hex or Tailwind token)
+          </label>
+          <input
+            id="appointment-colour"
+            type="text"
+            value={colour}
+            onChange={(event) => setColour(event.target.value)}
+            placeholder="e.g. bg-nhs-green-tint or #00A499"
+            className="w-full rounded-md border border-nhs-light-grey px-3 py-2 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Colour (hex or Tailwind class)
-            </label>
-            <input
-              type="text"
-              value={colour}
-              onChange={(e) => setColour(e.target.value)}
-              placeholder="e.g., #FF0000 or bg-red-100"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-            />
-          </div>
+        <div>
+          <label
+            htmlFor="appointment-notes"
+            className="mb-1 block text-sm font-medium text-nhs-grey"
+          >
+            Notes
+          </label>
+          <textarea
+            id="appointment-notes"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            rows={3}
+            className="w-full rounded-md border border-nhs-light-grey px-3 py-2 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-            />
-          </div>
-
-          <div className="flex gap-2 justify-end pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              {appointment ? 'Update' : 'Create'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-md border border-nhs-light-grey px-4 py-2 text-nhs-grey transition-colors hover:bg-nhs-light-grey focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="rounded-md bg-nhs-blue px-4 py-2 text-white transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          >
+            {appointment ? 'Update' : 'Create'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

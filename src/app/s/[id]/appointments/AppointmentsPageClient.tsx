@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import AppointmentCsvUpload from '@/components/appointments/AppointmentCsvUpload'
 import AppointmentCard from '@/components/appointments/AppointmentCard'
 import AppointmentEditModal from '@/components/appointments/AppointmentEditModal'
+import Modal from '@/components/appointments/Modal'
 
 interface AppointmentType {
   id: string
@@ -28,7 +28,6 @@ export default function AppointmentsPageClient({
   surgeryName,
   isAdmin 
 }: AppointmentsPageClientProps) {
-  const router = useRouter()
   const [appointments, setAppointments] = useState<AppointmentType[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -36,6 +35,10 @@ export default function AppointmentsPageClient({
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<AppointmentType | null>(null)
+  const [appointmentPendingDelete, setAppointmentPendingDelete] = useState<AppointmentType | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
+  const deleteCancelButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch appointments
   const fetchAppointments = async () => {
@@ -116,21 +119,30 @@ export default function AppointmentsPageClient({
     fetchAppointments()
   }
 
-  const handleDelete = async (appointment: AppointmentType) => {
-    if (!confirm(`Are you sure you want to delete "${appointment.name}"?`)) {
+  const handleDelete = (appointment: AppointmentType) => {
+    setAppointmentPendingDelete(appointment)
+  }
+
+  const confirmDelete = async () => {
+    if (!appointmentPendingDelete) {
       return
     }
-
+    setDeleting(true)
     try {
-      const response = await fetch(`/api/admin/appointments/${appointment.id}`, {
+      const response = await fetch(`/api/admin/appointments/${appointmentPendingDelete.id}`, {
         method: 'DELETE'
       })
-      if (!response.ok) throw new Error('Failed to delete appointment')
+      if (!response.ok) {
+        throw new Error('Failed to delete appointment')
+      }
       toast.success('Appointment deleted')
+      setAppointmentPendingDelete(null)
       fetchAppointments()
     } catch (error) {
       console.error('Error deleting appointment:', error)
       toast.error('Failed to delete appointment')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -183,13 +195,13 @@ export default function AppointmentsPageClient({
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowUploadModal(true)}
-                  className="px-4 py-2 bg-nhs-green text-white rounded-md hover:bg-green-700 transition-colors"
+                  className="rounded-md bg-nhs-green px-4 py-2 text-white transition-colors hover:bg-nhs-green-dark focus:outline-none focus:ring-2 focus:ring-nhs-green"
                 >
                   Upload CSV
                 </button>
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-blue-700 transition-colors"
+                  className="rounded-md bg-nhs-blue px-4 py-2 text-white transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
                 >
                   Add New Entry
                 </button>
@@ -225,7 +237,7 @@ export default function AppointmentsPageClient({
             {isAdmin && !searchTerm && selectedFilter === 'All' && (
               <button
                 onClick={() => setShowUploadModal(true)}
-                className="px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-blue-700 transition-colors"
+                className="rounded-md bg-nhs-blue px-4 py-2 text-white transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
               >
                 Upload CSV
               </button>
@@ -235,29 +247,69 @@ export default function AppointmentsPageClient({
 
         {/* Upload Modal */}
         {showUploadModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h2 className="text-xl font-bold mb-4">Upload CSV</h2>
-              <AppointmentCsvUpload
-                surgeryId={surgeryId}
-                onSuccess={handleUploadSuccess}
-                onCancel={() => setShowUploadModal(false)}
-              />
-            </div>
-          </div>
+          <Modal
+            title="Upload appointments CSV"
+            description="Import reception-friendly appointment types from a CSV file."
+            onClose={() => setShowUploadModal(false)}
+            initialFocusRef={uploadInputRef}
+          >
+            <AppointmentCsvUpload
+              surgeryId={surgeryId}
+              onSuccess={handleUploadSuccess}
+              onCancel={() => setShowUploadModal(false)}
+              inputRef={uploadInputRef}
+            />
+          </Modal>
         )}
 
         {/* Add/Edit Modal */}
         {(showAddModal || editingAppointment) && (
           <AppointmentEditModal
             appointment={editingAppointment}
-            surgeryId={surgeryId}
             onSave={handleSave}
             onCancel={() => {
               setShowAddModal(false)
               setEditingAppointment(null)
             }}
           />
+        )}
+
+        {/* Delete confirmation modal */}
+        {appointmentPendingDelete && (
+          <Modal
+            title="Delete appointment type"
+            description="This removes the appointment from the directory. You can recreate it later if needed."
+            onClose={() => setAppointmentPendingDelete(null)}
+            initialFocusRef={deleteCancelButtonRef}
+            widthClassName="max-w-lg"
+          >
+            <p className="text-sm text-nhs-grey">
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-gray-900">
+                {appointmentPendingDelete.name}
+              </span>
+              ? Reception staff will no longer see it in their directory.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                ref={deleteCancelButtonRef}
+                type="button"
+                className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+                onClick={() => setAppointmentPendingDelete(null)}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-md bg-nhs-red px-4 py-2 text-white transition-colors hover:bg-nhs-red-dark focus:outline-none focus:ring-2 focus:ring-nhs-red disabled:opacity-70"
+                onClick={confirmDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </Modal>
         )}
       </div>
     </div>

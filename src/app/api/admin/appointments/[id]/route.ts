@@ -1,5 +1,6 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
@@ -17,10 +18,10 @@ const updateAppointmentSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params
+    const { id } = params
     
     // Get existing appointment to check surgeryId
     const existing = await prisma.appointmentType.findUnique({
@@ -45,13 +46,13 @@ export async function PATCH(
     // Check permissions
     const user = await requireSurgeryAdmin(existing.surgeryId)
 
-    const body = await request.json()
+    const body = (await request.json()) as unknown
     
     // Validate input
     const validated = updateAppointmentSchema.parse(body)
 
     // Build update data
-    const updateData: any = {
+    const updateData: Prisma.AppointmentTypeUpdateInput = {
       lastEditedBy: user.email,
       lastEditedAt: new Date()
     }
@@ -96,10 +97,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params
+    const { id } = params
     
     // Get existing appointment to check surgeryId
     const existing = await prisma.appointmentType.findUnique({

@@ -1,3 +1,11 @@
+jest.mock('next-auth', () => ({
+  getServerSession: jest.fn()
+}))
+
+jest.mock('@/lib/auth', () => ({
+  authOptions: {}
+}))
+
 import { can, PermissionChecker } from '@/lib/rbac'
 import { SessionUser } from '@/lib/rbac'
 

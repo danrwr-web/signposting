@@ -14,7 +14,7 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-markdown|remark-gfm|unified|bail|is-plain-obj|trough|vfile|vfile-message|unist-util-stringify-position|micromark|mdast-util-from-markdown|mdast-util-to-markdown|mdast-util-to-string|mdast-util-gfm|micromark-extension-gfm|micromark-extension-gfm-strikethrough|micromark-extension-gfm-table|micromark-extension-gfm-task-list-item|micromark-extension-gfm-autolink-literal|micromark-extension-gfm-footnote|micromark-extension-gfm-tagfilter|micromark-extension-gfm-autolink-literal|micromark-extension-gfm-footnote|micromark-extension-gfm-tagfilter)/)',
+    'node_modules/(?!(react-markdown|remark-gfm|unified|bail|is-plain-obj|trough|vfile|vfile-message|unist-util-stringify-position|micromark|mdast-util-from-markdown|mdast-util-to-markdown|mdast-util-to-string|mdast-util-gfm|micromark-extension-gfm|micromark-extension-gfm-strikethrough|micromark-extension-gfm-table|micromark-extension-gfm-task-list-item|micromark-extension-gfm-autolink-literal|micromark-extension-gfm-footnote|micromark-extension-gfm-tagfilter|micromark-extension-gfm-autolink-literal|micromark-extension-gfm-footnote|micromark-extension-gfm-tagfilter|jose)/)',
   ],
 }
 
