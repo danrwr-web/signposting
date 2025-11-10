@@ -84,14 +84,16 @@ export default function SurgeryFiltersHeader({
               {selectedLetter !== 'All' && ` (${selectedLetter})`}
             </div>
 
-            <div className="mt-4 space-y-3">
-              <AgeFilter
-                value={selectedAge}
-                onChange={onAgeChange}
-                className="flex flex-col gap-2 items-start"
-              />
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+              <div className="flex flex-col gap-2">
+                <AgeFilter
+                  value={selectedAge}
+                  onChange={onAgeChange}
+                  className="flex flex-col gap-2 items-start"
+                />
+              </div>
 
-              <div className="flex justify-start">
+              <div className="flex-1 flex justify-center">
                 <div className="grid grid-cols-9 gap-2 max-w-lg">
                   {LETTERS.map((letter) => {
                     const isSelected = letter === selectedLetter
