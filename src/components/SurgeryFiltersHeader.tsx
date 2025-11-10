@@ -3,11 +3,40 @@
 import { RefObject } from 'react'
 import SearchBox from './SearchBox'
 import AgeFilter from './AgeFilter'
-import AlphabetStrip from './AlphabetStrip'
 import HighRiskButtons from './HighRiskButtons'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
+
+const LETTERS: Letter[] = [
+  'All',
+  'A',
+  'B',
+  'C',
+  'D',
+  'E',
+  'F',
+  'G',
+  'H',
+  'I',
+  'J',
+  'K',
+  'L',
+  'M',
+  'N',
+  'O',
+  'P',
+  'Q',
+  'R',
+  'S',
+  'T',
+  'U',
+  'V',
+  'W',
+  'X',
+  'Y',
+  'Z',
+]
 
 interface SurgeryFiltersHeaderProps {
   searchTerm: string
@@ -63,11 +92,26 @@ export default function SurgeryFiltersHeader({
 
             <div className="mt-5 flex justify-center">
               <div className="grid grid-cols-9 gap-2">
-                <AlphabetStrip
-                  selected={selectedLetter}
-                  onSelect={onLetterChange}
-                  size="sm"
-                />
+                {LETTERS.map((letter) => {
+                  const isSelected = letter === selectedLetter
+
+                  return (
+                    <button
+                      key={letter}
+                      type="button"
+                      onClick={() => onLetterChange(letter)}
+                      className={[
+                        'h-9 w-9 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
+                        isSelected
+                          ? 'bg-nhs-blue text-white border-nhs-blue'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400',
+                      ].join(' ')}
+                      aria-pressed={isSelected}
+                    >
+                      {letter}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>
