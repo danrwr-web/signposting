@@ -38,7 +38,7 @@ export default function SurgeryFiltersHeader({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
       <div className="lg:flex lg:items-start lg:gap-6">
         <div className="flex-1">
-          <div className="max-w-3xl mx-auto w-full">
+          <div className="max-w-2xl mx-auto w-full">
             <SearchBox
               ref={searchInputRef}
               value={searchTerm}
@@ -58,22 +58,23 @@ export default function SurgeryFiltersHeader({
             <AgeFilter
               value={selectedAge}
               onChange={onAgeChange}
-              className="mt-4 flex flex-col gap-3"
+              className="mt-4 flex flex-col gap-2 items-start"
             />
 
-            <div className="mt-6">
-              <AlphabetStrip
-                selected={selectedLetter}
-                onSelect={onLetterChange}
-                size="sm"
-                className="grid grid-cols-8 gap-2 justify-items-center mx-auto max-w-md"
-              />
+            <div className="mt-5 flex justify-center">
+              <div className="grid grid-cols-9 gap-2">
+                <AlphabetStrip
+                  selected={selectedLetter}
+                  onSelect={onLetterChange}
+                  size="sm"
+                />
+              </div>
             </div>
           </div>
         </div>
 
         <aside className="lg:w-72 w-full lg:shrink-0 lg:mt-0 mt-6">
-          <div className="bg-white rounded-xl shadow-sm border p-3 flex flex-col gap-3">
+          <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col gap-3">
             <HighRiskButtons surgeryId={currentSurgeryId} className="flex flex-col gap-3" />
           </div>
         </aside>

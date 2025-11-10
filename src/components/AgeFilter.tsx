@@ -31,10 +31,10 @@ export default function AgeFilter({ value, onChange, className }: AgeFilterProps
           role="tab"
           aria-selected={value === band}
           onClick={() => onChange(band)}
-          className={`w-full px-3 py-1 rounded-full border transition-colors text-left ${
+          className={`px-4 py-1 rounded-full text-sm font-medium border transition-colors ${
             value === band 
               ? 'bg-blue-600 text-white border-blue-600' 
-              : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300'
+              : 'bg-slate-200 text-slate-700 border-transparent hover:bg-slate-300'
           }`}
         >
           {band === 'Under5' ? 'Under 5' : band === '5to17' ? '5–17' : band}
