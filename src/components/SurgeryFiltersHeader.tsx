@@ -122,8 +122,8 @@ export default function SurgeryFiltersHeader({
         </div>
 
         <aside className="lg:w-72 w-full lg:shrink-0 lg:mt-0 mt-6">
-          <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2">
-            <HighRiskButtons surgeryId={currentSurgeryId} className="flex flex-col gap-2" />
+          <div className="bg-white rounded-xl shadow-sm p-3">
+            <HighRiskButtons surgeryId={currentSurgeryId} />
           </div>
         </aside>
       </div>
