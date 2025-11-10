@@ -10,6 +10,7 @@ import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
 import { useSurgery } from '@/context/SurgeryContext'
+import { useCardStyle } from '@/context/CardStyleContext'
 import { toast } from 'react-hot-toast'
 import { generateJSON } from '@tiptap/html'
 import StarterKit from '@tiptap/starter-kit'
@@ -69,6 +70,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const fromParam = searchParams.get('from')
   const { data: session } = useSession()
   const { currentSurgeryId } = useSurgery()
+  const { cardStyle } = useCardStyle()
+  const isBlueCardAppearance = cardStyle === 'powerappsBlue'
+  const showBlueHeader = isBlueCardAppearance && !isEditingAll
 
   // Check if user is superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
@@ -854,23 +858,37 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     }
   }
 
+  const headerContainerClasses = showBlueHeader
+    ? 'rounded-lg shadow-md p-6 mb-6 border border-[#173b80] bg-[#264c96] text-white'
+    : 'bg-white rounded-lg shadow-md p-6 mb-6'
+
+  const editButtonClasses = showBlueHeader
+    ? 'px-4 py-2 text-sm font-medium text-[#264c96] bg-white border border-transparent rounded-lg hover:bg-white/90 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#264c96]'
+    : 'px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2'
+
   return (
     <>
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className={headerContainerClasses}>
           <div className="flex items-start justify-between mb-4">
-            <h1 className="text-3xl font-bold text-nhs-dark-blue">
+            <h1 className={`text-3xl font-bold ${showBlueHeader ? 'text-white' : 'text-nhs-dark-blue'}`}>
               {symptom.name}
             </h1>
             <div className="flex items-center gap-3">
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${getSourceColor(symptom.source)}`}>
+              <span
+                className={
+                  showBlueHeader
+                    ? 'px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white border border-white/40'
+                    : `px-3 py-1 rounded-full text-sm font-medium ${getSourceColor(symptom.source)}`
+                }
+              >
                 {symptom.source}
               </span>
               {canEditInstructions && !isEditingAll && !isEditingInstructions && (
                 <button
                   onClick={handleEditAll}
-                  className="px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+                  className={editButtonClasses}
                 >
                   {isPracticeAdmin && symptom.source === 'base' ? 'Customise All Fields' : 'Edit All Fields'}
                 </button>
@@ -902,9 +920,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               </div>
             </div>
           ) : (
-            <div className="flex items-start gap-4 mb-4">
+            <div className={`flex items-start gap-4 mb-4 ${showBlueHeader ? 'text-white' : ''}`}>
               <p 
-                className="text-lg text-nhs-grey flex-1"
+                className={`text-lg flex-1 ${showBlueHeader ? 'text-white' : 'text-nhs-grey'}`}
                 dangerouslySetInnerHTML={{ 
                   __html: highlightText(symptom.briefInstruction || '') 
                 }}
@@ -919,7 +937,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 const sizeClass = sizeClasses[imageIcon.instructionSize as keyof typeof sizeClasses] || sizeClasses.medium
                 
                 return (
-                  <div className={`relative ${sizeClass} flex-shrink-0`}>
+                  <div className={`relative ${sizeClass} flex-shrink-0 ${showBlueHeader ? 'bg-white/10 rounded-lg p-2' : ''}`}>
                     <Image
                       src={imageIcon.imageUrl}
                       alt=""
