@@ -63,7 +63,7 @@ export default function AlphabetStrip({ selected = 'All', onSelect, size = 'md',
     }
   }
 
-  const containerClasses = ['flex flex-wrap gap-2 justify-center mb-6', className].filter(Boolean).join(' ')
+  const containerClasses = className ?? 'flex flex-wrap gap-2 justify-center mb-6'
 
   return (
     <div className={containerClasses}>

@@ -10,17 +10,20 @@ type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
 interface AgeFilterProps {
   value: AgeBand
   onChange: (value: AgeBand) => void
+  className?: string
 }
 
-export default function AgeFilter({ value, onChange }: AgeFilterProps) {
+export default function AgeFilter({ value, onChange, className }: AgeFilterProps) {
   const bands: AgeBand[] = ['All', 'Under5', '5to17', 'Adult']
+
+  const containerClasses = className ?? 'flex flex-col gap-2 mt-3'
 
   return (
     <div
       role="tablist"
       aria-label="Age filter"
       aria-orientation="vertical"
-      className="flex flex-col gap-2 mt-3"
+      className={containerClasses}
     >
       {bands.map((band) => (
         <button
@@ -28,7 +31,7 @@ export default function AgeFilter({ value, onChange }: AgeFilterProps) {
           role="tab"
           aria-selected={value === band}
           onClick={() => onChange(band)}
-          className={`px-3 py-1 rounded-full border transition-colors ${
+          className={`w-full px-3 py-1 rounded-full border transition-colors text-left ${
             value === band 
               ? 'bg-blue-600 text-white border-blue-600' 
               : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300'

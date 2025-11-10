@@ -36,41 +36,45 @@ export default function SurgeryFiltersHeader({
 }: SurgeryFiltersHeaderProps) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-6">
-        <div className="order-1 lg:order-none lg:col-start-1">
-          <SearchBox
-            ref={searchInputRef}
-            value={searchTerm}
-            onChange={onSearchChange}
-            placeholder="Search symptoms... (Press / to focus)"
-            debounceMs={250}
-          />
+      <div className="lg:flex lg:items-start lg:gap-6">
+        <div className="flex-1">
+          <div className="max-w-3xl mx-auto w-full">
+            <SearchBox
+              ref={searchInputRef}
+              value={searchTerm}
+              onChange={onSearchChange}
+              placeholder="Search symptoms... (Press / to focus)"
+              debounceMs={250}
+            />
 
-          <div
-            className="mt-2 text-sm text-nhs-grey lg:text-right"
-            aria-live="polite"
-          >
-            {resultsCount} of {totalCount}
-            {selectedLetter !== 'All' && ` (${selectedLetter})`}
+            <div
+              className="mt-2 text-sm text-nhs-grey text-left lg:text-right"
+              aria-live="polite"
+            >
+              {resultsCount} of {totalCount}
+              {selectedLetter !== 'All' && ` (${selectedLetter})`}
+            </div>
+
+            <AgeFilter
+              value={selectedAge}
+              onChange={onAgeChange}
+              className="mt-4 flex flex-col gap-3"
+            />
+
+            <div className="mt-6">
+              <AlphabetStrip
+                selected={selectedLetter}
+                onSelect={onLetterChange}
+                size="sm"
+                className="grid grid-cols-8 gap-2 justify-items-center mx-auto max-w-md"
+              />
+            </div>
           </div>
         </div>
 
-        <div className="order-2 lg:order-none lg:col-start-1">
-          <AgeFilter value={selectedAge} onChange={onAgeChange} />
-        </div>
-
-        <div className="order-4 lg:order-none lg:col-start-1">
-          <AlphabetStrip
-            selected={selectedLetter}
-            onSelect={onLetterChange}
-            size="sm"
-            className="mt-4 flex flex-wrap justify-center gap-2 max-w-md mx-auto"
-          />
-        </div>
-
-        <aside className="order-3 lg:order-none lg:col-start-2 lg:w-64 w-full lg:ml-4 lg:self-start mt-2 lg:mt-0">
-          <div className="bg-white rounded-lg shadow-sm p-3 flex flex-col gap-2">
-            <HighRiskButtons surgeryId={currentSurgeryId} />
+        <aside className="lg:w-72 w-full lg:shrink-0 lg:mt-0 mt-6">
+          <div className="bg-white rounded-xl shadow-sm border p-3 flex flex-col gap-3">
+            <HighRiskButtons surgeryId={currentSurgeryId} className="flex flex-col gap-3" />
           </div>
         </aside>
       </div>
