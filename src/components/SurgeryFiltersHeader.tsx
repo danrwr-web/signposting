@@ -67,7 +67,7 @@ export default function SurgeryFiltersHeader({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
       <div className="lg:flex lg:items-start lg:gap-6">
         <div className="flex-1">
-          <div className="max-w-2xl mx-auto w-full">
+          <div className="max-w-2xl w-full mx-auto lg:mx-0">
             <SearchBox
               ref={searchInputRef}
               value={searchTerm}
@@ -84,42 +84,44 @@ export default function SurgeryFiltersHeader({
               {selectedLetter !== 'All' && ` (${selectedLetter})`}
             </div>
 
-            <AgeFilter
-              value={selectedAge}
-              onChange={onAgeChange}
-              className="mt-4 flex flex-col gap-2 items-start"
-            />
+            <div className="mt-4 space-y-3">
+              <AgeFilter
+                value={selectedAge}
+                onChange={onAgeChange}
+                className="flex flex-col gap-2 items-start"
+              />
 
-            <div className="mt-5 flex justify-center">
-              <div className="grid grid-cols-9 gap-2">
-                {LETTERS.map((letter) => {
-                  const isSelected = letter === selectedLetter
+              <div className="flex justify-start">
+                <div className="grid grid-cols-9 gap-2 max-w-lg">
+                  {LETTERS.map((letter) => {
+                    const isSelected = letter === selectedLetter
 
-                  return (
-                    <button
-                      key={letter}
-                      type="button"
-                      onClick={() => onLetterChange(letter)}
-                      className={[
-                        'h-9 w-9 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
-                        isSelected
-                          ? 'bg-nhs-blue text-white border-nhs-blue'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400',
-                      ].join(' ')}
-                      aria-pressed={isSelected}
-                    >
-                      {letter}
-                    </button>
-                  )
-                })}
+                    return (
+                      <button
+                        key={letter}
+                        type="button"
+                        onClick={() => onLetterChange(letter)}
+                        className={[
+                          'h-9 w-9 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
+                          isSelected
+                            ? 'bg-nhs-blue text-white border-nhs-blue'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400',
+                        ].join(' ')}
+                        aria-pressed={isSelected}
+                      >
+                        {letter}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         <aside className="lg:w-72 w-full lg:shrink-0 lg:mt-0 mt-6">
-          <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col gap-3">
-            <HighRiskButtons surgeryId={currentSurgeryId} className="flex flex-col gap-3" />
+          <div className="bg-white rounded-xl shadow-sm p-3 flex flex-col gap-2">
+            <HighRiskButtons surgeryId={currentSurgeryId} className="flex flex-col gap-2" />
           </div>
         </aside>
       </div>
