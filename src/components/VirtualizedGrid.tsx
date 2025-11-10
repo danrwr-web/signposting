@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SymptomCard from './SymptomCard'
 import { useSurgery } from '@/context/SurgeryContext'
+import { useCardStyle } from '@/context/CardStyleContext'
 
 interface VirtualizedGridProps {
   symptoms: EffectiveSymptom[]
@@ -31,17 +32,24 @@ const DEFAULT_COLUMNS = {
   sm: 1
 }
 
-const DEFAULT_ITEM_HEIGHT = 200
 const DEFAULT_OVERSCAN = 5
 
 export default function VirtualizedGrid({
   symptoms,
   surgerySlug,
   columns = DEFAULT_COLUMNS,
-  itemHeight = DEFAULT_ITEM_HEIGHT,
+  itemHeight,
   overscan = DEFAULT_OVERSCAN
 }: VirtualizedGridProps) {
   const { currentSurgerySlug } = useSurgery()
+  const { isSimplified, cardStyle } = useCardStyle()
+  const resolvedItemHeight = useMemo(() => {
+    if (typeof itemHeight === 'number') {
+      return itemHeight
+    }
+    // Provide a little extra room to avoid overlaps in virtualised mode.
+    return isSimplified ? 220 : cardStyle === 'powerappsBlue' ? 280 : 272
+  }, [itemHeight, isSimplified, cardStyle])
   
   // Use provided surgerySlug or fall back to context
   const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
@@ -113,15 +121,15 @@ export default function VirtualizedGrid({
       return { start: 0, end: 0 }
     }
 
-    const rowsPerPage = Math.ceil(containerHeight / itemHeight)
+    const rowsPerPage = Math.ceil(containerHeight / resolvedItemHeight)
     const itemsPerRow = gridDimensions.columns
     const itemsPerPage = rowsPerPage * itemsPerRow
 
-    const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) * itemsPerRow - overscan * itemsPerRow)
+    const startIndex = Math.max(0, Math.floor(scrollTop / resolvedItemHeight) * itemsPerRow - overscan * itemsPerRow)
     const endIndex = Math.min(sortedSymptoms.length, startIndex + itemsPerPage + overscan * itemsPerRow)
 
     return { start: startIndex, end: endIndex }
-  }, [scrollTop, containerHeight, gridDimensions.columns, itemHeight, overscan, sortedSymptoms.length])
+  }, [scrollTop, containerHeight, gridDimensions.columns, resolvedItemHeight, overscan, sortedSymptoms.length])
 
   // Handle scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -130,7 +138,7 @@ export default function VirtualizedGrid({
 
   // Calculate total height
   const totalRows = Math.ceil(sortedSymptoms.length / gridDimensions.columns)
-  const totalHeight = totalRows * itemHeight + (totalRows - 1) * 24 // gap
+  const totalHeight = totalRows * resolvedItemHeight + (totalRows - 1) * 24 // gap
 
   // Get visible symptoms
   const visibleSymptoms = sortedSymptoms.slice(visibleRange.start, visibleRange.end)
@@ -159,7 +167,7 @@ export default function VirtualizedGrid({
           const row = Math.floor(globalIndex / gridDimensions.columns)
           const col = globalIndex % gridDimensions.columns
           
-          const top = row * (itemHeight + 24) // itemHeight + gap
+          const top = row * (resolvedItemHeight + 24) // itemHeight + gap
           const left = col * (gridDimensions.itemWidth + 24) // itemWidth + gap
 
           return (
@@ -170,7 +178,7 @@ export default function VirtualizedGrid({
                 top,
                 left,
                 width: gridDimensions.itemWidth,
-                height: itemHeight
+                height: resolvedItemHeight
               }}
             >
               <SymptomCard symptom={symptom} surgerySlug={effectiveSurgerySlug} />
