@@ -4,10 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { signOut } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
-import SearchBox from './SearchBox'
-import AlphabetStrip from './AlphabetStrip'
-import AgeFilter from './AgeFilter'
-import HighRiskButtons from './HighRiskButtons'
+import SurgeryFiltersHeader from './SurgeryFiltersHeader'
 import UserPreferencesModal from './UserPreferencesModal'
 import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
@@ -183,62 +180,18 @@ export default function CompactToolbar({
         </div>
       </div>
 
-      {/* Row 2: Search, Age Filter, Results Count */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
-        <div className="flex items-center gap-4 justify-between">
-          {/* Left side: Search Box and Age Filter */}
-          <div className="flex items-center gap-4 flex-1">
-            {/* Search Box */}
-            <div className="flex-1 max-w-md">
-              <SearchBox 
-                ref={searchInputRef}
-                value={searchTerm}
-                onChange={onSearchChange}
-                placeholder="Search symptoms... (Press / to focus)"
-                debounceMs={250}
-              />
-            </div>
-
-            {/* Age Filter */}
-            <div className="flex-shrink-0">
-              <AgeFilter 
-                value={selectedAge}
-                onChange={onAgeChange}
-              />
-            </div>
-          </div>
-
-          {/* Right side: Results Count */}
-          <div className="flex items-center gap-4 flex-shrink-0">
-            <div className="flex-shrink-0 text-sm text-nhs-grey">
-              {resultsCount} of {totalCount}
-              {selectedLetter !== 'All' && ` (${selectedLetter})`}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Row 3: High-Risk Buttons (scrollable) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
-        <div className="overflow-x-auto scrollbar-hide">
-          <div className="flex gap-3 pb-2 min-w-max">
-            <HighRiskButtons surgeryId={currentSurgeryId} />
-          </div>
-        </div>
-      </div>
-
-      {/* Row 4: Alphabet Strip (scrollable) */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
-        <div className="overflow-x-auto scrollbar-hide">
-          <div className="min-w-max">
-            <AlphabetStrip 
-              selected={selectedLetter} 
-              onSelect={onLetterChange}
-              size="sm"
-            />
-          </div>
-        </div>
-      </div>
+      <SurgeryFiltersHeader
+        searchTerm={searchTerm}
+        onSearchChange={onSearchChange}
+        selectedLetter={selectedLetter}
+        onLetterChange={onLetterChange}
+        selectedAge={selectedAge}
+        onAgeChange={onAgeChange}
+        resultsCount={resultsCount}
+        totalCount={totalCount}
+        currentSurgeryId={currentSurgeryId}
+        searchInputRef={searchInputRef}
+      />
 
       {/* User Preferences Modal */}
       <UserPreferencesModal 

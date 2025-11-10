@@ -16,7 +16,12 @@ export default function AgeFilter({ value, onChange }: AgeFilterProps) {
   const bands: AgeBand[] = ['All', 'Under5', '5to17', 'Adult']
 
   return (
-    <div role="tablist" aria-label="Age filter" className="flex gap-2">
+    <div
+      role="tablist"
+      aria-label="Age filter"
+      aria-orientation="vertical"
+      className="flex flex-col gap-2 mt-3"
+    >
       {bands.map((band) => (
         <button
           key={band}

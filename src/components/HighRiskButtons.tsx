@@ -65,18 +65,20 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
     }
   }
 
+  const containerClasses = 'flex flex-wrap gap-2 lg:flex-col'
+
   if (isLoading) {
     return (
-      <>
+      <div className={containerClasses} aria-hidden="true">
         {[1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
-            className="px-4 py-2 bg-gray-200 rounded-full animate-pulse"
+            className="px-4 py-2 bg-gray-200 rounded-full animate-pulse lg:w-full"
           >
             <span className="text-gray-400 text-sm">Loading...</span>
           </div>
         ))}
-      </>
+      </div>
     )
   }
 
@@ -85,7 +87,7 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
   }
 
   return (
-    <>
+    <div className={containerClasses}>
       {highRiskLinks
         .sort((a, b) => a.orderIndex - b.orderIndex)
         .map((link) => {
@@ -100,9 +102,9 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
           }
 
           return (
-            <Link key={link.id} href={href}>
+            <Link key={link.id} href={href} className="lg:w-full">
               <button
-                className="px-4 py-2 bg-red-600 text-white font-semibold rounded-full border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className="px-4 py-2 bg-red-600 text-white font-semibold rounded-full border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 lg:w-full lg:text-left"
                 title={`View ${link.label}`}
                 aria-label={`View ${link.label} symptom information`}
               >
@@ -111,6 +113,6 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
             </Link>
           )
         })}
-    </>
+    </div>
   )
 }
