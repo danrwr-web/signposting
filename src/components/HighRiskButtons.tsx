@@ -67,7 +67,7 @@ export default function HighRiskButtons({ surgeryId, className }: HighRiskButton
   }
 
   const baseClasses = 'grid grid-cols-1 gap-2'
-  const containerClasses = className ? `${baseClasses} ${className}` : baseClasses
+  const containerClasses = className ?? baseClasses
 
   if (isLoading) {
     return (
