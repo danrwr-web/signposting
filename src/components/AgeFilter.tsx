@@ -11,14 +11,19 @@ interface AgeFilterProps {
   value: AgeBand
   onChange: (value: AgeBand) => void
   className?: string
+  orientation?: 'vertical' | 'horizontal'
 }
 
-export default function AgeFilter({ value, onChange, className }: AgeFilterProps) {
+export default function AgeFilter({ value, onChange, className, orientation = 'vertical' }: AgeFilterProps) {
   const bands: AgeBand[] = ['All', 'Under5', '5to17', 'Adult']
 
-  const containerClasses = className ?? 'flex flex-col gap-2 mt-3'
+  const containerClasses =
+    className ??
+    (orientation === 'horizontal'
+      ? 'flex items-center gap-2'
+      : 'flex flex-col gap-2 mt-3')
   const baseClasses =
-    'px-3 py-1 rounded-full text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2'
+    'px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2'
 
   const getClassesForBand = (band: AgeBand, isSelected: boolean) => {
     if (band === 'All') {
@@ -55,7 +60,7 @@ export default function AgeFilter({ value, onChange, className }: AgeFilterProps
     <div
       role="tablist"
       aria-label="Age filter"
-      aria-orientation="vertical"
+      aria-orientation={orientation}
       className={containerClasses}
     >
       {bands.map((band) => (
