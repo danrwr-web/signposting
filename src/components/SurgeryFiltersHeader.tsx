@@ -116,51 +116,43 @@ export default function SurgeryFiltersHeader({
   if (activeLayout === 'classic') {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
-        <div className="lg:flex lg:items-start lg:gap-6">
-          <div className="flex-1">
-            <div className="max-w-2xl w-full mx-auto lg:mx-0">
-              <div className="flex items-center gap-4 justify-between">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="flex-1 max-w-md">
-                    <SearchBox
-                      ref={searchInputRef}
-                      value={searchTerm}
-                      onChange={onSearchChange}
-                      placeholder="Search symptoms... (Press / to focus)"
-                      debounceMs={250}
-                    />
-                  </div>
-                  <div className="flex-shrink-0">
-                    {renderClassicAgeButtons()}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="flex-shrink-0 text-sm text-nhs-grey" aria-live="polite">
-                    {resultsCount} of {totalCount}
-                    {selectedLetter !== 'All' && ` (${selectedLetter})`}
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 overflow-x-auto scrollbar-hide">
-                <div className="flex gap-3 pb-2 min-w-max">
-                  <HighRiskButtons
-                    surgeryId={currentSurgeryId}
-                    className="flex gap-3"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4 overflow-x-auto scrollbar-hide">
-                <div className="min-w-max">
-                  <AlphabetStrip
-                    selected={selectedLetter}
-                    onSelect={onLetterChange}
-                    size="sm"
-                  />
-                </div>
-              </div>
+        <div className="flex items-center gap-4 justify-between">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="max-w-md w-full">
+              <SearchBox
+                ref={searchInputRef}
+                value={searchTerm}
+                onChange={onSearchChange}
+                placeholder="Search symptoms... (Press / to focus)"
+                debounceMs={250}
+              />
             </div>
+            <div className="flex gap-2">
+              {renderClassicAgeButtons()}
+            </div>
+          </div>
+          <div className="text-sm text-nhs-grey" aria-live="polite">
+            {resultsCount} of {totalCount}
+            {selectedLetter !== 'All' && ` (${selectedLetter})`}
+          </div>
+        </div>
+
+        <div className="mt-4 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-3 pb-2">
+            <HighRiskButtons
+              surgeryId={currentSurgeryId}
+              className="flex gap-3"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-2 pb-2">
+            <AlphabetStrip
+              selected={selectedLetter}
+              onSelect={onLetterChange}
+              size="sm"
+            />
           </div>
         </div>
       </div>
