@@ -15,9 +15,10 @@ interface HighRiskLink {
 interface HighRiskButtonsProps {
   surgeryId?: string
   className?: string
+  variant?: 'classic' | 'split'
 }
 
-export default function HighRiskButtons({ surgeryId, className }: HighRiskButtonsProps) {
+export default function HighRiskButtons({ surgeryId, className, variant = 'classic' }: HighRiskButtonsProps) {
   const [highRiskLinks, setHighRiskLinks] = useState<HighRiskLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -66,8 +67,16 @@ export default function HighRiskButtons({ surgeryId, className }: HighRiskButton
     }
   }
 
-  const baseClasses = 'grid grid-cols-1 gap-2'
-  const containerClasses = className ?? baseClasses
+  const baseClasses =
+    variant === 'split'
+      ? 'grid grid-cols-1 lg:grid-cols-2 gap-2'
+      : 'flex gap-3'
+  const containerClasses = [baseClasses, className].filter(Boolean).join(' ')
+
+  const buttonClasses =
+    variant === 'split'
+      ? 'w-full inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm text-left focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+      : 'inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
 
   if (isLoading) {
     return (
@@ -106,7 +115,7 @@ export default function HighRiskButtons({ surgeryId, className }: HighRiskButton
           return (
             <Link key={link.id} href={href} className="w-full">
               <button
-                className="w-full inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm text-left focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+                className={buttonClasses}
                 title={`View ${link.label}`}
                 aria-label={`View ${link.label} symptom information`}
               >

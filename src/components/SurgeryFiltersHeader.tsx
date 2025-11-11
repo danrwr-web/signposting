@@ -82,13 +82,11 @@ export default function SurgeryFiltersHeader({
                 debounceMs={250}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <AgeFilter
-                value={selectedAge}
-                onChange={onAgeChange}
-                orientation="horizontal"
-              />
-            </div>
+            <AgeFilter
+              value={selectedAge}
+              onChange={onAgeChange}
+              orientation="horizontal"
+            />
           </div>
           <div className="text-sm text-nhs-grey" aria-live="polite">
             {resultsCount} of {totalCount}
@@ -122,7 +120,7 @@ export default function SurgeryFiltersHeader({
                   ].join(' ')}
                   aria-pressed={isSelected}
                 >
-                  {displayLetter}
+                  {letter}
                 </button>
               )
             })}
@@ -155,18 +153,21 @@ export default function SurgeryFiltersHeader({
 
             <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
               <div className="flex flex-col gap-2">
-              <AgeFilter
-                value={selectedAge}
-                onChange={onAgeChange}
-                className="flex flex-col gap-2 items-start"
-                orientation="vertical"
-              />
+                <AgeFilter
+                  value={selectedAge}
+                  onChange={onAgeChange}
+                  className="flex flex-col gap-2 items-start"
+                  orientation="vertical"
+                />
               </div>
 
               <div className="flex-1 flex justify-center">
-                <div className="grid grid-cols-9 gap-2 max-w-lg">
-                  {renderAlphabetButtons()}
-                </div>
+                <AlphabetStrip
+                  selected={selectedLetter}
+                  onSelect={onLetterChange}
+                  size="sm"
+                  className="grid grid-cols-9 gap-2 max-w-lg"
+                />
               </div>
             </div>
           </div>
@@ -176,7 +177,7 @@ export default function SurgeryFiltersHeader({
           <div className="bg-white rounded-xl shadow-sm px-2.5 py-3">
             <HighRiskButtons
               surgeryId={currentSurgeryId}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-2"
+              variant="split"
             />
           </div>
         </aside>
