@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 import ToggleSwitch from './ToggleSwitch'
-import { CardStyle, useCardStyle } from '@/context/CardStyleContext'
+import { CardStyle, HeaderLayout, useCardStyle } from '@/context/CardStyleContext'
 
 interface UserPreferencesModalProps {
   isOpen: boolean
@@ -35,7 +35,11 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const firstInputRef = useRef<HTMLInputElement | null>(null)
 
-  const { cardStyle, setCardStyle, isSimplified, setIsSimplified } = useCardStyle()
+  const { cardStyle, setCardStyle, isSimplified, setIsSimplified, headerLayout, setHeaderLayout } = useCardStyle()
+  const handleHeaderLayoutChange = (value: HeaderLayout) => {
+    setHeaderLayout(value)
+  }
+
   const { data: session } = useSession()
 
   const [currentPassword, setCurrentPassword] = useState('')
@@ -267,6 +271,41 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
               <p className="mt-2 text-xs text-slate-500">
                 When enabled, card colour follows the appearance you selected above but hides additional details until opened.
               </p>
+            </section>
+
+            <section>
+              <h3 className="text-sm font-semibold text-slate-900">Header layout</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Choose how the search header arranges filters and high-risk buttons.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleHeaderLayoutChange('classic')}
+                  className={[
+                    'rounded-full border px-3 py-1 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
+                    headerLayout === 'classic'
+                      ? 'bg-nhs-blue text-white border-nhs-blue'
+                      : 'bg-white text-slate-700 border-slate-300 hover:border-nhs-blue'
+                  ].join(' ')}
+                  aria-pressed={headerLayout === 'classic'}
+                >
+                  Classic
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleHeaderLayoutChange('split')}
+                  className={[
+                    'rounded-full border px-3 py-1 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
+                    headerLayout === 'split'
+                      ? 'bg-nhs-blue text-white border-nhs-blue'
+                      : 'bg-white text-slate-700 border-slate-300 hover:border-nhs-blue'
+                  ].join(' ')}
+                  aria-pressed={headerLayout === 'split'}
+                >
+                  Split header
+                </button>
+              </div>
             </section>
 
             <section>
