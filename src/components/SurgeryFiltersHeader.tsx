@@ -68,29 +68,6 @@ export default function SurgeryFiltersHeader({
   const { headerLayout } = useCardStyle()
   const activeLayout = headerLayout ?? 'split'
 
-  const renderClassicAgeButtons = () => {
-    const classicBands: AgeBand[] = ['All', 'Under5', '5to17', 'Adult']
-    return (
-      <div role="tablist" aria-label="Age filter" className="flex gap-2">
-        {classicBands.map((band) => (
-          <button
-            key={band}
-            role="tab"
-            aria-selected={selectedAge === band}
-            onClick={() => onAgeChange(band)}
-            className={`px-3 py-1 rounded-full border transition-colors ${
-              selectedAge === band
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300'
-            }`}
-          >
-            {band === 'Under5' ? 'Under 5' : band === '5to17' ? '5–17' : band}
-          </button>
-        ))}
-      </div>
-    )
-  }
-
   const renderAlphabetButtons = () =>
     LETTERS.map((letter) => {
       const isSelected = letter === selectedLetter
@@ -127,8 +104,22 @@ export default function SurgeryFiltersHeader({
                 debounceMs={250}
               />
             </div>
-            <div className="flex gap-2">
-              {renderClassicAgeButtons()}
+            <div className="flex items-center gap-2" role="tablist" aria-label="Age filter">
+              {(['All', 'Under5', '5to17', 'Adult'] as AgeBand[]).map((band) => (
+                <button
+                  key={band}
+                  role="tab"
+                  aria-selected={selectedAge === band}
+                  onClick={() => onAgeChange(band)}
+                  className={`px-3 py-1 rounded-full border transition-colors text-sm font-medium ${
+                    selectedAge === band
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-gray-200 text-gray-700 border-gray-300 hover:bg-gray-300'
+                  }`}
+                >
+                  {band === 'Under5' ? 'Under 5' : band === '5to17' ? '5–17' : band}
+                </button>
+              ))}
             </div>
           </div>
           <div className="text-sm text-nhs-grey" aria-live="polite">
@@ -137,8 +128,8 @@ export default function SurgeryFiltersHeader({
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-3 pb-2">
+        <div className="mt-3 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-3 pb-2 min-w-max">
             <HighRiskButtons
               surgeryId={currentSurgeryId}
               className="flex gap-3"
@@ -146,8 +137,8 @@ export default function SurgeryFiltersHeader({
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-2 pb-2">
+        <div className="mt-3 overflow-x-auto scrollbar-hide">
+          <div className="flex gap-2 pb-2 min-w-max">
             <AlphabetStrip
               selected={selectedLetter}
               onSelect={onLetterChange}
