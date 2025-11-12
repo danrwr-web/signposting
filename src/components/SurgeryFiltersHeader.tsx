@@ -4,7 +4,6 @@ import { RefObject } from 'react'
 import SearchBox from './SearchBox'
 import AgeFilter from './AgeFilter'
 import HighRiskButtons from './HighRiskButtons'
-import AlphabetStrip from './AlphabetStrip'
 import { useCardStyle } from '@/context/CardStyleContext'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
@@ -71,6 +70,7 @@ export default function SurgeryFiltersHeader({
   if (activeLayout === 'classic') {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+        {/* row 1: search + ages (left), count (right) */}
         <div className="flex items-center gap-4 justify-between">
           <div className="flex items-center gap-4 flex-1">
             <div className="max-w-md w-full">
@@ -82,13 +82,19 @@ export default function SurgeryFiltersHeader({
                 debounceMs={250}
               />
             </div>
-            <AgeFilter
-              value={selectedAge}
-              onChange={onAgeChange}
-              orientation="horizontal"
-            />
+
+            {/* horizontal age filters */}
+            <div className="flex items-center gap-2">
+              <AgeFilter
+                value={selectedAge}
+                onChange={onAgeChange}
+                orientation="horizontal"
+              />
+            </div>
           </div>
-          <div className="text-sm text-nhs-grey" aria-live="polite">
+
+          {/* count on the same row, right aligned */}
+          <div className="text-sm text-nhs-grey shrink-0" aria-live="polite">
             {resultsCount} of {totalCount}
             {selectedLetter !== 'All' && ` (${selectedLetter})`}
           </div>
@@ -136,23 +142,25 @@ export default function SurgeryFiltersHeader({
       <div className="lg:flex lg:items-start lg:gap-6">
         <div className="flex-1">
           <div className="max-w-2xl w-full mx-auto lg:mx-0">
-            <SearchBox
-              ref={searchInputRef}
-              value={searchTerm}
-              onChange={onSearchChange}
-              placeholder="Search symptoms... (Press / to focus)"
-              debounceMs={250}
-            />
-
-            <div
-              className="mt-2 text-sm text-nhs-grey text-left lg:text-right"
-              aria-live="polite"
-            >
-              {resultsCount} of {totalCount}
-              {selectedLetter !== 'All' && ` (${selectedLetter})`}
+            {/* row 1: search + count on the same line */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex-1">
+                <SearchBox
+                  ref={searchInputRef}
+                  value={searchTerm}
+                  onChange={onSearchChange}
+                  placeholder="Search symptoms... (Press / to focus)"
+                  debounceMs={250}
+                />
+              </div>
+              <div className="text-sm text-nhs-grey shrink-0" aria-live="polite">
+                {resultsCount} of {totalCount}
+                {selectedLetter !== 'All' && ` (${selectedLetter})`}
+              </div>
             </div>
 
-            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-6">
+            <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+              {/* left: age pills */}
               <div className="flex flex-col gap-2">
                 <AgeFilter
                   value={selectedAge}
@@ -162,13 +170,29 @@ export default function SurgeryFiltersHeader({
                 />
               </div>
 
+              {/* centre: alphabet */}
               <div className="flex-1 flex justify-center">
-                <AlphabetStrip
-                  selected={selectedLetter}
-                  onSelect={onLetterChange}
-                  size="sm"
-                  className="grid grid-cols-9 gap-2 max-w-lg"
-                />
+                <div className="grid grid-cols-9 gap-2 max-w-lg">
+                  {LETTERS.map((letter) => {
+                    const isSelected = selectedLetter === letter
+                    return (
+                      <button
+                        key={letter}
+                        type="button"
+                        onClick={() => onLetterChange(letter)}
+                        className={[
+                          'h-9 w-9 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
+                          isSelected
+                            ? 'bg-nhs-blue text-white border-nhs-blue'
+                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                        ].join(' ')}
+                        aria-pressed={isSelected}
+                      >
+                        {letter}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>

@@ -113,9 +113,17 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
             ? 'w-full h-12 rounded-xl border border-red-200 bg-red-50 text-red-900 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-red-300'
             : 'w-full h-12 rounded-full bg-nhs-red text-white hover:bg-[#cc2a2a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-red-300'
           
+          const fontFor = (label: string) => {
+            const n = label.trim().length
+            if (n > 22) return 'text-[12px]'
+            if (n > 18) return 'text-[13px]'
+            if (n > 14) return 'text-[14px]'
+            return 'text-[15px]'
+          }
+          
           const buttonClasses = [
             baseButtonClasses,
-            'inline-flex items-center justify-center px-4 text-[15px] font-medium leading-none'
+            'inline-flex items-center justify-center px-4 leading-none font-medium whitespace-nowrap'
           ].filter(Boolean).join(' ')
 
           return (
@@ -125,7 +133,9 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
                 title={link.label}
                 aria-label={link.label}
               >
-                <span className="block max-w-full truncate">{link.label}</span>
+                <span className={['tracking-tight', fontFor(link.label)].filter(Boolean).join(' ')}>
+                  {link.label}
+                </span>
               </button>
             </Link>
           )
