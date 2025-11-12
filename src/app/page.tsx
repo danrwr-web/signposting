@@ -41,7 +41,14 @@ export default async function HomePage() {
 
     return <LandingPageClient />
   } catch (error) {
-    // If session check fails, still show landing page
+    // Don't catch NEXT_REDIRECT errors - let them propagate
+    // This is how Next.js handles redirects internally
+    if (error && typeof error === 'object' && 'digest' in error && 
+        typeof error.digest === 'string' && error.digest.startsWith('NEXT_REDIRECT')) {
+      throw error
+    }
+    
+    // If session check fails (not a redirect), still show landing page
     console.error('Error checking session in HomePage:', error)
     return <LandingPageClient />
   }
