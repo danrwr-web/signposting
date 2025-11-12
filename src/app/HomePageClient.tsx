@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import CompactToolbar from '@/components/CompactToolbar'
 import VirtualizedGrid from '@/components/VirtualizedGrid'
@@ -19,7 +19,7 @@ interface HomePageClientProps {
   surgeryName?: string
 }
 
-export default function HomePageClient({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName }: HomePageClientProps) {
+function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName }: HomePageClientProps) {
   const searchParams = useSearchParams()
   const { surgery, currentSurgerySlug } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
@@ -203,5 +203,17 @@ export default function HomePageClient({ surgeries, symptoms: initialSymptoms, r
         )}
       </main>
     </div>
+  )
+}
+
+export default function HomePageClient(props: HomePageClientProps) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-nhs-light-grey flex items-center justify-center">
+        <div className="text-nhs-grey">Loading...</div>
+      </div>
+    }>
+      <HomePageClientContent {...props} />
+    </Suspense>
   )
 }
