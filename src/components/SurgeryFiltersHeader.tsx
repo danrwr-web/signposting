@@ -173,7 +173,7 @@ export default function SurgeryFiltersHeader({
           </div>
         </div>
 
-        <aside className="lg:w-72 w-full lg:shrink-0 lg:mt-2 mt-6">
+        <aside className="lg:w-80 w-full lg:shrink-0 lg:mt-2 mt-6">
           <div className="bg-white rounded-xl shadow-sm px-2.5 py-3">
             <HighRiskButtons
               surgeryId={currentSurgeryId}

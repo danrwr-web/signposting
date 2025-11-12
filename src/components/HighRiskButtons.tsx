@@ -73,10 +73,7 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
       : 'flex gap-3'
   const containerClasses = [baseClasses, className].filter(Boolean).join(' ')
 
-  const buttonClasses =
-    variant === 'split'
-      ? 'w-full inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm text-left focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
-      : 'inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+  const isSplit = variant === 'split'
 
   if (isLoading) {
     return (
@@ -112,8 +109,18 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
             href = `/symptom/${link.symptomSlug}${surgeryId ? `?surgery=${surgeryId}` : ''}`
           }
 
+          const isLong = link.label.length > 16 || link.label.toLowerCase().includes('mental')
+          const baseButtonClasses = isSplit
+            ? 'w-full inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+            : 'inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+          
+          const buttonClasses = [
+            baseButtonClasses,
+            isSplit && isLong ? 'lg:col-span-2 justify-center' : ''
+          ].filter(Boolean).join(' ')
+
           return (
-            <Link key={link.id} href={href} className="w-full">
+            <Link key={link.id} href={href} className={isSplit && isLong ? 'lg:col-span-2 w-full' : 'w-full'}>
               <button
                 className={buttonClasses}
                 title={`View ${link.label}`}
