@@ -69,8 +69,10 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     setIsSimplified,
     headerLayout,
     setHeaderLayout,
-    highRiskStyle,
-    setHighRiskStyle,
+    highRiskStyleSplit,
+    setHighRiskStyleSplit,
+    highRiskStyleClassic,
+    setHighRiskStyleClassic,
     resetPrefs
   } = useCardStyle()
 
@@ -81,7 +83,8 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
   const headingId = useId()
   const appearanceId = useId()
   const headerId = useId()
-  const highRiskId = useId()
+  const highRiskClassicId = useId()
+  const highRiskSplitId = useId()
 
   const handleClose = useCallback(() => {
     onClose()
@@ -161,8 +164,13 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     showSavedToast()
   }
 
-  const handleHighRiskStyleChange = (value: HighRiskStyle) => {
-    setHighRiskStyle(value)
+  const handleHighRiskStyleClassicChange = (value: string) => {
+    setHighRiskStyleClassic(value as HighRiskStyle)
+    showSavedToast()
+  }
+
+  const handleHighRiskStyleSplitChange = (value: string) => {
+    setHighRiskStyleSplit(value as HighRiskStyle)
     showSavedToast()
   }
 
@@ -309,37 +317,61 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
                 </fieldset>
 
                 {/* High-risk buttons */}
-                <fieldset className="space-y-3 lg:col-span-2">
-                  <legend id={highRiskId} className="text-sm font-semibold text-slate-700 mb-3">
-                    High-risk buttons
-                  </legend>
-                  {headerLayout === 'split' ? (
-                    <div className="space-y-2">
-                      <RadioCard
-                        name="highRiskStyle"
-                        value="pill"
-                        checked={(highRiskStyle ?? 'pill') === 'pill'}
-                        onChange={handleHighRiskStyleChange}
-                        title="Pill (default)"
-                        help="Rounded pills."
-                        preview={<div className="w-full h-full bg-red-600 rounded-full border-2 border-red-700" />}
-                      />
-                      <RadioCard
-                        name="highRiskStyle"
-                        value="tile"
-                        checked={highRiskStyle === 'tile'}
-                        onChange={handleHighRiskStyleChange}
-                        title="Tile"
-                        help="Squared tiles with a subtle border."
-                        preview={<div className="w-full h-full bg-red-50 border border-red-200 rounded-xl" />}
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-600">
-                      Available when Header layout is set to Split.
+                <div className="lg:col-span-2 space-y-6">
+                  <fieldset aria-describedby={`${highRiskClassicId}-help`} className="space-y-3">
+                    <legend className="text-sm font-semibold text-slate-700">
+                      High-risk buttons — Classic layout
+                    </legend>
+                    <p id={`${highRiskClassicId}-help`} className="text-xs text-slate-600">
+                      Choose how the red high-risk buttons look when the header layout is set to <strong>Classic</strong>.
                     </p>
-                  )}
-                </fieldset>
+                    <RadioCard
+                      name="highRiskStyleClassic"
+                      value="pill"
+                      checked={(highRiskStyleClassic ?? 'pill') === 'pill'}
+                      onChange={handleHighRiskStyleClassicChange}
+                      title="Pill (default)"
+                      help="Rounded pills."
+                      preview={<div className="h-3 w-6 rounded-full bg-red-600" />}
+                    />
+                    <RadioCard
+                      name="highRiskStyleClassic"
+                      value="tile"
+                      checked={highRiskStyleClassic === 'tile'}
+                      onChange={handleHighRiskStyleClassicChange}
+                      title="Tile"
+                      help="Squared tiles with a subtle border."
+                      preview={<div className="h-3 w-6 rounded-lg bg-red-600" />}
+                    />
+                  </fieldset>
+
+                  <fieldset aria-describedby={`${highRiskSplitId}-help`} className="space-y-3">
+                    <legend className="text-sm font-semibold text-slate-700">
+                      High-risk buttons — Split layout
+                    </legend>
+                    <p id={`${highRiskSplitId}-help`} className="text-xs text-slate-600">
+                      Choose how the red high-risk buttons look when the header layout is set to <strong>Split</strong>.
+                    </p>
+                    <RadioCard
+                      name="highRiskStyleSplit"
+                      value="pill"
+                      checked={(highRiskStyleSplit ?? 'pill') === 'pill'}
+                      onChange={handleHighRiskStyleSplitChange}
+                      title="Pill (default)"
+                      help="Rounded pills."
+                      preview={<div className="h-3 w-6 rounded-full bg-red-600" />}
+                    />
+                    <RadioCard
+                      name="highRiskStyleSplit"
+                      value="tile"
+                      checked={highRiskStyleSplit === 'tile'}
+                      onChange={handleHighRiskStyleSplitChange}
+                      title="Tile"
+                      help="Squared tiles with a subtle border."
+                      preview={<div className="h-3 w-6 rounded-lg bg-red-600" />}
+                    />
+                  </fieldset>
+                </div>
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-200">
