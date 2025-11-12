@@ -38,11 +38,18 @@ export default async function RootLayout({
     const cookieStore = await cookies()
     const surgeryId = cookieStore.get('surgery')?.value
     
-    // Get all surgeries for the SurgeryProvider
-    surgeries = await prisma.surgery.findMany({
+    // Get all surgeries for the SurgeryProvider with timeout protection
+    // Use Promise.race to timeout after 5 seconds
+    const surgeriesPromise = prisma.surgery.findMany({
       select: { id: true, slug: true, name: true },
       orderBy: { name: 'asc' }
     })
+    
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 5000)
+    })
+    
+    surgeries = await Promise.race([surgeriesPromise, timeoutPromise])
     
     // Resolve surgery data if ID is present
     if (surgeryId) {
@@ -52,9 +59,10 @@ export default async function RootLayout({
       }
     }
   } catch (error) {
-    // If database query fails, log and continue with empty surgeries
+    // If database query fails or times out, log and continue with empty surgeries
     console.error('Error loading surgeries in layout:', error)
     // Continue with empty array - app should still work
+    // This prevents the layout from crashing and returning a 400 error
   }
 
   return (
