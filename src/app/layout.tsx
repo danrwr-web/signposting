@@ -10,6 +10,9 @@ import Providers from '@/components/Providers'
 
 const inter = Inter({ subsets: ['latin'] })
 
+// Mark layout as dynamic since we use cookies()
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'NHS Signposting',
   description: 'NHS-style symptom signposting application',
