@@ -38,18 +38,12 @@ export default async function RootLayout({
     const cookieStore = await cookies()
     const surgeryId = cookieStore.get('surgery')?.value
     
-    // Get all surgeries for the SurgeryProvider with timeout protection
-    // Use Promise.race to timeout after 5 seconds
-    const surgeriesPromise = prisma.surgery.findMany({
+    // Get all surgeries for the SurgeryProvider
+    // Note: Prisma has built-in connection timeout handling
+    surgeries = await prisma.surgery.findMany({
       select: { id: true, slug: true, name: true },
       orderBy: { name: 'asc' }
     })
-    
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timeout')), 5000)
-    })
-    
-    surgeries = await Promise.race([surgeriesPromise, timeoutPromise])
     
     // Resolve surgery data if ID is present
     if (surgeryId) {
