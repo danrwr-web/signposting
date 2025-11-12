@@ -131,10 +131,6 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     }
   }, [isOpen, handleClose])
 
-  if (!isOpen) {
-    return null
-  }
-
   const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === overlayRef.current) {
       handleClose()
@@ -182,6 +178,14 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
       }
     }
   }, [])
+
+  if (!isOpen) {
+    return (
+      <>
+        <ChangePasswordDialog isOpen={showChangePassword} onClose={() => setShowChangePassword(false)} />
+      </>
+    )
+  }
 
   return (
     <>
@@ -353,9 +357,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
         document.body
       )}
 
-      {showChangePassword && (
-        <ChangePasswordDialog isOpen={showChangePassword} onClose={() => setShowChangePassword(false)} />
-      )}
+      <ChangePasswordDialog isOpen={showChangePassword} onClose={() => setShowChangePassword(false)} />
     </>
   )
 }
