@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useId, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 import ToggleSwitch from './ToggleSwitch'
@@ -76,12 +76,16 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
 
   const { data: session } = useSession()
   const [showChangePassword, setShowChangePassword] = useState(false)
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const headingId = useId()
   const appearanceId = useId()
   const headerId = useId()
   const highRiskId = useId()
+
+  const handleClose = useCallback(() => {
+    onClose()
+  }, [onClose])
 
   useEffect(() => {
     if (!isOpen) {
@@ -125,7 +129,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen])
+  }, [isOpen, handleClose])
 
   if (!isOpen) {
     return null
@@ -137,18 +141,13 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     }
   }
 
-  const handleClose = () => {
-    onClose()
-  }
-
   const showSavedToast = () => {
-    if (saveTimeout) {
-      clearTimeout(saveTimeout)
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
     }
-    const timeout = setTimeout(() => {
+    saveTimeoutRef.current = setTimeout(() => {
       toast.success('Saved', { duration: 1500 })
     }, 300)
-    setSaveTimeout(timeout)
   }
 
   const handleCardStyleChange = (value: CardStyle) => {
@@ -178,11 +177,11 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
 
   useEffect(() => {
     return () => {
-      if (saveTimeout) {
-        clearTimeout(saveTimeout)
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
       }
     }
-  }, [saveTimeout])
+  }, [])
 
   return (
     <>
