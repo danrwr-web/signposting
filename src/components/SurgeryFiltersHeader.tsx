@@ -65,7 +65,7 @@ export default function SurgeryFiltersHeader({
   currentSurgeryId,
   searchInputRef
 }: SurgeryFiltersHeaderProps) {
-  const { headerLayout } = useCardStyle()
+  const { headerLayout, highRiskStyle } = useCardStyle()
   const activeLayout = headerLayout ?? 'split'
 
   if (activeLayout === 'classic') {
@@ -99,6 +99,7 @@ export default function SurgeryFiltersHeader({
             <HighRiskButtons
               surgeryId={currentSurgeryId}
               variant="classic"
+              appearance="pill"
             />
           </div>
         </div>
@@ -178,6 +179,7 @@ export default function SurgeryFiltersHeader({
             <HighRiskButtons
               surgeryId={currentSurgeryId}
               variant="split"
+              appearance={highRiskStyle ?? 'pill'}
             />
           </div>
         </aside>

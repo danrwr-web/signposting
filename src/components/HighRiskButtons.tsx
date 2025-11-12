@@ -16,9 +16,10 @@ interface HighRiskButtonsProps {
   surgeryId?: string
   className?: string
   variant?: 'classic' | 'split'
+  appearance?: 'pill' | 'tile'
 }
 
-export default function HighRiskButtons({ surgeryId, className, variant = 'classic' }: HighRiskButtonsProps) {
+export default function HighRiskButtons({ surgeryId, className, variant = 'classic', appearance = 'pill' }: HighRiskButtonsProps) {
   const [highRiskLinks, setHighRiskLinks] = useState<HighRiskLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -67,13 +68,12 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
     }
   }
 
+  const isSplit = variant === 'split'
   const baseClasses =
-    variant === 'split'
-      ? 'grid grid-cols-1 lg:grid-cols-2 gap-2'
+    isSplit
+      ? 'grid grid-cols-1 sm:grid-cols-2 gap-2'
       : 'flex gap-3'
   const containerClasses = [baseClasses, className].filter(Boolean).join(' ')
-
-  const isSplit = variant === 'split'
 
   if (isLoading) {
     return (
@@ -109,14 +109,16 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
             href = `/symptom/${link.symptomSlug}${surgeryId ? `?surgery=${surgeryId}` : ''}`
           }
 
-          const isLong = link.label.length > 16 || link.label.toLowerCase().includes('mental')
-          const baseButtonClasses = isSplit
-            ? 'w-full inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
-            : 'inline-flex h-11 items-center rounded-full bg-red-600 text-white font-semibold px-5 border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2'
+          const isLong = link.label.length > 16 || /mental|crisis/i.test(link.label)
+          
+          const baseButtonClasses = appearance === 'tile'
+            ? 'w-full min-h-11 px-4 py-2 rounded-xl text-[15px] font-medium leading-tight border border-red-200 bg-red-50 text-red-900 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-red-300'
+            : 'w-full h-11 px-5 rounded-full text-[15px] font-medium bg-nhs-red text-white hover:bg-[#cc2a2a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-red-300'
           
           const buttonClasses = [
             baseButtonClasses,
-            isSplit && isLong ? 'lg:col-span-2 justify-center' : ''
+            'inline-flex items-center justify-center whitespace-nowrap',
+            isSplit && isLong ? 'lg:col-span-2' : ''
           ].filter(Boolean).join(' ')
 
           return (

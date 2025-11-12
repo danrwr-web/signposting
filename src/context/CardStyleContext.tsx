@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 export type CardStyle = 'default' | 'powerappsBlue'
 export type HeaderLayout = 'classic' | 'split'
+export type HighRiskStyle = 'pill' | 'tile'
 
 interface CardStyleContextValue {
   cardStyle: CardStyle
@@ -12,6 +13,8 @@ interface CardStyleContextValue {
   setIsSimplified: (simplified: boolean) => void
   headerLayout: HeaderLayout
   setHeaderLayout: (layout: HeaderLayout) => void
+  highRiskStyle: HighRiskStyle
+  setHighRiskStyle: (style: HighRiskStyle) => void
   version: number
 }
 
@@ -20,6 +23,7 @@ const CardStyleContext = createContext<CardStyleContextValue | undefined>(undefi
 const STYLE_STORAGE_KEY = 'signposting-card-style-preference'
 const SIMPLIFIED_STORAGE_KEY = 'signposting-card-simplified'
 const HEADER_LAYOUT_STORAGE_KEY = 'signposting-header-layout'
+const HIGH_RISK_STYLE_STORAGE_KEY = 'signposting-high-risk-style'
 const LEGACY_STORAGE_KEY = 'signposting-card-style'
 
 interface ProviderProps {
@@ -30,6 +34,7 @@ export function CardStyleProvider({ children }: ProviderProps) {
   const [cardStyle, setCardStyleState] = useState<CardStyle>('default')
   const [isSimplified, setIsSimplifiedState] = useState(false)
   const [headerLayout, setHeaderLayoutState] = useState<HeaderLayout>('split')
+  const [highRiskStyle, setHighRiskStyleState] = useState<HighRiskStyle>('pill')
   const [version, setVersion] = useState(0)
 
   useEffect(() => {
@@ -40,6 +45,7 @@ export function CardStyleProvider({ children }: ProviderProps) {
     let nextStyle: CardStyle = 'default'
     let nextSimplified = false
     let nextHeaderLayout: HeaderLayout = 'split'
+    let nextHighRiskStyle: HighRiskStyle = 'pill'
 
     const storedStyle = localStorage.getItem(STYLE_STORAGE_KEY) as CardStyle | null
     if (storedStyle === 'default' || storedStyle === 'powerappsBlue') {
@@ -54,6 +60,11 @@ export function CardStyleProvider({ children }: ProviderProps) {
     const storedHeaderLayout = localStorage.getItem(HEADER_LAYOUT_STORAGE_KEY) as HeaderLayout | null
     if (storedHeaderLayout === 'classic' || storedHeaderLayout === 'split') {
       nextHeaderLayout = storedHeaderLayout
+    }
+
+    const storedHighRiskStyle = localStorage.getItem(HIGH_RISK_STYLE_STORAGE_KEY) as HighRiskStyle | null
+    if (storedHighRiskStyle === 'pill' || storedHighRiskStyle === 'tile') {
+      nextHighRiskStyle = storedHighRiskStyle
     }
 
     // Handle legacy single-value storage for backwards compatibility
@@ -72,6 +83,7 @@ export function CardStyleProvider({ children }: ProviderProps) {
     setCardStyleState(nextStyle)
     setIsSimplifiedState(nextSimplified)
     setHeaderLayoutState(nextHeaderLayout)
+    setHighRiskStyleState(nextHighRiskStyle)
   }, [])
 
   const setCardStyle = useCallback((style: CardStyle) => {
@@ -100,6 +112,14 @@ export function CardStyleProvider({ children }: ProviderProps) {
     setVersion(v => v + 1)
   }, [])
 
+  const setHighRiskStyle = useCallback((style: HighRiskStyle) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(HIGH_RISK_STYLE_STORAGE_KEY, style)
+    }
+    setHighRiskStyleState(style)
+    setVersion(v => v + 1)
+  }, [])
+
   const value = useMemo(() => ({
     cardStyle,
     setCardStyle,
@@ -107,8 +127,10 @@ export function CardStyleProvider({ children }: ProviderProps) {
     setIsSimplified,
     headerLayout,
     setHeaderLayout,
+    highRiskStyle,
+    setHighRiskStyle,
     version
-  }), [cardStyle, setCardStyle, isSimplified, setIsSimplified, headerLayout, setHeaderLayout, version])
+  }), [cardStyle, setCardStyle, isSimplified, setIsSimplified, headerLayout, setHeaderLayout, highRiskStyle, setHighRiskStyle, version])
 
   return (
     <CardStyleContext.Provider value={value}>
@@ -127,6 +149,8 @@ export function useCardStyle(): CardStyleContextValue {
       setIsSimplified: () => {},
       headerLayout: 'split',
       setHeaderLayout: () => {},
+      highRiskStyle: 'pill',
+      setHighRiskStyle: () => {},
       version: 0
     }
   }
