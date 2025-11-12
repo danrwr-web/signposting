@@ -69,10 +69,8 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     setIsSimplified,
     headerLayout,
     setHeaderLayout,
-    highRiskStyleSplit,
-    setHighRiskStyleSplit,
-    highRiskStyleClassic,
-    setHighRiskStyleClassic,
+    highRiskStyle,
+    setHighRiskStyle,
     resetPrefs
   } = useCardStyle()
 
@@ -83,8 +81,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
   const headingId = useId()
   const appearanceId = useId()
   const headerId = useId()
-  const highRiskClassicId = useId()
-  const highRiskSplitId = useId()
+  const highRiskId = useId()
 
   const handleClose = useCallback(() => {
     onClose()
@@ -164,13 +161,8 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     showSavedToast()
   }
 
-  const handleHighRiskStyleClassicChange = (value: string) => {
-    setHighRiskStyleClassic(value as HighRiskStyle)
-    showSavedToast()
-  }
-
-  const handleHighRiskStyleSplitChange = (value: string) => {
-    setHighRiskStyleSplit(value as HighRiskStyle)
+  const handleHighRiskStyleChange = (value: string) => {
+    setHighRiskStyle(value as HighRiskStyle)
     showSavedToast()
   }
 
@@ -243,135 +235,93 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Appearance */}
-                <fieldset className="space-y-3">
-                  <legend id={appearanceId} className="text-sm font-semibold text-slate-700 mb-3">
-                    Appearance
-                  </legend>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">Card theme</label>
-                      <div className="space-y-2">
-                        <RadioCard
-                          ref={firstInputRef}
-                          name="cardTheme"
-                          value="default"
-                          checked={cardStyle === 'default'}
-                          onChange={handleCardStyleChange}
-                          title="Modern (white)"
-                          help="Clean white cards with rounded corners."
-                          preview={<div className="w-full h-full bg-white rounded shadow-sm border border-slate-200" />}
-                        />
-                        <RadioCard
-                          name="cardTheme"
-                          value="powerappsBlue"
-                          checked={cardStyle === 'powerappsBlue'}
-                          onChange={handleCardStyleChange}
-                          title="Classic (blue)"
-                          help="Blue cards that match the older design."
-                          preview={
-                            <div className="w-full h-full bg-blue-600 rounded flex items-center justify-center">
-                              <span className="text-[7px] text-white font-medium px-0.5">Adult</span>
-                            </div>
-                          }
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <ToggleSwitch
-                        checked={isSimplified}
-                        onChange={handleSimplifiedChange}
-                        label="Quick-scan cards"
-                        description="Show only the symptom name and age badge. Ideal for fast scanning."
-                        aria-describedby={`${appearanceId}-simplified-help`}
-                      />
-                      <p id={`${appearanceId}-simplified-help`} className="sr-only">
-                        When enabled, card colour follows the appearance you selected above but hides additional details until opened.
-                      </p>
-                    </div>
+                <fieldset aria-describedby={`${appearanceId}-help`} className="space-y-3">
+                  <legend className="text-sm font-semibold text-slate-700">Appearance</legend>
+                  <p id={`${appearanceId}-help`} className="text-xs text-slate-600">
+                    Choose the overall look of the cards and whether to show a quick-scan view.
+                  </p>
+                  <div className="space-y-2">
+                    <RadioCard
+                      ref={firstInputRef}
+                      name="cardTheme"
+                      value="default"
+                      checked={cardStyle === 'default'}
+                      onChange={handleCardStyleChange}
+                      title="Modern (white)"
+                      help="Clean white cards with rounded corners."
+                      preview={<div className="w-full h-full bg-white rounded shadow-sm border border-slate-200" />}
+                    />
+                    <RadioCard
+                      name="cardTheme"
+                      value="powerappsBlue"
+                      checked={cardStyle === 'powerappsBlue'}
+                      onChange={handleCardStyleChange}
+                      title="Classic (blue)"
+                      help="Blue cards that match the older design."
+                      preview={
+                        <div className="w-full h-full bg-blue-600 rounded flex items-center justify-center">
+                          <span className="text-[7px] text-white font-medium px-0.5">Adult</span>
+                        </div>
+                      }
+                    />
                   </div>
+                  <ToggleSwitch
+                    checked={isSimplified}
+                    onChange={handleSimplifiedChange}
+                    label="Quick-scan cards"
+                    description="Show only the symptom name and age badge. Ideal for fast scanning."
+                  />
                 </fieldset>
 
                 {/* Header & filters */}
-                <fieldset className="space-y-3">
-                  <legend id={headerId} className="text-sm font-semibold text-slate-700 mb-3">
-                    Header & filters
-                  </legend>
-                  <div className="space-y-2">
-                    <RadioCard
-                      name="headerLayout"
-                      value="classic"
-                      checked={headerLayout === 'classic'}
-                      onChange={handleHeaderLayoutChange}
-                      title="Classic"
-                      help="Search and filters arranged in a single toolbar."
-                    />
-                    <RadioCard
-                      name="headerLayout"
-                      value="split"
-                      checked={headerLayout === 'split'}
-                      onChange={handleHeaderLayoutChange}
-                      title="Split (filters left, high-risk right)"
-                      help="Puts filters under the search and high-risk buttons in a right panel."
-                    />
-                  </div>
+                <fieldset aria-describedby={`${headerId}-help`} className="space-y-3">
+                  <legend className="text-sm font-semibold text-slate-700">Header & filters</legend>
+                  <p id={`${headerId}-help`} className="text-xs text-slate-600">
+                    Change how the search area and high-risk buttons are arranged.
+                  </p>
+                  <RadioCard
+                    name="headerLayout"
+                    value="classic"
+                    checked={headerLayout === 'classic'}
+                    onChange={handleHeaderLayoutChange}
+                    title="Classic"
+                    help="Search and filters arranged in a single toolbar."
+                  />
+                  <RadioCard
+                    name="headerLayout"
+                    value="split"
+                    checked={headerLayout === 'split'}
+                    onChange={handleHeaderLayoutChange}
+                    title="Split (filters left, high-risk right)"
+                    help="Puts filters under search and high-risk buttons in a right panel."
+                  />
                 </fieldset>
 
-                {/* High-risk buttons */}
-                <div className="lg:col-span-2 space-y-6">
-                  <fieldset aria-describedby={`${highRiskClassicId}-help`} className="space-y-3">
-                    <legend className="text-sm font-semibold text-slate-700">
-                      High-risk buttons — Classic layout
-                    </legend>
-                    <p id={`${highRiskClassicId}-help`} className="text-xs text-slate-600">
-                      Choose how the red high-risk buttons look when the header layout is set to <strong>Classic</strong>.
-                    </p>
-                    <RadioCard
-                      name="highRiskStyleClassic"
-                      value="pill"
-                      checked={(highRiskStyleClassic ?? 'pill') === 'pill'}
-                      onChange={handleHighRiskStyleClassicChange}
-                      title="Pill (default)"
-                      help="Rounded pills."
-                      preview={<div className="h-3 w-6 rounded-full bg-red-600" />}
-                    />
-                    <RadioCard
-                      name="highRiskStyleClassic"
-                      value="tile"
-                      checked={highRiskStyleClassic === 'tile'}
-                      onChange={handleHighRiskStyleClassicChange}
-                      title="Tile"
-                      help="Squared tiles with a subtle border."
-                      preview={<div className="h-3 w-6 rounded-lg bg-red-600" />}
-                    />
-                  </fieldset>
-
-                  <fieldset aria-describedby={`${highRiskSplitId}-help`} className="space-y-3">
-                    <legend className="text-sm font-semibold text-slate-700">
-                      High-risk buttons — Split layout
-                    </legend>
-                    <p id={`${highRiskSplitId}-help`} className="text-xs text-slate-600">
-                      Choose how the red high-risk buttons look when the header layout is set to <strong>Split</strong>.
-                    </p>
-                    <RadioCard
-                      name="highRiskStyleSplit"
-                      value="pill"
-                      checked={(highRiskStyleSplit ?? 'pill') === 'pill'}
-                      onChange={handleHighRiskStyleSplitChange}
-                      title="Pill (default)"
-                      help="Rounded pills."
-                      preview={<div className="h-3 w-6 rounded-full bg-red-600" />}
-                    />
-                    <RadioCard
-                      name="highRiskStyleSplit"
-                      value="tile"
-                      checked={highRiskStyleSplit === 'tile'}
-                      onChange={handleHighRiskStyleSplitChange}
-                      title="Tile"
-                      help="Squared tiles with a subtle border."
-                      preview={<div className="h-3 w-6 rounded-lg bg-red-600" />}
-                    />
-                  </fieldset>
-                </div>
+                {/* High-risk button style */}
+                <fieldset aria-describedby={`${highRiskId}-help`} className="space-y-3 lg:col-span-2">
+                  <legend className="text-sm font-semibold text-slate-700">High-risk button style</legend>
+                  <p id={`${highRiskId}-help`} className="text-xs text-slate-600">
+                    Choose how the red high-risk buttons look. The same style is used in both header layouts.
+                  </p>
+                  <RadioCard
+                    name="highRiskStyle"
+                    value="pill"
+                    checked={(highRiskStyle ?? 'pill') === 'pill'}
+                    onChange={handleHighRiskStyleChange}
+                    title="Pill (default)"
+                    help="Rounded pills."
+                    preview={<div className="h-3 w-6 rounded-full bg-red-600" />}
+                  />
+                  <RadioCard
+                    name="highRiskStyle"
+                    value="tile"
+                    checked={highRiskStyle === 'tile'}
+                    onChange={handleHighRiskStyleChange}
+                    title="Tile"
+                    help="Squared tiles with a subtle border."
+                    preview={<div className="h-3 w-6 rounded-lg bg-red-600" />}
+                  />
+                </fieldset>
               </div>
 
               <div className="mt-6 pt-4 border-t border-slate-200">
