@@ -13,6 +13,7 @@ interface AlphabetStripProps {
   selected?: Letter
   onSelect: (letter: Letter) => void
   size?: 'sm' | 'md' | 'lg'
+  className?: string
 }
 
 const LETTERS: Letter[] = [
@@ -20,7 +21,7 @@ const LETTERS: Letter[] = [
   'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'
 ]
 
-export default function AlphabetStrip({ selected = 'All', onSelect, size = 'md' }: AlphabetStripProps) {
+export default function AlphabetStrip({ selected = 'All', onSelect, size = 'md', className }: AlphabetStripProps) {
   const [focusedIndex, setFocusedIndex] = useState(0)
 
   // Persist selection to localStorage
@@ -62,8 +63,10 @@ export default function AlphabetStrip({ selected = 'All', onSelect, size = 'md' 
     }
   }
 
+  const containerClasses = className ?? 'grid grid-cols-9 gap-2 justify-items-center'
+
   return (
-    <div className="flex flex-wrap gap-2 justify-center mb-6">
+    <div className={containerClasses}>
       {LETTERS.map((letter, index) => {
         const isSelected = letter === selected
         const isFocused = index === focusedIndex

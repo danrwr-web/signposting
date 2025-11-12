@@ -4,6 +4,18 @@ import type { NextRequest } from 'next/server'
 
 export default withAuth(
   function middleware(req) {
+    // Handle OPTIONS requests (CORS preflight)
+    if (req.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        },
+      })
+    }
+
     const token = req.nextauth.token
     const pathname = req.nextUrl.pathname
 

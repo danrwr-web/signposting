@@ -14,9 +14,12 @@ interface HighRiskLink {
 
 interface HighRiskButtonsProps {
   surgeryId?: string
+  className?: string
+  variant?: 'classic' | 'split'
+  appearance?: 'pill' | 'tile'
 }
 
-export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
+export default function HighRiskButtons({ surgeryId, className, variant = 'classic', appearance = 'pill' }: HighRiskButtonsProps) {
   const [highRiskLinks, setHighRiskLinks] = useState<HighRiskLink[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -65,18 +68,25 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
     }
   }
 
+  const isSplit = variant === 'split'
+  const baseClasses =
+    isSplit
+      ? 'grid grid-cols-1 sm:grid-cols-2 gap-2'
+      : 'flex gap-3'
+  const containerClasses = [baseClasses, className].filter(Boolean).join(' ')
+
   if (isLoading) {
     return (
-      <>
+      <div className={containerClasses} aria-hidden="true">
         {[1, 2, 3, 4, 5].map((i) => (
           <div
             key={i}
-            className="px-4 py-2 bg-gray-200 rounded-full animate-pulse"
+            className="w-full px-4 py-2 bg-gray-200 rounded-full animate-pulse"
           >
             <span className="text-gray-400 text-sm">Loading...</span>
           </div>
         ))}
-      </>
+      </div>
     )
   }
 
@@ -85,7 +95,7 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
   }
 
   return (
-    <>
+    <div className={containerClasses}>
       {highRiskLinks
         .sort((a, b) => a.orderIndex - b.orderIndex)
         .map((link) => {
@@ -99,18 +109,37 @@ export default function HighRiskButtons({ surgeryId }: HighRiskButtonsProps) {
             href = `/symptom/${link.symptomSlug}${surgeryId ? `?surgery=${surgeryId}` : ''}`
           }
 
+          const baseButtonClasses = appearance === 'tile'
+            ? 'w-full h-12 rounded-xl border border-red-200 bg-red-50 text-red-900 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-red-300'
+            : 'w-full h-12 rounded-full bg-nhs-red text-white hover:bg-[#cc2a2a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 focus-visible:ring-red-300'
+          
+          const fontFor = (label: string) => {
+            const n = label.trim().length
+            if (n > 22) return 'text-[12px]'
+            if (n > 18) return 'text-[13px]'
+            if (n > 14) return 'text-[14px]'
+            return 'text-[15px]'
+          }
+          
+          const buttonClasses = [
+            baseButtonClasses,
+            'inline-flex items-center justify-center px-4 leading-none font-medium whitespace-nowrap'
+          ].filter(Boolean).join(' ')
+
           return (
-            <Link key={link.id} href={href}>
+            <Link key={link.id} href={href} className="w-full">
               <button
-                className="px-4 py-2 bg-red-600 text-white font-semibold rounded-full border-2 border-red-700 hover:bg-red-700 transition-colors shadow-sm hover:shadow-md text-sm whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-                title={`View ${link.label}`}
-                aria-label={`View ${link.label} symptom information`}
+                className={buttonClasses}
+                title={link.label}
+                aria-label={link.label}
               >
-                {link.label}
+                <span className={['tracking-tight', fontFor(link.label)].filter(Boolean).join(' ')}>
+                  {link.label}
+                </span>
               </button>
             </Link>
           )
         })}
-    </>
+    </div>
   )
 }

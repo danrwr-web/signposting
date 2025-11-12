@@ -1,51 +1,91 @@
 'use client'
 
-import { FormEvent, useEffect, useId, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 import ToggleSwitch from './ToggleSwitch'
-import { CardStyle, useCardStyle } from '@/context/CardStyleContext'
+import ChangePasswordDialog from './ChangePasswordDialog'
+import { CardStyle, HeaderLayout, HighRiskStyle, useCardStyle } from '@/context/CardStyleContext'
+import toast from 'react-hot-toast'
 
 interface UserPreferencesModalProps {
   isOpen: boolean
   onClose: () => void
 }
 
-type CardAppearanceOption = {
-  value: CardStyle
-  label: string
-  description: string
+interface RadioCardProps {
+  name: string
+  value: string
+  checked: boolean
+  onChange: (v: string) => void
+  title: string
+  help?: string
+  preview?: React.ReactNode
 }
 
-const CARD_APPEARANCE_OPTIONS: readonly CardAppearanceOption[] = [
-  {
-    value: 'default',
-    label: 'Modern',
-    description: 'Clean white cards with rounded corners.'
-  },
-  {
-    value: 'powerappsBlue',
-    label: 'Blue',
-    description: 'Classic blue cards that match the older design.'
+const RadioCard = React.forwardRef<HTMLInputElement, RadioCardProps>(
+  ({ name, value, checked, onChange, title, help, preview }, ref) => {
+    return (
+      <label
+        className={[
+          'rounded-xl border p-3 cursor-pointer flex items-start gap-3 transition',
+          checked
+            ? 'border-nhs-blue ring-2 ring-nhs-blue/20'
+            : 'border-slate-300 hover:border-slate-400'
+        ].join(' ')}
+      >
+        <input
+          ref={ref}
+          type="radio"
+          name={name}
+          value={value}
+          checked={checked}
+          onChange={() => onChange(value)}
+          className="sr-only"
+        />
+      <div className="w-6 h-6 rounded-md overflow-hidden ring-1 ring-slate-300 flex items-center justify-center flex-shrink-0">
+        {preview}
+      </div>
+      <div className="flex-1">
+        <div className="text-sm font-medium text-slate-900">{title}</div>
+        {help && <div className="text-xs text-slate-600 mt-0.5">{help}</div>}
+      </div>
+    </label>
+    )
   }
-] as const
+)
+
+RadioCard.displayName = 'RadioCard'
 
 export default function UserPreferencesModal({ isOpen, onClose }: UserPreferencesModalProps) {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const dialogRef = useRef<HTMLDivElement | null>(null)
   const firstInputRef = useRef<HTMLInputElement | null>(null)
 
-  const { cardStyle, setCardStyle, isSimplified, setIsSimplified } = useCardStyle()
-  const { data: session } = useSession()
+  const {
+    cardStyle,
+    setCardStyle,
+    isSimplified,
+    setIsSimplified,
+    headerLayout,
+    setHeaderLayout,
+    highRiskStyle,
+    setHighRiskStyle,
+    resetPrefs
+  } = useCardStyle()
 
-  const [currentPassword, setCurrentPassword] = useState('')
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
+  const { data: session } = useSession()
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const headingId = useId()
+  const appearanceId = useId()
+  const headerId = useId()
+  const highRiskId = useId()
+
+  const handleClose = useCallback(() => {
+    onClose()
+  }, [onClose])
 
   useEffect(() => {
     if (!isOpen) {
@@ -89,21 +129,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) {
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      setErrorMessage('')
-      setSuccessMessage('')
-    }
-  }, [isOpen])
-
-  if (!isOpen) {
-    return null
-  }
+  }, [isOpen, handleClose])
 
   const handleOverlayClick = (event: React.MouseEvent<HTMLDivElement>) => {
     if (event.target === overlayRef.current) {
@@ -111,258 +137,209 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     }
   }
 
-  const handleClose = () => {
-    if (isLoading) {
-      return
+  const showSavedToast = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
     }
-
-    onClose()
+    saveTimeoutRef.current = setTimeout(() => {
+      toast.success('Saved', { duration: 1500 })
+    }, 300)
   }
 
   const handleCardStyleChange = (value: CardStyle) => {
     setCardStyle(value)
+    showSavedToast()
   }
 
   const handleSimplifiedChange = (value: boolean) => {
     setIsSimplified(value)
+    showSavedToast()
   }
 
-  const handlePasswordSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setErrorMessage('')
-    setSuccessMessage('')
+  const handleHeaderLayoutChange = (value: HeaderLayout) => {
+    setHeaderLayout(value)
+    showSavedToast()
+  }
 
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setErrorMessage('Please fill in all password fields.')
-      return
-    }
+  const handleHighRiskStyleChange = (value: string) => {
+    setHighRiskStyle(value as HighRiskStyle)
+    showSavedToast()
+  }
 
-    if (newPassword !== confirmPassword) {
-      setErrorMessage('New password entries must match.')
-      return
-    }
+  const handleReset = () => {
+    resetPrefs()
+    toast.success('Reset to defaults', { duration: 2000 })
+  }
 
-    if (newPassword.length < 6) {
-      setErrorMessage('New password must be at least 6 characters long.')
-      return
-    }
-
-    if (currentPassword === newPassword) {
-      setErrorMessage('New password must be different from the current password.')
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      const response = await fetch('/api/user/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword
-        })
-      })
-
-      const data: { error?: string } = await response.json()
-
-      if (response.ok) {
-        setSuccessMessage('Password changed successfully.')
-        setCurrentPassword('')
-        setNewPassword('')
-        setConfirmPassword('')
-
-        window.setTimeout(() => {
-          onClose()
-          setSuccessMessage('')
-        }, 1500)
-      } else {
-        setErrorMessage(data.error ?? 'We could not change your password. Please try again.')
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
       }
-    } catch (error) {
-      console.error('Password change error:', error)
-      setErrorMessage('Something went wrong. Please try again.')
-    } finally {
-      setIsLoading(false)
     }
+  }, [])
+
+  if (!isOpen) {
+    return (
+      <>
+        <ChangePasswordDialog isOpen={showChangePassword} onClose={() => setShowChangePassword(false)} />
+      </>
+    )
   }
 
-  return createPortal(
-    <div
-      ref={overlayRef}
-      onClick={handleOverlayClick}
-      className="fixed inset-0 z-[9999] bg-slate-900/40"
-    >
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={headingId}
-        className="relative top-16 mx-auto w-full max-w-xl rounded-lg bg-white shadow-xl focus:outline-none"
-      >
-        <div className="max-h-[calc(100vh-6rem)] overflow-y-auto px-6 py-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 id={headingId} className="text-xl font-semibold text-slate-900">
-                Preferences and settings
-              </h2>
-              <p className="mt-1 text-sm text-slate-600">
-                Adjust how the library looks and manage your account details. These settings apply to this browser.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isLoading}
-              className="rounded-full p-1 text-slate-500 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-60"
-              aria-label="Close preferences"
-            >
-              <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-
-          <div className="mt-6 space-y-8 pb-2">
-            <section>
-              <h3 className="text-sm font-semibold text-slate-900">Card appearance</h3>
-              <p className="mt-1 text-sm text-slate-600">
-                Choose the main card styling.
-              </p>
-              <fieldset className="mt-4 space-y-3">
-                <legend className="sr-only">Select a card appearance</legend>
-                {CARD_APPEARANCE_OPTIONS.map(option => (
-                  <label
-                    key={option.value}
-                    className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-200 px-4 py-3 transition hover:border-nhs-blue focus-within:border-nhs-blue focus-within:ring-2 focus-within:ring-nhs-blue/40"
+  return (
+    <>
+      {createPortal(
+        <div
+          ref={overlayRef}
+          onClick={handleOverlayClick}
+          className="fixed inset-0 z-[9999] bg-slate-900/40"
+        >
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={headingId}
+            className="relative top-16 mx-auto w-full max-w-2xl rounded-lg bg-white shadow-xl focus:outline-none"
+          >
+            <div className="max-h-[calc(100vh-6rem)] overflow-y-auto px-6 py-6">
+              <div className="flex items-start justify-between gap-4 mb-6">
+                <div>
+                  <h2 id={headingId} className="text-xl font-semibold text-slate-900">
+                    Preferences
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-600">
+                    These settings apply to this browser.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="text-sm text-slate-600 hover:text-slate-900 underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
                   >
-                    <input
-                      ref={option.value === cardStyle ? firstInputRef : null}
-                      type="radio"
-                      name="cardStyle"
-                      value={option.value}
-                      checked={cardStyle === option.value}
-                      onChange={() => handleCardStyleChange(option.value)}
-                      className="mt-1 h-4 w-4 border-slate-300 text-nhs-blue focus:ring-nhs-blue"
-                    />
-                    <span>
-                      <span className="block text-sm font-medium text-slate-900">{option.label}</span>
-                      <span className="mt-0.5 block text-sm text-slate-600">{option.description}</span>
-                    </span>
-                  </label>
-                ))}
-              </fieldset>
-            </section>
-
-            <section>
-              <h3 className="text-sm font-semibold text-slate-900">Simplified card layout</h3>
-              <ToggleSwitch
-                checked={isSimplified}
-                onChange={handleSimplifiedChange}
-                label="Show simplified symptom cards"
-                description="Display only the symptom name and age badge. Helpful for quick scanning on larger screens."
-              />
-              <p className="mt-2 text-xs text-slate-500">
-                When enabled, card colour follows the appearance you selected above but hides additional details until opened.
-              </p>
-            </section>
-
-            <section>
-              <h3 className="text-sm font-semibold text-slate-900">Change password</h3>
-              <p className="mt-1 text-sm text-slate-600">
-                Update your password for <span className="font-medium text-slate-900">{session?.user?.email ?? 'your account'}</span>.
-              </p>
-              <form className="mt-4 space-y-4" onSubmit={handlePasswordSubmit}>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700" htmlFor="currentPassword">
-                    Current password
-                  </label>
-                  <input
-                    id="currentPassword"
-                    name="currentPassword"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={currentPassword}
-                    onChange={event => setCurrentPassword(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-nhs-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue/30"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700" htmlFor="newPassword">
-                    New password
-                  </label>
-                  <input
-                    id="newPassword"
-                    name="newPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={newPassword}
-                    onChange={event => setNewPassword(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-nhs-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue/30"
-                    disabled={isLoading}
-                  />
-                  <p className="mt-1 text-xs text-slate-500">Must be at least 6 characters long.</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700" htmlFor="confirmPassword">
-                    Confirm new password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    required
-                    value={confirmPassword}
-                    onChange={event => setConfirmPassword(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-nhs-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue/30"
-                    disabled={isLoading}
-                  />
-                </div>
-
-                {errorMessage && (
-                  <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
-                    {errorMessage}
-                  </div>
-                )}
-
-                {successMessage && (
-                  <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800" role="status">
-                    {successMessage}
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3">
+                    Reset to defaults
+                  </button>
                   <button
                     type="button"
                     onClick={handleClose}
-                    disabled={isLoading}
-                    className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-60"
+                    className="rounded-full p-1 text-slate-500 transition hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+                    aria-label="Close preferences"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-60"
-                  >
-                    {isLoading ? 'Saving…' : 'Change password'}
+                    <svg aria-hidden="true" className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
                   </button>
                 </div>
-              </form>
-            </section>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Appearance */}
+                <fieldset aria-describedby={`${appearanceId}-help`} className="space-y-3">
+                  <legend className="text-sm font-semibold text-slate-700">Appearance</legend>
+                  <p id={`${appearanceId}-help`} className="text-xs text-slate-600">
+                    Choose the overall look of the cards and whether to show a quick-scan view.
+                  </p>
+                  <div className="space-y-2">
+                    <RadioCard
+                      ref={firstInputRef}
+                      name="cardTheme"
+                      value="default"
+                      checked={cardStyle === 'default'}
+                      onChange={handleCardStyleChange}
+                      title="Modern (white)"
+                      help="Clean white cards with rounded corners."
+                      preview={<div className="w-full h-full bg-white rounded shadow-sm border border-slate-200" />}
+                    />
+                    <RadioCard
+                      name="cardTheme"
+                      value="powerappsBlue"
+                      checked={cardStyle === 'powerappsBlue'}
+                      onChange={handleCardStyleChange}
+                      title="Classic (blue)"
+                      help="Blue cards that match the older design."
+                      preview={
+                        <div className="w-full h-full bg-blue-600 rounded flex items-center justify-center">
+                          <span className="text-[7px] text-white font-medium px-0.5">Adult</span>
+                        </div>
+                      }
+                    />
+                  </div>
+                  <ToggleSwitch
+                    checked={isSimplified}
+                    onChange={handleSimplifiedChange}
+                    label="Quick-scan cards"
+                    description="Show only the symptom name and age badge. Ideal for fast scanning."
+                  />
+                </fieldset>
+
+                {/* Header & filters */}
+                <fieldset aria-describedby={`${headerId}-help`} className="space-y-3">
+                  <legend className="text-sm font-semibold text-slate-700">Header & filters</legend>
+                  <p id={`${headerId}-help`} className="text-xs text-slate-600">
+                    Change how the search area and high-risk buttons are arranged.
+                  </p>
+                  <RadioCard
+                    name="headerLayout"
+                    value="classic"
+                    checked={headerLayout === 'classic'}
+                    onChange={handleHeaderLayoutChange}
+                    title="Classic"
+                    help="Search and filters arranged in a single toolbar."
+                  />
+                  <RadioCard
+                    name="headerLayout"
+                    value="split"
+                    checked={headerLayout === 'split'}
+                    onChange={handleHeaderLayoutChange}
+                    title="Split (filters left, high-risk right)"
+                    help="Puts filters under search and high-risk buttons in a right panel."
+                  />
+                </fieldset>
+
+                {/* High-risk button style */}
+                <fieldset aria-describedby={`${highRiskId}-help`} className="space-y-3 lg:col-span-2">
+                  <legend className="text-sm font-semibold text-slate-700">High-risk button style</legend>
+                  <p id={`${highRiskId}-help`} className="text-xs text-slate-600">
+                    Choose how the red high-risk buttons look. The same style is used in both header layouts.
+                  </p>
+                  <RadioCard
+                    name="highRiskStyle"
+                    value="pill"
+                    checked={(highRiskStyle ?? 'pill') === 'pill'}
+                    onChange={handleHighRiskStyleChange}
+                    title="Pill (default)"
+                    help="Rounded pills."
+                    preview={<div className="h-3 w-6 rounded-full bg-red-600" />}
+                  />
+                  <RadioCard
+                    name="highRiskStyle"
+                    value="tile"
+                    checked={highRiskStyle === 'tile'}
+                    onChange={handleHighRiskStyleChange}
+                    title="Tile"
+                    help="Squared tiles with a subtle border."
+                    preview={<div className="h-3 w-6 rounded-lg bg-red-600" />}
+                  />
+                </fieldset>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePassword(true)}
+                  className="text-sm text-slate-600 hover:text-slate-900 underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
+                >
+                  Change password…
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </div>,
-    document.body
+        </div>,
+        document.body
+      )}
+
+      <ChangePasswordDialog isOpen={showChangePassword} onClose={() => setShowChangePassword(false)} />
+    </>
   )
 }
-
