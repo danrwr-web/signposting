@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useEffect, useId, useRef, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 import toast from 'react-hot-toast'
@@ -44,9 +44,21 @@ export default function ChangePasswordDialog({ isOpen, onClose }: ChangePassword
   const [confirm, setConfirm] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const submittingRef = useRef(submitting)
 
   const headingId = useId()
   const strength = passwordStrength(next)
+
+  useEffect(() => {
+    submittingRef.current = submitting
+  }, [submitting])
+
+  const handleClose = useCallback(() => {
+    if (submittingRef.current) {
+      return
+    }
+    onClose()
+  }, [onClose])
 
   useEffect(() => {
     if (!isOpen) {
@@ -90,7 +102,7 @@ export default function ChangePasswordDialog({ isOpen, onClose }: ChangePassword
     return () => {
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen])
+  }, [isOpen, handleClose])
 
   useEffect(() => {
     if (!isOpen) {
@@ -109,13 +121,6 @@ export default function ChangePasswordDialog({ isOpen, onClose }: ChangePassword
     if (event.target === overlayRef.current) {
       handleClose()
     }
-  }
-
-  const handleClose = () => {
-    if (submitting) {
-      return
-    }
-    onClose()
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
