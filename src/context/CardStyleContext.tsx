@@ -15,6 +15,7 @@ interface CardStyleContextValue {
   setHeaderLayout: (layout: HeaderLayout) => void
   highRiskStyle: HighRiskStyle
   setHighRiskStyle: (style: HighRiskStyle) => void
+  resetPrefs: () => void
   version: number
 }
 
@@ -120,6 +121,21 @@ export function CardStyleProvider({ children }: ProviderProps) {
     setVersion(v => v + 1)
   }, [])
 
+  const resetPrefs = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(STYLE_STORAGE_KEY)
+      localStorage.removeItem(SIMPLIFIED_STORAGE_KEY)
+      localStorage.removeItem(HEADER_LAYOUT_STORAGE_KEY)
+      localStorage.removeItem(HIGH_RISK_STYLE_STORAGE_KEY)
+      localStorage.removeItem(LEGACY_STORAGE_KEY)
+    }
+    setCardStyleState('default')
+    setIsSimplifiedState(false)
+    setHeaderLayoutState('split')
+    setHighRiskStyleState('pill')
+    setVersion(v => v + 1)
+  }, [])
+
   const value = useMemo(() => ({
     cardStyle,
     setCardStyle,
@@ -129,8 +145,9 @@ export function CardStyleProvider({ children }: ProviderProps) {
     setHeaderLayout,
     highRiskStyle,
     setHighRiskStyle,
+    resetPrefs,
     version
-  }), [cardStyle, setCardStyle, isSimplified, setIsSimplified, headerLayout, setHeaderLayout, highRiskStyle, setHighRiskStyle, version])
+  }), [cardStyle, setCardStyle, isSimplified, setIsSimplified, headerLayout, setHeaderLayout, highRiskStyle, setHighRiskStyle, resetPrefs, version])
 
   return (
     <CardStyleContext.Provider value={value}>
@@ -151,6 +168,7 @@ export function useCardStyle(): CardStyleContextValue {
       setHeaderLayout: () => {},
       highRiskStyle: 'pill',
       setHighRiskStyle: () => {},
+      resetPrefs: () => {},
       version: 0
     }
   }
