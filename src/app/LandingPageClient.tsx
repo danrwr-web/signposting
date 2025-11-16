@@ -78,6 +78,33 @@ export default function LandingPageClient() {
         </div>
       </section>
 
+      {/* Promotional video section */}
+      <section className="bg-white py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-6">
+            <h2 className="text-3xl font-bold text-gray-900">
+              See the Signposting Toolkit in action
+            </h2>
+            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+              A one-minute walkthrough showing how reception teams use the toolkit in real life.
+            </p>
+          </div>
+          <div className="max-w-4xl mx-auto">
+            <div className="w-full">
+              <video
+                src="/videos/signposting-demo.mp4"
+                controls
+                className="w-full h-auto rounded-lg shadow-lg"
+                preload="metadata"
+                aria-label="Signposting Toolkit one-minute walkthrough video"
+              >
+                Your browser does not support HTML5 video. You can download the video file to watch it.
+              </video>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* AI-Enabled Section */}
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
