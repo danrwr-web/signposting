@@ -89,14 +89,16 @@ export default function LandingPageClient() {
               A one-minute walkthrough showing how reception teams use the toolkit in real life.
             </p>
           </div>
-          <div className="relative pb-[56.25%] h-0 mt-8 max-w-2xl mx-auto rounded-lg overflow-hidden shadow-lg">
-            <iframe
-              src="https://www.youtube-nocookie.com/embed/-IIpq9X9n9Y?rel=0&modestbranding=1&controls=1&autohide=1&playsinline=1"
-              className="absolute top-0 left-0 w-full h-full"
-              title="Signposting Toolkit Walkthrough"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            ></iframe>
+          <div className="max-w-4xl mx-auto mt-8">
+            <div className="w-full max-w-4xl mx-auto rounded-lg shadow-lg aspect-video overflow-hidden">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/-IIpq9X9n9Y?rel=0&modestbranding=1&controls=1&autohide=1&playsinline=1"
+                className="w-full h-full object-cover"
+                title="Signposting Toolkit Walkthrough"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
           </div>
         </div>
       </section>
