@@ -4,19 +4,49 @@ import { redirect } from 'next/navigation'
 import LandingPageClient from './LandingPageClient'
 import type { Metadata } from 'next'
 
+const landingPageDescription =
+  'A modern, clinically governed GP care navigation software platform built by GPs for GPs and their care navigators. Helps reception teams direct patients safely to the right service, with local clinical sign-off and audit trail.'
+
 export const metadata: Metadata = {
-  title: 'The Signposting Toolkit – Clinical Signposting and Care Navigation for GP Practices',
-  description:
-    'A modern, clinically governed signposting platform built by GPs for GPs and their care navigators. Helps reception teams direct patients safely to the right service, with local clinical sign-off and audit trail.',
+  metadataBase: new URL('https://www.signpostingtool.co.uk'),
+  title: 'The Signposting Toolkit – GP care navigation software for primary care teams',
+  description: landingPageDescription,
+  keywords: [
+    'GP care navigation software',
+    'GP signposting software',
+    'primary care workflow tool',
+    'admin triage platform',
+    'NHS reception triage',
+    'signposting toolkit',
+  ],
   alternates: {
     canonical: 'https://www.signpostingtool.co.uk',
   },
   openGraph: {
-    title: 'The Signposting Toolkit – Clinical Signposting and Care Navigation for GP Practices',
-    description:
-      'A modern, clinically governed signposting platform built by GPs for GPs and their care navigators. Helps reception teams direct patients safely to the right service, with local clinical sign-off and audit trail.',
+    title: 'The Signposting Toolkit – GP care navigation software for primary care teams',
+    description: landingPageDescription,
     type: 'website',
     url: 'https://www.signpostingtool.co.uk',
+    images: [
+      {
+        url: '/images/signposting-og.png',
+        width: 1200,
+        height: 630,
+        alt: 'Reception team using the Signposting Toolkit GP care navigation software',
+      },
+      {
+        url: '/images/logo.png',
+        width: 800,
+        height: 418,
+        alt: 'Signposting Toolkit logo fallback image',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'The Signposting Toolkit – GP care navigation software for primary care teams',
+    description: landingPageDescription,
+    images: ['/images/signposting-og.png', '/images/logo.png'],
   },
 }
 

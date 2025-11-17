@@ -4,7 +4,9 @@ export const dynamic = 'force-static'
 
 export async function GET() {
   const body = `User-agent: *
-Allow: /\n`
+Allow: /
+Sitemap: https://www.signpostingtool.co.uk/sitemap.xml
+`
   return new NextResponse(body, {
     status: 200,
     headers: {

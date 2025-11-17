@@ -6,6 +6,9 @@ export async function GET() {
   const urls = [
     'https://www.signpostingtool.co.uk/',
     'https://www.signpostingtool.co.uk/privacy',
+    'https://www.signpostingtool.co.uk/help',
+    'https://www.signpostingtool.co.uk/landing-preview',
+    'https://www.signpostingtool.co.uk/login',
   ]
 
   const now = new Date().toISOString()

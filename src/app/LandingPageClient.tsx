@@ -21,9 +21,9 @@ export default function LandingPageClient() {
                 alt="Signposting Toolkit Logo" 
                 className="h-16 w-auto"
               />
-              <h1 className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900">
                 Signposting Toolkit
-              </h1>
+              </p>
             </div>
             <div className="flex items-center space-x-4">
               <button
@@ -53,12 +53,27 @@ export default function LandingPageClient() {
       {/* Hero Section */}
       <section className="bg-blue-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@type': 'SoftwareApplication',
+                name: 'Signposting Toolkit',
+                applicationCategory: 'Healthcare Software',
+                operatingSystem: 'Web',
+                description:
+                  'A modern, clinically governed GP care navigation software platform built by GPs for GPs and their care navigators. Helps reception teams direct patients safely to the right service, with local clinical sign-off and audit trail.',
+                url: 'https://www.signpostingtool.co.uk',
+              }),
+            }}
+          />
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
               Helping reception and care navigation teams send patients to the right place — first time.
             </h1>
             <p className="text-lg text-gray-600 mt-4 max-w-3xl mx-auto">
-              A ready-to-use toolkit for primary care admin teams — with over 200 preloaded symptoms, clear guidance, and optional AI tools for improving clarity and training.
+              A ready-to-use GP care navigation software toolkit for primary care admin teams — with over 200 preloaded symptoms, clear guidance, and optional AI tools for improving clarity and training.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
@@ -86,7 +101,7 @@ export default function LandingPageClient() {
               See the Signposting Toolkit in action
             </h2>
             <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-              A one-minute walkthrough showing how reception teams use the toolkit in real life.
+              A one-minute walkthrough showing how reception teams use the toolkit for triage support in real life.
             </p>
           </div>
           <div className="max-w-4xl mx-auto mt-8">
@@ -165,7 +180,7 @@ export default function LandingPageClient() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Comprehensive symptom library</h3>
               <p className="text-gray-600">
-                Over 200 symptoms pre-loaded, all standardised and editable for your practice.
+                Over 200 symptoms pre-loaded, all standardised and editable for your practice — making the signposting tool easy to tailor.
               </p>
             </div>
 
@@ -189,7 +204,7 @@ export default function LandingPageClient() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Simple daily workflow</h3>
               <p className="text-gray-600">
-                Designed for fast use at the front desk, with colour-coded urgency and plain-English instructions.
+                Designed for fast use at the front desk, with colour-coded urgency, plain-English instructions, and a dependable primary care workflow.
               </p>
             </div>
           </div>
