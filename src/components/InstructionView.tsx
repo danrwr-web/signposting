@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
@@ -71,6 +71,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     groups: Array<{ label: string; questions: string[] }>
   } | null>(null)
   const [questionsError, setQuestionsError] = useState<string | null>(null)
+  const questionsPanelRef = useRef<HTMLDivElement>(null)
   // Feature flags for AI features
   const [canUseAiInstructions, setCanUseAiInstructions] = useState(false)
   const [canUseAiTraining, setCanUseAiTraining] = useState(false)
@@ -615,6 +616,10 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         groups: data.groups,
       })
       setShowQuestionsPanel(true)
+      // Scroll to panel after a brief delay to ensure DOM has updated
+      setTimeout(() => {
+        questionsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
     } catch (error) {
       console.error('Error getting AI question prompts:', error)
       const errorMsg = error instanceof Error ? error.message : 'Failed to generate questions'
@@ -629,6 +634,31 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setShowQuestionsPanel(false)
     setQuestionPrompts(null)
     setQuestionsError(null)
+  }
+
+  const handleCopyAllQuestions = async () => {
+    if (!questionPrompts) return
+
+    try {
+      // Build text with groups and questions
+      let textToCopy = ''
+      
+      questionPrompts.groups.forEach((group, groupIndex) => {
+        if (groupIndex > 0) {
+          textToCopy += '\n'
+        }
+        textToCopy += `${group.label}\n`
+        group.questions.forEach((question) => {
+          textToCopy += `• ${question}\n`
+        })
+      })
+
+      await navigator.clipboard.writeText(textToCopy.trim())
+      toast.success('Questions copied to clipboard')
+    } catch (error) {
+      console.error('Failed to copy questions:', error)
+      toast.error('Failed to copy questions. Please try again.')
+    }
   }
 
   const handleCloseExplanationModal = () => {
@@ -1162,27 +1192,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                       )}
                     </button>
                   )}
-                  {canUseAiTraining && (
-                    <button
-                      onClick={handleRequestQuestionPrompts}
-                      disabled={loadingQuestions}
-                      className="px-3 py-1.5 text-sm font-medium text-nhs-blue bg-white border border-nhs-blue rounded-lg hover:bg-nhs-light-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Suggested questions to ask (AI)"
-                      aria-label="Suggested questions to ask (AI)"
-                    >
-                      {loadingQuestions ? (
-                        <span className="flex items-center gap-2">
-                          <svg className="animate-spin h-4 w-4 text-nhs-blue" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          Generating questions...
-                        </span>
-                      ) : (
-                        'Suggested questions to ask'
-                      )}
-                    </button>
-                  )}
                 </>
               )}
               {canEditInstructions && !isEditingInstructions && !isEditingAll && (
@@ -1195,6 +1204,36 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               )}
             </div>
           </div>
+          
+          {/* Suggested Questions Button - Left-aligned under heading */}
+          {!isEditingInstructions && !isEditingAll && canUseAiTraining && (
+            <div className="mb-4">
+              <button
+                onClick={handleRequestQuestionPrompts}
+                disabled={loadingQuestions}
+                className="px-3 py-1.5 text-sm font-medium text-nhs-blue bg-white border border-nhs-blue rounded-lg hover:bg-nhs-light-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Suggested questions to ask (AI)"
+                aria-label="Suggested questions to ask (AI)"
+              >
+                {loadingQuestions ? (
+                  <span className="flex items-center gap-2">
+                    <svg className="animate-spin h-4 w-4 text-nhs-blue" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Generating suggested questions…
+                  </span>
+                ) : (
+                  'Suggested questions to ask'
+                )}
+              </button>
+              {loadingQuestions && (
+                <p className="mt-2 text-sm text-nhs-grey">
+                  Generating suggested questions…
+                </p>
+              )}
+            </div>
+          )}
           
           {isEditingInstructions || isEditingAll ? (
             <div className="space-y-4">
@@ -1369,7 +1408,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           
           {/* Suggested Questions Panel */}
           {showQuestionsPanel && questionPrompts && (
-            <div className="mt-6 bg-nhs-light-blue border border-nhs-blue rounded-lg p-6">
+            <div ref={questionsPanelRef} className="mt-6 bg-nhs-light-blue border border-nhs-blue rounded-lg p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-nhs-dark-blue mb-1">
@@ -1379,20 +1418,29 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                     For {questionPrompts.symptom} ({questionPrompts.ageGroup})
                   </p>
                 </div>
-                <button
-                  onClick={handleCloseQuestionsPanel}
-                  className="text-nhs-grey hover:text-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
-                  aria-label="Close questions panel"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleCopyAllQuestions}
+                    className="text-sm text-nhs-blue hover:text-nhs-dark-blue underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
+                    aria-label="Copy all questions to clipboard"
+                  >
+                    Copy all questions
+                  </button>
+                  <button
+                    onClick={handleCloseQuestionsPanel}
+                    className="text-nhs-grey hover:text-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
+                    aria-label="Close suggested questions"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               
               {questionPrompts.groups.map((group, groupIndex) => (
                 <div key={groupIndex} className="mb-6 last:mb-0">
-                  <h4 className="text-base font-semibold text-nhs-dark-blue mb-3">
+                  <h4 className="text-base font-bold text-slate-800 mb-3">
                     {group.label}
                   </h4>
                   <ul className="space-y-2 ml-4">
