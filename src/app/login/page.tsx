@@ -53,7 +53,7 @@ export default function LoginPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">
-            Signposting Toolkit (Beta)
+            Signposting Toolkit
           </h1>
           <h2 className="mt-6 text-2xl font-bold text-gray-900">
             Sign in to your account
