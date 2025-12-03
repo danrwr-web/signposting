@@ -143,9 +143,9 @@ export default function LandingPageClient() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">AI explanation & training mode</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">AI question prompts</h3>
               <p className="text-gray-600">
-                Turn your signposting guidance into quick training notes — helping teams understand the reasoning behind each decision.
+                Generate patient-friendly questions to help staff gather the information they need to follow the instructions for each symptom.
               </p>
             </div>
 
