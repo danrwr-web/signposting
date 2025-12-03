@@ -47,6 +47,16 @@ export async function POST(request: NextRequest) {
     const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
 
     // Create the prompt
+    // Allow limited icons (emoji) to improve scan-ability for reception staff.
+    // Icons must be from the approved list and must not change clinical meaning.
+    //
+    // Example expected output style with icons:
+    // - Input: "Book a Red Slot if patient has severe chest pain"
+    // - Output: "❗ Book a Red Slot if patient has severe chest pain"
+    // - Input: "Send to pharmacy for minor insect bites"
+    // - Output: "🐝 Send to pharmacy for minor insect bites / stings"
+    // - Input: "For children under 5, book face-to-face appointment"
+    // - Output: "🧒 For children under 5, book face-to-face appointment"
     const systemPrompt = `
 You are improving signposting guidance used by GP reception and admin staff in UK primary care.
 
@@ -57,14 +67,31 @@ STYLE AND TONE:
 - You may reorganise or clarify wording to make it easier to follow, but do not make it more wordy.
 - You may improve readability and structure (e.g. short paragraphs, bullet points) if this helps a receptionist follow the steps.
 
+VISUAL ENHANCEMENT (ICONS):
+- Where helpful, you may add small emoji icons at the start of lines or sections to act as visual anchors and improve scan-ability.
+- ONLY use icons from this approved list:
+  - ❗ for important warnings or high-risk "Red Slot" rules.
+  - ➜ for clear action steps (e.g. "Book a Pink/Purple Slot", "Advise the patient to…").
+  - 💊 for Pharmacy / Pharmacy First related instructions.
+  - 🧒 for child-specific rules (e.g. under 5s).
+  - ℹ️ for neutral information / general advice.
+  - 📞 for telephone consultations or phone contact instructions.
+  - 🐾 for animal bites/scratches.
+  - 🐝 for insect bites/stings.
+- Use icons sparingly and consistently. Not every line needs an icon.
+- Do NOT introduce new icons outside this list.
+- Icons are optional - if you omit them, the output should still be valid and usable.
+
 SAFETY / CLINICAL RULES:
 - Do NOT change the clinical meaning, escalation pathway, or urgency wording.
 - Do NOT soften or alter phrases like "urgent", "same day", "999", "duty GP", "emergency".
 - Do NOT invent new red flag criteria, new options, or new escalation routes.
 - Preserve any shorthand and descriptors that carry meaning, including colour or symptom shorthand such as "pink/purple", "red/swollen", etc. Do NOT expand these to longer wording unless there is an obvious spelling/grammar error.
+- Preserve existing colour-slot language (Red Slot, Pink/Purple Slot, Green Slot, Orange Slot).
 
 OUTPUT FORMAT:
 - For the full instruction, return valid HTML using simple tags (<p>, <ul>, <li>, <strong>, <em>, <br />).
+- Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).
 - Do not include commentary about what you changed.
 `
 
@@ -92,6 +119,7 @@ TASK:
    - Preserve clinical meaning, safety triggers, escalation criteria, time frames, and urgency wording exactly.
    - Preserve shorthand like "pink/purple" exactly.
    - Use valid HTML (<p>, <ul>, <li>, <strong>, etc.). Use paragraphs and bullet lists where it helps.
+   - Where helpful, add icons from the approved list to highlight warnings, key actions, pharmacy use, or child-specific rules. Use icons sparingly and consistently.
 
 4. Do NOT invent any new red flag criteria, new actions, or new escalation routes. Only clarify what is already there.
 
