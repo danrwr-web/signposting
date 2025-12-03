@@ -22,8 +22,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Fetch first
-    let features = await prisma.feature.findMany({
+    // Always ensure features are up-to-date (upserts by key, so safe to call repeatedly)
+    await ensureFeatures()
+    
+    // Fetch features after ensuring they're updated
+    const features = await prisma.feature.findMany({
       select: {
         id: true,
         key: true,
@@ -34,22 +37,6 @@ export async function GET(request: NextRequest) {
         name: 'asc'
       }
     })
-
-    // If none, seed then fetch again
-    if (!features || features.length === 0) {
-      await ensureFeatures()
-      features = await prisma.feature.findMany({
-        select: {
-          id: true,
-          key: true,
-          name: true,
-          description: true
-        },
-        orderBy: {
-          name: 'asc'
-        }
-      })
-    }
 
     return NextResponse.json({ features })
   } catch (error) {
