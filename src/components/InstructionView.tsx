@@ -1205,36 +1205,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             </div>
           </div>
           
-          {/* Suggested Questions Button - Left-aligned under heading */}
-          {!isEditingInstructions && !isEditingAll && canUseAiTraining && (
-            <div className="mb-4">
-              <button
-                onClick={handleRequestQuestionPrompts}
-                disabled={loadingQuestions}
-                className="px-3 py-1.5 text-sm font-medium text-nhs-blue bg-white border border-nhs-blue rounded-lg hover:bg-nhs-light-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Suggested questions to ask (AI)"
-                aria-label="Suggested questions to ask (AI)"
-              >
-                {loadingQuestions ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4 text-nhs-blue" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Generating suggested questions…
-                  </span>
-                ) : (
-                  'Suggested questions to ask'
-                )}
-              </button>
-              {loadingQuestions && (
-                <p className="mt-2 text-sm text-nhs-grey">
-                  Generating suggested questions…
-                </p>
-              )}
-            </div>
-          )}
-          
           {isEditingInstructions || isEditingAll ? (
             <div className="space-y-4">
               {isEditingInstructions && isPracticeAdmin && symptom.source === 'base' && (
@@ -1472,6 +1442,30 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           {/* Footer Actions */}
           <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2 justify-between">
             <div className="flex gap-2">
+              {!isEditingInstructions && !isEditingAll && canUseAiTraining && (
+                <button
+                  onClick={handleRequestQuestionPrompts}
+                  disabled={loadingQuestions}
+                  className="px-4 py-2 rounded-md bg-white border border-nhs-blue text-sm hover:bg-nhs-light-blue font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Get questions to ask (AI)"
+                  aria-label="Get questions to ask"
+                >
+                  {loadingQuestions ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-nhs-blue" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Generating questions…
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <span>✨</span>
+                      <span>Get Questions to Ask</span>
+                    </span>
+                  )}
+                </button>
+              )}
               <button
                 onClick={() => setShowSuggestionModal(true)}
                 className="px-4 py-2 rounded-md bg-white border border-gray-300 text-sm hover:bg-gray-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-1"
