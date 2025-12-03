@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
@@ -57,11 +57,21 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [aiModel, setAiModel] = useState<string | null>(null)
   const [hasChangeToUndo, setHasChangeToUndo] = useState(false)
-  // AI explanation state
+  // AI explanation state (kept for API but UI hidden)
   const [showExplanationModal, setShowExplanationModal] = useState(false)
   const [loadingExplanation, setLoadingExplanation] = useState(false)
   const [explanationHtml, setExplanationHtml] = useState<string | null>(null)
   const [explanationModel, setExplanationModel] = useState<string | null>(null)
+  // AI question prompts state
+  const [showQuestionsPanel, setShowQuestionsPanel] = useState(false)
+  const [loadingQuestions, setLoadingQuestions] = useState(false)
+  const [questionPrompts, setQuestionPrompts] = useState<{
+    symptom: string
+    ageGroup: string
+    groups: Array<{ label: string; questions: string[] }>
+  } | null>(null)
+  const [questionsError, setQuestionsError] = useState<string | null>(null)
+  const questionsPanelRef = useRef<HTMLDivElement>(null)
   // Feature flags for AI features
   const [canUseAiInstructions, setCanUseAiInstructions] = useState(false)
   const [canUseAiTraining, setCanUseAiTraining] = useState(false)
@@ -535,6 +545,119 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       toast.error(error instanceof Error ? error.message : 'AI explanation failed')
     } finally {
       setLoadingExplanation(false)
+    }
+  }
+
+  // Map age group codes to readable strings
+  const getAgeGroupLabel = (ageGroup: string): string => {
+    switch (ageGroup) {
+      case 'U5':
+        return 'Child under 5'
+      case 'O5':
+        return 'Child over 5'
+      case 'Adult':
+        return 'Adult'
+      default:
+        return ageGroup
+    }
+  }
+
+  const handleRequestQuestionPrompts = async () => {
+    setLoadingQuestions(true)
+    setQuestionPrompts(null)
+    setQuestionsError(null)
+    
+    try {
+      const ageGroupLabel = getAgeGroupLabel(symptom.ageGroup)
+      const requestBody = {
+        symptomName: symptom.name,
+        ageGroup: ageGroupLabel,
+        briefInstruction: symptom.briefInstruction || undefined,
+        instructionsText: displayText || undefined,
+        instructionsHtml: symptom.instructionsHtml || undefined,
+      }
+      console.log('AI question prompts request body:', requestBody)
+      
+      const response = await fetch('/api/ai/question-prompts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      const data = await response.json()
+      
+      if (!response.ok) {
+        console.error('AI question prompts API error:', response.status, data)
+        if (response.status === 401 || response.status === 403) {
+          setQuestionsError('Access required')
+          toast.error('Access required')
+        } else if (response.status === 500) {
+          setQuestionsError(data.error || 'AI service unavailable')
+          toast.error(data.error || 'AI service unavailable')
+        } else {
+          const errorMsg = data.error || response.statusText
+          setQuestionsError(errorMsg)
+          throw new Error(`Failed to get question prompts: ${errorMsg}`)
+        }
+        return
+      }
+
+      if (!data.groups || !Array.isArray(data.groups) || data.groups.length === 0) {
+        setQuestionsError('No questions generated')
+        toast.error('No questions generated')
+        return
+      }
+
+      setQuestionPrompts({
+        symptom: data.symptom,
+        ageGroup: data.ageGroup,
+        groups: data.groups,
+      })
+      setShowQuestionsPanel(true)
+      // Scroll to panel after a brief delay to ensure DOM has updated
+      setTimeout(() => {
+        questionsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    } catch (error) {
+      console.error('Error getting AI question prompts:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to generate questions'
+      setQuestionsError(errorMsg)
+      toast.error(errorMsg)
+    } finally {
+      setLoadingQuestions(false)
+    }
+  }
+
+  const handleCloseQuestionsPanel = () => {
+    setShowQuestionsPanel(false)
+    setQuestionPrompts(null)
+    setQuestionsError(null)
+  }
+
+  const handleCopyAllQuestions = async () => {
+    if (!questionPrompts) return
+
+    try {
+      // Build text with groups and questions
+      let textToCopy = ''
+      
+      questionPrompts.groups.forEach((group, groupIndex) => {
+        if (groupIndex > 0) {
+          textToCopy += '\n'
+        }
+        textToCopy += `${group.label}\n`
+        group.questions.forEach((question) => {
+          textToCopy += `• ${question}\n`
+        })
+      })
+
+      await navigator.clipboard.writeText(textToCopy.trim())
+      toast.success('Questions copied to clipboard')
+    } catch (error) {
+      console.error('Failed to copy questions:', error)
+      toast.error('Failed to copy questions. Please try again.')
     }
   }
 
@@ -1069,26 +1192,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                       )}
                     </button>
                   )}
-                  {canUseAiTraining && (
-                    <button
-                      onClick={handleRequestExplanation}
-                      disabled={loadingExplanation}
-                      className="h-9 w-9 inline-flex items-center justify-center rounded-full border border-gray-200 bg-white hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Explain this rule (AI)"
-                      aria-label="Explain this rule (AI)"
-                    >
-                      {loadingExplanation ? (
-                        <svg className="animate-spin h-4 w-4 text-nhs-blue" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-7 h-7 text-nhs-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                    </button>
-                  )}
                 </>
               )}
               {canEditInstructions && !isEditingInstructions && !isEditingAll && (
@@ -1273,9 +1376,96 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
             </div>
           )}
           
+          {/* Suggested Questions Panel */}
+          {showQuestionsPanel && questionPrompts && (
+            <div ref={questionsPanelRef} className="mt-6 bg-nhs-light-blue border border-nhs-blue rounded-lg p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-nhs-dark-blue mb-1">
+                    Suggested Questions to Ask
+                  </h3>
+                  <p className="text-sm text-nhs-grey">
+                    For {questionPrompts.symptom} ({questionPrompts.ageGroup})
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleCopyAllQuestions}
+                    className="text-sm text-nhs-blue hover:text-nhs-dark-blue underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
+                    aria-label="Copy all questions to clipboard"
+                  >
+                    Copy all questions
+                  </button>
+                  <button
+                    onClick={handleCloseQuestionsPanel}
+                    className="text-nhs-grey hover:text-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
+                    aria-label="Close suggested questions"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              
+              {questionPrompts.groups.map((group, groupIndex) => (
+                <div key={groupIndex} className="mb-6 last:mb-0">
+                  <h4 className="text-base font-bold text-slate-800 mb-3">
+                    {group.label}
+                  </h4>
+                  <ul className="space-y-2 ml-4">
+                    {group.questions.map((question, questionIndex) => (
+                      <li key={questionIndex} className="text-nhs-grey list-disc">
+                        {question}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              
+              <div className="mt-6 pt-4 border-t border-nhs-blue/20">
+                <p className="text-xs text-nhs-grey italic">
+                  These are suggested questions only. Always follow the written instructions and your practice policies if unsure.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          {questionsError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-700 text-sm">
+                {questionsError}
+              </p>
+            </div>
+          )}
+          
           {/* Footer Actions */}
           <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-2 justify-between">
             <div className="flex gap-2">
+              {!isEditingInstructions && !isEditingAll && canUseAiTraining && (
+                <button
+                  onClick={handleRequestQuestionPrompts}
+                  disabled={loadingQuestions}
+                  className="px-4 py-2 rounded-md bg-white border border-nhs-blue text-sm hover:bg-nhs-light-blue font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Get questions to ask (AI)"
+                  aria-label="Get questions to ask"
+                >
+                  {loadingQuestions ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4 text-nhs-blue" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Generating questions…
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      <span>✨</span>
+                      <span>Get Questions to Ask</span>
+                    </span>
+                  )}
+                </button>
+              )}
               <button
                 onClick={() => setShowSuggestionModal(true)}
                 className="px-4 py-2 rounded-md bg-white border border-gray-300 text-sm hover:bg-gray-50 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-1"

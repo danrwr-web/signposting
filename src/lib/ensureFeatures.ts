@@ -15,8 +15,8 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
   },
   {
     key: 'ai_training',
-    name: 'AI explanation / training guide',
-    description: 'Show AI-generated explanations for why a rule exists and how to apply it.',
+    name: 'AI question prompts',
+    description: 'Show AI-generated, patient-friendly questions to help staff gather the information they need to follow the instructions for each symptom.',
   },
 ]
 
