@@ -2,9 +2,16 @@
 
 import Link from 'next/link'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
+import { useFadeUpOnScroll } from '@/hooks/useFadeUpOnScroll'
 
 export default function LandingPageClient() {
   const { register } = useScrollReveal()
+  
+  // Fade-up hooks for "Why It Works" section with staggered delays
+  const whyItWorks1 = useFadeUpOnScroll({ staggerDelay: 0 })
+  const whyItWorks2 = useFadeUpOnScroll({ staggerDelay: 50 })
+  const whyItWorks3 = useFadeUpOnScroll({ staggerDelay: 100 })
+  const whyItWorks4 = useFadeUpOnScroll({ staggerDelay: 150 })
 
   return (
     <div className="min-h-screen bg-white">
@@ -122,7 +129,12 @@ export default function LandingPageClient() {
       <section className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-12 sm:grid-cols-2 lg:grid-cols-4">
-            <div ref={register} className="text-center">
+            <div 
+              ref={whyItWorks1.ref} 
+              className={`text-center transition-all duration-500 ease-out ${
+                whyItWorks1.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[10px]'
+              }`}
+            >
               <div className="w-10 h-10 mx-auto mb-4 flex items-center justify-center">
                 <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -134,7 +146,12 @@ export default function LandingPageClient() {
               </p>
             </div>
 
-            <div ref={register} className="text-center">
+            <div 
+              ref={whyItWorks2.ref} 
+              className={`text-center transition-all duration-500 ease-out ${
+                whyItWorks2.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[10px]'
+              }`}
+            >
               <div className="w-10 h-10 mx-auto mb-4 flex items-center justify-center">
                 <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -146,7 +163,12 @@ export default function LandingPageClient() {
               </p>
             </div>
 
-            <div ref={register} className="text-center">
+            <div 
+              ref={whyItWorks3.ref} 
+              className={`text-center transition-all duration-500 ease-out ${
+                whyItWorks3.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[10px]'
+              }`}
+            >
               <div className="w-10 h-10 mx-auto mb-4 flex items-center justify-center">
                 <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -158,7 +180,12 @@ export default function LandingPageClient() {
               </p>
             </div>
 
-            <div ref={register} className="text-center">
+            <div 
+              ref={whyItWorks4.ref} 
+              className={`text-center transition-all duration-500 ease-out ${
+                whyItWorks4.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-[10px]'
+              }`}
+            >
               <div className="w-10 h-10 mx-auto mb-4 flex items-center justify-center">
                 <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -294,7 +321,7 @@ export default function LandingPageClient() {
             <h2 className="text-3xl font-bold text-gray-900">Tools that help your team work smarter</h2>
           </div>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            <div ref={register} className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200">
+            <div ref={register} className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200 transition-all duration-300 ease-out lg:hover:-translate-y-0.5 lg:hover:shadow-md">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -306,7 +333,7 @@ export default function LandingPageClient() {
               </p>
             </div>
 
-            <div ref={register} className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200">
+            <div ref={register} className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200 transition-all duration-300 ease-out lg:hover:-translate-y-0.5 lg:hover:shadow-md">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -318,7 +345,7 @@ export default function LandingPageClient() {
               </p>
             </div>
 
-            <div ref={register} className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200">
+            <div ref={register} className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200 transition-all duration-300 ease-out lg:hover:-translate-y-0.5 lg:hover:shadow-md">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
