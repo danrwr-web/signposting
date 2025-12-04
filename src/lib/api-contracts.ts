@@ -198,3 +198,60 @@ export type UpdateSurgeryReq = z.infer<typeof UpdateSurgeryReqZ>;
 export type LoginReq = z.infer<typeof LoginReqZ>;
 export type LoginRes = z.infer<typeof LoginResZ>;
 export type ErrorRes = z.infer<typeof ErrorResZ>;
+
+// Surgery Onboarding Profile
+export const SurgeryOnboardingProfileJsonZ = z.object({
+  surgeryName: z.string().nullable(),
+  urgentCareModel: z.object({
+    hasDutyDoctor: z.boolean(),
+    dutyDoctorTerm: z.string().nullable(),
+    usesRedSlots: z.boolean(),
+    redSlotName: z.string().nullable(),
+  }),
+  bookingRules: z.object({
+    canBookDirectly: z.array(z.string()),
+    mustNotBookDirectly: z.string(),
+  }),
+  team: z.object({
+    roles: z.array(z.string()),
+    roleRoutingNotes: z.string(),
+  }),
+  escalation: z.object({
+    firstEscalation: z.string().nullable(),
+    urgentWording: z.string(),
+  }),
+  localServices: z.object({
+    msk: z.string(),
+    mentalHealth: z.string(),
+    socialPrescribing: z.string(),
+    communityNursing: z.string(),
+    audiology: z.string(),
+    frailty: z.string(),
+    sexualHealth: z.string(),
+    outOfHours: z.string(),
+    includeInInstructions: z.enum(['yes', 'brief', 'no']),
+  }),
+  communicationStyle: z.object({
+    detailLevel: z.enum(['brief', 'moderate', 'detailed']),
+    terminologyPreference: z.enum(['surgery', 'generic', 'mixed']),
+  }),
+  aiSettings: z.object({
+    customisationScope: z.enum(['all', 'core', 'manual']),
+    requireClinicalReview: z.boolean(),
+  }),
+});
+
+export const GetOnboardingProfileResZ = z.object({
+  profileJson: SurgeryOnboardingProfileJsonZ,
+  completed: z.boolean(),
+  completedAt: z.string().nullable().or(z.date().nullable()),
+});
+
+export const UpdateOnboardingProfileReqZ = z.object({
+  profileJson: SurgeryOnboardingProfileJsonZ,
+  completed: z.boolean().optional(),
+});
+
+export type SurgeryOnboardingProfileJson = z.infer<typeof SurgeryOnboardingProfileJsonZ>;
+export type GetOnboardingProfileRes = z.infer<typeof GetOnboardingProfileResZ>;
+export type UpdateOnboardingProfileReq = z.infer<typeof UpdateOnboardingProfileReqZ>;

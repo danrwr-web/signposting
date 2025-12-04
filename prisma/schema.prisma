@@ -91,6 +91,7 @@ model Surgery {
   surgeryFeatureFlags     SurgeryFeatureFlag[]
   appointmentTypes        AppointmentType[]
   appointmentStaffTypes   AppointmentStaffType[]
+  onboardingProfile       SurgeryOnboardingProfile?
 }
 
 model BaseSymptom {
@@ -461,4 +462,18 @@ model AppointmentStaffType {
 
   @@unique([surgeryId, normalizedLabel])
   @@index([surgeryId, orderIndex])
+}
+
+model SurgeryOnboardingProfile {
+  id          String   @id @default(cuid())
+  surgeryId   String   @unique
+  surgery     Surgery  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  profileJson Json     // full JSON object of answers
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([surgeryId])
 }

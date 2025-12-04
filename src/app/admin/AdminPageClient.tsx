@@ -961,7 +961,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     change their roles, and set their default surgery.
                   </p>
                   
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 flex-wrap">
                     <a
                       href={`/s/${session.surgeryId}/admin/users`}
                       className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
@@ -975,6 +975,23 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                       Launch Signposting Tool
                     </a>
                   </div>
+                </div>
+
+                {/* Onboarding & AI Setup Card */}
+                <div className="bg-white p-6 rounded-lg border border-gray-200 mt-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Onboarding & AI Setup
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Tell the tool how your surgery works so AI can tailor instructions.
+                  </p>
+                  <a
+                    href={`/s/${session.surgeryId}/admin/onboarding`}
+                    className="inline-flex items-center px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-nhs-dark-blue transition-colors"
+                  >
+                    Complete Onboarding Questionnaire
+                  </a>
+                </div>
                 </div>
               </div>
             )}
