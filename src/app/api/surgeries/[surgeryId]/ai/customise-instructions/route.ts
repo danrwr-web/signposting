@@ -274,9 +274,11 @@ export async function POST(
               data: {
                 symptomId: symptomRef.baseSymptomId,
                 source: 'override',
-                previousBriefInstruction: previousBriefInstruction || undefined,
+                previousText: previousInstructionsHtml || null, // Legacy field for backward compatibility
+                newText: customised.instructionsHtml || previousInstructionsHtml || '', // Legacy field - ensure non-null
+                previousBriefInstruction: previousBriefInstruction || null,
                 newBriefInstruction: customised.briefInstruction,
-                previousInstructionsHtml: previousInstructionsHtml || undefined,
+                previousInstructionsHtml: previousInstructionsHtml || null,
                 newInstructionsHtml: customised.instructionsHtml,
                 editorName: user.name || undefined,
                 editorEmail: user.email,
@@ -326,9 +328,11 @@ export async function POST(
               data: {
                 symptomId: symptomRef.customSymptomId!,
                 source: 'custom',
-                previousBriefInstruction: previousBriefInstruction || undefined,
+                previousText: previousInstructionsHtml || null, // Legacy field for backward compatibility
+                newText: customised.instructionsHtml || previousInstructionsHtml || '', // Legacy field - ensure non-null
+                previousBriefInstruction: previousBriefInstruction || null,
                 newBriefInstruction: customised.briefInstruction,
-                previousInstructionsHtml: previousInstructionsHtml || undefined,
+                previousInstructionsHtml: previousInstructionsHtml || null,
                 newInstructionsHtml: customised.instructionsHtml,
                 editorName: user.name || undefined,
                 editorEmail: user.email,
