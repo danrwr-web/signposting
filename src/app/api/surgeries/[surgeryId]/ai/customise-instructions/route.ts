@@ -240,130 +240,129 @@ export async function POST(
           continue
         }
 
-        // Upsert override (only for base symptoms - custom symptoms don't have overrides)
-        if (symptomRef.baseSymptomId) {
-          const previousBriefInstruction = existingOverride?.briefInstruction ?? baseSymptomData.briefInstruction
-          const previousInstructionsHtml = existingOverride?.instructionsHtml ?? baseSymptomData.instructionsHtml
+        // Use transaction to ensure all database operations succeed or fail together
+        await prisma.$transaction(async (tx) => {
+          if (symptomRef.baseSymptomId) {
+            // For base symptoms: upsert override, create history, update review status
+            const previousBriefInstruction = existingOverride?.briefInstruction ?? baseSymptomData.briefInstruction
+            const previousInstructionsHtml = existingOverride?.instructionsHtml ?? baseSymptomData.instructionsHtml
 
-          await prisma.surgerySymptomOverride.upsert({
-            where: {
-              surgeryId_baseSymptomId: {
+            await tx.surgerySymptomOverride.upsert({
+              where: {
+                surgeryId_baseSymptomId: {
+                  surgeryId,
+                  baseSymptomId: symptomRef.baseSymptomId,
+                },
+              },
+              create: {
                 surgeryId,
                 baseSymptomId: symptomRef.baseSymptomId,
+                briefInstruction: customised.briefInstruction,
+                instructionsHtml: customised.instructionsHtml,
+                lastEditedBy: user.name || user.email,
+                lastEditedAt: new Date(),
               },
-            },
-            create: {
-              surgeryId,
-              baseSymptomId: symptomRef.baseSymptomId,
-              briefInstruction: customised.briefInstruction,
-              instructionsHtml: customised.instructionsHtml,
-              lastEditedBy: user.name || user.email,
-              lastEditedAt: new Date(),
-            },
-            update: {
-              briefInstruction: customised.briefInstruction,
-              instructionsHtml: customised.instructionsHtml,
-              lastEditedBy: user.name || user.email,
-              lastEditedAt: new Date(),
-            },
-          })
+              update: {
+                briefInstruction: customised.briefInstruction,
+                instructionsHtml: customised.instructionsHtml,
+                lastEditedBy: user.name || user.email,
+                lastEditedAt: new Date(),
+              },
+            })
 
-          // Create SymptomHistory entry
-          await prisma.symptomHistory.create({
-            data: {
-              symptomId: symptomRef.baseSymptomId,
-              source: 'override',
-              previousBriefInstruction: previousBriefInstruction || undefined,
-              newBriefInstruction: customised.briefInstruction,
-              previousInstructionsHtml: previousInstructionsHtml || undefined,
-              newInstructionsHtml: customised.instructionsHtml,
-              editorName: user.name || undefined,
-              editorEmail: user.email,
-              modelUsed: customised.modelUsed,
-              changedAt: new Date(),
-            },
-          })
+            await tx.symptomHistory.create({
+              data: {
+                symptomId: symptomRef.baseSymptomId,
+                source: 'override',
+                previousBriefInstruction: previousBriefInstruction || undefined,
+                newBriefInstruction: customised.briefInstruction,
+                previousInstructionsHtml: previousInstructionsHtml || undefined,
+                newInstructionsHtml: customised.instructionsHtml,
+                editorName: user.name || undefined,
+                editorEmail: user.email,
+                modelUsed: customised.modelUsed,
+                changedAt: new Date(),
+              },
+            })
 
-          // Force SymptomReviewStatus back to PENDING (even if previously APPROVED)
-          await prisma.symptomReviewStatus.upsert({
-            where: {
-              surgeryId_symptomId_ageGroup: {
+            await tx.symptomReviewStatus.upsert({
+              where: {
+                surgeryId_symptomId_ageGroup: {
+                  surgeryId,
+                  symptomId: symptomRef.baseSymptomId,
+                  ageGroup: baseSymptomData.ageGroup || null,
+                },
+              },
+              create: {
                 surgeryId,
                 symptomId: symptomRef.baseSymptomId,
                 ageGroup: baseSymptomData.ageGroup || null,
+                status: 'PENDING',
+                lastReviewedAt: null,
+                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
               },
-            },
-            create: {
-              surgeryId,
-              symptomId: symptomRef.baseSymptomId,
-              ageGroup: baseSymptomData.ageGroup || null,
-              status: 'PENDING',
-              lastReviewedAt: null,
-              reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
-            },
-            update: {
-              status: 'PENDING',
-              lastReviewedAt: null,
-              reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
-            },
-          })
-        } else {
-          // For custom symptoms, update directly and create history
-          const previousBriefInstruction = baseSymptomData.briefInstruction
-          const previousInstructionsHtml = baseSymptomData.instructionsHtml
+              update: {
+                status: 'PENDING',
+                lastReviewedAt: null,
+                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
+              },
+            })
+          } else {
+            // For custom symptoms: update symptom, create history, update review status
+            const previousBriefInstruction = baseSymptomData.briefInstruction
+            const previousInstructionsHtml = baseSymptomData.instructionsHtml
 
-          await prisma.surgeryCustomSymptom.update({
-            where: { id: symptomRef.customSymptomId! },
-            data: {
-              briefInstruction: customised.briefInstruction,
-              instructionsHtml: customised.instructionsHtml,
-              lastEditedBy: user.name || user.email,
-              lastEditedAt: new Date(),
-            },
-          })
+            await tx.surgeryCustomSymptom.update({
+              where: { id: symptomRef.customSymptomId! },
+              data: {
+                briefInstruction: customised.briefInstruction,
+                instructionsHtml: customised.instructionsHtml,
+                lastEditedBy: user.name || user.email,
+                lastEditedAt: new Date(),
+              },
+            })
 
-          // Create SymptomHistory entry
-          await prisma.symptomHistory.create({
-            data: {
-              symptomId: symptomRef.customSymptomId!,
-              source: 'custom',
-              previousBriefInstruction: previousBriefInstruction || undefined,
-              newBriefInstruction: customised.briefInstruction,
-              previousInstructionsHtml: previousInstructionsHtml || undefined,
-              newInstructionsHtml: customised.instructionsHtml,
-              editorName: user.name || undefined,
-              editorEmail: user.email,
-              modelUsed: customised.modelUsed,
-              changedAt: new Date(),
-            },
-          })
+            await tx.symptomHistory.create({
+              data: {
+                symptomId: symptomRef.customSymptomId!,
+                source: 'custom',
+                previousBriefInstruction: previousBriefInstruction || undefined,
+                newBriefInstruction: customised.briefInstruction,
+                previousInstructionsHtml: previousInstructionsHtml || undefined,
+                newInstructionsHtml: customised.instructionsHtml,
+                editorName: user.name || undefined,
+                editorEmail: user.email,
+                modelUsed: customised.modelUsed,
+                changedAt: new Date(),
+              },
+            })
 
-          // Force SymptomReviewStatus back to PENDING (even if previously APPROVED)
-          await prisma.symptomReviewStatus.upsert({
-            where: {
-              surgeryId_symptomId_ageGroup: {
+            await tx.symptomReviewStatus.upsert({
+              where: {
+                surgeryId_symptomId_ageGroup: {
+                  surgeryId,
+                  symptomId: symptomRef.customSymptomId!,
+                  ageGroup: baseSymptomData.ageGroup || null,
+                },
+              },
+              create: {
                 surgeryId,
                 symptomId: symptomRef.customSymptomId!,
                 ageGroup: baseSymptomData.ageGroup || null,
+                status: 'PENDING',
+                lastReviewedAt: null,
+                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
               },
-            },
-            create: {
-              surgeryId,
-              symptomId: symptomRef.customSymptomId!,
-              ageGroup: baseSymptomData.ageGroup || null,
-              status: 'PENDING',
-              lastReviewedAt: null,
-              reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
-            },
-            update: {
-              status: 'PENDING',
-              lastReviewedAt: null,
-              reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
-            },
-          })
-        }
+              update: {
+                status: 'PENDING',
+                lastReviewedAt: null,
+                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
+              },
+            })
+          }
+        })
 
-        // Only increment processedCount after successful database writes
+        // Only increment processedCount after successful transaction
         processedCount++
         console.log(`[AI Customisation] Successfully processed symptom ${symptomRef.id}. Total processed: ${processedCount}`)
       } catch (error) {
