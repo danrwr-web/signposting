@@ -43,7 +43,7 @@ export default function AISetupClient({
   user,
 }: AISetupClientProps) {
   const router = useRouter()
-  const [scope, setScope] = useState<CustomiseScope>('core')
+  const [scope, setScope] = useState<CustomiseScope>('all')
   const [selectedSymptomIds, setSelectedSymptomIds] = useState<string[]>([])
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
   const [loading, setLoading] = useState(false)
@@ -53,6 +53,7 @@ export default function AISetupClient({
     total: number
     processedCount: number
     skippedCount: number
+    currentSymptomName?: string
   } | null>(null)
   const [result, setResult] = useState<{
     processedCount: number
@@ -60,9 +61,9 @@ export default function AISetupClient({
     message: string
   } | null>(null)
 
-  // Load symptoms for manual selection
+  // Load symptoms for manual selection and ALL mode
   useEffect(() => {
-    if (scope === 'manual' && symptoms.length === 0) {
+    if ((scope === 'manual' || scope === 'all') && symptoms.length === 0) {
       loadSymptoms()
     }
   }, [scope])
@@ -85,9 +86,69 @@ export default function AISetupClient({
     }
   }
 
+  // Helper function to process symptom IDs one by one
+  const processSymptomIds = async (symptomIds: string[]) => {
+    let cumulativeProcessed = 0
+    let cumulativeSkipped = 0
+    const total = symptomIds.length
+
+    for (let i = 0; i < symptomIds.length; i++) {
+      const symptomId = symptomIds[i]
+      const symptom = symptoms.find(s => s.id === symptomId)
+      const symptomName = symptom?.name || `Symptom ${i + 1}`
+
+      setProcessingProgress({
+        current: i + 1,
+        total,
+        processedCount: cumulativeProcessed,
+        skippedCount: cumulativeSkipped,
+        currentSymptomName: symptomName,
+      })
+
+      try {
+        const response = await fetch(
+          `/api/surgeries/${surgeryId}/ai/customise-instructions`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              scope: 'manual' as const,
+              symptomIds: [symptomId],
+            }),
+          }
+        )
+
+        if (response.ok) {
+          const data: CustomiseInstructionsResponse = await response.json()
+          cumulativeProcessed += data.processedCount || 0
+          cumulativeSkipped += data.skippedCount || 0
+        } else {
+          const errorData = await response.json()
+          console.error(`Error processing symptom ${symptomId}:`, errorData.error)
+          cumulativeSkipped++
+        }
+      } catch (error) {
+        console.error(`Error processing symptom ${symptomId}:`, error)
+        cumulativeSkipped++
+      }
+    }
+
+    return {
+      processedCount: cumulativeProcessed,
+      skippedCount: cumulativeSkipped,
+    }
+  }
+
   const handleCustomise = async () => {
     if (scope === 'manual' && selectedSymptomIds.length === 0) {
       toast.error('Please select at least one symptom')
+      return
+    }
+
+    if (scope === 'all' && symptoms.length === 0) {
+      toast.error('Please wait for symptoms to load')
       return
     }
 
@@ -96,93 +157,27 @@ export default function AISetupClient({
       setResult(null)
       setProcessingProgress(null)
 
-      // For manual scope, process one by one
+      let symptomIdsToProcess: string[]
+      
       if (scope === 'manual') {
-        let cumulativeProcessed = 0
-        let cumulativeSkipped = 0
-        const total = selectedSymptomIds.length
-
-        for (let i = 0; i < selectedSymptomIds.length; i++) {
-          const symptomId = selectedSymptomIds[i]
-          setProcessingProgress({
-            current: i + 1,
-            total,
-            processedCount: cumulativeProcessed,
-            skippedCount: cumulativeSkipped,
-          })
-
-          try {
-            const response = await fetch(
-              `/api/surgeries/${surgeryId}/ai/customise-instructions`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  scope: 'manual' as const,
-                  symptomIds: [symptomId],
-                }),
-              }
-            )
-
-            if (response.ok) {
-              const data: CustomiseInstructionsResponse = await response.json()
-              // Debug logging
-              console.log(`[AI Customisation] Response for symptom ${symptomId}:`, data)
-              cumulativeProcessed += data.processedCount || 0
-              cumulativeSkipped += data.skippedCount || 0
-              console.log(`[AI Customisation] Cumulative: ${cumulativeProcessed} processed, ${cumulativeSkipped} skipped`)
-            } else {
-              const errorData = await response.json()
-              console.error(`Error processing symptom ${symptomId}:`, errorData.error)
-              cumulativeSkipped++
-            }
-          } catch (error) {
-            console.error(`Error processing symptom ${symptomId}:`, error)
-            cumulativeSkipped++
-          }
-        }
-
-        // Show final results
-        setProcessingProgress(null)
-        setResult({
-          processedCount: cumulativeProcessed,
-          skippedCount: cumulativeSkipped,
-          message: `Successfully customised ${cumulativeProcessed} symptom${cumulativeProcessed !== 1 ? 's' : ''}. ${cumulativeSkipped > 0 ? `${cumulativeSkipped} skipped.` : ''}`,
-        })
-        toast.success(
-          `Customisation completed: ${cumulativeProcessed} processed, ${cumulativeSkipped} skipped`
-        )
+        symptomIdsToProcess = selectedSymptomIds
       } else {
-        // For 'all' and 'core', use single API call
-        const body: {
-          scope: CustomiseScope
-          symptomIds?: string[]
-        } = {
-          scope,
-        }
-
-        const response = await fetch(
-          `/api/surgeries/${surgeryId}/ai/customise-instructions`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-          }
-        )
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || 'Failed to customise instructions')
-        }
-
-        const data: CustomiseInstructionsResponse = await response.json()
-        setResult(data)
-        toast.success(data.message || 'Customisation completed successfully')
+        // For 'all', use all available symptom IDs
+        symptomIdsToProcess = symptoms.map(s => s.id)
       }
+
+      const results = await processSymptomIds(symptomIdsToProcess)
+
+      // Show final results
+      setProcessingProgress(null)
+      setResult({
+        processedCount: results.processedCount,
+        skippedCount: results.skippedCount,
+        message: `Successfully customised ${results.processedCount} symptom${results.processedCount !== 1 ? 's' : ''}. ${results.skippedCount > 0 ? `${results.skippedCount} skipped.` : ''}`,
+      })
+      toast.success(
+        `Customisation completed: ${results.processedCount} processed, ${results.skippedCount} skipped`
+      )
     } catch (error) {
       console.error('Error customising instructions:', error)
       toast.error(
@@ -344,25 +339,9 @@ export default function AISetupClient({
                       <div className="text-sm text-gray-500">
                         Process all symptoms available for this surgery
                       </div>
-                    </div>
-                  </label>
-                  <label className="flex items-start">
-                    <input
-                      type="radio"
-                      name="scope"
-                      value="core"
-                      checked={scope === 'core'}
-                      onChange={(e) => setScope(e.target.value as CustomiseScope)}
-                      disabled={processing}
-                      className="mt-1 mr-3"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">
-                        Customise CORE set only
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        Process commonly used symptoms (currently same as all)
-                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        This will run AI customisation on every enabled symptom. Please keep this tab open until the process completes.
+                      </p>
                     </div>
                   </label>
                   <label className="flex items-start">
@@ -460,6 +439,11 @@ export default function AISetupClient({
                         Processing {processingProgress.current} of{' '}
                         {processingProgress.total} symptoms...
                       </p>
+                      {processingProgress.currentSymptomName && (
+                        <p className="text-sm text-blue-600 mt-1">
+                          Currently customising: {processingProgress.currentSymptomName}
+                        </p>
+                      )}
                       <p className="text-sm text-blue-700 mt-1">
                         Processed: {processingProgress.processedCount} • Skipped:{' '}
                         {processingProgress.skippedCount}
@@ -475,7 +459,8 @@ export default function AISetupClient({
                   onClick={handleCustomise}
                   disabled={
                     processing ||
-                    (scope === 'manual' && selectedSymptomIds.length === 0)
+                    (scope === 'manual' && selectedSymptomIds.length === 0) ||
+                    (scope === 'all' && symptoms.length === 0)
                   }
                   className="w-full bg-nhs-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-nhs-dark-blue disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
