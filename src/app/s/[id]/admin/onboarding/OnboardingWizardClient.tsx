@@ -1185,20 +1185,20 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
             )}
           </div>
 
-          {currentStep < STEPS.length ? (
-            <button
-              onClick={handleNext}
-              className="px-6 py-2 bg-nhs-blue text-white rounded-lg font-medium hover:bg-nhs-dark-blue"
-            >
-              Next
-            </button>
-          ) : (
+          {currentStep === STEPS[STEPS.length - 1].id ? (
             <button
               onClick={handleFinish}
               disabled={saving}
               className="px-6 py-2 bg-nhs-blue text-white rounded-lg font-medium hover:bg-nhs-dark-blue disabled:opacity-50"
             >
               {saving ? 'Saving...' : 'Finish & Save'}
+            </button>
+          ) : (
+            <button
+              onClick={handleNext}
+              className="px-6 py-2 bg-nhs-blue text-white rounded-lg font-medium hover:bg-nhs-dark-blue"
+            >
+              Next
             </button>
           )}
         </div>
