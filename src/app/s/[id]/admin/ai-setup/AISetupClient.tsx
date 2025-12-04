@@ -117,8 +117,11 @@ export default function AISetupClient({
 
             if (response.ok) {
               const data: CustomiseInstructionsResponse = await response.json()
+              // Debug logging
+              console.log(`[AI Customisation] Response for symptom ${symptomId}:`, data)
               cumulativeProcessed += data.processedCount || 0
               cumulativeSkipped += data.skippedCount || 0
+              console.log(`[AI Customisation] Cumulative: ${cumulativeProcessed} processed, ${cumulativeSkipped} skipped`)
             } else {
               const errorData = await response.json()
               console.error(`Error processing symptom ${symptomId}:`, errorData.error)

@@ -134,17 +134,26 @@ export async function POST(
         select: { id: true },
       })
 
+      console.log(`[AI Customisation] Manual scope: Found ${baseSymptoms.length} base symptoms and ${customSymptoms.length} custom symptoms from ${symptomIds.length} requested IDs`)
+
       symptomsToProcess = [
         ...baseSymptoms.map((s) => ({ id: s.id, baseSymptomId: s.id })),
         ...customSymptoms.map((s) => ({ id: s.id, customSymptomId: s.id })),
       ]
+
+      if (symptomsToProcess.length === 0) {
+        console.warn(`[AI Customisation] No symptoms found for IDs: ${symptomIds.join(', ')}`)
+      }
     }
 
     // Process each symptom
     let processedCount = 0
     let skippedCount = 0
 
+    console.log(`[AI Customisation] Starting to process ${symptomsToProcess.length} symptom(s)`)
+
     for (const symptomRef of symptomsToProcess) {
+      console.log(`[AI Customisation] Processing symptom ${symptomRef.id} (baseSymptomId: ${symptomRef.baseSymptomId}, customSymptomId: ${symptomRef.customSymptomId})`)
       try {
         // Fetch base symptom data (or custom symptom)
         let baseSymptomData: {
@@ -184,12 +193,14 @@ export async function POST(
 
         // Skip if symptom not found or has no content to work from
         if (!baseSymptomData) {
+          console.log(`[AI Customisation] Skipping symptom ${symptomRef.id}: not found`)
           skippedCount++
           continue
         }
 
         // Skip if symptom has no instructions to customise
         if (!baseSymptomData.instructionsHtml && !baseSymptomData.briefInstruction) {
+          console.log(`[AI Customisation] Skipping symptom ${symptomRef.id}: no content to customise`)
           skippedCount++
           continue
         }
@@ -354,17 +365,26 @@ export async function POST(
 
         // Only increment processedCount after successful database writes
         processedCount++
+        console.log(`[AI Customisation] Successfully processed symptom ${symptomRef.id}. Total processed: ${processedCount}`)
       } catch (error) {
         // Any error during processing should skip the symptom
-        console.error(`Error processing symptom ${symptomRef.id}:`, error)
+        console.error(`[AI Customisation] Error processing symptom ${symptomRef.id}:`, error)
         skippedCount++
+        console.log(`[AI Customisation] Skipped symptom ${symptomRef.id}. Total skipped: ${skippedCount}`)
       }
     }
 
+    // Log final counts for debugging
+    console.log(`[AI Customisation] Final counts - Processed: ${processedCount}, Skipped: ${skippedCount}, Total symptoms to process: ${symptomsToProcess.length}`)
+
+    // Ensure counts are numbers (defensive programming)
+    const finalProcessedCount = Number(processedCount) || 0
+    const finalSkippedCount = Number(skippedCount) || 0
+
     return NextResponse.json({
-      processedCount,
-      skippedCount,
-      message: `Successfully customised ${processedCount} symptom${processedCount !== 1 ? 's' : ''}. ${skippedCount > 0 ? `${skippedCount} skipped.` : ''}`,
+      processedCount: finalProcessedCount,
+      skippedCount: finalSkippedCount,
+      message: `Successfully customised ${finalProcessedCount} symptom${finalProcessedCount !== 1 ? 's' : ''}. ${finalSkippedCount > 0 ? `${finalSkippedCount} skipped.` : ''}`,
     })
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {
