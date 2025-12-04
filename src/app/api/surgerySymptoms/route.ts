@@ -547,9 +547,18 @@ export async function PATCH(request: NextRequest) {
             )
           }
 
-          if (!status.isOverridden) {
+          // Check if an override actually exists (GET endpoint uses this to determine MODIFIED status)
+          const overrideExists = await prisma.surgerySymptomOverride.findFirst({
+            where: {
+              surgeryId: status.surgeryId,
+              baseSymptomId: status.baseSymptomId
+            },
+            select: { id: true }
+          })
+
+          if (!overrideExists) {
             return NextResponse.json(
-              { error: 'Nothing to revert' },
+              { error: 'Nothing to revert - no override found' },
               { status: 400 }
             )
           }
@@ -585,12 +594,8 @@ export async function PATCH(request: NextRequest) {
 
           if (existing) {
             actualStatusRowId = existing.id
-            if (!existing.isOverridden) {
-              return NextResponse.json(
-                { error: 'Nothing to revert' },
-                { status: 400 }
-              )
-            }
+            // Note: We've already verified override exists above, so proceed even if isOverridden flag is false
+            // This handles cases where the flag is out of sync with the actual override record
           } else {
             // Create status row first
             const newStatus = await prisma.surgerySymptomStatus.create({
