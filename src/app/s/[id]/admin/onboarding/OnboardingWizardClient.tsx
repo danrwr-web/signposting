@@ -37,7 +37,7 @@ const APPOINTMENT_ARCHETYPES = [
   {
     key: 'routineContinuityGp' as const,
     heading: 'Routine continuity GP',
-    intro: 'For non-urgent problems where it's best for the patient to see their usual GP or a regular GP in the team.',
+    intro: 'For non-urgent problems where it\'s best for the patient to see their usual GP or a regular GP in the team.',
     placeholder: 'e.g. Green Slot – continuity GP',
     descriptionPlaceholder: 'e.g. Used for stable or long-term problems where continuity is helpful but not urgent.',
   },
@@ -46,7 +46,7 @@ const APPOINTMENT_ARCHETYPES = [
     heading: 'Routine GP telephone',
     intro: 'For non-urgent problems that can be safely managed over the phone, without needing an examination.',
     placeholder: 'e.g. Routine GP phone appointment',
-    descriptionPlaceholder: 'e.g. Used for follow-up discussions, simple results, or medication queries that don't need a face-to-face review.',
+    descriptionPlaceholder: 'e.g. Used for follow-up discussions, simple results, or medication queries that don\'t need a face-to-face review.',
   },
   {
     key: 'gpTriage48h' as const,
