@@ -992,7 +992,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     Complete Onboarding Questionnaire
                   </a>
                 </div>
-                </div>
               </div>
             )}
 
