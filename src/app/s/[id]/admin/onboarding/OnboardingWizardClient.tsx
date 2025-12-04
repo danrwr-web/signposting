@@ -40,6 +40,7 @@ const APPOINTMENT_ARCHETYPES = [
     intro: 'For non-urgent problems where it\'s best for the patient to see their usual GP or a regular GP in the team.',
     placeholder: 'e.g. Green Slot – continuity GP',
     descriptionPlaceholder: 'e.g. Used for stable or long-term problems where continuity is helpful but not urgent.',
+    suggestedDescription: 'Used for stable or long-term problems where continuity is helpful but not urgent.',
   },
   {
     key: 'routineGpPhone' as const,
@@ -47,6 +48,7 @@ const APPOINTMENT_ARCHETYPES = [
     intro: 'For non-urgent problems that can be safely managed over the phone, without needing an examination.',
     placeholder: 'e.g. Routine GP phone appointment',
     descriptionPlaceholder: 'e.g. Used for follow-up discussions, simple results, or medication queries that don\'t need a face-to-face review.',
+    suggestedDescription: 'Used for follow-up discussions, simple results, or medication queries that don\'t need a face-to-face review.',
   },
   {
     key: 'gpTriage48h' as const,
@@ -54,6 +56,7 @@ const APPOINTMENT_ARCHETYPES = [
     intro: 'For problems that need GP input within the next 1–2 days, but are not same-day emergencies.',
     placeholder: 'e.g. Pink/Purple – GP triage (within 48 hours)',
     descriptionPlaceholder: 'e.g. Used when a GP needs to assess symptoms within 48 hours to decide on face-to-face review or self-care.',
+    suggestedDescription: 'Used when a GP needs to assess symptoms within 48 hours to decide on face-to-face review or self-care.',
   },
   {
     key: 'urgentSameDayPhone' as const,
@@ -61,6 +64,7 @@ const APPOINTMENT_ARCHETYPES = [
     intro: 'For urgent or safety-critical problems where a GP needs to speak to the patient the same day.',
     placeholder: 'e.g. Duty GP telephone today',
     descriptionPlaceholder: 'e.g. Used for acute issues with red-flag symptoms where the Duty GP must assess the patient today.',
+    suggestedDescription: 'Used for acute issues with red-flag symptoms where the Duty GP must assess the patient today.',
   },
   {
     key: 'urgentSameDayF2F' as const,
@@ -68,13 +72,15 @@ const APPOINTMENT_ARCHETYPES = [
     intro: 'For patients who clearly need to be examined in person on the same day, usually after GP triage.',
     placeholder: 'e.g. Urgent F2F – today',
     descriptionPlaceholder: 'e.g. Used when the GP believes the patient needs to be seen in person urgently (e.g. acute abdominal pain).',
+    suggestedDescription: 'Used when the GP believes the patient needs to be seen in person urgently (e.g. acute abdominal pain).',
   },
   {
     key: 'otherClinicianDirect' as const,
     heading: 'Direct booking with another clinician',
     intro: 'For problems that can go straight to another clinician, without needing a GP first.',
     placeholder: 'e.g. FCP MSK clinic, Minor illness ANP, Pharmacist meds review',
-    descriptionPlaceholder: 'e.g. Used when the patient can be booked directly with FCP, ANP, or pharmacist according to local pathways.',
+    descriptionPlaceholder: 'e.g. Used when patients can be booked directly with FCP for MSK problems, ANP for minor illness, or a clinical pharmacist for medicines queries.',
+    suggestedDescription: 'Used when the patient can be booked directly with FCP, ANP, or a clinical pharmacist according to local pathways.',
   },
 ]
 
@@ -553,12 +559,24 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                           type="checkbox"
                           checked={config.enabled}
                           onChange={(e) => {
+                            const previousEnabled = config.enabled
+                            const nextEnabled = e.target.checked
+                            
+                            // Auto-fill description when enabling for the first time (if description is empty)
+                            const shouldAutoFill = 
+                              !previousEnabled && 
+                              nextEnabled && 
+                              (!config.description || config.description.trim() === '')
+                            
                             updateProfile({
                               appointmentModel: {
                                 ...profile.appointmentModel,
                                 [archetype.key]: {
                                   ...config,
-                                  enabled: e.target.checked,
+                                  enabled: nextEnabled,
+                                  description: shouldAutoFill 
+                                    ? archetype.suggestedDescription 
+                                    : config.description,
                                 },
                               },
                             })
