@@ -35,6 +35,12 @@ export default async function AdminPage() {
             where: {
               status: 'PENDING'
             }
+          },
+          onboardingProfile: {
+            select: {
+              completed: true,
+              completedAt: true,
+            }
           }
         }
       })
@@ -50,6 +56,12 @@ export default async function AdminPage() {
           symptomReviews: {
             where: {
               status: 'PENDING'
+            }
+          },
+          onboardingProfile: {
+            select: {
+              completed: true,
+              completedAt: true,
             }
           }
         }

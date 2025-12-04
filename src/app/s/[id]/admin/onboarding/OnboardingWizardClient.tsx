@@ -181,6 +181,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
   const [saving, setSaving] = useState(false)
   const [otherRole, setOtherRole] = useState('')
   const [otherEscalation, setOtherEscalation] = useState('')
+  const [justCompleted, setJustCompleted] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -284,7 +285,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
 
   const handleFinish = async () => {
     await saveProfile(true)
-    router.push(`/s/${surgeryId}`)
+    setJustCompleted(true)
   }
 
   const updateProfile = (updates: Partial<SurgeryOnboardingProfileJson>) => {
@@ -313,7 +314,52 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
           <p className="text-nhs-grey mb-4">
             Tell us how your surgery operates so we can tailor instructions for your team.
           </p>
-          {completed && completedAt && (
+          {/* Completion Success Banner */}
+          {justCompleted && (
+            <div className="bg-green-50 border-l-4 border-green-400 p-6 mb-6 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg
+                    className="h-6 w-6 text-green-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-lg font-medium text-green-800 mb-2">
+                    Onboarding completed successfully!
+                  </h3>
+                  <p className="text-sm text-green-700 mb-4">
+                    Your surgery profile has been saved. You can safely close this page, or use the admin menu to revisit your answers at any time.
+                  </p>
+                  <div className="flex gap-3 mt-4">
+                    <a
+                      href={`/s/${surgeryId}/admin/ai-setup`}
+                      className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                    >
+                      Go to AI Setup
+                    </a>
+                    <a
+                      href={`/s/${surgeryId}/admin`}
+                      className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
+                    >
+                      Return to Admin Dashboard
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {completed && completedAt && !justCompleted && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-green-800">
                 ✓ Onboarding completed on {new Date(completedAt).toLocaleDateString('en-GB', {
@@ -324,7 +370,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
               </p>
             </div>
           )}
-          {!completed && (
+          {!completed && !justCompleted && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
               <p className="text-sm text-yellow-800">
                 Onboarding not completed yet
@@ -333,6 +379,9 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
           )}
         </div>
 
+        {/* Hide wizard content when just completed */}
+        {!justCompleted && (
+          <>
         {/* Step Indicator */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex items-center justify-between">
@@ -1202,6 +1251,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
             </button>
           )}
         </div>
+          </>
+        )}
       </main>
     </div>
   )
