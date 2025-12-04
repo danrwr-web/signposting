@@ -256,3 +256,31 @@ export const UpdateOnboardingProfileReqZ = z.object({
 export type SurgeryOnboardingProfileJson = z.infer<typeof SurgeryOnboardingProfileJsonZ>;
 export type GetOnboardingProfileRes = z.infer<typeof GetOnboardingProfileResZ>;
 export type UpdateOnboardingProfileReq = z.infer<typeof UpdateOnboardingProfileReqZ>;
+
+// AI Customisation
+export const CustomiseScopeZ = z.enum(['all', 'core', 'manual']);
+
+export const CustomiseInstructionsReqZ = z.object({
+  scope: CustomiseScopeZ,
+  symptomIds: z.array(z.string()).optional(), // required if scope === "manual"
+}).refine(
+  (data) => {
+    if (data.scope === 'manual') {
+      return data.symptomIds && data.symptomIds.length > 0;
+    }
+    return true;
+  },
+  {
+    message: 'symptomIds is required when scope is "manual"',
+  }
+);
+
+export const CustomiseInstructionsResZ = z.object({
+  processedCount: z.number(),
+  skippedCount: z.number(),
+  message: z.string(),
+});
+
+export type CustomiseScope = z.infer<typeof CustomiseScopeZ>;
+export type CustomiseInstructionsReq = z.infer<typeof CustomiseInstructionsReqZ>;
+export type CustomiseInstructionsRes = z.infer<typeof CustomiseInstructionsResZ>;

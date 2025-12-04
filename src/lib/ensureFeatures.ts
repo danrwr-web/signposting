@@ -18,6 +18,11 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
     name: 'AI question prompts',
     description: 'Show AI-generated, patient-friendly questions to help staff gather the information they need to follow the instructions for each symptom.',
   },
+  {
+    key: 'ai_surgery_customisation',
+    name: 'AI surgery-specific customisation',
+    description: 'Allow AI to rewrite symptom instructions based on the surgery onboarding profile.',
+  },
 ]
 
 /**
