@@ -18,6 +18,12 @@ interface AISetupClientProps {
 
 type CustomiseScope = 'all' | 'core' | 'manual'
 
+interface CustomiseInstructionsResponse {
+  processedCount: number
+  skippedCount: number
+  message: string
+}
+
 export default function AISetupClient({
   surgeryId,
   surgeryName,
@@ -110,9 +116,9 @@ export default function AISetupClient({
             )
 
             if (response.ok) {
-              const data = await response.json()
-              cumulativeProcessed += data.processedCount
-              cumulativeSkipped += data.skippedCount
+              const data: CustomiseInstructionsResponse = await response.json()
+              cumulativeProcessed += data.processedCount || 0
+              cumulativeSkipped += data.skippedCount || 0
             } else {
               const errorData = await response.json()
               console.error(`Error processing symptom ${symptomId}:`, errorData.error)
@@ -159,7 +165,7 @@ export default function AISetupClient({
           throw new Error(errorData.error || 'Failed to customise instructions')
         }
 
-        const data = await response.json()
+        const data: CustomiseInstructionsResponse = await response.json()
         setResult(data)
         toast.success(data.message || 'Customisation completed successfully')
       }

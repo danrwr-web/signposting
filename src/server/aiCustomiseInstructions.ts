@@ -83,12 +83,26 @@ export async function customiseInstructions(
     profileText.includes('purple slot') ||
     onboardingProfile.urgentCareModel.urgentSlotsDescription.toLowerCase().includes('slot')
 
-  // Build system prompt
+  // Build system prompt with colour-slot semantics
   let colourSlotInstruction = ''
   if (usesColourSlots) {
-    colourSlotInstruction = `This surgery uses colour-coded urgent appointment types (for example 'orange slots', 'red slots', or 'pink/purple slots') as described in their onboarding profile. You may keep and clarify those terms, using them consistently with the profile.`
+    colourSlotInstruction = `This surgery uses colour-coded urgent appointment types as described in their onboarding profile. You must keep and use these terms consistently with the profile, using the following semantic definitions:
+
+- Green slot: A routine GP appointment, ideally with continuity (the patient's usual GP if possible). Not urgent.
+- Pink/Purple slot: A GP telephone triage appointment within 48 hours. Not a same-day emergency. Not a long-term continuity appointment. Used when GP input is needed soon, but the problem does not require the Duty Team.
+- Orange slot: A same-day urgent face-to-face GP appointment following GP triage.
+- Red slot: A same-day urgent telephone call with the Duty Doctor, usually when no orange slots remain.
+
+Use these semantics to interpret what type of appointment each colour represents.`
   } else {
-    colourSlotInstruction = `This surgery does not use colour-coded slot names. If the base instructions mention 'orange slots', 'red slots' or 'pink/purple slots', you must rewrite these into neutral, surgery-appropriate wording instead (for example 'same-day GP appointment', 'urgent face-to-face appointment with the duty doctor', or similar wording taken from the onboarding profile). Do not invent new colour names.`
+    colourSlotInstruction = `This surgery does not use colour-coded slot names. If the base instructions mention colour-labelled slots, you must rewrite them into the following neutral equivalents:
+
+- Green slot → "routine GP appointment with continuity"
+- Pink/Purple slot → "GP telephone triage appointment within 48 hours"
+- Orange slot → "urgent same-day face-to-face GP appointment"
+- Red slot → "urgent same-day telephone consultation with the Duty Team"
+
+Do not invent new colour names. Use neutral wording that matches the surgery's onboarding profile terminology.`
   }
 
   const systemPrompt = `You are rewriting admin-facing signposting instructions for a specific GP surgery.
@@ -104,6 +118,16 @@ CRITICAL SAFETY RULES:
 - Maintain clinical safety exactly as written in the base instructions. Do NOT dilute urgency, red flags, or escalation criteria.
 - Keep content strictly within admin signposting scope — do NOT create new clinical advice.
 - Preserve all clinical meaning, time frames, and safety triggers exactly.
+
+CONTINUITY AND ESCALATION RULES:
+- For stable or long-standing problems (e.g., hayfever, stable constipation, long-term rashes, recurrent infections without red flags, chronic ankle pain), prioritise continuity of care by booking with the patient's usual GP where possible. Do not redirect these cases to the Duty Team.
+- Use Duty Team only when clearly acute, i.e., when:
+  * The original instructions contain red-flags, OR
+  * The onboarding profile specifically directs urgent use.
+- Never escalate non-urgent issues to Duty Team. Non-urgent cases should map to:
+  * Continuity GP (Green slot equivalent), OR
+  * 48h GP triage (Pink/Purple slot equivalent) if more suitable,
+  * but NOT same-day urgent or Duty Team unless explicitly urgent.
 
 IMPROVEMENT GOALS:
 - Improve clarity, structure, readability, and workflow for reception/admin teams.
