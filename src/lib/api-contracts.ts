@@ -206,7 +206,8 @@ export const SurgeryOnboardingProfileJsonZ = z.object({
     hasDutyDoctor: z.boolean(),
     dutyDoctorTerm: z.string().nullable(),
     usesRedSlots: z.boolean(),
-    redSlotName: z.string().nullable(),
+    redSlotName: z.string().nullable().optional(), // Kept for backwards compatibility
+    urgentSlotsDescription: z.string(),
   }),
   bookingRules: z.object({
     canBookDirectly: z.array(z.string()),

@@ -15,6 +15,7 @@ const getDefaultProfile = (): z.infer<typeof SurgeryOnboardingProfileJsonZ> => (
     dutyDoctorTerm: null,
     usesRedSlots: false,
     redSlotName: null,
+    urgentSlotsDescription: '',
   },
   bookingRules: {
     canBookDirectly: [],
@@ -73,8 +74,17 @@ export async function GET(
     })
 
     if (profile) {
+      // Handle backwards compatibility: ensure urgentSlotsDescription exists
+      const profileData = profile.profileJson as any
+      if (!profileData.urgentCareModel?.urgentSlotsDescription) {
+        profileData.urgentCareModel = {
+          ...profileData.urgentCareModel,
+          urgentSlotsDescription: '',
+        }
+      }
+      
       // Validate profileJson against schema
-      const validatedProfile = SurgeryOnboardingProfileJsonZ.parse(profile.profileJson)
+      const validatedProfile = SurgeryOnboardingProfileJsonZ.parse(profileData)
       
       return NextResponse.json({
         profileJson: validatedProfile,

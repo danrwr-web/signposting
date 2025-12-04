@@ -67,6 +67,7 @@ const getDefaultProfile = (): SurgeryOnboardingProfileJson => ({
     dutyDoctorTerm: null,
     usesRedSlots: false,
     redSlotName: null,
+    urgentSlotsDescription: '',
   },
   bookingRules: {
     canBookDirectly: [],
@@ -407,8 +408,11 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Do you use 'red slots' or protected urgent appointments?
+                  Do you have any named appointment types reserved for urgent or same-day problems?
                 </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  (for example &quot;red slots&quot;, &quot;orange slots&quot;, &quot;duty GP slots&quot;)
+                </p>
                 <div className="space-y-2">
                   <label className="flex items-center">
                     <input
@@ -440,15 +444,18 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
               {profile.urgentCareModel.usesRedSlots && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    What terminology do you use?
+                    Briefly describe how your urgent appointment types are used.
                   </label>
-                  <input
-                    type="text"
-                    value={profile.urgentCareModel.redSlotName || ''}
+                  <p className="text-xs text-gray-500 mb-2">
+                    Include each slot type, who can book it, and how they&apos;re used in practice (for example which are triage vs booked F2F, or which are used first).
+                  </p>
+                  <textarea
+                    value={profile.urgentCareModel.urgentSlotsDescription || ''}
                     onChange={(e) => updateProfile({
-                      urgentCareModel: { ...profile.urgentCareModel, redSlotName: e.target.value || null }
+                      urgentCareModel: { ...profile.urgentCareModel, urgentSlotsDescription: e.target.value }
                     })}
-                    placeholder="e.g. Red Slot, Protected Slot"
+                    placeholder="e.g. We have orange and red GP slots. Orange are used for urgent F2F after triage. Red are used as triage slots or if there are no orange slots left."
+                    rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                   />
                 </div>
@@ -588,6 +595,12 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Local Services</h2>
               
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p className="text-sm text-blue-800">
+                  Please describe the main service you use and how staff should signpost or refer patients. For each box, include: the service name, whether it&apos;s GP referral or self-referral, and what reception should tell the patient (e.g. give number, website, or book an appointment).
+                </p>
+              </div>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -599,7 +612,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, msk: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. Local Physio Service – FCP if booked by us; or self-referral via website"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
                 <div>
@@ -612,7 +626,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, mentalHealth: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. Talkworks – self-referral, give website and phone number"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
                 <div>
@@ -625,7 +640,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, socialPrescribing: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. In-house social prescriber – reception can book directly into clinic"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
                 <div>
@@ -638,7 +654,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, communityNursing: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. Community nurse team – GP or nurse to refer; reception cannot book directly"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
                 <div>
@@ -651,7 +668,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, audiology: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. Local audiology service – GP referral only"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
                 <div>
@@ -664,7 +682,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, frailty: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. Community frailty team – refer via [system]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
                 <div>
@@ -677,7 +696,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, sexualHealth: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. Local GUM clinic – self-referral, give website/phone number"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
                 <div>
@@ -690,7 +710,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, outOfHours: e.target.value }
                     })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                    placeholder="e.g. NHS 111 / OOH GP – advise patients to call 111"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
               </div>
@@ -792,7 +813,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Should instructions use your surgery's terminology or more generic NHS wording?
+                  Should instructions use your surgery&apos;s terminology or more generic NHS wording?
                 </label>
                 <div className="space-y-2">
                   <label className="flex items-center">
