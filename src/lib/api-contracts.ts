@@ -199,6 +199,26 @@ export type LoginReq = z.infer<typeof LoginReqZ>;
 export type LoginRes = z.infer<typeof LoginResZ>;
 export type ErrorRes = z.infer<typeof ErrorResZ>;
 
+// Appointment Taxonomy
+export const AppointmentArchetypeConfigZ = z.object({
+  enabled: z.boolean().default(false),
+  localName: z.string().default(''),
+  clinicianRole: z.string().default(''),
+  description: z.string().default(''),
+});
+
+export const AppointmentModelConfigZ = z.object({
+  routineContinuityGp: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
+  routineGpPhone: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
+  gpTriage48h: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
+  urgentSameDayPhone: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
+  urgentSameDayF2F: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
+  otherClinicianDirect: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
+});
+
+export type AppointmentArchetypeConfig = z.infer<typeof AppointmentArchetypeConfigZ>;
+export type AppointmentModelConfig = z.infer<typeof AppointmentModelConfigZ>;
+
 // Surgery Onboarding Profile
 export const SurgeryOnboardingProfileJsonZ = z.object({
   surgeryName: z.string().nullable(),
@@ -239,6 +259,14 @@ export const SurgeryOnboardingProfileJsonZ = z.object({
   aiSettings: z.object({
     customisationScope: z.enum(['all', 'core', 'manual']),
     requireClinicalReview: z.boolean(),
+  }),
+  appointmentModel: AppointmentModelConfigZ.default({
+    routineContinuityGp: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    routineGpPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    gpTriage48h: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
   }),
 });
 

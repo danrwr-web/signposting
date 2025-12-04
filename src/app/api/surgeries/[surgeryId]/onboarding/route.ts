@@ -48,6 +48,14 @@ const getDefaultProfile = (): z.infer<typeof SurgeryOnboardingProfileJsonZ> => (
     customisationScope: 'core',
     requireClinicalReview: true,
   },
+  appointmentModel: {
+    routineContinuityGp: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    routineGpPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    gpTriage48h: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+  },
 })
 
 // GET /api/surgeries/[surgeryId]/onboarding
@@ -74,12 +82,24 @@ export async function GET(
     })
 
     if (profile) {
-      // Handle backwards compatibility: ensure urgentSlotsDescription exists
+      // Handle backwards compatibility: ensure urgentSlotsDescription exists and appointmentModel has defaults
       const profileData = profile.profileJson as any
       if (!profileData.urgentCareModel?.urgentSlotsDescription) {
         profileData.urgentCareModel = {
           ...profileData.urgentCareModel,
           urgentSlotsDescription: '',
+        }
+      }
+      
+      // Ensure appointmentModel exists with defaults
+      if (!profileData.appointmentModel) {
+        profileData.appointmentModel = {
+          routineContinuityGp: { enabled: false, localName: '', clinicianRole: '', description: '' },
+          routineGpPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+          gpTriage48h: { enabled: false, localName: '', clinicianRole: '', description: '' },
+          urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+          urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
+          otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
         }
       }
       

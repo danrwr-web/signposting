@@ -1,6 +1,7 @@
 import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { AppointmentModelConfig } from '@/lib/api-contracts'
 import AISetupClient from './AISetupClient'
 
 interface AISetupPageProps {
@@ -25,6 +26,7 @@ export default async function AISetupPage({ params }: AISetupPageProps) {
           select: {
             completed: true,
             completedAt: true,
+            profileJson: true,
           },
         },
         surgeryFeatureFlags: {
@@ -44,12 +46,24 @@ export default async function AISetupPage({ params }: AISetupPageProps) {
       (f) => f.feature.key === 'ai_surgery_customisation' && f.enabled
     )
 
+    // Extract appointmentModel from profileJson with defaults
+    const profileJson = surgery.onboardingProfile?.profileJson as any
+    const appointmentModel: AppointmentModelConfig = profileJson?.appointmentModel || {
+      routineContinuityGp: { enabled: false, localName: '', clinicianRole: '', description: '' },
+      routineGpPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+      gpTriage48h: { enabled: false, localName: '', clinicianRole: '', description: '' },
+      urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+      urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
+      otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    }
+
     return (
       <AISetupClient
         surgeryId={surgeryId}
         surgeryName={surgery.name}
         onboardingCompleted={surgery.onboardingProfile?.completed ?? false}
         featureEnabled={!!featureFlag}
+        appointmentModel={appointmentModel}
         user={user}
       />
     )

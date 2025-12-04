@@ -16,11 +16,66 @@ interface OnboardingWizardClientProps {
 const STEPS = [
   { id: 1, label: 'Practice Overview' },
   { id: 2, label: 'Appointment Types' },
+  { id: 2.5, label: 'Appointment Types & Naming' },
   { id: 3, label: 'Team Structure' },
   { id: 4, label: 'Safety & Escalation' },
   { id: 5, label: 'Local Services' },
   { id: 6, label: 'Communication Preferences' },
   { id: 7, label: 'Final Settings' },
+]
+
+const CLINICIAN_ROLES = [
+  'GP',
+  'Duty GP',
+  'ANP / Nurse Practitioner',
+  'First Contact Physiotherapist',
+  'Pharmacist',
+  'Other',
+]
+
+const APPOINTMENT_ARCHETYPES = [
+  {
+    key: 'routineContinuityGp' as const,
+    heading: 'Routine continuity GP',
+    intro: 'For non-urgent problems where it's best for the patient to see their usual GP or a regular GP in the team.',
+    placeholder: 'e.g. Green Slot – continuity GP',
+    descriptionPlaceholder: 'e.g. Used for stable or long-term problems where continuity is helpful but not urgent.',
+  },
+  {
+    key: 'routineGpPhone' as const,
+    heading: 'Routine GP telephone',
+    intro: 'For non-urgent problems that can be safely managed over the phone, without needing an examination.',
+    placeholder: 'e.g. Routine GP phone appointment',
+    descriptionPlaceholder: 'e.g. Used for follow-up discussions, simple results, or medication queries that don't need a face-to-face review.',
+  },
+  {
+    key: 'gpTriage48h' as const,
+    heading: 'GP triage within 48 hours',
+    intro: 'For problems that need GP input within the next 1–2 days, but are not same-day emergencies.',
+    placeholder: 'e.g. Pink/Purple – GP triage (within 48 hours)',
+    descriptionPlaceholder: 'e.g. Used when a GP needs to assess symptoms within 48 hours to decide on face-to-face review or self-care.',
+  },
+  {
+    key: 'urgentSameDayPhone' as const,
+    heading: 'Urgent same-day telephone (Duty GP)',
+    intro: 'For urgent or safety-critical problems where a GP needs to speak to the patient the same day.',
+    placeholder: 'e.g. Duty GP telephone today',
+    descriptionPlaceholder: 'e.g. Used for acute issues with red-flag symptoms where the Duty GP must assess the patient today.',
+  },
+  {
+    key: 'urgentSameDayF2F' as const,
+    heading: 'Urgent same-day face-to-face',
+    intro: 'For patients who clearly need to be examined in person on the same day, usually after GP triage.',
+    placeholder: 'e.g. Urgent F2F – today',
+    descriptionPlaceholder: 'e.g. Used when the GP believes the patient needs to be seen in person urgently (e.g. acute abdominal pain).',
+  },
+  {
+    key: 'otherClinicianDirect' as const,
+    heading: 'Direct booking with another clinician',
+    intro: 'For problems that can go straight to another clinician, without needing a GP first.',
+    placeholder: 'e.g. FCP MSK clinic, Minor illness ANP, Pharmacist meds review',
+    descriptionPlaceholder: 'e.g. Used when the patient can be booked directly with FCP, ANP, or pharmacist according to local pathways.',
+  },
 ]
 
 const BOOKING_OPTIONS = [
@@ -99,6 +154,14 @@ const getDefaultProfile = (): SurgeryOnboardingProfileJson => ({
   aiSettings: {
     customisationScope: 'core',
     requireClinicalReview: true,
+  },
+  appointmentModel: {
+    routineContinuityGp: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    routineGpPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    gpTriage48h: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
   },
 })
 
@@ -196,16 +259,20 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
   }
 
   const handleNext = () => {
-    if (currentStep < STEPS.length) {
+    const currentIndex = STEPS.findIndex(s => s.id === currentStep)
+    if (currentIndex < STEPS.length - 1) {
       saveProfile()
-      setCurrentStep(currentStep + 1)
+      const nextStep = STEPS[currentIndex + 1].id
+      setCurrentStep(nextStep)
     }
   }
 
   const handleBack = () => {
-    if (currentStep > 1) {
+    const currentIndex = STEPS.findIndex(s => s.id === currentStep)
+    if (currentIndex > 0) {
       saveProfile()
-      setCurrentStep(currentStep - 1)
+      const prevStep = STEPS[currentIndex - 1].id
+      setCurrentStep(prevStep)
     }
   }
 
@@ -275,7 +342,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                         : 'bg-gray-200 text-gray-600'
                     }`}
                   >
-                    {currentStep > step.id ? '✓' : step.id}
+                    {currentStep > step.id ? '✓' : (typeof step.id === 'number' && step.id % 1 !== 0 ? '2b' : step.id)}
                   </div>
                   <span className={`text-xs mt-2 text-center ${currentStep === step.id ? 'font-semibold text-nhs-blue' : 'text-gray-600'}`}>
                     {step.label}
@@ -460,6 +527,136 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Step 2.5: Appointment Types & Naming */}
+          {currentStep === 2.5 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Appointment types & naming</h2>
+              <p className="text-sm text-gray-600 mb-6">
+                Define how your appointment types map to common archetypes. This helps the AI customise instructions with your surgery&apos;s terminology.
+              </p>
+
+              {APPOINTMENT_ARCHETYPES.map((archetype) => {
+                const config = profile.appointmentModel[archetype.key]
+                return (
+                  <div key={archetype.key} className="border border-gray-200 rounded-lg p-6 space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-nhs-dark-blue mb-2">{archetype.heading}</h3>
+                      <p className="text-sm text-gray-600">{archetype.intro}</p>
+                    </div>
+
+                    <div className="flex items-center">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={config.enabled}
+                          onChange={(e) => {
+                            updateProfile({
+                              appointmentModel: {
+                                ...profile.appointmentModel,
+                                [archetype.key]: {
+                                  ...config,
+                                  enabled: e.target.checked,
+                                },
+                              },
+                            })
+                          }}
+                          className="mr-2"
+                        />
+                        <span className="text-sm font-medium text-gray-700">
+                          Use this appointment type at your surgery?
+                        </span>
+                      </label>
+                    </div>
+
+                    {config.enabled && (
+                      <div className="space-y-4 pl-6 border-l-2 border-nhs-blue">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Local name shown to staff
+                          </label>
+                          <p className="text-xs text-gray-500 mb-2">
+                            This is the wording your reception team sees in the appointment book.
+                          </p>
+                          <input
+                            type="text"
+                            value={config.localName}
+                            onChange={(e) => {
+                              updateProfile({
+                                appointmentModel: {
+                                  ...profile.appointmentModel,
+                                  [archetype.key]: {
+                                    ...config,
+                                    localName: e.target.value,
+                                  },
+                                },
+                              })
+                            }}
+                            placeholder={archetype.placeholder}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Who usually sees the patient?
+                          </label>
+                          <select
+                            value={config.clinicianRole}
+                            onChange={(e) => {
+                              updateProfile({
+                                appointmentModel: {
+                                  ...profile.appointmentModel,
+                                  [archetype.key]: {
+                                    ...config,
+                                    clinicianRole: e.target.value,
+                                  },
+                                },
+                              })
+                            }}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                          >
+                            <option value="">Select...</option>
+                            {CLINICIAN_ROLES.map((role) => (
+                              <option key={role} value={role}>
+                                {role}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            One sentence description for the AI
+                          </label>
+                          <p className="text-xs text-gray-500 mb-2">
+                            Explain when this appointment type is normally used.
+                          </p>
+                          <textarea
+                            value={config.description}
+                            onChange={(e) => {
+                              updateProfile({
+                                appointmentModel: {
+                                  ...profile.appointmentModel,
+                                  [archetype.key]: {
+                                    ...config,
+                                    description: e.target.value,
+                                  },
+                                },
+                              })
+                            }}
+                            placeholder={archetype.descriptionPlaceholder}
+                            rows={3}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 

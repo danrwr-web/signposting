@@ -15,6 +15,22 @@ interface BaseSymptomData {
   instructionsHtml: string | null
 }
 
+interface AppointmentArchetypeConfig {
+  enabled: boolean
+  localName: string
+  clinicianRole: string
+  description: string
+}
+
+interface AppointmentModelConfig {
+  routineContinuityGp: AppointmentArchetypeConfig
+  routineGpPhone: AppointmentArchetypeConfig
+  gpTriage48h: AppointmentArchetypeConfig
+  urgentSameDayPhone: AppointmentArchetypeConfig
+  urgentSameDayF2F: AppointmentArchetypeConfig
+  otherClinicianDirect: AppointmentArchetypeConfig
+}
+
 interface OnboardingProfileJson {
   surgeryName: string | null
   urgentCareModel: {
@@ -51,6 +67,7 @@ interface OnboardingProfileJson {
     detailLevel: 'brief' | 'moderate' | 'detailed'
     terminologyPreference: 'surgery' | 'generic' | 'mixed'
   }
+  appointmentModel?: AppointmentModelConfig
 }
 
 /**
@@ -73,20 +90,124 @@ export async function customiseInstructions(
 
   const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
 
-  // Detect if surgery uses colour-coded slots
-  const profileText = JSON.stringify(onboardingProfile).toLowerCase()
-  const usesColourSlots =
-    profileText.includes('orange slot') ||
-    profileText.includes('red slot') ||
-    profileText.includes('pink/purple slot') ||
-    profileText.includes('pink slot') ||
-    profileText.includes('purple slot') ||
-    onboardingProfile.urgentCareModel.urgentSlotsDescription.toLowerCase().includes('slot')
+  // Extract appointment model (with defaults for backwards compatibility)
+  const appointmentModel = onboardingProfile.appointmentModel || {
+    routineContinuityGp: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    routineGpPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    gpTriage48h: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+  }
 
-  // Build system prompt with colour-slot semantics
+  // Check if any archetypes are enabled
+  const hasEnabledArchetypes = Object.values(appointmentModel).some(arch => arch.enabled)
+
+  // Helper function to find fallback archetype
+  const getFallbackArchetype = (preferredKey: keyof AppointmentModelConfig): keyof AppointmentModelConfig | null => {
+    if (appointmentModel[preferredKey]?.enabled) {
+      return preferredKey
+    }
+    // Fallback order based on semantic similarity
+    const fallbackMap: Record<keyof AppointmentModelConfig, (keyof AppointmentModelConfig)[]> = {
+      routineContinuityGp: ['routineGpPhone', 'gpTriage48h'],
+      routineGpPhone: ['routineContinuityGp', 'gpTriage48h'],
+      gpTriage48h: ['routineGpPhone', 'urgentSameDayPhone'],
+      urgentSameDayPhone: ['urgentSameDayF2F', 'gpTriage48h'],
+      urgentSameDayF2F: ['urgentSameDayPhone', 'gpTriage48h'],
+      otherClinicianDirect: ['routineContinuityGp'],
+    }
+    const fallbacks = fallbackMap[preferredKey] || []
+    for (const fallback of fallbacks) {
+      if (appointmentModel[fallback]?.enabled) {
+        return fallback
+      }
+    }
+    return null
+  }
+
+  // Build appointment model description for enabled archetypes
+  let appointmentModelInstruction = ''
+  if (hasEnabledArchetypes) {
+    const enabledArchetypes: string[] = []
+    
+    if (appointmentModel.routineContinuityGp.enabled) {
+      enabledArchetypes.push(
+        `Routine continuity GP: local name "${appointmentModel.routineContinuityGp.localName || 'routine continuity GP'}". ` +
+        `Clinician: ${appointmentModel.routineContinuityGp.clinicianRole || 'GP'}. ` +
+        `Used for: ${appointmentModel.routineContinuityGp.description || 'routine appointments where continuity is important'}.`
+      )
+    }
+    
+    if (appointmentModel.routineGpPhone.enabled) {
+      enabledArchetypes.push(
+        `Routine GP telephone: local name "${appointmentModel.routineGpPhone.localName || 'routine GP telephone'}". ` +
+        `Clinician: ${appointmentModel.routineGpPhone.clinicianRole || 'GP'}. ` +
+        `Used for: ${appointmentModel.routineGpPhone.description || 'routine telephone consultations'}.`
+      )
+    }
+    
+    if (appointmentModel.gpTriage48h.enabled) {
+      enabledArchetypes.push(
+        `GP triage within 48 hours: local name "${appointmentModel.gpTriage48h.localName || 'GP triage (48h)'}". ` +
+        `Clinician: ${appointmentModel.gpTriage48h.clinicianRole || 'GP'}. ` +
+        `Used for: ${appointmentModel.gpTriage48h.description || 'issues needing GP input within 48 hours but not same-day emergencies'}.`
+      )
+    }
+    
+    if (appointmentModel.urgentSameDayPhone.enabled) {
+      enabledArchetypes.push(
+        `Urgent same-day telephone (Duty GP): local name "${appointmentModel.urgentSameDayPhone.localName || 'urgent same-day telephone'}". ` +
+        `Clinician: ${appointmentModel.urgentSameDayPhone.clinicianRole || 'Duty GP'}. ` +
+        `Used for: ${appointmentModel.urgentSameDayPhone.description || 'urgent same-day telephone consultations'}.`
+      )
+    }
+    
+    if (appointmentModel.urgentSameDayF2F.enabled) {
+      enabledArchetypes.push(
+        `Urgent same-day face-to-face: local name "${appointmentModel.urgentSameDayF2F.localName || 'urgent same-day F2F'}". ` +
+        `Clinician: ${appointmentModel.urgentSameDayF2F.clinicianRole || 'GP'}. ` +
+        `Used for: ${appointmentModel.urgentSameDayF2F.description || 'urgent same-day face-to-face appointments'}.`
+      )
+    }
+    
+    if (appointmentModel.otherClinicianDirect.enabled) {
+      enabledArchetypes.push(
+        `Other clinician direct booking: local name "${appointmentModel.otherClinicianDirect.localName || 'specialist clinician'}". ` +
+        `Clinician: ${appointmentModel.otherClinicianDirect.clinicianRole || 'varies'}. ` +
+        `Used for: ${appointmentModel.otherClinicianDirect.description || 'direct booking with specialist clinicians (e.g., FCP, Pharmacist)'}.`
+      )
+    }
+
+    appointmentModelInstruction = `APPOINTMENT TYPE MAPPING:
+This surgery has defined the following appointment types. You MUST use these local names and follow their usage rules:
+
+${enabledArchetypes.join('\n\n')}
+
+APPOINTMENT SELECTION RULES:
+- For stable or long-standing problems (e.g., hayfever, stable constipation, long-term rashes, recurrent infections without red flags, chronic ankle pain), prefer ${appointmentModel.routineContinuityGp.enabled ? `"${appointmentModel.routineContinuityGp.localName || 'routine continuity GP'}"` : 'routine continuity GP'} where continuity is helpful.
+- For issues needing GP input within 48h but not same-day emergencies, use ${appointmentModel.gpTriage48h.enabled ? `"${appointmentModel.gpTriage48h.localName || 'GP triage (48h)'}"` : 'GP triage within 48 hours'}.
+- Use ${appointmentModel.urgentSameDayPhone.enabled ? `"${appointmentModel.urgentSameDayPhone.localName || 'urgent same-day telephone'}"` : 'urgent same-day telephone'} or ${appointmentModel.urgentSameDayF2F.enabled ? `"${appointmentModel.urgentSameDayF2F.localName || 'urgent same-day F2F'}"` : 'urgent same-day face-to-face'} ONLY for clearly urgent cases with red flags or when the original instructions explicitly require same-day care.
+- Use ${appointmentModel.otherClinicianDirect.enabled ? `"${appointmentModel.otherClinicianDirect.localName || 'specialist clinician'}"` : 'other clinician direct booking'} when the scenario obviously fits (e.g., MSK → FCP, medication queries → Pharmacist) and this archetype is enabled.
+
+IMPORTANT: If an archetype is not enabled, do not use its local name. Instead, fall back to the closest enabled archetype or use generic terminology that matches the surgery's style.`
+  }
+
+  // Fallback to colour-slot logic if appointmentModel is not configured
   let colourSlotInstruction = ''
-  if (usesColourSlots) {
-    colourSlotInstruction = `This surgery uses colour-coded urgent appointment types as described in their onboarding profile. You must keep and use these terms consistently with the profile, using the following semantic definitions:
+  if (!hasEnabledArchetypes) {
+    // Detect if surgery uses colour-coded slots
+    const profileText = JSON.stringify(onboardingProfile).toLowerCase()
+    const usesColourSlots =
+      profileText.includes('orange slot') ||
+      profileText.includes('red slot') ||
+      profileText.includes('pink/purple slot') ||
+      profileText.includes('pink slot') ||
+      profileText.includes('purple slot') ||
+      onboardingProfile.urgentCareModel.urgentSlotsDescription.toLowerCase().includes('slot')
+
+    if (usesColourSlots) {
+      colourSlotInstruction = `This surgery uses colour-coded urgent appointment types as described in their onboarding profile. You must keep and use these terms consistently with the profile, using the following semantic definitions:
 
 - Green slot: A routine GP appointment, ideally with continuity (the patient's usual GP if possible). Not urgent.
 - Pink/Purple slot: A GP telephone triage appointment within 48 hours. Not a same-day emergency. Not a long-term continuity appointment. Used when GP input is needed soon, but the problem does not require the Duty Team.
@@ -94,8 +215,8 @@ export async function customiseInstructions(
 - Red slot: A same-day urgent telephone call with the Duty Doctor, usually when no orange slots remain.
 
 Use these semantics to interpret what type of appointment each colour represents.`
-  } else {
-    colourSlotInstruction = `This surgery does not use colour-coded slot names. If the base instructions mention colour-labelled slots, you must rewrite them into the following neutral equivalents:
+    } else {
+      colourSlotInstruction = `This surgery does not use colour-coded slot names. If the base instructions mention colour-labelled slots, you must rewrite them into the following neutral equivalents:
 
 - Green slot → "routine GP appointment with continuity"
 - Pink/Purple slot → "GP telephone triage appointment within 48 hours"
@@ -103,6 +224,7 @@ Use these semantics to interpret what type of appointment each colour represents
 - Red slot → "urgent same-day telephone consultation with the Duty Team"
 
 Do not invent new colour names. Use neutral wording that matches the surgery's onboarding profile terminology.`
+    }
   }
 
   const systemPrompt = `You are rewriting admin-facing signposting instructions for a specific GP surgery.
@@ -135,8 +257,8 @@ IMPROVEMENT GOALS:
 - Follow the surgery's preferred communication detail level (brief/moderate/detailed).
 - Follow the surgery's terminology preference (surgery-specific vs generic vs mixed).
 
-COLOUR-SLOT TERMINOLOGY:
-${colourSlotInstruction}
+${hasEnabledArchetypes ? appointmentModelInstruction : `COLOUR-SLOT TERMINOLOGY:
+${colourSlotInstruction}`}
 
 EMOJI ICONS:
 Where helpful, you may add small emoji icons at the start of lines or sections to act as visual anchors. ONLY use icons from this approved list:

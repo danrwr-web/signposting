@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import SimpleHeader from '@/components/SimpleHeader'
 import { SessionUser } from '@/lib/rbac'
-import { EffectiveSymptom } from '@/lib/api-contracts'
+import { EffectiveSymptom, AppointmentModelConfig } from '@/lib/api-contracts'
 import Link from 'next/link'
 
 interface AISetupClientProps {
@@ -13,6 +13,7 @@ interface AISetupClientProps {
   surgeryName: string
   onboardingCompleted: boolean
   featureEnabled: boolean
+  appointmentModel: AppointmentModelConfig
   user: SessionUser
 }
 
@@ -24,11 +25,21 @@ interface CustomiseInstructionsResponse {
   message: string
 }
 
+const APPOINTMENT_ARCHETYPE_LABELS: Record<keyof AppointmentModelConfig, string> = {
+  routineContinuityGp: 'Routine continuity GP',
+  routineGpPhone: 'Routine GP telephone',
+  gpTriage48h: 'GP triage within 48 hours',
+  urgentSameDayPhone: 'Urgent same-day telephone (Duty GP)',
+  urgentSameDayF2F: 'Urgent same-day face-to-face',
+  otherClinicianDirect: 'Direct booking with another clinician',
+}
+
 export default function AISetupClient({
   surgeryId,
   surgeryName,
   onboardingCompleted,
   featureEnabled,
+  appointmentModel,
   user,
 }: AISetupClientProps) {
   const router = useRouter()
@@ -204,6 +215,49 @@ export default function AISetupClient({
             onboarding profile. All changes require clinical review before
             becoming visible to staff.
           </p>
+
+          {/* Appointment Model Summary */}
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+              Appointment model for this surgery
+            </h2>
+            {Object.values(appointmentModel).some((arch) => arch.enabled) ? (
+              <>
+                <p className="text-sm text-gray-600 mb-4">
+                  These are the appointment types the AI will use when rewriting instructions:
+                </p>
+                <div className="space-y-4">
+                  {Object.entries(appointmentModel).map(([key, config]) => {
+                    if (!config.enabled) return null
+                    return (
+                      <div key={key} className="border-l-4 border-nhs-blue pl-4 py-2">
+                        <div className="font-medium text-gray-900 mb-1">
+                          {APPOINTMENT_ARCHETYPE_LABELS[key as keyof AppointmentModelConfig]}
+                        </div>
+                        <div className="text-sm text-gray-700 space-y-1">
+                          <div>Local name: {config.localName || '(not set)'}</div>
+                          {config.clinicianRole && (
+                            <div>Who: {config.clinicianRole}</div>
+                          )}
+                          {config.description && (
+                            <div>Used for: {config.description}</div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                <p className="text-sm text-blue-700">
+                  <strong>No appointment types have been configured yet.</strong>
+                  <br />
+                  Complete Step 2.5 of the onboarding wizard to help the AI choose the right slot types for your surgery.
+                </p>
+              </div>
+            )}
+          </div>
 
           {/* Onboarding Status */}
           {!onboardingCompleted && (
