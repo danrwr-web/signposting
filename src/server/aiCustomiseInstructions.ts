@@ -73,7 +73,24 @@ export async function customiseInstructions(
 
   const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
 
+  // Detect if surgery uses colour-coded slots
+  const profileText = JSON.stringify(onboardingProfile).toLowerCase()
+  const usesColourSlots =
+    profileText.includes('orange slot') ||
+    profileText.includes('red slot') ||
+    profileText.includes('pink/purple slot') ||
+    profileText.includes('pink slot') ||
+    profileText.includes('purple slot') ||
+    onboardingProfile.urgentCareModel.urgentSlotsDescription.toLowerCase().includes('slot')
+
   // Build system prompt
+  let colourSlotInstruction = ''
+  if (usesColourSlots) {
+    colourSlotInstruction = `This surgery uses colour-coded urgent appointment types (for example 'orange slots', 'red slots', or 'pink/purple slots') as described in their onboarding profile. You may keep and clarify those terms, using them consistently with the profile.`
+  } else {
+    colourSlotInstruction = `This surgery does not use colour-coded slot names. If the base instructions mention 'orange slots', 'red slots' or 'pink/purple slots', you must rewrite these into neutral, surgery-appropriate wording instead (for example 'same-day GP appointment', 'urgent face-to-face appointment with the duty doctor', or similar wording taken from the onboarding profile). Do not invent new colour names.`
+  }
+
   const systemPrompt = `You are rewriting admin-facing signposting instructions for a specific GP surgery.
 
 Your task is to adapt generic symptom signposting guidance to match this surgery's:
@@ -94,17 +111,23 @@ IMPROVEMENT GOALS:
 - Follow the surgery's preferred communication detail level (brief/moderate/detailed).
 - Follow the surgery's terminology preference (surgery-specific vs generic vs mixed).
 
-ICON USAGE:
-You are encouraged to add icons when they:
-- Reinforce meaning
-- Improve scanning
-- Highlight warnings, actions, or categories
-- Match existing ImageIcon phrase rules
+COLOUR-SLOT TERMINOLOGY:
+${colourSlotInstruction}
 
-Automatically insert phrases that trigger icons when appropriate (but not excessively):
-- "urgent", "warning", "important", "checklist", "action steps", "red flags" → may trigger warning icons
-- "bee", "pawprint", "arrow" → may trigger specific icon types
-- Use natural language that matches existing ImageIcon phrase patterns
+EMOJI ICONS:
+Where helpful, you may add small emoji icons at the start of lines or sections to act as visual anchors. ONLY use icons from this approved list:
+- ❗ for important warnings or high-risk "Red Slot" rules.
+- ➜ for clear action steps (e.g. booking rules, who to signpost to).
+- 💊 for Pharmacy / Pharmacy First related instructions.
+- 🧒 for child-specific rules (e.g. under 5s or paediatric advice).
+- ℹ️ for neutral information / general advice.
+- 📞 for telephone consultations or phone contact instructions.
+- 🐾 for animal bites/scratches.
+- 🐝 for insect bites/stings.
+
+Use at most 1–2 emojis per short section, and only when they clearly improve scannability for non-clinical staff. Place the emoji at the start of the line or bullet, followed by a space, then the text. Do not use any other emojis or icons.
+
+Emojis should mainly appear in the detailed instructions (the instructionsHtml output), and can occasionally appear in the briefInstruction if appropriate, but must not overwhelm the text.
 
 Preserve the original meaning while improving clarity.
 
@@ -115,7 +138,7 @@ Return ONLY valid JSON with these exact fields:
   "instructionsHtml": "string - rewritten full instruction in clean HTML suitable for TipTap/sanitisation"
 }
 
-Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is clean and suitable for sanitisation.`
+Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is clean and suitable for sanitisation. Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).`
 
   // Build user prompt with symptom and profile data
   const userPrompt = `SYMPTOM TO CUSTOMISE:

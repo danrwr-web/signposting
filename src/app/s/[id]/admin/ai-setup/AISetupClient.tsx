@@ -31,6 +31,12 @@ export default function AISetupClient({
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [processingProgress, setProcessingProgress] = useState<{
+    current: number
+    total: number
+    processedCount: number
+    skippedCount: number
+  } | null>(null)
   const [result, setResult] = useState<{
     processedCount: number
     skippedCount: number
@@ -71,42 +77,98 @@ export default function AISetupClient({
     try {
       setProcessing(true)
       setResult(null)
+      setProcessingProgress(null)
 
-      const body: {
-        scope: CustomiseScope
-        symptomIds?: string[]
-      } = {
-        scope,
-      }
-
+      // For manual scope, process one by one
       if (scope === 'manual') {
-        body.symptomIds = selectedSymptomIds
-      }
+        let cumulativeProcessed = 0
+        let cumulativeSkipped = 0
+        const total = selectedSymptomIds.length
 
-      const response = await fetch(
-        `/api/surgeries/${surgeryId}/ai/customise-instructions`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
+        for (let i = 0; i < selectedSymptomIds.length; i++) {
+          const symptomId = selectedSymptomIds[i]
+          setProcessingProgress({
+            current: i + 1,
+            total,
+            processedCount: cumulativeProcessed,
+            skippedCount: cumulativeSkipped,
+          })
+
+          try {
+            const response = await fetch(
+              `/api/surgeries/${surgeryId}/ai/customise-instructions`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  scope: 'manual' as const,
+                  symptomIds: [symptomId],
+                }),
+              }
+            )
+
+            if (response.ok) {
+              const data = await response.json()
+              cumulativeProcessed += data.processedCount
+              cumulativeSkipped += data.skippedCount
+            } else {
+              const errorData = await response.json()
+              console.error(`Error processing symptom ${symptomId}:`, errorData.error)
+              cumulativeSkipped++
+            }
+          } catch (error) {
+            console.error(`Error processing symptom ${symptomId}:`, error)
+            cumulativeSkipped++
+          }
         }
-      )
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to customise instructions')
+        // Show final results
+        setProcessingProgress(null)
+        setResult({
+          processedCount: cumulativeProcessed,
+          skippedCount: cumulativeSkipped,
+          message: `Successfully customised ${cumulativeProcessed} symptom${cumulativeProcessed !== 1 ? 's' : ''}. ${cumulativeSkipped > 0 ? `${cumulativeSkipped} skipped.` : ''}`,
+        })
+        toast.success(
+          `Customisation completed: ${cumulativeProcessed} processed, ${cumulativeSkipped} skipped`
+        )
+      } else {
+        // For 'all' and 'core', use single API call
+        const body: {
+          scope: CustomiseScope
+          symptomIds?: string[]
+        } = {
+          scope,
+        }
+
+        const response = await fetch(
+          `/api/surgeries/${surgeryId}/ai/customise-instructions`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+          }
+        )
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to customise instructions')
+        }
+
+        const data = await response.json()
+        setResult(data)
+        toast.success(data.message || 'Customisation completed successfully')
       }
-
-      const data = await response.json()
-      setResult(data)
-      toast.success(data.message || 'Customisation completed successfully')
     } catch (error) {
       console.error('Error customising instructions:', error)
       toast.error(
         error instanceof Error ? error.message : 'Failed to customise instructions'
       )
+      setProcessingProgress(null)
     } finally {
       setProcessing(false)
     }
@@ -194,14 +256,14 @@ export default function AISetupClient({
             </div>
           )}
 
-          {/* Scope Selection */}
-          {onboardingCompleted && featureEnabled && (
-            <>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Customisation Scope
-                </label>
-                <div className="space-y-3">
+              {/* Scope Selection */}
+              {onboardingCompleted && featureEnabled && (
+                <>
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Customisation Scope
+                    </label>
+                    <div className="space-y-3">
                   <label className="flex items-start">
                     <input
                       type="radio"
@@ -209,6 +271,7 @@ export default function AISetupClient({
                       value="all"
                       checked={scope === 'all'}
                       onChange={(e) => setScope(e.target.value as CustomiseScope)}
+                      disabled={processing}
                       className="mt-1 mr-3"
                     />
                     <div>
@@ -227,6 +290,7 @@ export default function AISetupClient({
                       value="core"
                       checked={scope === 'core'}
                       onChange={(e) => setScope(e.target.value as CustomiseScope)}
+                      disabled={processing}
                       className="mt-1 mr-3"
                     />
                     <div>
@@ -245,6 +309,7 @@ export default function AISetupClient({
                       value="manual"
                       checked={scope === 'manual'}
                       onChange={(e) => setScope(e.target.value as CustomiseScope)}
+                      disabled={processing}
                       className="mt-1 mr-3"
                     />
                     <div>
@@ -281,6 +346,7 @@ export default function AISetupClient({
                               type="checkbox"
                               checked={selectedSymptomIds.includes(symptom.id)}
                               onChange={() => toggleSymptom(symptom.id)}
+                              disabled={processing}
                               className="mt-1 mr-3"
                             />
                             <div className="flex-1">
@@ -300,6 +366,46 @@ export default function AISetupClient({
                 </div>
               )}
 
+              {/* Processing Progress */}
+              {processingProgress && (
+                <div className="mb-6 bg-blue-50 border-l-4 border-blue-400 p-4">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="animate-spin h-5 w-5 text-blue-400"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        ></circle>
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm font-medium text-blue-800">
+                        Processing {processingProgress.current} of{' '}
+                        {processingProgress.total} symptoms...
+                      </p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        Processed: {processingProgress.processedCount} • Skipped:{' '}
+                        {processingProgress.skippedCount}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Action Button */}
               <div className="mb-6">
                 <button
@@ -310,8 +416,10 @@ export default function AISetupClient({
                   }
                   className="w-full bg-nhs-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-nhs-dark-blue disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  {processing
+                  {processing && !processingProgress
                     ? 'Generating AI-customised instructions...'
+                    : processing && processingProgress
+                    ? `Processing ${processingProgress.current} of ${processingProgress.total}...`
                     : 'Generate AI-customised instructions'}
                 </button>
               </div>

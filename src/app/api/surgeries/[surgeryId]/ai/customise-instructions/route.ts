@@ -182,7 +182,14 @@ export async function POST(
           }
         }
 
+        // Skip if symptom not found or has no content to work from
         if (!baseSymptomData) {
+          skippedCount++
+          continue
+        }
+
+        // Skip if symptom has no instructions to customise
+        if (!baseSymptomData.instructionsHtml && !baseSymptomData.briefInstruction) {
           skippedCount++
           continue
         }
@@ -201,11 +208,26 @@ export async function POST(
 
         // Call AI helper
         const onboardingProfileJson = surgery.onboardingProfile.profileJson as any
-        const customised = await customiseInstructions(
-          baseSymptomData,
-          onboardingProfileJson,
-          user.email
-        )
+        let customised
+        try {
+          customised = await customiseInstructions(
+            baseSymptomData,
+            onboardingProfileJson,
+            user.email
+          )
+        } catch (aiError) {
+          // AI call failed - skip this symptom
+          console.error(`AI call failed for symptom ${symptomRef.id}:`, aiError)
+          skippedCount++
+          continue
+        }
+
+        // Validate AI response
+        if (!customised.briefInstruction || !customised.instructionsHtml) {
+          console.error(`Invalid AI response for symptom ${symptomRef.id}: missing fields`)
+          skippedCount++
+          continue
+        }
 
         // Upsert override (only for base symptoms - custom symptoms don't have overrides)
         if (symptomRef.baseSymptomId) {
@@ -251,7 +273,7 @@ export async function POST(
             },
           })
 
-          // Update or create SymptomReviewStatus
+          // Force SymptomReviewStatus back to PENDING (even if previously APPROVED)
           await prisma.symptomReviewStatus.upsert({
             where: {
               surgeryId_symptomId_ageGroup: {
@@ -305,7 +327,7 @@ export async function POST(
             },
           })
 
-          // Update or create SymptomReviewStatus
+          // Force SymptomReviewStatus back to PENDING (even if previously APPROVED)
           await prisma.symptomReviewStatus.upsert({
             where: {
               surgeryId_symptomId_ageGroup: {
@@ -330,8 +352,10 @@ export async function POST(
           })
         }
 
+        // Only increment processedCount after successful database writes
         processedCount++
       } catch (error) {
+        // Any error during processing should skip the symptom
         console.error(`Error processing symptom ${symptomRef.id}:`, error)
         skippedCount++
       }
