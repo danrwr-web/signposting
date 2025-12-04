@@ -516,7 +516,7 @@ export default function AISetupClient({
                         All customised symptoms are now pending clinical review.
                         Visit the{' '}
                         <Link
-                          href={`/s/${surgeryId}/clinical-review`}
+                          href="/admin?tab=clinical-review"
                           className="underline font-medium"
                         >
                           Clinical Review
