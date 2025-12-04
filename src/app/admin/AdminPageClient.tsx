@@ -15,6 +15,7 @@ import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
 import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
 import FeaturesAdmin from '@/components/FeaturesAdmin'
+import OnboardingCard from '@/components/OnboardingCard'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -86,6 +87,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   } | null>(null)
   const [aiUsageLoading, setAiUsageLoading] = useState(false)
   const [aiUsageError, setAiUsageError] = useState<string | null>(null)
+  const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
+  const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
 
   // Load AI usage data when tab is active
   useEffect(() => {
@@ -113,6 +116,32 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         })
     }
   }, [activeTab, session.type, aiUsageData, aiUsageLoading])
+
+  // Load feature flags for current surgery
+  useEffect(() => {
+    if (session.type === 'surgery' && session.surgeryId && !featureFlagsLoading) {
+      setFeatureFlagsLoading(true)
+      fetch(`/api/surgeryFeatures?surgeryId=${session.surgeryId}`)
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json()
+            const flagsMap: Record<string, boolean> = {}
+            if (data.features && Array.isArray(data.features)) {
+              data.features.forEach((f: { key: string; enabled: boolean }) => {
+                flagsMap[f.key] = f.enabled
+              })
+            }
+            setFeatureFlags(flagsMap)
+          }
+        })
+        .catch(err => {
+          console.error('Error loading feature flags:', err)
+        })
+        .finally(() => {
+          setFeatureFlagsLoading(false)
+        })
+    }
+  }, [session.type, session.surgeryId, featureFlagsLoading])
 
   // Load highlight rules from API
   useEffect(() => {
@@ -243,7 +272,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   // Initialize active tab from URL params
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    if (tabParam && ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'aiUsage'].includes(tabParam)) {
+    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'aiUsage', 'onboarding']
+    if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam)
     }
   }, [searchParams])
@@ -769,6 +799,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
                 // Features: visible to SUPERUSER and PRACTICE_ADMIN
                 ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'features', label: 'Features' }] : []),
+                // Onboarding: only visible if ai_surgery_customisation feature flag is enabled
+                ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true ? [{ id: 'onboarding', label: 'Onboarding' }] : []),
                 ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
                 ...(session.type === 'superuser' ? [
                   { id: 'system', label: 'System Management' },
@@ -942,6 +974,27 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               />
             )}
 
+            {/* Onboarding Tab - Only for Surgery Admins with feature flag enabled */}
+            {activeTab === 'onboarding' && session.type === 'surgery' && featureFlags.ai_surgery_customisation === true && (
+              <div>
+                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+                  Onboarding
+                </h2>
+                <p className="text-nhs-grey mb-6">
+                  Configure your surgery profile and set up AI customisation.
+                </p>
+                {(() => {
+                  const currentSurgery = surgeries.find(s => s.id === session.surgeryId)
+                  return (
+                    <OnboardingCard 
+                      surgery={currentSurgery} 
+                      surgeryId={session.surgeryId || ''} 
+                    />
+                  )
+                })()}
+              </div>
+            )}
+
             {/* User Management Tab - Only for Surgery Admins */}
             {activeTab === 'users' && session.type === 'surgery' && (
               <div>
@@ -968,75 +1021,36 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     >
                       Manage Users
                     </a>
-                    <a
-                      href={`/s/${session.surgeryId}`}
-                      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
-                    >
-                      Launch Signposting Tool
-                    </a>
                   </div>
                 </div>
 
-                {/* Onboarding & AI Setup Card */}
-                {(() => {
+                {/* Optional: Cross-link to Onboarding tab if feature flag enabled */}
+                {featureFlags.ai_surgery_customisation === true && (() => {
                   const currentSurgery = surgeries.find(s => s.id === session.surgeryId)
                   const onboardingCompleted = currentSurgery?.onboardingProfile?.completed ?? false
                   const completedAt = currentSurgery?.onboardingProfile?.completedAt
                   
-                  return (
-                    <div className="bg-white p-6 rounded-lg border border-gray-200 mt-6">
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        Onboarding & AI Setup
-                      </h3>
-                      {onboardingCompleted ? (
-                        <>
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
-                            <p className="text-sm text-green-800 mb-1">
-                              <strong>✓ Onboarding completed</strong>
-                            </p>
-                            {completedAt && (
-                              <p className="text-xs text-green-700">
-                                Completed on {new Date(completedAt).toLocaleDateString('en-GB', {
-                                  day: 'numeric',
-                                  month: 'long',
-                                  year: 'numeric',
-                                })}
-                              </p>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-600 mb-4">
-                            Your surgery profile is configured. You can update it anytime or proceed to AI customisation.
-                          </p>
-                          <div className="flex gap-3">
-                            <a
-                              href={`/s/${session.surgeryId}/admin/onboarding`}
-                              className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm"
-                            >
-                              Edit Onboarding
-                            </a>
-                            <a
-                              href={`/s/${session.surgeryId}/admin/ai-setup`}
-                              className="inline-flex items-center px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-nhs-dark-blue transition-colors text-sm"
-                            >
-                              Go to AI Setup
-                            </a>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-sm text-gray-600 mb-4">
-                            Tell the tool how your surgery works so AI can tailor instructions.
-                          </p>
-                          <a
-                            href={`/s/${session.surgeryId}/admin/onboarding`}
-                            className="inline-flex items-center px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-nhs-dark-blue transition-colors"
-                          >
-                            Complete Onboarding Questionnaire
-                          </a>
-                        </>
-                      )}
-                    </div>
-                  )
+                  if (onboardingCompleted && completedAt) {
+                    return (
+                      <div className="mt-6 text-sm text-gray-600">
+                        Onboarding: Completed on {new Date(completedAt).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        })}.{' '}
+                        <button
+                          onClick={() => {
+                            setActiveTab('onboarding')
+                            router.push('/admin?tab=onboarding', { scroll: false })
+                          }}
+                          className="text-nhs-blue hover:underline"
+                        >
+                          View in Onboarding tab
+                        </button>
+                      </div>
+                    )
+                  }
+                  return null
                 })()}
               </div>
             )}
