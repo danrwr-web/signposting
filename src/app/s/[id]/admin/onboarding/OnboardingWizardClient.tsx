@@ -195,22 +195,30 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
         throw new Error('Failed to fetch profile')
       }
       const data = await response.json()
-      setProfile(data.profileJson)
+      
+      // Auto-populate surgeryName: use profileJson.surgeryName if present, otherwise fall back to surgery.name prop
+      const profileToSet = {
+        ...data.profileJson,
+        surgeryName: data.profileJson.surgeryName ?? surgeryName ?? null,
+      }
+      
+      setProfile(profileToSet)
       setCompleted(data.completed)
       setCompletedAt(data.completedAt)
       
       // Extract "Other" role if present
-      const otherRoleValue = data.profileJson.team.roles.find((r: string) => !TEAM_ROLES.includes(r))
+      const otherRoleValue = profileToSet.team.roles.find((r: string) => !TEAM_ROLES.includes(r))
       if (otherRoleValue) {
         setOtherRole(otherRoleValue)
       }
       
       // Extract "Other" escalation if present
-      const escalationValue = data.profileJson.escalation.firstEscalation
+      const escalationValue = profileToSet.escalation.firstEscalation
       if (escalationValue && !ESCALATION_OPTIONS.slice(0, -1).includes(escalationValue)) {
         setOtherEscalation(escalationValue)
         // Temporarily set firstEscalation to "Other…" for dropdown display
-        data.profileJson.escalation.firstEscalation = 'Other…'
+        profileToSet.escalation.firstEscalation = 'Other…'
+        setProfile(profileToSet)
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -348,7 +356,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                       Go to AI Setup
                     </a>
                     <a
-                      href={`/s/${surgeryId}/admin`}
+                      href="/admin?tab=onboarding"
                       className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
                     >
                       Return to Admin Dashboard
@@ -420,7 +428,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  What is your surgery called?
+                  What is the name of your surgery?
                 </label>
                 <input
                   type="text"
@@ -566,17 +574,21 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
               {profile.urgentCareModel.usesRedSlots && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Briefly describe how your urgent appointment types are used.
+                    Explain briefly how your appointment workflow operates.
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Include each slot type, who can book it, and how they&apos;re used in practice (for example which are triage vs booked F2F, or which are used first).
+                    Please include (in simple terms):
+                    <br />– Which roles are allowed to book urgent appointments (e.g. reception, clinicians only, Duty doctor only)
+                    <br />– How urgent appointments are normally chosen (e.g. &apos;Try orange first; use red only if orange is full&apos;)
+                    <br />– Any triage sequencing rules (e.g. &apos;Admin team books pink/purple; clinicians convert to F2F as needed&apos;)
+                    <br />– Any important exceptions or special circumstances.
                   </p>
                   <textarea
                     value={profile.urgentCareModel.urgentSlotsDescription || ''}
                     onChange={(e) => updateProfile({
                       urgentCareModel: { ...profile.urgentCareModel, urgentSlotsDescription: e.target.value }
                     })}
-                    placeholder="e.g. We have orange and red GP slots. Orange are used for urgent F2F after triage. Red are used as triage slots or if there are no orange slots left."
+                    placeholder="e.g. Reception can book orange slots directly. Orange slots are tried first for urgent F2F. Red slots are used as triage slots or if there are no orange slots left. Clinicians can convert pink/purple triage slots to F2F as needed."
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                   />

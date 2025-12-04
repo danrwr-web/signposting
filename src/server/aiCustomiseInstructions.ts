@@ -227,6 +227,18 @@ Do not invent new colour names. Use neutral wording that matches the surgery's o
     }
   }
 
+  // Extract appointment workflow context from onboarding profile
+  const appointmentWorkflowText = onboardingProfile.urgentCareModel.urgentSlotsDescription?.trim() || ''
+  let appointmentWorkflowInstruction = ''
+  if (appointmentWorkflowText) {
+    appointmentWorkflowInstruction = `APPOINTMENT WORKFLOW CONTEXT:
+The surgery has described their real-world appointment workflow as follows (who can book which appointments, how urgent slots are selected, and any sequencing rules):
+
+"${appointmentWorkflowText}"
+
+You must respect this workflow when choosing appointment types in your rewritten instructions. In particular, follow their rules about who can book urgent appointments, which urgent slots are used first, and any special exceptions.`
+  }
+
   const systemPrompt = `You are rewriting admin-facing signposting instructions for a specific GP surgery.
 
 Your task is to adapt generic symptom signposting guidance to match this surgery's:
@@ -260,7 +272,9 @@ IMPROVEMENT GOALS:
 ${hasEnabledArchetypes ? appointmentModelInstruction : `COLOUR-SLOT TERMINOLOGY:
 ${colourSlotInstruction}`}
 
-EMOJI ICONS:
+${appointmentWorkflowInstruction ? `${appointmentWorkflowInstruction}
+
+` : ''}EMOJI ICONS:
 Where helpful, you may add small emoji icons at the start of lines or sections to act as visual anchors. ONLY use icons from this approved list:
 - ❗ for important warnings or high-risk "Red Slot" rules.
 - ➜ for clear action steps (e.g. booking rules, who to signpost to).
