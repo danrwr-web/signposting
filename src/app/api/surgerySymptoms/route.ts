@@ -514,6 +514,14 @@ export async function PATCH(request: NextRequest) {
           )
         }
 
+        // If statusRowId is not provided, we need both baseSymptomId and resolvedSurgeryId
+        if (!statusRowId && (!baseSymptomId || !resolvedSurgeryId)) {
+          return NextResponse.json(
+            { error: 'When statusRowId is not provided, both baseSymptomId and surgeryId are required' },
+            { status: 400 }
+          )
+        }
+
         let actualStatusRowId = statusRowId
         let targetBaseSymptomId: string
         let targetSurgeryId: string
@@ -551,6 +559,22 @@ export async function PATCH(request: NextRequest) {
         }
         // Otherwise, find or create status row by baseSymptomId
         else if (baseSymptomId && resolvedSurgeryId) {
+          // First check if there's an override to revert
+          const overrideExists = await prisma.surgerySymptomOverride.findFirst({
+            where: {
+              surgeryId: resolvedSurgeryId,
+              baseSymptomId
+            },
+            select: { id: true }
+          })
+
+          if (!overrideExists) {
+            return NextResponse.json(
+              { error: 'Nothing to revert - no override found' },
+              { status: 400 }
+            )
+          }
+
           const existing = await prisma.surgerySymptomStatus.findFirst({
             where: {
               surgeryId: resolvedSurgeryId,
@@ -586,7 +610,7 @@ export async function PATCH(request: NextRequest) {
           targetSurgeryId = resolvedSurgeryId
         } else {
           return NextResponse.json(
-            { error: 'Insufficient parameters' },
+            { error: 'Insufficient parameters - baseSymptomId and surgeryId are required when statusRowId is not provided' },
             { status: 400 }
           )
         }
