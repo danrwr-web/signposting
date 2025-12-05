@@ -82,25 +82,22 @@ export async function GET(
     })
 
     if (profile) {
-      // Handle backwards compatibility: ensure urgentSlotsDescription exists and appointmentModel has defaults
+      // Handle backwards compatibility: ensure urgentCareModel and appointmentModel have defaults
       const profileData = profile.profileJson as any
-      if (!profileData.urgentCareModel?.urgentSlotsDescription) {
+      const defaultProfile = getDefaultProfile()
+      
+      // Ensure urgentCareModel exists with defaults (handle both missing object and missing field)
+      if (!profileData.urgentCareModel || !profileData.urgentCareModel.urgentSlotsDescription) {
         profileData.urgentCareModel = {
+          ...defaultProfile.urgentCareModel,
           ...profileData.urgentCareModel,
-          urgentSlotsDescription: '',
+          urgentSlotsDescription: profileData.urgentCareModel?.urgentSlotsDescription ?? '',
         }
       }
       
       // Ensure appointmentModel exists with defaults
       if (!profileData.appointmentModel) {
-        profileData.appointmentModel = {
-          routineContinuityGp: { enabled: false, localName: '', clinicianRole: '', description: '' },
-          routineGpPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
-          gpTriage48h: { enabled: false, localName: '', clinicianRole: '', description: '' },
-          urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
-          urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
-          otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
-        }
+        profileData.appointmentModel = defaultProfile.appointmentModel
       }
       
       // Validate profileJson against schema
