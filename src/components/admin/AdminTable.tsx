@@ -14,6 +14,7 @@ interface AdminTableProps<T> {
   rowKey: (row: T) => string
   onRowClick?: (row: T) => void
   colWidths?: string[] // CSS width strings, e.g. ["180px", "220px", ...]
+  cellPadding?: string // Horizontal padding for cells, e.g. "px-4" or "px-6" (default: "px-6")
 }
 
 export default function AdminTable<T>({
@@ -23,6 +24,7 @@ export default function AdminTable<T>({
   rowKey,
   onRowClick,
   colWidths,
+  cellPadding = 'px-6',
 }: AdminTableProps<T>) {
   return (
     <div className="max-sm:overflow-x-auto">
@@ -41,7 +43,7 @@ export default function AdminTable<T>({
               return (
                 <th
                   key={column.key}
-                  className={`px-6 py-3 ${hasTextRight ? 'text-right' : 'text-left'} text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                  className={`${cellPadding} py-3 ${hasTextRight ? 'text-right' : 'text-left'} text-xs font-medium text-gray-500 uppercase tracking-wider ${
                     column.className || ''
                   }`}
                 >
@@ -54,7 +56,7 @@ export default function AdminTable<T>({
         <tbody className="bg-white divide-y divide-gray-200">
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="px-6 py-12 text-center text-sm text-gray-500">
+              <td colSpan={columns.length} className={`${cellPadding} py-12 text-center text-sm text-gray-500`}>
                 {emptyMessage}
               </td>
             </tr>
@@ -68,7 +70,7 @@ export default function AdminTable<T>({
                 {columns.map((column) => (
                   <td
                     key={column.key}
-                    className={`px-6 py-4 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${column.className || ''}`}
+                    className={`${cellPadding} py-4 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${column.className || ''}`}
                   >
                     {column.render ? column.render(row) : (row as any)[column.key]}
                   </td>

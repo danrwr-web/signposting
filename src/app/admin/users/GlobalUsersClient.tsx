@@ -405,7 +405,8 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
 
           {/* Table */}
           <AdminTable
-            colWidths={["180px", "220px", "260px", "90px", "160px"]}
+            colWidths={["160px", "210px", "230px", "90px", "150px"]}
+            cellPadding="px-4"
             columns={[
               {
                 header: 'Name',
@@ -471,7 +472,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
               {
                 header: 'Actions',
                 key: 'actions',
-                className: 'text-right whitespace-nowrap',
+                className: 'text-right whitespace-nowrap w-[150px]',
                 render: (user) => (
                   <div className="flex gap-2 justify-end">
                     <button
