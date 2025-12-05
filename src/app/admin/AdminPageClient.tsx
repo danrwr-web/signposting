@@ -79,8 +79,12 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   const [baseSymptoms, setBaseSymptoms] = useState<EffectiveSymptom[]>([])
   const [showEditSymptomModal, setShowEditSymptomModal] = useState(false)
   const [editingSymptom, setEditingSymptom] = useState<EffectiveSymptom | null>(null)
-  const [unreadSuggestionsCount, setUnreadSuggestionsCount] = useState(0)
-  const [clinicalReviewCount, setClinicalReviewCount] = useState(0)
+  const [metrics, setMetrics] = useState<{
+    pendingReviewCount: number
+    suggestionsPendingCount: number
+    setupChecklistOutstandingCount: number
+  } | null>(null)
+  const [metricsLoading, setMetricsLoading] = useState(false)
   const [aiUsageData, setAiUsageData] = useState<{
     last7days: { byRoute: Array<{ route: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number }>; overall: { calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number } }
     last30days: { byRoute: Array<{ route: string; calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number }>; overall: { calls: number; promptTokens: number; completionTokens: number; costUsd: number; costGbp: number } }
@@ -212,32 +216,40 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     loadHighlightRules()
   }, [])
 
-  // Load unread suggestions count
+  // Load admin metrics (pending review, suggestions, setup checklist) when surgery selection changes
   useEffect(() => {
-    const loadUnreadSuggestionsCount = async () => {
-      try {
-        const response = await fetch('/api/suggestions?status=pending')
-        if (response.ok) {
-          const data = await response.json()
-          setUnreadSuggestionsCount(data.unreadCount || 0)
-        } else {
-          console.error('Failed to load unread suggestions count:', response.status, response.statusText)
-          // Don't set error state for badge count, just log it
-          setUnreadSuggestionsCount(0)
+    if (!selectedSurgery) return
+
+    let cancelled = false
+    setMetricsLoading(true)
+
+    fetch(`/api/admin/metrics?surgeryId=${selectedSurgery}`)
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error('Failed to load metrics')
         }
-      } catch (error) {
-        console.error('Failed to load unread suggestions count:', error)
-        // Don't set error state for badge count, just log it
-        setUnreadSuggestionsCount(0)
-      }
+        const data = await res.json()
+        if (cancelled) return
+        setMetrics({
+          pendingReviewCount: data.pendingReviewCount ?? 0,
+          suggestionsPendingCount: data.suggestionsPendingCount ?? 0,
+          setupChecklistOutstandingCount: data.setupChecklistOutstandingCount ?? 0,
+        })
+      })
+      .catch((error) => {
+        if (cancelled) return
+        console.error('Error loading admin metrics:', error)
+        setMetrics(null)
+      })
+      .finally(() => {
+        if (cancelled) return
+        setMetricsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-    
-    loadUnreadSuggestionsCount()
-    
-    // Refresh every 30 seconds
-    const interval = setInterval(loadUnreadSuggestionsCount, 30000)
-    return () => clearInterval(interval)
-  }, [])
+  }, [selectedSurgery])
 
   // Load base symptoms for Current Base Symptoms section
   const loadBaseSymptoms = async () => {
@@ -795,6 +807,16 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     }
   }
 
+  const setupChecklistBadge = metrics?.setupChecklistOutstandingCount && metrics.setupChecklistOutstandingCount > 0
+    ? metrics.setupChecklistOutstandingCount
+    : undefined
+  const clinicalReviewBadge = metrics?.pendingReviewCount && metrics.pendingReviewCount > 0
+    ? metrics.pendingReviewCount
+    : undefined
+  const suggestionsBadge = metrics?.suggestionsPendingCount && metrics.suggestionsPendingCount > 0
+    ? metrics.suggestionsPendingCount
+    : undefined
+
   return (
     <div className="min-h-screen bg-nhs-light-grey">
       <SimpleHeader surgeries={surgeries} currentSurgeryId={undefined} />
@@ -824,27 +846,33 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
-              {[
-                // Symptom Library first; visible to superusers and surgery admins
-                { id: 'library', label: 'Symptom Library' },
-                // Clinical Review: visible to superusers and surgery admins
-                ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'clinical-review', label: 'Clinical Review', badge: clinicalReviewCount }] : []),
-                // Data Management is superuser-only
-                ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
-                { id: 'highlights', label: 'Highlight Config' },
-                { id: 'highrisk', label: 'High-Risk Buttons' },
-                { id: 'engagement', label: 'Engagement' },
-                { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
-                // Features: visible to SUPERUSER and PRACTICE_ADMIN
-                ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'features', label: 'Features' }] : []),
-                // Setup Checklist: only visible if ai_surgery_customisation feature flag is enabled
-                ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true ? [{ id: 'setup-checklist', label: 'Setup Checklist' }] : []),
-                ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
-                ...(session.type === 'superuser' ? [
-                  { id: 'system', label: 'System Management' },
-                  { id: 'aiUsage', label: 'AI usage / cost' },
-                ] : []),
-              ].map((tab) => (
+                {[
+                  // Symptom Library first; visible to superusers and surgery admins
+                  { id: 'library', label: 'Symptom Library' },
+                  // Clinical Review: visible to superusers and surgery admins
+                  ...((session.type === 'superuser' || session.type === 'surgery')
+                    ? [{ id: 'clinical-review', label: 'Clinical Review', badge: clinicalReviewBadge }]
+                    : []),
+                  // Data Management is superuser-only
+                  ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
+                  { id: 'highlights', label: 'Highlight Config' },
+                  { id: 'highrisk', label: 'High-Risk Buttons' },
+                  { id: 'engagement', label: 'Engagement' },
+                  { id: 'suggestions', label: 'Suggestions', badge: suggestionsBadge },
+                  // Features: visible to SUPERUSER and PRACTICE_ADMIN
+                  ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'features', label: 'Features' }] : []),
+                  // Setup Checklist: only visible if ai_surgery_customisation feature flag is enabled
+                  ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true
+                    ? [{ id: 'setup-checklist', label: 'Setup Checklist', badge: setupChecklistBadge }]
+                    : []),
+                  ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
+                  ...(session.type === 'superuser'
+                    ? [
+                        { id: 'system', label: 'System Management' },
+                        { id: 'aiUsage', label: 'AI usage / cost' },
+                      ]
+                    : []),
+                ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => {
@@ -1177,7 +1205,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                       selectedSurgery={surgeryIdForReview}
                       isSuperuser={isSuper}
                       adminSurgeryId={session?.surgeryId || null}
-                      onPendingCountChange={setClinicalReviewCount}
                     />
                   )
                 })()}
