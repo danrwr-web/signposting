@@ -405,15 +405,26 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
 
           {/* Table */}
           <AdminTable
-            colWidths={["160px", "210px", "230px", "90px", "150px"]}
+            colWidths={["220px", "230px", "320px", "180px"]}
             cellPadding="px-4"
             columns={[
               {
                 header: 'Name',
                 key: 'name',
                 render: (user) => (
-                  <div className="text-sm font-medium text-gray-900">
-                    {user.name || 'No name set'}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-900">
+                      {user.name || 'No name set'}
+                    </span>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        user.globalRole === 'SUPERUSER'
+                          ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                          : 'bg-gray-50 text-gray-700 border border-gray-100'
+                      }`}
+                    >
+                      {user.globalRole === 'SUPERUSER' ? 'SUPERUSER' : 'USER'}
+                    </span>
                   </div>
                 ),
               },
@@ -455,24 +466,9 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                 },
               },
               {
-                header: 'Global Role',
-                key: 'globalRole',
-                render: (user) => (
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                      user.globalRole === 'SUPERUSER'
-                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                        : 'bg-gray-50 text-gray-700 border border-gray-100'
-                    }`}
-                  >
-                    {user.globalRole === 'SUPERUSER' ? 'SUPERUSER' : 'USER'}
-                  </span>
-                ),
-              },
-              {
                 header: 'Actions',
                 key: 'actions',
-                className: 'text-right whitespace-nowrap w-[150px]',
+                className: 'text-right whitespace-nowrap',
                 render: (user) => (
                   <div className="flex gap-2 justify-end">
                     <button
