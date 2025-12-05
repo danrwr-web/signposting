@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import AdminSearchBar from '@/components/admin/AdminSearchBar'
+import AdminTable from '@/components/admin/AdminTable'
 
 interface User {
   id: string
@@ -394,152 +396,119 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
           </div>
 
           {/* Search Box */}
-          <div className="px-4 py-4 border-b border-gray-200">
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-              <input
-                type="text"
-                placeholder="Search users…"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
-            </div>
-          </div>
+          <AdminSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search users…"
+            debounceMs={0}
+          />
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Surgery Memberships
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Global Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
-                      {searchQuery.trim() ? 'No users match your search.' : 'No users found.'}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="hover:bg-gray-50 transition-colors"
+          <AdminTable
+            columns={[
+              {
+                header: 'Name',
+                key: 'name',
+                render: (user) => (
+                  <div className="text-sm font-medium text-gray-900">
+                    {user.name || 'No name set'}
+                  </div>
+                ),
+              },
+              {
+                header: 'Email',
+                key: 'email',
+                render: (user) => (
+                  <div className="text-sm text-gray-500">{user.email}</div>
+                ),
+              },
+              {
+                header: 'Surgery Memberships',
+                key: 'memberships',
+                className: 'whitespace-normal',
+                render: (user) => (
+                  <div className="text-sm text-gray-900">
+                    {user.memberships.length === 0 ? (
+                      <span className="text-gray-400 italic">No memberships</span>
+                    ) : (
+                      <span>
+                        {user.memberships.map((membership, index) => (
+                          <span key={membership.id}>
+                            {index > 0 && <span className="mx-2 text-gray-400">·</span>}
+                            {membership.surgery.name} ({membership.role})
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                header: 'Global Role',
+                key: 'globalRole',
+                render: (user) => (
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                      user.globalRole === 'SUPERUSER'
+                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                        : 'bg-gray-50 text-gray-700 border border-gray-100'
+                    }`}
+                  >
+                    {user.globalRole === 'SUPERUSER' ? 'SUPERUSER' : 'USER'}
+                  </span>
+                ),
+              },
+              {
+                header: 'Actions',
+                key: 'actions',
+                render: (user) => (
+                  <div className="flex gap-2">
+                    <button
+                      className="text-blue-600 hover:text-blue-900"
+                      onClick={() => handleEditUser(user)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name || 'No name set'}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {user.memberships.length === 0 ? (
-                            <span className="text-gray-400 italic">No memberships</span>
-                          ) : (
-                            <span>
-                              {user.memberships.map((membership, index) => (
-                                <span key={membership.id}>
-                                  {index > 0 && <span className="mx-2 text-gray-400">·</span>}
-                                  {membership.surgery.name} ({membership.role})
-                                </span>
-                              ))}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            user.globalRole === 'SUPERUSER'
-                              ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                              : 'bg-gray-50 text-gray-700 border border-gray-100'
-                          }`}
+                      Edit
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      className="text-orange-600 hover:text-orange-900"
+                      onClick={() => setResettingPasswordFor(user)}
+                    >
+                      Reset
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      className="text-blue-600 hover:text-blue-900"
+                      onClick={() => handleManageMemberships(user)}
+                    >
+                      Memberships
+                    </button>
+                    {user.isTestUser && (
+                      <>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          className="text-gray-600 hover:text-gray-900"
+                          onClick={() => handleResetTestUserUsage(user.id)}
                         >
-                          {user.globalRole === 'SUPERUSER' ? 'SUPERUSER' : 'USER'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2">
-                          <button
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={() => handleEditUser(user)}
-                          >
-                            Edit
-                          </button>
-                          <span className="text-gray-300">|</span>
-                          <button
-                            className="text-orange-600 hover:text-orange-900"
-                            onClick={() => setResettingPasswordFor(user)}
-                          >
-                            Reset
-                          </button>
-                          <span className="text-gray-300">|</span>
-                          <button
-                            className="text-blue-600 hover:text-blue-900"
-                            onClick={() => handleManageMemberships(user)}
-                          >
-                            Memberships
-                          </button>
-                          {user.isTestUser && (
-                            <>
-                              <span className="text-gray-300">|</span>
-                              <button
-                                className="text-gray-600 hover:text-gray-900"
-                                onClick={() => handleResetTestUserUsage(user.id)}
-                              >
-                                Reset Usage
-                              </button>
-                            </>
-                          )}
-                          <span className="text-gray-300">|</span>
-                          <button
-                            className="text-red-600 hover:text-red-900"
-                            onClick={() => handleDeleteUser(user.id, user.email)}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                          Reset Usage
+                        </button>
+                      </>
+                    )}
+                    <span className="text-gray-300">|</span>
+                    <button
+                      className="text-red-600 hover:text-red-900"
+                      onClick={() => handleDeleteUser(user.id, user.email)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ),
+              },
+            ]}
+            rows={filteredUsers}
+            emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found.'}
+            rowKey={(user) => user.id}
+          />
         </div>
       </main>
 

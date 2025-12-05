@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
+import AdminSearchBar from '@/components/admin/AdminSearchBar'
+import AdminTable from '@/components/admin/AdminTable'
 
 interface Surgery {
   id: string
@@ -47,12 +49,22 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
   const [newUserName, setNewUserName] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState('STANDARD')
+  const [searchQuery, setSearchQuery] = useState('')
 
-  // Sort users alphabetically by name
+  // Sort users alphabetically by name (fallback to email)
   const sortedUsers = [...surgery.users].sort((a, b) => {
     const nameA = (a.user.name || a.user.email).toLowerCase()
     const nameB = (b.user.name || b.user.email).toLowerCase()
     return nameA.localeCompare(nameB)
+  })
+
+  // Filter users by search query (name or email, case-insensitive)
+  const filteredUsers = sortedUsers.filter((membership) => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    const nameMatch = membership.user.name?.toLowerCase().includes(query) ?? false
+    const emailMatch = membership.user.email.toLowerCase().includes(query)
+    return nameMatch || emailMatch
   })
 
   const handleAddUser = async (e: React.FormEvent) => {
@@ -223,7 +235,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                 ← Back to Admin Dashboard
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">
-                {surgery.name} - User Management
+                Users in {surgery.name}
               </h1>
             </div>
             <button
@@ -247,72 +259,103 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
               Manage user access and roles within {surgery.name}.
             </p>
           </div>
-          {sortedUsers.length === 0 ? (
-            <div className="px-4 py-12 text-center">
-              <p className="text-sm text-gray-500">No users found. Add your first user to get started.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-gray-200">
-              {sortedUsers.map((membership) => (
-                <li 
-                  key={membership.id}
-                  className="flex items-center justify-between gap-4 py-3 px-4 border-b last:border-b-0 hover:bg-gray-50"
-                >
+
+          {/* Search Box */}
+          <AdminSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search users…"
+            debounceMs={0}
+          />
+
+          {/* Table */}
+          <AdminTable
+            columns={[
+              {
+                header: 'Name',
+                key: 'name',
+                render: (membership) => (
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
                       {getUserInitials(membership.user.name, membership.user.email)}
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {membership.user.name || 'No name set'}
-                      </p>
-                      <p className="text-xs text-gray-500">{membership.user.email}</p>
+                    <div className="text-sm font-medium text-gray-900">
+                      {membership.user.name || 'No name set'}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      membership.role === 'ADMIN'
-                        ? 'bg-green-50 text-green-700 border border-green-100'
-                        : 'bg-blue-50 text-blue-700 border border-blue-100'
-                    }`}>
-                      {membership.role === 'ADMIN' ? 'Admin' : 'Standard'}
+                ),
+              },
+              {
+                header: 'Email',
+                key: 'email',
+                render: (membership) => (
+                  <div className="text-sm text-gray-500">{membership.user.email}</div>
+                ),
+              },
+              {
+                header: 'Role',
+                key: 'role',
+                render: (membership) => (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        membership.role === 'ADMIN'
+                          ? 'bg-green-50 text-green-700 border border-green-100'
+                          : 'bg-blue-50 text-blue-700 border border-blue-100'
+                      }`}
+                    >
+                      {membership.role === 'ADMIN' ? 'ADMIN' : 'STANDARD'}
                     </span>
                     {membership.user.defaultSurgeryId === surgery.id && (
-                      <span className="text-xs text-gray-400">Default</span>
+                      <span className="text-xs text-gray-400">(Default)</span>
                     )}
-                    <div className="flex gap-1">
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
-                        onClick={() => handleEditUser(membership)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-gray-200 text-orange-700 hover:bg-orange-50"
-                        onClick={() => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email })}
-                      >
-                        Reset
-                      </button>
-                      {membership.user.defaultSurgeryId !== surgery.id && (
+                  </div>
+                ),
+              },
+              {
+                header: 'Actions',
+                key: 'actions',
+                render: (membership) => (
+                  <div className="flex gap-2">
+                    <button
+                      className="text-blue-600 hover:text-blue-900"
+                      onClick={() => handleEditUser(membership)}
+                    >
+                      Edit
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      className="text-orange-600 hover:text-orange-900"
+                      onClick={() => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email })}
+                    >
+                      Reset
+                    </button>
+                    {membership.user.defaultSurgeryId !== surgery.id && (
+                      <>
+                        <span className="text-gray-300">|</span>
                         <button
-                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
+                          className="text-blue-600 hover:text-blue-900"
                           onClick={() => handleSetDefaultSurgery(membership.user.id)}
                         >
                           Set Default
                         </button>
-                      )}
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-red-100 text-red-600 hover:bg-red-50"
-                        onClick={() => handleRemoveUser(membership.user.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
+                      </>
+                    )}
+                    <span className="text-gray-300">|</span>
+                    <button
+                      className="text-red-600 hover:text-red-900"
+                      onClick={() => handleRemoveUser(membership.user.id)}
+                    >
+                      Remove
+                    </button>
                   </div>
-                </li>
-              ))}
-            </ul>
-          )}
+                ),
+              },
+            ]}
+            rows={filteredUsers}
+            emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found. Add your first user to get started.'}
+            rowKey={(membership) => membership.id}
+          />
         </div>
       </main>
 

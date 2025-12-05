@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import AdminSearchBar from '@/components/admin/AdminSearchBar'
+import AdminTable from '@/components/admin/AdminTable'
 
 interface Surgery {
   id: string
@@ -36,17 +38,24 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingSurgery, setEditingSurgery] = useState<Surgery | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   
-  // Sort surgeries alphabetically by name
+  // Sort surgeries alphabetically by name (fallback to slug)
   const sortedSurgeries = [...surgeries].sort((a, b) => {
-    return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    const nameA = (a.name || a.slug || '').toLowerCase()
+    const nameB = (b.name || b.slug || '').toLowerCase()
+    return nameA.localeCompare(nameB)
   })
   
   const [surgeriesList, setSurgeriesList] = useState(sortedSurgeries)
   
-  // Sort the list whenever it's updated
-  const displaySurgeries = [...surgeriesList].sort((a, b) => {
-    return a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+  // Filter surgeries by search query (name or slug, case-insensitive)
+  const filteredSurgeries = sortedSurgeries.filter((surgery) => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    const nameMatch = surgery.name?.toLowerCase().includes(query) ?? false
+    const slugMatch = surgery.slug?.toLowerCase().includes(query) ?? false
+    return nameMatch || slugMatch
   })
   const [newSurgery, setNewSurgery] = useState({
     name: '',
@@ -162,72 +171,104 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
               Manage surgery organisations and their settings.
             </p>
           </div>
-          <ul className="divide-y divide-gray-200">
-            {displaySurgeries.map((surgery) => {
-              const userCount = surgery._count.users
-              const first3Users = surgery.users.slice(0, 3)
-              const extraCount = surgery.users.length - 3
-              
-              return (
-                <li 
-                  key={surgery.id}
-                  className="flex items-center justify-between gap-4 py-4 px-4 border-b last:border-b-0 hover:bg-gray-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-sm font-medium text-green-800">
-                      {getSurgeryInitial(surgery.name)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{surgery.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {surgery.slug ? `Slug: ${surgery.slug}` : 'No slug set'}
-                      </p>
-                      {surgery.users.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {first3Users.map((membership) => (
-                            <span
-                              key={membership.id}
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
-                                membership.role === 'ADMIN'
-                                  ? 'bg-green-50 text-green-700 border border-green-100'
-                                  : 'bg-blue-50 text-blue-700 border border-blue-100'
-                              }`}
-                            >
-                              {membership.user.name || membership.user.email} ({membership.role})
-                            </span>
-                          ))}
-                          {extraCount > 0 && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">
-                              +{extraCount} more
-                            </span>
-                          )}
-                        </div>
+
+          {/* Search Box */}
+          <AdminSearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search surgeries…"
+            debounceMs={0}
+          />
+
+          {/* Table */}
+          <AdminTable
+            columns={[
+              {
+                header: 'Surgery Name',
+                key: 'name',
+                render: (surgery) => (
+                  <div className="text-sm font-medium text-gray-900">{surgery.name}</div>
+                ),
+              },
+              {
+                header: 'Slug',
+                key: 'slug',
+                render: (surgery) => (
+                  <div className="text-sm text-gray-500">
+                    {surgery.slug || <span className="text-gray-400 italic">No slug set</span>}
+                  </div>
+                ),
+              },
+              {
+                header: 'User Count',
+                key: 'userCount',
+                render: (surgery) => (
+                  <div className="text-sm text-gray-500">
+                    {surgery._count.users} {surgery._count.users === 1 ? 'user' : 'users'}
+                  </div>
+                ),
+              },
+              {
+                header: 'Members Preview',
+                key: 'members',
+                className: 'whitespace-normal',
+                render: (surgery) => {
+                  const first2Users = surgery.users.slice(0, 2)
+                  const extraCount = surgery.users.length - 2
+                  
+                  if (surgery.users.length === 0) {
+                    return <span className="text-sm text-gray-400 italic">No members</span>
+                  }
+                  
+                  return (
+                    <div className="flex flex-wrap gap-2">
+                      {first2Users.map((membership) => (
+                        <span
+                          key={membership.id}
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            membership.role === 'ADMIN'
+                              ? 'bg-green-50 text-green-700 border border-green-100'
+                              : 'bg-blue-50 text-blue-700 border border-blue-100'
+                          }`}
+                        >
+                          {membership.user.name || membership.user.email} ({membership.role})
+                        </span>
+                      ))}
+                      {extraCount > 0 && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                          +{extraCount} more
+                        </span>
                       )}
                     </div>
+                  )
+                },
+              },
+              {
+                header: 'Actions',
+                key: 'actions',
+                render: (surgery) => (
+                  <div className="flex gap-2">
+                    <Link
+                      href={`/s/${surgery.id}/admin/users`}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      Manage Users
+                    </Link>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      className="text-blue-600 hover:text-blue-900"
+                      onClick={() => setEditingSurgery(surgery)}
+                    >
+                      Edit
+                    </button>
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <p className="text-xs text-gray-400">
-                      {userCount} {userCount === 1 ? 'user' : 'users'}
-                    </p>
-                    <div className="flex gap-1">
-                      <Link
-                        href={`/s/${surgery.id}/admin/users`}
-                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
-                      >
-                        Manage users
-                      </Link>
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
-                        onClick={() => setEditingSurgery(surgery)}
-                      >
-                        Edit
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+                ),
+              },
+            ]}
+            rows={filteredSurgeries}
+            emptyMessage={searchQuery.trim() ? 'No surgeries match your search.' : 'No surgeries found.'}
+            rowKey={(surgery) => surgery.id}
+          />
         </div>
       </main>
 
