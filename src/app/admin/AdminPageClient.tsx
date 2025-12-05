@@ -183,7 +183,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           setSetupChecklistLoading(false)
         })
     }
-  }, [activeTab, session.type, session.surgeryId, setupChecklistLoading, setupChecklistData])
+  }, [activeTab, session.type, session.surgeryId])
 
   // Load highlight rules from API
   useEffect(() => {
