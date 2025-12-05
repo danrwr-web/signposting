@@ -42,9 +42,10 @@ signposting-1/
 │   ├── app/                    # Next.js App Router pages and API routes
 │   │   ├── (auth)/             # Auth-specific routes (admin-login, super-login)
 │   │   ├── admin/              # Global admin dashboard (superuser only)
-│   │   ├── api/                # API route handlers (79 files)
+│   │   ├── api/                # API route handlers (85+ files)
 │   │   ├── s/[id]/             # Surgery-specific routes
 │   │   │   ├── admin/          # Surgery admin dashboard
+│   │   │   ├── appointments/   # Appointments directory
 │   │   │   ├── clinical-review/ # Clinical review workflow
 │   │   │   └── dashboard/     # Surgery dashboard
 │   │   ├── super/              # Superuser utilities
@@ -52,6 +53,7 @@ signposting-1/
 │   │   ├── page.tsx            # Landing page (redirects authenticated users)
 │   │   └── layout.tsx          # Root layout with providers
 │   ├── components/             # React components (30+ components)
+│   │   ├── appointments/       # Appointments directory components
 │   │   ├── rich-text/          # TipTap rich text editor
 │   │   └── [ComponentName].tsx
 │   ├── context/                # React Context providers
@@ -62,6 +64,7 @@ signposting-1/
 │   │   ├── rbac.ts             # Role-based access control
 │   │   ├── prisma.ts           # Prisma client singleton
 │   │   ├── features.ts         # Feature flag logic
+│   │   ├── staffTypes.ts       # Staff type utilities
 │   │   └── api-contracts.ts    # Zod schemas for API validation
 │   ├── server/                 # Server-only utilities
 │   │   ├── effectiveSymptoms.ts # Symptom merging logic
@@ -80,8 +83,9 @@ signposting-1/
 
 ### Key Directories
 
-- **`src/app/api/`**: Contains 79 API route files organised by feature:
-  - `/admin/*`: Admin-only endpoints (symptoms, users, surgeries, clinical review)
+- **`src/app/api/`**: Contains 85+ API route files organised by feature:
+  - `/admin/*`: Admin-only endpoints (symptoms, users, surgeries, clinical review, appointments)
+  - `/appointments/*`: Appointment directory endpoints
   - `/symptoms/*`: Public symptom endpoints
   - `/auth/*`: Authentication endpoints
   - `/features/*`: Feature flag management
@@ -96,6 +100,7 @@ signposting-1/
   - `SymptomLibraryExplorer.tsx`: File-explorer style symptom management
   - `EngagementAnalytics.tsx`: Analytics dashboard
   - `RichTextEditor.tsx`: TipTap-based editor
+  - `appointments/`: Appointments directory components (AppointmentCard, AppointmentEditModal, AppointmentCsvUpload, StaffTypesManager)
 
 - **`src/lib/`**: Core business logic and utilities:
   - `rbac.ts`: Permission checking and role management
@@ -133,7 +138,7 @@ signposting-1/
 - `enableDefaultHighRisk`: Boolean (default: true)
 - `enableBuiltInHighlights`: Boolean (default: true)
 - `enableImageIcons`: Boolean (default: true)
-- **Relations**: users (UserSurgery[]), defaultUsers, highRiskLinks, defaultHighRiskButtons, highlightRules, symptomOverrides, customSymptoms, suggestions, events, symptomReviews, symptomStatuses, surgeryFeatureFlags
+- **Relations**: users (UserSurgery[]), defaultUsers, highRiskLinks, defaultHighRiskButtons, highlightRules, symptomOverrides, customSymptoms, suggestions, events, symptomReviews, symptomStatuses, surgeryFeatureFlags, appointmentTypes, appointmentStaffTypes
 
 #### **UserSurgery** (Junction Table)
 - `id`: String (CUID)
@@ -306,6 +311,30 @@ signposting-1/
 - `totalTokens`: Int
 - `estimatedCostUsd`: Float
 
+#### **AppointmentType**
+- `id`: String (CUID)
+- `surgeryId`: String? (FK to Surgery, null = system-wide)
+- `name`: String
+- `staffType`: String? (e.g., "PN" | "HCA" | "Dr" | "All")
+- `durationMins`: Int?
+- `colour`: String? (hex or tailwind token)
+- `notes`: String?
+- `isEnabled`: Boolean (default: true)
+- `isDefault`: Boolean (default: false)
+- `lastEditedBy`: String?
+- `lastEditedAt`: DateTime?
+
+#### **AppointmentStaffType**
+- `id`: String (CUID)
+- `surgeryId`: String? (null = system-wide default)
+- `label`: String (display label, e.g., "Practice Nurse", "Health Care Assistant")
+- `normalizedLabel`: String (normalised for matching)
+- `defaultColour`: String? (hex or tailwind token)
+- `orderIndex`: Int (default: 0)
+- `isBuiltIn`: Boolean (default: false)
+- `isEnabled`: Boolean (default: true)
+- **Unique**: [surgeryId, normalizedLabel]
+
 #### **NextAuth Models**
 - `Account`: OAuth account linking
 - `Session`: User sessions
@@ -436,6 +465,27 @@ signposting-1/
 - **`PATCH /api/image-icons/[id]`**: Update image icon
 - **`DELETE /api/image-icons/[id]`**: Delete image icon
 
+### Appointments Directory
+
+- **`GET /api/appointments`**: Get appointment types for surgery
+  - Query params: `surgeryId` (required), `q` (search query)
+  - Returns: Filtered list of enabled appointment types
+
+- **`GET /api/appointments/staff-types`**: Get staff types for surgery
+  - Query params: `surgeryId` (required)
+  - Returns: List of staff types (system-wide and surgery-specific)
+
+- **`GET /api/admin/appointments`**: Get all appointments for surgery (admin)
+- **`POST /api/admin/appointments`**: Create appointment type
+- **`PATCH /api/admin/appointments/[id]`**: Update appointment type
+- **`DELETE /api/admin/appointments/[id]`**: Delete appointment type
+- **`POST /api/admin/appointments/import`**: Bulk import appointments from CSV
+
+- **`GET /api/admin/appointments/staff-types`**: Get all staff types (admin)
+- **`POST /api/admin/appointments/staff-types`**: Create staff type
+- **`PATCH /api/admin/appointments/staff-types/[id]`**: Update staff type
+- **`DELETE /api/admin/appointments/staff-types/[id]`**: Delete staff type
+
 ### Suggestions (User Feedback)
 
 - **`GET /api/suggestions`**: Get suggestions (admin only)
@@ -530,20 +580,29 @@ RBAC checks are performed server-side using helpers from `src/lib/rbac.ts`:
      - Image icons (if enabled)
    - Clinical review banner (if `requiresClinicalReview` is true)
 
-5. **Admin Dashboard** (`/admin`):
+5. **Appointments Directory** (`/s/[surgeryId]/appointments`):
+   - Reception-friendly appointment catalogue
+   - Search and filter appointment types
+   - Filter by staff team (Practice Nurse, HCA, GP, etc.)
+   - Appointment cards with colour coding
+   - Admin features: Create, edit, delete appointments
+   - CSV import for bulk appointment management
+   - Staff type management (customise staff teams)
+
+6. **Admin Dashboard** (`/admin`):
    - **Superuser**: Global admin dashboard
      - Tabs: Symptom Library, Clinical Review, Data Management, Highlights, High-Risk Buttons, Engagement, Suggestions, Features, System Management, AI Usage
    - **Surgery Admin**: Surgery-specific admin (`/s/[surgeryId]/admin`)
      - Tabs: Symptom Library, Clinical Review, Highlights, High-Risk Buttons, Engagement, Suggestions, Features, User Management
 
-6. **Clinical Review** (`/s/[surgeryId]/clinical-review`):
+7. **Clinical Review** (`/s/[surgeryId]/clinical-review`):
    - Review dashboard showing all symptoms with review status
    - Filter by status (PENDING, APPROVED, CHANGES_REQUIRED)
    - Bulk approve functionality
    - Individual status updates with notes
    - Request re-review button
 
-7. **Superuser Dashboard** (`/super`):
+8. **Superuser Dashboard** (`/super`):
    - System-wide utilities and analytics
 
 ### Key UI Components
@@ -588,6 +647,23 @@ RBAC checks are performed server-side using helpers from `src/lib/rbac.ts`:
   - Renders HTML with highlighting
   - Applies highlight rules automatically
   - Supports colour-coded text (Green/Orange/Red/Pink-Purple slots)
+
+- **`AppointmentsPageClient`**: Appointments directory interface
+  - Appointment grid with search and filtering
+  - Staff type filter dropdown
+  - Admin controls for managing appointments
+  - CSV upload functionality
+
+- **`AppointmentCard`**: Individual appointment type card
+  - Colour-coded display
+  - Staff type badge
+  - Duration and notes
+  - Edit/delete actions (admin only)
+
+- **`StaffTypesManager`**: Staff type management component
+  - Create/edit/delete staff types
+  - Customise staff team labels
+  - Set default colours for staff types
 
 ### State Management
 
@@ -794,6 +870,7 @@ USD_TO_GBP_RATE=0.80
 - **`src/lib/rbac.ts`**: Role-based access control
 - **`src/lib/auth.ts`**: NextAuth configuration
 - **`src/lib/features.ts`**: Feature flag evaluation
+- **`src/lib/staffTypes.ts`**: Staff type utilities and normalisation
 - **`src/server/effectiveSymptoms.ts`**: Symptom merging logic (base + overrides + custom)
 - **`src/server/highlights.ts`**: Text highlighting rules
 - **`src/lib/api-contracts.ts`**: Zod schemas for API validation
@@ -807,6 +884,7 @@ USD_TO_GBP_RATE=0.80
 
 - **`src/app/HomePageClient.tsx`**: Main symptom library UI
 - **`src/app/admin/AdminPageClient.tsx`**: Admin dashboard
+- **`src/app/s/[id]/appointments/AppointmentsPageClient.tsx`**: Appointments directory UI
 - **`src/components/ClinicalReviewPanel.tsx`**: Clinical review workflow
 - **`src/components/SymptomLibraryExplorer.tsx`**: Symptom management UI
 - **`src/components/rich-text/RichTextEditor.tsx`**: TipTap editor
@@ -830,12 +908,13 @@ USD_TO_GBP_RATE=0.80
 
 ## Summary
 
-The Signposting Webapp is a comprehensive multi-tenant NHS-style symptom signposting platform built with Next.js 15, TypeScript, Prisma, and PostgreSQL. It provides role-based access control, clinical review workflows, AI-powered features, and extensive customisation options for GP surgeries. The application follows modern best practices with server-side rendering, type-safe API contracts, and WCAG 2.1 AA accessibility compliance.
+The Signposting Webapp is a comprehensive multi-tenant NHS-style symptom signposting platform built with Next.js 15, TypeScript, Prisma, and PostgreSQL. It provides role-based access control, clinical review workflows, AI-powered features, an appointments directory for reception teams, and extensive customisation options for GP surgeries. The application follows modern best practices with server-side rendering, type-safe API contracts, and WCAG 2.1 AA accessibility compliance.
 
 **Key Strengths**:
 - Robust RBAC system with three-tier permissions
 - Comprehensive clinical governance with review workflows
 - Flexible symptom management (base + overrides + custom)
+- Appointments directory with staff team filtering and CSV import
 - Feature flag system for gradual rollouts
 - AI integration with cost tracking
 - Extensive API surface for admin operations

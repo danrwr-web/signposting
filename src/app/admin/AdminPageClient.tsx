@@ -15,7 +15,7 @@ import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
 import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
 import FeaturesAdmin from '@/components/FeaturesAdmin'
-import OnboardingCard from '@/components/OnboardingCard'
+import SetupChecklistClient from '@/app/s/[id]/admin/setup-checklist/SetupChecklistClient'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -89,6 +89,16 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   const [aiUsageError, setAiUsageError] = useState<string | null>(null)
   const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
   const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
+  const [setupChecklistData, setSetupChecklistData] = useState<{
+    surgeryId: string
+    surgeryName: string
+    onboardingCompleted: boolean
+    onboardingCompletedAt: Date | null
+    appointmentModelConfigured: boolean
+    aiCustomisationOccurred: boolean
+    pendingCount: number
+  } | null>(null)
+  const [setupChecklistLoading, setSetupChecklistLoading] = useState(false)
 
   // Load AI usage data when tab is active
   useEffect(() => {
@@ -142,6 +152,34 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         })
     }
   }, [session.type, session.surgeryId, featureFlagsLoading])
+
+  // Load setup checklist data when tab is active
+  useEffect(() => {
+    if (activeTab === 'setup-checklist' && session.type === 'surgery' && session.surgeryId && !setupChecklistLoading && !setupChecklistData) {
+      setSetupChecklistLoading(true)
+      fetch(`/api/admin/setup-checklist?surgeryId=${session.surgeryId}`)
+        .then(async (res) => {
+          if (res.ok) {
+            const data = await res.json()
+            setSetupChecklistData({
+              surgeryId: data.surgeryId,
+              surgeryName: data.surgeryName,
+              onboardingCompleted: data.onboardingCompleted,
+              onboardingCompletedAt: data.onboardingCompletedAt ? new Date(data.onboardingCompletedAt) : null,
+              appointmentModelConfigured: data.appointmentModelConfigured,
+              aiCustomisationOccurred: data.aiCustomisationOccurred,
+              pendingCount: data.pendingCount,
+            })
+          }
+        })
+        .catch(err => {
+          console.error('Error loading setup checklist data:', err)
+        })
+        .finally(() => {
+          setSetupChecklistLoading(false)
+        })
+    }
+  }, [activeTab, session.type, session.surgeryId, setupChecklistLoading, setupChecklistData])
 
   // Load highlight rules from API
   useEffect(() => {
@@ -272,7 +310,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   // Initialize active tab from URL params
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'aiUsage', 'onboarding']
+    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'aiUsage', 'setup-checklist']
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam)
     }
@@ -799,8 +837,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 { id: 'suggestions', label: 'Suggestions', badge: unreadSuggestionsCount },
                 // Features: visible to SUPERUSER and PRACTICE_ADMIN
                 ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'features', label: 'Features' }] : []),
-                // Onboarding: only visible if ai_surgery_customisation feature flag is enabled
-                ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true ? [{ id: 'onboarding', label: 'Onboarding' }] : []),
+                // Setup Checklist: only visible if ai_surgery_customisation feature flag is enabled
+                ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true ? [{ id: 'setup-checklist', label: 'Setup Checklist' }] : []),
                 ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
                 ...(session.type === 'superuser' ? [
                   { id: 'system', label: 'System Management' },
@@ -974,24 +1012,28 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               />
             )}
 
-            {/* Onboarding Tab - Only for Surgery Admins with feature flag enabled */}
-            {activeTab === 'onboarding' && session.type === 'surgery' && featureFlags.ai_surgery_customisation === true && (
+            {/* Setup Checklist Tab - Only for Surgery Admins with feature flag enabled */}
+            {activeTab === 'setup-checklist' && session.type === 'surgery' && featureFlags.ai_surgery_customisation === true && (
               <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  Onboarding
-                </h2>
-                <p className="text-nhs-grey mb-6">
-                  Configure your surgery profile and set up AI customisation.
-                </p>
-                {(() => {
-                  const currentSurgery = surgeries.find(s => s.id === session.surgeryId)
-                  return (
-                    <OnboardingCard 
-                      surgery={currentSurgery} 
-                      surgeryId={session.surgeryId || ''} 
-                    />
-                  )
-                })()}
+                {setupChecklistLoading ? (
+                  <div className="text-center py-8">
+                    <p className="text-nhs-grey">Loading setup checklist...</p>
+                  </div>
+                ) : setupChecklistData ? (
+                  <SetupChecklistClient
+                    surgeryId={setupChecklistData.surgeryId}
+                    surgeryName={setupChecklistData.surgeryName}
+                    onboardingCompleted={setupChecklistData.onboardingCompleted}
+                    onboardingCompletedAt={setupChecklistData.onboardingCompletedAt}
+                    appointmentModelConfigured={setupChecklistData.appointmentModelConfigured}
+                    aiCustomisationOccurred={setupChecklistData.aiCustomisationOccurred}
+                    pendingCount={setupChecklistData.pendingCount}
+                  />
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-nhs-grey">Failed to load setup checklist data.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1022,9 +1064,9 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                       Manage Users
                     </a>
                   </div>
-                </div>
+                  </div>
 
-                {/* Optional: Cross-link to Onboarding tab if feature flag enabled */}
+                {/* Optional: Cross-link to Setup Checklist tab if feature flag enabled */}
                 {featureFlags.ai_surgery_customisation === true && (() => {
                   const currentSurgery = surgeries.find(s => s.id === session.surgeryId)
                   const onboardingCompleted = currentSurgery?.onboardingProfile?.completed ?? false
@@ -1040,12 +1082,12 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                         })}.{' '}
                         <button
                           onClick={() => {
-                            setActiveTab('onboarding')
-                            router.push('/admin?tab=onboarding', { scroll: false })
+                            setActiveTab('setup-checklist')
+                            router.push('/admin?tab=setup-checklist', { scroll: false })
                           }}
                           className="text-nhs-blue hover:underline"
                         >
-                          View in Onboarding tab
+                          View in Setup Checklist tab
                         </button>
                       </div>
                     )
