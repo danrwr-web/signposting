@@ -999,15 +999,17 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               {symptom.name}
             </h1>
             <div className="flex items-center gap-3">
-              <span
-                className={
-                  showBlueHeader
-                    ? 'px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white border border-white/40'
-                    : `px-3 py-1 rounded-full text-sm font-medium ${getSourceColor(symptom.source)}`
-                }
-              >
-                {symptom.source}
-              </span>
+              {symptom.source !== 'override' && (
+                <span
+                  className={
+                    showBlueHeader
+                      ? 'px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white border border-white/40'
+                      : `px-3 py-1 rounded-full text-sm font-medium ${getSourceColor(symptom.source)}`
+                  }
+                >
+                  {symptom.source}
+                </span>
+              )}
               {canEditInstructions && !isEditingAll && !isEditingInstructions && (
                 <button
                   onClick={handleEditAll}
