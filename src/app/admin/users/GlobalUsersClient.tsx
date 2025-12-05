@@ -418,30 +418,41 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
               {
                 header: 'Email',
                 key: 'email',
+                className: 'max-w-xs',
                 render: (user) => (
-                  <div className="text-sm text-gray-500">{user.email}</div>
+                  <div className="text-sm text-gray-500 truncate" title={user.email}>
+                    {user.email}
+                  </div>
                 ),
               },
               {
                 header: 'Surgery Memberships',
                 key: 'memberships',
-                className: 'whitespace-normal',
-                render: (user) => (
-                  <div className="text-sm text-gray-900">
-                    {user.memberships.length === 0 ? (
-                      <span className="text-gray-400 italic">No memberships</span>
-                    ) : (
-                      <span>
-                        {user.memberships.map((membership, index) => (
-                          <span key={membership.id}>
-                            {index > 0 && <span className="mx-2 text-gray-400">·</span>}
-                            {membership.surgery.name} ({membership.role})
-                          </span>
-                        ))}
-                      </span>
-                    )}
-                  </div>
-                ),
+                className: 'max-w-md',
+                render: (user) => {
+                  const allMembershipsString = user.memberships.length === 0
+                    ? 'No memberships'
+                    : user.memberships
+                        .map((m) => `${m.surgery.name} (${m.role})`)
+                        .join(' · ')
+                  
+                  return (
+                    <div className="text-sm text-gray-900 truncate whitespace-nowrap" title={allMembershipsString}>
+                      {user.memberships.length === 0 ? (
+                        <span className="text-gray-400 italic">No memberships</span>
+                      ) : (
+                        <span>
+                          {user.memberships.map((membership, index) => (
+                            <span key={membership.id}>
+                              {index > 0 && <span className="mx-2 text-gray-400">·</span>}
+                              {membership.surgery.name} ({membership.role})
+                            </span>
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                  )
+                },
               },
               {
                 header: 'Global Role',
@@ -461,8 +472,9 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
               {
                 header: 'Actions',
                 key: 'actions',
+                className: 'w-[200px] whitespace-nowrap text-right',
                 render: (user) => (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 justify-end">
                     <button
                       className="text-blue-600 hover:text-blue-900"
                       onClick={() => handleEditUser(user)}

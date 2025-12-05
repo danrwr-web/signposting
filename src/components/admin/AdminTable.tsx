@@ -27,16 +27,19 @@ export default function AdminTable<T>({
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50 sticky top-0 z-10">
           <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                  column.className || ''
-                }`}
-              >
-                {column.header}
-              </th>
-            ))}
+            {columns.map((column) => {
+              const hasTextRight = column.className?.includes('text-right')
+              return (
+                <th
+                  key={column.key}
+                  className={`px-6 py-3 ${hasTextRight ? 'text-right' : 'text-left'} text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                    column.className || ''
+                  }`}
+                >
+                  {column.header}
+                </th>
+              )
+            })}
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
