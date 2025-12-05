@@ -149,6 +149,7 @@ export async function POST(
     // Process each symptom
     let processedCount = 0
     let skippedCount = 0
+    const skippedDetails: Array<{ symptomId: string; reason?: string }> = []
 
     console.log(`[AI Customisation] Starting to process ${symptomsToProcess.length} symptom(s)`)
 
@@ -195,6 +196,7 @@ export async function POST(
         if (!baseSymptomData) {
           console.log(`[AI Customisation] Skipping symptom ${symptomRef.id}: not found`)
           skippedCount++
+          skippedDetails.push({ symptomId: symptomRef.id, reason: 'Symptom not found' })
           continue
         }
 
@@ -202,6 +204,7 @@ export async function POST(
         if (!baseSymptomData.instructionsHtml && !baseSymptomData.briefInstruction) {
           console.log(`[AI Customisation] Skipping symptom ${symptomRef.id}: no content to customise`)
           skippedCount++
+          skippedDetails.push({ symptomId: symptomRef.id, reason: 'No instructions to customise' })
           continue
         }
 
@@ -230,6 +233,7 @@ export async function POST(
           // AI call failed - skip this symptom
           console.error(`AI call failed for symptom ${symptomRef.id}:`, aiError)
           skippedCount++
+          skippedDetails.push({ symptomId: symptomRef.id, reason: 'AI error' })
           continue
         }
 
@@ -237,6 +241,7 @@ export async function POST(
         if (!customised.briefInstruction || !customised.instructionsHtml) {
           console.error(`Invalid AI response for symptom ${symptomRef.id}: missing fields`)
           skippedCount++
+          skippedDetails.push({ symptomId: symptomRef.id, reason: 'Invalid AI response' })
           continue
         }
 
@@ -373,6 +378,10 @@ export async function POST(
         // Any error during processing should skip the symptom
         console.error(`[AI Customisation] Error processing symptom ${symptomRef.id}:`, error)
         skippedCount++
+        skippedDetails.push({ 
+          symptomId: symptomRef.id, 
+          reason: error instanceof Error ? error.message : 'Processing error' 
+        })
         console.log(`[AI Customisation] Skipped symptom ${symptomRef.id}. Total skipped: ${skippedCount}`)
       }
     }
@@ -388,6 +397,7 @@ export async function POST(
       processedCount: finalProcessedCount,
       skippedCount: finalSkippedCount,
       message: `Successfully customised ${finalProcessedCount} symptom${finalProcessedCount !== 1 ? 's' : ''}. ${finalSkippedCount > 0 ? `${finalSkippedCount} skipped.` : ''}`,
+      skippedDetails,
     })
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {

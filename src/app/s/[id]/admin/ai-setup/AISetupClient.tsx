@@ -23,6 +23,7 @@ interface CustomiseInstructionsResponse {
   processedCount: number
   skippedCount: number
   message: string
+  skippedDetails?: Array<{ symptomId: string; reason?: string }>
 }
 
 const APPOINTMENT_ARCHETYPE_LABELS: Record<keyof AppointmentModelConfig, string> = {
@@ -48,6 +49,7 @@ export default function AISetupClient({
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
   const [loading, setLoading] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const [processingProgress, setProcessingProgress] = useState<{
     current: number
     total: number
@@ -59,6 +61,7 @@ export default function AISetupClient({
     processedCount: number
     skippedCount: number
     message: string
+    skippedDetails?: Array<{ symptomId: string; reason?: string }>
   } | null>(null)
 
   // Load symptoms for manual selection and ALL mode
@@ -90,6 +93,7 @@ export default function AISetupClient({
   const processSymptomIds = async (symptomIds: string[]) => {
     let cumulativeProcessed = 0
     let cumulativeSkipped = 0
+    const skippedDetails: Array<{ symptomId: string; reason?: string }> = []
     const total = symptomIds.length
 
     for (let i = 0; i < symptomIds.length; i++) {
@@ -124,20 +128,30 @@ export default function AISetupClient({
           const data: CustomiseInstructionsResponse = await response.json()
           cumulativeProcessed += data.processedCount || 0
           cumulativeSkipped += data.skippedCount || 0
+          // Accumulate skipped details for this symptom if it was skipped
+          if (data.skippedCount > 0 && data.skippedDetails && data.skippedDetails.length > 0) {
+            skippedDetails.push(...data.skippedDetails)
+          }
         } else {
           const errorData = await response.json()
           console.error(`Error processing symptom ${symptomId}:`, errorData.error)
           cumulativeSkipped++
+          skippedDetails.push({ symptomId, reason: errorData.error || 'Request failed' })
         }
       } catch (error) {
         console.error(`Error processing symptom ${symptomId}:`, error)
         cumulativeSkipped++
+        skippedDetails.push({ 
+          symptomId, 
+          reason: error instanceof Error ? error.message : 'Network error' 
+        })
       }
     }
 
     return {
       processedCount: cumulativeProcessed,
       skippedCount: cumulativeSkipped,
+      skippedDetails,
     }
   }
 
@@ -174,6 +188,7 @@ export default function AISetupClient({
         processedCount: results.processedCount,
         skippedCount: results.skippedCount,
         message: `Successfully customised ${results.processedCount} symptom${results.processedCount !== 1 ? 's' : ''}. ${results.skippedCount > 0 ? `${results.skippedCount} skipped.` : ''}`,
+        skippedDetails: results.skippedDetails,
       })
       toast.success(
         `Customisation completed: ${results.processedCount} processed, ${results.skippedCount} skipped`
@@ -427,33 +442,65 @@ export default function AISetupClient({
                       Loading symptoms...
                     </div>
                   ) : (
-                    <div className="border border-gray-300 rounded-lg max-h-96 overflow-y-auto">
-                      <div className="p-4 space-y-2">
-                        {symptoms.map((symptom) => (
-                          <label
-                            key={symptom.id}
-                            className="flex items-start cursor-pointer hover:bg-gray-50 p-2 rounded"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={selectedSymptomIds.includes(symptom.id)}
-                              onChange={() => toggleSymptom(symptom.id)}
-                              disabled={processing}
-                              className="mt-1 mr-3"
-                            />
-                            <div className="flex-1">
-                              <div className="font-medium text-gray-900">
-                                {symptom.name}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {symptom.ageGroup} •{' '}
-                                {symptom.briefInstruction || 'No brief instruction'}
-                              </div>
-                            </div>
-                          </label>
-                        ))}
+                    <>
+                      {/* Search Input */}
+                      <div className="mb-3">
+                        <input
+                          type="text"
+                          placeholder="Search symptoms…"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          disabled={processing}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+                        />
                       </div>
-                    </div>
+                      <div className="border border-gray-300 rounded-lg max-h-96 overflow-y-auto">
+                        <div className="p-4 space-y-2">
+                          {symptoms
+                            .filter((symptom) => {
+                              if (!searchTerm.trim()) return true
+                              const searchLower = searchTerm.toLowerCase()
+                              const nameMatch = symptom.name.toLowerCase().includes(searchLower)
+                              const briefMatch = symptom.briefInstruction?.toLowerCase().includes(searchLower) || false
+                              return nameMatch || briefMatch
+                            })
+                            .map((symptom) => (
+                              <label
+                                key={symptom.id}
+                                className="flex items-start cursor-pointer hover:bg-gray-50 p-2 rounded"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSymptomIds.includes(symptom.id)}
+                                  onChange={() => toggleSymptom(symptom.id)}
+                                  disabled={processing}
+                                  className="mt-1 mr-3"
+                                />
+                                <div className="flex-1">
+                                  <div className="font-medium text-gray-900">
+                                    {symptom.name}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {symptom.ageGroup} •{' '}
+                                    {symptom.briefInstruction || 'No brief instruction'}
+                                  </div>
+                                </div>
+                              </label>
+                            ))}
+                          {symptoms.filter((symptom) => {
+                            if (!searchTerm.trim()) return false
+                            const searchLower = searchTerm.toLowerCase()
+                            const nameMatch = symptom.name.toLowerCase().includes(searchLower)
+                            const briefMatch = symptom.briefInstruction?.toLowerCase().includes(searchLower) || false
+                            return nameMatch || briefMatch
+                          }).length === 0 && searchTerm.trim() && (
+                            <div className="text-center py-8 text-gray-500">
+                              No symptoms found matching &quot;{searchTerm}&quot;
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -524,42 +571,87 @@ export default function AISetupClient({
 
               {/* Results */}
               {result && (
-                <div className="bg-green-50 border-l-4 border-green-400 p-4">
-                  <div className="flex">
-                    <div className="flex-shrink-0">
-                      <svg
-                        className="h-5 w-5 text-green-400"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </div>
-                    <div className="ml-3">
-                      <p className="text-sm font-medium text-green-800">
-                        {result.message}
-                      </p>
-                      <p className="text-sm text-green-700 mt-1">
-                        Processed: {result.processedCount} • Skipped:{' '}
-                        {result.skippedCount}
-                      </p>
-                      <p className="text-sm text-green-700 mt-2">
-                        All customised symptoms are now pending clinical review.
-                        Visit the{' '}
-                        <Link
-                          href="/admin?tab=clinical-review"
-                          className="underline font-medium"
+                <div className="space-y-4">
+                  <div className="bg-green-50 border-l-4 border-green-400 p-4">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg
+                          className="h-5 w-5 text-green-400"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
                         >
-                          Clinical Review
-                        </Link>{' '}
-                        page to approve them.
-                      </p>
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium text-green-800">
+                          {result.message}
+                        </p>
+                        <p className="text-sm text-green-700 mt-1">
+                          Processed: {result.processedCount} • Skipped:{' '}
+                          {result.skippedCount}
+                        </p>
+                        <p className="text-sm text-green-700 mt-2">
+                          All customised symptoms are now pending clinical review.
+                          Visit the{' '}
+                          <Link
+                            href="/admin?tab=clinical-review"
+                            className="underline font-medium"
+                          >
+                            Clinical Review
+                          </Link>{' '}
+                          page to approve them.
+                        </p>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Skipped Symptoms Details */}
+                  {result.skippedDetails && result.skippedDetails.length > 0 && (
+                    <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg
+                            className="h-5 w-5 text-yellow-400"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </div>
+                        <div className="ml-3 flex-1">
+                          <p className="text-sm font-medium text-yellow-800 mb-2">
+                            Skipped Symptoms ({result.skippedDetails.length})
+                          </p>
+                          <div className="space-y-2">
+                            {result.skippedDetails.map((skipped, index) => {
+                              const symptom = symptoms.find(s => s.id === skipped.symptomId)
+                              return (
+                                <div key={index} className="text-sm text-yellow-700">
+                                  <span className="font-medium">
+                                    {symptom?.name || `Symptom ${skipped.symptomId}`}
+                                  </span>
+                                  {skipped.reason && (
+                                    <span className="ml-2 text-yellow-600">
+                                      ({skipped.reason})
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>

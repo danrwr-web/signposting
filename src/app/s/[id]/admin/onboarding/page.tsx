@@ -7,10 +7,14 @@ interface OnboardingPageProps {
   params: Promise<{
     id: string
   }>
+  searchParams: Promise<{
+    step?: string
+  }>
 }
 
-export default async function OnboardingPage({ params }: OnboardingPageProps) {
+export default async function OnboardingPage({ params, searchParams }: OnboardingPageProps) {
   const { id: surgeryId } = await params
+  const { step } = await searchParams
   
   try {
     const user = await requireSurgeryAdmin(surgeryId)
@@ -28,7 +32,21 @@ export default async function OnboardingPage({ params }: OnboardingPageProps) {
       redirect('/unauthorized')
     }
 
-    return <OnboardingWizardClient surgeryId={surgeryId} surgeryName={surgery.name} user={user} />
+    // Parse initial step from query param
+    // Support both "2.5" and "appointment-model" for the appointment model step
+    let initialStep: number | undefined
+    if (step) {
+      if (step === 'appointment-model' || step === '2.5') {
+        initialStep = 2.5
+      } else {
+        const parsed = parseFloat(step)
+        if (!isNaN(parsed)) {
+          initialStep = parsed
+        }
+      }
+    }
+
+    return <OnboardingWizardClient surgeryId={surgeryId} surgeryName={surgery.name} user={user} initialStep={initialStep} />
   } catch (error) {
     redirect('/unauthorized')
   }

@@ -318,6 +318,10 @@ export const CustomiseInstructionsResZ = z.object({
   processedCount: z.number(),
   skippedCount: z.number(),
   message: z.string(),
+  skippedDetails: z.array(z.object({
+    symptomId: z.string(),
+    reason: z.string().optional(),
+  })).default([]),
 });
 
 export type CustomiseScope = z.infer<typeof CustomiseScopeZ>;

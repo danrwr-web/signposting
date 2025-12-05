@@ -11,6 +11,7 @@ interface OnboardingWizardClientProps {
   surgeryId: string
   surgeryName: string
   user: SessionUser
+  initialStep?: number
 }
 
 const STEPS = [
@@ -212,9 +213,20 @@ const getDefaultProfile = (): SurgeryOnboardingProfileJson => ({
   },
 })
 
-export default function OnboardingWizardClient({ surgeryId, surgeryName, user }: OnboardingWizardClientProps) {
+export default function OnboardingWizardClient({ surgeryId, surgeryName, user, initialStep }: OnboardingWizardClientProps) {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(1)
+  // Initialize currentStep from initialStep prop if provided, otherwise default to 1
+  // Ensure the initial step is valid (exists in STEPS array)
+  const getInitialStep = () => {
+    if (initialStep !== undefined) {
+      const stepExists = STEPS.some(s => s.id === initialStep)
+      if (stepExists) {
+        return initialStep
+      }
+    }
+    return 1
+  }
+  const [currentStep, setCurrentStep] = useState(getInitialStep())
   const [profile, setProfile] = useState<SurgeryOnboardingProfileJson>(getDefaultProfile())
   const [completed, setCompleted] = useState(false)
   const [completedAt, setCompletedAt] = useState<string | null>(null)

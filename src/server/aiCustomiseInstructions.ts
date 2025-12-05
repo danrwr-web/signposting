@@ -191,7 +191,9 @@ export async function customiseInstructions(
 
     // Add clinician archetypes section
     const enabledClinicianArchetypes: string[] = []
+    const minorIllnessClinicianArchetype = (appointmentModel.clinicianArchetypes || []).find(ca => ca.key === 'ANP' && ca.enabled)
     const clinicianArchetypes = appointmentModel.clinicianArchetypes || []
+    
     for (const archetype of clinicianArchetypes) {
       if (archetype.enabled) {
         const friendlyName = archetype.key === 'ANP' ? 'Minor Illness Clinician Appointment' :
@@ -212,19 +214,49 @@ export async function customiseInstructions(
       clinicianArchetypesSection = `\n\nADDITIONAL CLINICIAN APPOINTMENTS:\n${enabledClinicianArchetypes.join('\n\n')}`
     }
 
+    // Build appointment selection rules with emphasis on clinician archetypes
+    let appointmentSelectionRules = `APPOINTMENT SELECTION RULES:
+- For stable or long-standing problems (e.g., hayfever, stable constipation, long-term rashes, recurrent infections without red flags, chronic ankle pain), prefer ${appointmentModel.routineContinuityGp.enabled ? `"${appointmentModel.routineContinuityGp.localName || 'routine continuity GP'}"` : 'routine continuity GP'} where continuity is helpful.
+- For issues needing GP input within 48h but not same-day emergencies, use ${appointmentModel.gpTriage48h.enabled ? `"${appointmentModel.gpTriage48h.localName || 'GP triage (48h)'}"` : 'GP triage within 48 hours'}.`
+
+    // Add explicit instructions for Minor Illness Clinician archetype if enabled
+    if (minorIllnessClinicianArchetype) {
+      const localName = minorIllnessClinicianArchetype.localName || 'Minor Illness Clinician Appointment'
+      const role = minorIllnessClinicianArchetype.role || 'ANP / Paramedic / ACP'
+      const description = minorIllnessClinicianArchetype.description || 'minor illnesses that do not require GP review'
+      
+      appointmentSelectionRules += `
+- **PRIORITY FOR MINOR ILLNESSES**: For minor, self-limiting illnesses without red flags (such as uncomplicated earache, sore throat, cough, cold/flu, uncomplicated UTI, simple rashes), prefer the Minor Illness Clinician Appointment (local name: "${localName}") instead of booking with the GP or Duty Team. This appointment type is suitable for: ${description}. Only use GP appointments or Duty Team when the symptom or red flags explicitly require GP-level or senior review (e.g., severe systemic illness, red-flag features, rapid deterioration).`
+    }
+
+    // Add other clinician archetype rules
+    const pharmacistArchetype = (appointmentModel.clinicianArchetypes || []).find(ca => ca.key === 'PHARMACIST' && ca.enabled)
+    const fcpArchetype = (appointmentModel.clinicianArchetypes || []).find(ca => ca.key === 'FCP' && ca.enabled)
+    
+    if (pharmacistArchetype) {
+      const localName = pharmacistArchetype.localName || 'Clinical Pharmacist'
+      appointmentSelectionRules += `
+- Medicine queries and medication reviews should be routed to the Clinical Pharmacist appointment (local name: "${localName}") if this archetype is enabled, rather than to a GP appointment.`
+    }
+    
+    if (fcpArchetype) {
+      const localName = fcpArchetype.localName || 'First Contact Physiotherapist'
+      appointmentSelectionRules += `
+- MSK (musculoskeletal) problems should be routed to the First Contact Physiotherapist appointment (local name: "${localName}") if this archetype is enabled, rather than to a GP appointment.`
+    }
+
+    appointmentSelectionRules += `
+- Use ${appointmentModel.urgentSameDayPhone.enabled ? `"${appointmentModel.urgentSameDayPhone.localName || 'urgent same-day telephone'}"` : 'urgent same-day telephone'} or ${appointmentModel.urgentSameDayF2F.enabled ? `"${appointmentModel.urgentSameDayF2F.localName || 'urgent same-day F2F'}"` : 'urgent same-day face-to-face'} ONLY for clearly urgent cases with red flags or when the original instructions explicitly require same-day care.
+- Use GP urgent appointments or Duty Team only when the symptom or red flags explicitly require GP-level or senior review.
+
+IMPORTANT: If an archetype is not enabled, do not use its local name. Instead, fall back to the closest enabled archetype or use generic terminology that matches the surgery's style.`
+
     appointmentModelInstruction = `APPOINTMENT TYPE MAPPING:
 This surgery has defined the following appointment types. You MUST use these local names and follow their usage rules:
 
 ${enabledArchetypes.join('\n\n')}${clinicianArchetypesSection}
 
-APPOINTMENT SELECTION RULES:
-- For stable or long-standing problems (e.g., hayfever, stable constipation, long-term rashes, recurrent infections without red flags, chronic ankle pain), prefer ${appointmentModel.routineContinuityGp.enabled ? `"${appointmentModel.routineContinuityGp.localName || 'routine continuity GP'}"` : 'routine continuity GP'} where continuity is helpful.
-- For issues needing GP input within 48h but not same-day emergencies, use ${appointmentModel.gpTriage48h.enabled ? `"${appointmentModel.gpTriage48h.localName || 'GP triage (48h)'}"` : 'GP triage within 48 hours'}.
-- Use ${appointmentModel.urgentSameDayPhone.enabled ? `"${appointmentModel.urgentSameDayPhone.localName || 'urgent same-day telephone'}"` : 'urgent same-day telephone'} or ${appointmentModel.urgentSameDayF2F.enabled ? `"${appointmentModel.urgentSameDayF2F.localName || 'urgent same-day F2F'}"` : 'urgent same-day face-to-face'} ONLY for clearly urgent cases with red flags or when the original instructions explicitly require same-day care.
-- When a condition clearly fits an enabled clinician archetype, route to that clinician rather than a GP appointment. Examples: minor self-limiting infections without red flags (earache, sore throat, uncomplicated UTI, mild viral illness) can be booked with ANP if the ANP archetype is enabled and described as suitable for minor illness. Medicine queries can go to Pharmacist if the Pharmacist archetype is enabled. MSK issues can go to FCP if the FCP archetype is enabled.
-- Use GP urgent appointments or Duty Team only when the symptom or red flags explicitly require GP-level or senior review.
-
-IMPORTANT: If an archetype is not enabled, do not use its local name. Instead, fall back to the closest enabled archetype or use generic terminology that matches the surgery's style.`
+${appointmentSelectionRules}`
   }
 
   // Fallback to colour-slot logic if appointmentModel is not configured
