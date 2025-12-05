@@ -87,9 +87,9 @@ const APPOINTMENT_ARCHETYPES = [
 const CLINICIAN_ARCHETYPES = [
   {
     key: 'ANP',
-    heading: 'ANP Minor Illness',
-    intro: 'Used for minor illness presentations that can be safely managed by ANPs without GP review.',
-    placeholder: 'e.g. ANP Minor Illness Clinic',
+    heading: 'Minor Illness Clinician Appointment',
+    intro: 'Used for minor illness presentations that can be safely managed by trained clinicians such as ANPs, Paramedic Practitioners, ACPs, Physician Associates, or Minor Illness Nurses without GP review.',
+    placeholder: 'e.g. Minor Illness Clinic, ANP Clinic, Paramedic Practitioner Clinic',
     descriptionPlaceholder: 'e.g. Used for common minor illnesses not requiring GP review, such as earache, sore throat, coughs, UTIs in non-complex patients.',
     suggestedDescription: 'Used for common minor illnesses not requiring GP review, such as earache, sore throat, coughs, UTIs in non-complex patients.',
   },
@@ -402,7 +402,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                       Go to AI Setup
                     </a>
                     <a
-                      href="/admin?tab=onboarding"
+                      href="/admin?tab=setup-checklist"
                       className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
                     >
                       Return to Admin Dashboard

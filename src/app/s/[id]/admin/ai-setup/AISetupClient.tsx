@@ -276,7 +276,7 @@ export default function AISetupClient({
                     {/* Clinician Archetypes */}
                     {(appointmentModel.clinicianArchetypes || []).map((archetype) => {
                       if (!archetype.enabled) return null
-                      const friendlyName = archetype.key === 'ANP' ? 'ANP Minor Illness' :
+                      const friendlyName = archetype.key === 'ANP' ? 'Minor Illness Clinician Appointment' :
                                          archetype.key === 'PHARMACIST' ? 'Clinical Pharmacist' :
                                          archetype.key === 'FCP' ? 'First Contact Physiotherapist' :
                                          archetype.key === 'OTHER' ? 'Other clinician or service' :
