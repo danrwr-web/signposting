@@ -49,10 +49,20 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
       urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
       urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
       otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+      clinicianArchetypes: [],
     }
 
-    // Check if appointment model is configured (any archetype enabled)
-    const appointmentModelConfigured = Object.values(appointmentModel).some(arch => arch.enabled)
+    // Check if appointment model is configured (any archetype enabled, including clinician archetypes)
+    const gpArchetypesEnabled = Object.values({
+      routineContinuityGp: appointmentModel.routineContinuityGp,
+      routineGpPhone: appointmentModel.routineGpPhone,
+      gpTriage48h: appointmentModel.gpTriage48h,
+      urgentSameDayPhone: appointmentModel.urgentSameDayPhone,
+      urgentSameDayF2F: appointmentModel.urgentSameDayF2F,
+      otherClinicianDirect: appointmentModel.otherClinicianDirect,
+    }).some(arch => arch.enabled)
+    const clinicianArchetypesEnabled = (appointmentModel.clinicianArchetypes || []).some(ca => ca.enabled)
+    const appointmentModelConfigured = gpArchetypesEnabled || clinicianArchetypesEnabled
 
     // Calculate pendingCount from SymptomReviewStatus
     const enabledSymptoms = await getEffectiveSymptoms(surgeryId, false)

@@ -84,6 +84,41 @@ const APPOINTMENT_ARCHETYPES = [
   },
 ]
 
+const CLINICIAN_ARCHETYPES = [
+  {
+    key: 'ANP',
+    heading: 'ANP Minor Illness',
+    intro: 'Used for minor illness presentations that can be safely managed by ANPs without GP review.',
+    placeholder: 'e.g. ANP Minor Illness Clinic',
+    descriptionPlaceholder: 'e.g. Used for common minor illnesses not requiring GP review, such as earache, sore throat, coughs, UTIs in non-complex patients.',
+    suggestedDescription: 'Used for common minor illnesses not requiring GP review, such as earache, sore throat, coughs, UTIs in non-complex patients.',
+  },
+  {
+    key: 'PHARMACIST',
+    heading: 'Clinical Pharmacist',
+    intro: 'Used for medication queries, medication reviews, and minor illness that can be managed by a pharmacist.',
+    placeholder: 'e.g. Pharmacist Minor Illness',
+    descriptionPlaceholder: 'e.g. Used for medication-related queries, medication reviews, and minor illness suitable for pharmacist management.',
+    suggestedDescription: 'Used for medication-related queries, medication reviews, and minor illness suitable for pharmacist management.',
+  },
+  {
+    key: 'FCP',
+    heading: 'First Contact Physiotherapist',
+    intro: 'Used for musculoskeletal (MSK) problems that can be assessed and managed by a physiotherapist without GP referral.',
+    placeholder: 'e.g. FCP – MSK Clinic',
+    descriptionPlaceholder: 'e.g. Used for MSK problems such as back pain, joint pain, and sports injuries that can be managed directly by a physiotherapist.',
+    suggestedDescription: 'Used for MSK problems such as back pain, joint pain, and sports injuries that can be managed directly by a physiotherapist.',
+  },
+  {
+    key: 'OTHER',
+    heading: 'Other clinician or service',
+    intro: 'Used for other clinician types or services not covered by the above categories.',
+    placeholder: 'e.g. Other clinician slot',
+    descriptionPlaceholder: 'e.g. Used for direct booking with other specialist clinicians or services.',
+    suggestedDescription: 'Used for direct booking with other specialist clinicians or services.',
+  },
+]
+
 const BOOKING_OPTIONS = [
   'Routine GP',
   'Same-day GP',
@@ -168,6 +203,12 @@ const getDefaultProfile = (): SurgeryOnboardingProfileJson => ({
     urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    clinicianArchetypes: [
+      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null },
+      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null },
+      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null },
+      { key: 'OTHER', enabled: false, localName: null, role: null, description: null },
+    ],
   },
 })
 
@@ -741,6 +782,191 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
                   </div>
                 )
               })}
+
+              {/* Other clinician appointments section */}
+              <div className="mt-8 pt-8 border-t-2 border-gray-300">
+                <h3 className="text-xl font-semibold text-nhs-dark-blue mb-4">Other clinician appointments</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Configure non-GP clinician appointment types that can be used for specific conditions (e.g., ANP for minor illness, Pharmacist for medication queries, FCP for MSK problems).
+                </p>
+
+                {CLINICIAN_ARCHETYPES.map((archetype) => {
+                  // Ensure clinicianArchetypes array exists
+                  const clinicianArchetypes = profile.appointmentModel.clinicianArchetypes || []
+                  const archetypeIndex = clinicianArchetypes.findIndex((ca: any) => ca.key === archetype.key)
+                  const config = archetypeIndex >= 0 
+                    ? clinicianArchetypes[archetypeIndex]
+                    : { key: archetype.key, enabled: false, localName: null, role: archetype.key === 'ANP' ? 'ANP' : archetype.key === 'PHARMACIST' ? 'Clinical Pharmacist' : archetype.key === 'FCP' ? 'First Contact Physiotherapist' : null, description: null }
+
+                  return (
+                    <div key={archetype.key} className="border border-gray-200 rounded-lg p-6 space-y-4 mb-4">
+                      <div>
+                        <h4 className="text-lg font-semibold text-nhs-dark-blue mb-2">{archetype.heading}</h4>
+                        <p className="text-sm text-gray-600">{archetype.intro}</p>
+                      </div>
+
+                      <div className="flex items-center">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={config.enabled || false}
+                            onChange={(e) => {
+                              const nextEnabled = e.target.checked
+                              const updatedArchetypes = [...clinicianArchetypes]
+                              
+                              if (archetypeIndex >= 0) {
+                                // Update existing
+                                updatedArchetypes[archetypeIndex] = {
+                                  ...config,
+                                  enabled: nextEnabled,
+                                  description: (!config.description || config.description.trim() === '') && nextEnabled
+                                    ? archetype.suggestedDescription
+                                    : config.description,
+                                }
+                              } else {
+                                // Add new
+                                updatedArchetypes.push({
+                                  key: archetype.key,
+                                  enabled: nextEnabled,
+                                  localName: null,
+                                  role: config.role,
+                                  description: nextEnabled ? archetype.suggestedDescription : null,
+                                })
+                              }
+
+                              updateProfile({
+                                appointmentModel: {
+                                  ...profile.appointmentModel,
+                                  clinicianArchetypes: updatedArchetypes,
+                                },
+                              })
+                            }}
+                            className="mr-2"
+                          />
+                          <span className="text-sm font-medium text-gray-700">
+                            Enable this clinician appointment type?
+                          </span>
+                        </label>
+                      </div>
+
+                      {config.enabled && (
+                        <div className="space-y-4 pl-6 border-l-2 border-nhs-blue">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Local name shown to staff
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                              This is the wording your reception team sees in the appointment book.
+                            </p>
+                            <input
+                              type="text"
+                              value={config.localName || ''}
+                              onChange={(e) => {
+                                const updatedArchetypes = [...clinicianArchetypes]
+                                if (archetypeIndex >= 0) {
+                                  updatedArchetypes[archetypeIndex] = {
+                                    ...config,
+                                    localName: e.target.value || null,
+                                  }
+                                } else {
+                                  updatedArchetypes.push({
+                                    key: archetype.key,
+                                    enabled: true,
+                                    localName: e.target.value || null,
+                                    role: config.role,
+                                    description: config.description,
+                                  })
+                                }
+                                updateProfile({
+                                  appointmentModel: {
+                                    ...profile.appointmentModel,
+                                    clinicianArchetypes: updatedArchetypes,
+                                  },
+                                })
+                              }}
+                              placeholder={archetype.placeholder}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Who usually sees these patients?
+                            </label>
+                            <input
+                              type="text"
+                              value={config.role || ''}
+                              onChange={(e) => {
+                                const updatedArchetypes = [...clinicianArchetypes]
+                                if (archetypeIndex >= 0) {
+                                  updatedArchetypes[archetypeIndex] = {
+                                    ...config,
+                                    role: e.target.value || null,
+                                  }
+                                } else {
+                                  updatedArchetypes.push({
+                                    key: archetype.key,
+                                    enabled: true,
+                                    localName: config.localName,
+                                    role: e.target.value || null,
+                                    description: config.description,
+                                  })
+                                }
+                                updateProfile({
+                                  appointmentModel: {
+                                    ...profile.appointmentModel,
+                                    clinicianArchetypes: updatedArchetypes,
+                                  },
+                                })
+                              }}
+                              placeholder={archetype.key === 'ANP' ? 'e.g. ANP, Advanced Nurse Practitioner' : archetype.key === 'PHARMACIST' ? 'e.g. Clinical Pharmacist' : archetype.key === 'FCP' ? 'e.g. First Contact Physiotherapist' : 'e.g. Other clinician'}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              When should this be used?
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Explain when this appointment type is normally used.
+                            </p>
+                            <textarea
+                              value={config.description || ''}
+                              onChange={(e) => {
+                                const updatedArchetypes = [...clinicianArchetypes]
+                                if (archetypeIndex >= 0) {
+                                  updatedArchetypes[archetypeIndex] = {
+                                    ...config,
+                                    description: e.target.value || null,
+                                  }
+                                } else {
+                                  updatedArchetypes.push({
+                                    key: archetype.key,
+                                    enabled: true,
+                                    localName: config.localName,
+                                    role: config.role,
+                                    description: e.target.value || null,
+                                  })
+                                }
+                                updateProfile({
+                                  appointmentModel: {
+                                    ...profile.appointmentModel,
+                                    clinicianArchetypes: updatedArchetypes,
+                                  },
+                                })
+                              }}
+                              placeholder={archetype.descriptionPlaceholder}
+                              rows={3}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
 

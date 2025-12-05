@@ -216,42 +216,92 @@ export default function AISetupClient({
             <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
               Appointment model for this surgery
             </h2>
-            {Object.values(appointmentModel).some((arch) => arch.enabled) ? (
-              <>
-                <p className="text-sm text-gray-600 mb-4">
-                  These are the appointment types the AI will use when rewriting instructions:
-                </p>
-                <div className="space-y-4">
-                  {Object.entries(appointmentModel).map(([key, config]) => {
-                    if (!config.enabled) return null
-                    return (
-                      <div key={key} className="border-l-4 border-nhs-blue pl-4 py-2">
-                        <div className="font-medium text-gray-900 mb-1">
-                          {APPOINTMENT_ARCHETYPE_LABELS[key as keyof AppointmentModelConfig]}
+            {(() => {
+              const gpArchetypesEnabled = Object.values({
+                routineContinuityGp: appointmentModel.routineContinuityGp,
+                routineGpPhone: appointmentModel.routineGpPhone,
+                gpTriage48h: appointmentModel.gpTriage48h,
+                urgentSameDayPhone: appointmentModel.urgentSameDayPhone,
+                urgentSameDayF2F: appointmentModel.urgentSameDayF2F,
+                otherClinicianDirect: appointmentModel.otherClinicianDirect,
+              }).some((arch) => arch.enabled)
+              const clinicianArchetypesEnabled = (appointmentModel.clinicianArchetypes || []).some((ca) => ca.enabled)
+              const hasAnyEnabled = gpArchetypesEnabled || clinicianArchetypesEnabled
+
+              if (!hasAnyEnabled) {
+                return (
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                    <p className="text-sm text-blue-700">
+                      <strong>No appointment types have been configured yet.</strong>
+                      <br />
+                      Complete Step 2.5 of the onboarding wizard to help the AI choose the right slot types for your surgery.
+                    </p>
+                  </div>
+                )
+              }
+
+              return (
+                <>
+                  <p className="text-sm text-gray-600 mb-4">
+                    These are the appointment types the AI will use when rewriting instructions:
+                  </p>
+                  <div className="space-y-4">
+                    {/* GP Appointment Archetypes */}
+                    {Object.entries({
+                      routineContinuityGp: appointmentModel.routineContinuityGp,
+                      routineGpPhone: appointmentModel.routineGpPhone,
+                      gpTriage48h: appointmentModel.gpTriage48h,
+                      urgentSameDayPhone: appointmentModel.urgentSameDayPhone,
+                      urgentSameDayF2F: appointmentModel.urgentSameDayF2F,
+                      otherClinicianDirect: appointmentModel.otherClinicianDirect,
+                    }).map(([key, config]) => {
+                      if (!config.enabled) return null
+                      return (
+                        <div key={key} className="border-l-4 border-nhs-blue pl-4 py-2">
+                          <div className="font-medium text-gray-900 mb-1">
+                            {APPOINTMENT_ARCHETYPE_LABELS[key as keyof AppointmentModelConfig]}
+                          </div>
+                          <div className="text-sm text-gray-700 space-y-1">
+                            <div>Local name: {config.localName || '(not set)'}</div>
+                            {config.clinicianRole && (
+                              <div>Who: {config.clinicianRole}</div>
+                            )}
+                            {config.description && (
+                              <div>Used for: {config.description}</div>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-700 space-y-1">
-                          <div>Local name: {config.localName || '(not set)'}</div>
-                          {config.clinicianRole && (
-                            <div>Who: {config.clinicianRole}</div>
-                          )}
-                          {config.description && (
-                            <div>Used for: {config.description}</div>
-                          )}
+                      )
+                    })}
+                    {/* Clinician Archetypes */}
+                    {(appointmentModel.clinicianArchetypes || []).map((archetype) => {
+                      if (!archetype.enabled) return null
+                      const friendlyName = archetype.key === 'ANP' ? 'ANP Minor Illness' :
+                                         archetype.key === 'PHARMACIST' ? 'Clinical Pharmacist' :
+                                         archetype.key === 'FCP' ? 'First Contact Physiotherapist' :
+                                         archetype.key === 'OTHER' ? 'Other clinician or service' :
+                                         archetype.key
+                      return (
+                        <div key={archetype.key} className="border-l-4 border-green-500 pl-4 py-2">
+                          <div className="font-medium text-gray-900 mb-1">
+                            {friendlyName}
+                          </div>
+                          <div className="text-sm text-gray-700 space-y-1">
+                            <div>Local name: {archetype.localName || '(not set)'}</div>
+                            {archetype.role && (
+                              <div>Who: {archetype.role}</div>
+                            )}
+                            {archetype.description && (
+                              <div>Used for: {archetype.description}</div>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            ) : (
-              <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                <p className="text-sm text-blue-700">
-                  <strong>No appointment types have been configured yet.</strong>
-                  <br />
-                  Complete Step 2.5 of the onboarding wizard to help the AI choose the right slot types for your surgery.
-                </p>
-              </div>
-            )}
+                      )
+                    })}
+                  </div>
+                </>
+              )
+            })()}
           </div>
 
           {/* Onboarding Status */}

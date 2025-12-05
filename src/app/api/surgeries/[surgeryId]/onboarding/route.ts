@@ -55,6 +55,12 @@ const getDefaultProfile = (): z.infer<typeof SurgeryOnboardingProfileJsonZ> => (
     urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    clinicianArchetypes: [
+      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null },
+      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null },
+      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null },
+      { key: 'OTHER', enabled: false, localName: null, role: null, description: null },
+    ],
   },
 })
 
@@ -98,6 +104,51 @@ export async function GET(
       // Ensure appointmentModel exists with defaults
       if (!profileData.appointmentModel) {
         profileData.appointmentModel = defaultProfile.appointmentModel
+      } else {
+        // Ensure clinicianArchetypes exists with defaults (backward compatibility)
+        if (!profileData.appointmentModel.clinicianArchetypes || !Array.isArray(profileData.appointmentModel.clinicianArchetypes)) {
+          profileData.appointmentModel.clinicianArchetypes = defaultProfile.appointmentModel.clinicianArchetypes
+        }
+        
+        // Migrate legacy otherClinicianDirect to clinician archetypes if applicable
+        if (profileData.appointmentModel.otherClinicianDirect?.enabled && 
+            profileData.appointmentModel.otherClinicianDirect?.localName) {
+          // Check if we should migrate to ANP or OTHER based on localName/role
+          const otherClinician = profileData.appointmentModel.otherClinicianDirect
+          const isAnp = otherClinician.localName.toLowerCase().includes('anp') || 
+                       otherClinician.localName.toLowerCase().includes('nurse practitioner') ||
+                       otherClinician.clinicianRole.toLowerCase().includes('anp') ||
+                       otherClinician.clinicianRole.toLowerCase().includes('nurse')
+          
+          // Find or create appropriate clinician archetype
+          const archetypeKey = isAnp ? 'ANP' : 'OTHER'
+          const existingArchetypeIndex = profileData.appointmentModel.clinicianArchetypes.findIndex(
+            (ca: any) => ca.key === archetypeKey
+          )
+          
+          if (existingArchetypeIndex >= 0) {
+            // Update existing archetype if it's not already configured
+            const existing = profileData.appointmentModel.clinicianArchetypes[existingArchetypeIndex]
+            if (!existing.enabled || !existing.localName) {
+              profileData.appointmentModel.clinicianArchetypes[existingArchetypeIndex] = {
+                ...existing,
+                enabled: true,
+                localName: otherClinician.localName || existing.localName,
+                role: otherClinician.clinicianRole || existing.role,
+                description: otherClinician.description || existing.description,
+              }
+            }
+          } else {
+            // Add new archetype
+            profileData.appointmentModel.clinicianArchetypes.push({
+              key: archetypeKey,
+              enabled: true,
+              localName: otherClinician.localName,
+              role: otherClinician.clinicianRole,
+              description: otherClinician.description,
+            })
+          }
+        }
       }
       
       // Validate profileJson against schema

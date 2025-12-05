@@ -207,6 +207,14 @@ export const AppointmentArchetypeConfigZ = z.object({
   description: z.string().default(''),
 });
 
+export const ClinicianArchetypeConfigZ = z.object({
+  key: z.string(),
+  enabled: z.boolean().default(false),
+  localName: z.string().optional().nullable(),
+  role: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+});
+
 export const AppointmentModelConfigZ = z.object({
   routineContinuityGp: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
   routineGpPhone: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
@@ -214,9 +222,11 @@ export const AppointmentModelConfigZ = z.object({
   urgentSameDayPhone: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
   urgentSameDayF2F: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
   otherClinicianDirect: AppointmentArchetypeConfigZ.default({ enabled: false, localName: '', clinicianRole: '', description: '' }),
+  clinicianArchetypes: z.array(ClinicianArchetypeConfigZ).default([]),
 });
 
 export type AppointmentArchetypeConfig = z.infer<typeof AppointmentArchetypeConfigZ>;
+export type ClinicianArchetypeConfig = z.infer<typeof ClinicianArchetypeConfigZ>;
 export type AppointmentModelConfig = z.infer<typeof AppointmentModelConfigZ>;
 
 // Surgery Onboarding Profile
@@ -267,6 +277,7 @@ export const SurgeryOnboardingProfileJsonZ = z.object({
     urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    clinicianArchetypes: [],
   }),
 });
 

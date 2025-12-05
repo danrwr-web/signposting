@@ -55,6 +55,7 @@ export default async function AISetupPage({ params }: AISetupPageProps) {
       urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
       urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
       otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+      clinicianArchetypes: [],
     }
 
     return (

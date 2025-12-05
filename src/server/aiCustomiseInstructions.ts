@@ -22,6 +22,14 @@ interface AppointmentArchetypeConfig {
   description: string
 }
 
+interface ClinicianArchetypeConfig {
+  key: string
+  enabled: boolean
+  localName?: string | null
+  role?: string | null
+  description?: string | null
+}
+
 interface AppointmentModelConfig {
   routineContinuityGp: AppointmentArchetypeConfig
   routineGpPhone: AppointmentArchetypeConfig
@@ -29,6 +37,7 @@ interface AppointmentModelConfig {
   urgentSameDayPhone: AppointmentArchetypeConfig
   urgentSameDayF2F: AppointmentArchetypeConfig
   otherClinicianDirect: AppointmentArchetypeConfig
+  clinicianArchetypes?: ClinicianArchetypeConfig[]
 }
 
 interface OnboardingProfileJson {
@@ -98,6 +107,7 @@ export async function customiseInstructions(
     urgentSameDayPhone: { enabled: false, localName: '', clinicianRole: '', description: '' },
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
+    clinicianArchetypes: [],
   }
 
   // Check if any archetypes are enabled
@@ -179,16 +189,40 @@ export async function customiseInstructions(
       )
     }
 
+    // Add clinician archetypes section
+    const enabledClinicianArchetypes: string[] = []
+    const clinicianArchetypes = appointmentModel.clinicianArchetypes || []
+    for (const archetype of clinicianArchetypes) {
+      if (archetype.enabled) {
+        const friendlyName = archetype.key === 'ANP' ? 'ANP Minor Illness' :
+                           archetype.key === 'PHARMACIST' ? 'Clinical Pharmacist' :
+                           archetype.key === 'FCP' ? 'First Contact Physiotherapist' :
+                           archetype.key === 'OTHER' ? 'Other clinician or service' :
+                           archetype.key
+        enabledClinicianArchetypes.push(
+          `${friendlyName} (local name: "${archetype.localName || friendlyName}"). ` +
+          `Role: ${archetype.role || 'varies'}. ` +
+          `Used for: ${archetype.description || 'as appropriate for this clinician type'}.`
+        )
+      }
+    }
+
+    let clinicianArchetypesSection = ''
+    if (enabledClinicianArchetypes.length > 0) {
+      clinicianArchetypesSection = `\n\nADDITIONAL CLINICIAN APPOINTMENTS:\n${enabledClinicianArchetypes.join('\n\n')}`
+    }
+
     appointmentModelInstruction = `APPOINTMENT TYPE MAPPING:
 This surgery has defined the following appointment types. You MUST use these local names and follow their usage rules:
 
-${enabledArchetypes.join('\n\n')}
+${enabledArchetypes.join('\n\n')}${clinicianArchetypesSection}
 
 APPOINTMENT SELECTION RULES:
 - For stable or long-standing problems (e.g., hayfever, stable constipation, long-term rashes, recurrent infections without red flags, chronic ankle pain), prefer ${appointmentModel.routineContinuityGp.enabled ? `"${appointmentModel.routineContinuityGp.localName || 'routine continuity GP'}"` : 'routine continuity GP'} where continuity is helpful.
 - For issues needing GP input within 48h but not same-day emergencies, use ${appointmentModel.gpTriage48h.enabled ? `"${appointmentModel.gpTriage48h.localName || 'GP triage (48h)'}"` : 'GP triage within 48 hours'}.
 - Use ${appointmentModel.urgentSameDayPhone.enabled ? `"${appointmentModel.urgentSameDayPhone.localName || 'urgent same-day telephone'}"` : 'urgent same-day telephone'} or ${appointmentModel.urgentSameDayF2F.enabled ? `"${appointmentModel.urgentSameDayF2F.localName || 'urgent same-day F2F'}"` : 'urgent same-day face-to-face'} ONLY for clearly urgent cases with red flags or when the original instructions explicitly require same-day care.
-- Use ${appointmentModel.otherClinicianDirect.enabled ? `"${appointmentModel.otherClinicianDirect.localName || 'specialist clinician'}"` : 'other clinician direct booking'} when the scenario obviously fits (e.g., MSK → FCP, medication queries → Pharmacist) and this archetype is enabled.
+- When a condition clearly fits an enabled clinician archetype, route to that clinician rather than a GP appointment. Examples: minor self-limiting infections without red flags (earache, sore throat, uncomplicated UTI, mild viral illness) can be booked with ANP if the ANP archetype is enabled and described as suitable for minor illness. Medicine queries can go to Pharmacist if the Pharmacist archetype is enabled. MSK issues can go to FCP if the FCP archetype is enabled.
+- Use GP urgent appointments or Duty Team only when the symptom or red flags explicitly require GP-level or senior review.
 
 IMPORTANT: If an archetype is not enabled, do not use its local name. Instead, fall back to the closest enabled archetype or use generic terminology that matches the surgery's style.`
   }
