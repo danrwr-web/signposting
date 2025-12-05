@@ -475,8 +475,20 @@ export default function ClinicalReviewPanel({
     }).length
     const explicitPending = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'PENDING').length
     const pending = unreviewed + explicitPending
-    const approved = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'APPROVED').length
-    const changesRequested = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'CHANGES_REQUIRED').length
+    
+    // Only count approved/changes-requested for ENABLED symptoms
+    const approved = Array.from(reviewStatuses.values()).filter(rs => {
+      if (rs.status !== 'APPROVED') return false
+      const key = `${rs.symptomId}-${rs.ageGroup || ''}`
+      return enabledSymptomKeys.has(key)
+    }).length
+    
+    const changesRequested = Array.from(reviewStatuses.values()).filter(rs => {
+      if (rs.status !== 'CHANGES_REQUIRED') return false
+      const key = `${rs.symptomId}-${rs.ageGroup || ''}`
+      return enabledSymptomKeys.has(key)
+    }).length
+    
     const all = symptoms.length
 
     return {
@@ -485,7 +497,7 @@ export default function ClinicalReviewPanel({
       approved,
       all
     }
-  }, [symptoms, reviewStatuses])
+  }, [symptoms, reviewStatuses, enabledSymptomKeys])
 
   // Filter and sort rows
   type Row = {
@@ -694,9 +706,14 @@ export default function ClinicalReviewPanel({
                 return (
                   <tr key={row.symptom.id}>
                     <td className="px-4 py-3">
-                      <div className="text-sm font-medium text-gray-900">{row.symptom.name}</div>
+                      <a 
+                        href={`/symptom/${row.symptom.id}?surgery=${effectiveSurgeryId}&ref=clinical-review`}
+                        className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                      >
+                        {row.symptom.name}
+                      </a>
                       {row.reviewStatus?.reviewNote && (
-                        <p className="text-xs text-red-700 mt-1 line-clamp-1">
+                        <p className="text-xs text-red-700 mt-1 whitespace-pre-wrap break-words">
                           Reviewer note: {row.reviewStatus.reviewNote}
                         </p>
                       )}

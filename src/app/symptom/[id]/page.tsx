@@ -178,9 +178,16 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
                   </p>
                 )}
                 {(needsChange || pending) && (
-                  <p className={`text-sm ${needsChange ? 'text-red-800' : 'text-yellow-800'}`}>
-                    {needsChange ? 'Marked as Needs Change' : 'Pending clinical review'}{status?.lastReviewedAt ? ` (last updated ${new Date(status.lastReviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}
-                  </p>
+                  <div>
+                    <p className={`text-sm ${needsChange ? 'text-red-800' : 'text-yellow-800'}`}>
+                      {needsChange ? 'Marked as Needs Change' : 'Pending clinical review'}{status?.lastReviewedAt ? ` (last updated ${new Date(status.lastReviewedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })})` : ''}
+                    </p>
+                    {needsChange && status?.reviewNote && (
+                      <p className="text-sm text-red-800 mt-2 whitespace-pre-wrap break-words">
+                        <span className="font-semibold">Reviewer note:</span> {status.reviewNote}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
