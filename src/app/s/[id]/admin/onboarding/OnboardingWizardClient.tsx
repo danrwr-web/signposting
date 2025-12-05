@@ -217,8 +217,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user }:
       if (escalationValue && !ESCALATION_OPTIONS.slice(0, -1).includes(escalationValue)) {
         setOtherEscalation(escalationValue)
         // Temporarily set firstEscalation to "Other…" for dropdown display
-        profileToSet.escalation.firstEscalation = 'Other…'
-        setProfile(profileToSet)
+        setProfile({
+          ...profileToSet,
+          escalation: {
+            ...profileToSet.escalation,
+            firstEscalation: 'Other…'
+          }
+        })
       }
     } catch (error) {
       console.error('Error fetching profile:', error)

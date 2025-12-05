@@ -155,7 +155,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           setFeatureFlagsLoading(false)
         })
     }
-  }, [session.type, session.surgeryId, featureFlagsLoading])
+  }, [session.type, session.surgeryId])
 
   // Load setup checklist data when tab is active
   useEffect(() => {
