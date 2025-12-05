@@ -50,12 +50,7 @@ function getUserInitials(name: string | null, email: string): string {
 }
 
 export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClientProps) {
-  // Sort users alphabetically by name
-  const sortedUsers = [...users].sort((a, b) => {
-    const nameA = (a.name || a.email).toLowerCase()
-    const nameB = (b.name || b.email).toLowerCase()
-    return nameA.localeCompare(nameB)
-  })
+  const [searchQuery, setSearchQuery] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [showMembershipModal, setShowMembershipModal] = useState(false)
@@ -343,6 +338,22 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
     }
   }
 
+  // Sort users alphabetically by name (fallback to email)
+  const sortedUsers = [...users].sort((a, b) => {
+    const nameA = (a.name || a.email).toLowerCase()
+    const nameB = (b.name || b.email).toLowerCase()
+    return nameA.localeCompare(nameB)
+  })
+
+  // Filter users by search query (name or email, case-insensitive)
+  const filteredUsers = sortedUsers.filter((user) => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    const nameMatch = user.name?.toLowerCase().includes(query) ?? false
+    const emailMatch = user.email.toLowerCase().includes(query)
+    return nameMatch || emailMatch
+  })
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -381,94 +392,154 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
               Manage user accounts and their global roles across the system.
             </p>
           </div>
-          <ul className="divide-y divide-gray-200">
-            {sortedUsers.map((user) => {
-              const surgeryCount = user.memberships.length
-              return (
-                <li 
-                  key={user.id}
-                  className="flex items-start justify-between gap-4 py-4 px-4 border-b last:border-b-0 hover:bg-gray-50"
+
+          {/* Search Box */}
+          <div className="px-4 py-4 border-b border-gray-200">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
-                      {getUserInitials(user.name, user.email)}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {user.name || 'No name set'}
-                      </p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
-                      {user.memberships.length > 0 && (
-                        <>
-                          <p className="text-xs text-gray-400 mt-2">Surgery memberships:</p>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {user.memberships.map((membership) => (
-                              <span
-                                key={membership.id}
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs ${
-                                  membership.role === 'ADMIN'
-                                    ? 'bg-green-50 text-green-700 border border-green-100'
-                                    : 'bg-blue-50 text-blue-700 border border-blue-100'
-                                }`}
-                              >
-                                {membership.surgery.name} ({membership.role})
-                              </span>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      user.globalRole === 'SUPERUSER'
-                        ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                        : 'bg-gray-50 text-gray-700 border border-gray-100'
-                    }`}>
-                      {user.globalRole === 'SUPERUSER' ? 'Superuser' : 'User'}
-                    </span>
-                    <p className="text-xs text-gray-400">
-                      {surgeryCount} {surgeryCount === 1 ? 'surgery' : 'surgeries'}
-                    </p>
-                    <div className="flex gap-1">
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
-                        onClick={() => handleEditUser(user)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-gray-200 text-orange-700 hover:bg-orange-50"
-                        onClick={() => setResettingPasswordFor(user)}
-                      >
-                        Reset
-                      </button>
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
-                        onClick={() => handleManageMemberships(user)}
-                      >
-                        Memberships
-                      </button>
-                      {user.isTestUser && (
-                        <button
-                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-100"
-                          onClick={() => handleResetTestUserUsage(user.id)}
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                placeholder="Search users…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50 sticky top-0 z-10">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Surgery Memberships
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Global Role
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
+                      {searchQuery.trim() ? 'No users match your search.' : 'No users found.'}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <tr
+                      key={user.id}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.name || 'No name set'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">
+                          {user.memberships.length === 0 ? (
+                            <span className="text-gray-400 italic">No memberships</span>
+                          ) : (
+                            <span>
+                              {user.memberships.map((membership, index) => (
+                                <span key={membership.id}>
+                                  {index > 0 && <span className="mx-2 text-gray-400">·</span>}
+                                  {membership.surgery.name} ({membership.role})
+                                </span>
+                              ))}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            user.globalRole === 'SUPERUSER'
+                              ? 'bg-purple-50 text-purple-700 border border-purple-100'
+                              : 'bg-gray-50 text-gray-700 border border-gray-100'
+                          }`}
                         >
-                          Reset Usage
-                        </button>
-                      )}
-                      <button
-                        className="px-2 py-1 text-xs rounded border border-red-100 text-red-600 hover:bg-red-50"
-                        onClick={() => handleDeleteUser(user.id, user.email)}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
+                          {user.globalRole === 'SUPERUSER' ? 'SUPERUSER' : 'USER'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex gap-2">
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            Edit
+                          </button>
+                          <span className="text-gray-300">|</span>
+                          <button
+                            className="text-orange-600 hover:text-orange-900"
+                            onClick={() => setResettingPasswordFor(user)}
+                          >
+                            Reset
+                          </button>
+                          <span className="text-gray-300">|</span>
+                          <button
+                            className="text-blue-600 hover:text-blue-900"
+                            onClick={() => handleManageMemberships(user)}
+                          >
+                            Memberships
+                          </button>
+                          {user.isTestUser && (
+                            <>
+                              <span className="text-gray-300">|</span>
+                              <button
+                                className="text-gray-600 hover:text-gray-900"
+                                onClick={() => handleResetTestUserUsage(user.id)}
+                              >
+                                Reset Usage
+                              </button>
+                            </>
+                          )}
+                          <span className="text-gray-300">|</span>
+                          <button
+                            className="text-red-600 hover:text-red-900"
+                            onClick={() => handleDeleteUser(user.id, user.email)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
 
