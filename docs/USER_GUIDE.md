@@ -172,6 +172,31 @@ The modernised user management interface provides:
 
 Practices adopting the toolkit are strongly encouraged to review all wording for local accuracy, governance, and safety.
 
+### 6.5 Onboarding a new surgery and using AI customisation
+
+1. **Enable AI surgery-specific customisation**  
+   - A superuser turns on the “AI surgery-specific customisation” feature for the surgery in the Features section.
+
+2. **Complete the onboarding questionnaire**  
+   - Go to the **Setup Checklist** tab and start the onboarding wizard.  
+   - Fill in general surgery information, escalation preferences, local services, and appointment workflow description.
+
+3. **Configure appointment types and naming (Step 2.5)**  
+   - In the onboarding wizard, define the surgery’s appointment model (e.g. routine continuity GP appointments, GP triage within 48h, urgent same-day telephone/face-to-face, and any direct-booking routes such as First Contact Physio or clinical pharmacist).  
+   - For each type, specify the local name, who usually delivers it, and when it should be used.
+
+4. **Run AI customisation**  
+   - From the **AI Setup** page, choose whether to customise all enabled symptoms or select a subset manually.  
+   - The AI rewrites instructions using the onboarding profile and appointment model, and can add helpful icons for clarity.
+
+5. **Review and approve changes**  
+   - All AI-generated changes are marked **PENDING** and appear in the **Clinical Review** section.  
+   - A clinician reviews differences, approves, or amends text. Only **APPROVED** instructions are shown to staff.
+
+6. **Use the Setup Checklist as your “home base”**  
+   - The Setup Checklist shows which steps are complete, how many symptoms still need review, and whether the surgery is “ready to go live”.  
+   - Admins can return here anytime to edit onboarding details or re-run AI customisation.
+
 ---
 
 ## 7. AI Features
@@ -213,6 +238,8 @@ This toolkit was developed at **Ide Lane Surgery** as an internal administrative
 It is **not an approved clinical triage or diagnostic system** and should not be used as such.
 
 The toolkit is for **administrative use only**. All AI-generated text must be reviewed by a clinician before inclusion in live symptom guidance.
+
+AI-generated content is never shown directly to staff. Every AI-generated instruction is saved as an override, marked as **PENDING** in the clinical review system, and must be reviewed and approved (or edited) by a clinician before it becomes active. The clinical review screen highlights what changed so reviewers can sign off safely and efficiently.
 
 Practices using or adapting this toolkit do so **at their own risk** and must ensure:
 

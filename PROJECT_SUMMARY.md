@@ -300,6 +300,11 @@ signposting-1/
 - `modelUsed`: String? (AI model or `"REVERT"`)
 - `changedAt`: DateTime
 
+#### **SurgeryOnboardingProfile**
+- One-to-one with each `Surgery`; stores onboarding answers as `profileJson` (JSON)
+- `profileJson` includes an `appointmentModel` object with archetypes such as routine continuity GP, GP triage within 48h, urgent same-day phone, urgent same-day F2F, and other clinician direct bookings. Each archetype captures `enabled`, `localName`, `clinician role`, and a one-sentence `description`
+- Tracks completion status via `completed` and `completedAt`
+
 #### **TokenUsageLog** (AI Cost Tracking)
 - `id`: String (CUID)
 - `createdAt`: DateTime
@@ -398,6 +403,12 @@ signposting-1/
 - **`POST /api/admin/clinical-review/bulk-approve`**: Bulk approve symptoms
 - **`POST /api/admin/review-status`**: Update individual symptom review status
   - Body: `{ surgeryId, symptomId, ageGroup?, newStatus, reviewNote? }`
+
+### AI Customisation
+- **`POST /api/surgeries/[surgeryId]/ai/customise-instructions`**: Uses the surgery’s onboarding profile and appointment model with Azure OpenAI to generate surgery-specific instruction overrides; writes to `SurgerySymptomOverride` and `SymptomHistory`, and marks all generated changes as `PENDING` in `SymptomReviewStatus` for clinical review before use
+
+### Admin Metrics / Setup Checklist
+- **`GET /api/admin/metrics`**: Aggregates setup checklist status (onboarding, appointment model, AI customisation presence, pending clinical review count) and suggestions/clinical review counts to power the Setup Checklist tab and admin badges
 - **`POST /api/admin/complete-review`**: Complete clinical review (remove warning banner)
 - **`POST /api/admin/request-rereview`**: Request re-review (reset to PENDING)
 
@@ -593,7 +604,9 @@ RBAC checks are performed server-side using helpers from `src/lib/rbac.ts`:
    - **Superuser**: Global admin dashboard
      - Tabs: Symptom Library, Clinical Review, Data Management, Highlights, High-Risk Buttons, Engagement, Suggestions, Features, System Management, AI Usage
    - **Surgery Admin**: Surgery-specific admin (`/s/[surgeryId]/admin`)
-     - Tabs: Symptom Library, Clinical Review, Highlights, High-Risk Buttons, Engagement, Suggestions, Features, User Management
+     - Tabs: Symptom Library, Clinical Review, Highlights, High-Risk Buttons, Engagement, Suggestions, Features, User Management, Setup Checklist (feature-flagged by `ai_surgery_customisation`)
+     - Setup Checklist shows onboarding completion, appointment model configuration, whether AI customisation has run, pending clinical review count, and an overall “ready to go live” status, with direct links to the onboarding wizard, AI setup, and clinical review
+     - Onboarding wizard includes an “Appointment Types & Naming” step (Step 2.5) where surgeries define local appointment archetypes for AI to use
 
 7. **Clinical Review** (`/s/[surgeryId]/clinical-review`):
    - Review dashboard showing all symptoms with review status

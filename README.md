@@ -28,6 +28,7 @@ The toolkit replaces the PowerApps version and includes 200+ pre-loaded symptoms
 - **Generate Explanation**: Produces patient-friendly text from clinical instructions
 - **Training Mode**: Short quiz-style scenarios for staff practice and reinforcement
 - **Controlled via Feature Flags**: Hierarchical control (Superuser → Surgery → User)
+- **AI surgery-specific customisation**: Rewrites symptom instructions using a surgery’s onboarding profile and appointment model, with all AI output routed through the clinical review workflow before it goes live to staff
 - **Secure processing**: All requests handled securely via Azure OpenAI API
 - **Usage tracking**: Visibility for superusers on AI feature usage
 
@@ -40,6 +41,7 @@ The toolkit replaces the PowerApps version and includes 200+ pre-loaded symptoms
 - **Rich Text Editor**: TipTap + ProseMirror integration with highlight preview
 - **Image icon management**: Upload and configure icons that appear on symptom cards
 - **Appointment staff teams**: Create surgery-specific staff teams, manage colour defaults, and sync with directory filters
+- **Surgery onboarding & setup checklist**: Multi-step onboarding wizard (including local appointment types and naming) plus a Setup Checklist tab that guides new practices through completing their onboarding profile, configuring the appointment model, running AI customisation, and reviewing AI-generated changes before go-live
 
 ### 🔹 UI and Accessibility
 
