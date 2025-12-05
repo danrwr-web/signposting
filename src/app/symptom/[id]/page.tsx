@@ -222,7 +222,13 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         </div>
       )}
       {refParam === 'clinical-review' && surgeryId && (
-        <ClinicalReviewActions surgeryId={surgeryId} symptomId={symptom.id} ageGroup={symptom.ageGroup} />
+        <ClinicalReviewActions 
+          surgeryId={surgeryId} 
+          symptomId={symptom.id} 
+          ageGroup={symptom.ageGroup}
+          symptomSource={symptom.source}
+          baseSymptomId={symptom.baseSymptomId || null}
+        />
       )}
       
       <InstructionView 
