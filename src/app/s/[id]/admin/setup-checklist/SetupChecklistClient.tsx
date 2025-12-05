@@ -78,7 +78,7 @@ export default function SetupChecklistClient({
         : `${pendingCount} symptom${pendingCount === 1 ? '' : 's'} require${pendingCount === 1 ? 's' : ''} clinical review`,
       status: pendingCount === 0 ? 'completed' : 'warning',
       actionLabel: pendingCount === 0 ? 'View clinical review' : 'Review now',
-      actionHref: `/s/${surgeryId}/clinical-review`,
+      actionHref: `/admin?tab=clinical-review`,
     },
   ]
 
