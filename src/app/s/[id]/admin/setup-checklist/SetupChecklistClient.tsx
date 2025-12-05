@@ -62,12 +62,12 @@ export default function SetupChecklistClient({
     },
     {
       id: 'ai-customisation',
-      title: 'AI customisation run?',
+      title: 'AI customisation (Beta)',
       description: aiCustomisationOccurred
         ? 'AI customisation has been applied to your symptoms.'
-        : 'Run AI customisation to tailor symptom instructions based on your onboarding profile.',
+        : 'Run the AI customiser to generate surgery-specific instruction wording. All outputs go through clinical review before going live.',
       status: aiCustomisationOccurred ? 'completed' : 'pending',
-      actionLabel: 'Run AI customisation',
+      actionLabel: 'Open AI Setup (Beta)',
       actionHref: `/s/${surgeryId}/admin/ai-setup`,
     },
     {

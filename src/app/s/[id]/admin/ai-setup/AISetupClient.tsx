@@ -214,12 +214,15 @@ export default function AISetupClient({
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader title="AI Surgery Customisation" />
+      <SimpleHeader title="AI Surgery Customisation (Beta)" />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h1 className="text-2xl font-bold text-nhs-dark-blue mb-2">
-            AI Surgery-Specific Customisation
+            AI Surgery-Specific Customisation (Beta)
           </h1>
+          <p className="text-sm text-gray-600 mb-2">
+            This is a beta feature. It helps rewrite instructions for your surgery, but all changes must be clinically reviewed and approved before use.
+          </p>
           <p className="text-gray-600 mb-6">
             Use AI to rewrite symptom instructions based on your surgery&apos;s
             onboarding profile. All changes require clinical review before

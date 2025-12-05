@@ -241,6 +241,18 @@ The toolkit is for **administrative use only**. All AI-generated text must be re
 
 AI-generated content is never shown directly to staff. Every AI-generated instruction is saved as an override, marked as **PENDING** in the clinical review system, and must be reviewed and approved (or edited) by a clinician before it becomes active. The clinical review screen highlights what changed so reviewers can sign off safely and efficiently.
 
+### 8.1 AI-Customised Instructions (Beta)
+
+The AI customisation tool helps adapt symptom instructions to each surgery's local setup, using the information provided during the onboarding questionnaire and appointment model. It focuses on improving clarity, aligning language with local appointment types, and applying Pharmacy First and escalation rules consistently.
+
+This is a **beta feature** and remains under active development.
+
+Importantly, the AI does **not** automatically change which clinician a patient should be booked with. It will not, for example, convert a GP/Duty Team recommendation into an ANP, FCP, or pharmacist appointment by itself. Decisions about whether a symptom is appropriate for a Minor Illness Clinician, FCP, pharmacist or Duty Team remain clinical decisions made by humans.
+
+All AI-generated instructions are saved as overrides, marked as **PENDING**, and must be reviewed and approved through the Clinical Review screen before they become visible to staff in the live signposting tool.
+
+The AI is intended to support clearer, locally relevant instructions, not to replace clinical judgement or alter routing decisions without explicit human review.
+
 Practices using or adapting this toolkit do so **at their own risk** and must ensure:
 
 - Approval by a **Clinical Safety Officer** or equivalent lead  
