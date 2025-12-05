@@ -148,6 +148,16 @@ export default function SetupChecklistClient({
                       {item.title}
                     </h3>
                     <p className="text-sm text-nhs-grey">{item.description}</p>
+                    {item.id === 'clinical-review' && pendingCount > 0 && (
+                      <div className="mt-3 text-xs text-gray-600">
+                        <p className="font-medium mb-1">Suggested review order:</p>
+                        <ol className="list-decimal list-inside space-y-1 ml-2">
+                          <li>Review high-risk symptoms first (e.g. chest pain, stroke, sepsis, very unwell children).</li>
+                          <li>Next, review symptoms where the clinician type matters locally (for example where you want Minor Illness Clinicians, FCPs or pharmacists involved).</li>
+                          <li>Then work through the remaining symptoms in your own priority order.</li>
+                        </ol>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex-shrink-0 ml-4">

@@ -253,6 +253,21 @@ All AI-generated instructions are saved as overrides, marked as **PENDING**, and
 
 The AI is intended to support clearer, locally relevant instructions, not to replace clinical judgement or alter routing decisions without explicit human review.
 
+#### How to approach your first clinical review
+
+When you first run the AI customiser and see a number of symptoms waiting for review, we recommend the following order:
+
+1. **Start with high-risk symptoms.**  
+   For example: chest pain, stroke, sepsis, very unwell children, or any symptom where delays or incorrect routing could cause harm.
+
+2. **Next, review symptoms where clinician type is important locally.**  
+   For example, symptoms where you want Minor Illness Clinicians, First Contact Physiotherapists (FCPs), clinical pharmacists or the Duty Team to be involved in a specific way.
+
+3. **Then review the remaining symptoms.**  
+   Work through the rest in your own priority order, for example by symptom group or by how frequently they are used in your surgery.
+
+This staged approach keeps the highest-risk pathways safe, aligns the tool with your local clinician roles, and then allows you to refine the rest over time.
+
 Practices using or adapting this toolkit do so **at their own risk** and must ensure:
 
 - Approval by a **Clinical Safety Officer** or equivalent lead  
