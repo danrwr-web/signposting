@@ -440,30 +440,20 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
               {
                 header: 'Surgery Memberships',
                 key: 'memberships',
-                render: (user) => {
-                  const allMembershipsString = user.memberships.length === 0
-                    ? 'No memberships'
-                    : user.memberships
-                        .map((m) => `${m.surgery.name} (${m.role})`)
-                        .join(' · ')
-                  
-                  return (
-                    <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-900" title={allMembershipsString}>
-                      {user.memberships.length === 0 ? (
-                        <span className="text-gray-400 italic">No memberships</span>
-                      ) : (
-                        <>
-                          {user.memberships.map((membership, index) => (
-                            <span key={membership.id}>
-                              {index > 0 && <span className="mx-2 text-gray-400">·</span>}
-                              {membership.surgery.name} ({membership.role})
-                            </span>
-                          ))}
-                        </>
-                      )}
-                    </span>
-                  )
-                },
+                className: 'align-top whitespace-normal',
+                render: (user) => (
+                  <div className="flex flex-col gap-0.5 text-sm text-gray-900">
+                    {user.memberships.length === 0 ? (
+                      <span className="text-gray-400 italic">No memberships</span>
+                    ) : (
+                      user.memberships.map((membership) => (
+                        <span key={membership.id}>
+                          {membership.surgery.name} ({membership.role})
+                        </span>
+                      ))
+                    )}
+                  </div>
+                ),
               },
               {
                 header: 'Actions',
