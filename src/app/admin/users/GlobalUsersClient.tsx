@@ -405,7 +405,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
 
           {/* Table */}
           <AdminTable
-            colWidths={['w-[200px]', 'w-[230px]', 'w-[330px]', 'w-[100px]', 'w-[180px]']}
+            colWidths={["180px", "220px", "260px", "90px", "160px"]}
             columns={[
               {
                 header: 'Name',
@@ -420,7 +420,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                 header: 'Email',
                 key: 'email',
                 render: (user) => (
-                  <span className="block truncate text-sm text-gray-500" title={user.email}>
+                  <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-500" title={user.email}>
                     {user.email}
                   </span>
                 ),
@@ -436,18 +436,18 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                         .join(' · ')
                   
                   return (
-                    <span className="block truncate text-sm text-gray-900 whitespace-nowrap" title={allMembershipsString}>
+                    <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-900" title={allMembershipsString}>
                       {user.memberships.length === 0 ? (
                         <span className="text-gray-400 italic">No memberships</span>
                       ) : (
-                        <span>
+                        <>
                           {user.memberships.map((membership, index) => (
                             <span key={membership.id}>
                               {index > 0 && <span className="mx-2 text-gray-400">·</span>}
                               {membership.surgery.name} ({membership.role})
                             </span>
                           ))}
-                        </span>
+                        </>
                       )}
                     </span>
                   )
@@ -471,7 +471,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
               {
                 header: 'Actions',
                 key: 'actions',
-                className: 'w-[180px] whitespace-nowrap text-right',
+                className: 'text-right whitespace-nowrap',
                 render: (user) => (
                   <div className="flex gap-2 justify-end">
                     <button

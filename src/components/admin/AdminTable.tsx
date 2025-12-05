@@ -13,7 +13,7 @@ interface AdminTableProps<T> {
   emptyMessage?: string
   rowKey: (row: T) => string
   onRowClick?: (row: T) => void
-  colWidths?: string[]
+  colWidths?: string[] // CSS width strings, e.g. ["180px", "220px", ...]
 }
 
 export default function AdminTable<T>({
@@ -25,21 +25,13 @@ export default function AdminTable<T>({
   colWidths,
 }: AdminTableProps<T>) {
   return (
-    <div className="sm:overflow-x-auto">
-      <table className={`min-w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed' : ''}`}>
+    <div className="max-sm:overflow-x-auto">
+      <table className={`w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed' : ''}`}>
         {colWidths && colWidths.length === columns.length && (
           <colgroup>
-            {colWidths.map((width, index) => {
-              // Extract width value from Tailwind class (e.g., "w-[200px]" -> "200px")
-              const widthMatch = width.match(/\[(\d+px)\]/)
-              const widthValue = widthMatch ? widthMatch[1] : null
-              return (
-                <col
-                  key={index}
-                  style={widthValue ? { width: widthValue } : undefined}
-                />
-              )
-            })}
+            {colWidths.map((width, index) => (
+              <col key={index} style={{ width }} />
+            ))}
           </colgroup>
         )}
         <thead className="bg-gray-50 sticky top-0 z-10">
