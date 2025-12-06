@@ -1,0 +1,31 @@
+---
+alwaysApply: true
+---
+documentation:
+  userFacingFeatureChanges:
+    description: "When you make a change that adds, removes, or significantly alters a user-facing feature (symptoms, AI tools, appointment directory, admin UI, clinical review), you must also update the relevant documentation files."
+    requiredActions:
+      - checkAndUpdate:
+          files:
+            - "/docs/PROJECT_SUMMARY.md"
+            - "/README.md"
+          instruction: "Review and update any affected sections to reflect the change"
+      - updateReleaseNotes:
+          file: "/docs/RELEASE_NOTES.md"
+          instruction: "Add a short bullet point under an 'Unreleased' section (create this section if it doesn't exist)"
+          format: "Brief description of the change"
+      - futureIdeas:
+          file: "/docs/ROADMAP.md"
+          instruction: "If the change is a future idea rather than implemented, add it to ROADMAP.md instead of RELEASE_NOTES.md"
+    userFacingFeatures:
+      - symptoms
+      - aiTools
+      - appointmentDirectory
+      - adminUI
+      - clinicalReview
+    examples:
+      - "Adding a new symptom filter"
+      - "Modifying the AI instruction editor UI"
+      - "Changing appointment directory functionality"
+      - "Updating admin dashboard layout"
+      - "Altering clinical review workflow"
