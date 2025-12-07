@@ -1,4 +1,9 @@
+---
 title: "Signposting Toolkit Docs"
 description: "Documentation for the Signposting Toolkit – helping admin teams in primary care"
-theme: minima
-
+theme: null
+markdown: kramdown
+kramdown:
+  toc_levels: "0"
+show_downloads: false
+---
