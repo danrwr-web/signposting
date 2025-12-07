@@ -16,3 +16,12 @@ kramdown:
   toc_levels: "0"
 
 show_downloads: false
+
+# Top navigation pages (for theme-based navigation if theme is enabled)
+header_pages:
+  - README.md
+  - PRODUCT_OVERVIEW.md
+  - ROADMAP.md
+  - RELEASE_NOTES.md
+  - wiki/Home.md
+  - wiki/Getting-Started.md
