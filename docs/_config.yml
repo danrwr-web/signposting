@@ -1,9 +1,18 @@
----
 title: "Signposting Toolkit Docs"
 description: "Documentation for the Signposting Toolkit – helping admin teams in primary care"
-theme: null
 markdown: kramdown
+theme: null
+
+# Use our own minimal layout for all pages in /docs
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "docs"
+
+# Disable any automatic table-of-contents behaviour
 kramdown:
   toc_levels: "0"
+
 show_downloads: false
----
