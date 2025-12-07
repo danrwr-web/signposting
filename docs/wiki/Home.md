@@ -3,12 +3,19 @@
 ## Navigation
 
 - [Home](Home)
+
 - [Symptom Library](Symptom-Library)
+
 - [Clinical Governance](Clinical-Governance)
+
 - [AI Features](AI-Features)
+
 - [Appointment Directory](Appointment-Directory)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
+
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
 - [Developer Guide](Developer-Guide)
 
 **Helping GP reception teams send patients to the right place — first time.**
@@ -77,18 +84,6 @@ Full multi-tenancy with role-based access control. Each surgery operates indepen
 ### Main symptom search screen
 
 ![Main symptom search and high-risk buttons](images/main_page.png)
-
----
-
-## Navigation
-
-- **[Symptom Library](Symptom-Library)** — Base symptoms, overrides, custom symptoms, and card layouts
-- **[Clinical Governance](Clinical-Governance)** — Review workflow, approval states, and safety principles
-- **[AI Features](AI-Features)** — Instruction Editor, Suggested Questions, and safety checks
-- **[Appointment Directory](Appointment-Directory)** — Appointment types, staff teams, CSV import, and filtering
-- **[High-Risk & Highlighting](High-Risk-&-Highlighting)** — High-risk buttons, highlight engine, and colour rules
-- **[Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)** — Multi-tenancy, user roles, and access rules
-- **[Developer Guide](Developer-Guide)** — Architecture, data model, and development workflow
 
 ---
 

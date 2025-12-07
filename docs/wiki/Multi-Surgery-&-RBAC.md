@@ -3,12 +3,19 @@
 ## Navigation
 
 - [Home](Home)
+
 - [Symptom Library](Symptom-Library)
+
 - [Clinical Governance](Clinical-Governance)
+
 - [AI Features](AI-Features)
+
 - [Appointment Directory](Appointment-Directory)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
+
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
 - [Developer Guide](Developer-Guide)
 
 The Signposting Toolkit supports full multi-tenancy, allowing multiple GP surgeries to operate independently on the same platform. Each surgery has complete data isolation, custom configuration, and role-based access control.

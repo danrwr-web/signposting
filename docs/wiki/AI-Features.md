@@ -3,12 +3,19 @@
 ## Navigation
 
 - [Home](Home)
+
 - [Symptom Library](Symptom-Library)
+
 - [Clinical Governance](Clinical-Governance)
+
 - [AI Features](AI-Features)
+
 - [Appointment Directory](Appointment-Directory)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
+
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
 - [Developer Guide](Developer-Guide)
 
 The Signposting Toolkit includes AI-powered tools to help improve symptom instructions and generate safe triage questions. All AI-generated content requires mandatory clinical review before publication, ensuring safety and clinical oversight.

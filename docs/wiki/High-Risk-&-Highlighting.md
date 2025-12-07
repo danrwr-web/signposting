@@ -3,12 +3,19 @@
 ## Navigation
 
 - [Home](Home)
+
 - [Symptom Library](Symptom-Library)
+
 - [Clinical Governance](Clinical-Governance)
+
 - [AI Features](AI-Features)
+
 - [Appointment Directory](Appointment-Directory)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
+
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
 - [Developer Guide](Developer-Guide)
 
 The Signposting Toolkit uses visual highlighting to help staff quickly identify high-risk symptoms and important information. Colour-coded phrases and prominent high-risk buttons ensure critical cases are noticed immediately.

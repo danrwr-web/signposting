@@ -3,12 +3,19 @@
 ## Navigation
 
 - [Home](Home)
+
 - [Symptom Library](Symptom-Library)
+
 - [Clinical Governance](Clinical-Governance)
+
 - [AI Features](AI-Features)
+
 - [Appointment Directory](Appointment-Directory)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
+
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
 - [Developer Guide](Developer-Guide)
 
 The Appointment Directory provides a simple, searchable catalogue of local services and appointment types. Designed for reception staff, it helps teams quickly find the right appointment option and understand booking rules.

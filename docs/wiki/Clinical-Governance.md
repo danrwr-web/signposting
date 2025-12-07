@@ -1,5 +1,23 @@
 # Clinical Governance
 
+## Navigation
+
+- [Home](Home)
+
+- [Symptom Library](Symptom-Library)
+
+- [Clinical Governance](Clinical-Governance)
+
+- [AI Features](AI-Features)
+
+- [Appointment Directory](Appointment-Directory)
+
+- [High-Risk & Highlighting](High-Risk-&-Highlighting)
+
+- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
+- [Developer Guide](Developer-Guide)
+
 The Signposting Toolkit includes a structured clinical governance framework to ensure all symptom instructions used by reception and care-navigation teams are safe, accurate, and up to date.  
 
 The aim is simple: **to support consistent, defensible decision-making**, while ensuring that the content used by non-clinical staff is clinically validated.
