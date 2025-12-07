@@ -20,7 +20,7 @@
 
 - [Developer Guide](Developer-Guide)
 
-The Signposting Toolkit includes AI-powered tools to help improve symptom instructions and generate safe triage questions. All AI-generated content requires mandatory clinical review before publication, ensuring safety and clinical oversight.
+The Signposting Toolkit includes AI-powered tools to help improve symptom instructions and generate safe triage questions. All  AI-generated content requires mandatory clinical review before publication, ensuring safety and clinical oversight.
 
 ---
 
