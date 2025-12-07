@@ -10,6 +10,7 @@ wiki:
       - "/docs/README.md"
       - "/docs/ROADMAP.md"
       - "/docs/RELEASE_NOTES.md"
+      - "RELEASE_NOTES.md is the authoritative source for release information"
     
     whenToUpdate:
       - "Feature additions or removals"
@@ -17,6 +18,7 @@ wiki:
       - "Workflow modifications"
       - "Permission changes"
       - "New user-facing capabilities"
+      - "When RELEASE_NOTES.md is edited (new release added or existing release updated)"
     
     updateProcess:
       steps:
@@ -27,6 +29,15 @@ wiki:
         - "Maintain NHS tone and accessibility standards"
         - "Add cross-links if new pages are created"
         - "Ensure all links and images are compatible with GitHub Pages"
+      releaseNotesSync:
+        description: "When you add or update a release in RELEASE_NOTES.md, you must also update the 'What's New' sections"
+        requiredActions:
+          - "Update the 'What's New' section in docs/README.md to reflect the latest 2-3 releases"
+          - "Update the 'What's New' section in docs/wiki/Home.md to match, using relative links (../RELEASE_NOTES.md)"
+          - "Summarise each release with version + date + 1-2 short, non-technical bullets suitable for GP practices"
+          - "Do NOT duplicate the full release notes text - only provide a brief, audience-friendly summary"
+          - "Avoid technical jargon - focus on benefits for reception teams and practices"
+          - "Include a link to the full Release Notes at the end of the summary"
     
     documentationStructure:
       location: "/docs/wiki"

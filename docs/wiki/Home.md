@@ -30,6 +30,23 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 
 ---
 
+## What's New
+
+- **v1.1 – December 2025**
+  - AI Suggested Questions panel helps staff gather information consistently
+  - New preferences system for customising card layouts and high-risk buttons
+  - Improved colour highlighting for urgent appointments and key phrases
+  - Appointment Directory now accessible from top navigation
+
+- **v1.0 – October–November 2025**
+  - First full web version with Clinical Review workflow
+  - Multi-surgery support for practices with multiple sites or PCNs
+  - AI Instruction Editor to improve clarity of symptom guidance
+
+For full details, see the [Release Notes](../RELEASE_NOTES.md).
+
+---
+
 ## Why Practices Choose It
 
 ### ✔ Clear rules
