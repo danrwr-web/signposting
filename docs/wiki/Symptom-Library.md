@@ -4,6 +4,8 @@
 
 - [Home](Home)
 
+- [Getting Started](Getting-Started)
+
 - [Symptom Library](Symptom-Library)
 
 - [Clinical Governance](Clinical-Governance)

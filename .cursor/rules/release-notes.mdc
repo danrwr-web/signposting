@@ -1,0 +1,109 @@
+---
+alwaysApply: true
+---
+releaseNotes:
+  purpose: "Help the developer maintain accurate, concise, human-curated release notes whenever user-facing features change. The rule should NOT auto-generate releases without explicit developer knowledge or approval."
+  
+  sourceOfTruth:
+    - "docs/RELEASE_NOTES.md is the authoritative source for release information"
+    - "Version numbers and dates should be verified against existing entries"
+    - "Never invent version numbers or fabricate features"
+  
+  triggers:
+    description: "The rule becomes active when:"
+    conditions:
+      - "Editing user-facing code (UI components, symptom library behaviour, AI tools, appointment directory, admin UI, signposting rules)"
+      - "Explicitly mentioning 'release notes', 'new version', 'what's new', 'changelog'"
+      - "Merging or committing changes and asking for a summary"
+      - "Completing work on a user-facing feature or improvement"
+  
+  process:
+    description: "When triggered, follow this 4-step process:"
+    steps:
+      - step: "Step 1: Identify the nature of the change"
+        actions:
+          - "Classify the change: new feature, improvement, bug fix, breaking change, or internal-only"
+          - "Determine if the change is user-facing (visible to GP practices, reception staff, or admins)"
+          - "If internal-only (refactoring, technical debt), do NOT proceed unless explicitly requested"
+      
+      - step: "Step 2: Prompt the developer"
+        questions:
+          - "'Do you want this to appear in the release notes?'"
+          - "'If yes, what version number are we working towards (or should we keep using the current upcoming version)?'"
+        note: "If the change is obviously user-facing and significant, the assistant may proceed but should still confirm version number"
+      
+      - step: "Step 3: Propose a draft snippet"
+        requirements:
+          - "Create a draft following the structure in docs/RELEASE_NOTES.md"
+          - "Use British English spelling"
+          - "Write for GP practice / PCN readers, not developers"
+          - "Avoid low-level technical detail"
+          - "Group related small changes into one bullet where sensible"
+          - "Keep bullets concise and benefit-focused"
+        example: |
+          ## v1.2 – February 2026
+          
+          - Added X so reception staff can Y
+          - Improved Z to make it easier for admins to W
+      
+      - step: "Step 4: Update release notes after confirmation"
+        actions:
+          - "Insert or update the appropriate section in docs/RELEASE_NOTES.md"
+          - "Keep the file in version-descending order (most recent at top)"
+          - "Avoid duplicating existing bullets"
+          - "Maintain consistent formatting with existing entries"
+          - "Check existing version numbers to avoid conflicts"
+  
+  structure:
+    description: "Release notes follow this pattern:"
+    format: |
+      ## vX.Y – Month YYYY
+      
+      ### ✨ New (if applicable)
+      - Short, non-technical bullet explaining the change
+      - Optional second bullet if needed
+      
+      ### 🧹 Updated (if applicable)
+      - Description of improvements or changes
+      
+      ### ❌ Removed (if applicable)
+      - Description of removed features
+    rules:
+      - "Highest (most recent) version appears at the top of the file"
+      - "Use British English throughout"
+      - "Write for GP practice / PCN readers, not developers"
+      - "Group several small related changes into one bullet where sensible"
+      - "Focus on benefits and user impact, not technical implementation"
+  
+  coordination:
+    description: "After updating docs/RELEASE_NOTES.md, coordinate with documentation rules"
+    requiredActions:
+      - "Reference the existing wiki-updates.mdc rule"
+      - "Ensure the 'What's New' section in docs/README.md is refreshed"
+      - "Ensure the 'What's New' section in docs/wiki/Home.md is refreshed"
+      - "Follow the releaseNotesSync process defined in wiki-updates.mdc"
+      - "Summarise the latest 2-3 releases with version + date + 1-2 short bullets"
+    note: "Release notes are the source of truth; 'What's New' sections are short summaries derived from them"
+  
+  safety:
+    guardrails:
+      - "MUST NOT invent version numbers without checking docs/RELEASE_NOTES.md first"
+      - "MUST NOT fabricate features that don't exist"
+      - "MUST NOT add internal-only refactorings unless explicitly requested"
+      - "MUST keep tone professional but clear for GP practices and non-technical readers"
+      - "MUST verify existing version structure before adding new versions"
+      - "MUST ask for confirmation before creating new release sections"
+  
+  examples:
+    userFacingChanges:
+      - "Adding new UI features or components"
+      - "Changing symptom library behaviour visible to users"
+      - "Adding or modifying AI tools available to admins"
+      - "Changing appointment directory functionality"
+      - "Modifying admin UI or workflows"
+      - "Adding new signposting rules or highlight colours"
+    internalOnlyChanges:
+      - "Database schema refactoring (unless it affects user-visible features)"
+      - "Code structure improvements (unless changing user experience)"
+      - "Performance optimizations (unless noticeable to end users)"
+      - "Dependency updates (unless adding new features)"

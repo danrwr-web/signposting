@@ -3,7 +3,7 @@ alwaysApply: true
 ---
 wiki:
   updates:
-    description: "Whenever a change affects a user-facing feature (symptom library, AI features, highlighting, appointment directory, admin UI, clinical review workflow, role-based access, preferences, or navigation), update the relevant documentation pages inside `/docs/wiki`."
+    description: "Whenever a change affects a user-facing feature (symptom library, AI features, highlighting, appointment directory, admin UI, clinical review workflow, role-based access, preferences, onboarding, or navigation), update the relevant documentation pages inside `/docs/wiki`."
     
     sourceOfTruth:
       - "/docs/PROJECT_SUMMARY.md"
@@ -18,6 +18,7 @@ wiki:
       - "Workflow modifications"
       - "Permission changes"
       - "New user-facing capabilities"
+      - "Onboarding feature changes or setup workflow modifications"
       - "When RELEASE_NOTES.md is edited (new release added or existing release updated)"
     
     updateProcess:
@@ -29,6 +30,19 @@ wiki:
         - "Maintain NHS tone and accessibility standards"
         - "Add cross-links if new pages are created"
         - "Ensure all links and images are compatible with GitHub Pages"
+      onboardingFeatures:
+        description: "When onboarding features or setup workflows change, update Getting-Started.md"
+        triggers:
+          - "Changes to user creation workflow"
+          - "Changes to surgery setup or configuration steps"
+          - "Changes to initial review or approval workflows"
+          - "Changes to appointment directory setup"
+          - "Changes to symptom library initial setup process"
+        requiredActions:
+          - "Update the relevant section(s) in docs/wiki/Getting-Started.md"
+          - "Ensure step-by-step instructions remain accurate"
+          - "Keep language clear and accessible for new practices"
+          - "Update navigation blocks if page structure changes"
       releaseNotesSync:
         description: "When you add or update a release in RELEASE_NOTES.md, you must also update the 'What's New' sections"
         requiredActions:
@@ -43,6 +57,7 @@ wiki:
       location: "/docs/wiki"
       pages:
         - "Home.md - Overview and navigation"
+        - "Getting-Started.md - Onboarding guide for new surgeries"
         - "Symptom-Library.md - Symptom system details"
         - "Clinical-Governance.md - Review workflow and safety"
         - "AI-Features.md - AI tools and safety checks"
@@ -51,6 +66,19 @@ wiki:
         - "Multi-Surgery-&-RBAC.md - Multi-tenancy and permissions"
         - "Developer-Guide.md - Architecture and development"
       images: "/docs/wiki/images"
+      navigationBlock:
+        description: "All wiki pages must include a standard navigation block immediately after the H1 heading"
+        requiredLinks:
+          - "Home"
+          - "Getting Started"
+          - "Symptom Library"
+          - "Clinical Governance"
+          - "AI Features"
+          - "Appointment Directory"
+          - "High-Risk & Highlighting"
+          - "Multi-Surgery & RBAC"
+          - "Developer Guide"
+        format: "Each link must be on its own line with blank lines between items"
     
     contentGuidelines:
       - "Keep documentation content conceptual and user-focused"
@@ -71,10 +99,11 @@ wiki:
     
     newFeatureWorkflow:
       - "If a new feature doesn't fit existing documentation pages, create a new page in /docs/wiki"
-      - "Add navigation link in Home.md"
+      - "Add navigation link to the standard navigation block in ALL wiki pages (Home.md, Getting-Started.md, and all others)"
       - "Follow existing documentation page structure and style"
       - "Ensure consistency with other pages"
       - "Update /docs/README.md if needed"
+      - "Navigation blocks must always include all standard links: Home, Getting Started, Symptom Library, Clinical Governance, AI Features, Appointment Directory, High-Risk & Highlighting, Multi-Surgery & RBAC, Developer Guide"
     
     reviewChecklist:
       - "Documentation content matches PROJECT_SUMMARY.md"
