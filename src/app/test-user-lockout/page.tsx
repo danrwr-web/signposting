@@ -79,7 +79,7 @@ export default function TestUserLockoutPage() {
               <p>Dr Daniel Webber-Rookes</p>
               <p>Ide Lane Surgery</p>
               <p className="text-sm font-normal mt-1">
-                Email: <a href="mailto:dan.rwr@gmail.com" className="underline">dan.rwr@gmail.com</a>
+                Email: <a href="mailto:contact@signpostingtool.co.uk" className="underline">contact@signpostingtool.co.uk</a>
               </p>
             </div>
           </div>

@@ -77,7 +77,7 @@ export default function PrivacyPage() {
           <h2 className="text-xl font-semibold text-gray-900 mt-8 mb-3">Contact</h2>
           <p className="text-base leading-relaxed text-gray-700">For any privacy or data protection queries, please contact:</p>
           <p className="text-base leading-relaxed text-gray-700">
-            Email: <a href="mailto:d.webber-rookes2@nhs.net" className="text-blue-600 hover:text-blue-700 underline">d.webber-rookes2@nhs.net</a>
+            Email: <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 hover:text-blue-700 underline">contact@signpostingtool.co.uk</a>
           </p>
         </section>
 
@@ -97,7 +97,7 @@ export default function PrivacyPage() {
         <p>
           <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
           · Contact{' '}
-          <a href="mailto:d.webber-rookes2@nhs.net" className="text-blue-600 underline">d.webber-rookes2@nhs.net</a>
+          <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 underline">contact@signpostingtool.co.uk</a>
         </p>
       </footer>
     </div>

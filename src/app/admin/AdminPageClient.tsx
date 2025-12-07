@@ -920,13 +920,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     Expected columns: Symptom, AgeGroup, BriefInstruction, Instructions, 
                     HighlightedText (optional), LinkToPage (optional), CustomID (optional).
                   </p>
-                  {(() => {
-                    console.log('Excel Upload Check - Session object:', session)
-                    console.log('Excel Upload Check - Session email:', session.email)
-                    console.log('Excel Upload Check - Expected email: dan.rwr@gmail.com')
-                    console.log('Excel Upload Check - Match:', session.email === 'dan.rwr@gmail.com')
-                    return session.email === 'dan.rwr@gmail.com'
-                  })() ? (
+                  {session.type === 'superuser' ? (
                     <div className="border-2 border-dashed border-nhs-grey rounded-lg p-6">
                       <input
                         type="file"

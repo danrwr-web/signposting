@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
     // Create users
     const superuser = await prisma.user.create({
       data: {
-        email: 'dan.rwr@gmail.com',
-        name: 'Dan Webber-Rookes',
+        email: 'superuser@example.com',
+        name: 'Super User',
         globalRole: 'SUPERUSER',
         defaultSurgeryId: ideLaneSurgery.id
       }
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const adminUser = await prisma.user.create({
       data: {
-        email: 'admin@idelane.com',
+        email: 'admin@example.com',
         name: 'Admin User',
         globalRole: 'USER',
         defaultSurgeryId: ideLaneSurgery.id
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     const standardUser = await prisma.user.create({
       data: {
-        email: 'user@idelane.com',
+        email: 'user@example.com',
         name: 'Standard User',
         globalRole: 'USER',
         defaultSurgeryId: ideLaneSurgery.id
@@ -92,9 +92,9 @@ export async function POST(request: NextRequest) {
       success: true, 
       message: 'Database seeded successfully',
       users: {
-        superuser: 'dan.rwr@gmail.com',
-        admin: 'admin@idelane.com', 
-        standard: 'user@idelane.com'
+        superuser: 'superuser@example.com',
+        admin: 'admin@example.com', 
+        standard: 'user@example.com'
       }
     })
 

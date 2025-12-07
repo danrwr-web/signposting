@@ -22,12 +22,6 @@ export async function POST() {
     const passwordUpdates = []
     
     for (const user of users) {
-      // LEGACY / DEV-ONLY: Skip specific user email (migration utility only)
-      // This route is disabled in production
-      if (user.email === 'dan.rwr@gmail.com') {
-        continue
-      }
-
       // Generate a simple password based on email
       const password = user.email.split('@')[0] + '123' // e.g., "admin123", "user123"
       

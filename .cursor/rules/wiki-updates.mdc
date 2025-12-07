@@ -1,0 +1,83 @@
+---
+alwaysApply: true
+---
+wiki:
+  updates:
+    description: "Whenever a change affects a user-facing feature (symptom library, AI features, highlighting, appointment directory, admin UI, clinical review workflow, role-based access, preferences, or navigation), update the relevant documentation pages inside `/docs/wiki`."
+    
+    sourceOfTruth:
+      - "/docs/PROJECT_SUMMARY.md"
+      - "/docs/README.md"
+      - "/docs/ROADMAP.md"
+      - "/docs/RELEASE_NOTES.md"
+    
+    whenToUpdate:
+      - "Feature additions or removals"
+      - "Significant UI changes"
+      - "Workflow modifications"
+      - "Permission changes"
+      - "New user-facing capabilities"
+    
+    updateProcess:
+      steps:
+        - "Identify which documentation page(s) in /docs/wiki are affected"
+        - "Review current documentation content"
+        - "Update to reflect new or removed features"
+        - "Ensure consistency with PROJECT_SUMMARY.md, README.md, ROADMAP.md, and RELEASE_NOTES.md"
+        - "Maintain NHS tone and accessibility standards"
+        - "Add cross-links if new pages are created"
+        - "Ensure all links and images are compatible with GitHub Pages"
+    
+    documentationStructure:
+      location: "/docs/wiki"
+      pages:
+        - "Home.md - Overview and navigation"
+        - "Symptom-Library.md - Symptom system details"
+        - "Clinical-Governance.md - Review workflow and safety"
+        - "AI-Features.md - AI tools and safety checks"
+        - "Appointment-Directory.md - Appointment types and filtering"
+        - "High-Risk-&-Highlighting.md - Visual indicators and rules"
+        - "Multi-Surgery-&-RBAC.md - Multi-tenancy and permissions"
+        - "Developer-Guide.md - Architecture and development"
+      images: "/docs/wiki/images"
+    
+    contentGuidelines:
+      - "Keep documentation content conceptual and user-focused"
+      - "Avoid code-level specifics unless helpful"
+      - "Do not duplicate README.md installation instructions"
+      - "Maintain clear, accessible NHS-style documentation"
+      - "Include placeholder sections for screenshots where needed"
+      - "Ensure cross-linking between related pages"
+      - "Use relative links compatible with GitHub Pages"
+      - "Place images in /docs/wiki/images and reference them relatively"
+    
+    whatNotToUpdate:
+      - "Do not update documentation for future/planned features (use ROADMAP.md)"
+      - "Do not duplicate release notes content (that stays in RELEASE_NOTES.md)"
+      - "Do not include technical implementation details (Developer-Guide.md handles that)"
+      - "Do not update for bug fixes that don't change user-facing behaviour"
+      - "Do NOT update GitHub Wiki pages (we no longer use GitHub Wiki)"
+    
+    newFeatureWorkflow:
+      - "If a new feature doesn't fit existing documentation pages, create a new page in /docs/wiki"
+      - "Add navigation link in Home.md"
+      - "Follow existing documentation page structure and style"
+      - "Ensure consistency with other pages"
+      - "Update /docs/README.md if needed"
+    
+    reviewChecklist:
+      - "Documentation content matches PROJECT_SUMMARY.md"
+      - "Documentation content matches README.md (for conceptual overlap)"
+      - "Documentation aligns with ROADMAP.md for future features"
+      - "Documentation aligns with RELEASE_NOTES.md for shipped features"
+      - "Cross-links are updated and use relative paths"
+      - "Tone is clear and accessible (reading age 9-12)"
+      - "NHS style guide followed"
+      - "No code-level technical details (unless Developer-Guide.md)"
+      - "All links and images work with GitHub Pages"
+      - "No references to GitHub Wiki"
+    
+    deployment:
+      - "All documentation is served via GitHub Pages from the /docs folder"
+      - "Ensure all links and images are compatible with GitHub Pages"
+      - "Maintain single source of truth - no duplicate documentation"

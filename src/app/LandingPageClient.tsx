@@ -416,10 +416,10 @@ export default function LandingPageClient() {
             <p className="text-base text-gray-700 mb-6">
               For further information or to discuss pricing and onboarding options, please contact{' '}
               <a 
-                href="mailto:d.webber-rookes2@nhs.net" 
+                href="mailto:contact@signpostingtool.co.uk" 
                 className="text-blue-600 hover:text-blue-700 font-medium underline"
               >
-                d.webber-rookes2@nhs.net
+                contact@signpostingtool.co.uk
               </a>
               .
             </p>
@@ -477,7 +477,7 @@ export default function LandingPageClient() {
             <p>
               <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
               · Contact:{' '}
-              <a href="mailto:d.webber-rookes2@nhs.net" className="text-blue-600 underline">d.webber-rookes2@nhs.net</a>
+              <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 underline">contact@signpostingtool.co.uk</a>
               {' '}·{' '}
               <span className="text-gray-400">Support development</span>
             </p>

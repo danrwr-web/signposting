@@ -1,7 +1,7 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/rbac'
+import { getSessionUser, can } from '@/lib/rbac'
 import { parseExcelFile } from '@/lib/excel-parser'
 
 export const runtime = 'nodejs'
@@ -17,10 +17,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Restrict Excel upload to specific admin user only
-    if (user.email !== 'dan.rwr@gmail.com') {
+    // Restrict Excel upload to superusers only (base symptom library management)
+    if (!can(user).isSuperuser()) {
       return NextResponse.json(
-        { error: 'Access denied. Excel upload is restricted to authorized administrators only.' },
+        { error: 'Access denied. Excel upload is restricted to superusers only.' },
         { status: 403 }
       )
     }

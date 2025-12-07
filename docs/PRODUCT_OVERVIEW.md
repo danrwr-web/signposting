@@ -55,4 +55,4 @@ Clinical Review workflow ensures every symptom is signed off before going live.
 ## 📬 To Learn More
 
 For onboarding, demos, or pricing enquiries, contact:  
-**d.webber-rookes2@nhs.net**
+**contact@signpostingtool.co.uk**

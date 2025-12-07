@@ -11,11 +11,11 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Create your user
+    // Create superuser
     const user = await prisma.user.create({
       data: {
-        email: 'dan.rwr@gmail.com',
-        name: 'Dan Webber-Rookes',
+        email: 'superuser@example.com',
+        name: 'Super User',
         globalRole: 'SUPERUSER',
         defaultSurgeryId: surgery.id
       }

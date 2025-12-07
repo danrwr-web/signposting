@@ -45,9 +45,8 @@ export async function POST(request: NextRequest) {
     // Test password validation logic
     const isValidPassword = 
       password === email || // Default demo password
-      password === 'Lant0nyn!' || // Dan's custom password
-      password === 'admin@idelane.com' || // Admin demo password
-      password === 'user@idelane.com' // User demo password
+      password === 'admin@example.com' || // Admin demo password
+      password === 'user@example.com' // User demo password
     
     return NextResponse.json({
       success: isValidPassword,
@@ -60,9 +59,8 @@ export async function POST(request: NextRequest) {
         userName: user.name,
         passwordChecks: {
           emailMatch: password === email,
-          customPassword: password === 'Lant0nyn!',
-          adminPassword: password === 'admin@idelane.com',
-          userPassword: password === 'user@idelane.com'
+          adminPassword: password === 'admin@example.com',
+          userPassword: password === 'user@example.com'
         },
         isValidPassword
       }
