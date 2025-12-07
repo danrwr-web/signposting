@@ -232,9 +232,9 @@ This ensures transparency and encourages timely review.
 
 ## Screenshots
 
-_Screenshots will be added here. To reference an image, use:_
+### Clinical Review – admin workflow
 
-`![Description](images/example.png)`
+![Clinical Review tab showing approved symptom list](images/clinical_review.png)
 
 ---
 

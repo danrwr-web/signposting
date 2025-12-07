@@ -72,13 +72,11 @@ Full multi-tenancy with role-based access control. Each surgery operates indepen
 
 ---
 
-## Product Screenshots
+## Screenshots
 
-_Placeholder for main dashboard view_
+### Main symptom search screen
 
-_Placeholder for symptom detail page_
-
-_Placeholder for appointment directory_
+![Main symptom search and high-risk buttons](images/main_page.png)
 
 ---
 

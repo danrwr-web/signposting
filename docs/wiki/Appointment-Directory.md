@@ -243,9 +243,9 @@ Potential improvements under consideration:
 
 ## Screenshots
 
-_Screenshots will be added here. To reference an image, use:_
+### Appointment Directory – reception view
 
-`![Description](images/example.png)`
+![Appointment Directory cards](images/appointment_directory.png)
 
 ---
 

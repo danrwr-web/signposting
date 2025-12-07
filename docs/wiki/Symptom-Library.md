@@ -181,9 +181,13 @@ The system tracks which symptoms are viewed, helping practices understand usage 
 
 ## Screenshots
 
-_Screenshots will be added here. To reference an image, use:_
+### Symptom Library – admin view
 
-`![Description](images/example.png)`
+![Admin dashboard – Symptom Library](images/symptom_library.png)
+
+### Symptom detail – instructions and AI Suggested Questions
+
+![Symptom instructions with AI Suggested Questions](images/symptom_instructions.png)
 
 ---
 
