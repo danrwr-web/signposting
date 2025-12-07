@@ -93,12 +93,23 @@ wiki:
       brandingHeader:
         description: "Both docs/README.md and docs/wiki/Home.md must contain a shared branding header directly under their H1 heading"
         requiredContent:
-          - "Logo image at ../public/images/signposting_logo_head.png (width 320)"
+          - "Logo image (width 320)"
           - "Tagline text: 'Helping admin teams in primary care'"
           - "Contact email: contact@signpostingtool.co.uk as a mailto link"
-        format: |
+        imagePaths:
+          - "docs/README.md: MUST use src='wiki/images/signposting_logo_head.png'"
+          - "docs/wiki/Home.md: MUST use src='images/signposting_logo_head.png'"
+          - "NEVER use ../public/images/... paths - GitHub Pages only publishes the /docs folder"
+        formatForREADME: |
           <p align="center">
-            <img src="../public/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+            <img src="wiki/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+          </p>
+          
+          <p align="center"><strong>Helping admin teams in primary care</strong><br/>
+          Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
+        formatForWikiHome: |
+          <p align="center">
+            <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
           </p>
           
           <p align="center"><strong>Helping admin teams in primary care</strong><br/>
@@ -108,9 +119,11 @@ wiki:
           - "docs/wiki/Home.md: Directly after H1, before the Navigation section"
         maintenance:
           - "When either file is edited, check that the branding block is still present"
-          - "Keep the markup and content in sync between both files (same image path, same text, same email)"
+          - "Keep the text and email in sync between both files (same tagline, same email, same alt text)"
+          - "Paths differ: docs/README.md uses 'wiki/images/...', docs/wiki/Home.md uses 'images/...'"
           - "Do not create duplicate branding blocks"
           - "The canonical implementation is the logo + tagline block described above"
+          - "Logo file location: docs/wiki/images/signposting_logo_head.png (tracked in git)"
     
     contentGuidelines:
       - "Keep documentation content conceptual and user-focused"

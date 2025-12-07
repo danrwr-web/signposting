@@ -1,7 +1,7 @@
 # Signposting Toolkit
 
 <p align="center">
-  <img src="../public/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+  <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
 </p>
 
 <p align="center"><strong>Helping admin teams in primary care</strong><br/>
