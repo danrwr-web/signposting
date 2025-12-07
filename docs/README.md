@@ -68,18 +68,6 @@ Use this site if you are:
 
 ---
 
-## Screenshots
-
-Add screenshots into:
-
-`docs/wiki/images/`
-
-Then reference them in pages using:
-
-```markdown
-![Screenshot description](images/example.png)
-```
-
 ## Contact
 
 For onboarding, demos, or questions, email:
