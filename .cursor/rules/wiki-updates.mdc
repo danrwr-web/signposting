@@ -90,6 +90,27 @@ wiki:
           - "Keep descriptions concise and user-friendly for GP practices"
           - "Maintain a single 'Documentation' section in docs/README.md (do not create duplicates)"
           - "When the set of wiki pages changes, or their purpose is significantly revised, update the 'Documentation' section in docs/README.md so it remains an accurate, high-level index into the wiki"
+      brandingHeader:
+        description: "Both docs/README.md and docs/wiki/Home.md must contain a shared branding header directly under their H1 heading"
+        requiredContent:
+          - "Logo image at ../public/images/signposting_logo_head.png (width 320)"
+          - "Tagline text: 'Helping admin teams in primary care'"
+          - "Contact email: contact@signpostingtool.co.uk as a mailto link"
+        format: |
+          <p align="center">
+            <img src="../public/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+          </p>
+          
+          <p align="center"><strong>Helping admin teams in primary care</strong><br/>
+          Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
+        placement:
+          - "docs/README.md: Directly after H1, before any other content sections"
+          - "docs/wiki/Home.md: Directly after H1, before the Navigation section"
+        maintenance:
+          - "When either file is edited, check that the branding block is still present"
+          - "Keep the markup and content in sync between both files (same image path, same text, same email)"
+          - "Do not create duplicate branding blocks"
+          - "The canonical implementation is the logo + tagline block described above"
     
     contentGuidelines:
       - "Keep documentation content conceptual and user-focused"

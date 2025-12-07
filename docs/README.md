@@ -1,5 +1,12 @@
 # Signposting Toolkit Documentation
 
+<p align="center">
+  <img src="../public/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+</p>
+
+<p align="center"><strong>Helping admin teams in primary care</strong><br/>
+Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
+
 This site contains documentation for the **Signposting Toolkit** – a web-based symptom signposting and care-navigation tool designed for GP reception and care-navigation teams.
 
 Use this site if you are:

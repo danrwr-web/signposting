@@ -1,5 +1,12 @@
 # Signposting Toolkit
 
+<p align="center">
+  <img src="../public/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+</p>
+
+<p align="center"><strong>Helping admin teams in primary care</strong><br/>
+Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
+
 ## Navigation
 
 - [Home](Home)
@@ -19,8 +26,6 @@
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
 
 - [Developer Guide](Developer-Guide)
-
-**Helping GP reception teams send patients to the right place — first time.**
 
 ---
 
