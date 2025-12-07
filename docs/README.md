@@ -68,6 +68,14 @@ Use this site if you are:
 
 ---
 
+## Screenshots
+
+### Main symptom search screen
+
+![Main symptom search and high-risk buttons](wiki/images/main_page.png)
+
+---
+
 ## Contact
 
 For onboarding, demos, or questions, email:

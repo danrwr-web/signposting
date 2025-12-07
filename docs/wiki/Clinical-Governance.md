@@ -1,242 +1,225 @@
 # Clinical Governance
 
-## Navigation
+The Signposting Toolkit includes a structured clinical governance framework to ensure all symptom instructions used by reception and care-navigation teams are safe, accurate, and up to date.  
 
-- [Home](Home)
-- [Symptom Library](Symptom-Library)
-- [Clinical Governance](Clinical-Governance)
-- [AI Features](AI-Features)
-- [Appointment Directory](Appointment-Directory)
-- [High-Risk & Highlighting](High-Risk-&-Highlighting)
-- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
-- [Developer Guide](Developer-Guide)
+The aim is simple: **to support consistent, defensible decision-making**, while ensuring that the content used by non-clinical staff is clinically validated.
 
-The Signposting Toolkit includes a robust clinical governance model that ensures all symptom guidance is clinically reviewed and approved before going live. This maintains safety, accountability, and clinical oversight.
+This governance model has been designed with NHS primary care standards in mind and can be overseen by a GP practice, a multi-site organisation, or a PCN.
 
 ---
 
-## Governance Principles
+## Why governance matters
 
-### Clinical Responsibility
-- Each surgery is responsible for its own final wording
-- Base library is centrally maintained but overrideable
-- All AI-generated content must be clinician-reviewed
-- Local customisations require local approval
+Reception and care-navigation teams handle a large volume of patient contacts every day. They must quickly decide:
 
-### Safety First
-- No symptom goes live without clinical review
-- Pending symptoms trigger warnings to all users
-- Complete audit trail of all approvals
-- Review status clearly visible to staff
+- whether something is high-risk  
 
----
+- whether a patient requires urgent assessment  
 
-## Clinical Review Workflow
+- whether symptoms can be managed by an alternative service  
 
-### States
+- which clinician or appointment type is most appropriate  
 
-Symptom guidance can exist in three states:
+The toolkit provides clarity, but **clarity must be correct**. Clinical oversight ensures that all information:
 
-1. **PENDING** — Awaiting local clinical review
-   - Symptom is visible but flagged
-   - All users see a warning banner
-   - Cannot be fully used until approved
+- aligns with local processes  
 
-2. **APPROVED** — Clinically signed off
-   - Symptom is fully available
-   - No warnings displayed
-   - Ready for staff use
+- reflects current best practice  
 
-3. **CHANGES_REQUIRED** — Flagged for updates
-   - Review identified issues
-   - Requires modification before approval
-   - Clear feedback provided
+- is safe for non-clinical staff to use  
 
-### Review Process
-
-1. **Symptom Creation or Modification**
-   - Admin creates or edits symptom
-   - System automatically sets status to PENDING
-   - Warning appears to all users
-
-2. **Clinical Review**
-   - Appointed clinician reviews the content
-   - Reviews instructions for safety and accuracy
-   - Checks alignment with local pathways
-
-3. **Approval Decision**
-   - Approve: Content goes live
-   - Request Changes: Feedback provided, returns to editing
-   - Reject: Remove or archive
-
-4. **Audit Record**
-   - Reviewer identity recorded
-   - Date and time of approval logged
-   - Changes tracked in history
+- avoids accidental propagation of outdated guidance  
 
 ---
 
-## Who Can Review
+## Governance responsibilities
 
-### Review Permissions
-- Surgery Admins can approve symptoms
-- Clinical reviewers designated by surgery
-- Superusers have full access to all surgeries
+Each organisation using the toolkit should identify the following roles:
 
-### Responsibilities
-- Ensure clinical accuracy
-- Verify alignment with local pathways
-- Check for safety concerns
-- Approve or request changes
+### **Clinical Lead (GP, ANP, or Pharmacist)**
 
----
+Responsible for:
 
-## AI Content Review
+- reviewing and approving symptom instructions  
 
-All AI-generated content enters the review workflow automatically:
+- validating high-risk flags and highlighted phrases  
 
-### AI Instruction Editor
-- AI suggestions stored as DRAFT
-- Must pass clinical review before publishing
-- Reviewer can modify before approval
+- ensuring local pathways are correctly represented  
 
-### AI Suggested Questions
-- Generated questions enter PENDING state
-- Clinical review ensures safety and appropriateness
-- Can be edited or rejected during review
+- periodic review of existing content  
 
-### Safety Checks
-- AI output never goes live automatically
-- Always requires human clinical oversight
-- Reviewer has final say on all content
+- signing off major updates and AI-generated changes  
 
----
+### **Surgery / PCN Admin Lead**
 
-## Audit Trail
+Responsible for:
 
-The system maintains a complete record of all review activities:
+- creating or editing symptoms  
 
-### Recorded Information
-- **Reviewer Identity** — Who approved the content
-- **Review Date** — When approval occurred
-- **Review Notes** — Optional comments or concerns
-- **Previous Versions** — History of changes
-- **Field Changes** — What was modified
+- drafting updates and amendments  
 
-### Benefits
-- Accountability for all approvals
-- Traceability for clinical governance
-- Support for CQC inspections
-- Quality assurance documentation
+- managing local overrides  
+
+- ensuring reception feedback is incorporated  
+
+- coordinating review cycles with the Clinical Lead  
+
+### **Reception & Care-Navigation Team**
+
+Responsible for:
+
+- using approved guidance  
+
+- highlighting unclear, outdated, or missing instructions  
+
+- reporting high-risk patterns or common points of confusion  
 
 ---
 
-## Re-Review Workflow
+## Governance workflow
 
-Symptoms can be re-reviewed at any time:
+All symptom instructions move through three clear states:
 
-### Triggers for Re-Review
-- Annual review cycle
-- Base library updates available
-- Clinical pathway changes
-- Concerns raised by staff
-- CQC or audit requirements
+### **1. Draft**
 
-### Re-Review Process
-- Admin can request re-review
-- Status returns to PENDING
-- Warning reappears until approved
-- History maintains previous approvals
+- Created by Admin or Clinical Lead  
 
----
+- Visible only to Admins and reviewers  
 
-## Pending Symptoms Warning
+- Not shown to reception teams  
 
-When symptoms are pending review, all users see a clear warning banner indicating:
+- Can include AI-generated content (before review)  
 
-- Number of pending symptoms
-- Link to review queue
-- Impact on system availability
+### **2. Submitted for Review**
 
-This ensures transparency and encourages timely review.
+- Indicates the symptom is ready for clinical validation  
 
----
+- Clinical Lead reviews the wording, safety cues, and accuracy  
 
-## Role Responsibilities
+- Can request changes or send back to Draft  
 
-### Surgery Admin
-- Create and edit symptoms
-- Submit for clinical review
-- Approve or request changes
-- Manage review queue
+### **3. Approved**
 
-### Clinical Reviewer
-- Review pending symptoms
-- Ensure clinical accuracy
-- Approve or provide feedback
-- Maintain safety standards
+- Fully validated content  
 
-### Standard Users
-- View approved symptoms
-- See pending warnings
-- Report concerns via suggestions
-- Cannot approve content
+- Visible to reception and care-navigation staff  
 
-### Superuser
-- Full access to all surgeries
-- Can approve any symptom
-- System-wide oversight
-- Manages base library updates
+- Locked from public editing unless changes are explicitly made  
+
+- Forms part of the organisation's formal governance record  
+
+Approved symptoms represent the **current, safe, clinically-endorsed guidance** for frontline signposting decisions.
 
 ---
 
-## Governance Model
+## Using AI safely
 
-### Hierarchical Structure
-- **Surgery Level** — Each surgery manages its own reviews
-- **Base Level** — Central library maintained by superusers
-- **User Level** — Individual users cannot override approvals
+The toolkit includes AI tools to improve clarity — *not* to generate clinical advice.
 
-### Data Isolation
-- Each surgery's reviews are independent
-- No cross-surgery visibility (except superusers)
-- Complete data isolation between practices
+All AI assistance:
 
----
+- rewrites staff instructions for clarity  
 
-## Best Practices
+- cannot publish directly to the live library  
 
-### Review Frequency
-- Review new symptoms within 48 hours
-- Annual review of all symptoms
-- Re-review after pathway changes
-- Review AI suggestions promptly
+- must be reviewed and approved by a Clinical Lead  
 
-### Review Checklist
-- ✅ Clinical accuracy verified
-- ✅ Local pathways reflected
-- ✅ Safety considerations addressed
-- ✅ Plain English maintained
-- ✅ Age groups appropriate
-- ✅ Instructions clear and actionable
+This ensures AI output supports readability without bypassing clinical oversight.
+
+> ⚠️ **AI content is never published automatically.  
+
+> Clinical review is mandatory.**
 
 ---
 
-## Related Pages
+## Customisation and local variation
 
-- [Symptom Library](Symptom-Library) — How symptoms are structured
-- [AI Features](AI-Features) — How AI content enters review
-- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC) — Role permissions and access
+Practices and PCNs differ in:
+
+- available clinicians  
+
+- preferred pathways  
+
+- access to local services  
+
+- configurations for children vs adults  
+
+- appointment types  
+
+- safeguarding and escalation policies  
+
+The system allows each organisation to create local overrides that:
+
+- adapt base symptoms  
+
+- add local rules  
+
+- adjust high-risk wording  
+
+- reflect local skill-mix and availability  
+
+This ensures the live symptom library always reflects **how your practice actually works**.
 
 ---
 
-## Screenshots
+## Periodic review
 
-### Clinical Review – admin workflow
+To maintain accuracy, organisations should review their symptom library at least annually, and more often when:
 
-![Clinical Review tab showing approved symptom list](images/clinical_review.png)
+- local pathways change  
+
+- workforce or skill-mix shifts  
+
+- NICE or NHS England guidance is updated  
+
+- feedback from reception indicates confusion or ambiguity  
+
+The toolkit supports this by allowing:
+
+- filtering by last review date  
+
+- tracking previously approved changes  
+
+- quickly identifying symptoms pending review  
 
 ---
 
-_Last updated: December 2025_
+## Governance in multi-surgery or PCN environments
 
+The Signposting Toolkit supports shared governance across:
+
+- federated practices  
+
+- multi-site surgeries  
+
+- PCNs with centralised triage or care navigation  
+
+Options include:
+
+- each surgery having its own Clinical Lead and Admin team  
+
+- a PCN-level governance group approving base content  
+
+- shared symptom sets with local variation  
+
+This flexibility ensures governance scales with organisational structure.
+
+---
+
+## Summary
+
+The governance model ensures that:
+
+- staff use **consistent, safe, clinically validated instructions**  
+
+- high-risk cues and escalation points are clearly highlighted  
+
+- local workflows and services are accurately reflected  
+
+- AI suggestions are always reviewed by a clinician  
+
+- organisations maintain a clear audit trail of changes  
+
+By combining robust governance with clarity for frontline teams, the Signposting Toolkit strengthens patient safety while reducing variation in signposting decisions.
+
+---
