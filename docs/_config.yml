@@ -11,10 +11,6 @@ defaults:
     values:
       layout: "docs"
 
-# Disable any automatic table-of-contents behaviour
-kramdown:
-  toc_levels: "0"
-
 show_downloads: false
 
 # Top navigation pages (for theme-based navigation if theme is enabled)
