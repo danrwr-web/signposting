@@ -19,6 +19,7 @@ wiki:
       - "Permission changes"
       - "New user-facing capabilities"
       - "Onboarding feature changes or setup workflow modifications"
+      - "When wiki pages are added, removed, or renamed"
       - "When RELEASE_NOTES.md is edited (new release added or existing release updated)"
     
     updateProcess:
@@ -55,6 +56,7 @@ wiki:
     
     documentationStructure:
       location: "/docs/wiki"
+      homepage: "docs/README.md is the main documentation homepage and includes a 'Documentation' section that serves as a high-level index into the wiki"
       pages:
         - "Home.md - Overview and navigation"
         - "Getting-Started.md - Onboarding guide for new surgeries"
@@ -79,6 +81,15 @@ wiki:
           - "Multi-Surgery & RBAC"
           - "Developer Guide"
         format: "Each link must be on its own line with blank lines between items"
+      documentationSectionSync:
+        description: "The 'Documentation' section in docs/README.md must stay in sync with the wiki structure"
+        requiredActions:
+          - "When wiki pages are added, removed, or renamed, update the 'Documentation' section in docs/README.md"
+          - "Ensure the section includes all wiki pages: Getting Started, Symptom Library, Clinical Governance, Appointment Directory, AI Features, High-Risk & Highlighting, Multi-Surgery & RBAC, Developer Guide"
+          - "Use relative links with 'wiki/' prefix (e.g., wiki/Getting-Started) for GitHub Pages compatibility"
+          - "Keep descriptions concise and user-friendly for GP practices"
+          - "Maintain a single 'Documentation' section in docs/README.md (do not create duplicates)"
+          - "When the set of wiki pages changes, or their purpose is significantly revised, update the 'Documentation' section in docs/README.md so it remains an accurate, high-level index into the wiki"
     
     contentGuidelines:
       - "Keep documentation content conceptual and user-focused"
@@ -102,7 +113,7 @@ wiki:
       - "Add navigation link to the standard navigation block in ALL wiki pages (Home.md, Getting-Started.md, and all others)"
       - "Follow existing documentation page structure and style"
       - "Ensure consistency with other pages"
-      - "Update /docs/README.md if needed"
+      - "Update the 'Documentation' section in docs/README.md to include the new page"
       - "Navigation blocks must always include all standard links: Home, Getting Started, Symptom Library, Clinical Governance, AI Features, Appointment Directory, High-Risk & Highlighting, Multi-Surgery & RBAC, Developer Guide"
     
     reviewChecklist:

@@ -29,6 +29,28 @@ For full details, see the [Release Notes](RELEASE_NOTES.md).
 
 ---
 
+## Documentation
+
+The full documentation is organised into the following sections:
+
+- [Getting Started](wiki/Getting-Started) – Step-by-step onboarding guide for new surgeries
+
+- [Symptom Library](wiki/Symptom-Library) – How symptoms, overrides, and custom symptoms work
+
+- [Clinical Governance](wiki/Clinical-Governance) – Review workflow, approval states, and safety principles
+
+- [Appointment Directory](wiki/Appointment-Directory) – Configuring appointment types, teams, and local services
+
+- [AI Features](wiki/AI-Features) – Instruction Editor and Suggested Questions (with clinical review safeguards)
+
+- [High-Risk & Highlighting](wiki/High-Risk-&-Highlighting) – Colour rules, high-risk buttons, and highlighting behaviour
+
+- [Multi-Surgery & RBAC](wiki/Multi-Surgery-&-RBAC) – Multi-site configuration and role-based access control
+
+- [Developer Guide](wiki/Developer-Guide) – Architecture, local setup, and contribution guidelines
+
+---
+
 ## Quick links
 
 - **Product overview** – what the toolkit does and who it is for  
@@ -46,42 +68,6 @@ For full details, see the [Release Notes](RELEASE_NOTES.md).
 - **Roadmap** – planned and in-progress features  
 
   → [Roadmap](ROADMAP)
-
----
-
-## Documentation by topic
-
-### Reception / admin teams & governance leads
-
-- **Symptom Library** – base symptoms, overrides, custom symptoms  
-
-  → [Symptom Library](wiki/Symptom-Library)
-
-- **Clinical Governance** – approval states, workflows, responsibilities  
-
-  → [Clinical Governance](wiki/Clinical-Governance)
-
-- **High-Risk & Highlighting** – colour rules and urgent indicators  
-
-  → [High-Risk & Highlighting](wiki/High-Risk-&-Highlighting)
-
-- **AI Features** – AI Instruction Editor and Suggested Questions  
-
-  → [AI Features](wiki/AI-Features)
-
-- **Appointment Directory** – managing local appointment types and teams  
-
-  → [Appointment Directory](wiki/Appointment-Directory)
-
-### Developers
-
-- **Developer Guide** – running the app locally, stack, file structure  
-
-  → [Developer Guide](wiki/Developer-Guide)
-
-- **Multi-Surgery & RBAC** – tenancy model and role-based permissions  
-
-  → [Multi-Surgery & RBAC](wiki/Multi-Surgery-&-RBAC)
 
 ---
 
