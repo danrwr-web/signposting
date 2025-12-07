@@ -1,5 +1,16 @@
 # Symptom Library
 
+## Navigation
+
+- [Home](Home)
+- [Symptom Library](Symptom-Library)
+- [Clinical Governance](Clinical-Governance)
+- [AI Features](AI-Features)
+- [Appointment Directory](Appointment-Directory)
+- [High-Risk & Highlighting](High-Risk-&-Highlighting)
+- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+- [Developer Guide](Developer-Guide)
+
 The Symptom Library is the core of the Signposting Toolkit. It provides a structured, searchable collection of symptoms with clinically-approved instructions for care navigation.
 
 ---
@@ -165,6 +176,14 @@ The system tracks which symptoms are viewed, helping practices understand usage 
 - [Clinical Governance](Clinical-Governance) — How symptoms are reviewed and approved
 - [High-Risk & Highlighting](High-Risk-&-Highlighting) — Highlight rules and visual indicators
 - [AI Features](AI-Features) — AI tools for improving symptom instructions
+
+---
+
+## Screenshots
+
+_Screenshots will be added here. To reference an image, use:_
+
+`![Description](images/example.png)`
 
 ---
 

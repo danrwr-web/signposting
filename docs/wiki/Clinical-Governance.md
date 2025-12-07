@@ -1,5 +1,16 @@
 # Clinical Governance
 
+## Navigation
+
+- [Home](Home)
+- [Symptom Library](Symptom-Library)
+- [Clinical Governance](Clinical-Governance)
+- [AI Features](AI-Features)
+- [Appointment Directory](Appointment-Directory)
+- [High-Risk & Highlighting](High-Risk-&-Highlighting)
+- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+- [Developer Guide](Developer-Guide)
+
 The Signposting Toolkit includes a robust clinical governance model that ensures all symptom guidance is clinically reviewed and approved before going live. This maintains safety, accountability, and clinical oversight.
 
 ---
@@ -216,6 +227,14 @@ This ensures transparency and encourages timely review.
 - [Symptom Library](Symptom-Library) — How symptoms are structured
 - [AI Features](AI-Features) — How AI content enters review
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC) — Role permissions and access
+
+---
+
+## Screenshots
+
+_Screenshots will be added here. To reference an image, use:_
+
+`![Description](images/example.png)`
 
 ---
 

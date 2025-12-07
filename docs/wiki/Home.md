@@ -1,5 +1,16 @@
 # Signposting Toolkit
 
+## Navigation
+
+- [Home](Home)
+- [Symptom Library](Symptom-Library)
+- [Clinical Governance](Clinical-Governance)
+- [AI Features](AI-Features)
+- [Appointment Directory](Appointment-Directory)
+- [High-Risk & Highlighting](High-Risk-&-Highlighting)
+- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+- [Developer Guide](Developer-Guide)
+
 **Helping GP reception teams send patients to the right place — first time.**
 
 ---

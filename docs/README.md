@@ -1,35 +1,87 @@
 # Signposting Toolkit Documentation
 
-Welcome to the Signposting Toolkit documentation. This documentation is served via GitHub Pages.
+This site contains documentation for the **Signposting Toolkit** – a web-based symptom signposting and care-navigation tool designed for GP reception and care-navigation teams.
 
-## Quick Navigation
+Use this site if you are:
 
-- **[Wiki Home](wiki/Home)** — Main documentation index
-- **[Project Summary](PROJECT_SUMMARY.md)** — Complete project overview
-- **[Product Overview](PRODUCT_OVERVIEW.md)** — Product features and benefits
-- **[Release Notes](RELEASE_NOTES.md)** — Version history
-- **[Roadmap](ROADMAP.md)** — Future development plans
+- A **practice / PCN** evaluating the toolkit
 
-## Documentation Structure
+- A **clinical lead** responsible for review and governance
 
-### User Documentation (`/wiki`)
-Comprehensive user and administrator documentation:
-- [Home](wiki/Home) — Overview and navigation
-- [Symptom Library](wiki/Symptom-Library) — Symptom system details
-- [Clinical Governance](wiki/Clinical-Governance) — Review workflow and safety
-- [AI Features](wiki/AI-Features) — AI tools and safety checks
-- [Appointment Directory](wiki/Appointment-Directory) — Appointment types and filtering
-- [High-Risk & Highlighting](wiki/High-Risk-&-Highlighting) — Visual indicators and rules
-- [Multi-Surgery & RBAC](wiki/Multi-Surgery-&-RBAC) — Multi-tenancy and permissions
-- [Developer Guide](wiki/Developer-Guide) — Architecture and development
-
-### Project Documentation
-- [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) — Complete project summary
-- [PRODUCT_OVERVIEW.md](PRODUCT_OVERVIEW.md) — Product overview
-- [RELEASE_NOTES.md](RELEASE_NOTES.md) — Release history
-- [ROADMAP.md](ROADMAP.md) — Development roadmap
+- A **developer** running or contributing to the project
 
 ---
 
-_This documentation is automatically generated from the `/docs` folder in the repository._
+## Quick links
 
+- **Product overview** – what the toolkit does and who it is for  
+
+  → [Product Overview](PRODUCT_OVERVIEW)
+
+- **Technical summary** – stack, architecture, APIs, and database  
+
+  → [Technical Summary](PROJECT_SUMMARY)
+
+- **Release notes** – changes between versions  
+
+  → [Release Notes](RELEASE_NOTES)
+
+- **Roadmap** – planned and in-progress features  
+
+  → [Roadmap](ROADMAP)
+
+---
+
+## Documentation by topic
+
+### Reception / admin teams & governance leads
+
+- **Symptom Library** – base symptoms, overrides, custom symptoms  
+
+  → [Symptom Library](wiki/Symptom-Library)
+
+- **Clinical Governance** – approval states, workflows, responsibilities  
+
+  → [Clinical Governance](wiki/Clinical-Governance)
+
+- **High-Risk & Highlighting** – colour rules and urgent indicators  
+
+  → [High-Risk & Highlighting](wiki/High-Risk-&-Highlighting)
+
+- **AI Features** – AI Instruction Editor and Suggested Questions  
+
+  → [AI Features](wiki/AI-Features)
+
+- **Appointment Directory** – managing local appointment types and teams  
+
+  → [Appointment Directory](wiki/Appointment-Directory)
+
+### Developers
+
+- **Developer Guide** – running the app locally, stack, file structure  
+
+  → [Developer Guide](wiki/Developer-Guide)
+
+- **Multi-Surgery & RBAC** – tenancy model and role-based permissions  
+
+  → [Multi-Surgery & RBAC](wiki/Multi-Surgery-&-RBAC)
+
+---
+
+## Screenshots
+
+Add screenshots into:
+
+`docs/wiki/images/`
+
+Then reference them in pages using:
+
+```markdown
+![Screenshot description](images/example.png)
+```
+
+## Contact
+
+For onboarding, demos, or questions, email:
+
+contact@signpostingtool.co.uk

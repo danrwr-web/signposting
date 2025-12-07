@@ -1,5 +1,16 @@
 # Multi-Surgery & RBAC
 
+## Navigation
+
+- [Home](Home)
+- [Symptom Library](Symptom-Library)
+- [Clinical Governance](Clinical-Governance)
+- [AI Features](AI-Features)
+- [Appointment Directory](Appointment-Directory)
+- [High-Risk & Highlighting](High-Risk-&-Highlighting)
+- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+- [Developer Guide](Developer-Guide)
+
 The Signposting Toolkit supports full multi-tenancy, allowing multiple GP surgeries to operate independently on the same platform. Each surgery has complete data isolation, custom configuration, and role-based access control.
 
 ---
@@ -261,6 +272,14 @@ A user works at multiple practices:
 - [Clinical Governance](Clinical-Governance) — How roles affect review workflow
 - [Developer Guide](Developer-Guide) — Technical RBAC implementation
 - [Symptom Library](Symptom-Library) — How permissions affect symptom access
+
+---
+
+## Screenshots
+
+_Screenshots will be added here. To reference an image, use:_
+
+`![Description](images/example.png)`
 
 ---
 

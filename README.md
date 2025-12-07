@@ -1,5 +1,7 @@
 # Signposting Toolkit
 
+📚 Documentation: https://danrwr-web.github.io/signposting/
+
 A web-based signposting and care-navigation toolkit for GP reception and care navigation teams. Built within an NHS practice, this toolkit provides structured, clinically-approved guidance to help teams route patients safely and consistently.
 
 ---
