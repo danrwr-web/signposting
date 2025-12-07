@@ -35,10 +35,7 @@ This toolkit is provided for informational purposes only and should not replace 
 
 The developers and Ide Lane Surgery accept no responsibility for any decisions made based on the information provided by this toolkit.
 
-## Donations Placeholder
-**Button Text:** Support development  
-**Tooltip:** Coming soon  
-**Status:** Disabled for now, feature flag controlled
+---
 
 ## Footer Attribution
 Developed in partnership with Ide Lane Surgery  

@@ -282,13 +282,5 @@ A user works at multiple practices:
 
 ---
 
-## Screenshots
-
-_Screenshots will be added here. To reference an image, use:_
-
-`![Description](images/example.png)`
-
----
-
 _Last updated: December 2025_
 

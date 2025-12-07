@@ -1,4 +1,6 @@
-# Developer Guide
+# 🧑‍💻 Developer Guide
+
+*A practical guide for developers working on the Signposting Toolkit.*
 
 ## Navigation
 
@@ -18,433 +20,365 @@
 
 - [Developer Guide](Developer-Guide)
 
-This guide provides an overview of the Signposting Toolkit architecture, key folders, data model, and development workflow. It's designed to help developers understand the codebase and work safely within it.
+---
+
+## 1. Overview
+
+The Signposting Toolkit is a **Next.js + Prisma + Neon Postgres + Vercel** web application designed for GP surgeries.  
+
+This guide explains:
+
+- How to run the project locally  
+
+- How the architecture fits together  
+
+- How to seed/reset the database  
+
+- How to contribute safely  
+
+- Where key logic lives  
+
+It is written for developers joining the project or returning to it after a break.
 
 ---
 
-## Architecture Overview
+## 2. Project Architecture
 
-### Technology Stack
+```text
 
-- **Next.js 15** — App Router with Server Components
-- **TypeScript** — Strict type checking throughout
-- **Prisma ORM** — Database access layer
-- **Neon Postgres** — Managed PostgreSQL database
-- **NextAuth** — Authentication (Credentials Provider + JWT)
-- **Tailwind CSS** — Styling with NHS design tokens
-- **Azure OpenAI** — AI features (server-side only)
+signposting/
 
-### Rendering Strategy
+├── docs/                     → Public GitHub Pages documentation
 
-The application uses a mix of:
-- **Server Components** — Default for data fetching and rendering
-- **Client Components** — For interactive UI (marked with `'use client'`)
-- **Server Actions** — For data mutations (preferred over API routes)
+│   └── wiki/
 
----
+├── prisma/                   → Prisma schema + migrations
 
-## Key Folders
+│   └── seed.ts               → Database seed
 
-### `/src/app`
+├── src/
 
-Next.js App Router structure:
+│   ├── app/                  → Next.js App Router (pages, routes, UI)
 
-- **`page.tsx`** — Pages and routes
-- **`layout.tsx`** — Layouts and nested layouts
-- **`route.ts`** — API route handlers
-- **`(auth)`** — Authentication-related routes
-- **`admin`** — Admin dashboard pages
-- **`api`** — API endpoints (prefer Server Actions for mutations)
-- **`s/[id]`** — Surgery-specific routes
-- **`symptom`** — Symptom detail pages
+│   ├── components/           → Reusable React components
 
-### `/src/components`
+│   ├── lib/                  → Utilities (RBAC, highlight engine, auth helpers)
 
-React components organised by feature:
+│   └── server/               → Server-side logic (actions & services)
 
-- **`admin/`** — Admin dashboard components
-- **`appointments/`** — Appointment directory components
-- **`rich-text/`** — Rich text editor components
-- **Core components** — Shared UI components (cards, buttons, modals)
+├── public/                   → Static assets
 
-### `/src/lib`
+├── .env.local                → Local environment variables (not committed)
 
-Utility libraries and shared code:
+└── package.json
 
-- **`prisma.ts`** — Prisma client instance
-- **`rbac.ts`** — Role-based access control utilities
-- **`auth.ts`** — NextAuth configuration
-- **`features.ts`** — Feature flag logic
-- **`highlighting.ts`** — Highlight engine logic
-- **`effectiveSymptoms.ts`** — Symptom resolution logic
-- **`excel-parser.ts`** — CSV/Excel parsing utilities
-
-### `/src/server`
-
-Server-only utilities (marked with `'server-only'`):
-
-- **`highlights.ts`** — Highlight rule management
-- **`effectiveSymptoms.ts`** — Effective symptom resolution
-- **`aiCustomiseInstructions.ts`** — AI instruction generation
-- **`auth.ts`** — Server-side auth utilities
-- **`updateRequiresClinicalReview.ts`** — Clinical review workflow
-
-### `/prisma`
-
-Database schema and migrations:
-
-- **`schema.prisma`** — Database schema definition
-- **`migrations/`** — Database migration files
-- **`seed.ts`** — Database seeding script
+```
 
 ---
 
-## Data Model Summary
+## 3. Requirements
 
-### Core Models
+Install:
 
-#### User & Authentication
-- **`User`** — User accounts with global roles
-- **`UserSurgery`** — Junction table for user-surgery memberships
-- **`Session`** — NextAuth session management
-- **`Account`** — NextAuth account providers
+- Node.js ≥ 18
 
-#### Surgeries
-- **`Surgery`** — GP practice/surgery entities
-- **`SurgerySymptomOverride`** — Local symptom modifications
-- **`SurgeryCustomSymptom`** — Surgery-only symptoms
+- pnpm (preferred) or npm
 
-#### Symptoms
-- **`BaseSymptom`** — Central symptom library
-- **`SymptomReviewStatus`** — Clinical review states
-- **`SymptomHistory`** — Change audit trail
+- Docker Desktop (optional, for local DB simulation)
 
-#### Appointments
-- **`AppointmentType`** — Appointment types per surgery
-- **`AppointmentStaffType`** — Staff team definitions
-
-#### Features & Configuration
-- **`Feature`** — Feature definitions
-- **`SurgeryFeatureFlag`** — Surgery-level feature toggles
-- **`UserFeatureFlag`** — User-level feature overrides
-- **`HighlightRule`** — Custom highlight rules
-- **`ImageIcon`** — Icon definitions
-
-#### Engagement
-- **`EngagementEvent`** — Usage tracking
-- **`Suggestion`** — User suggestions for improvements
+- Vercel CLI (optional, but useful)
 
 ---
 
-## Server Actions
+## 4. Environment Variables
 
-Server Actions are preferred for data mutations. They provide:
-- Type safety
-- Automatic revalidation
-- Simpler client code
-- Better error handling
+Create a file:
 
-### Where Server Actions Are Used
+**`.env.local`**
 
-- Symptom updates and overrides
-- Clinical review approvals
-- Appointment directory CRUD
-- Highlight rule management
-- Feature flag updates
-- User management
+Required variables (safe placeholders shown):
 
-### Pattern
+```env
+DATABASE_URL="postgres://user:password@host/db"
+NEXTAUTH_SECRET="development-secret"
+NEXTAUTH_URL="http://localhost:3000"
+```
+
+When running locally, Neon or Docker Postgres works fine.
+
+**Important:**
+
+- `.env.local` must never be committed — it is git-ignored by default.
+
+---
+
+## 5. Running the Application Locally
+
+Install dependencies:
+
+```bash
+pnpm install
+```
+
+Run dev server:
+
+```bash
+pnpm dev
+```
+
+Visit:
+
+**http://localhost:3000**
+
+You should see the main signposting homepage.
+
+---
+
+## 6. Database Management (Prisma)
+
+**Check database connection**
+
+```bash
+pnpm prisma migrate status
+```
+
+**Push schema changes (local only)**
+
+```bash
+pnpm prisma db push
+```
+
+**Run migrations**
+
+```bash
+pnpm prisma migrate dev
+```
+
+**Open Prisma Studio**
+
+```bash
+pnpm prisma studio
+```
+
+Use this for inspecting local data while developing.
+
+---
+
+## 7. Seeding the Database
+
+**Minimal seed (recommended for development)**
+
+```bash
+pnpm seed:minimal
+```
+
+**Full seed (production-like data)**
+
+```bash
+pnpm seed
+```
+
+**Reset database and reseed**
+
+```bash
+pnpm prisma migrate reset
+```
+
+This wipes all tables and re-runs the seed files.
+
+---
+
+## 8. API Routes and Server Actions — Where Logic Lives
+
+The app uses modern Next.js App Router patterns.
+
+| Area | Location |
+|------|----------|
+| Symptom logic | `src/server/symptoms/` |
+| Highlight engine | `src/lib/highlighting/` |
+| AI features | `src/server/ai/` |
+| Admin logic | `src/server/admin/` |
+| RBAC model | `src/lib/rbac.ts` |
+| Appointment directory | `src/server/appointments/` |
+
+---
+
+## 9. Authentication & RBAC
+
+The app uses a simple but robust RBAC model:
+
+- **superuser** → global management, base library, user management
+
+- **surgery-admin** → surgery configuration, appointment directory
+
+- **standard-user** → normal signposting usage
+
+Authentication is handled through a lightweight session-based system.
+
+**No part of the application should rely on email-based permissions.**
+
+All checks should use RBAC helpers, for example:
 
 ```typescript
-'use server'
-
-import 'server-only'
-import { prisma } from '@/lib/prisma'
-
-export async function updateSymptom(data: UpdateSymptomData) {
-  // Server-side validation
-  // RBAC checks
-  // Database update
-  // Return result
+if (!can(user).isSuperuser()) {
+  // deny access
 }
 ```
 
 ---
 
-## Key Logic Locations
+## 10. Highlighting Engine (Summary)
 
-### Symptoms
+The highlighting engine scans symptom instructions and applies formatting rules:
 
-- **Effective Symptom Resolution** — `src/server/effectiveSymptoms.ts`
-  - Merges base symptoms with overrides and customs
-  - Handles age group filtering
-  - Manages clinical review status
+- Red, orange, pink, purple, green keywords
 
-- **Symptom Display** — `src/components/SymptomCard.tsx`, `src/components/InstructionView.tsx`
-  - Card rendering
-  - Instruction display
-  - Highlight application
+- Rules defined in the admin panel
 
-### Overrides
+- Rendering handled server-side to ensure consistency
 
-- **Override Management** — `src/app/api/symptoms/route.ts` (API routes)
-- **Override Resolution** — `src/server/effectiveSymptoms.ts`
+The implementation lives in:
 
-### Highlighting
-
-- **Highlight Engine** — `src/lib/highlighting.ts`
-  - Applies built-in and custom rules
-  - HTML generation with CSS classes
-
-- **Highlight Management** — `src/server/highlights.ts`
-  - CRUD operations for highlight rules
-  - Surgery-specific rule resolution
-
-### AI Features
-
-- **AI Instruction Editor** — `src/server/aiCustomiseInstructions.ts`
-- **AI API Routes** — `src/app/api/ai/`
-- **Feature Flags** — `src/lib/features.ts`
-
-### Appointments
-
-- **Directory Display** — `src/app/s/[id]/appointments/AppointmentsPageClient.tsx`
-- **CSV Import** — `src/components/appointments/AppointmentCsvUpload.tsx`
-- **Staff Teams** — `src/lib/staffTypes.ts`
+**`src/lib/highlighting/`**
 
 ---
 
-## Working Safely
+## 11. AI Tools (Instruction Editor & Question Generator)
 
-### Database Changes
+AI features are optional, and fully reviewed by clinicians before going live.
 
-1. **Always use Prisma migrations**
-   - Never edit database directly
-   - Create migrations: `npx prisma migrate dev`
-   - Test migrations locally first
+AI endpoints and utilities live under:
 
-2. **Idempotent migrations**
-   - Migrations should be safe to run multiple times
-   - Check if columns/tables exist before creating
+**`src/server/ai/`**
 
-3. **Schema changes**
-   - Update `schema.prisma`
-   - Generate migration
-   - Update TypeScript types
+The system supports:
 
-### Clinical Review Workflow
+- rewriting instructions for clarity
 
-When modifying symptoms:
-- Always trigger clinical review status check
-- Use `updateRequiresClinicalReview` from `src/server/updateRequiresClinicalReview.ts`
-- Never bypass review workflow
+- generating suggested questions for admin staff
 
-### RBAC Checks
-
-Always check permissions:
-- Use `getSessionUser()` from `src/lib/rbac.ts`
-- Verify role before allowing actions
-- Server-side validation required (never trust client)
-
-### Feature Flags
-
-Before adding features:
-- Check feature flag system in `src/lib/features.ts`
-- Add flags at appropriate level (superuser/surgery/user)
-- Respect flag hierarchy
-
-### TypeScript
-
-- **Strict mode** — Always enabled
-- **No `any` types** — Use proper types
-- **Server-only imports** — Mark server files with `'server-only'`
-- **Client directives** — Mark client components with `'use client'`
+- future extensibility (training notes, pattern matching, etc.)
 
 ---
 
-## Development Workflow
+## 12. Local Testing Accounts
 
-### Setup
+The seed scripts automatically generate test users, including:
 
-1. Clone repository
-2. Install dependencies: `npm install`
-3. Set up environment variables (`.env.local`)
-4. Run migrations: `npm run db:push`
-5. Seed database: `npm run db:seed`
-6. Start dev server: `npm run dev`
+- one superuser
 
-### Making Changes
+- one surgery admin
 
-1. **Feature Development**
-   - Create feature branch
-   - Follow existing patterns
-   - Add tests where appropriate
-   - Update documentation if user-facing
+- several standard users
 
-2. **Database Changes**
-   - Update schema
-   - Create migration
-   - Test locally
-   - Update seed data if needed
+Passwords are output by the seed script.
 
-3. **UI Changes**
-   - Follow NHS design tokens
-   - Ensure accessibility (WCAG 2.1 AA)
-   - Test responsive design
-   - Verify keyboard navigation
-
-4. **Testing**
-   - Run: `npm test`
-   - Check linting: Ensure no errors
-   - Manual testing in browser
-   - Test different user roles
-
-### Code Style
-
-- **British English** spelling (colour, organise, centre)
-- **Plain English** comments
-- **Accessibility-first** approach
-- **Server/client separation** — Clear boundaries
-- **Type safety** — No `any` types
+**No real email addresses are used in seeds.**
 
 ---
 
-## Common Patterns
+## 13. Coding Conventions
 
-### Server Component Data Fetching
+**Linting**
 
-```typescript
-import { prisma } from '@/lib/prisma'
-import { getSessionUser } from '@/lib/rbac'
-
-export default async function Page() {
-  const user = await getSessionUser()
-  const data = await prisma.model.findMany({
-    where: { surgeryId: user.defaultSurgeryId }
-  })
-  return <ClientComponent data={data} />
-}
+```bash
+pnpm lint
 ```
 
-### Client Component Interaction
+**Formatting**
 
-```typescript
-'use client'
-
-export function ClientComponent({ data }) {
-  const handleAction = async () => {
-    const result = await serverAction(data)
-    // Handle result
-  }
-  return <button onClick={handleAction}>Action</button>
-}
+```bash
+pnpm format
 ```
 
-### RBAC Protection
+**Type checks**
 
-```typescript
-const user = await getSessionUser()
-if (!user || user.globalRole !== 'SUPERUSER') {
-  return new Response('Unauthorized', { status: 403 })
-}
+```bash
+pnpm typecheck
+```
+
+Follow the existing code style and prefer small, focused pull requests.
+
+---
+
+## 14. Deployment Workflow
+
+### Production hosting
+
+Production deployments occur via Vercel:
+
+- Deploys automatically when `main` updates
+
+- Uses environment variables configured in the Vercel dashboard
+
+- Applies Prisma migrations automatically as part of the deploy process
+
+### Documentation hosting
+
+Documentation is deployed on:
+
+**https://docs.signpostingtool.co.uk**
+
+via GitHub Pages with source folder `/docs`.
+
+### Important DNS note
+
+DNS is managed entirely via Cloudflare, not Fasthosts.
+
+**Do not suggest changing Fasthosts DNS in future instructions.**
+
+---
+
+## 15. Conventions for Contributions
+
+- Update `/docs/wiki` whenever user-facing changes occur.
+
+- Add screenshots to:
+
+  **`docs/wiki/images/`**
+
+- Keep navigation blocks up to date if pages are added or renamed.
+
+- Follow RBAC rules — never use email checks for permissions.
+
+- Never commit `.env.local` or any other secrets.
+
+---
+
+## 16. Support & Contact
+
+For onboarding, demos, or technical questions:
+
+**contact@signpostingtool.co.uk**
+
+---
+
+## 17. Appendix: Architecture Diagram (ASCII)
+
+```
+               ┌────────────────────┐
+               │      Browser       │
+               └─────────┬──────────┘
+                         │
+                Next.js App Router
+                         │
+       ┌─────────────────┴─────────────────┐
+       │                                   │
+Server Actions                    API Routes (REST-style)
+       │                                   │
+       └──────────────┬────────────────────┘
+                      │
+                 Business Logic
+                      │
+       ┌──────────────┴────────────────┬─────────────┐
+       │                               │             │
+Symptom Engine                  Highlight Engine   AI Tools
+       │                               │             │
+       └───────────────────────────────┴─────────────┘
+                      │
+                   Prisma
+                      │
+                 Neon Postgres
 ```
 
 ---
-
-## Testing
-
-### Unit Tests
-
-- Located in `src/lib/__tests__/`
-- Test utilities and pure functions
-- Use Jest
-
-### Integration Tests
-
-- Test API routes
-- Test server actions
-- Test database interactions
-
-### Manual Testing Checklist
-
-- [ ] Test with different user roles
-- [ ] Verify RBAC enforcement
-- [ ] Check clinical review workflow
-- [ ] Test multi-surgery context
-- [ ] Verify accessibility
-- [ ] Test responsive design
-
----
-
-## Deployment
-
-### Vercel
-
-- Works natively with serverless functions
-- Prisma migrations run via `postinstall` hook
-- Environment variables in Vercel dashboard
-- `DATABASE_URL` must be set
-
-### Environment Variables
-
-Required:
-- `DATABASE_URL` — PostgreSQL connection string
-- `NEXTAUTH_SECRET` — NextAuth secret
-- `NEXTAUTH_URL` — Application URL
-- `AZURE_OPENAI_ENDPOINT` — AI endpoint (if using)
-- `AZURE_OPENAI_API_KEY` — AI key (if using)
-- `AZURE_OPENAI_DEPLOYMENT_NAME` — AI deployment (if using)
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**NHS Network Blocking**
-- May need domain allowlisting
-- NCSC filtering can block domains
-- Contact IT support
-
-**Login Loop**
-- Check `NEXTAUTH_URL` matches deployed domain
-- Verify session configuration
-
-**Missing Symptoms**
-- Check clinical review status
-- Verify user has appropriate permissions
-- Check surgery context
-
-**Database Errors**
-- Verify `DATABASE_URL` is set
-- Check Prisma client generation
-- Run migrations: `npm run db:push`
-
----
-
-## Related Pages
-
-- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC) — Access control details
-- [Clinical Governance](Clinical-Governance) — Review workflow
-- [Symptom Library](Symptom-Library) — Symptom system overview
-
----
-
-## Additional Resources
-
-- [Next.js Documentation](https://nextjs.org/docs)
-- [Prisma Documentation](https://www.prisma.io/docs)
-- [NHS Service Manual](https://service-manual.nhs.uk)
-
----
-
-## Screenshots
-
-_Screenshots will be added here. To reference an image, use:_
-
-`![Description](images/example.png)`
-
----
-
-_Last updated: December 2025_
-

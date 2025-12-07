@@ -196,11 +196,7 @@ The system maintains an audit trail for:
 
 ---
 
-## 8. Screenshots (placeholders)
-
----
-
-## 9. External Dependencies
+## 8. External Dependencies
 - Azure OpenAI API  
 - Neon managed Postgres  
 - Vercel serverless platform  
@@ -209,7 +205,7 @@ The system maintains an audit trail for:
 
 ---
 
-## 10. Known Issues & Future Improvements (Short List)
+## 9. Known Issues & Future Improvements (Short List)
 - Need surgery profile module.
 - Multi-line membership badges in Users table (UX).
 - Analytics dashboard not yet surfaced for admins.

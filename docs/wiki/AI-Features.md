@@ -273,13 +273,5 @@ AI features can be enabled or disabled at multiple levels:
 
 ---
 
-## Screenshots
-
-_Screenshots will be added here. To reference an image, use:_
-
-`![Description](images/example.png)`
-
----
-
 _Last updated: December 2025_
 
