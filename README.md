@@ -1,113 +1,187 @@
 # Signposting Toolkit
 
-A modern, NHS-aligned web application that helps reception and care-navigation teams route patients safely and consistently.  
-Built with **Next.js**, **TypeScript**, **Prisma**, and **Neon Postgres**.
-
-The toolkit includes a structured symptom library, per-surgery customisation, AI tools, an appointment directory, clinical review governance, and optional central updates.
+A web-based signposting and care-navigation toolkit for GP reception and care navigation teams. Built within an NHS practice, this toolkit provides structured, clinically-approved guidance to help teams route patients safely and consistently.
 
 ---
 
-## 🚀 Features at a Glance
+## Overview
 
-- 200+ base symptoms with local overrides  
-- Age filters, high-risk quick buttons, alphabet navigation  
-- Appointment Directory with CSV import  
-- AI Instruction Editor  
-- AI Suggested Question Prompts  
-- Multi-surgery tenancy with data isolation  
-- Role-based access (Superuser / Admin / Standard)  
-- Clinical review audit trail  
-- Highlight rules (green/orange/red/pink/purple)  
-- Icons on symptom cards and instruction pages  
-- User suggestions and engagement analytics  
-- Smart preferences panel: appearance, quick-scan mode, header layout  
-- Fully responsive UI using the NHS palette  
+The Signposting Toolkit helps primary care teams send patients to the right service first time. It replaces guesswork with clarity, ensuring teams make the same safe decisions even on the busiest days.
 
-Screenshots (placeholders):
+The toolkit provides a structured symptom library, local customisation, AI-assisted clarity tools, an appointment directory, and a full governance workflow for clinical review — all delivered through a clean, modern, NHS-aligned interface.
 
 ---
 
-## 🛠️ Installation
+## Key Features
 
-### 1. Clone the repository
+- **Symptom Library** — 200+ base symptoms with local overrides and custom symptom creation
+- **High-risk Flags and Highlighting** — Automatic colour-coding highlights urgent phrases and high-risk symptoms
+- **AI Instruction Editor** — AI-powered tools to improve instruction clarity (with mandatory clinical review)
+- **AI Suggested Questions** — Generates grouped triage-style questions to help staff gather information safely
+- **Appointment Directory** — Simple, searchable catalogue of local services and appointment types
+- **Clinical Review Workflow** — Every symptom must be clinically approved before going live
+- **Multi-surgery / Tenancy Model** — Complete data isolation between practices with independent configurations
+- **Role-based Access Control** — Three-level hierarchy: Superuser / Surgery Admin / Standard user
+
+---
+
+## Screenshots
+
+_Screenshots coming soon. See [documentation](docs/wiki/Home.md) for more information._
+
+<!-- When screenshots are available, uncomment and update paths:
+![Symptom Detail](docs/wiki/images/symptom-detail.png)
+![Dashboard](docs/wiki/images/dashboard.png)
+![Appointment Directory](docs/wiki/images/appointment-directory.png)
+-->
+
+---
+
+## Documentation
+
+Comprehensive documentation is available in the repository:
+
+- **[Main Documentation](docs/wiki/Home.md)** — Complete user and administrator guide
+
+**Documentation Topics:**
+- [Symptom Library](docs/wiki/Symptom-Library.md) — Symptom system details
+- [Clinical Governance](docs/wiki/Clinical-Governance.md) — Review workflow and safety
+- [AI Features](docs/wiki/AI-Features.md) — AI tools and safety checks
+- [Appointment Directory](docs/wiki/Appointment-Directory.md) — Appointment types and filtering
+- [High-Risk & Highlighting](docs/wiki/High-Risk-&-Highlighting.md) — Visual indicators and rules
+- [Multi-Surgery & RBAC](docs/wiki/Multi-Surgery-&-RBAC.md) — Multi-tenancy and permissions
+- [Developer Guide](docs/wiki/Developer-Guide.md) — Architecture and development
+
+**Hosted Documentation:** _(to be added once GitHub Pages is enabled)_
+
+---
+
+## Installation
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- PostgreSQL database (Neon Postgres recommended)
+- Azure OpenAI account (optional, for AI features)
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/danrwr-web/signposting.git
+   cd signposting
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Configure environment variables**
+   
+   Create a `.env.local` file:
+   ```env
+   DATABASE_URL="postgresql://user:password@host:5432/db"
+   NEXTAUTH_SECRET="your-secret-here"
+   NEXTAUTH_URL="http://localhost:3000"
+   
+   AZURE_OPENAI_ENDPOINT=""
+   AZURE_OPENAI_API_KEY=""
+   AZURE_OPENAI_DEPLOYMENT_NAME=""
+   
+   NEXT_PUBLIC_APP_VERSION="v1.1"
+   ```
+
+4. **Database setup**
+   ```bash
+   npm run db:generate
+   npm run db:push
+   npm run db:seed
+   ```
+
+5. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+Visit `http://localhost:3000` to view the application.
+
+---
+
+## Testing
 
 ```bash
-git clone <repo-url>
-cd signposting-toolkit
-2. Install dependencies
-bash
-Copy code
-npm install
-3. Environment Variables
-Create a .env.local:
-
-env
-Copy code
-DATABASE_URL="postgresql://user:password@host:5432/db"
-NEXTAUTH_SECRET="your-secret"
-NEXTAUTH_URL="http://localhost:3000"
-
-AZURE_OPENAI_ENDPOINT=""
-AZURE_OPENAI_API_KEY=""
-AZURE_OPENAI_DEPLOYMENT_NAME=""
-
-NEXT_PUBLIC_APP_VERSION="v1.1"
-4. Database Setup
-bash
-Copy code
-npm run db:generate
-npm run db:push
-npm run db:seed
-5. Start Development Server
-bash
-Copy code
-npm run dev
-🧪 Testing
-bash
-Copy code
 npm test
-🔐 Authentication & RBAC
+```
+
+---
+
+## Authentication & RBAC
+
 Authentication uses NextAuth (Credentials Provider) with secure JWT sessions.
-User roles:
 
-Superuser
+**User Roles:**
+- **Superuser** — System-wide access, manages base symptom library
+- **Surgery Admin** — Manages their practice's configuration and users
+- **Standard User** — Views approved symptoms and uses the directory
 
-Surgery Admin
+All protected routes are validated server-side.
 
-Standard User
+---
 
-Protected routes validated server-side.
+## Deployment
 
-🚀 Deployment (Vercel)
-Works natively with serverless functions.
+The application is designed to work natively with Vercel serverless functions.
 
-Prisma migrations run via postinstall.
+- Prisma migrations run via `postinstall` hook
+- Ensure `DATABASE_URL` is set in Vercel environment settings
+- See [Developer Guide](docs/wiki/Developer-Guide.md) for deployment details
 
-Ensure DATABASE_URL is set in Vercel environment settings.
+---
 
-⚠️ Troubleshooting
-NHS network blocking
-If a trust firewall blocks the domain, IT may need to allowlist it.
-Errors often originate from National Cyber Security Centre (NCSC) filtering, not local firewalls.
+## Troubleshooting
 
-CORS
+**NHS Network Blocking**  
+If a trust firewall blocks the domain, IT may need to allowlist it. Errors often originate from National Cyber Security Centre (NCSC) filtering, not local firewalls.
+
+**CORS**  
 Avoid direct API calls from other domains — use server actions.
 
-Login loop
-Check NEXTAUTH_URL matches deployed domain.
+**Login Loop**  
+Check `NEXTAUTH_URL` matches deployed domain.
 
-Missing symptoms or highlights
+**Missing Symptoms or Highlights**  
 Ensure clinical review is complete; pending symptoms hide features.
 
-🤝 Contributing
-Fork the repo
+---
 
-Create a feature branch
+## Contributing
 
-Submit PR
+Contributions are welcome! Please:
 
-📄 License
-MIT.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-Developed by Dr Daniel Webber-Rookes, Ide Lane Surgery, Exeter
+---
+
+## Contact
+
+For questions, support, or enquiries about commercial licensing:
+
+**contact@signpostingtool.co.uk**
+
+---
+
+## License
+
+This project is released under the **Business Source License 1.1 (BUSL-1.1)**.
+
+This license makes the source code available for viewing and non-production use, but restricts unauthorised commercial use. For commercial licensing, please contact us at **contact@signpostingtool.co.uk**.
+
+See [LICENSE](LICENSE) for full terms. The Change Date is 2029-01-01, after which the license will convert to MIT or Apache 2.0.
+
+---
+
 © 2025 Signposting Toolkit
