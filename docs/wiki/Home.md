@@ -1,7 +1,9 @@
 # Signposting Toolkit
 
 <p align="center">
-  <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+  <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
+    <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+  </a>
 </p>
 
 <p align="center"><strong>Helping admin teams in primary care</strong><br/>
@@ -12,6 +14,8 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 - [Home](Home)
 
 - [Getting Started](Getting-Started)
+
+- [User Guide](User-Guide)
 
 - [Symptom Library](Symptom-Library)
 
@@ -26,6 +30,8 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
 
 - [Developer Guide](Developer-Guide)
+
+Admins and superusers can open the public Docs site from the top navigation and from the Documentation tab inside the Admin Dashboard (both open in a new tab).
 
 ---
 
