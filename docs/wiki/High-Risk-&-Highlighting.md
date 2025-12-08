@@ -6,6 +6,8 @@
 
 - [Getting Started](Getting-Started)
 
+- [User Guide](User-Guide)
+
 - [Symptom Library](Symptom-Library)
 
 - [Clinical Governance](Clinical-Governance)

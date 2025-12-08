@@ -60,6 +60,7 @@ wiki:
       pages:
         - "Home.md - Overview and navigation"
         - "Getting-Started.md - Onboarding guide for new surgeries"
+        - "User-Guide.md - Practical guide for reception and care-navigation staff"
         - "Symptom-Library.md - Symptom system details"
         - "Clinical-Governance.md - Review workflow and safety"
         - "AI-Features.md - AI tools and safety checks"
@@ -73,6 +74,7 @@ wiki:
         requiredLinks:
           - "Home"
           - "Getting Started"
+          - "User Guide"
           - "Symptom Library"
           - "Clinical Governance"
           - "AI Features"
@@ -85,7 +87,7 @@ wiki:
         description: "The 'Documentation' section in docs/README.md must stay in sync with the wiki structure"
         requiredActions:
           - "When wiki pages are added, removed, or renamed, update the 'Documentation' section in docs/README.md"
-          - "Ensure the section includes all wiki pages: Getting Started, Symptom Library, Clinical Governance, Appointment Directory, AI Features, High-Risk & Highlighting, Multi-Surgery & RBAC, Developer Guide"
+          - "Ensure the section includes all wiki pages: Getting Started, User Guide, Symptom Library, Clinical Governance, Appointment Directory, AI Features, High-Risk & Highlighting, Multi-Surgery & RBAC, Developer Guide"
           - "Use relative links with 'wiki/' prefix (e.g., wiki/Getting-Started) for GitHub Pages compatibility"
           - "Keep descriptions concise and user-friendly for GP practices"
           - "Maintain a single 'Documentation' section in docs/README.md (do not create duplicates)"
@@ -96,6 +98,7 @@ wiki:
           - "Logo image (width 320)"
           - "Tagline text: 'Helping admin teams in primary care'"
           - "Contact email: contact@signpostingtool.co.uk as a mailto link"
+          - "Logo wrapped in a link to https://signpostingtool.co.uk (opens in a new tab with rel=\"noreferrer noopener\")"
         imagePaths:
           - "docs/README.md: MUST use src='wiki/images/signposting_logo_head.png'"
           - "docs/wiki/Home.md: MUST use src='images/signposting_logo_head.png'"
@@ -119,11 +122,18 @@ wiki:
           - "docs/wiki/Home.md: Directly after H1, before the Navigation section"
         maintenance:
           - "When either file is edited, check that the branding block is still present"
+          - "Ensure the logo link points to https://signpostingtool.co.uk and opens in a new tab with rel=\"noreferrer noopener\""
           - "Keep the text and email in sync between both files (same tagline, same email, same alt text)"
           - "Paths differ: docs/README.md uses 'wiki/images/...', docs/wiki/Home.md uses 'images/...'"
           - "Do not create duplicate branding blocks"
           - "The canonical implementation is the logo + tagline block described above"
           - "Logo file location: docs/wiki/images/signposting_logo_head.png (tracked in git)"
+      documentationLinks:
+        description: "Keep in-app documentation links aligned with the public docs site."
+        requiredActions:
+          - "Update the top navigation Docs/Documentation link whenever the documentation URL or access pattern changes (admins and superusers only)."
+          - "Update the Admin Dashboard Documentation tab to point to the same URL and remain admin/superuser only."
+          - "Refresh the relevant documentation pages to describe any new locations for documentation links."
     
     contentGuidelines:
       - "Keep documentation content conceptual and user-focused"

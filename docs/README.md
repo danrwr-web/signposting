@@ -1,7 +1,9 @@
 # Signposting Toolkit Documentation
 
 <p align="center">
-  <img src="wiki/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+  <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
+    <img src="wiki/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+  </a>
 </p>
 
 <p align="center"><strong>Helping admin teams in primary care</strong><br/>
@@ -41,6 +43,8 @@ For full details, see the [Release Notes](RELEASE_NOTES.md).
 The full documentation is organised into the following sections:
 
 - [Getting Started](wiki/Getting-Started) – Step-by-step onboarding guide for new surgeries
+
+- [User Guide](wiki/User-Guide) – Practical guide for reception and care-navigation staff using the toolkit
 
 - [Symptom Library](wiki/Symptom-Library) – How symptoms, overrides, and custom symptoms work
 

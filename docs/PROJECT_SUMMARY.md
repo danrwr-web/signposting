@@ -87,6 +87,10 @@ Each user may belong to multiple surgeries with differing roles.
 - Each surgery has its own overrides, symptoms, appointment directory, users, and setup status.
 - Superusers can switch between surgeries.
 
+### 🔹 Navigation & Documentation
+- Admins and superusers can open the public documentation from the top navigation (opens in a new tab).
+- The Admin Dashboard includes a Documentation tab for the same site so admins can get guidance without leaving their workflow.
+
 ---
 
 ## 3. Technical Architecture
