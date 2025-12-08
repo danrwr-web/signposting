@@ -26,6 +26,7 @@ export default function AdminDashboardClient({
   isSuperuser 
 }: AdminDashboardClientProps) {
   const [activeTab, setActiveTab] = useState('overview')
+  const canViewDocs = isSuperuser || user.memberships.some(m => m.role === 'ADMIN')
 
   // Prefer a surgery the admin can manage; fall back to default
   const adminSurgeryId = !isSuperuser
@@ -97,6 +98,16 @@ export default function AdminDashboardClient({
                   {tab.label}
                 </button>
               ))}
+              {canViewDocs && (
+                <a
+                  href="https://docs.signpostingtool.co.uk/"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                >
+                  Documentation
+                </a>
+              )}
             </nav>
           </div>
 
