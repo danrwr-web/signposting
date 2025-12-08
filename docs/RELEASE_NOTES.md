@@ -28,6 +28,7 @@ _Changes in development or planned for the next release._
 - Admin dashboard reorganised.
 - Improved age filters and high-risk filters.
 - Revised user roles display.
+- Added clear links from the main app to the documentation site so admins and clinical leads can quickly access guidance (Docs link in the top bar and Documentation tab in the Admin Dashboard).
 
 ### ❌ Removed
 - Old AI Training Mode / quiz module.

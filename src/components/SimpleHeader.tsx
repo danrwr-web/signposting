@@ -1,6 +1,7 @@
 "use client"
 
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
 import LogoSizeControl from './LogoSizeControl'
@@ -21,6 +22,10 @@ export default function SimpleHeader({
   currentSurgeryId,
   directoryLinkOverride
 }: SimpleHeaderProps) {
+  const { data: session } = useSession()
+  const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
+  const isAdmin = session?.user && (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
+  const canSeeDocsLink = Boolean(isSuperuser || isAdmin)
   const appointmentLinkHref =
     directoryLinkOverride?.href ??
     (currentSurgeryId ? `/s/${currentSurgeryId}/appointments` : '/')
@@ -70,14 +75,17 @@ export default function SimpleHeader({
               Admin
             </Link>
             
-            {/* Help Link */}
-            <Link 
-              href="/help" 
-              prefetch={false}
-              className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors underline-offset-2 hover:underline"
-            >
-              User Guide
-            </Link>
+            {/* Documentation Link for admins and superusers */}
+            {canSeeDocsLink && (
+              <a
+                href="https://docs.signpostingtool.co.uk/"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors underline-offset-2 hover:underline"
+              >
+                Docs
+              </a>
+            )}
           </div>
         </div>
       </div>
