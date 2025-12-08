@@ -105,14 +105,18 @@ wiki:
           - "NEVER use ../public/images/... paths - GitHub Pages only publishes the /docs folder"
         formatForREADME: |
           <p align="center">
-            <img src="wiki/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+            <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
+              <img src="wiki/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+            </a>
           </p>
           
           <p align="center"><strong>Helping admin teams in primary care</strong><br/>
           Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
         formatForWikiHome: |
           <p align="center">
-            <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+            <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
+              <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
+            </a>
           </p>
           
           <p align="center"><strong>Helping admin teams in primary care</strong><br/>
