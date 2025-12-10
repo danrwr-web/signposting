@@ -102,8 +102,8 @@ export default async function middleware(req: NextRequest) {
   const isAppHost = hostname === APP_HOST
 
   // Production host routing:
-  // - Marketing hosts should always serve the landing page without auth redirects.
-  if (isMarketingHost && pathname === '/') {
+  // - Marketing hosts should always serve the landing page and demo request page without auth redirects.
+  if (isMarketingHost && (pathname === '/' || pathname === '/demo-request')) {
     return NextResponse.next()
   }
 

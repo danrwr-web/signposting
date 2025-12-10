@@ -63,6 +63,12 @@ export default function LandingPageClient() {
                 Docs
               </a>
               <Link
+                href="/demo-request"
+                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                Request a Demo
+              </Link>
+              <Link
                 href={appEntryUrl}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
@@ -104,6 +110,12 @@ export default function LandingPageClient() {
                 className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
               >
                 Launch Toolkit
+              </Link>
+              <Link
+                href="/demo-request"
+                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
+              >
+                Request a demo
               </Link>
               <a
                 href="#demo-section"
@@ -211,7 +223,6 @@ export default function LandingPageClient() {
             </p>
           </div>
           
-          {/* Demo GIF/image placeholder - only shown when SHOW_HOMEPAGE_DEMO is true */}
           {SHOW_HOMEPAGE_DEMO && (
             <div className="max-w-4xl mx-auto mb-10">
               <div className="w-full rounded-lg shadow-lg overflow-hidden bg-gray-100 aspect-video relative">
@@ -230,7 +241,6 @@ export default function LandingPageClient() {
             </div>
           )}
           
-          {/* YouTube demo video - always rendered */}
           <div className="max-w-4xl mx-auto">
             <div className="w-full max-w-4xl mx-auto rounded-lg shadow-lg aspect-video overflow-hidden">
               <iframe
@@ -571,12 +581,20 @@ export default function LandingPageClient() {
               </a>
               .
             </p>
-            <Link
-              href={appEntryUrl}
-              className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Launch Toolkit
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link
+                href={appEntryUrl}
+                className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Launch Toolkit
+              </Link>
+              <Link
+                href="/demo-request"
+                className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                Request a Demo
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -644,6 +662,7 @@ export default function LandingPageClient() {
             </p>
             <p>
               <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
+              · <Link href="/demo-request" className="text-blue-600 hover:text-blue-700 underline">Request a demo</Link>{' '}
               · Contact:{' '}
               <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 underline">contact@signpostingtool.co.uk</a>
               {' '}·{' '}
