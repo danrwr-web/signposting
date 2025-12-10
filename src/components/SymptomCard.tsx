@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { useSurgery } from '@/context/SurgeryContext'
@@ -13,7 +13,7 @@ interface SymptomCardProps {
   surgerySlug?: string
 }
 
-export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
+function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
   const { currentSurgerySlug } = useSurgery()
   const { cardStyle, isSimplified } = useCardStyle()
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
@@ -315,3 +315,5 @@ export default function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) 
     </Link>
   )
 }
+
+export default memo(SymptomCard)

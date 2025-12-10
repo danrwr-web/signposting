@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { signOut } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
@@ -27,6 +27,15 @@ export default function AdminDashboardClient({
 }: AdminDashboardClientProps) {
   const [activeTab, setActiveTab] = useState('overview')
   const canViewDocs = isSuperuser || user.memberships.some(m => m.role === 'ADMIN')
+  const warmedSurgeriesRef = useRef<Set<string>>(new Set())
+
+  const warmupSymptoms = useCallback((surgerySlug?: string | null) => {
+    if (!surgerySlug || typeof window === 'undefined') return
+    if (warmedSurgeriesRef.current.has(surgerySlug)) return
+    warmedSurgeriesRef.current.add(surgerySlug)
+    // Fire-and-forget to warm the cache; no UI changes
+    fetch(`/api/symptoms?surgery=${surgerySlug}`, { cache: 'force-cache' }).catch(() => {})
+  }, [])
 
   // Prefer a surgery the admin can manage; fall back to default
   const adminSurgeryId = !isSuperuser
@@ -51,6 +60,9 @@ export default function AdminDashboardClient({
             <div className="flex items-center">
               <Link
                 href={`/s/${user.defaultSurgeryId}`}
+                prefetch
+                onMouseEnter={() => warmupSymptoms(user.defaultSurgeryId)}
+                onFocus={() => warmupSymptoms(user.defaultSurgeryId)}
                 className="text-blue-600 hover:text-blue-500 mr-4"
               >
                 ← Back to Signposting Tool
@@ -176,6 +188,9 @@ export default function AdminDashboardClient({
                     
                     <Link
                       href={adminSurgeryId ? `/s/${adminSurgeryId}` : '#'}
+                      prefetch={!!adminSurgeryId}
+                      onMouseEnter={() => warmupSymptoms(adminSurgeryId)}
+                      onFocus={() => warmupSymptoms(adminSurgeryId)}
                       className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all"
                     >
                       <h4 className="font-medium text-gray-900">Launch Tool</h4>
@@ -249,6 +264,9 @@ export default function AdminDashboardClient({
                           </Link>
                           <Link
                             href={`/s/${surgery.id}`}
+                        prefetch
+                        onMouseEnter={() => warmupSymptoms(surgery.id)}
+                        onFocus={() => warmupSymptoms(surgery.id)}
                             className="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
                           >
                             Launch Tool

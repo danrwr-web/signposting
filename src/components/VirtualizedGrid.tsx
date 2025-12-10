@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SymptomCard from './SymptomCard'
 import { useSurgery } from '@/context/SurgeryContext'
@@ -132,9 +132,9 @@ export default function VirtualizedGrid({
   }, [scrollTop, containerHeight, gridDimensions.columns, resolvedItemHeight, overscan, sortedSymptoms.length])
 
   // Handle scroll
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop)
-  }
+  }, [])
 
   // Calculate total height
   const totalRows = Math.ceil(sortedSymptoms.length / gridDimensions.columns)
@@ -143,12 +143,21 @@ export default function VirtualizedGrid({
   // Get visible symptoms
   const visibleSymptoms = sortedSymptoms.slice(visibleRange.start, visibleRange.end)
 
+  const renderSymptom = useCallback(
+    (symptom: EffectiveSymptom, key?: string) => (
+      <div key={key ?? symptom.id}>
+        <SymptomCard symptom={symptom} surgerySlug={effectiveSurgerySlug} />
+      </div>
+    ),
+    [effectiveSurgerySlug]
+  )
+
   // If we have fewer than 150 symptoms, render normally without virtualization
   if (sortedSymptoms.length <= 150) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {sortedSymptoms.map((symptom) => (
-          <SymptomCard key={symptom.id} symptom={symptom} surgerySlug={surgerySlug} />
+          renderSymptom(symptom, symptom.id)
         ))}
       </div>
     )
@@ -181,7 +190,7 @@ export default function VirtualizedGrid({
                 height: resolvedItemHeight
               }}
             >
-              <SymptomCard symptom={symptom} surgerySlug={effectiveSurgerySlug} />
+              {renderSymptom(symptom)}
             </div>
           )
         })}
