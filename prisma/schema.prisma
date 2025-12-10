@@ -119,6 +119,7 @@ model BaseSymptom {
   @@index([name])
   @@index([slug])
   @@index([ageGroup])
+  @@index([isDeleted])
 }
 
 model SurgerySymptomOverride {
@@ -167,6 +168,7 @@ model SurgeryCustomSymptom {
   @@unique([surgeryId, slug])
   @@index([surgeryId, slug])
   @@index([surgeryId, ageGroup])
+  @@index([surgeryId, isDeleted])
 }
 
 model Suggestion {
@@ -385,6 +387,7 @@ model SurgerySymptomStatus {
   @@index([surgeryId])
   @@index([baseSymptomId])
   @@index([customSymptomId])
+  @@index([surgeryId, isEnabled])
 }
 
 // Feature flags

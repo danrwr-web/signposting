@@ -1,7 +1,7 @@
 import { getSessionUser, requireSurgeryAccess } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import HomePageClient from '@/app/HomePageClient'
 
 // Disable caching for this page to ensure fresh requiresClinicalReview data
@@ -40,8 +40,8 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       orderBy: { name: 'asc' }
     })
 
-    // Get effective symptoms for this surgery (with overrides applied)
-    const symptoms = await getEffectiveSymptoms(surgeryId)
+  // Get effective symptoms for this surgery (with overrides applied)
+  const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
     return <HomePageClient surgeries={surgeries} symptoms={symptoms} requiresClinicalReview={surgery.requiresClinicalReview} surgeryName={surgery.name} />
   } catch (error) {

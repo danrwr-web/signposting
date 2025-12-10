@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useMemo, useEffect, Suspense, useDeferredValue, useRef } from 'react'
 import CompactToolbar from '@/components/CompactToolbar'
 import VirtualizedGrid from '@/components/VirtualizedGrid'
 import TestUserUsage from '@/components/TestUserUsage'
@@ -20,7 +19,6 @@ interface HomePageClientProps {
 }
 
 function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName }: HomePageClientProps) {
-  const searchParams = useSearchParams()
   const { surgery, currentSurgerySlug } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
@@ -28,8 +26,12 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   const [showSurgerySelector, setShowSurgerySelector] = useState(false)
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>(initialSymptoms)
   const [isLoadingSymptoms, setIsLoadingSymptoms] = useState(false)
+  const symptomCache = useRef<Record<string, EffectiveSymptom[]>>({})
 
   const currentSurgeryId = surgery?.id
+  const deferredSearchTerm = useDeferredValue(searchTerm)
+  const deferredSelectedLetter = useDeferredValue(selectedLetter)
+  const deferredSelectedAge = useDeferredValue(selectedAge)
 
   // Auto-show surgery selector if no surgery is selected and surgeries are available
   useEffect(() => {
@@ -42,19 +44,34 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   // Use surgerySlug from context
   const surgerySlug = currentSurgerySlug
 
+  // Cache the initial payload against whichever key we have available
+  useEffect(() => {
+    const key = surgerySlug || 'initial'
+    if (!symptomCache.current[key]) {
+      symptomCache.current[key] = initialSymptoms
+    }
+  }, [initialSymptoms, surgerySlug])
+
   // Fetch symptoms when surgery changes
   useEffect(() => {
     if (currentSurgeryId && surgerySlug) {
       setIsLoadingSymptoms(true)
-      
-      // Force fresh data after admin changes
-      fetch(`/api/symptoms?surgery=${surgerySlug}&t=${Date.now()}` , { cache: 'no-store' })
+      const key = surgerySlug
+      const cached = symptomCache.current[key]
+      if (cached) {
+        setSymptoms(cached)
+      }
+
+      const controller = new AbortController()
+
+      fetch(`/api/symptoms?surgery=${surgerySlug}`, { cache: 'force-cache', signal: controller.signal })
         .then(response => response.json())
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
             // Ensure symptoms are sorted alphabetically
             const sortedSymptoms = data.symptoms.sort((a: any, b: any) => a.name.localeCompare(b.name))
             setSymptoms(sortedSymptoms)
+            symptomCache.current[key] = sortedSymptoms
           }
         })
         .catch(error => {
@@ -64,6 +81,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         .finally(() => {
           setIsLoadingSymptoms(false)
         })
+
+      return () => controller.abort()
     }
   }, [currentSurgeryId, surgerySlug])
 
@@ -85,32 +104,48 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 
   // Filter symptoms based on search, age group, and letter with useMemo for performance
   const filteredSymptoms = useMemo(() => {
+    const lowerSearch = deferredSearchTerm.trim().toLowerCase()
     return symptoms.filter(symptom => {
-      const matchesSearch = !searchTerm || 
-        symptom.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (symptom.briefInstruction && symptom.briefInstruction.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (symptom.instructions && symptom.instructions.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesSearch = !lowerSearch || 
+        symptom.name.toLowerCase().includes(lowerSearch) ||
+        (symptom.briefInstruction && symptom.briefInstruction.toLowerCase().includes(lowerSearch)) ||
+        (symptom.instructions && symptom.instructions.toLowerCase().includes(lowerSearch))
       
       // Age filtering based on ageGroup field
-      const matchesAge = selectedAge === 'All' || (() => {
-        if (selectedAge === 'Under5') {
+      const matchesAge = deferredSelectedAge === 'All' || (() => {
+        if (deferredSelectedAge === 'Under5') {
           return symptom.ageGroup === 'U5'
         }
-        if (selectedAge === '5to17') {
+        if (deferredSelectedAge === '5to17') {
           return symptom.ageGroup === 'O5'
         }
-        if (selectedAge === 'Adult') {
+        if (deferredSelectedAge === 'Adult') {
           return symptom.ageGroup === 'Adult'
         }
         return true
       })()
       
-      const matchesLetter = selectedLetter === 'All' || 
-        symptom.name.trim().toUpperCase().startsWith(selectedLetter)
+      const matchesLetter = deferredSelectedLetter === 'All' || 
+        symptom.name.trim().toUpperCase().startsWith(deferredSelectedLetter)
       
       return matchesSearch && matchesAge && matchesLetter
     })
-  }, [symptoms, searchTerm, selectedAge, selectedLetter])
+  }, [symptoms, deferredSearchTerm, deferredSelectedAge, deferredSelectedLetter])
+
+  const renderSkeletonGrid = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" role="status" aria-live="polite">
+      {Array.from({ length: 8 }).map((_, index) => (
+        <div key={index} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm animate-pulse">
+          <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
+          <div className="h-4 w-32 bg-gray-100 rounded mb-2" />
+          <div className="h-3 w-full bg-gray-100 rounded mb-1" />
+          <div className="h-3 w-5/6 bg-gray-100 rounded mb-1" />
+          <div className="h-3 w-2/3 bg-gray-100 rounded" />
+        </div>
+      ))}
+      <span className="sr-only">Loading symptoms</span>
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
@@ -170,9 +205,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 
         {/* Symptoms Grid */}
         {isLoadingSymptoms ? (
-          <div className="flex justify-center items-center py-8">
-            <div className="text-nhs-grey">Loading symptoms...</div>
-          </div>
+          renderSkeletonGrid()
         ) : filteredSymptoms.length > 0 && surgeries.length > 0 ? (
           <VirtualizedGrid
             symptoms={filteredSymptoms}

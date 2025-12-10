@@ -6,7 +6,7 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 import { checkTestUserUsageLimit } from '@/lib/test-user-limits'
 
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     let symptoms
     
     if (surgeryId) {
-      symptoms = await getEffectiveSymptoms(surgeryId)
+      symptoms = await getCachedEffectiveSymptoms(surgeryId)
     } else {
       // Fallback to base symptoms if no surgery context
       symptoms = await prisma.baseSymptom.findMany({
@@ -87,8 +87,8 @@ export async function GET(req: NextRequest) {
     }
     
     const response = NextResponse.json({ symptoms: filteredSymptoms })
-    // Cache symptoms for 60s - they don't change frequently
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+    // Cache symptoms for 5 minutes with stale-while-revalidate
+    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
     return response
   } catch (error) {
     console.error('Error fetching symptoms:', error)

@@ -5,6 +5,7 @@
 
 import 'server-only'
 import { prisma } from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
 
 export interface EffectiveSymptom {
   id: string
@@ -23,63 +24,89 @@ export interface EffectiveSymptom {
   variants?: unknown | null // Optional variants JSON from BaseSymptom
 }
 
-export async function getEffectiveSymptoms(surgeryId: string, includeDisabled: boolean = false): Promise<EffectiveSymptom[]> {
-  // Base symptoms
-  const base = await prisma.baseSymptom.findMany({
-    where: { isDeleted: false },
-    select: { 
-      id: true, 
-      slug: true, 
-      name: true, 
-      ageGroup: true,
-      briefInstruction: true, 
-      highlightedText: true, 
-      instructions: true, 
-      instructionsJson: true,
-      instructionsHtml: true,
-      linkToPage: true,
-      variants: true as any
-    },
-    orderBy: { name: 'asc' }
-  })
+const symptomTag = (surgeryId: string, includeDisabled: boolean) =>
+  `symptoms:${surgeryId}:${includeDisabled ? 'with-disabled' : 'enabled'}`
 
-  // Overrides & customs
-  const overrides = await prisma.surgerySymptomOverride.findMany({ 
-    where: { surgeryId },
-    select: {
-      baseSymptomId: true,
-      name: true,
-      ageGroup: true,
-      briefInstruction: true,
-      highlightedText: true,
-      instructions: true,
-      instructionsJson: true,
-      instructionsHtml: true,
-      linkToPage: true,
-      isHidden: true
-    }
-  })
-  const customs = await prisma.surgeryCustomSymptom.findMany({ 
-    where: { surgeryId, isDeleted: false },
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      ageGroup: true,
-      briefInstruction: true,
-      highlightedText: true,
-      instructions: true,
-      instructionsJson: true,
-      instructionsHtml: true,
-      linkToPage: true
-    }
-  })
+type SymptomOptions = {
+  includeDisabled?: boolean
+  includeRichContent?: boolean
+}
 
-  // Status rows (enable/disable) for this surgery
-  const statuses = await prisma.surgerySymptomStatus.findMany({
-    where: { surgeryId },
-    select: { id: true, baseSymptomId: true, customSymptomId: true, isEnabled: true }
-  })
+const baseFields = (includeRichContent: boolean) => ({
+  id: true,
+  slug: true,
+  name: true,
+  ageGroup: true,
+  briefInstruction: true,
+  highlightedText: true,
+  instructions: true,
+  linkToPage: true,
+  ...(includeRichContent
+    ? {
+        instructionsJson: true,
+        instructionsHtml: true,
+        variants: true as any
+      }
+    : {})
+})
+
+const overrideFields = (includeRichContent: boolean) => ({
+  baseSymptomId: true,
+  name: true,
+  ageGroup: true,
+  briefInstruction: true,
+  highlightedText: true,
+  instructions: true,
+  linkToPage: true,
+  isHidden: true,
+  ...(includeRichContent
+    ? {
+        instructionsJson: true,
+        instructionsHtml: true
+      }
+    : {})
+})
+
+const customFields = (includeRichContent: boolean) => ({
+  id: true,
+  slug: true,
+  name: true,
+  ageGroup: true,
+  briefInstruction: true,
+  highlightedText: true,
+  instructions: true,
+  linkToPage: true,
+  ...(includeRichContent
+    ? {
+        instructionsJson: true,
+        instructionsHtml: true
+      }
+    : {})
+})
+
+async function buildEffectiveSymptoms(
+  surgeryId: string,
+  { includeDisabled = false, includeRichContent = true }: SymptomOptions = {}
+): Promise<EffectiveSymptom[]> {
+  const [base, overrides, customs, statuses] = await prisma.$transaction([
+    prisma.baseSymptom.findMany({
+      where: { isDeleted: false },
+      select: baseFields(includeRichContent),
+      orderBy: { name: 'asc' }
+    }),
+    prisma.surgerySymptomOverride.findMany({
+      where: { surgeryId },
+      select: overrideFields(includeRichContent)
+    }),
+    prisma.surgeryCustomSymptom.findMany({
+      where: { surgeryId, isDeleted: false },
+      select: customFields(includeRichContent)
+    }),
+    prisma.surgerySymptomStatus.findMany({
+      where: { surgeryId },
+      select: { id: true, baseSymptomId: true, customSymptomId: true, isEnabled: true }
+    })
+  ])
   const disabledBaseIds = new Set(
     statuses.filter(s => s.baseSymptomId && s.isEnabled === false).map(s => s.baseSymptomId!)
   )
@@ -88,7 +115,19 @@ export async function getEffectiveSymptoms(surgeryId: string, includeDisabled: b
   )
 
   // Merge base+overrides; include customs
-  const byBaseId = new Map<string, EffectiveSymptom>(base.map(b => [b.id, { ...b, ageGroup: b.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }]))
+  const byBaseId = new Map<string, EffectiveSymptom>(
+    base.map(b => [
+      b.id,
+      {
+        ...b,
+        ageGroup: b.ageGroup as 'U5' | 'O5' | 'Adult',
+        source: 'base' as const,
+        instructionsJson: includeRichContent ? (b as any).instructionsJson ?? null : null,
+        instructionsHtml: includeRichContent ? (b as any).instructionsHtml ?? null : null,
+        variants: includeRichContent ? (b as any).variants ?? null : null
+      }
+    ])
+  )
   
   for (const o of overrides) {
     const b = byBaseId.get(o.baseSymptomId)
@@ -113,6 +152,8 @@ export async function getEffectiveSymptoms(surgeryId: string, includeDisabled: b
       highlightedText: (o.highlightedText && o.highlightedText.trim() !== '') ? o.highlightedText : b.highlightedText,
       instructions: (o.instructions && o.instructions.trim() !== '') ? o.instructions : b.instructions,
       linkToPage: (o.linkToPage && o.linkToPage.trim() !== '') ? o.linkToPage : b.linkToPage,
+      instructionsJson: includeRichContent ? ((o as any).instructionsJson && (o as any).instructionsJson.trim() !== '' ? (o as any).instructionsJson : (b as any).instructionsJson ?? null) : null,
+      instructionsHtml: includeRichContent ? ((o as any).instructionsHtml && (o as any).instructionsHtml.trim() !== '' ? (o as any).instructionsHtml : (b as any).instructionsHtml ?? null) : null,
       source: 'override' as const,
       baseSymptomId: b.id,
       isHidden: o.isHidden,
@@ -134,11 +175,38 @@ export async function getEffectiveSymptoms(surgeryId: string, includeDisabled: b
     .map(c => ({ 
     ...c, 
     ageGroup: c.ageGroup as 'U5' | 'O5' | 'Adult',
-    source: 'custom' as const 
+    source: 'custom' as const,
+    instructionsJson: includeRichContent ? (c as any).instructionsJson ?? null : null,
+    instructionsHtml: includeRichContent ? (c as any).instructionsHtml ?? null : null
   }))
   
   return [...effective, ...customsProjected]
 }
+
+export async function getEffectiveSymptoms(
+  surgeryId: string,
+  includeDisabled: boolean = false
+): Promise<EffectiveSymptom[]> {
+  return buildEffectiveSymptoms(surgeryId, { includeDisabled, includeRichContent: true })
+}
+
+export async function getCachedEffectiveSymptoms(
+  surgeryId: string,
+  includeDisabled: boolean = false
+): Promise<EffectiveSymptom[]> {
+  const cached = unstable_cache(
+    async () => buildEffectiveSymptoms(surgeryId, { includeDisabled, includeRichContent: false }),
+    ['effective-symptoms', surgeryId, includeDisabled ? 'with-disabled' : 'enabled'],
+    {
+      revalidate: 300,
+      tags: ['symptoms', symptomTag(surgeryId, includeDisabled)]
+    }
+  )
+
+  return cached()
+}
+
+export const getCachedSymptomsTag = symptomTag
 
 export async function getEffectiveSymptomById(id: string, surgeryId?: string): Promise<EffectiveSymptom | null> {
   console.log('getEffectiveSymptomById: id =', id, 'surgeryId =', surgeryId)

@@ -6,12 +6,13 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
-import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
 import { z } from 'zod'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { revalidateTag } from 'next/cache'
 
 export const runtime = 'nodejs'
 
@@ -147,6 +148,9 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // Invalidate cached symptom lists
+      revalidateTag('symptoms')
+
       return NextResponse.json({ symptom }, { status: 201 })
     } else {
       // Non-superusers create custom symptoms for their default surgery
@@ -200,6 +204,9 @@ export async function POST(request: NextRequest) {
           linkToPage: true,
         }
       })
+
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag('symptoms')
 
       // Practice-admin created symptoms start as pending and disabled
       // to ensure local clinical review before becoming visible.
@@ -305,6 +312,7 @@ export async function DELETE(request: NextRequest) {
         prisma.surgerySymptomOverride.deleteMany({ where: { baseSymptomId: baseSymptomId! } }),
         prisma.surgerySymptomStatus.deleteMany({ where: { baseSymptomId: baseSymptomId! } }),
       ])
+      revalidateTag('symptoms')
       return NextResponse.json({ ok: true })
     }
 
@@ -321,6 +329,8 @@ export async function DELETE(request: NextRequest) {
       prisma.surgeryCustomSymptom.update({ where: { id: customSymptomId! }, data: { isDeleted: true } }),
       prisma.surgerySymptomStatus.deleteMany({ where: { surgeryId: surgeryId!, customSymptomId: customSymptomId! } }),
     ])
+    revalidateTag(getCachedSymptomsTag(surgeryId!, false))
+    revalidateTag('symptoms')
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('ERROR_DELETE_SYMPTOM', { error: (error as any)?.message })
