@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, Suspense, useDeferredValue, useRef } from 'react'
+import { useState, useMemo, useEffect, Suspense, useDeferredValue, useRef, useCallback } from 'react'
 import CompactToolbar from '@/components/CompactToolbar'
 import VirtualizedGrid from '@/components/VirtualizedGrid'
 import TestUserUsage from '@/components/TestUserUsage'
@@ -27,6 +27,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>(initialSymptoms)
   const [isLoadingSymptoms, setIsLoadingSymptoms] = useState(false)
   const symptomCache = useRef<Record<string, EffectiveSymptom[]>>({})
+  const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
   const currentSurgeryId = surgery?.id
   const deferredSearchTerm = useDeferredValue(searchTerm)
@@ -44,6 +45,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   // Use surgerySlug from context
   const surgerySlug = currentSurgerySlug
 
+  const getCacheKey = useCallback((slug: string) => `signposting:symptoms:${slug}`, [])
+
   // Cache the initial payload against whichever key we have available
   useEffect(() => {
     const key = surgerySlug || 'initial'
@@ -51,6 +54,24 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
       symptomCache.current[key] = initialSymptoms
     }
   }, [initialSymptoms, surgerySlug])
+
+  // Load cached symptoms from localStorage when surgery changes
+  useEffect(() => {
+    if (!surgerySlug || typeof window === 'undefined') return
+    const key = getCacheKey(surgerySlug)
+    try {
+      const raw = window.localStorage.getItem(key)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as { updatedAt: number; symptoms: EffectiveSymptom[] }
+      if (!parsed?.updatedAt || !Array.isArray(parsed.symptoms)) return
+      const isFresh = Date.now() - parsed.updatedAt < CACHE_TTL_MS
+      if (!isFresh) return
+      symptomCache.current[surgerySlug] = parsed.symptoms
+      setSymptoms(parsed.symptoms)
+    } catch (error) {
+      console.error('Failed to read cached symptoms', error)
+    }
+  }, [getCacheKey, surgerySlug])
 
   // Fetch symptoms when surgery changes
   useEffect(() => {
@@ -72,6 +93,14 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
             const sortedSymptoms = data.symptoms.sort((a: any, b: any) => a.name.localeCompare(b.name))
             setSymptoms(sortedSymptoms)
             symptomCache.current[key] = sortedSymptoms
+            if (typeof window !== 'undefined') {
+              try {
+                const payload = JSON.stringify({ updatedAt: Date.now(), symptoms: sortedSymptoms })
+                window.localStorage.setItem(getCacheKey(key), payload)
+              } catch (error) {
+                console.error('Failed to cache symptoms to localStorage', error)
+              }
+            }
           }
         })
         .catch(error => {
@@ -103,8 +132,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   }, [selectedAge])
 
   // Filter symptoms based on search, age group, and letter with useMemo for performance
+  const lowerSearch = useMemo(() => deferredSearchTerm.trim().toLowerCase(), [deferredSearchTerm])
   const filteredSymptoms = useMemo(() => {
-    const lowerSearch = deferredSearchTerm.trim().toLowerCase()
     return symptoms.filter(symptom => {
       const matchesSearch = !lowerSearch || 
         symptom.name.toLowerCase().includes(lowerSearch) ||
@@ -130,7 +159,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
       
       return matchesSearch && matchesAge && matchesLetter
     })
-  }, [symptoms, deferredSearchTerm, deferredSelectedAge, deferredSelectedLetter])
+  }, [symptoms, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
 
   const renderSkeletonGrid = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" role="status" aria-live="polite">
