@@ -17,6 +17,14 @@ export default function LandingPageClient() {
   const whyItWorks3 = useFadeUpOnScroll({ staggerDelay: 100 })
   const whyItWorks4 = useFadeUpOnScroll({ staggerDelay: 150 })
 
+  const scrollToDemo = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault()
+    const demoSection = document.getElementById('demo-section')
+    if (demoSection) {
+      demoSection.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -34,7 +42,23 @@ export default function LandingPageClient() {
                 Signposting Toolkit
               </p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-6">
+              <a
+                href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                User Guide
+              </a>
+              <a
+                href="https://docs.signpostingtool.co.uk/"
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                Docs
+              </a>
               <Link
                 href={appEntryUrl}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
@@ -47,7 +71,7 @@ export default function LandingPageClient() {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-slate-50 to-white py-20">
+      <section className="bg-gradient-to-b from-slate-50 to-white py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <script
             type="application/ld+json"
@@ -65,32 +89,115 @@ export default function LandingPageClient() {
             }}
           />
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl">
-              Helping reception and care navigation teams send patients to the right place — first time.
+            <h1 className="text-5xl font-bold text-gray-900 sm:text-6xl md:text-7xl leading-tight">
+              The GP Signposting Toolkit for safer, faster care navigation.
             </h1>
-            <p className="text-lg text-gray-600 mt-6 max-w-3xl mx-auto">
-              A ready-to-use GP care navigation software toolkit for primary care admin teams — with over 200 preloaded symptoms, clear guidance, and optional AI tools for improving clarity and training.
+            <p className="text-xl text-gray-700 mt-8 max-w-3xl mx-auto leading-relaxed">
+              Over 200 locally governed symptoms with clear, consistent guidance your reception team can use confidently from day one.
             </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href={appEntryUrl}
-                className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
               >
                 Launch Toolkit
               </Link>
               <a
-                href="#how-it-works"
-                className="inline-flex items-center px-8 py-3 border border-gray-300 text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                href="#demo-section"
+                onClick={scrollToDemo}
+                className="inline-flex items-center px-10 py-4 border border-gray-300 text-lg font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
               >
-                See how it works
+                Watch 1-minute demo
               </a>
             </div>
           </div>
         </div>
       </section>
 
+      {/* 3-Benefit Strip */}
+      <section className="bg-white py-12 border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center rounded-lg bg-blue-50">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Safer signposting</h3>
+              <p className="text-gray-600 text-sm">
+                Local, clinically governed guidance that your surgery controls.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center rounded-lg bg-blue-50">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Fewer avoidable GP appointments</h3>
+              <p className="text-gray-600 text-sm">
+                Clear advice helps reception and care navigation teams direct patients first time.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center rounded-lg bg-blue-50">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Faster training for new staff</h3>
+              <p className="text-gray-600 text-sm">
+                Consistent wording and AI-guided question prompts reduce the learning curve.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works section - moved higher */}
+      <section id="how-it-works" className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900">How it works</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3 max-w-5xl mx-auto">
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mb-4">
+                1
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Set up your local guidance</h3>
+              <p className="text-gray-600 text-sm">
+                Import or start from the preloaded symptom library. Agree pathways locally with your clinicians.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mb-4">
+                2
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Reception chooses a symptom</h3>
+              <p className="text-gray-600 text-sm">
+                Search or browse the symptoms. Colour-coded steps guide safe signposting and documentation.
+              </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl mb-4">
+                3
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Govern and improve over time</h3>
+              <p className="text-gray-600 text-sm">
+                Use the clinical review tools to keep content up to date. Adapt pathways as your surgery changes.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Promotional video section */}
-      <section className="bg-white py-20">
+      <section id="demo-section" className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-gray-900">
@@ -100,7 +207,25 @@ export default function LandingPageClient() {
               A one-minute walkthrough showing how reception teams use the toolkit for triage support in real life.
             </p>
           </div>
-          <div className="max-w-4xl mx-auto mt-10">
+          
+          {/* Demo GIF placeholder */}
+          <div className="max-w-4xl mx-auto mb-10">
+            <div className="w-full rounded-lg shadow-lg overflow-hidden bg-gray-100 aspect-video relative">
+              <img
+                src="/images/toolkit-demo.gif"
+                alt="Signposting Toolkit demo showing symptom search, selection, and instruction panel"
+                className="w-full h-full object-contain"
+                style={{ display: 'block' }}
+                onError={(e) => {
+                  // Hide image if it doesn't exist (GIF not yet created)
+                  const target = e.target as HTMLImageElement
+                  target.style.display = 'none'
+                }}
+              />
+            </div>
+          </div>
+          
+          <div className="max-w-4xl mx-auto">
             <div className="w-full max-w-4xl mx-auto rounded-lg shadow-lg aspect-video overflow-hidden">
               <iframe
                 src="https://www.youtube-nocookie.com/embed/-IIpq9X9n9Y?rel=0&modestbranding=1&controls=1&autohide=1&playsinline=1"
@@ -252,52 +377,6 @@ export default function LandingPageClient() {
         </div>
       </section>
 
-      {/* How it works section */}
-      <section id="how-it-works" className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">How it works in practice</h2>
-          </div>
-          
-          <div className="space-y-8 max-w-3xl mx-auto">
-            <div ref={register} className="flex items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-                1
-              </div>
-              <div className="ml-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Set up once</h3>
-                <p className="text-gray-600">
-                  Choose which symptoms your team uses.
-                </p>
-              </div>
-            </div>
-
-            <div ref={register} className="flex items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-                2
-              </div>
-              <div className="ml-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Reception uses it daily</h3>
-                <p className="text-gray-600">
-                  Always the latest, approved guidance.
-                </p>
-              </div>
-            </div>
-
-            <div ref={register} className="flex items-start">
-              <div className="flex-shrink-0 w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-                3
-              </div>
-              <div className="ml-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Improve over time</h3>
-                <p className="text-gray-600">
-                  Add local notes or use AI to refine clarity.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Personalisation section */}
       <section className="py-20 bg-gray-50">
@@ -365,15 +444,74 @@ export default function LandingPageClient() {
       </section>
 
       {/* Why Practices Choose the Signposting Toolkit */}
-      <section className="py-20 bg-blue-50">
+      <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Why Practices Choose the Signposting Toolkit</h2>
-            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
-              Developed in a working NHS practice, the Signposting Toolkit is trusted by teams who want clarity, speed, and confidence when helping patients find the right care.
-            </p>
+            <h2 className="text-3xl font-bold text-gray-900">Why practices choose the Signposting Toolkit</h2>
           </div>
           
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto mb-12">
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Built and clinically governed by real GPs</h3>
+                <p className="text-sm text-gray-600">Developed at Ide Lane Surgery in Exeter, used daily by real reception teams.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Fully configurable to your local pathways</h3>
+                <p className="text-sm text-gray-600">Not a generic national template — every surgery keeps full local clinical sign-off.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Full audit trail of signposting activity</h3>
+                <p className="text-sm text-gray-600">Complete tracking of usage, approvals, and suggestions for governance.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">AI helps with wording and clarity</h3>
+                <p className="text-sm text-gray-600">Clinicians stay in control of the pathways — AI suggestions require review before publishing.</p>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Works in the browser on any PC</h3>
+                <p className="text-sm text-gray-600">No installation required — accessible from any device with a modern browser.</p>
+              </div>
+            </div>
+          </div>
+
           {/* Comparison Table */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-10">
             <div className="overflow-x-auto">
@@ -433,6 +571,26 @@ export default function LandingPageClient() {
             >
               Launch Toolkit
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust section */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4 text-center">Built by GPs for GPs</h2>
+            <div className="space-y-3 text-center text-gray-700">
+              <p className="text-lg">
+                Developed at Ide Lane Surgery in Exeter
+              </p>
+              <p className="text-base">
+                Used daily by reception and care navigation teams
+              </p>
+              <p className="text-base">
+                Designed so each surgery keeps full local clinical sign-off
+              </p>
+            </div>
           </div>
         </div>
       </section>

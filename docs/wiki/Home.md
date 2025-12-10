@@ -1,7 +1,7 @@
 # Signposting Toolkit
 
 <p align="center">
-  <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
+  <a href="https://www.signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
     <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
   </a>
 </p>
@@ -46,7 +46,9 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 ## What's New
 
 - **Unreleased**
-  - AI questions panel now titled “Suggested wording for questions to ask” with on-screen reminder to use the provided phrasing
+  - Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section
+  - User Guide link restored in marketing site navigation alongside Docs link
+  - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
 
 - **v1.1 – December 2025**

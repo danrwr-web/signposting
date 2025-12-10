@@ -8,9 +8,18 @@ A high-level history of major changes.
 
 _Changes in development or planned for the next release._
 
+### ✨ New
+- Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section.
+- Added trust section highlighting GP-built origins and local clinical control.
+- User Guide link restored in marketing site navigation alongside Docs link.
+
 ### 🧹 Updated
-- AI questions panel now titled “Suggested wording for questions to ask” with supporting text to encourage safe, consistent phrasing.
-- Marketing and app domains separated: www shows the public site while app.signpostingtool.co.uk now routes straight into the toolkit entry screen.
+- AI questions panel now titled "Suggested wording for questions to ask" with supporting text to encourage safe, consistent phrasing.
+- Marketing and app domains separated: www.signpostingtool.co.uk shows the public site while app.signpostingtool.co.uk routes straight into the toolkit entry screen.
+- Marketing site hero updated with new headline: "The GP Signposting Toolkit for safer, faster care navigation".
+- "Why practices choose" section condensed and moved higher on the landing page.
+- Docs site logo now links to www.signpostingtool.co.uk (marketing homepage).
+- All marketing site CTAs verified to use app.signpostingtool.co.uk.
 
 ---
 

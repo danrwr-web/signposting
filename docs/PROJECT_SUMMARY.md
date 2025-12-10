@@ -88,9 +88,12 @@ Each user may belong to multiple surgeries with differing roles.
 - Superusers can switch between surgeries.
 
 ### 🔹 Navigation & Documentation
+- Marketing site (`www.signpostingtool.co.uk`) features updated landing page with clear hero, benefits strip, and 3-step "How it works" section.
+- Marketing site navigation includes both User Guide and Docs links for easy access to documentation.
 - Admins and superusers can open the public documentation from the top navigation (opens in a new tab).
 - The Admin Dashboard includes a Documentation tab for the same site so admins can get guidance without leaving their workflow.
 - Domain routing: the marketing site stays on `www.signpostingtool.co.uk` while the app runs at `app.signpostingtool.co.uk`, with `/` on the app host directing users into the toolkit entry screen.
+- Docs site logo links back to the marketing homepage (`www.signpostingtool.co.uk`).
 
 ---
 
