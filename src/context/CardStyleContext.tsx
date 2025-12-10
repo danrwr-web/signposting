@@ -34,7 +34,7 @@ interface ProviderProps {
 }
 
 export function CardStyleProvider({ children }: ProviderProps) {
-  const [cardStyle, setCardStyleState] = useState<CardStyle>('default')
+  const [cardStyle, setCardStyleState] = useState<CardStyle>('powerappsBlue')
   const [isSimplified, setIsSimplifiedState] = useState(false)
   const [headerLayout, setHeaderLayoutState] = useState<HeaderLayout>('classic')
   const [highRiskStyle, setHighRiskStyleState] = useState<HighRiskStyle>('pill')
@@ -45,7 +45,7 @@ export function CardStyleProvider({ children }: ProviderProps) {
       return
     }
 
-    let nextStyle: CardStyle = 'default'
+    let nextStyle: CardStyle = 'powerappsBlue'
     let nextSimplified = false
     let nextHeaderLayout: HeaderLayout = 'classic'
     let nextHighRiskStyle: HighRiskStyle = 'pill'
@@ -150,7 +150,7 @@ export function CardStyleProvider({ children }: ProviderProps) {
       localStorage.removeItem(LEGACY_HIGH_RISK_CLASSIC_STORAGE_KEY)
       localStorage.removeItem(LEGACY_STORAGE_KEY)
     }
-    setCardStyleState('default')
+    setCardStyleState('powerappsBlue')
     setIsSimplifiedState(false)
     setHeaderLayoutState('classic')
     setHighRiskStyleState('pill')
@@ -192,7 +192,7 @@ export function useCardStyle(): CardStyleContextValue {
   const ctx = useContext(CardStyleContext)
   if (!ctx) {
     return {
-      cardStyle: 'default',
+      cardStyle: 'powerappsBlue',
       setCardStyle: () => {},
       isSimplified: false,
       setIsSimplified: () => {},
