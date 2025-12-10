@@ -100,7 +100,7 @@ export default function DemoRequestClient() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
+            <Link href="/" className="flex items-center space-x-4">
               {/* Logo */}
               <img 
                 src="/images/logo.png" 
@@ -110,8 +110,14 @@ export default function DemoRequestClient() {
               <p className="text-2xl font-bold text-gray-900">
                 Signposting Toolkit
               </p>
-            </div>
+            </Link>
             <div className="flex items-center space-x-6">
+              <Link
+                href="/why-signposting-toolkit"
+                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                Why Choose Us
+              </Link>
               <a
                 href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
                 target="_blank"
@@ -158,9 +164,23 @@ export default function DemoRequestClient() {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Thanks for your request</h2>
-            <p className="text-lg text-gray-700">
+            <p className="text-lg text-gray-700 mb-6">
               We'll get back to you within one working day to arrange a demo.
             </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Link
+                href="/"
+                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
+              >
+                Back to homepage
+              </Link>
+              <Link
+                href="/"
+                className="text-base font-medium text-blue-600 hover:text-blue-700 underline"
+              >
+                Learn more about the Signposting Toolkit
+              </Link>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6 bg-white border border-gray-200 rounded-lg p-8">

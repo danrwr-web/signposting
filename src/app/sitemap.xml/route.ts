@@ -5,6 +5,7 @@ export const dynamic = 'force-static'
 export async function GET() {
   const urls = [
     'https://www.signpostingtool.co.uk/',
+    'https://www.signpostingtool.co.uk/why-signposting-toolkit',
     'https://www.signpostingtool.co.uk/demo-request',
     'https://www.signpostingtool.co.uk/privacy',
     'https://www.signpostingtool.co.uk/help',

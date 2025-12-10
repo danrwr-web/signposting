@@ -34,7 +34,7 @@ export default function LandingPageClient() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div className="flex items-center space-x-4">
+            <Link href="/" className="flex items-center space-x-4">
               {/* Logo */}
               <img 
                 src="/images/logo.png" 
@@ -44,8 +44,14 @@ export default function LandingPageClient() {
               <p className="text-2xl font-bold text-gray-900">
                 Signposting Toolkit
               </p>
-            </div>
+            </Link>
             <div className="flex items-center space-x-6">
+              <Link
+                href="/why-signposting-toolkit"
+                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
+              >
+                Why Choose Us
+              </Link>
               <a
                 href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
                 target="_blank"
@@ -464,6 +470,14 @@ export default function LandingPageClient() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">Why practices choose the Signposting Toolkit</h2>
+            <p className="mt-4">
+              <Link
+                href="/why-signposting-toolkit"
+                className="text-base text-blue-600 hover:text-blue-700 font-medium underline"
+              >
+                Learn more about why practices choose us
+              </Link>
+            </p>
           </div>
           
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto mb-12">
