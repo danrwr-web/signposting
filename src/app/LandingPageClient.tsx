@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { useFadeUpOnScroll } from '@/hooks/useFadeUpOnScroll'
 
 export default function LandingPageClient() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const appBaseUrl =
     process.env.NEXT_PUBLIC_APP_BASE_URL?.replace(/\/$/, '') ||
     (process.env.NODE_ENV === 'development' ? '' : 'https://app.signpostingtool.co.uk')
@@ -33,19 +35,22 @@ export default function LandingPageClient() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <Link href="/" className="flex items-center space-x-4">
+          <div className="flex justify-between items-center py-4 md:py-6">
+            {/* Logo and Brand - Mobile: smaller, Desktop: normal */}
+            <Link href="/" className="flex items-center space-x-2 md:space-x-4 min-w-0 flex-shrink">
               {/* Logo */}
               <img 
                 src="/images/logo.png" 
                 alt="Signposting Toolkit Logo" 
-                className="h-16 w-auto"
+                className="h-12 md:h-16 w-auto flex-shrink-0"
               />
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-lg md:text-2xl font-bold text-gray-900 truncate">
                 Signposting Toolkit
               </p>
             </Link>
-            <div className="flex items-center space-x-6">
+            
+            {/* Desktop Navigation - hidden on mobile */}
+            <nav className="hidden md:flex items-center space-x-6">
               <Link
                 href="/why-signposting-toolkit"
                 className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
@@ -80,13 +85,80 @@ export default function LandingPageClient() {
               >
                 Launch Toolkit
               </Link>
+            </nav>
+
+            {/* Mobile Menu Button - visible on mobile only */}
+            <div className="md:hidden flex items-center">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                aria-label="Toggle menu"
+                aria-expanded={mobileMenuOpen}
+              >
+                {mobileMenuOpen ? (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                ) : (
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                )}
+              </button>
             </div>
           </div>
+
+          {/* Mobile Menu - visible when open */}
+          {mobileMenuOpen && (
+            <div className="md:hidden pb-4 border-t border-gray-200 mt-2">
+              <nav className="flex flex-col space-y-3 pt-4">
+                <Link
+                  href="/why-signposting-toolkit"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
+                >
+                  Why Choose Us
+                </Link>
+                <a
+                  href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
+                >
+                  User Guide
+                </a>
+                <a
+                  href="https://docs.signpostingtool.co.uk/"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
+                >
+                  Docs
+                </a>
+                <Link
+                  href="/demo-request"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
+                >
+                  Request a Demo
+                </Link>
+                <Link
+                  href={appEntryUrl}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 inline-block text-center mt-2"
+                >
+                  Launch Toolkit
+                </Link>
+              </nav>
+            </div>
+          )}
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-slate-50 to-white py-24">
+      <section className="bg-gradient-to-b from-slate-50 to-white py-12 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <script
             type="application/ld+json"
@@ -104,29 +176,29 @@ export default function LandingPageClient() {
             }}
           />
           <div className="text-center">
-            <h1 className="text-5xl font-bold text-gray-900 sm:text-6xl md:text-7xl leading-tight">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold text-gray-900 leading-tight px-2">
               The GP Signposting Toolkit for safer, faster care navigation.
             </h1>
-            <p className="text-xl text-gray-700 mt-8 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-gray-700 mt-6 md:mt-8 max-w-3xl mx-auto leading-relaxed px-2">
               Over 200 locally governed symptoms with clear, consistent guidance your reception team can use confidently from day one.
             </p>
-            <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="mt-8 md:mt-12 flex flex-col gap-3 sm:gap-4 justify-center items-center px-2">
               <Link
                 href={appEntryUrl}
-                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 sm:px-10 py-3 sm:py-4 border border-transparent text-base sm:text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
               >
                 Launch Toolkit
               </Link>
               <Link
                 href="/demo-request"
-                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 sm:px-10 py-3 sm:py-4 border border-transparent text-base sm:text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
               >
                 Request a demo
               </Link>
               <a
                 href="#demo-section"
                 onClick={scrollToDemo}
-                className="inline-flex items-center px-10 py-4 border border-gray-300 text-lg font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-8 sm:px-10 py-3 sm:py-4 border border-gray-300 text-base sm:text-lg font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
               >
                 Watch 1-minute demo
               </a>
