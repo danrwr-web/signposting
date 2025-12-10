@@ -212,37 +212,34 @@ export default function LandingPageClient() {
           </div>
           
           {SHOW_HOMEPAGE_DEMO && (
-            <>
-              {/* Demo GIF placeholder */}
-              <div className="max-w-4xl mx-auto mb-10">
-                <div className="w-full rounded-lg shadow-lg overflow-hidden bg-gray-100 aspect-video relative">
-                  <img
-                    src="/images/toolkit-demo.gif"
-                    alt="Signposting Toolkit demo showing symptom search, selection, and instruction panel"
-                    className="w-full h-full object-contain"
-                    style={{ display: 'block' }}
-                    onError={(e) => {
-                      // Hide image if it doesn't exist (GIF not yet created)
-                      const target = e.target as HTMLImageElement
-                      target.style.display = 'none'
-                    }}
-                  />
-                </div>
+            <div className="max-w-4xl mx-auto mb-10">
+              <div className="w-full rounded-lg shadow-lg overflow-hidden bg-gray-100 aspect-video relative">
+                <img
+                  src="/images/toolkit-demo.gif"
+                  alt="Signposting Toolkit demo showing symptom search, selection, and instruction panel"
+                  className="w-full h-full object-contain"
+                  style={{ display: 'block' }}
+                  onError={(e) => {
+                    // Hide image if it doesn't exist (GIF not yet created)
+                    const target = e.target as HTMLImageElement
+                    target.style.display = 'none'
+                  }}
+                />
               </div>
-              
-              <div className="max-w-4xl mx-auto">
-                <div className="w-full max-w-4xl mx-auto rounded-lg shadow-lg aspect-video overflow-hidden">
-                  <iframe
-                    src="https://www.youtube-nocookie.com/embed/-IIpq9X9n9Y?rel=0&modestbranding=1&controls=1&autohide=1&playsinline=1"
-                    className="w-full h-full object-cover"
-                    title="Signposting Toolkit Walkthrough"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
-                </div>
-              </div>
-            </>
+            </div>
           )}
+          
+          <div className="max-w-4xl mx-auto">
+            <div className="w-full max-w-4xl mx-auto rounded-lg shadow-lg aspect-video overflow-hidden">
+              <iframe
+                src="https://www.youtube-nocookie.com/embed/-IIpq9X9n9Y?rel=0&modestbranding=1&controls=1&autohide=1&playsinline=1"
+                className="w-full h-full object-cover"
+                title="Signposting Toolkit Walkthrough"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
         </div>
       </section>
 
