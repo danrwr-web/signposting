@@ -211,6 +211,7 @@ export default function LandingPageClient() {
             </p>
           </div>
           
+          {/* Demo GIF/image placeholder - only shown when SHOW_HOMEPAGE_DEMO is true */}
           {SHOW_HOMEPAGE_DEMO && (
             <div className="max-w-4xl mx-auto mb-10">
               <div className="w-full rounded-lg shadow-lg overflow-hidden bg-gray-100 aspect-video relative">
@@ -229,6 +230,7 @@ export default function LandingPageClient() {
             </div>
           )}
           
+          {/* YouTube demo video - always rendered */}
           <div className="max-w-4xl mx-auto">
             <div className="w-full max-w-4xl mx-auto rounded-lg shadow-lg aspect-video overflow-hidden">
               <iframe
