@@ -10,6 +10,7 @@ _Changes in development or planned for the next release._
 
 ### 🧹 Updated
 - AI questions panel now titled “Suggested wording for questions to ask” with supporting text to encourage safe, consistent phrasing.
+- Marketing and app domains separated: www shows the public site while app.signpostingtool.co.uk now routes straight into the toolkit entry screen.
 
 ---
 

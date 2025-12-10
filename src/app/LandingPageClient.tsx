@@ -5,6 +5,10 @@ import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { useFadeUpOnScroll } from '@/hooks/useFadeUpOnScroll'
 
 export default function LandingPageClient() {
+  const appBaseUrl =
+    process.env.NEXT_PUBLIC_APP_BASE_URL?.replace(/\/$/, '') ||
+    (process.env.NODE_ENV === 'development' ? '' : 'https://app.signpostingtool.co.uk')
+  const appEntryUrl = appBaseUrl || '/'
   const { register } = useScrollReveal()
   
   // Fade-up hooks for "Why It Works" section with staggered delays
@@ -32,7 +36,7 @@ export default function LandingPageClient() {
             </div>
             <div className="flex items-center space-x-4">
               <Link
-                href="/login"
+                href={appEntryUrl}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Launch Toolkit
@@ -69,7 +73,7 @@ export default function LandingPageClient() {
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
-                href="/login"
+                href={appEntryUrl}
                 className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Launch Toolkit
@@ -424,7 +428,7 @@ export default function LandingPageClient() {
               .
             </p>
             <Link
-              href="/login"
+              href={appEntryUrl}
               className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Launch Toolkit

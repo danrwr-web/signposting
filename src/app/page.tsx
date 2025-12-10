@@ -1,3 +1,4 @@
+import { headers } from 'next/headers'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
@@ -99,6 +100,17 @@ export async function renderHomePage(
 
 // Trigger rebuild for database migrations
 
+function isMarketingHost(hostHeader: string | null): boolean {
+  const host = (hostHeader || '').toLowerCase().split(':')[0]
+  return host === 'www.signpostingtool.co.uk' || host === 'signpostingtool.co.uk'
+}
+
 export default async function HomePage() {
-  return renderHomePage()
+  const headerList = headers()
+  const host = headerList.get('host')
+
+  // On marketing hosts we always serve the landing page and skip auth redirects.
+  const disableAutoRedirect = isMarketingHost(host)
+
+  return renderHomePage({ disableAutoRedirect })
 }

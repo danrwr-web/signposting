@@ -90,6 +90,7 @@ Each user may belong to multiple surgeries with differing roles.
 ### 🔹 Navigation & Documentation
 - Admins and superusers can open the public documentation from the top navigation (opens in a new tab).
 - The Admin Dashboard includes a Documentation tab for the same site so admins can get guidance without leaving their workflow.
+- Domain routing: the marketing site stays on `www.signpostingtool.co.uk` while the app runs at `app.signpostingtool.co.uk`, with `/` on the app host directing users into the toolkit entry screen.
 
 ---
 

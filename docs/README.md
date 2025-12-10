@@ -25,6 +25,7 @@ Use this site if you are:
 
 - **Unreleased**
   - AI questions panel now titled “Suggested wording for questions to ask” with on-screen reminder to use the provided phrasing
+  - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
 
 - **v1.1 – December 2025**
   - AI Suggested Questions panel helps staff gather information consistently
