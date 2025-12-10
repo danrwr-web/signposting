@@ -1384,9 +1384,12 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <h3 className="text-lg font-semibold text-nhs-dark-blue mb-1">
-                    Suggested Questions to Ask
+                    Suggested wording for questions to ask
                   </h3>
-                  <p className="text-sm text-nhs-grey">
+                  <p className="text-sm text-nhs-grey leading-relaxed">
+                    These questions are carefully worded to help you ask safely and consistently. Please try to use the phrasing as written.
+                  </p>
+                  <p className="text-sm text-nhs-grey mt-1">
                     For {questionPrompts.symptom} ({questionPrompts.ageGroup})
                   </p>
                 </div>

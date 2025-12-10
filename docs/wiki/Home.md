@@ -45,6 +45,9 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 
 ## What's New
 
+- **Unreleased**
+  - AI questions panel now titled “Suggested wording for questions to ask” with on-screen reminder to use the provided phrasing
+
 - **v1.1 – December 2025**
   - AI Suggested Questions panel helps staff gather information consistently
   - New preferences system for customising card layouts and high-risk buttons

@@ -37,7 +37,7 @@ Each GP surgery has a fully independent configuration, symptom library, governan
 - Embedded icons (per symptom) displayed consistently.
 - AI tools available directly inside the symptom page:
   - “Customise instructions”  
-  - “Get Questions to Ask”
+  - “Get Questions to Ask” (panel titled “Suggested wording for questions to ask” with safety wording beneath the heading)
 - Buttons for suggestion feedback, hiding symptoms, and navigation back.
 
 ### 🔹 AI-Assisted Features

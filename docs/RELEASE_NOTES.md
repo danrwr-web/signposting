@@ -8,6 +8,9 @@ A high-level history of major changes.
 
 _Changes in development or planned for the next release._
 
+### 🧹 Updated
+- AI questions panel now titled “Suggested wording for questions to ask” with supporting text to encourage safe, consistent phrasing.
+
 ---
 
 ## v1.1 — Current Release (Dec 2025)

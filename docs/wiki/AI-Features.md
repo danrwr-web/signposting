@@ -89,6 +89,7 @@ The AI Instruction Editor helps improve the clarity and tone of symptom instruct
 ## AI Suggested Questions
 
 AI Suggested Questions generates grouped triage-style questions to help staff gather information safely and consistently.
+On each symptom page, the panel is titled “Suggested wording for questions to ask” with a reminder to use the phrasing exactly as written.
 
 ### Question Categories
 
