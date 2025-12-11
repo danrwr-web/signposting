@@ -5,10 +5,10 @@ import ReactFlow, {
   Node,
   Edge,
   Controls,
-  Background,
   useNodesState,
   useEdgesState,
   ConnectionMode,
+  MarkerType,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
@@ -62,20 +62,44 @@ function getActionKeyDescription(actionKey: WorkflowActionKey): string {
 function getNodeTypeColor(nodeType: WorkflowNodeType): string {
   switch (nodeType) {
     case 'INSTRUCTION':
-      return 'bg-blue-100 text-blue-800 border-blue-300'
+      return 'bg-blue-50 text-blue-700 border-blue-200'
     case 'QUESTION':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+      return 'bg-amber-50 text-amber-700 border-amber-200'
     case 'END':
-      return 'bg-green-100 text-green-800 border-green-300'
+      return 'bg-green-50 text-green-700 border-green-200'
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-300'
+      return 'bg-gray-50 text-gray-700 border-gray-200'
   }
+}
+
+// Simple info icon SVG
+function InfoIcon() {
+  return (
+    <svg
+      className="w-4 h-4 text-blue-600"
+      fill="currentColor"
+      viewBox="0 0 20 20"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        fillRule="evenodd"
+        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
 }
 
 export default function WorkflowDiagramClient({ template }: WorkflowDiagramClientProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+
+  // Find selected node data
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null
+    return template.nodes.find((n) => n.id === selectedNodeId) || null
+  }, [selectedNodeId, template.nodes])
 
   // Convert template nodes to React Flow nodes
   const flowNodes = useMemo<Node[]>(() => {
@@ -90,31 +114,51 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
       } else {
         // Simple vertical layout based on sortOrder
         x = 0
-        y = node.sortOrder * 150
+        y = node.sortOrder * 180
       }
+
+      const hasBody = node.body && node.body.trim().length > 0
+      const hasActionKey = node.actionKey !== null
+      const isSelected = node.id === selectedNodeId
 
       return {
         id: node.id,
         type: 'default',
         position: { x, y },
-        style: {
-          background: 'white',
-          border: '1px solid #e5e7eb',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
-        },
+        selected: isSelected,
         data: {
           label: (
-            <div className="px-3 py-2 min-w-[200px] max-w-[300px]">
-              <div className={`text-xs font-semibold px-2 py-1 rounded mb-2 inline-block ${getNodeTypeColor(node.nodeType)}`}>
-                {node.nodeType}
+            <div className={`min-w-[280px] max-w-[320px] bg-white rounded-lg shadow-md overflow-hidden transition-all ${
+              isSelected 
+                ? 'border-2 border-blue-500 shadow-lg' 
+                : 'border border-gray-200'
+            }`}>
+              {/* Badge in top-left */}
+              <div className="flex items-start justify-between px-4 pt-3 pb-2">
+                <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(node.nodeType)}`}>
+                  {node.nodeType}
+                </div>
+                {/* Info indicator */}
+                {hasBody && (
+                  <div className="flex-shrink-0 ml-2" title="Click for more details">
+                    <InfoIcon />
+                  </div>
+                )}
               </div>
-              <div className="font-medium text-gray-900 mb-1 break-words">
-                {node.title}
+              
+              {/* Title */}
+              <div className="px-4 pb-3">
+                <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+                  {node.title}
+                </div>
               </div>
-              {node.actionKey && (
-                <div className="text-xs text-gray-600 mt-2 pt-2 border-t border-gray-200">
-                  Outcome: {formatActionKey(node.actionKey)}
+
+              {/* Footer with actionKey */}
+              {hasActionKey && (
+                <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
+                  <div className="text-xs font-medium text-blue-900">
+                    Outcome: {formatActionKey(node.actionKey)}
+                  </div>
                 </div>
               )}
             </div>
@@ -123,10 +167,11 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
           title: node.title,
           body: node.body,
           actionKey: node.actionKey,
+          hasBody,
         },
       }
     })
-  }, [template.nodes])
+  }, [template.nodes, selectedNodeId])
 
   // Convert answer options to React Flow edges
   const flowEdges = useMemo<Edge[]>(() => {
@@ -139,17 +184,21 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            label: option.label,
+            label: (
+              <div className="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
+                {option.label}
+              </div>
+            ),
             type: 'smoothstep',
-            animated: false,
             style: {
-              stroke: '#6b7280',
-              strokeWidth: 2,
+              strokeWidth: 2.5,
+              stroke: '#005EB8', // NHS blue
             },
-            labelStyle: {
-              fill: '#374151',
-              fontWeight: 500,
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: '#005EB8',
             },
+            animated: false,
           })
         }
       })
@@ -158,41 +207,79 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
     return edgesList
   }, [template.nodes])
 
-  // Initialize nodes and edges
+  // Initialize nodes and edges, and auto-select start node
   useEffect(() => {
     setNodes(flowNodes)
     setEdges(flowEdges)
-  }, [flowNodes, flowEdges, setNodes, setEdges])
+    
+    // Auto-select start node or first node
+    if (flowNodes.length > 0 && !selectedNodeId) {
+      const startNode = template.nodes.find((n) => n.isStart)
+      const nodeToSelect = startNode || template.nodes[0]
+      if (nodeToSelect) {
+        setSelectedNodeId(nodeToSelect.id)
+      }
+    }
+  }, [flowNodes, flowEdges, setNodes, setEdges, template.nodes, selectedNodeId])
 
   // Handle node click
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id)
   }, [])
 
-  // Find selected node data
-  const selectedNode = useMemo(() => {
-    if (!selectedNodeId) return null
-    return template.nodes.find((n) => n.id === selectedNodeId) || null
-  }, [selectedNodeId, template.nodes])
-
   return (
-    <div className="flex gap-6 h-[800px]">
-      {/* Diagram Area */}
-      <div className="flex-1 bg-white rounded-lg shadow border border-gray-200">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={onNodeClick}
-          connectionMode={ConnectionMode.Loose}
-          fitView
-          attributionPosition="bottom-left"
-          style={{ background: 'white' }}
-        >
-          <Controls />
-        </ReactFlow>
+    <div className="space-y-4">
+      {/* Legend */}
+      <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
+        <h3 className="text-sm font-medium text-gray-900 mb-3">Legend</h3>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center gap-2">
+            <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('INSTRUCTION')}`}>
+              INSTRUCTION
+            </div>
+            <span className="text-sm text-gray-600">Information or checklist</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('QUESTION')}`}>
+              QUESTION
+            </div>
+            <span className="text-sm text-gray-600">Decision point</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('END')}`}>
+              END
+            </div>
+            <span className="text-sm text-gray-600">Final outcome</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-5 h-5">
+              <InfoIcon />
+            </div>
+            <span className="text-sm text-gray-600">Click for details</span>
+          </div>
+        </div>
       </div>
+
+      <div className="flex gap-6 h-[800px]">
+        {/* Diagram Area */}
+        <div className="flex-1 bg-white rounded-lg border border-gray-300 overflow-hidden">
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={onNodeClick}
+            connectionMode={ConnectionMode.Loose}
+            fitView
+            fitViewOptions={{ padding: 0.2 }}
+            minZoom={0.3}
+            maxZoom={1.5}
+            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Controls showInteractive={false} />
+          </ReactFlow>
+        </div>
 
       {/* Side Panel */}
       <div className="w-96 flex-shrink-0">
