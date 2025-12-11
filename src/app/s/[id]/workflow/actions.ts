@@ -824,7 +824,36 @@ export async function deleteWorkflowNodeById(
       }
     }
 
-    // Delete node (cascade will handle answer options)
+    // Delete related records first (no cascade delete configured in schema)
+    // 1. Delete answer records that reference this node's answer options
+    const answerOptions = await prisma.workflowAnswerOptionTemplate.findMany({
+      where: { nodeId },
+      select: { id: true },
+    })
+    
+    if (answerOptions.length > 0) {
+      const answerOptionIds = answerOptions.map(opt => opt.id)
+      await prisma.workflowAnswerRecord.deleteMany({
+        where: {
+          OR: [
+            { answerOptionId: { in: answerOptionIds } },
+            { nodeTemplateId: nodeId },
+          ],
+        },
+      })
+    } else {
+      // Still delete answer records that reference the node directly
+      await prisma.workflowAnswerRecord.deleteMany({
+        where: { nodeTemplateId: nodeId },
+      })
+    }
+    
+    // 2. Delete answer options
+    await prisma.workflowAnswerOptionTemplate.deleteMany({
+      where: { nodeId },
+    })
+    
+    // 3. Delete the node
     await prisma.workflowNodeTemplate.delete({
       where: { id: nodeId },
     })
