@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSurgeryAdmin } from '@/lib/rbac'
+import { requireSurgeryAdmin, requireSurgeryAccess, getSessionUser } from '@/lib/rbac'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 
 export interface ActionResult {
@@ -494,6 +494,305 @@ export async function deleteWorkflowAnswerOption(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete answer option',
+    }
+  }
+}
+
+// Workflow Runner Actions
+
+export async function startWorkflowInstance(
+  surgeryId: string,
+  formData: FormData
+): Promise<ActionResult & { instanceId?: string }> {
+  try {
+    const user = await requireSurgeryAccess(surgeryId)
+
+    const templateId = formData.get('templateId') as string
+    const reference = (formData.get('reference') as string) || null
+    const category = (formData.get('category') as string) || null
+
+    if (!templateId) {
+      return {
+        success: false,
+        error: 'Template ID is required',
+      }
+    }
+
+    // Verify template belongs to surgery and is active
+    const template = await prisma.workflowTemplate.findFirst({
+      where: {
+        id: templateId,
+        surgeryId,
+        isActive: true,
+      },
+      include: {
+        nodes: {
+          orderBy: {
+            sortOrder: 'asc',
+          },
+        },
+      },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found or inactive',
+      }
+    }
+
+    // Find start node or first node
+    let startNode = template.nodes.find((n) => n.isStart)
+    if (!startNode && template.nodes.length > 0) {
+      startNode = template.nodes[0] // lowest sortOrder
+    }
+
+    if (!startNode) {
+      return {
+        success: false,
+        error: 'Template has no nodes',
+      }
+    }
+
+    // Create instance
+    const instance = await prisma.workflowInstance.create({
+      data: {
+        surgeryId,
+        templateId,
+        startedById: user.id,
+        status: 'ACTIVE',
+        reference,
+        category,
+        currentNodeId: startNode.id,
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/instances`)
+    
+    return {
+      success: true,
+      instanceId: instance.id,
+    }
+  } catch (error) {
+    console.error('Error starting workflow instance:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to start workflow instance',
+    }
+  }
+}
+
+export async function continueFromInstructionNode(
+  surgeryId: string,
+  instanceId: string,
+  formData: FormData
+): Promise<ActionResult & { nextNodeId?: string }> {
+  try {
+    await requireSurgeryAccess(surgeryId)
+
+    // Verify instance belongs to surgery
+    const instance = await prisma.workflowInstance.findFirst({
+      where: {
+        id: instanceId,
+        surgeryId,
+      },
+      include: {
+        template: {
+          include: {
+            nodes: {
+              orderBy: {
+                sortOrder: 'asc',
+              },
+              include: {
+                answerOptions: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    if (!instance || !instance.currentNodeId) {
+      return {
+        success: false,
+        error: 'Instance or current node not found',
+      }
+    }
+
+    const currentNode = instance.template.nodes.find((n) => n.id === instance.currentNodeId)
+    if (!currentNode || currentNode.nodeType !== 'INSTRUCTION') {
+      return {
+        success: false,
+        error: 'Current node is not an instruction node',
+      }
+    }
+
+    // Find next node
+    // First check if instruction node has an answer option with nextNodeId (edge case)
+    let nextNodeId: string | null = null
+    if (currentNode.answerOptions.length > 0 && currentNode.answerOptions[0].nextNodeId) {
+      nextNodeId = currentNode.answerOptions[0].nextNodeId
+    } else {
+      // Move to next highest sortOrder node
+      const currentNodeIndex = instance.template.nodes.findIndex((n) => n.id === currentNode.id)
+      if (currentNodeIndex < instance.template.nodes.length - 1) {
+        nextNodeId = instance.template.nodes[currentNodeIndex + 1].id
+      }
+    }
+
+    if (!nextNodeId) {
+      // No next node - mark as completed
+      await prisma.workflowInstance.update({
+        where: { id: instanceId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          currentNodeId: null,
+        },
+      })
+    } else {
+      // Update to next node
+      await prisma.workflowInstance.update({
+        where: { id: instanceId },
+        data: {
+          currentNodeId: nextNodeId,
+        },
+      })
+    }
+
+    revalidatePath(`/s/${surgeryId}/workflow/instances/${instanceId}`)
+
+    return {
+      success: true,
+      nextNodeId: nextNodeId || undefined,
+    }
+  } catch (error) {
+    console.error('Error continuing from instruction node:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to continue workflow',
+    }
+  }
+}
+
+export async function answerQuestionNode(
+  surgeryId: string,
+  instanceId: string,
+  formData: FormData
+): Promise<ActionResult & { completed?: boolean; actionKey?: string }> {
+  try {
+    await requireSurgeryAccess(surgeryId)
+
+    const answerOptionId = formData.get('answerOptionId') as string
+    const freeTextNote = (formData.get('freeTextNote') as string) || null
+
+    if (!answerOptionId) {
+      return {
+        success: false,
+        error: 'Answer option ID is required',
+      }
+    }
+
+    // Verify instance belongs to surgery
+    const instance = await prisma.workflowInstance.findFirst({
+      where: {
+        id: instanceId,
+        surgeryId,
+      },
+      include: {
+        template: {
+          include: {
+            nodes: {
+              include: {
+                answerOptions: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    if (!instance || !instance.currentNodeId) {
+      return {
+        success: false,
+        error: 'Instance or current node not found',
+      }
+    }
+
+    const currentNode = instance.template.nodes.find((n) => n.id === instance.currentNodeId)
+    if (!currentNode || currentNode.nodeType !== 'QUESTION') {
+      return {
+        success: false,
+        error: 'Current node is not a question node',
+      }
+    }
+
+    const answerOption = currentNode.answerOptions.find((o) => o.id === answerOptionId)
+    if (!answerOption) {
+      return {
+        success: false,
+        error: 'Answer option not found',
+      }
+    }
+
+    // Create answer record
+    await prisma.workflowAnswerRecord.create({
+      data: {
+        instanceId,
+        nodeTemplateId: currentNode.id,
+        answerOptionId: answerOption.id,
+        answerValueKey: answerOption.valueKey,
+        freeTextNote,
+      },
+    })
+
+    // Determine next action
+    let nextNodeId: string | null = answerOption.nextNodeId
+    const actionKey = answerOption.actionKey
+
+    // Update instance
+    if (nextNodeId) {
+      // Move to next node
+      await prisma.workflowInstance.update({
+        where: { id: instanceId },
+        data: {
+          currentNodeId: nextNodeId,
+        },
+      })
+    } else if (actionKey) {
+      // No next node but has action - complete
+      await prisma.workflowInstance.update({
+        where: { id: instanceId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          currentNodeId: null,
+        },
+      })
+    } else {
+      // No next node and no action - mark completed anyway
+      await prisma.workflowInstance.update({
+        where: { id: instanceId },
+        data: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+          currentNodeId: null,
+        },
+      })
+    }
+
+    revalidatePath(`/s/${surgeryId}/workflow/instances/${instanceId}`)
+
+    return {
+      success: true,
+      completed: !nextNodeId,
+      actionKey: actionKey || undefined,
+    }
+  } catch (error) {
+    console.error('Error answering question node:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to record answer',
     }
   }
 }
