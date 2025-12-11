@@ -83,14 +83,14 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
       redirect('/unauthorized')
     }
 
-    // Create bound server actions inline
-    const updateTemplateAction = (formData: FormData) => updateWorkflowTemplate(surgeryId, templateId, formData)
-    const createNodeAction = (formData: FormData) => createWorkflowNode(surgeryId, templateId, formData)
-    const updateNodeAction = (formData: FormData) => updateWorkflowNode(surgeryId, templateId, formData)
-    const deleteNodeAction = (formData: FormData) => deleteWorkflowNode(surgeryId, templateId, formData)
-    const createAnswerOptionAction = (formData: FormData) => createWorkflowAnswerOption(surgeryId, templateId, formData)
-    const updateAnswerOptionAction = (formData: FormData) => updateWorkflowAnswerOption(surgeryId, templateId, formData)
-    const deleteAnswerOptionAction = (formData: FormData) => deleteWorkflowAnswerOption(surgeryId, templateId, formData)
+    // Create bound server actions using .bind() to preserve 'use server' marking
+    const updateTemplateAction = updateWorkflowTemplate.bind(null, surgeryId, templateId)
+    const createNodeAction = createWorkflowNode.bind(null, surgeryId, templateId)
+    const updateNodeAction = updateWorkflowNode.bind(null, surgeryId, templateId)
+    const deleteNodeAction = deleteWorkflowNode.bind(null, surgeryId, templateId)
+    const createAnswerOptionAction = createWorkflowAnswerOption.bind(null, surgeryId, templateId)
+    const updateAnswerOptionAction = updateWorkflowAnswerOption.bind(null, surgeryId, templateId)
+    const deleteAnswerOptionAction = deleteWorkflowAnswerOption.bind(null, surgeryId, templateId)
 
     return (
       <TemplateEditClient
