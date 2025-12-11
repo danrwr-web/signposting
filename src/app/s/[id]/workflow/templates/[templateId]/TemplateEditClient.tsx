@@ -48,11 +48,11 @@ interface TemplateEditClientProps {
   template: WorkflowTemplate
   updateTemplateAction: (formData: FormData) => Promise<{ success: boolean; error?: string }>
   createNodeAction: (formData: FormData) => Promise<{ success: boolean; error?: string }>
-  updateNodeAction: (nodeId: string) => (formData: FormData) => Promise<{ success: boolean; error?: string }>
-  deleteNodeAction: (nodeId: string) => Promise<{ success: boolean; error?: string }>
-  createAnswerOptionAction: (nodeId: string) => (formData: FormData) => Promise<{ success: boolean; error?: string }>
-  updateAnswerOptionAction: (optionId: string) => (formData: FormData) => Promise<{ success: boolean; error?: string }>
-  deleteAnswerOptionAction: (optionId: string) => Promise<{ success: boolean; error?: string }>
+  updateNodeAction: (formData: FormData) => Promise<{ success: boolean; error?: string }>
+  deleteNodeAction: (formData: FormData) => Promise<{ success: boolean; error?: string }>
+  createAnswerOptionAction: (formData: FormData) => Promise<{ success: boolean; error?: string }>
+  updateAnswerOptionAction: (formData: FormData) => Promise<{ success: boolean; error?: string }>
+  deleteAnswerOptionAction: (formData: FormData) => Promise<{ success: boolean; error?: string }>
   initialError?: string
   initialSuccess?: string
 }
@@ -118,8 +118,12 @@ export default function TemplateEditClient({
     setSuccess(undefined)
 
     startTransition(async () => {
+      // Add nodeId to formData if updating
+      if (nodeId) {
+        formData.set('nodeId', nodeId)
+      }
       const result = nodeId
-        ? await updateNodeAction(nodeId)(formData)
+        ? await updateNodeAction(formData)
         : await createNodeAction(formData)
 
       if (result.success) {
@@ -142,7 +146,9 @@ export default function TemplateEditClient({
     setSuccess(undefined)
 
     startTransition(async () => {
-      const result = await deleteNodeAction(nodeId)
+      const formData = new FormData()
+      formData.set('nodeId', nodeId)
+      const result = await deleteNodeAction(formData)
       if (result.success) {
         setSuccess('Node deleted successfully')
         router.refresh()
@@ -157,9 +163,14 @@ export default function TemplateEditClient({
     setSuccess(undefined)
 
     startTransition(async () => {
+      // Add nodeId/optionId to formData
+      formData.set('nodeId', nodeId)
+      if (optionId) {
+        formData.set('optionId', optionId)
+      }
       const result = optionId
-        ? await updateAnswerOptionAction(optionId)(formData)
-        : await createAnswerOptionAction(nodeId)(formData)
+        ? await updateAnswerOptionAction(formData)
+        : await createAnswerOptionAction(formData)
 
       if (result.success) {
         setSuccess(optionId ? 'Answer option updated successfully' : 'Answer option created successfully')
@@ -181,7 +192,9 @@ export default function TemplateEditClient({
     setSuccess(undefined)
 
     startTransition(async () => {
-      const result = await deleteAnswerOptionAction(optionId)
+      const formData = new FormData()
+      formData.set('optionId', optionId)
+      const result = await deleteAnswerOptionAction(formData)
       if (result.success) {
         setSuccess('Answer option deleted successfully')
         router.refresh()

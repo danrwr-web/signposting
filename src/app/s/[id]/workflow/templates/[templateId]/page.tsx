@@ -6,10 +6,10 @@ import Link from 'next/link'
 import {
   updateWorkflowTemplate,
   createWorkflowNode,
-  updateWorkflowNodeWrapper,
+  updateWorkflowNode,
   deleteWorkflowNode,
-  createWorkflowAnswerOptionWrapper,
-  updateWorkflowAnswerOptionWrapper,
+  createWorkflowAnswerOption,
+  updateWorkflowAnswerOption,
   deleteWorkflowAnswerOption,
 } from '../../actions'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
@@ -83,19 +83,28 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
       redirect('/unauthorized')
     }
 
+    // Create bound server actions inline
+    const updateTemplateAction = (formData: FormData) => updateWorkflowTemplate(surgeryId, templateId, formData)
+    const createNodeAction = (formData: FormData) => createWorkflowNode(surgeryId, templateId, formData)
+    const updateNodeAction = (formData: FormData) => updateWorkflowNode(surgeryId, templateId, formData)
+    const deleteNodeAction = (formData: FormData) => deleteWorkflowNode(surgeryId, templateId, formData)
+    const createAnswerOptionAction = (formData: FormData) => createWorkflowAnswerOption(surgeryId, templateId, formData)
+    const updateAnswerOptionAction = (formData: FormData) => updateWorkflowAnswerOption(surgeryId, templateId, formData)
+    const deleteAnswerOptionAction = (formData: FormData) => deleteWorkflowAnswerOption(surgeryId, templateId, formData)
+
     return (
       <TemplateEditClient
         surgeryId={surgeryId}
         templateId={templateId}
         surgeryName={surgery.name}
         template={template}
-        updateTemplateAction={updateWorkflowTemplate.bind(null, surgeryId, templateId)}
-        createNodeAction={createWorkflowNode.bind(null, surgeryId, templateId)}
-        updateNodeAction={updateWorkflowNodeWrapper.bind(null, surgeryId, templateId)}
-        deleteNodeAction={deleteWorkflowNode.bind(null, surgeryId, templateId)}
-        createAnswerOptionAction={createWorkflowAnswerOptionWrapper.bind(null, surgeryId, templateId)}
-        updateAnswerOptionAction={updateWorkflowAnswerOptionWrapper.bind(null, surgeryId, templateId)}
-        deleteAnswerOptionAction={deleteWorkflowAnswerOption.bind(null, surgeryId, templateId)}
+        updateTemplateAction={updateTemplateAction}
+        createNodeAction={createNodeAction}
+        updateNodeAction={updateNodeAction}
+        deleteNodeAction={deleteNodeAction}
+        createAnswerOptionAction={createAnswerOptionAction}
+        updateAnswerOptionAction={updateAnswerOptionAction}
+        deleteAnswerOptionAction={deleteAnswerOptionAction}
         initialError={error}
         initialSuccess={success}
       />

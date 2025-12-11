@@ -159,22 +159,15 @@ export async function createWorkflowNode(
   }
 }
 
-export async function updateWorkflowNodeWrapper(
+export async function updateWorkflowNode(
   surgeryId: string,
   templateId: string,
-  nodeId: string
-) {
-  return async (formData: FormData) => {
-    return updateWorkflowNode(surgeryId, templateId, nodeId, formData)
-  }
-}
-
-async function updateWorkflowNode(
-  surgeryId: string,
-  templateId: string,
-  nodeId: string,
   formData: FormData
 ): Promise<ActionResult> {
+  const nodeId = formData.get('nodeId') as string
+  if (!nodeId) {
+    return { success: false, error: 'Node ID is required' }
+  }
   try {
     await requireSurgeryAdmin(surgeryId)
 
@@ -249,8 +242,12 @@ async function updateWorkflowNode(
 export async function deleteWorkflowNode(
   surgeryId: string,
   templateId: string,
-  nodeId: string
+  formData: FormData
 ): Promise<ActionResult> {
+  const nodeId = formData.get('nodeId') as string
+  if (!nodeId) {
+    return { success: false, error: 'Node ID is required' }
+  }
   try {
     await requireSurgeryAdmin(surgeryId)
 
@@ -283,22 +280,15 @@ export async function deleteWorkflowNode(
   }
 }
 
-export async function createWorkflowAnswerOptionWrapper(
+export async function createWorkflowAnswerOption(
   surgeryId: string,
   templateId: string,
-  nodeId: string
-) {
-  return async (formData: FormData) => {
-    return createWorkflowAnswerOption(surgeryId, templateId, nodeId, formData)
-  }
-}
-
-async function createWorkflowAnswerOption(
-  surgeryId: string,
-  templateId: string,
-  nodeId: string,
   formData: FormData
 ): Promise<ActionResult> {
+  const nodeId = formData.get('nodeId') as string
+  if (!nodeId) {
+    return { success: false, error: 'Node ID is required' }
+  }
   try {
     await requireSurgeryAdmin(surgeryId)
 
@@ -371,22 +361,15 @@ async function createWorkflowAnswerOption(
   }
 }
 
-export async function updateWorkflowAnswerOptionWrapper(
+export async function updateWorkflowAnswerOption(
   surgeryId: string,
   templateId: string,
-  optionId: string
-) {
-  return async (formData: FormData) => {
-    return updateWorkflowAnswerOption(surgeryId, templateId, optionId, formData)
-  }
-}
-
-async function updateWorkflowAnswerOption(
-  surgeryId: string,
-  templateId: string,
-  optionId: string,
   formData: FormData
 ): Promise<ActionResult> {
+  const optionId = formData.get('optionId') as string
+  if (!optionId) {
+    return { success: false, error: 'Option ID is required' }
+  }
   try {
     await requireSurgeryAdmin(surgeryId)
 
@@ -466,8 +449,12 @@ async function updateWorkflowAnswerOption(
 export async function deleteWorkflowAnswerOption(
   surgeryId: string,
   templateId: string,
-  optionId: string
+  formData: FormData
 ): Promise<ActionResult> {
+  const optionId = formData.get('optionId') as string
+  if (!optionId) {
+    return { success: false, error: 'Option ID is required' }
+  }
   try {
     await requireSurgeryAdmin(surgeryId)
 
