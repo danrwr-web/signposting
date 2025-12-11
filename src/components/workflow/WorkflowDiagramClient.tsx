@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import ReactFlow, {
   Node,
   Edge,
@@ -39,6 +39,8 @@ interface WorkflowTemplate {
 
 interface WorkflowDiagramClientProps {
   template: WorkflowTemplate
+  isAdmin?: boolean
+  updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
 }
 
 function formatActionKey(key: string): string {
@@ -90,10 +92,13 @@ function InfoIcon() {
   )
 }
 
-export default function WorkflowDiagramClient({ template }: WorkflowDiagramClientProps) {
+export default function WorkflowDiagramClient({ template, isAdmin = false, updatePositionAction }: WorkflowDiagramClientProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  
+  // Debounce timer for position updates
+  const positionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Find selected node data
   const selectedNode = useMemo(() => {
@@ -248,6 +253,41 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
     setEdges(flowEdges)
   }, [flowNodes, flowEdges, setNodes, setEdges])
 
+  // Handle node drag end - save position to database
+  const handleNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
+    if (!isAdmin || !updatePositionAction) return
+
+    const position = node.position
+    const nodeId = node.id
+
+    // Clear any existing timeout
+    if (positionUpdateTimeoutRef.current) {
+      clearTimeout(positionUpdateTimeoutRef.current)
+    }
+
+    // Debounce position updates (400ms)
+    positionUpdateTimeoutRef.current = setTimeout(async () => {
+      try {
+        const result = await updatePositionAction(nodeId, position.x, position.y)
+        if (!result.success) {
+          console.error('Failed to update node position:', result.error)
+          // Optionally show a toast here
+        }
+      } catch (error) {
+        console.error('Error updating node position:', error)
+      }
+    }, 400)
+  }, [isAdmin, updatePositionAction])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (positionUpdateTimeoutRef.current) {
+        clearTimeout(positionUpdateTimeoutRef.current)
+      }
+    }
+  }, [])
+
   // Handle node click (node selection is handled in the label onClick)
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     toggleNodeSelection(node.id)
@@ -286,6 +326,13 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
         </div>
       </div>
 
+      {/* Admin hint */}
+      {isAdmin && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+          Drag nodes to adjust the layout. Positions are saved automatically.
+        </div>
+      )}
+
       <div className="flex gap-6 h-[800px]">
         {/* Diagram Area */}
         <div className="flex-1 bg-white rounded-lg border border-gray-300 overflow-hidden">
@@ -295,6 +342,8 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
+            onNodeDragStop={handleNodeDragStop}
+            nodesDraggable={isAdmin}
             connectionMode={ConnectionMode.Loose}
             fitView
             fitViewOptions={{ padding: 0.2 }}

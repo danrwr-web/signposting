@@ -458,11 +458,64 @@ export async function updateWorkflowAnswerOption(
   }
 }
 
-export async function deleteWorkflowAnswerOption(
+export async function updateWorkflowNodePosition(
   surgeryId: string,
   templateId: string,
-  formData: FormData
+  nodeId: string,
+  positionX: number,
+  positionY: number
 ): Promise<ActionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template and node belong to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    const node = await prisma.workflowNodeTemplate.findFirst({
+      where: { id: nodeId, templateId },
+    })
+
+    if (!node) {
+      return {
+        success: false,
+        error: 'Node not found',
+      }
+    }
+
+    await prisma.workflowNodeTemplate.update({
+      where: { id: nodeId },
+      data: {
+        positionX: Math.round(positionX),
+        positionY: Math.round(positionY),
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating workflow node position:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update node position',
+    }
+  }
+}
+
+export async function deleteWorkflowAnswerOption(
+      surgeryId: string,
+      templateId: string,
+      formData: FormData
+    ): Promise<ActionResult> {
   const optionId = formData.get('optionId') as string
   if (!optionId) {
     return { success: false, error: 'Option ID is required' }

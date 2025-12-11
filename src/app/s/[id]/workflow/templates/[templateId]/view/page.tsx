@@ -1,9 +1,10 @@
 import 'server-only'
-import { requireSurgeryAccess } from '@/lib/rbac'
+import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import WorkflowDiagramClient from '@/components/workflow/WorkflowDiagramClient'
+import { updateWorkflowNodePosition } from '../../actions'
 
 interface WorkflowTemplateViewPageProps {
   params: Promise<{
@@ -16,7 +17,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
   const { id: surgeryId, templateId } = await params
 
   try {
-    await requireSurgeryAccess(surgeryId)
+    const user = await requireSurgeryAccess(surgeryId)
 
     // Get surgery details
     const surgery = await prisma.surgery.findUnique({
@@ -63,6 +64,12 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       redirect('/unauthorized')
     }
 
+    // Check if user is admin
+    const isAdmin = can(user).isAdminOfSurgery(surgeryId)
+
+    // Create bound server action for position updates
+    const updatePositionAction = updateWorkflowNodePosition.bind(null, surgeryId, templateId)
+
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -88,6 +95,8 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
 
           <WorkflowDiagramClient
             template={template}
+            isAdmin={isAdmin}
+            updatePositionAction={updatePositionAction}
           />
         </div>
       </div>
