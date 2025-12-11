@@ -76,7 +76,7 @@ function getNodeTypeColor(nodeType: WorkflowNodeType): string {
 function InfoIcon() {
   return (
     <svg
-      className="w-4 h-4 text-blue-600"
+      className="w-4 h-4"
       fill="currentColor"
       viewBox="0 0 20 20"
       xmlns="http://www.w3.org/2000/svg"
@@ -101,6 +101,18 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
     return template.nodes.find((n) => n.id === selectedNodeId) || null
   }, [selectedNodeId, template.nodes])
 
+  // Toggle node selection
+  const toggleNodeSelection = useCallback((nodeId: string) => {
+    setSelectedNodeId((current) => (current === nodeId ? null : nodeId))
+  }, [])
+
+  // Check if node has outgoing edges
+  const nodeHasOutgoingEdges = useCallback((nodeId: string) => {
+    const node = template.nodes.find((n) => n.id === nodeId)
+    if (!node) return false
+    return node.answerOptions.some((option) => option.nextNodeId !== null)
+  }, [template.nodes])
+
   // Convert template nodes to React Flow nodes
   const flowNodes = useMemo<Node[]>(() => {
     return template.nodes.map((node) => {
@@ -120,6 +132,13 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
       const hasBody = node.body && node.body.trim().length > 0
       const hasActionKey = node.actionKey !== null
       const isSelected = node.id === selectedNodeId
+      const hasOutgoingEdges = nodeHasOutgoingEdges(node.id)
+      const isOutcomeNode = hasActionKey && !hasOutgoingEdges
+
+      // Determine node styling based on type
+      const nodeTypeStyles = node.nodeType === 'QUESTION'
+        ? 'bg-amber-50 border-amber-200'
+        : 'bg-white border-gray-200'
 
       return {
         id: node.id,
@@ -128,21 +147,37 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
         selected: isSelected,
         data: {
           label: (
-            <div className={`min-w-[280px] max-w-[320px] bg-white rounded-lg shadow-md overflow-hidden transition-all ${
-              isSelected 
-                ? 'border-2 border-blue-500 shadow-lg' 
-                : 'border border-gray-200'
-            }`}>
+            <div 
+              className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+                nodeTypeStyles
+              } ${
+                isSelected 
+                  ? 'border-2 border-blue-500 shadow-lg' 
+                  : 'border'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleNodeSelection(node.id)
+              }}
+            >
               {/* Badge in top-left */}
               <div className="flex items-start justify-between px-4 pt-3 pb-2">
                 <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(node.nodeType)}`}>
                   {node.nodeType}
                 </div>
-                {/* Info indicator */}
+                {/* Info indicator - only if has body */}
                 {hasBody && (
-                  <div className="flex-shrink-0 ml-2" title="Click for more details">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleNodeSelection(node.id)
+                    }}
+                    className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
+                    title="Click for reference details"
+                    aria-label="View details"
+                  >
                     <InfoIcon />
-                  </div>
+                  </button>
                 )}
               </div>
               
@@ -153,11 +188,11 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
                 </div>
               </div>
 
-              {/* Footer with actionKey */}
-              {hasActionKey && (
+              {/* Outcome footer - only if actionKey and no outgoing edges */}
+              {isOutcomeNode && (
                 <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
                   <div className="text-xs font-medium text-blue-900">
-                    Outcome: {formatActionKey(node.actionKey)}
+                    Outcome: {getActionKeyDescription(node.actionKey!)}
                   </div>
                 </div>
               )}
@@ -171,7 +206,7 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
         },
       }
     })
-  }, [template.nodes, selectedNodeId])
+  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection])
 
   // Convert answer options to React Flow edges
   const flowEdges = useMemo<Edge[]>(() => {
@@ -185,7 +220,7 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
             source: node.id,
             target: option.nextNodeId,
             label: (
-              <div className="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
+              <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
                 {option.label}
               </div>
             ),
@@ -207,25 +242,16 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
     return edgesList
   }, [template.nodes])
 
-  // Initialize nodes and edges, and auto-select start node
+  // Initialize nodes and edges (no auto-selection)
   useEffect(() => {
     setNodes(flowNodes)
     setEdges(flowEdges)
-    
-    // Auto-select start node or first node
-    if (flowNodes.length > 0 && !selectedNodeId) {
-      const startNode = template.nodes.find((n) => n.isStart)
-      const nodeToSelect = startNode || template.nodes[0]
-      if (nodeToSelect) {
-        setSelectedNodeId(nodeToSelect.id)
-      }
-    }
-  }, [flowNodes, flowEdges, setNodes, setEdges, template.nodes, selectedNodeId])
+  }, [flowNodes, flowEdges, setNodes, setEdges])
 
-  // Handle node click
+  // Handle node click (node selection is handled in the label onClick)
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    setSelectedNodeId(node.id)
-  }, [])
+    toggleNodeSelection(node.id)
+  }, [toggleNodeSelection])
 
   return (
     <div className="space-y-4">
@@ -252,10 +278,10 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
             <span className="text-sm text-gray-600">Final outcome</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-5 h-5">
+            <div className="flex items-center justify-center w-5 h-5 text-blue-600">
               <InfoIcon />
             </div>
-            <span className="text-sm text-gray-600">Click for details</span>
+            <span className="text-sm text-gray-600">ⓘ Click for details</span>
           </div>
         </div>
       </div>
@@ -281,52 +307,54 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
           </ReactFlow>
         </div>
 
-        {/* Side Panel */}
-        <div className="w-96 flex-shrink-0">
+      {/* Side Panel */}
+      <div className="w-96 flex-shrink-0">
         {selectedNode ? (
-          <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
             <div className="mb-4">
-              <div className={`text-xs font-semibold px-2 py-1 rounded inline-block mb-2 ${getNodeTypeColor(selectedNode.nodeType)}`}>
+              <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
                 {selectedNode.nodeType}
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              <h2 className="text-xl font-semibold text-gray-900 mb-3">
                 {selectedNode.title}
               </h2>
               {selectedNode.body && (
-                <div className="text-gray-700 whitespace-pre-wrap mb-4">
-                  {selectedNode.body}
+                <div className="text-gray-800 whitespace-pre-wrap mb-4 text-sm leading-relaxed">
+                  {selectedNode.body.split('\n').map((line, index) => (
+                    <p key={index} className={index > 0 ? 'mt-2' : ''}>{line || '\u00A0'}</p>
+                  ))}
                 </div>
               )}
             </div>
 
             {selectedNode.actionKey && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-medium text-gray-900 mb-2">
+              <div className="mt-4 pt-4 border-t border-yellow-300">
+                <h3 className="text-sm font-semibold text-gray-900 mb-1">
                   Outcome
                 </h3>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-800">
                   {getActionKeyDescription(selectedNode.actionKey)}
                 </p>
               </div>
             )}
 
             {selectedNode.answerOptions.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <h3 className="text-sm font-medium text-gray-900 mb-2">
+              <div className="mt-4 pt-4 border-t border-yellow-300">
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">
                   Answer Options
                 </h3>
                 <ul className="space-y-2">
                   {selectedNode.answerOptions.map((option) => (
-                    <li key={option.id} className="text-sm text-gray-700">
+                    <li key={option.id} className="text-sm text-gray-800">
                       <span className="font-medium">{option.label}</span>
                       {option.nextNodeId && (
-                        <span className="text-gray-500 ml-2">
+                        <span className="text-gray-600 ml-2">
                           → {template.nodes.find((n) => n.id === option.nextNodeId)?.title || 'Next node'}
                         </span>
                       )}
                       {option.actionKey && !option.nextNodeId && (
-                        <span className="text-gray-500 ml-2">
-                          → {formatActionKey(option.actionKey)}
+                        <span className="text-gray-600 ml-2">
+                          → {getActionKeyDescription(option.actionKey)}
                         </span>
                       )}
                     </li>
@@ -337,19 +365,19 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
 
             <button
               onClick={() => setSelectedNodeId(null)}
-              className="mt-6 w-full text-sm text-gray-600 hover:text-gray-900 underline"
+              className="mt-6 text-sm text-gray-700 hover:text-gray-900 underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
             >
-              Clear selection
+              Clear details
             </button>
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
-            <p className="text-sm text-gray-500">
-              Click on a node in the diagram to view its details.
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Click a node with the <span className="inline-flex items-center text-blue-600">ⓘ</span> icon in the diagram to view reference details.
             </p>
           </div>
         )}
-        </div>
+      </div>
       </div>
     </div>
   )
