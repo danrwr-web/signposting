@@ -29,32 +29,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       redirect('/unauthorized')
     }
 
-    // Get recent workflow instances
-    const instances = await prisma.workflowInstance.findMany({
-      where: {
-        surgeryId,
-      },
-      include: {
-        template: {
-          select: {
-            id: true,
-            name: true,
-          }
-        },
-        startedBy: {
-          select: {
-            name: true,
-            email: true,
-          }
-        }
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: 20,
-    })
-
-    // Get active templates for diagram links
+    // Get active templates
     const activeTemplates = await prisma.workflowTemplate.findMany({
       where: {
         surgeryId,
@@ -66,147 +41,87 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       select: {
         id: true,
         name: true,
+        description: true,
       }
     })
 
-    // Check if user is admin (for template management link)
+    // Check if user is admin
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
 
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6 flex justify-between items-start">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
-                Workflow Engine
-              </h1>
-              <p className="text-gray-600">
-                {surgery.name}
-              </p>
-            </div>
-            <Link
-              href={`/s/${surgeryId}/workflow/start`}
-              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              Start New Workflow
-            </Link>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Document Workflow Guidance
+            </h1>
+            <p className="text-gray-600">
+              Visual guidance for handling documents at {surgery.name}
+            </p>
           </div>
 
           <div className="space-y-6">
-            {/* Admin Section */}
-            {isAdmin && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Workflow Management
-                </h2>
-                
-                <div className="space-y-4">
+            {/* Active Templates Grid */}
+            {activeTemplates.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center">
+                <p className="text-gray-500 mb-2">No workflow templates available.</p>
+                {isAdmin && (
                   <Link
                     href={`/s/${surgeryId}/workflow/templates`}
-                    className="block text-blue-600 hover:text-blue-800 underline"
+                    className="text-blue-600 hover:text-blue-800 underline text-sm"
                   >
-                    Manage Templates
+                    Create a template to get started
                   </Link>
-
-                  {/* Active Templates with Diagram Links */}
-                  {activeTemplates.length > 0 && (
-                    <div className="mt-4">
-                      <h3 className="text-sm font-medium text-gray-900 mb-2">
-                        View Diagrams
-                      </h3>
-                      <ul className="space-y-1">
-                        {activeTemplates.map((template) => (
-                          <li key={template.id}>
-                            <Link
-                              href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
-                              className="text-sm text-blue-600 hover:text-blue-800 underline"
-                            >
-                              {template.name}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {activeTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="bg-white rounded-lg shadow border border-gray-200 p-6 flex flex-col"
+                  >
+                    <h2 className="text-lg font-semibold text-gray-900 mb-2">
+                      {template.name}
+                    </h2>
+                    {template.description && (
+                      <p className="text-sm text-gray-600 mb-4 flex-1">
+                        {template.description}
+                      </p>
+                    )}
+                    <Link
+                      href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
+                      className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      View Diagram
+                    </Link>
+                  </div>
+                ))}
               </div>
             )}
 
-            {/* Recent Instances */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Recent Workflows
+            {/* Admin Tools Section */}
+            {isAdmin && (
+              <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">
+                  Admin Tools
                 </h2>
-              </div>
-              {instances.length === 0 ? (
-                <div className="px-6 py-4 text-center text-sm text-gray-500">
-                  No workflows started yet. <Link href={`/s/${surgeryId}/workflow/start`} className="text-blue-600 underline">Start one</Link> to get started.
+                <div className="space-y-2">
+                  <Link
+                    href={`/s/${surgeryId}/workflow/templates`}
+                    className="block text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Manage Templates
+                  </Link>
+                  <Link
+                    href={`/s/${surgeryId}/workflow/start`}
+                    className="block text-sm text-gray-600 hover:text-gray-800 underline text-xs"
+                  >
+                    Runner / Instances (beta)
+                  </Link>
                 </div>
-              ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Template
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Reference
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Started By
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Started
-                      </th>
-                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {instances.map((instance) => (
-                      <tr key={instance.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {instance.template.name}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {instance.reference || '—'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            instance.status === 'COMPLETED'
-                              ? 'bg-green-100 text-green-800'
-                              : instance.status === 'CANCELLED'
-                              ? 'bg-gray-100 text-gray-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {instance.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {instance.startedBy.name || instance.startedBy.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {instance.createdAt.toLocaleDateString()} {instance.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <Link
-                            href={`/s/${surgeryId}/workflow/instances/${instance.id}`}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            {instance.status === 'ACTIVE' ? 'Resume' : 'View'}
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -68,13 +68,13 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-6">
             <Link
-              href={`/s/${surgeryId}/workflow/templates/${templateId}`}
+              href={`/s/${surgeryId}/workflow`}
               className="text-blue-600 hover:text-blue-800 underline mb-2 inline-block"
             >
-              ← Back to Edit Template
+              ← Back to Workflow Guidance
             </Link>
             <h1 className="text-2xl font-bold text-gray-900 mt-2">
-              Workflow Diagram: {template.name}
+              Visual guidance for handling: {template.name}
             </h1>
             <p className="text-gray-600">
               {surgery.name}

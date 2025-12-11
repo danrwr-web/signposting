@@ -67,11 +67,11 @@ export default async function WorkflowTemplatesPage({ params }: WorkflowTemplate
                 href={`/s/${surgeryId}/workflow`}
                 className="text-blue-600 hover:text-blue-800 underline mb-2 inline-block"
               >
-                ← Back to Workflow Dashboard
+                    ← Back to Workflow Guidance
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900 mt-2">
-                Workflow Templates
-              </h1>
+                  <h1 className="text-2xl font-bold text-gray-900 mt-2">
+                    Manage Workflow Templates
+                  </h1>
               <p className="text-gray-600">
                 {surgery.name}
               </p>

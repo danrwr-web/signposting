@@ -118,7 +118,7 @@ export default function WorkflowRunnerClient({
               href={`/s/${surgeryId}/workflow`}
               className="text-blue-600 hover:text-blue-800 underline mb-2 inline-block"
             >
-              ← Back to Workflow Dashboard
+              ← Back to Workflow Guidance
             </Link>
             <h1 className="text-2xl font-bold text-gray-900 mt-2">
               Workflow Completed
@@ -169,7 +169,7 @@ export default function WorkflowRunnerClient({
                 href={`/s/${surgeryId}/workflow`}
                 className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                Back to Workflow Dashboard
+                Back to Workflow Guidance
               </Link>
             </div>
           </div>
@@ -204,7 +204,7 @@ export default function WorkflowRunnerClient({
             href={`/s/${surgeryId}/workflow`}
             className="text-blue-600 hover:text-blue-800 underline mb-2 inline-block"
           >
-            ← Back to Workflow Dashboard
+            ← Back to Workflow Guidance
           </Link>
           <h1 className="text-2xl font-bold text-gray-900 mt-2">
             {instance.template.name}
@@ -299,7 +299,7 @@ export default function WorkflowRunnerClient({
                 href={`/s/${surgeryId}/workflow`}
                 className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                Back to Workflow Dashboard
+                Back to Workflow Guidance
               </Link>
             </div>
           )}
