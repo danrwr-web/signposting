@@ -6,13 +6,13 @@ import Link from 'next/link'
 
 interface WorkflowDashboardPageProps {
   params: Promise<{
-    surgeryId: string
+    id: string
   }>
 }
 
 export default async function WorkflowDashboardPage({ params }: WorkflowDashboardPageProps) {
   console.log('[WorkflowDashboard] Starting page render')
-  const { surgeryId } = await params
+  const { id: surgeryId } = await params
   console.log('[WorkflowDashboard] surgeryId:', surgeryId)
 
   try {

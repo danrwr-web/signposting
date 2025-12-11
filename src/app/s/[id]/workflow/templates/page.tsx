@@ -7,12 +7,12 @@ import { createWorkflowTemplate } from '../actions'
 
 interface WorkflowTemplatesPageProps {
   params: Promise<{
-    surgeryId: string
+    id: string
   }>
 }
 
 export default async function WorkflowTemplatesPage({ params }: WorkflowTemplatesPageProps) {
-  const { surgeryId } = await params
+  const { id: surgeryId } = await params
 
   try {
     const user = await requireSurgeryAdmin(surgeryId)

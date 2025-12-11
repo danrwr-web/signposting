@@ -17,7 +17,7 @@ import TemplateEditClient from './TemplateEditClient'
 
 interface WorkflowTemplateEditPageProps {
   params: Promise<{
-    surgeryId: string
+    id: string
     templateId: string
   }>
   searchParams: Promise<{
@@ -27,7 +27,7 @@ interface WorkflowTemplateEditPageProps {
 }
 
 export default async function WorkflowTemplateEditPage({ params, searchParams }: WorkflowTemplateEditPageProps) {
-  const { surgeryId, templateId } = await params
+  const { id: surgeryId, templateId } = await params
   const { error, success } = await searchParams
 
   try {
