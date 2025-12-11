@@ -188,7 +188,7 @@ export default function WorkflowRunnerClient({
               href={`/s/${surgeryId}/workflow`}
               className="text-blue-600 hover:text-blue-800 underline mt-4 inline-block"
             >
-              Back to Workflow Dashboard
+              Back to Workflow Guidance
             </Link>
           </div>
         </div>
