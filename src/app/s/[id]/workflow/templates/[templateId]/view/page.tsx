@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import WorkflowDiagramClient from '@/components/workflow/WorkflowDiagramClient'
-import { updateWorkflowNodePosition } from '../../actions'
+import { updateWorkflowNodePosition } from '../../../actions'
 
 interface WorkflowTemplateViewPageProps {
   params: Promise<{
