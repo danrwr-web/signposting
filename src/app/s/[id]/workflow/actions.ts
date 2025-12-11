@@ -458,6 +458,432 @@ export async function updateWorkflowAnswerOption(
   }
 }
 
+export interface CreateNodeResult {
+  success: boolean
+  error?: string
+  node?: {
+    id: string
+    nodeType: WorkflowNodeType
+    title: string
+    body: string | null
+    sortOrder: number
+    positionX: number | null
+    positionY: number | null
+    actionKey: WorkflowActionKey | null
+  }
+}
+
+export interface CreateAnswerOptionResult {
+  success: boolean
+  error?: string
+  option?: {
+    id: string
+    label: string
+    valueKey: string
+    nextNodeId: string | null
+    actionKey: WorkflowActionKey | null
+  }
+}
+
+// Helper to slugify a label into a valueKey
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+}
+
+export async function createWorkflowNodeForTemplate(
+  surgeryId: string,
+  templateId: string,
+  nodeType: WorkflowNodeType,
+  title?: string
+): Promise<CreateNodeResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+      include: { nodes: true },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    // Get max sortOrder and add 1
+    const maxSortOrder = template.nodes.length > 0
+      ? Math.max(...template.nodes.map(n => n.sortOrder))
+      : 0
+
+    // Default titles based on node type
+    const defaultTitle = title || (
+      nodeType === 'INSTRUCTION' ? 'New instruction' :
+      nodeType === 'QUESTION' ? 'New question' :
+      'New outcome'
+    )
+
+    const node = await prisma.workflowNodeTemplate.create({
+      data: {
+        templateId,
+        nodeType,
+        title: defaultTitle,
+        body: null,
+        sortOrder: maxSortOrder + 1,
+        isStart: false,
+        actionKey: null,
+        positionX: null,
+        positionY: null,
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return {
+      success: true,
+      node: {
+        id: node.id,
+        nodeType: node.nodeType,
+        title: node.title,
+        body: node.body,
+        sortOrder: node.sortOrder,
+        positionX: node.positionX,
+        positionY: node.positionY,
+        actionKey: node.actionKey,
+      },
+    }
+  } catch (error) {
+    console.error('Error creating workflow node:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create node',
+    }
+  }
+}
+
+export async function createWorkflowAnswerOptionForDiagram(
+  surgeryId: string,
+  templateId: string,
+  fromNodeId: string,
+  toNodeId: string,
+  label: string
+): Promise<CreateAnswerOptionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    // Verify fromNode belongs to template
+    const fromNode = await prisma.workflowNodeTemplate.findFirst({
+      where: { id: fromNodeId, templateId },
+    })
+
+    if (!fromNode) {
+      return {
+        success: false,
+        error: 'Source node not found',
+      }
+    }
+
+    // Verify toNode belongs to template
+    const toNode = await prisma.workflowNodeTemplate.findFirst({
+      where: { id: toNodeId, templateId },
+    })
+
+    if (!toNode) {
+      return {
+        success: false,
+        error: 'Target node not found',
+      }
+    }
+
+    // Generate valueKey from label
+    let valueKey = slugify(label)
+    
+    // Ensure uniqueness for this node
+    let counter = 1
+    const baseValueKey = valueKey
+    while (true) {
+      const existing = await prisma.workflowAnswerOptionTemplate.findFirst({
+        where: {
+          nodeId: fromNodeId,
+          valueKey,
+        },
+      })
+      if (!existing) break
+      valueKey = `${baseValueKey}_${counter}`
+      counter++
+    }
+
+    const option = await prisma.workflowAnswerOptionTemplate.create({
+      data: {
+        nodeId: fromNodeId,
+        label,
+        valueKey,
+        description: null,
+        nextNodeId: toNodeId,
+        actionKey: null,
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return {
+      success: true,
+      option: {
+        id: option.id,
+        label: option.label,
+        valueKey: option.valueKey,
+        nextNodeId: option.nextNodeId,
+        actionKey: option.actionKey,
+      },
+    }
+  } catch (error) {
+    console.error('Error creating workflow answer option:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create answer option',
+    }
+  }
+}
+
+export async function updateWorkflowAnswerOptionLabel(
+  surgeryId: string,
+  templateId: string,
+  optionId: string,
+  label: string
+): Promise<ActionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    const option = await prisma.workflowAnswerOptionTemplate.findFirst({
+      where: { id: optionId },
+      include: { node: true },
+    })
+
+    if (!option || option.node.templateId !== templateId) {
+      return {
+        success: false,
+        error: 'Answer option not found',
+      }
+    }
+
+    // Generate new valueKey from label
+    let valueKey = slugify(label)
+    
+    // Ensure uniqueness for this node (excluding current option)
+    let counter = 1
+    const baseValueKey = valueKey
+    while (true) {
+      const existing = await prisma.workflowAnswerOptionTemplate.findFirst({
+        where: {
+          nodeId: option.nodeId,
+          valueKey,
+          NOT: { id: optionId },
+        },
+      })
+      if (!existing) break
+      valueKey = `${baseValueKey}_${counter}`
+      counter++
+    }
+
+    await prisma.workflowAnswerOptionTemplate.update({
+      where: { id: optionId },
+      data: {
+        label,
+        valueKey,
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating workflow answer option label:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update answer option',
+    }
+  }
+}
+
+export async function deleteWorkflowAnswerOptionById(
+  surgeryId: string,
+  templateId: string,
+  optionId: string
+): Promise<ActionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    const option = await prisma.workflowAnswerOptionTemplate.findFirst({
+      where: { id: optionId },
+      include: { node: true },
+    })
+
+    if (!option || option.node.templateId !== templateId) {
+      return {
+        success: false,
+        error: 'Answer option not found',
+      }
+    }
+
+    await prisma.workflowAnswerOptionTemplate.delete({
+      where: { id: optionId },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting workflow answer option:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete answer option',
+    }
+  }
+}
+
+export async function deleteWorkflowNodeById(
+  surgeryId: string,
+  templateId: string,
+  nodeId: string
+): Promise<ActionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    const node = await prisma.workflowNodeTemplate.findFirst({
+      where: { id: nodeId, templateId },
+    })
+
+    if (!node) {
+      return {
+        success: false,
+        error: 'Node not found',
+      }
+    }
+
+    // Delete node (cascade will handle answer options)
+    await prisma.workflowNodeTemplate.delete({
+      where: { id: nodeId },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting workflow node:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete node',
+    }
+  }
+}
+
+export async function updateWorkflowNodeForDiagram(
+  surgeryId: string,
+  templateId: string,
+  nodeId: string,
+  title: string,
+  body: string | null,
+  actionKey: WorkflowActionKey | null
+): Promise<ActionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template and node belong to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    const node = await prisma.workflowNodeTemplate.findFirst({
+      where: { id: nodeId, templateId },
+    })
+
+    if (!node) {
+      return {
+        success: false,
+        error: 'Node not found',
+      }
+    }
+
+    await prisma.workflowNodeTemplate.update({
+      where: { id: nodeId },
+      data: {
+        title,
+        body: body || null,
+        actionKey,
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error updating workflow node:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update node',
+    }
+  }
+}
+
 export async function updateWorkflowNodePosition(
   surgeryId: string,
   templateId: string,

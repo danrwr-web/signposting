@@ -9,6 +9,9 @@ import ReactFlow, {
   useEdgesState,
   ConnectionMode,
   MarkerType,
+  Connection,
+  Handle,
+  Position,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
@@ -41,6 +44,12 @@ interface WorkflowDiagramClientProps {
   template: WorkflowTemplate
   isAdmin?: boolean
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
+  createNodeAction?: (nodeType: WorkflowNodeType, title?: string) => Promise<{ success: boolean; error?: string; node?: any }>
+  createAnswerOptionAction?: (fromNodeId: string, toNodeId: string, label: string) => Promise<{ success: boolean; error?: string; option?: any }>
+  updateAnswerOptionLabelAction?: (optionId: string, label: string) => Promise<{ success: boolean; error?: string }>
+  deleteAnswerOptionAction?: (optionId: string) => Promise<{ success: boolean; error?: string }>
+  deleteNodeAction?: (nodeId: string) => Promise<{ success: boolean; error?: string }>
+  updateNodeAction?: (nodeId: string, title: string, body: string | null, actionKey: WorkflowActionKey | null) => Promise<{ success: boolean; error?: string }>
 }
 
 function formatActionKey(key: string): string {
@@ -92,19 +101,79 @@ function InfoIcon() {
   )
 }
 
-export default function WorkflowDiagramClient({ template, isAdmin = false, updatePositionAction }: WorkflowDiagramClientProps) {
+export default function WorkflowDiagramClient({
+  template,
+  isAdmin = false,
+  updatePositionAction,
+  createNodeAction,
+  createAnswerOptionAction,
+  updateAnswerOptionLabelAction,
+  deleteAnswerOptionAction,
+  deleteNodeAction,
+  updateNodeAction,
+}: WorkflowDiagramClientProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   
+  // Editing state for admin
+  const [editingTitle, setEditingTitle] = useState('')
+  const [editingBody, setEditingBody] = useState('')
+  const [editingActionKey, setEditingActionKey] = useState<WorkflowActionKey | null>(null)
+  const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
+  
   // Debounce timer for position updates
   const positionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  const ACTION_KEYS: WorkflowActionKey[] = [
+    'FORWARD_TO_GP',
+    'FORWARD_TO_PRESCRIBING_TEAM',
+    'FORWARD_TO_PHARMACY_TEAM',
+    'FILE_WITHOUT_FORWARDING',
+    'ADD_TO_YELLOW_SLOT',
+    'SEND_STANDARD_LETTER',
+    'CODE_AND_FILE',
+    'OTHER',
+  ]
 
   // Find selected node data
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null
     return template.nodes.find((n) => n.id === selectedNodeId) || null
   }, [selectedNodeId, template.nodes])
+
+  // Initialize editing state when node is selected
+  useEffect(() => {
+    if (selectedNode && isAdmin) {
+      setEditingTitle(selectedNode.title)
+      setEditingBody(selectedNode.body || '')
+      setEditingActionKey(selectedNode.actionKey)
+    }
+  }, [selectedNode, isAdmin])
+
+  // Find selected edge data
+  const selectedEdge = useMemo(() => {
+    if (!selectedEdgeId) return null
+    const edge = edges.find((e) => e.id === selectedEdgeId)
+    if (!edge) return null
+    
+    // Find the answer option that corresponds to this edge
+    for (const node of template.nodes) {
+      const option = node.answerOptions.find((opt) => opt.id === edge.id)
+      if (option) {
+        return { edge, option, node }
+      }
+    }
+    return null
+  }, [selectedEdgeId, edges, template.nodes])
+
+  // Initialize edge editing state
+  useEffect(() => {
+    if (selectedEdge && isAdmin) {
+      setEditingEdgeLabel(selectedEdge.option.label)
+    }
+  }, [selectedEdge, isAdmin])
 
   // Toggle node selection
   const toggleNodeSelection = useCallback((nodeId: string) => {
@@ -230,8 +299,9 @@ export default function WorkflowDiagramClient({ template, isAdmin = false, updat
               </div>
             ),
             type: 'smoothstep',
+            selected: selectedEdgeId === option.id,
             style: {
-              strokeWidth: 2.5,
+              strokeWidth: selectedEdgeId === option.id ? 3.5 : 2.5,
               stroke: '#005EB8', // NHS blue
             },
             markerEnd: {
@@ -245,7 +315,7 @@ export default function WorkflowDiagramClient({ template, isAdmin = false, updat
     })
 
     return edgesList
-  }, [template.nodes])
+  }, [template.nodes, selectedEdgeId])
 
   // Initialize nodes and edges (no auto-selection)
   useEffect(() => {
@@ -291,7 +361,236 @@ export default function WorkflowDiagramClient({ template, isAdmin = false, updat
   // Handle node click (node selection is handled in the label onClick)
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     toggleNodeSelection(node.id)
+    setSelectedEdgeId(null) // Clear edge selection when node is clicked
   }, [toggleNodeSelection])
+
+  // Handle edge click
+  const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
+    if (!isAdmin) return
+    setSelectedEdgeId(edge.id)
+    setSelectedNodeId(null) // Clear node selection
+  }, [isAdmin])
+
+  // Handle connection creation
+  const onConnect = useCallback(async (connection: Connection) => {
+    if (!isAdmin || !createAnswerOptionAction || !connection.source || !connection.target) return
+
+    const label = window.prompt('Label for this path (e.g. Yes / No):', 'Yes')
+    if (!label || label.trim() === '') return
+
+    try {
+      const result = await createAnswerOptionAction(connection.source, connection.target, label.trim())
+      if (result.success && result.option) {
+        // Add new edge to the edges state
+        const newEdge: Edge = {
+          id: result.option.id,
+          source: connection.source!,
+          target: connection.target!,
+          label: (
+            <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
+              {result.option.label}
+            </div>
+          ),
+          type: 'smoothstep',
+          style: {
+            strokeWidth: 2.5,
+            stroke: '#005EB8',
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: '#005EB8',
+          },
+          animated: false,
+        }
+        setEdges((eds) => [...eds, newEdge])
+      } else {
+        console.error('Failed to create answer option:', result.error)
+        alert(`Failed to create connection: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error creating connection:', error)
+      alert('Failed to create connection')
+    }
+  }, [isAdmin, createAnswerOptionAction, setEdges])
+
+  // Handle creating new node from toolbar
+  const handleCreateNode = useCallback(async (nodeType: WorkflowNodeType) => {
+    if (!createNodeAction) return
+
+    try {
+      const result = await createNodeAction(nodeType)
+      if (result.success && result.node) {
+        // Calculate initial position (center of viewport or below last node)
+        const maxY = nodes.length > 0 
+          ? Math.max(...nodes.map(n => n.position.y))
+          : 0
+        const initialX = 0
+        const initialY = maxY + 200
+
+        const newNode: Node = {
+          id: result.node.id,
+          type: 'default',
+          position: { x: initialX, y: initialY },
+          selected: false,
+          data: {
+            label: (
+              <>
+                {isAdmin && (
+                  <Handle
+                    type="source"
+                    position={Position.Top}
+                    className="w-3 h-3 !bg-blue-500"
+                  />
+                )}
+                <div className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+                  nodeType === 'QUESTION'
+                    ? 'bg-amber-50 border-amber-200'
+                    : 'bg-white border-gray-200'
+                } border`}>
+                  <div className="flex items-start justify-between px-4 pt-3 pb-2">
+                    <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
+                      {nodeType}
+                    </div>
+                  </div>
+                  <div className="px-4 pb-3">
+                    <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+                      {result.node.title}
+                    </div>
+                  </div>
+                </div>
+                {isAdmin && (
+                  <Handle
+                    type="target"
+                    position={Position.Bottom}
+                    className="w-3 h-3 !bg-blue-500"
+                  />
+                )}
+              </>
+            ),
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            body: result.node.body,
+            actionKey: result.node.actionKey,
+            hasBody: false,
+          },
+        }
+        setNodes((nds) => [...nds, newNode])
+        setSelectedNodeId(result.node.id)
+        
+        // Update template nodes cache (we'll need to refresh to get full data)
+        // For now, we'll rely on router.refresh() after a successful create
+        if (typeof window !== 'undefined') {
+          window.location.reload() // Simple refresh to get full node data
+        }
+      } else {
+        console.error('Failed to create node:', result.error)
+        alert(`Failed to create node: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error creating node:', error)
+      alert('Failed to create node')
+    }
+  }, [createNodeAction, nodes, isAdmin, setNodes])
+
+  // Handle saving node edits
+  const handleSaveNode = useCallback(async () => {
+    if (!selectedNode || !updateNodeAction) return
+
+    try {
+      const result = await updateNodeAction(selectedNode.id, editingTitle, editingBody || null, editingActionKey)
+      if (result.success) {
+        if (typeof window !== 'undefined') {
+          window.location.reload() // Refresh to get updated data
+        }
+      } else {
+        alert(`Failed to save: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error saving node:', error)
+      alert('Failed to save changes')
+    }
+  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey])
+
+  // Handle deleting node
+  const handleDeleteNode = useCallback(async () => {
+    if (!selectedNode || !deleteNodeAction) return
+    if (!confirm('Are you sure you want to delete this node? This will also delete all its connections.')) return
+
+    try {
+      const result = await deleteNodeAction(selectedNode.id)
+      if (result.success) {
+        // Remove node and its edges from state
+        setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id))
+        setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id))
+        setSelectedNodeId(null)
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
+      } else {
+        alert(`Failed to delete: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting node:', error)
+      alert('Failed to delete node')
+    }
+  }, [selectedNode, deleteNodeAction, setNodes, setEdges])
+
+  // Handle saving edge label
+  const handleSaveEdgeLabel = useCallback(async () => {
+    if (!selectedEdge || !updateAnswerOptionLabelAction) return
+
+    try {
+      const result = await updateAnswerOptionLabelAction(selectedEdge.option.id, editingEdgeLabel.trim())
+      if (result.success) {
+        // Update edge label in state
+        setEdges((eds) =>
+          eds.map((e) =>
+            e.id === selectedEdge.edge.id
+              ? {
+                  ...e,
+                  label: (
+                    <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
+                      {editingEdgeLabel.trim()}
+                    </div>
+                  ),
+                }
+              : e
+          )
+        )
+        setSelectedEdgeId(null)
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
+      } else {
+        alert(`Failed to save: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error saving edge label:', error)
+      alert('Failed to save label')
+    }
+  }, [selectedEdge, updateAnswerOptionLabelAction, editingEdgeLabel, setEdges])
+
+  // Handle deleting edge
+  const handleDeleteEdge = useCallback(async () => {
+    if (!selectedEdge || !deleteAnswerOptionAction) return
+    if (!confirm('Are you sure you want to delete this connection?')) return
+
+    try {
+      const result = await deleteAnswerOptionAction(selectedEdge.option.id)
+      if (result.success) {
+        setEdges((eds) => eds.filter((e) => e.id !== selectedEdge.edge.id))
+        setSelectedEdgeId(null)
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
+      } else {
+        alert(`Failed to delete: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error deleting edge:', error)
+      alert('Failed to delete connection')
+    }
+  }, [selectedEdge, deleteAnswerOptionAction, setEdges])
 
   return (
     <div className="space-y-4">
@@ -326,10 +625,33 @@ export default function WorkflowDiagramClient({ template, isAdmin = false, updat
         </div>
       </div>
 
-      {/* Admin hint */}
+      {/* Admin toolbar */}
       {isAdmin && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-          Drag nodes to adjust the layout. Positions are saved automatically.
+        <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
+          <div className="flex items-center gap-3 mb-2">
+            <span className="text-sm font-medium text-gray-700">Add step:</span>
+            <button
+              onClick={() => handleCreateNode('INSTRUCTION')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Add instruction
+            </button>
+            <button
+              onClick={() => handleCreateNode('QUESTION')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              Add question
+            </button>
+            <button
+              onClick={() => handleCreateNode('END')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              Add outcome
+            </button>
+          </div>
+          <p className="text-xs text-gray-600">
+            Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically.
+          </p>
         </div>
       )}
 
@@ -342,8 +664,13 @@ export default function WorkflowDiagramClient({ template, isAdmin = false, updat
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
+            onEdgeClick={onEdgeClick}
+            onConnect={isAdmin ? onConnect : undefined}
             onNodeDragStop={handleNodeDragStop}
             nodesDraggable={isAdmin}
+            edgesFocusable={isAdmin}
+            edgesUpdatable={false}
+            selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Loose}
             fitView
             fitViewOptions={{ padding: 0.2 }}
@@ -422,7 +749,13 @@ export default function WorkflowDiagramClient({ template, isAdmin = false, updat
         ) : (
           <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
             <p className="text-sm text-gray-600 leading-relaxed">
-              Click a node with the <span className="inline-flex items-center text-blue-600">ⓘ</span> icon in the diagram to view reference details.
+              {isAdmin 
+                ? 'Click a node to edit it, or click a connection to edit its label. Drag from node handles to create connections.'
+                : (
+                  <>
+                    Click a node with the <span className="inline-flex items-center text-blue-600">ⓘ</span> icon in the diagram to view reference details.
+                  </>
+                )}
             </p>
           </div>
         )}

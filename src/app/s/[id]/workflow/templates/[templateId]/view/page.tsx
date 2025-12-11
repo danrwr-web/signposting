@@ -4,7 +4,15 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import WorkflowDiagramClient from '@/components/workflow/WorkflowDiagramClient'
-import { updateWorkflowNodePosition } from '../../../actions'
+import {
+  updateWorkflowNodePosition,
+  createWorkflowNodeForTemplate,
+  createWorkflowAnswerOptionForDiagram,
+  updateWorkflowAnswerOptionLabel,
+  deleteWorkflowAnswerOptionById,
+  deleteWorkflowNodeById,
+  updateWorkflowNodeForDiagram,
+} from '../../../actions'
 
 interface WorkflowTemplateViewPageProps {
   params: Promise<{
@@ -67,8 +75,14 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
     // Check if user is admin
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
 
-    // Create bound server action for position updates
-    const updatePositionAction = updateWorkflowNodePosition.bind(null, surgeryId, templateId)
+    // Create bound server actions for admin editing
+    const updatePositionAction = isAdmin ? updateWorkflowNodePosition.bind(null, surgeryId, templateId) : undefined
+    const createNodeAction = isAdmin ? createWorkflowNodeForTemplate.bind(null, surgeryId, templateId) : undefined
+    const createAnswerOptionAction = isAdmin ? createWorkflowAnswerOptionForDiagram.bind(null, surgeryId, templateId) : undefined
+    const updateAnswerOptionLabelAction = isAdmin ? updateWorkflowAnswerOptionLabel.bind(null, surgeryId, templateId) : undefined
+    const deleteAnswerOptionAction = isAdmin ? deleteWorkflowAnswerOptionById.bind(null, surgeryId, templateId) : undefined
+    const deleteNodeAction = isAdmin ? deleteWorkflowNodeById.bind(null, surgeryId, templateId) : undefined
+    const updateNodeAction = isAdmin ? updateWorkflowNodeForDiagram.bind(null, surgeryId, templateId) : undefined
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -97,6 +111,12 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             template={template}
             isAdmin={isAdmin}
             updatePositionAction={updatePositionAction}
+            createNodeAction={createNodeAction}
+            createAnswerOptionAction={createAnswerOptionAction}
+            updateAnswerOptionLabelAction={updateAnswerOptionLabelAction}
+            deleteAnswerOptionAction={deleteAnswerOptionAction}
+            deleteNodeAction={deleteNodeAction}
+            updateNodeAction={updateNodeAction}
           />
         </div>
       </div>
