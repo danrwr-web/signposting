@@ -518,6 +518,10 @@ model WorkflowNodeTemplate {
   sortOrder     Int                           // for default ordering in editors
   isStart       Boolean                       @default(false)
 
+  // Diagram layout position (optional - falls back to vertical layout using sortOrder if not set)
+  positionX     Int?
+  positionY     Int?
+
   // For simple "end" nodes, you can attach an action directly.
   actionKey     WorkflowActionKey?
 

@@ -54,6 +54,21 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       take: 20,
     })
 
+    // Get active templates for diagram links
+    const activeTemplates = await prisma.workflowTemplate.findMany({
+      where: {
+        surgeryId,
+        isActive: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+      select: {
+        id: true,
+        name: true,
+      }
+    })
+
     // Check if user is admin (for template management link)
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
 
@@ -85,13 +100,34 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
                   Workflow Management
                 </h2>
                 
-                <div className="space-y-2">
+                <div className="space-y-4">
                   <Link
                     href={`/s/${surgeryId}/workflow/templates`}
                     className="block text-blue-600 hover:text-blue-800 underline"
                   >
                     Manage Templates
                   </Link>
+
+                  {/* Active Templates with Diagram Links */}
+                  {activeTemplates.length > 0 && (
+                    <div className="mt-4">
+                      <h3 className="text-sm font-medium text-gray-900 mb-2">
+                        View Diagrams
+                      </h3>
+                      <ul className="space-y-1">
+                        {activeTemplates.map((template) => (
+                          <li key={template.id}>
+                            <Link
+                              href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
+                              className="text-sm text-blue-600 hover:text-blue-800 underline"
+                            >
+                              {template.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

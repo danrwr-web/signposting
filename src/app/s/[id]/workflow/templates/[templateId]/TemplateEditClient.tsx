@@ -22,6 +22,8 @@ interface WorkflowNode {
   sortOrder: number
   isStart: boolean
   actionKey: WorkflowActionKey | null
+  positionX: number | null
+  positionY: number | null
   answerOptions: Array<{
     id: string
     label: string
@@ -208,12 +210,20 @@ export default function TemplateEditClient({
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <Link
-            href={`/s/${surgeryId}/workflow/templates`}
-            className="text-blue-600 hover:text-blue-800 underline mb-2 inline-block"
-          >
-            ← Back to Templates
-          </Link>
+          <div className="flex items-start justify-between mb-2">
+            <Link
+              href={`/s/${surgeryId}/workflow/templates`}
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              ← Back to Templates
+            </Link>
+            <Link
+              href={`/s/${surgeryId}/workflow/templates/${templateId}/view`}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              View Diagram
+            </Link>
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 mt-2">
             Edit Workflow Template: {template.name}
           </h1>
@@ -375,6 +385,32 @@ export default function TemplateEditClient({
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="new-positionX" className="block text-sm font-medium text-gray-700 mb-1">
+                      X Position (optional)
+                    </label>
+                    <input
+                      type="number"
+                      id="new-positionX"
+                      name="positionX"
+                      placeholder="Leave empty for auto layout"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="new-positionY" className="block text-sm font-medium text-gray-700 mb-1">
+                      Y Position (optional)
+                    </label>
+                    <input
+                      type="number"
+                      id="new-positionY"
+                      name="positionY"
+                      placeholder="Leave empty for auto layout"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center space-x-4">
                   <div className="flex items-center">
                     <input
@@ -480,6 +516,34 @@ export default function TemplateEditClient({
                             </select>
                           </div>
                         </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div>
+                            <label htmlFor={`node-${node.id}-positionX`} className="block text-sm font-medium text-gray-700 mb-1">
+                              X Position (optional)
+                            </label>
+                            <input
+                              type="number"
+                              id={`node-${node.id}-positionX`}
+                              name="positionX"
+                              defaultValue={node.positionX ?? ''}
+                              placeholder="Leave empty for auto layout"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor={`node-${node.id}-positionY`} className="block text-sm font-medium text-gray-700 mb-1">
+                              Y Position (optional)
+                            </label>
+                            <input
+                              type="number"
+                              id={`node-${node.id}-positionY`}
+                              name="positionY"
+                              defaultValue={node.positionY ?? ''}
+                              placeholder="Leave empty for auto layout"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
                         <div>
                           <label htmlFor={`node-${node.id}-title`} className="block text-sm font-medium text-gray-700 mb-1">
                             Title *
@@ -535,6 +599,34 @@ export default function TemplateEditClient({
                                 </option>
                               ))}
                             </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                          <div>
+                            <label htmlFor={`node-${node.id}-positionX`} className="block text-sm font-medium text-gray-700 mb-1">
+                              X Position (optional)
+                            </label>
+                            <input
+                              type="number"
+                              id={`node-${node.id}-positionX`}
+                              name="positionX"
+                              defaultValue={node.positionX ?? ''}
+                              placeholder="Auto"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div>
+                            <label htmlFor={`node-${node.id}-positionY`} className="block text-sm font-medium text-gray-700 mb-1">
+                              Y Position (optional)
+                            </label>
+                            <input
+                              type="number"
+                              id={`node-${node.id}-positionY`}
+                              name="positionY"
+                              defaultValue={node.positionY ?? ''}
+                              placeholder="Auto"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
                           </div>
                         </div>
                         <div className="flex space-x-2">

@@ -121,6 +121,10 @@ export async function createWorkflowNode(
     const isStart = formData.get('isStart') === 'on' || formData.get('isStart') === 'true'
     const actionKeyRaw = formData.get('actionKey') as string
     const actionKey = actionKeyRaw && actionKeyRaw !== 'NONE' ? (actionKeyRaw as WorkflowActionKey) : null
+    const positionXRaw = formData.get('positionX') as string
+    const positionX = positionXRaw ? parseInt(positionXRaw) : null
+    const positionYRaw = formData.get('positionY') as string
+    const positionY = positionYRaw ? parseInt(positionYRaw) : null
 
     // If this is the start node, clear isStart on all other nodes
     if (isStart) {
@@ -144,6 +148,8 @@ export async function createWorkflowNode(
         sortOrder: maxSortOrder + 1,
         isStart,
         actionKey,
+        positionX,
+        positionY,
       },
     })
 
@@ -201,6 +207,10 @@ export async function updateWorkflowNode(
     const isStart = formData.get('isStart') === 'on' || formData.get('isStart') === 'true'
     const actionKeyRaw = formData.get('actionKey') as string
     const actionKey = actionKeyRaw && actionKeyRaw !== 'NONE' ? (actionKeyRaw as WorkflowActionKey) : null
+    const positionXRaw = formData.get('positionX') as string
+    const positionX = positionXRaw ? parseInt(positionXRaw) : null
+    const positionYRaw = formData.get('positionY') as string
+    const positionY = positionYRaw ? parseInt(positionYRaw) : null
 
     // If this is being set as start node, clear isStart on all other nodes
     if (isStart && !node.isStart) {
@@ -224,6 +234,8 @@ export async function updateWorkflowNode(
         body: body || null,
         isStart,
         actionKey,
+        positionX,
+        positionY,
       },
     })
 
