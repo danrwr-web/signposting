@@ -611,8 +611,20 @@ export async function createWorkflowAnswerOptionForDiagram(
       }
     }
 
-    // Generate valueKey from label
-    let valueKey = slugify(label)
+    // Generate valueKey from label, or use safe default if label is empty
+    let valueKey: string
+    if (!label || label.trim() === '') {
+      // Use a safe default for empty labels - generate unique ID
+      const { randomUUID } = await import('crypto')
+      valueKey = `path_${randomUUID().substring(0, 8)}`
+    } else {
+      valueKey = slugify(label)
+      // If slugify returns empty (e.g., only special chars), fall back to UUID
+      if (!valueKey || valueKey.trim() === '') {
+        const { randomUUID } = await import('crypto')
+        valueKey = `path_${randomUUID().substring(0, 8)}`
+      }
+    }
     
     // Ensure uniqueness for this node
     let counter = 1

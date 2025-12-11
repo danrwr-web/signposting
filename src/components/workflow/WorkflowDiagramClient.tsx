@@ -171,7 +171,7 @@ export default function WorkflowDiagramClient({
   // Initialize edge editing state
   useEffect(() => {
     if (selectedEdge && isAdmin) {
-      setEditingEdgeLabel(selectedEdge.option.label)
+      setEditingEdgeLabel(selectedEdge.option.label || '')
     }
   }, [selectedEdge, isAdmin])
 
@@ -289,15 +289,16 @@ export default function WorkflowDiagramClient({
     template.nodes.forEach((node) => {
       node.answerOptions.forEach((option) => {
         if (option.nextNodeId) {
+          const label = option.label ?? ''
           edgesList.push({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            label: (
+            label: label && label.trim() !== '' ? (
               <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
-                {option.label}
+                {label}
               </div>
-            ),
+            ) : undefined,
             type: 'smoothstep',
             selected: selectedEdgeId === option.id,
             style: {
@@ -375,22 +376,24 @@ export default function WorkflowDiagramClient({
   const onConnect = useCallback(async (connection: Connection) => {
     if (!isAdmin || !createAnswerOptionAction || !connection.source || !connection.target) return
 
-    const label = window.prompt('Label for this path (e.g. Yes / No):', 'Yes')
-    if (!label || label.trim() === '') return
+    const labelInput = window.prompt('Label for this path (e.g. Yes / No). Leave blank for no label:', '')
+    // If user cancels, labelInput is null - we'll treat this as empty string
+    const label = labelInput === null ? '' : labelInput.trim()
 
     try {
-      const result = await createAnswerOptionAction(connection.source, connection.target, label.trim())
+      const result = await createAnswerOptionAction(connection.source, connection.target, label)
       if (result.success && result.option) {
         // Add new edge to the edges state
+        const edgeLabel = result.option.label && result.option.label.trim() !== '' ? result.option.label : undefined
         const newEdge: Edge = {
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
-          label: (
+          label: edgeLabel ? (
             <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
-              {result.option.label}
+              {edgeLabel}
             </div>
-          ),
+          ) : undefined,
           type: 'smoothstep',
           style: {
             strokeWidth: 2.5,
@@ -539,20 +542,22 @@ export default function WorkflowDiagramClient({
   const handleSaveEdgeLabel = useCallback(async () => {
     if (!selectedEdge || !updateAnswerOptionLabelAction) return
 
+    const trimmedLabel = editingEdgeLabel.trim()
+
     try {
-      const result = await updateAnswerOptionLabelAction(selectedEdge.option.id, editingEdgeLabel.trim())
+      const result = await updateAnswerOptionLabelAction(selectedEdge.option.id, trimmedLabel)
       if (result.success) {
-        // Update edge label in state
+        // Update edge label in state (hide if empty)
         setEdges((eds) =>
           eds.map((e) =>
             e.id === selectedEdge.edge.id
               ? {
                   ...e,
-                  label: (
+                  label: trimmedLabel && trimmedLabel !== '' ? (
                     <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
-                      {editingEdgeLabel.trim()}
+                      {trimmedLabel}
                     </div>
-                  ),
+                  ) : undefined,
                 }
               : e
           )
@@ -685,67 +690,210 @@ export default function WorkflowDiagramClient({
 
       {/* Side Panel */}
       <div className="w-96 flex-shrink-0">
-        {selectedNode ? (
-          <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
-            <div className="mb-4">
-              <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
-                {selectedNode.nodeType}
+        {selectedEdge && isAdmin ? (
+          // Edge editing panel for admins
+          <div className="bg-blue-50 rounded-lg shadow-md p-6 border border-blue-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Connection</h3>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="edge-label" className="block text-sm font-medium text-gray-700 mb-1">
+                  Label (leave blank for no label)
+                </label>
+                <input
+                  id="edge-label"
+                  type="text"
+                  value={editingEdgeLabel}
+                  onChange={(e) => setEditingEdgeLabel(e.target.value)}
+                  placeholder="e.g. Yes, No, Continue"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-3">
-                {selectedNode.title}
-              </h2>
-              {selectedNode.body && (
-                <div className="text-gray-800 whitespace-pre-wrap mb-4 text-sm leading-relaxed">
-                  {selectedNode.body.split('\n').map((line, index) => (
-                    <p key={index} className={index > 0 ? 'mt-2' : ''}>{line || '\u00A0'}</p>
-                  ))}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveEdgeLabel}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleDeleteEdge}
+                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  Delete connection
+                </button>
+                <button
+                  onClick={() => setSelectedEdgeId(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : selectedNode ? (
+          isAdmin ? (
+            // Admin edit form
+            <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
+              <div className="mb-4">
+                <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
+                  {selectedNode.nodeType}
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="node-title" className="block text-sm font-medium text-gray-700 mb-1">
+                      Title *
+                    </label>
+                    <input
+                      id="node-title"
+                      type="text"
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="node-body" className="block text-sm font-medium text-gray-700 mb-1">
+                      Body
+                    </label>
+                    <textarea
+                      id="node-body"
+                      value={editingBody}
+                      onChange={(e) => setEditingBody(e.target.value)}
+                      rows={6}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  {(selectedNode.nodeType === 'END' || selectedNode.actionKey) && (
+                    <div>
+                      <label htmlFor="node-actionKey" className="block text-sm font-medium text-gray-700 mb-1">
+                        Outcome
+                      </label>
+                      <select
+                        id="node-actionKey"
+                        value={editingActionKey || 'NONE'}
+                        onChange={(e) => setEditingActionKey(e.target.value === 'NONE' ? null : e.target.value as WorkflowActionKey)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="NONE">None</option>
+                        {ACTION_KEYS.map((key) => (
+                          <option key={key} value={key}>
+                            {formatActionKey(key)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {selectedNode.answerOptions.length > 0 && (
+                    <div className="pt-4 border-t border-yellow-300">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                        Connections
+                      </h3>
+                      <ul className="space-y-1">
+                        {selectedNode.answerOptions.map((option) => (
+                          <li key={option.id} className="text-sm text-gray-800">
+                            <span className="font-medium">{option.label || '(no label)'}</span>
+                            {option.nextNodeId && (
+                              <span className="text-gray-600 ml-2">
+                                → {template.nodes.find((n) => n.id === option.nextNodeId)?.title || 'Next node'}
+                              </span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-2 pt-4 border-t border-yellow-300">
+                <button
+                  onClick={handleSaveNode}
+                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Save changes
+                </button>
+                <button
+                  onClick={handleDeleteNode}
+                  className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  Delete node
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedNodeId(null)
+                    setEditingTitle('')
+                    setEditingBody('')
+                    setEditingActionKey(null)
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Read-only view for non-admins
+            <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
+              <div className="mb-4">
+                <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
+                  {selectedNode.nodeType}
+                </div>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">
+                  {selectedNode.title}
+                </h2>
+                {selectedNode.body && (
+                  <div className="text-gray-800 whitespace-pre-wrap mb-4 text-sm leading-relaxed">
+                    {selectedNode.body.split('\n').map((line, index) => (
+                      <p key={index} className={index > 0 ? 'mt-2' : ''}>{line || '\u00A0'}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedNode.actionKey && (
+                <div className="mt-4 pt-4 border-t border-yellow-300">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-1">
+                    Outcome
+                  </h3>
+                  <p className="text-sm text-gray-800">
+                    {getActionKeyDescription(selectedNode.actionKey)}
+                  </p>
                 </div>
               )}
+
+              {selectedNode.answerOptions.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-yellow-300">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                    Answer Options
+                  </h3>
+                  <ul className="space-y-2">
+                    {selectedNode.answerOptions.map((option) => (
+                      <li key={option.id} className="text-sm text-gray-800">
+                        <span className="font-medium">{option.label || '(no label)'}</span>
+                        {option.nextNodeId && (
+                          <span className="text-gray-600 ml-2">
+                            → {template.nodes.find((n) => n.id === option.nextNodeId)?.title || 'Next node'}
+                          </span>
+                        )}
+                        {option.actionKey && !option.nextNodeId && (
+                          <span className="text-gray-600 ml-2">
+                            → {getActionKeyDescription(option.actionKey)}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <button
+                onClick={() => setSelectedNodeId(null)}
+                className="mt-6 text-sm text-gray-700 hover:text-gray-900 underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              >
+                Clear details
+              </button>
             </div>
-
-            {selectedNode.actionKey && (
-              <div className="mt-4 pt-4 border-t border-yellow-300">
-                <h3 className="text-sm font-semibold text-gray-900 mb-1">
-                  Outcome
-                </h3>
-                <p className="text-sm text-gray-800">
-                  {getActionKeyDescription(selectedNode.actionKey)}
-                </p>
-              </div>
-            )}
-
-            {selectedNode.answerOptions.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-yellow-300">
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                  Answer Options
-                </h3>
-                <ul className="space-y-2">
-                  {selectedNode.answerOptions.map((option) => (
-                    <li key={option.id} className="text-sm text-gray-800">
-                      <span className="font-medium">{option.label}</span>
-                      {option.nextNodeId && (
-                        <span className="text-gray-600 ml-2">
-                          → {template.nodes.find((n) => n.id === option.nextNodeId)?.title || 'Next node'}
-                        </span>
-                      )}
-                      {option.actionKey && !option.nextNodeId && (
-                        <span className="text-gray-600 ml-2">
-                          → {getActionKeyDescription(option.actionKey)}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <button
-              onClick={() => setSelectedNodeId(null)}
-              className="mt-6 text-sm text-gray-700 hover:text-gray-900 underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-            >
-              Clear details
-            </button>
-          </div>
+          )
         ) : (
           <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
             <p className="text-sm text-gray-600 leading-relaxed">
