@@ -281,8 +281,8 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
           </ReactFlow>
         </div>
 
-      {/* Side Panel */}
-      <div className="w-96 flex-shrink-0">
+        {/* Side Panel */}
+        <div className="w-96 flex-shrink-0">
         {selectedNode ? (
           <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
             <div className="mb-4">
@@ -349,6 +349,7 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
             </p>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
