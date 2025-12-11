@@ -11,12 +11,17 @@ interface WorkflowDashboardPageProps {
 }
 
 export default async function WorkflowDashboardPage({ params }: WorkflowDashboardPageProps) {
+  console.log('[WorkflowDashboard] Starting page render')
   const { surgeryId } = await params
+  console.log('[WorkflowDashboard] surgeryId:', surgeryId)
 
   try {
+    console.log('[WorkflowDashboard] Checking admin access')
     const user = await requireSurgeryAdmin(surgeryId)
+    console.log('[WorkflowDashboard] User authorized:', user.email)
 
     // Get surgery details
+    console.log('[WorkflowDashboard] Fetching surgery details')
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
       select: {
@@ -24,11 +29,13 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
         name: true,
       }
     })
+    console.log('[WorkflowDashboard] Surgery found:', surgery?.name)
 
     if (!surgery) {
       redirect('/unauthorized')
     }
 
+    console.log('[WorkflowDashboard] Rendering page')
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -59,6 +66,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       </div>
     )
   } catch (error) {
+    console.error('[WorkflowDashboard] Error:', error)
     redirect('/unauthorized')
   }
 }
