@@ -97,6 +97,12 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
         id: node.id,
         type: 'default',
         position: { x, y },
+        style: {
+          background: 'white',
+          border: '1px solid #e5e7eb',
+          borderRadius: '8px',
+          boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+        },
         data: {
           label: (
             <div className="px-3 py-2 min-w-[200px] max-w-[300px]">
@@ -136,6 +142,14 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
             label: option.label,
             type: 'smoothstep',
             animated: false,
+            style: {
+              stroke: '#6b7280',
+              strokeWidth: 2,
+            },
+            labelStyle: {
+              fill: '#374151',
+              fontWeight: 500,
+            },
           })
         }
       })
@@ -174,9 +188,9 @@ export default function WorkflowDiagramClient({ template }: WorkflowDiagramClien
           connectionMode={ConnectionMode.Loose}
           fitView
           attributionPosition="bottom-left"
+          style={{ background: 'white' }}
         >
           <Controls />
-          <Background />
         </ReactFlow>
       </div>
 
