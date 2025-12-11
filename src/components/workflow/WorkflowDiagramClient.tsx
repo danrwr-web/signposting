@@ -517,7 +517,7 @@ export default function WorkflowDiagramClient({
   // Handle deleting node
   const handleDeleteNode = useCallback(async () => {
     if (!selectedNode || !deleteNodeAction) return
-    if (!confirm('Are you sure you want to delete this node? This will also delete all its connections.')) return
+    if (!confirm('Are you sure you want to delete this step? This will remove the node and its connections.')) return
 
     try {
       const result = await deleteNodeAction(selectedNode.id)
@@ -526,6 +526,7 @@ export default function WorkflowDiagramClient({
         setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id))
         setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id))
         setSelectedNodeId(null)
+        setSelectedEdgeId(null)
         if (typeof window !== 'undefined') {
           window.location.reload()
         }
