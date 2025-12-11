@@ -36,6 +36,9 @@ model User {
   // Feature flags
   userFeatureFlags UserFeatureFlag[]
 
+  // Workflow instances
+  workflowInstances WorkflowInstance[]
+
   // NextAuth.js fields
   emailVerified DateTime?
   image         String?
@@ -92,6 +95,8 @@ model Surgery {
   appointmentTypes        AppointmentType[]
   appointmentStaffTypes   AppointmentStaffType[]
   onboardingProfile       SurgeryOnboardingProfile?
+  workflowTemplates       WorkflowTemplate[]
+  workflowInstances       WorkflowInstance[]
 }
 
 model BaseSymptom {
@@ -479,4 +484,127 @@ model SurgeryOnboardingProfile {
   updatedAt   DateTime @updatedAt
 
   @@index([surgeryId])
+}
+
+// Workflow Engine Models
+
+/// High-level workflow definition, e.g. "Discharge Summary", "Clinic Letter".
+model WorkflowTemplate {
+  id          String                  @id @default(cuid())
+  surgeryId   String
+  surgery     Surgery                 @relation(fields: [surgeryId], references: [id])
+
+  name        String
+  description String?
+  colourHex   String?                 // optional – to mirror Lucid colours
+  isActive    Boolean                 @default(true)
+
+  nodes       WorkflowNodeTemplate[]
+  instances   WorkflowInstance[]
+
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+}
+
+/// Individual node in the flowchart – a question, instruction, or end node.
+model WorkflowNodeTemplate {
+  id            String                        @id @default(cuid())
+  templateId    String
+  template      WorkflowTemplate              @relation(fields: [templateId], references: [id])
+
+  nodeType      WorkflowNodeType
+  title         String
+  body          String?                       // rich instructions / info
+  sortOrder     Int                           // for default ordering in editors
+  isStart       Boolean                       @default(false)
+
+  // For simple "end" nodes, you can attach an action directly.
+  actionKey     WorkflowActionKey?
+
+  answerOptions WorkflowAnswerOptionTemplate[]
+  answers       WorkflowAnswerRecord[]        // instance-time answers linked back here
+}
+
+/// Possible answers from a question node, with simple branching.
+model WorkflowAnswerOptionTemplate {
+  id           String                   @id @default(cuid())
+  nodeId       String
+  node         WorkflowNodeTemplate     @relation(fields: [nodeId], references: [id])
+
+  label        String                   // e.g. "Yes", "No", "Ad hoc locum"
+  valueKey     String                   // e.g. "yes", "no", "ad_hoc_locum" (stable key)
+  description  String?                  // optional helper text for admins/staff
+
+  // Simple Option-B branching:
+  nextNodeId   String?                  // id of next WorkflowNodeTemplate (nullable)
+  actionKey    WorkflowActionKey?       // outcome if this terminates the workflow
+
+  answers      WorkflowAnswerRecord[]   // all instances that chose this option
+}
+
+/// A running instance of a template for a specific document.
+model WorkflowInstance {
+  id            String                      @id @default(cuid())
+  surgeryId     String
+  surgery       Surgery                     @relation(fields: [surgeryId], references: [id])
+
+  templateId    String
+  template      WorkflowTemplate            @relation(fields: [templateId], references: [id])
+
+  startedById   String
+  startedBy     User                        @relation(fields: [startedById], references: [id])
+
+  status        WorkflowInstanceStatus      @default(ACTIVE)
+  reference     String?                     // free text, e.g. "Cardiology 11/12/25 – JS"
+  category      String?                     // e.g. "Hospital Letter", "Result"
+  currentNodeId String?                     // id of current node (no relation for now)
+
+  createdAt     DateTime                    @default(now())
+  completedAt   DateTime?
+  updatedAt     DateTime                    @updatedAt
+
+  answers       WorkflowAnswerRecord[]
+}
+
+/// "What did the user pick for this node in this instance?"
+model WorkflowAnswerRecord {
+  id               String                        @id @default(cuid())
+  instanceId       String
+  instance         WorkflowInstance              @relation(fields: [instanceId], references: [id])
+
+  nodeTemplateId   String
+  nodeTemplate     WorkflowNodeTemplate          @relation(fields: [nodeTemplateId], references: [id])
+
+  answerOptionId   String?
+  answerOption     WorkflowAnswerOptionTemplate? @relation(fields: [answerOptionId], references: [id])
+
+  answerValueKey   String?                       // mirrors option.valueKey, or custom value
+  freeTextNote     String?                       // optional comment / note
+
+  createdAt        DateTime                      @default(now())
+}
+
+enum WorkflowNodeType {
+  INSTRUCTION  // info block / "check this list…"
+  QUESTION     // yes/no or multi-choice
+  END          // pure end node with actionKey
+}
+
+enum WorkflowInstanceStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+/// Actions represent "what should we do with this document?"
+/// You can add more over time; existing data will still work.
+enum WorkflowActionKey {
+  FORWARD_TO_GP
+  FORWARD_TO_PRESCRIBING_TEAM
+  FORWARD_TO_PHARMACY_TEAM
+  FILE_WITHOUT_FORWARDING
+  ADD_TO_YELLOW_SLOT
+  SEND_STANDARD_LETTER
+  CODE_AND_FILE
+  OTHER
 }

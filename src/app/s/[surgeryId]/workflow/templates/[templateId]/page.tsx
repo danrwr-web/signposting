@@ -1,0 +1,95 @@
+import 'server-only'
+import { requireSurgeryAdmin } from '@/lib/rbac'
+import { redirect } from 'next/navigation'
+import { prisma } from '@/lib/prisma'
+import Link from 'next/link'
+import {
+  updateWorkflowTemplate,
+  createWorkflowNode,
+  updateWorkflowNodeWrapper,
+  deleteWorkflowNode,
+  createWorkflowAnswerOptionWrapper,
+  updateWorkflowAnswerOptionWrapper,
+  deleteWorkflowAnswerOption,
+} from '../../actions'
+import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
+import TemplateEditClient from './TemplateEditClient'
+
+interface WorkflowTemplateEditPageProps {
+  params: Promise<{
+    surgeryId: string
+    templateId: string
+  }>
+  searchParams: Promise<{
+    error?: string
+    success?: string
+  }>
+}
+
+export default async function WorkflowTemplateEditPage({ params, searchParams }: WorkflowTemplateEditPageProps) {
+  const { surgeryId, templateId } = await params
+  const { error, success } = await searchParams
+
+  try {
+    const user = await requireSurgeryAdmin(surgeryId)
+
+    // Get surgery details
+    const surgery = await prisma.surgery.findUnique({
+      where: { id: surgeryId },
+      select: {
+        id: true,
+        name: true,
+      }
+    })
+
+    if (!surgery) {
+      redirect('/unauthorized')
+    }
+
+    // Get workflow template with nodes and answer options
+    const template = await prisma.workflowTemplate.findFirst({
+      where: {
+        id: templateId,
+        surgeryId: surgeryId
+      },
+      include: {
+        nodes: {
+          orderBy: {
+            sortOrder: 'asc'
+          },
+          include: {
+            answerOptions: {
+              orderBy: {
+                label: 'asc'
+              }
+            }
+          }
+        }
+      }
+    })
+
+    if (!template) {
+      redirect('/unauthorized')
+    }
+
+    return (
+      <TemplateEditClient
+        surgeryId={surgeryId}
+        templateId={templateId}
+        surgeryName={surgery.name}
+        template={template}
+        updateTemplateAction={updateWorkflowTemplate.bind(null, surgeryId, templateId)}
+        createNodeAction={createWorkflowNode.bind(null, surgeryId, templateId)}
+        updateNodeAction={updateWorkflowNodeWrapper.bind(null, surgeryId, templateId)}
+        deleteNodeAction={deleteWorkflowNode.bind(null, surgeryId, templateId)}
+        createAnswerOptionAction={createWorkflowAnswerOptionWrapper.bind(null, surgeryId, templateId)}
+        updateAnswerOptionAction={updateWorkflowAnswerOptionWrapper.bind(null, surgeryId, templateId)}
+        deleteAnswerOptionAction={deleteWorkflowAnswerOption.bind(null, surgeryId, templateId)}
+        initialError={error}
+        initialSuccess={success}
+      />
+    )
+  } catch (error) {
+    redirect('/unauthorized')
+  }
+}
