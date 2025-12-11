@@ -47,26 +47,37 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
     }
 
     // Get workflow template with nodes and answer options
-    const template = await prisma.workflowTemplate.findFirst({
-      where: {
-        id: templateId,
-        surgeryId: surgeryId
-      },
-      include: {
-        nodes: {
-          orderBy: {
-            sortOrder: 'asc'
-          },
-          include: {
-            answerOptions: {
-              orderBy: {
-                label: 'asc'
+    let template
+    try {
+      template = await prisma.workflowTemplate.findFirst({
+        where: {
+          id: templateId,
+          surgeryId: surgeryId
+        },
+        include: {
+          nodes: {
+            orderBy: {
+              sortOrder: 'asc'
+            },
+            include: {
+              answerOptions: {
+                orderBy: {
+                  label: 'asc'
+                }
               }
             }
           }
         }
+      })
+    } catch (error) {
+      console.error('Error fetching workflow template:', error)
+      // If tables don't exist yet, redirect to templates list
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        redirect(`/s/${surgeryId}/workflow/templates?error=migration_required`)
+      } else {
+        throw error
       }
-    })
+    }
 
     if (!template) {
       redirect('/unauthorized')

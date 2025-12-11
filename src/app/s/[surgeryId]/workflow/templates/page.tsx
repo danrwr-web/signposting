@@ -31,21 +31,32 @@ export default async function WorkflowTemplatesPage({ params }: WorkflowTemplate
     }
 
     // Get workflow templates for this surgery
-    const templates = await prisma.workflowTemplate.findMany({
-      where: {
-        surgeryId: surgeryId
-      },
-      orderBy: {
-        createdAt: 'desc'
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        isActive: true,
-        createdAt: true,
+    let templates
+    try {
+      templates = await prisma.workflowTemplate.findMany({
+        where: {
+          surgeryId: surgeryId
+        },
+        orderBy: {
+          createdAt: 'desc'
+        },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          isActive: true,
+          createdAt: true,
+        }
+      })
+    } catch (error) {
+      console.error('Error fetching workflow templates:', error)
+      // If tables don't exist yet, return empty array instead of crashing
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        templates = []
+      } else {
+        throw error
       }
-    })
+    }
 
     return (
       <div className="min-h-screen bg-gray-50">
