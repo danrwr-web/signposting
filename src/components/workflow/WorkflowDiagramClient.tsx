@@ -30,9 +30,16 @@ interface WorkflowNode {
   positionX: number | null
   positionY: number | null
   actionKey: WorkflowActionKey | null
-  linkToTemplateId: string | null
-  linkLabel: string | null
-      answerOptions: Array<{
+  workflowLinks: Array<{
+    id: string
+    templateId: string
+    label: string
+    template: {
+      id: string
+      name: string
+    }
+  }>
+  answerOptions: Array<{
         id: string
         label: string
         nextNodeId: string | null
@@ -60,7 +67,7 @@ interface WorkflowDiagramClientProps {
   updateAnswerOptionLabelAction?: (optionId: string, label: string) => Promise<{ success: boolean; error?: string }>
   deleteAnswerOptionAction?: (optionId: string) => Promise<{ success: boolean; error?: string }>
   deleteNodeAction?: (nodeId: string) => Promise<{ success: boolean; error?: string }>
-  updateNodeAction?: (nodeId: string, title: string, body: string | null, actionKey: WorkflowActionKey | null, linkToTemplateId: string | null, linkLabel: string | null) => Promise<{ success: boolean; error?: string }>
+  updateNodeAction?: (nodeId: string, title: string, body: string | null, actionKey: WorkflowActionKey | null) => Promise<{ success: boolean; error?: string }>
 }
 
 function formatActionKey(key: string): string {
@@ -137,8 +144,8 @@ export default function WorkflowDiagramClient({
   const [editingBody, setEditingBody] = useState('')
   const [editingActionKey, setEditingActionKey] = useState<WorkflowActionKey | null>(null)
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
-  const [editingLinkToTemplateId, setEditingLinkToTemplateId] = useState<string | null>(null)
-  const [editingLinkLabel, setEditingLinkLabel] = useState<string>('')
+  const [editingNewLinkTemplateId, setEditingNewLinkTemplateId] = useState<string>('NONE')
+  const [editingNewLinkLabel, setEditingNewLinkLabel] = useState<string>('Open linked workflow')
   const [previewMode, setPreviewMode] = useState(false)
   
   // Debounce timer for position updates
@@ -170,8 +177,8 @@ export default function WorkflowDiagramClient({
       setEditingTitle(selectedNode.title)
       setEditingBody(selectedNode.body || '')
       setEditingActionKey(selectedNode.actionKey)
-      setEditingLinkToTemplateId(selectedNode.linkToTemplateId)
-      setEditingLinkLabel(selectedNode.linkLabel || 'Open linked workflow')
+      setEditingNewLinkTemplateId('NONE')
+      setEditingNewLinkLabel('Open linked workflow')
     }
   }, [selectedNode, effectiveAdmin])
 
@@ -660,9 +667,7 @@ export default function WorkflowDiagramClient({
         selectedNode.id, 
         editingTitle, 
         editingBody || null, 
-        editingActionKey,
-        editingLinkToTemplateId || null,
-        editingLinkLabel || null
+        editingActionKey
       )
       if (result.success) {
         if (typeof window !== 'undefined') {
@@ -1218,15 +1223,18 @@ export default function WorkflowDiagramClient({
                 <h2 className="text-xl font-semibold text-gray-900 mb-3">
                   {selectedNode.title}
                 </h2>
-                {/* Linked workflow button */}
-                {selectedNode.linkToTemplateId && (
-                  <div className="mb-4">
-                    <Link
-                      href={`/s/${surgeryId}/workflow/templates/${selectedNode.linkToTemplateId}/view`}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                    >
-                      ↗ {selectedNode.linkLabel || 'Open linked workflow'}
-                    </Link>
+                {/* Linked workflows buttons */}
+                {selectedNode.workflowLinks.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    {selectedNode.workflowLinks.map((link) => (
+                      <Link
+                        key={link.id}
+                        href={`/s/${surgeryId}/workflow/templates/${link.templateId}/view`}
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                      >
+                        ↗ {link.label}
+                      </Link>
+                    ))}
                   </div>
                 )}
                 {selectedNode.body && (
