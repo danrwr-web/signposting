@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import ReactFlow, {
   Node,
@@ -1147,14 +1147,16 @@ export default function WorkflowDiagramClient({
                                         removed: [...prev.removed, link.id]
                                       }))
                                       // Refresh to get the real data from server
-                                      router.refresh()
+                                      startTransition(() => {
+                                        router.refresh()
+                                      })
                                       // Clear optimistic update after refresh (will be replaced by real data)
                                       setTimeout(() => {
                                         setLocalLinkUpdates(prev => ({
                                           ...prev,
                                           removed: prev.removed.filter(id => id !== link.id)
                                         }))
-                                      }, 1000)
+                                      }, 1500)
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1222,14 +1224,16 @@ export default function WorkflowDiagramClient({
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
                                     // Refresh to get the real data from server
-                                    router.refresh()
+                                    startTransition(() => {
+                                      router.refresh()
+                                    })
                                     // Clear optimistic update after refresh (will be replaced by real data)
                                     setTimeout(() => {
                                       setLocalLinkUpdates(prev => ({
                                         ...prev,
                                         added: prev.added.filter(l => l.id !== result.link!.id)
                                       }))
-                                    }, 1000)
+                                    }, 1500)
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
