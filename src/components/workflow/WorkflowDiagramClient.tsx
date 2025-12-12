@@ -688,9 +688,6 @@ export default function WorkflowDiagramClient({
       alert('Failed to save layout')
       router.refresh()
     }
-  }, [effectiveAdmin, bulkUpdatePositionsAction, template.nodes, setNodes, router])
-
-  // Handle node drag start - store initial position for axis locking
   const handleNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
     if (!effectiveAdmin) return
     // Reset axis lock and store start position
