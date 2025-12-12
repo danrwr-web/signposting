@@ -554,6 +554,26 @@ model WorkflowAnswerOptionTemplate {
   answers      WorkflowAnswerRecord[]   // all instances that chose this option
 }
 
+/// Link from a workflow node to another workflow template (supports multiple links per node).
+model WorkflowNodeLink {
+  id          String               @id @default(cuid())
+  nodeId      String
+  node        WorkflowNodeTemplate @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  templateId  String
+  template    WorkflowTemplate     @relation("LinkedWorkflow", fields: [templateId], references: [id])
+  
+  label       String               // Display label for the link (e.g. "Open linked workflow", "See referral process")
+  
+  sortOrder   Int                  @default(0) // For ordering multiple links
+  
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([nodeId])
+  @@index([templateId])
+}
+
 /// A running instance of a template for a specific document.
 model WorkflowInstance {
   id            String                      @id @default(cuid())
