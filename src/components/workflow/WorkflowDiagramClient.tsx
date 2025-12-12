@@ -465,17 +465,19 @@ export default function WorkflowDiagramClient({
     setSelectedNodeId(null) // Clear node selection
   }, [isAdmin])
 
-  // Validate connection - only allow source handle "out" to target handle "in"
+  // Validate connection - allow source handles "out", "left", "right" to target handle "in"
   const isValidConnection = useCallback((connection: Connection): boolean => {
     if (!isAdmin) return false
-    return connection.sourceHandle === 'out' && connection.targetHandle === 'in'
+    // Only allow: sourceHandle ∈ {out, left, right} → targetHandle="in"
+    const validSourceHandles = ['out', 'left', 'right']
+    return validSourceHandles.includes(connection.sourceHandle || '') && connection.targetHandle === 'in'
   }, [isAdmin])
 
   // Handle connection creation
   const onConnect = useCallback(async (connection: Connection) => {
     if (!isAdmin || !createAnswerOptionAction || !connection.source || !connection.target) return
     if (!isValidConnection(connection)) {
-      console.warn('Invalid connection: only out→in handle pairing allowed')
+      console.warn('Invalid connection: only out/left/right→in handle pairing allowed')
       return
     }
 
