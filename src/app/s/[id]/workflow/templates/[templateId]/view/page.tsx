@@ -156,6 +156,8 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             deleteAnswerOptionAction={deleteAnswerOptionAction}
             deleteNodeAction={deleteNodeAction}
             updateNodeAction={updateNodeAction}
+            createWorkflowLinkAction={createWorkflowLinkAction}
+            deleteWorkflowLinkAction={deleteWorkflowLinkAction}
           />
         </div>
       </div>
