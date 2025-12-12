@@ -32,12 +32,14 @@ interface WorkflowNode {
   actionKey: WorkflowActionKey | null
   linkToTemplateId: string | null
   linkLabel: string | null
-  answerOptions: Array<{
-    id: string
-    label: string
-    nextNodeId: string | null
-    actionKey: WorkflowActionKey | null
-  }>
+      answerOptions: Array<{
+        id: string
+        label: string
+        nextNodeId: string | null
+        actionKey: WorkflowActionKey | null
+        sourceHandle: string | null
+        targetHandle: string | null
+      }>
 }
 
 interface WorkflowTemplate {
