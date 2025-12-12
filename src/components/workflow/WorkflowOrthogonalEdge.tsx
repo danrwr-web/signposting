@@ -71,6 +71,15 @@ export default function WorkflowOrthogonalEdge({
     labelY = midY
   }
 
+  // Calculate label dimensions for background
+  const labelText = typeof label === 'string' ? label : ''
+  const fontSize = labelStyle?.fontSize ? Number(labelStyle.fontSize) : 12
+  const paddingX = typeof labelBgPadding?.[0] === 'number' ? labelBgPadding[0] : 0
+  const paddingY = typeof labelBgPadding?.[1] === 'number' ? labelBgPadding[1] : 0
+  // Rough estimate: ~7px per character for 12px font
+  const textWidth = labelText.length * (fontSize * 0.6)
+  const textHeight = fontSize
+
   return (
     <>
       <BaseEdge
@@ -80,13 +89,13 @@ export default function WorkflowOrthogonalEdge({
         style={style}
       />
       {label && (
-        <g>
+        <g className="react-flow__edge-textwrapper">
           {labelBgStyle && (
             <rect
-              x={labelX - (typeof labelBgPadding?.[0] === 'number' ? labelBgPadding[0] : 0)}
-              y={labelY - (typeof labelBgPadding?.[1] === 'number' ? labelBgPadding[1] : 0) - (labelStyle?.fontSize ? Number(labelStyle.fontSize) : 12) / 2}
-              width={(typeof labelBgPadding?.[0] === 'number' ? labelBgPadding[0] : 0) * 2 + (typeof label === 'string' ? label.length : 0) * 7}
-              height={(typeof labelBgPadding?.[1] === 'number' ? labelBgPadding[1] : 0) * 2 + (labelStyle?.fontSize ? Number(labelStyle.fontSize) : 12)}
+              x={labelX - textWidth / 2 - paddingX}
+              y={labelY - textHeight / 2 - paddingY}
+              width={textWidth + paddingX * 2}
+              height={textHeight + paddingY * 2}
               rx={labelBgBorderRadius || 0}
               ry={labelBgBorderRadius || 0}
               style={labelBgStyle}
@@ -100,7 +109,7 @@ export default function WorkflowOrthogonalEdge({
             style={labelStyle}
             className="react-flow__edge-text"
           >
-            {label}
+            {labelText}
           </text>
         </g>
       )}
