@@ -167,11 +167,34 @@ export default function WorkflowDiagramClient({
   // Effective admin mode (disabled in preview mode)
   const effectiveAdmin = isAdmin && !previewMode
 
-  // Find selected node data
+  // Local state to track optimistically added/removed links
+  const [localLinkUpdates, setLocalLinkUpdates] = useState<{
+    added: Array<{ id: string; templateId: string; label: string; template: { id: string; name: string } }>
+    removed: string[]
+  }>({ added: [], removed: [] })
+
+  // Find selected node data, including optimistic link updates
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null
-    return template.nodes.find((n) => n.id === selectedNodeId) || null
-  }, [selectedNodeId, template.nodes])
+    const node = template.nodes.find((n) => n.id === selectedNodeId) || null
+    if (!node) return null
+
+    // Apply optimistic updates to workflowLinks
+    let links = [...node.workflowLinks]
+    
+    // Remove links that were deleted
+    links = links.filter(link => !localLinkUpdates.removed.includes(link.id))
+    
+    // Add links that were added
+    links = [...links, ...localLinkUpdates.added.filter(added => 
+      !links.some(existing => existing.id === added.id || existing.templateId === added.templateId)
+    )]
+
+    return {
+      ...node,
+      workflowLinks: links,
+    }
+  }, [selectedNodeId, template.nodes, localLinkUpdates])
 
   // Initialize editing state when node is selected
   useEffect(() => {
@@ -1118,9 +1141,20 @@ export default function WorkflowDiagramClient({
                                   try {
                                     const result = await deleteWorkflowLinkAction(link.id)
                                     if (result.success) {
-                                      // Refresh the page data to show updated links
-                                      // Keep the selection - the selectedNode will update automatically when props refresh
+                                      // Optimistically remove the link from local state
+                                      setLocalLinkUpdates(prev => ({
+                                        ...prev,
+                                        removed: [...prev.removed, link.id]
+                                      }))
+                                      // Refresh to get the real data from server
                                       router.refresh()
+                                      // Clear optimistic update after refresh (will be replaced by real data)
+                                      setTimeout(() => {
+                                        setLocalLinkUpdates(prev => ({
+                                          ...prev,
+                                          removed: prev.removed.filter(id => id !== link.id)
+                                        }))
+                                      }, 1000)
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1179,12 +1213,23 @@ export default function WorkflowDiagramClient({
                                 try {
                                   const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
                                   if (result.success && result.link) {
-                                    // Reset form first
+                                    // Optimistically add the link to local state
+                                    setLocalLinkUpdates(prev => ({
+                                      ...prev,
+                                      added: [...prev.added, result.link!]
+                                    }))
+                                    // Reset form
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
-                                    // Refresh the page data to show the new link
-                                    // Keep the selection - the selectedNode will update automatically when props refresh
+                                    // Refresh to get the real data from server
                                     router.refresh()
+                                    // Clear optimistic update after refresh (will be replaced by real data)
+                                    setTimeout(() => {
+                                      setLocalLinkUpdates(prev => ({
+                                        ...prev,
+                                        added: prev.added.filter(l => l.id !== result.link!.id)
+                                      }))
+                                    }, 1000)
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
