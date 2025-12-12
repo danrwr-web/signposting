@@ -68,6 +68,13 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       }
     })
 
+    if (!template) {
+      redirect('/unauthorized')
+    }
+
+    // Check if user is admin
+    const isAdmin = can(user).isAdminOfSurgery(surgeryId)
+
     // Get all active templates for the surgery (for linked workflow dropdown)
     const allTemplates = isAdmin ? await prisma.workflowTemplate.findMany({
       where: {
@@ -82,13 +89,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
         name: 'asc',
       }
     }) : []
-
-    if (!template) {
-      redirect('/unauthorized')
-    }
-
-    // Check if user is admin
-    const isAdmin = can(user).isAdminOfSurgery(surgeryId)
 
     // Create bound server actions for admin editing
     const updatePositionAction = isAdmin ? updateWorkflowNodePosition.bind(null, surgeryId, templateId) : undefined
@@ -125,6 +125,8 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
           <WorkflowDiagramClient
             template={template}
             isAdmin={isAdmin}
+            allTemplates={allTemplates}
+            surgeryId={surgeryId}
             updatePositionAction={updatePositionAction}
             createNodeAction={createNodeAction}
             createAnswerOptionAction={createAnswerOptionAction}
