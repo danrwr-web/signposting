@@ -1233,8 +1233,19 @@ export default function WorkflowDiagramClient({
                             <button
                               onClick={async () => {
                                 try {
+                                  console.log('=== ADD LINK BUTTON CLICKED ===')
+                                  console.log('selectedNode.id:', selectedNode.id)
+                                  console.log('editingNewLinkTemplateId:', editingNewLinkTemplateId)
+                                  console.log('editingNewLinkLabel:', editingNewLinkLabel)
+                                  
+                                  if (editingNewLinkTemplateId === 'NONE') {
+                                    alert('Please select a workflow template first')
+                                    return
+                                  }
+                                  
+                                  console.log('Calling createWorkflowLinkAction...')
                                   const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
-                                  console.log('Create link result:', result)
+                                  console.log('=== CREATE LINK RESULT ===', result)
                                   if (result.success && result.link) {
                                     console.log('Link created successfully, adding optimistically:', result.link)
                                     // Optimistically add the link to local state for immediate UI feedback
