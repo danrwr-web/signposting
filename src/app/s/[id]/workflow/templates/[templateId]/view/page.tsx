@@ -63,10 +63,38 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                 actionKey: true,
               }
             }
+          },
+          select: {
+            id: true,
+            nodeType: true,
+            title: true,
+            body: true,
+            sortOrder: true,
+            positionX: true,
+            positionY: true,
+            actionKey: true,
+            linkToTemplateId: true,
+            linkLabel: true,
+            answerOptions: true,
           }
         }
       }
     })
+
+    // Get all active templates for the surgery (for linked workflow dropdown)
+    const allTemplates = isAdmin ? await prisma.workflowTemplate.findMany({
+      where: {
+        surgeryId: surgeryId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      }
+    }) : []
 
     if (!template) {
       redirect('/unauthorized')

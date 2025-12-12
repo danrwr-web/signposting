@@ -876,7 +876,9 @@ export async function updateWorkflowNodeForDiagram(
   nodeId: string,
   title: string,
   body: string | null,
-  actionKey: WorkflowActionKey | null
+  actionKey: WorkflowActionKey | null,
+  linkToTemplateId: string | null,
+  linkLabel: string | null
 ): Promise<ActionResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -904,12 +906,27 @@ export async function updateWorkflowNodeForDiagram(
       }
     }
 
+    // Verify linked template belongs to same surgery if provided
+    if (linkToTemplateId) {
+      const linkedTemplate = await prisma.workflowTemplate.findFirst({
+        where: { id: linkToTemplateId, surgeryId },
+      })
+      if (!linkedTemplate) {
+        return {
+          success: false,
+          error: 'Linked template not found or does not belong to this surgery',
+        }
+      }
+    }
+
     await prisma.workflowNodeTemplate.update({
       where: { id: nodeId },
       data: {
         title,
         body: body || null,
         actionKey,
+        linkToTemplateId: linkToTemplateId || null,
+        linkLabel: linkLabel || null,
       },
     })
 

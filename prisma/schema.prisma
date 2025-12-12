@@ -499,8 +499,9 @@ model WorkflowTemplate {
   colourHex   String?                 // optional – to mirror Lucid colours
   isActive    Boolean                 @default(true)
 
-  nodes       WorkflowNodeTemplate[]
-  instances   WorkflowInstance[]
+  nodes            WorkflowNodeTemplate[]
+  linkedFromNodes  WorkflowNodeTemplate[]  @relation("LinkedWorkflow")
+  instances        WorkflowInstance[]
 
   createdAt   DateTime                @default(now())
   updatedAt   DateTime                @updatedAt
@@ -524,6 +525,11 @@ model WorkflowNodeTemplate {
 
   // For simple "end" nodes, you can attach an action directly.
   actionKey     WorkflowActionKey?
+
+  // Linked workflow navigation (Lucid-style)
+  linkToTemplateId String?
+  linkLabel        String?
+  linkedTemplate   WorkflowTemplate?          @relation("LinkedWorkflow", fields: [linkToTemplateId], references: [id])
 
   answerOptions WorkflowAnswerOptionTemplate[]
   answers       WorkflowAnswerRecord[]        // instance-time answers linked back here

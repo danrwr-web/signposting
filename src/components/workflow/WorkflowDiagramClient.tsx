@@ -29,6 +29,8 @@ interface WorkflowNode {
   positionX: number | null
   positionY: number | null
   actionKey: WorkflowActionKey | null
+  linkToTemplateId: string | null
+  linkLabel: string | null
   answerOptions: Array<{
     id: string
     label: string
@@ -47,13 +49,15 @@ interface WorkflowTemplate {
 interface WorkflowDiagramClientProps {
   template: WorkflowTemplate
   isAdmin?: boolean
+  allTemplates?: Array<{ id: string; name: string }>
+  surgeryId: string
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
   createNodeAction?: (nodeType: WorkflowNodeType, title?: string) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (fromNodeId: string, toNodeId: string, label: string) => Promise<{ success: boolean; error?: string; option?: any }>
   updateAnswerOptionLabelAction?: (optionId: string, label: string) => Promise<{ success: boolean; error?: string }>
   deleteAnswerOptionAction?: (optionId: string) => Promise<{ success: boolean; error?: string }>
   deleteNodeAction?: (nodeId: string) => Promise<{ success: boolean; error?: string }>
-  updateNodeAction?: (nodeId: string, title: string, body: string | null, actionKey: WorkflowActionKey | null) => Promise<{ success: boolean; error?: string }>
+  updateNodeAction?: (nodeId: string, title: string, body: string | null, actionKey: WorkflowActionKey | null, linkToTemplateId: string | null, linkLabel: string | null) => Promise<{ success: boolean; error?: string }>
 }
 
 function formatActionKey(key: string): string {
@@ -108,6 +112,8 @@ function InfoIcon() {
 export default function WorkflowDiagramClient({
   template,
   isAdmin = false,
+  allTemplates = [],
+  surgeryId,
   updatePositionAction,
   createNodeAction,
   createAnswerOptionAction,
@@ -126,6 +132,9 @@ export default function WorkflowDiagramClient({
   const [editingBody, setEditingBody] = useState('')
   const [editingActionKey, setEditingActionKey] = useState<WorkflowActionKey | null>(null)
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
+  const [editingLinkToTemplateId, setEditingLinkToTemplateId] = useState<string | null>(null)
+  const [editingLinkLabel, setEditingLinkLabel] = useState<string>('')
+  const [previewMode, setPreviewMode] = useState(false)
   
   // Debounce timer for position updates
   const positionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -141,6 +150,9 @@ export default function WorkflowDiagramClient({
     'OTHER',
   ]
 
+  // Effective admin mode (disabled in preview mode)
+  const effectiveAdmin = isAdmin && !previewMode
+
   // Find selected node data
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null
@@ -149,12 +161,14 @@ export default function WorkflowDiagramClient({
 
   // Initialize editing state when node is selected
   useEffect(() => {
-    if (selectedNode && isAdmin) {
+    if (selectedNode && effectiveAdmin) {
       setEditingTitle(selectedNode.title)
       setEditingBody(selectedNode.body || '')
       setEditingActionKey(selectedNode.actionKey)
+      setEditingLinkToTemplateId(selectedNode.linkToTemplateId)
+      setEditingLinkLabel(selectedNode.linkLabel || 'Open linked workflow')
     }
-  }, [selectedNode, isAdmin])
+  }, [selectedNode, effectiveAdmin])
 
   // Find selected edge data
   const selectedEdge = useMemo(() => {
@@ -242,7 +256,7 @@ export default function WorkflowDiagramClient({
           body: node.body,
           hasBody,
           isSelected,
-          isAdmin,
+          isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
           onInfoClick: () => toggleNodeSelection(node.id),
         } : node.nodeType === 'INSTRUCTION' ? {
@@ -252,7 +266,7 @@ export default function WorkflowDiagramClient({
           body: node.body,
           hasBody,
           isSelected,
-          isAdmin,
+          isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
           onInfoClick: () => toggleNodeSelection(node.id),
         } : node.nodeType === 'END' ? {
@@ -264,7 +278,7 @@ export default function WorkflowDiagramClient({
           actionKey: node.actionKey,
           hasOutgoingEdges,
           isSelected,
-          isAdmin,
+          isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
           onInfoClick: () => toggleNodeSelection(node.id),
           getActionKeyDescription,
@@ -273,7 +287,7 @@ export default function WorkflowDiagramClient({
           label: (
             <>
               {/* Target handle (top) - connections come IN */}
-              {isAdmin && (
+              {effectiveAdmin && (
                 <Handle
                   id="in"
                   type="target"
@@ -419,7 +433,7 @@ export default function WorkflowDiagramClient({
 
   // Handle node drag end - save position to database
   const handleNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
-    if (!isAdmin || !updatePositionAction) return
+    if (!effectiveAdmin || !updatePositionAction) return
 
     const position = node.position
     const nodeId = node.id
@@ -441,7 +455,7 @@ export default function WorkflowDiagramClient({
         console.error('Error updating node position:', error)
       }
     }, 400)
-  }, [isAdmin, updatePositionAction])
+  }, [effectiveAdmin, updatePositionAction])
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -460,22 +474,22 @@ export default function WorkflowDiagramClient({
 
   // Handle edge click
   const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
-    if (!isAdmin) return
+    if (!effectiveAdmin) return
     setSelectedEdgeId(edge.id)
     setSelectedNodeId(null) // Clear node selection
-  }, [isAdmin])
+  }, [effectiveAdmin])
 
   // Validate connection - allow source handles "out", "left", "right" to target handle "in"
   const isValidConnection = useCallback((connection: Connection): boolean => {
-    if (!isAdmin) return false
+    if (!effectiveAdmin) return false
     // Only allow: sourceHandle ∈ {out, left, right} → targetHandle="in"
     const validSourceHandles = ['out', 'left', 'right']
     return validSourceHandles.includes(connection.sourceHandle || '') && connection.targetHandle === 'in'
-  }, [isAdmin])
+  }, [effectiveAdmin])
 
   // Handle connection creation
   const onConnect = useCallback(async (connection: Connection) => {
-    if (!isAdmin || !createAnswerOptionAction || !connection.source || !connection.target) return
+    if (!effectiveAdmin || !createAnswerOptionAction || !connection.source || !connection.target) return
     if (!isValidConnection(connection)) {
       console.warn('Invalid connection: only out/left/right→in handle pairing allowed')
       return
@@ -630,7 +644,14 @@ export default function WorkflowDiagramClient({
     if (!selectedNode || !updateNodeAction) return
 
     try {
-      const result = await updateNodeAction(selectedNode.id, editingTitle, editingBody || null, editingActionKey)
+      const result = await updateNodeAction(
+        selectedNode.id, 
+        editingTitle, 
+        editingBody || null, 
+        editingActionKey,
+        editingLinkToTemplateId || null,
+        editingLinkLabel || null
+      )
       if (result.success) {
         if (typeof window !== 'undefined') {
           window.location.reload() // Refresh to get updated data
@@ -646,7 +667,7 @@ export default function WorkflowDiagramClient({
 
   // Handle quick create of a new node connected from the selected node
   const handleQuickCreateConnectedNode = useCallback(async (nodeType: WorkflowNodeType) => {
-    if (!isAdmin || !createNodeAction || !createAnswerOptionAction || !selectedNode) return
+    if (!effectiveAdmin || !createNodeAction || !createAnswerOptionAction || !selectedNode) return
 
     try {
       // 1) Create the new node on the server
@@ -877,7 +898,7 @@ export default function WorkflowDiagramClient({
       </div>
 
       {/* Admin toolbar */}
-      {isAdmin && (
+      {effectiveAdmin && (
         <div className="bg-white rounded-lg shadow border border-gray-200 p-4">
           <div className="flex items-center gap-3 mb-2">
             <span className="text-sm font-medium text-gray-700">Add step:</span>
@@ -917,10 +938,12 @@ export default function WorkflowDiagramClient({
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}
-            onConnect={isAdmin ? onConnect : undefined}
+            onConnect={effectiveAdmin ? onConnect : undefined}
             onNodeDragStop={handleNodeDragStop}
-            nodesDraggable={isAdmin}
-            edgesFocusable={isAdmin}
+            nodesDraggable={effectiveAdmin}
+            edgesFocusable={effectiveAdmin}
+            snapToGrid={true}
+            snapGrid={[16, 16]}
             edgesUpdatable={false}
             selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Strict}
@@ -938,7 +961,7 @@ export default function WorkflowDiagramClient({
 
       {/* Side Panel */}
       <div className="w-96 flex-shrink-0">
-        {selectedEdge && isAdmin ? (
+        {selectedEdge && effectiveAdmin ? (
           // Edge editing panel for admins
           <div className="bg-blue-50 rounded-lg shadow-md p-6 border border-blue-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Connection</h3>
@@ -979,7 +1002,7 @@ export default function WorkflowDiagramClient({
             </div>
           </div>
         ) : selectedNode ? (
-          isAdmin ? (
+          effectiveAdmin ? (
             // Admin edit form
             <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200 space-y-4">
               <div>
@@ -1032,6 +1055,47 @@ export default function WorkflowDiagramClient({
                       </select>
                     </div>
                   )}
+                  {/* Linked workflow section */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                      Linked workflow (optional)
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label htmlFor="node-linkToTemplateId" className="block text-sm font-medium text-gray-700 mb-1">
+                          Workflow template
+                        </label>
+                        <select
+                          id="node-linkToTemplateId"
+                          value={editingLinkToTemplateId || 'NONE'}
+                          onChange={(e) => setEditingLinkToTemplateId(e.target.value === 'NONE' ? null : e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="NONE">None</option>
+                          {allTemplates.filter(t => t.id !== template.id).map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      {editingLinkToTemplateId && (
+                        <div>
+                          <label htmlFor="node-linkLabel" className="block text-sm font-medium text-gray-700 mb-1">
+                            Link label
+                          </label>
+                          <input
+                            type="text"
+                            id="node-linkLabel"
+                            value={editingLinkLabel}
+                            onChange={(e) => setEditingLinkLabel(e.target.value)}
+                            placeholder="Open linked workflow"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   {selectedNode.answerOptions.length > 0 && (
                     <div className="pt-4 border-t border-yellow-300">
                       <h3 className="text-sm font-semibold text-gray-900 mb-2">
@@ -1100,6 +1164,8 @@ export default function WorkflowDiagramClient({
                     setEditingTitle('')
                     setEditingBody('')
                     setEditingActionKey(null)
+                    setEditingLinkToTemplateId(null)
+                    setEditingLinkLabel('')
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 >
@@ -1108,7 +1174,7 @@ export default function WorkflowDiagramClient({
               </div>
             </div>
           ) : (
-            // Read-only view for non-admins
+            // Read-only view for non-admins and preview mode
             <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
               <div className="mb-4">
                 <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
@@ -1117,6 +1183,17 @@ export default function WorkflowDiagramClient({
                 <h2 className="text-xl font-semibold text-gray-900 mb-3">
                   {selectedNode.title}
                 </h2>
+                {/* Linked workflow button */}
+                {selectedNode.linkToTemplateId && (
+                  <div className="mb-4">
+                    <a
+                      href={`/s/${surgeryId}/workflow/templates/${selectedNode.linkToTemplateId}/view`}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                    >
+                      ↗ {selectedNode.linkLabel || 'Open linked workflow'}
+                    </a>
+                  </div>
+                )}
                 {selectedNode.body && (
                   <div className="text-gray-800 whitespace-pre-wrap mb-4 text-sm leading-relaxed">
                     {selectedNode.body.split('\n').map((line, index) => (
