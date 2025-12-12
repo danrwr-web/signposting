@@ -17,6 +17,8 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
+import WorkflowInstructionNode from './WorkflowInstructionNode'
+import WorkflowOutcomeNode from './WorkflowOutcomeNode'
 
 interface WorkflowNode {
   id: string
@@ -216,8 +218,17 @@ export default function WorkflowDiagramClient({
         ? 'bg-amber-50 border-amber-200'
         : 'bg-white border-gray-200'
 
-      // Use custom diamond node type for QUESTION nodes
-      const nodeType = node.nodeType === 'QUESTION' ? 'decisionNode' : 'default'
+      // Map node types to custom components
+      let nodeType: string
+      if (node.nodeType === 'QUESTION') {
+        nodeType = 'decisionNode'
+      } else if (node.nodeType === 'INSTRUCTION') {
+        nodeType = 'instructionNode'
+      } else if (node.nodeType === 'END') {
+        nodeType = 'outcomeNode'
+      } else {
+        nodeType = 'default'
+      }
 
       return {
         id: node.id,
@@ -234,8 +245,31 @@ export default function WorkflowDiagramClient({
           isAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
           onInfoClick: () => toggleNodeSelection(node.id),
+        } : node.nodeType === 'INSTRUCTION' ? {
+          // For INSTRUCTION nodes, pass data to custom component
+          nodeType: node.nodeType,
+          title: node.title,
+          body: node.body,
+          hasBody,
+          isSelected,
+          isAdmin,
+          onNodeClick: () => toggleNodeSelection(node.id),
+          onInfoClick: () => toggleNodeSelection(node.id),
+        } : node.nodeType === 'END' ? {
+          // For END nodes, pass data to custom component (includes outcome footer logic)
+          nodeType: node.nodeType,
+          title: node.title,
+          body: node.body,
+          hasBody,
+          actionKey: node.actionKey,
+          hasOutgoingEdges,
+          isSelected,
+          isAdmin,
+          onNodeClick: () => toggleNodeSelection(node.id),
+          onInfoClick: () => toggleNodeSelection(node.id),
+          getActionKeyDescription,
         } : {
-          // For other nodes, keep label-based rendering (rectangular cards)
+          // Fallback for any other node types (shouldn't happen)
           label: (
             <>
               {/* Target handle (top) - connections come IN */}
@@ -807,6 +841,8 @@ export default function WorkflowDiagramClient({
   // Register custom node types
   const nodeTypes: NodeTypes = useMemo(() => ({
     decisionNode: WorkflowDecisionNode,
+    instructionNode: WorkflowInstructionNode,
+    outcomeNode: WorkflowOutcomeNode,
   }), [])
 
   return (
