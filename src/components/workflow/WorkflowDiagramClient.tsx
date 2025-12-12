@@ -129,7 +129,6 @@ export default function WorkflowDiagramClient({
   allTemplates = [],
   surgeryId,
   updatePositionAction,
-  bulkUpdatePositionsAction,
   createNodeAction,
   createAnswerOptionAction,
   updateAnswerOptionLabelAction,
@@ -152,8 +151,7 @@ export default function WorkflowDiagramClient({
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
   const [editingNewLinkTemplateId, setEditingNewLinkTemplateId] = useState<string>('NONE')
   const [editingNewLinkLabel, setEditingNewLinkLabel] = useState<string>('Open linked workflow')
-  const [previewMode, setPreviewMode] = useState(false)
-  const [snapToGridEnabled, setSnapToGridEnabled] = useState(true)
+  const [editingMode, setEditingMode] = useState(false)
   
   // Axis locking state for Shift-drag
   const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -173,8 +171,8 @@ export default function WorkflowDiagramClient({
     'OTHER',
   ]
 
-  // Effective admin mode (disabled in preview mode)
-  const effectiveAdmin = isAdmin && !previewMode
+  // Effective admin mode (enabled only when editing mode is on)
+  const effectiveAdmin = isAdmin && editingMode
 
   // Local state to track optimistically added/removed links
   const [localLinkUpdates, setLocalLinkUpdates] = useState<{
@@ -1218,21 +1216,21 @@ export default function WorkflowDiagramClient({
         </div>
       </div>
 
-      {/* Admin preview mode toggle */}
+      {/* Admin editing mode toggle */}
       {isAdmin && (
         <div className="bg-white rounded-lg shadow border border-gray-200 p-4 mb-4">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
-              checked={previewMode}
-              onChange={(e) => setPreviewMode(e.target.checked)}
+              checked={editingMode}
+              onChange={(e) => setEditingMode(e.target.checked)}
               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
             />
-            <span className="text-sm font-medium text-gray-700">Preview mode (read-only)</span>
+            <span className="text-sm font-medium text-gray-700">Editing mode</span>
           </label>
-          {previewMode && (
+          {!editingMode && (
             <p className="text-xs text-gray-500 mt-2">
-              Editing disabled. View diagram as standard users see it.
+              Enable editing mode to add, move, and connect nodes.
             </p>
           )}
         </div>
@@ -1265,28 +1263,6 @@ export default function WorkflowDiagramClient({
           <p className="text-xs text-gray-600">
             Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically. Tip: hold Shift while dragging to keep steps aligned.
           </p>
-          <div className="mt-3 pt-3 border-t border-gray-200">
-            <div className="flex items-center gap-4 mb-3">
-              <button
-                onClick={handleTidyLayout}
-                className="px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                Tidy layout
-              </button>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={snapToGridEnabled}
-                  onChange={(e) => setSnapToGridEnabled(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">Snap to grid</span>
-              </label>
-            </div>
-            <p className="text-xs text-gray-600">
-              Auto-aligns steps into a clean layout. You can still drag afterwards.
-            </p>
-          </div>
         </div>
       )}
 
@@ -1308,8 +1284,7 @@ export default function WorkflowDiagramClient({
             onNodeDragStop={handleNodeDragStop}
             nodesDraggable={effectiveAdmin}
             edgesFocusable={effectiveAdmin}
-            snapToGrid={snapToGridEnabled}
-            snapGrid={snapToGridEnabled ? [24, 24] : undefined}
+            snapToGrid={false}
             edgesUpdatable={false}
             selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Strict}
