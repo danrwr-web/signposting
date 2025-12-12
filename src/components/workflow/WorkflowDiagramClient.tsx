@@ -173,6 +173,19 @@ export default function WorkflowDiagramClient({
     removed: string[]
   }>({ added: [], removed: [] })
 
+  // Track template version to detect when data actually refreshes
+  const templateVersionRef = useRef(template.id + template.nodes.length)
+  
+  // Clear optimistic updates when template data actually changes (after refresh)
+  useEffect(() => {
+    const currentVersion = template.id + template.nodes.length
+    if (currentVersion !== templateVersionRef.current) {
+      // Template data has changed - clear optimistic updates
+      setLocalLinkUpdates({ added: [], removed: [] })
+      templateVersionRef.current = currentVersion
+    }
+  }, [template.id, template.nodes.length])
+
   // Find selected node data, including optimistic link updates
   const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null
@@ -182,13 +195,15 @@ export default function WorkflowDiagramClient({
     // Apply optimistic updates to workflowLinks
     let links = [...node.workflowLinks]
     
-    // Remove links that were deleted
+    // Remove links that were deleted optimistically
     links = links.filter(link => !localLinkUpdates.removed.includes(link.id))
     
-    // Add links that were added
-    links = [...links, ...localLinkUpdates.added.filter(added => 
-      !links.some(existing => existing.id === added.id || existing.templateId === added.templateId)
-    )]
+    // Add links that were added optimistically (avoid duplicates)
+    localLinkUpdates.added.forEach(added => {
+      if (!links.some(existing => existing.id === added.id || existing.templateId === added.templateId)) {
+        links.push(added)
+      }
+    })
 
     return {
       ...node,
@@ -1150,13 +1165,7 @@ export default function WorkflowDiagramClient({
                                       startTransition(() => {
                                         router.refresh()
                                       })
-                                      // Clear optimistic update after refresh (will be replaced by real data)
-                                      setTimeout(() => {
-                                        setLocalLinkUpdates(prev => ({
-                                          ...prev,
-                                          removed: prev.removed.filter(id => id !== link.id)
-                                        }))
-                                      }, 1500)
+                                      // Optimistic update will be cleared automatically when template data refreshes
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1227,13 +1236,7 @@ export default function WorkflowDiagramClient({
                                     startTransition(() => {
                                       router.refresh()
                                     })
-                                    // Clear optimistic update after refresh (will be replaced by real data)
-                                    setTimeout(() => {
-                                      setLocalLinkUpdates(prev => ({
-                                        ...prev,
-                                        added: prev.added.filter(l => l.id !== result.link!.id)
-                                      }))
-                                    }, 1500)
+                                    // Optimistic update will be cleared automatically when template data refreshes
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
