@@ -1170,13 +1170,13 @@ export default function WorkflowDiagramClient({
                                         removed: [...prev.removed, link.id]
                                       }))
                                       
-                                      // Reload to get fresh data from server
-                                      // Optimistic update shows immediately, page reload gets real data
+                                      // Reload to get fresh data from server after showing optimistic update
+                                      // Give user a moment to see the optimistic update
                                       setTimeout(() => {
                                         if (typeof window !== 'undefined') {
                                           window.location.reload()
                                         }
-                                      }, 300)
+                                      }, 800)
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1250,13 +1250,13 @@ export default function WorkflowDiagramClient({
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
                                     
-                                    // Reload to get fresh data from server
-                                    // Optimistic update shows immediately, page reload gets real data
+                                    // Reload to get fresh data from server after showing optimistic update
+                                    // Give user a moment to see the optimistic update
                                     setTimeout(() => {
                                       if (typeof window !== 'undefined') {
                                         window.location.reload()
                                       }
-                                    }, 300)
+                                    }, 800)
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
