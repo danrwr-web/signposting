@@ -457,7 +457,7 @@ export default function WorkflowDiagramClient({
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
             labelBgPadding: hasLabel ? [6, 4] : undefined,
             labelBgBorderRadius: hasLabel ? 8 : undefined,
-            type: 'straight',
+            type: 'smoothstep',
             selected: false,
             style: {
               strokeWidth: 2.5,
@@ -584,7 +584,7 @@ export default function WorkflowDiagramClient({
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
           labelBgPadding: edgeLabel ? [6, 4] : undefined,
           labelBgBorderRadius: edgeLabel ? 8 : undefined,
-          type: 'step',
+          type: 'smoothstep',
           style: {
             strokeWidth: 2.5,
             stroke: '#005EB8',
@@ -826,7 +826,7 @@ export default function WorkflowDiagramClient({
           sourceHandle: 'source-bottom',
           targetHandle: 'target-top',
         label: undefined,
-        type: 'step',
+        type: 'smoothstep',
         style: {
           strokeWidth: 2.5,
           stroke: '#005EB8',
@@ -1031,11 +1031,11 @@ export default function WorkflowDiagramClient({
             nodesDraggable={effectiveAdmin}
             edgesFocusable={effectiveAdmin}
             snapToGrid={true}
-            snapGrid={[16, 16]}
+            snapGrid={[24, 24]}
             edgesUpdatable={false}
             selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Strict}
-            connectionLineType={ConnectionLineType.Straight}
+            connectionLineType={ConnectionLineType.SmoothStep}
             isValidConnection={isValidConnection}
             fitView
             fitViewOptions={{ padding: 0.2 }}
