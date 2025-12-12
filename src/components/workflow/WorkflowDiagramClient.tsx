@@ -281,8 +281,8 @@ export default function WorkflowDiagramClient({
                   )}
                 </div>
                 
-                {/* Title */}
-                <div className="px-4 pb-3">
+                {/* Title - constrained with overflow protection */}
+                <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
                   <div className="font-medium text-gray-900 break-words text-sm leading-snug">
                     {node.title}
                   </div>
@@ -547,7 +547,7 @@ export default function WorkflowDiagramClient({
                             {nodeType}
                           </div>
                         </div>
-                        <div className="px-4 pb-3">
+                        <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
                           <div className="font-medium text-gray-900 break-words text-sm leading-snug">
                             {result.node.title}
                           </div>
@@ -665,7 +665,7 @@ export default function WorkflowDiagramClient({
                     {nodeType}
                   </div>
                 </div>
-                <div className="px-4 pb-3">
+                <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
                   <div className="font-medium text-gray-900 break-words text-sm leading-snug">
                     {result.node.title}
                   </div>

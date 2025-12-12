@@ -102,9 +102,9 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
             )}
           </div>
 
-          {/* Title - wrapped with max-width to stay inside diamond */}
-          <div className="flex-1 flex items-center justify-center w-full px-2">
-            <div className="font-medium text-gray-900 break-words text-sm leading-snug text-center max-w-full">
+          {/* Title - constrained to ~70% width, optically centred inside diamond */}
+          <div className="flex-1 flex items-center justify-center w-full">
+            <div className="font-medium text-gray-900 break-words text-sm leading-snug text-center max-w-[70%] overflow-hidden">
               {title}
             </div>
           </div>
