@@ -1156,16 +1156,23 @@ export default function WorkflowDiagramClient({
                                   try {
                                     const result = await deleteWorkflowLinkAction(link.id)
                                     if (result.success) {
-                                      // Optimistically remove the link from local state
+                                      // Optimistically remove the link from local state for immediate UI feedback
                                       setLocalLinkUpdates(prev => ({
                                         ...prev,
                                         removed: [...prev.removed, link.id]
                                       }))
+                                      
                                       // Refresh to get the real data from server
                                       startTransition(() => {
                                         router.refresh()
                                       })
-                                      // Optimistic update will be cleared automatically when template data refreshes
+                                      
+                                      // Fallback: if router.refresh doesn't work, reload after a delay
+                                      setTimeout(() => {
+                                        if (typeof window !== 'undefined') {
+                                          window.location.reload()
+                                        }
+                                      }, 500)
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1224,7 +1231,7 @@ export default function WorkflowDiagramClient({
                                 try {
                                   const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
                                   if (result.success && result.link) {
-                                    // Optimistically add the link to local state
+                                    // Optimistically add the link to local state for immediate UI feedback
                                     setLocalLinkUpdates(prev => ({
                                       ...prev,
                                       added: [...prev.added, result.link!]
@@ -1232,11 +1239,18 @@ export default function WorkflowDiagramClient({
                                     // Reset form
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
+                                    
                                     // Refresh to get the real data from server
                                     startTransition(() => {
                                       router.refresh()
                                     })
-                                    // Optimistic update will be cleared automatically when template data refreshes
+                                    
+                                    // Fallback: if router.refresh doesn't work, reload after a delay
+                                    setTimeout(() => {
+                                      if (typeof window !== 'undefined') {
+                                        window.location.reload()
+                                      }
+                                    }, 500)
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
