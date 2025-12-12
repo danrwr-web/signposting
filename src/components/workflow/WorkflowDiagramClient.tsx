@@ -1119,11 +1119,8 @@ export default function WorkflowDiagramClient({
                                     const result = await deleteWorkflowLinkAction(link.id)
                                     if (result.success) {
                                       // Refresh the page data to show updated links
+                                      // Keep the selection - the selectedNode will update automatically when props refresh
                                       router.refresh()
-                                      // Re-select the node after refresh to show updated links
-                                      setTimeout(() => {
-                                        setSelectedNodeId(selectedNode.id)
-                                      }, 100)
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1182,15 +1179,12 @@ export default function WorkflowDiagramClient({
                                 try {
                                   const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
                                   if (result.success && result.link) {
-                                    // Refresh the page data to show the new link
-                                    router.refresh()
-                                    // Reset form
+                                    // Reset form first
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
-                                    // Re-select the node after refresh to show updated links
-                                    setTimeout(() => {
-                                      setSelectedNodeId(selectedNode.id)
-                                    }, 100)
+                                    // Refresh the page data to show the new link
+                                    // Keep the selection - the selectedNode will update automatically when props refresh
+                                    router.refresh()
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
