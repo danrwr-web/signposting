@@ -692,6 +692,60 @@ export default function WorkflowDiagramClient({
     }
   }, [effectiveAdmin, bulkUpdatePositionsAction, template.nodes, setNodes, router])
 
+  // Handle node drag start - store initial position for axis locking
+  const handleNodeDragStart = useCallback((_event: React.MouseEvent, node: Node) => {
+    if (!effectiveAdmin) return
+    // Reset axis lock and store start position
+    lockedAxisRef.current.set(node.id, null)
+    dragStartPositionRef.current.set(node.id, { x: node.position.x, y: node.position.y })
+  }, [effectiveAdmin])
+
+  // Handle node drag - apply axis locking when Shift is held
+  const handleNodeDrag = useCallback((_event: React.MouseEvent, node: Node) => {
+    if (!effectiveAdmin) return
+
+    const isShiftHeld = _event.shiftKey
+    const startPos = dragStartPositionRef.current.get(node.id)
+    const currentLockedAxis = lockedAxisRef.current.get(node.id)
+
+    if (!isShiftHeld || !startPos) {
+      // No shift key or no start position - clear lock and allow free movement
+      lockedAxisRef.current.set(node.id, null)
+      return
+    }
+
+    // Calculate deltas from start position
+    const dx = node.position.x - startPos.x
+    const dy = node.position.y - startPos.y
+    const absDx = Math.abs(dx)
+    const absDy = Math.abs(dy)
+
+    // Determine axis lock if not already set
+    let lockedAxis = currentLockedAxis
+    if (!lockedAxis && (absDx > 6 || absDy > 6)) {
+      // Lock to dominant axis after threshold
+      lockedAxis = absDx > absDy ? 'x' : 'y'
+      lockedAxisRef.current.set(node.id, lockedAxis)
+    }
+
+    // Apply axis constraint if locked
+    if (lockedAxis === 'x') {
+      // Lock to X - fix Y at start position
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === node.id ? { ...n, position: { x: node.position.x, y: startPos.y } } : n
+        )
+      )
+    } else if (lockedAxis === 'y') {
+      // Lock to Y - fix X at start position
+      setNodes((nds) =>
+        nds.map((n) =>
+          n.id === node.id ? { ...n, position: { x: startPos.x, y: node.position.y } } : n
+        )
+      )
+    }
+  }, [effectiveAdmin, setNodes])
+
   // Handle node drag end - save position to database
   const handleNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
     if (!effectiveAdmin || !updatePositionAction) return
