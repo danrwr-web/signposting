@@ -58,61 +58,54 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
         />
       )}
 
-      {/* Diamond container - rotated square */}
+      {/* Diamond container - using clip-path for stable layout */}
       <div
-        className={`relative w-48 h-48 cursor-pointer transition-all ${
+        className={`relative w-[200px] h-[130px] cursor-pointer transition-all ${
           isSelected || selected
             ? 'ring-2 ring-blue-500 shadow-lg'
             : 'shadow-md'
         }`}
-        style={{
-          transform: 'rotate(45deg)',
-          transformOrigin: 'center',
-        }}
         onClick={(e) => {
           e.stopPropagation()
           onNodeClick?.()
         }}
       >
-        {/* Inner content - rotated back to upright */}
+        {/* Diamond background - clipped with polygon */}
         <div
-          className="absolute inset-0 bg-amber-50 border-2 border-amber-200 rounded-lg overflow-hidden"
+          className="absolute inset-0 bg-amber-50 border-2 border-amber-200"
           style={{
-            transform: 'rotate(-45deg)',
-            transformOrigin: 'center',
+            clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
           }}
-        >
-          <div className="flex flex-col h-full p-3 justify-between">
-            {/* Badge */}
-            <div className="flex items-start justify-between">
-              <div className={`text-xs font-semibold px-2 py-0.5 rounded border ${getNodeTypeColor(nodeType)}`}>
-                {nodeType}
-              </div>
-              {/* Info indicator - only if has body */}
-              {hasBody && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onInfoClick?.()
-                  }}
-                  className="flex-shrink-0 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors -mt-0.5"
-                  title="Click for reference details"
-                  aria-label="View details"
-                >
-                  <InfoIcon />
-                </button>
-              )}
-            </div>
+        />
 
-            {/* Title - centered in diamond */}
-            <div className="flex-1 flex items-center justify-center text-center px-2">
-              <div className="font-medium text-gray-900 break-words text-sm leading-tight">
-                {title}
-              </div>
+        {/* Content container - normal, unrotated, centered */}
+        <div className="relative h-full flex flex-col items-center justify-center p-3 overflow-hidden">
+          {/* Badge and info icon row */}
+          <div className="flex items-start justify-between w-full mb-2 min-h-[20px]">
+            <div className={`text-xs font-semibold px-2 py-0.5 rounded border ${getNodeTypeColor(nodeType)}`}>
+              {nodeType}
             </div>
+            {/* Info indicator - only if has body */}
+            {hasBody && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onInfoClick?.()
+                }}
+                className="flex-shrink-0 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
+                title="Click for reference details"
+                aria-label="View details"
+              >
+                <InfoIcon />
+              </button>
+            )}
+          </div>
 
-            {/* Spacer to balance layout */}
-            <div className="h-4" />
+          {/* Title - wrapped with max-width to stay inside diamond */}
+          <div className="flex-1 flex items-center justify-center w-full px-2">
+            <div className="font-medium text-gray-900 break-words text-sm leading-snug text-center max-w-full">
+              {title}
+            </div>
           </div>
         </div>
       </div>
