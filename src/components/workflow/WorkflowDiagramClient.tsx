@@ -64,6 +64,7 @@ interface WorkflowDiagramClientProps {
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
+  bulkUpdatePositionsAction?: (updates: Array<{ nodeId: string; positionX: number; positionY: number }>) => Promise<{ success: boolean; error?: string }>
   createNodeAction?: (nodeType: WorkflowNodeType, title?: string) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (fromNodeId: string, toNodeId: string, label: string) => Promise<{ success: boolean; error?: string; option?: any }>
   updateAnswerOptionLabelAction?: (optionId: string, label: string) => Promise<{ success: boolean; error?: string }>
@@ -127,6 +128,7 @@ export default function WorkflowDiagramClient({
   allTemplates = [],
   surgeryId,
   updatePositionAction,
+  bulkUpdatePositionsAction,
   createNodeAction,
   createAnswerOptionAction,
   updateAnswerOptionLabelAction,
@@ -1012,6 +1014,17 @@ export default function WorkflowDiagramClient({
           <p className="text-xs text-gray-600">
             Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically.
           </p>
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <button
+              onClick={handleTidyLayout}
+              className="px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              Tidy layout
+            </button>
+            <p className="text-xs text-gray-600 mt-2">
+              Auto-aligns steps into a clean layout. You can still drag afterwards.
+            </p>
+          </div>
         </div>
       )}
 

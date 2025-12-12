@@ -1128,6 +1128,68 @@ export async function updateWorkflowNodePosition(
   }
 }
 
+export async function bulkUpdateWorkflowNodePositions(
+  surgeryId: string,
+  templateId: string,
+  updates: Array<{ nodeId: string; positionX: number; positionY: number }>
+): Promise<ActionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    // Verify all nodes belong to the template
+    const nodeIds = updates.map(u => u.nodeId)
+    const nodes = await prisma.workflowNodeTemplate.findMany({
+      where: {
+        id: { in: nodeIds },
+        templateId,
+      },
+      select: { id: true },
+    })
+
+    if (nodes.length !== nodeIds.length) {
+      return {
+        success: false,
+        error: 'Some nodes not found in template',
+      }
+    }
+
+    // Update all positions in a transaction
+    await prisma.$transaction(
+      updates.map((update) =>
+        prisma.workflowNodeTemplate.update({
+          where: { id: update.nodeId },
+          data: {
+            positionX: Math.round(update.positionX),
+            positionY: Math.round(update.positionY),
+          },
+        })
+      )
+    )
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error bulk updating workflow node positions:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update node positions',
+    }
+  }
+}
+
 export async function deleteWorkflowAnswerOption(
       surgeryId: string,
       templateId: string,

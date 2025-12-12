@@ -17,6 +17,7 @@ import {
   updateWorkflowNodeForDiagram,
   createWorkflowNodeLink,
   deleteWorkflowNodeLink,
+  bulkUpdateWorkflowNodePositions,
 } from '../../../actions'
 
 interface WorkflowTemplateViewPageProps {
@@ -150,6 +151,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             allTemplates={allTemplates}
             surgeryId={surgeryId}
             updatePositionAction={updatePositionAction}
+            bulkUpdatePositionsAction={bulkUpdatePositionsAction}
             createNodeAction={createNodeAction}
             createAnswerOptionAction={createAnswerOptionAction}
             updateAnswerOptionLabelAction={updateAnswerOptionLabelAction}
