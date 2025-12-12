@@ -152,7 +152,22 @@ export default function WorkflowDiagramClient({
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
   const [editingNewLinkTemplateId, setEditingNewLinkTemplateId] = useState<string>('NONE')
   const [editingNewLinkLabel, setEditingNewLinkLabel] = useState<string>('Open linked workflow')
-  const [editingMode, setEditingMode] = useState(false)
+  
+  // Persist editingMode in localStorage so it survives page refreshes
+  const [editingMode, setEditingMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem(`workflow-editing-mode-${template.id}`)
+      return saved === 'true'
+    }
+    return false
+  })
+  
+  // Save editingMode to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`workflow-editing-mode-${template.id}`, String(editingMode))
+    }
+  }, [editingMode, template.id])
   
   // Axis locking state for Shift-drag
   const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
