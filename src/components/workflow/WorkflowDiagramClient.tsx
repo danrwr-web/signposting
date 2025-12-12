@@ -152,6 +152,7 @@ export default function WorkflowDiagramClient({
   const [editingNewLinkTemplateId, setEditingNewLinkTemplateId] = useState<string>('NONE')
   const [editingNewLinkLabel, setEditingNewLinkLabel] = useState<string>('Open linked workflow')
   const [previewMode, setPreviewMode] = useState(false)
+  const [snapToGridEnabled, setSnapToGridEnabled] = useState(true)
   
   // Debounce timer for position updates
   const positionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -1201,13 +1202,24 @@ export default function WorkflowDiagramClient({
             Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically.
           </p>
           <div className="mt-3 pt-3 border-t border-gray-200">
-            <button
-              onClick={handleTidyLayout}
-              className="px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-            >
-              Tidy layout
-            </button>
-            <p className="text-xs text-gray-600 mt-2">
+            <div className="flex items-center gap-4 mb-3">
+              <button
+                onClick={handleTidyLayout}
+                className="px-4 py-2 text-sm font-medium rounded-md bg-purple-600 text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                Tidy layout
+              </button>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={snapToGridEnabled}
+                  onChange={(e) => setSnapToGridEnabled(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-700">Snap to grid</span>
+              </label>
+            </div>
+            <p className="text-xs text-gray-600">
               Auto-aligns steps into a clean layout. You can still drag afterwards.
             </p>
           </div>
@@ -1229,8 +1241,8 @@ export default function WorkflowDiagramClient({
             onNodeDragStop={handleNodeDragStop}
             nodesDraggable={effectiveAdmin}
             edgesFocusable={effectiveAdmin}
-            snapToGrid={true}
-            snapGrid={[24, 24]}
+            snapToGrid={snapToGridEnabled}
+            snapGrid={snapToGridEnabled ? [24, 24] : undefined}
             edgesUpdatable={false}
             selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Strict}
