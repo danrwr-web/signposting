@@ -138,7 +138,6 @@ export default function WorkflowDiagramClient({
   deleteWorkflowLinkAction,
 }: WorkflowDiagramClientProps) {
   const router = useRouter()
-  const router = useRouter()
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
