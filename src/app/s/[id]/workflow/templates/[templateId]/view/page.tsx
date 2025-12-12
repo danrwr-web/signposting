@@ -61,6 +61,8 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                 label: true,
                 nextNodeId: true,
                 actionKey: true,
+                sourceHandle: true,
+                targetHandle: true,
               }
             }
           }

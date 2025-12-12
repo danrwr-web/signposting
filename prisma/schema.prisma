@@ -549,6 +549,10 @@ model WorkflowAnswerOptionTemplate {
   nextNodeId   String?                  // id of next WorkflowNodeTemplate (nullable)
   actionKey    WorkflowActionKey?       // outcome if this terminates the workflow
 
+  // Edge routing handles (for orthogonal connections)
+  sourceHandle String?                  // e.g. "source-bottom", "source-right"
+  targetHandle String?                  // e.g. "target-top", "target-left"
+
   answers      WorkflowAnswerRecord[]   // all instances that chose this option
 }
 

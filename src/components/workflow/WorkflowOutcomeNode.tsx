@@ -69,14 +69,34 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
 
   return (
     <>
-      {/* Target handle (top) - connections come IN */}
+      {/* Target handles - connections come IN */}
       {isAdmin && (
-        <Handle
-          id="in"
-          type="target"
-          position={Position.Top}
-          className="w-3 h-3 !bg-blue-500"
-        />
+        <>
+          <Handle
+            id="target-top"
+            type="target"
+            position={Position.Top}
+            className="w-3 h-3 !bg-blue-500"
+          />
+          <Handle
+            id="target-right"
+            type="target"
+            position={Position.Right}
+            className="w-3 h-3 !bg-blue-500"
+          />
+          <Handle
+            id="target-bottom"
+            type="target"
+            position={Position.Bottom}
+            className="w-3 h-3 !bg-blue-500"
+          />
+          <Handle
+            id="target-left"
+            type="target"
+            position={Position.Left}
+            className="w-3 h-3 !bg-blue-500"
+          />
+        </>
       )}
 
       {/* Card container */}
@@ -132,14 +152,34 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
         )}
       </div>
 
-      {/* Source handle (bottom) - connections go OUT */}
+      {/* Source handles - connections go OUT */}
       {isAdmin && (
-        <Handle
-          id="out"
-          type="source"
-          position={Position.Bottom}
-          className="w-3 h-3 !bg-blue-500"
-        />
+        <>
+          <Handle
+            id="source-top"
+            type="source"
+            position={Position.Top}
+            className="w-3 h-3 !bg-blue-500"
+          />
+          <Handle
+            id="source-right"
+            type="source"
+            position={Position.Right}
+            className="w-3 h-3 !bg-blue-500"
+          />
+          <Handle
+            id="source-bottom"
+            type="source"
+            position={Position.Bottom}
+            className="w-3 h-3 !bg-blue-500"
+          />
+          <Handle
+            id="source-left"
+            type="source"
+            position={Position.Left}
+            className="w-3 h-3 !bg-blue-500"
+          />
+        </>
       )}
     </>
   )

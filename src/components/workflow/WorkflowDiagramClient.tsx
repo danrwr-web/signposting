@@ -8,6 +8,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   ConnectionMode,
+  ConnectionLineType,
   MarkerType,
   Connection,
   Handle,
@@ -396,7 +397,7 @@ export default function WorkflowDiagramClient({
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
             labelBgPadding: hasLabel ? [6, 4] : undefined,
             labelBgBorderRadius: hasLabel ? 8 : undefined,
-            type: 'smoothstep',
+            type: 'step',
             selected: false,
             style: {
               strokeWidth: 2.5,
@@ -507,23 +508,22 @@ export default function WorkflowDiagramClient({
     const label = labelInput === null ? '' : labelInput.trim()
 
     try {
-      const result = await createAnswerOptionAction(connection.source, connection.target, label)
+      const result = await createAnswerOptionAction(connection.source, connection.target, label, connection.sourceHandle || 'source-bottom', connection.targetHandle || 'target-top')
       if (result.success && result.option) {
         // Add new edge to the edges state
         const edgeLabel = result.option.label && result.option.label.trim() !== '' ? result.option.label.trim() : undefined
-        const validSourceHandles = ['out', 'left', 'right']
         const newEdge: Edge = {
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
-          sourceHandle: validSourceHandles.includes(connection.sourceHandle || '') ? connection.sourceHandle! : 'out',
-          targetHandle: connection.targetHandle || 'in',
+          sourceHandle: connection.sourceHandle || 'source-bottom',
+          targetHandle: connection.targetHandle || 'target-top',
           label: edgeLabel,
           labelStyle: edgeLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' } : undefined,
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
           labelBgPadding: edgeLabel ? [6, 4] : undefined,
           labelBgBorderRadius: edgeLabel ? 8 : undefined,
-          type: 'smoothstep',
+          type: 'step',
           style: {
             strokeWidth: 2.5,
             stroke: '#005EB8',
@@ -758,12 +758,12 @@ export default function WorkflowDiagramClient({
         return
       }
 
-      const newEdge: Edge = {
-        id: edgeResult.option.id,
-        source: selectedNode.id,
-        target: result.node.id,
-        sourceHandle: 'out',
-        targetHandle: 'in',
+        const newEdge: Edge = {
+          id: edgeResult.option.id,
+          source: selectedNode.id,
+          target: result.node.id,
+          sourceHandle: 'source-bottom',
+          targetHandle: 'target-top',
         label: undefined,
         type: 'smoothstep',
         style: {
