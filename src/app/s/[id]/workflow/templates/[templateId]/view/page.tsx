@@ -113,7 +113,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
 
     // Create bound server actions for admin editing
     const updatePositionAction = isAdmin ? updateWorkflowNodePosition.bind(null, surgeryId, templateId) : undefined
-    const bulkUpdatePositionsAction = isAdmin ? bulkUpdateWorkflowNodePositions.bind(null, surgeryId, templateId) : undefined
     const createNodeAction = isAdmin ? createWorkflowNodeForTemplate.bind(null, surgeryId, templateId) : undefined
     const createAnswerOptionAction = isAdmin ? createWorkflowAnswerOptionForDiagram.bind(null, surgeryId, templateId) : undefined
     const updateAnswerOptionLabelAction = isAdmin ? updateWorkflowAnswerOptionLabel.bind(null, surgeryId, templateId) : undefined
@@ -152,7 +151,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             allTemplates={allTemplates}
             surgeryId={surgeryId}
             updatePositionAction={updatePositionAction}
-            bulkUpdatePositionsAction={bulkUpdatePositionsAction}
             createNodeAction={createNodeAction}
             createAnswerOptionAction={createAnswerOptionAction}
             updateAnswerOptionLabelAction={updateAnswerOptionLabelAction}
