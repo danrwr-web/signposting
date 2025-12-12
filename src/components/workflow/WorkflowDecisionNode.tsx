@@ -59,6 +59,16 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
         />
       )}
 
+      {/* Source handle (left) - connections go OUT */}
+      {isAdmin && (
+        <Handle
+          id="left"
+          type="source"
+          position={Position.Left}
+          className="w-3 h-3 !bg-blue-500"
+        />
+      )}
+
       {/* Diamond container - using clip-path for stable layout */}
       <div
         className={`relative w-[200px] h-[130px] cursor-pointer transition-all ${
@@ -113,6 +123,16 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
           <div className="h-[8px]"></div>
         </div>
       </div>
+
+      {/* Source handle (right) - connections go OUT */}
+      {isAdmin && (
+        <Handle
+          id="right"
+          type="source"
+          position={Position.Right}
+          className="w-3 h-3 !bg-blue-500"
+        />
+      )}
 
       {/* Source handle (bottom) - connections go OUT */}
       {isAdmin && (

@@ -488,11 +488,12 @@ export default function WorkflowDiagramClient({
       if (result.success && result.option) {
         // Add new edge to the edges state
         const edgeLabel = result.option.label && result.option.label.trim() !== '' ? result.option.label.trim() : undefined
+        const validSourceHandles = ['out', 'left', 'right']
         const newEdge: Edge = {
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
-          sourceHandle: connection.sourceHandle || 'out',
+          sourceHandle: validSourceHandles.includes(connection.sourceHandle || '') ? connection.sourceHandle! : 'out',
           targetHandle: connection.targetHandle || 'in',
           label: edgeLabel,
           labelStyle: edgeLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' } : undefined,
