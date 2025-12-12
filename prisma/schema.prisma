@@ -500,7 +500,7 @@ model WorkflowTemplate {
   isActive    Boolean                 @default(true)
 
   nodes            WorkflowNodeTemplate[]
-  linkedFromNodes  WorkflowNodeTemplate[]  @relation("LinkedWorkflow")
+  linkedFromNodes  WorkflowNodeLink[]      @relation("LinkedWorkflow")
   instances        WorkflowInstance[]
 
   createdAt   DateTime                @default(now())
