@@ -1095,44 +1095,103 @@ export default function WorkflowDiagramClient({
                       </select>
                     </div>
                   )}
-                  {/* Linked workflow section */}
+                  {/* Linked workflows section */}
                   <div className="pt-4 border-t border-gray-200">
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">
-                      Linked workflow (optional)
+                      Linked workflows
                     </h3>
+                    {/* Existing links */}
+                    {selectedNode.workflowLinks.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        {selectedNode.workflowLinks.map((link) => (
+                          <div key={link.id} className="flex items-center justify-between p-2 bg-gray-50 rounded border border-gray-200">
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900">{link.label}</div>
+                              <div className="text-xs text-gray-600">{link.template.name}</div>
+                            </div>
+                            {deleteWorkflowLinkAction && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Remove link to "${link.template.name}"?`)) return
+                                  try {
+                                    const result = await deleteWorkflowLinkAction(link.id)
+                                    if (result.success) {
+                                      setSelectedNodeId(null) // Clear selection to force refresh
+                                    } else {
+                                      alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
+                                    }
+                                  } catch (error) {
+                                    console.error('Error deleting workflow link:', error)
+                                    alert('Failed to remove link')
+                                  }
+                                }}
+                                className="ml-2 px-2 py-1 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {/* Add new link */}
                     <div className="space-y-3">
                       <div>
-                        <label htmlFor="node-linkToTemplateId" className="block text-sm font-medium text-gray-700 mb-1">
-                          Workflow template
+                        <label htmlFor="node-newLinkTemplateId" className="block text-sm font-medium text-gray-700 mb-1">
+                          Add workflow template
                         </label>
                         <select
-                          id="node-linkToTemplateId"
-                          value={editingLinkToTemplateId || 'NONE'}
-                          onChange={(e) => setEditingLinkToTemplateId(e.target.value === 'NONE' ? null : e.target.value)}
+                          id="node-newLinkTemplateId"
+                          value={editingNewLinkTemplateId}
+                          onChange={(e) => setEditingNewLinkTemplateId(e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                          <option value="NONE">None</option>
-                          {allTemplates.filter(t => t.id !== template.id).map((t) => (
+                          <option value="NONE">Select workflow...</option>
+                          {allTemplates.filter(t => t.id !== template.id && !selectedNode.workflowLinks.some(l => l.templateId === t.id)).map((t) => (
                             <option key={t.id} value={t.id}>
                               {t.name}
                             </option>
                           ))}
                         </select>
                       </div>
-                      {editingLinkToTemplateId && (
-                        <div>
-                          <label htmlFor="node-linkLabel" className="block text-sm font-medium text-gray-700 mb-1">
-                            Link label
-                          </label>
-                          <input
-                            type="text"
-                            id="node-linkLabel"
-                            value={editingLinkLabel}
-                            onChange={(e) => setEditingLinkLabel(e.target.value)}
-                            placeholder="Open linked workflow"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
+                      {editingNewLinkTemplateId !== 'NONE' && (
+                        <>
+                          <div>
+                            <label htmlFor="node-newLinkLabel" className="block text-sm font-medium text-gray-700 mb-1">
+                              Link label
+                            </label>
+                            <input
+                              type="text"
+                              id="node-newLinkLabel"
+                              value={editingNewLinkLabel}
+                              onChange={(e) => setEditingNewLinkLabel(e.target.value)}
+                              placeholder="Open linked workflow"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          {createWorkflowLinkAction && (
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
+                                  if (result.success && result.link) {
+                                    setSelectedNodeId(null) // Clear selection to force refresh
+                                    setEditingNewLinkTemplateId('NONE')
+                                    setEditingNewLinkLabel('Open linked workflow')
+                                  } else {
+                                    alert(`Failed to add link: ${result.error || 'Unknown error'}`)
+                                  }
+                                } catch (error) {
+                                  console.error('Error creating workflow link:', error)
+                                  alert('Failed to add link')
+                                }
+                              }}
+                              className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              Add link
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
