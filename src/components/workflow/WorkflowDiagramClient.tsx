@@ -501,6 +501,180 @@ export default function WorkflowDiagramClient({
     )
   }, [selectedEdgeId, setEdges])
 
+  // Handle tidy layout
+  const handleTidyLayout = useCallback(async () => {
+    if (!effectiveAdmin || !bulkUpdatePositionsAction) return
+
+    const SNAP_GRID = 24
+    const SPINE_X = 200
+    const BRANCH_COLUMN_OFFSET = 360
+    const VERTICAL_STEP = 180
+
+    // Build a map of nodes by ID for quick lookup
+    const nodeMap = new Map(template.nodes.map(n => [n.id, n]))
+    
+    // Build outgoing edges map: nodeId -> answerOptions with nextNodeId
+    const outgoingEdges = new Map<string, typeof template.nodes[0]['answerOptions']>()
+    template.nodes.forEach(node => {
+      outgoingEdges.set(node.id, node.answerOptions.filter(opt => opt.nextNodeId !== null))
+    })
+
+    // Find start node (lowest sortOrder)
+    const startNode = template.nodes.reduce((min, node) => 
+      node.sortOrder < min.sortOrder ? node : min
+    )
+
+    if (!startNode) return
+
+    // Track which nodes have been placed
+    const placed = new Set<string>()
+    const positions = new Map<string, { x: number; y: number }>()
+
+    // Helper to snap to grid
+    const snap = (value: number) => Math.round(value / SNAP_GRID) * SNAP_GRID
+
+    // Helper to find next spine node from outgoing edges
+    const findNextSpineNode = (currentNodeId: string): string | null => {
+      const edges = outgoingEdges.get(currentNodeId) || []
+      if (edges.length === 0) return null
+
+      // Priority: "Continue" (case-insensitive), then "Yes", then first by target sortOrder
+      const continueEdge = edges.find(e => 
+        e.label && e.label.trim().toLowerCase() === 'continue'
+      )
+      if (continueEdge?.nextNodeId && !placed.has(continueEdge.nextNodeId)) {
+        return continueEdge.nextNodeId
+      }
+
+      const yesEdge = edges.find(e => 
+        e.label && e.label.trim().toLowerCase() === 'yes'
+      )
+      if (yesEdge?.nextNodeId && !placed.has(yesEdge.nextNodeId)) {
+        return yesEdge.nextNodeId
+      }
+
+      // Otherwise, use first edge by target node sortOrder
+      const sortedEdges = edges
+        .filter(e => e.nextNodeId && !placed.has(e.nextNodeId))
+        .map(e => ({ edge: e, targetNode: nodeMap.get(e.nextNodeId!) }))
+        .filter((item): item is { edge: typeof edges[0], targetNode: WorkflowNode } => item.targetNode !== undefined)
+        .sort((a, b) => a.targetNode.sortOrder - b.targetNode.sortOrder)
+
+      return sortedEdges[0]?.edge.nextNodeId || null
+    }
+
+    // Build spine (vertical main flow)
+    const spineNodes: string[] = [startNode.id]
+    let currentY = startNode.positionY !== null ? snap(startNode.positionY) : 0
+    const spineX = startNode.positionX !== null ? snap(startNode.positionX) : SPINE_X
+
+    positions.set(startNode.id, { x: spineX, y: currentY })
+    placed.add(startNode.id)
+
+    // Follow spine downward
+    let currentNodeId: string | null = startNode.id
+    while (currentNodeId) {
+      const nextSpineId = findNextSpineNode(currentNodeId)
+      if (!nextSpineId) break
+
+      currentY += VERTICAL_STEP
+      positions.set(nextSpineId, { x: spineX, y: snap(currentY) })
+      placed.add(nextSpineId)
+      spineNodes.push(nextSpineId)
+      currentNodeId = nextSpineId
+    }
+
+    // Process branches (non-spine outgoing edges from spine nodes)
+    let currentBranchColumn = 0
+
+    for (const spineNodeId of spineNodes) {
+      const edges = outgoingEdges.get(spineNodeId) || []
+      const branchEdges = edges.filter(e => 
+        e.nextNodeId && 
+        !spineNodes.includes(e.nextNodeId) && 
+        !placed.has(e.nextNodeId)
+      )
+
+      for (const branchEdge of branchEdges) {
+        if (!branchEdge.nextNodeId || placed.has(branchEdge.nextNodeId)) continue
+
+        // Determine column for this branch
+        const branchX = spineX + BRANCH_COLUMN_OFFSET + (currentBranchColumn * BRANCH_COLUMN_OFFSET)
+        
+        // Place branch target
+        const branchY = positions.get(spineNodeId)?.y || 0
+        positions.set(branchEdge.nextNodeId, { 
+          x: snap(branchX), 
+          y: snap(branchY) 
+        })
+        placed.add(branchEdge.nextNodeId)
+
+        // Follow branch downward (same column)
+        let branchCurrentId: string | null = branchEdge.nextNodeId
+        let branchCurrentY = branchY
+        while (branchCurrentId) {
+          const nextBranchId = findNextSpineNode(branchCurrentId)
+          if (!nextBranchId || spineNodes.includes(nextBranchId)) break
+
+          branchCurrentY += VERTICAL_STEP
+          positions.set(nextBranchId, { 
+            x: snap(branchX), 
+            y: snap(branchCurrentY) 
+          })
+          placed.add(nextBranchId)
+          branchCurrentId = nextBranchId
+        }
+      }
+
+      if (branchEdges.length > 0) {
+        currentBranchColumn++
+      }
+    }
+
+    // Place any remaining unplaced nodes (orphans) - use their existing positions or default
+    template.nodes.forEach(node => {
+      if (!placed.has(node.id)) {
+        const existingX = node.positionX !== null ? snap(node.positionX) : SPINE_X + BRANCH_COLUMN_OFFSET
+        const existingY = node.positionY !== null ? snap(node.positionY) : currentY + VERTICAL_STEP
+        positions.set(node.id, { x: existingX, y: existingY })
+      }
+    })
+
+    // Update React Flow nodes state immediately
+    setNodes((currentNodes) =>
+      currentNodes.map((node) => {
+        const newPos = positions.get(node.id)
+        if (newPos) {
+          return {
+            ...node,
+            position: { x: newPos.x, y: newPos.y },
+          }
+        }
+        return node
+      })
+    )
+
+    // Persist to database
+    try {
+      const updates = Array.from(positions.entries()).map(([nodeId, pos]) => ({
+        nodeId,
+        positionX: pos.x,
+        positionY: pos.y,
+      }))
+
+      const result = await bulkUpdatePositionsAction(updates)
+      if (!result.success) {
+        alert(`Failed to save layout: ${result.error || 'Unknown error'}`)
+        // Revert by refreshing - positions weren't saved
+        router.refresh()
+      }
+    } catch (error) {
+      console.error('Error saving tidy layout:', error)
+      alert('Failed to save layout')
+      router.refresh()
+    }
+  }, [effectiveAdmin, bulkUpdatePositionsAction, template.nodes, setNodes, router])
+
   // Handle node drag end - save position to database
   const handleNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
     if (!effectiveAdmin || !updatePositionAction) return
