@@ -81,7 +81,7 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
 
       {/* Card container */}
       <div 
-        className={`min-w-[280px] max-w-[320px] bg-white border-gray-200 rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+        className={`min-w-[280px] max-w-[320px] bg-white border-gray-200 rounded-lg shadow-md overflow-hidden transition-all cursor-pointer flex flex-col ${
           isSelected || selected
             ? 'border-2 border-blue-500 shadow-lg'
             : 'border'
@@ -91,31 +91,34 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
           onNodeClick?.()
         }}
       >
-        {/* Badge in top-left */}
-        <div className="flex items-start justify-between px-4 pt-3 pb-2">
-          <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
-            {nodeType}
+        {/* Content wrapper - vertically centered */}
+        <div className="flex-1 flex flex-col justify-center px-4 py-3">
+          {/* Badge and info icon row */}
+          <div className="flex items-center justify-between mb-2">
+            <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
+              {nodeType}
+            </div>
+            {/* Info indicator - only if has body */}
+            {hasBody && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onInfoClick?.()
+                }}
+                className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
+                title="Click for reference details"
+                aria-label="View details"
+              >
+                <InfoIcon />
+              </button>
+            )}
           </div>
-          {/* Info indicator - only if has body */}
-          {hasBody && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onInfoClick?.()
-              }}
-              className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
-              title="Click for reference details"
-              aria-label="View details"
-            >
-              <InfoIcon />
-            </button>
-          )}
-        </div>
-        
-        {/* Title - constrained with overflow protection */}
-        <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
-          <div className="font-medium text-gray-900 break-words text-sm leading-snug">
-            {title}
+          
+          {/* Title - constrained with overflow protection */}
+          <div className="min-h-[2.5rem] overflow-hidden">
+            <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+              {title}
+            </div>
           </div>
         </div>
 

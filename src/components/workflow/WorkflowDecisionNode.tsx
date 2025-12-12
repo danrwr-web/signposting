@@ -73,7 +73,7 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
       >
         {/* Diamond background - clipped with polygon */}
         <div
-          className="absolute inset-0 bg-amber-50 border-2 border-amber-200"
+          className="absolute inset-0 bg-amber-50/70 border-2 border-amber-200"
           style={{
             clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
           }}
