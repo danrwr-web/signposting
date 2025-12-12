@@ -138,6 +138,8 @@ export default function WorkflowDiagramClient({
   deleteWorkflowLinkAction,
 }: WorkflowDiagramClientProps) {
   const router = useRouter()
+  const router = useRouter()
+  
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
@@ -751,11 +753,8 @@ export default function WorkflowDiagramClient({
         setNodes((nds) => [...nds, newNode])
         setSelectedNodeId(result.node.id)
         
-        // Update template nodes cache (we'll need to refresh to get full data)
-        // For now, we'll rely on router.refresh() after a successful create
-        if (typeof window !== 'undefined') {
-          window.location.reload() // Simple refresh to get full node data
-        }
+        // Refresh server data to get full node details, but preserve client state
+        router.refresh()
       } else {
         console.error('Failed to create node:', result.error)
         alert(`Failed to create node: ${result.error || 'Unknown error'}`)
@@ -778,9 +777,7 @@ export default function WorkflowDiagramClient({
         editingActionKey
       )
       if (result.success) {
-        if (typeof window !== 'undefined') {
-          window.location.reload() // Refresh to get updated data
-        }
+        router.refresh()
       } else {
         alert(`Failed to save: ${result.error || 'Unknown error'}`)
       }
@@ -1237,13 +1234,8 @@ export default function WorkflowDiagramClient({
                                         removed: [...prev.removed, link.id]
                                       }))
                                       
-                                      // Reload to get fresh data from server after showing optimistic update
-                                      // Give user a moment to see the optimistic update
-                                      setTimeout(() => {
-                                        if (typeof window !== 'undefined') {
-                                          window.location.reload()
-                                        }
-                                      }, 800)
+                                      // Refresh server data after optimistic update
+                                      router.refresh()
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1328,13 +1320,8 @@ export default function WorkflowDiagramClient({
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
                                     
-                                    // Reload to get fresh data from server after showing optimistic update
-                                    // Give user a moment to see the optimistic update
-                                    setTimeout(() => {
-                                      if (typeof window !== 'undefined') {
-                                        window.location.reload()
-                                      }
-                                    }, 800)
+                                    // Refresh server data after optimistic update
+                                    router.refresh()
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
