@@ -199,6 +199,7 @@ export default function WorkflowDiagramClient({
 
     // Apply optimistic updates to workflowLinks
     let links = [...node.workflowLinks]
+    console.log('Computing selectedNode - base links:', links, 'optimistic updates:', localLinkUpdates)
     
     // Remove links that were deleted optimistically
     links = links.filter(link => !localLinkUpdates.removed.includes(link.id))
@@ -210,10 +211,12 @@ export default function WorkflowDiagramClient({
       }
     })
 
-    return {
+    const result = {
       ...node,
       workflowLinks: links,
     }
+    console.log('Computed selectedNode with workflowLinks:', result.workflowLinks)
+    return result
   }, [selectedNodeId, template.nodes, localLinkUpdates])
 
   // Initialize editing state when node is selected
@@ -1231,12 +1234,18 @@ export default function WorkflowDiagramClient({
                               onClick={async () => {
                                 try {
                                   const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
+                                  console.log('Create link result:', result)
                                   if (result.success && result.link) {
+                                    console.log('Link created successfully, adding optimistically:', result.link)
                                     // Optimistically add the link to local state for immediate UI feedback
-                                    setLocalLinkUpdates(prev => ({
-                                      ...prev,
-                                      added: [...prev.added, result.link!]
-                                    }))
+                                    setLocalLinkUpdates(prev => {
+                                      const updated = {
+                                        ...prev,
+                                        added: [...prev.added, result.link!]
+                                      }
+                                      console.log('Updated localLinkUpdates:', updated)
+                                      return updated
+                                    })
                                     // Reset form
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
