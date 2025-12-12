@@ -1,4 +1,7 @@
 import 'server-only'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
@@ -64,6 +67,19 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                 sourceHandle: true,
                 targetHandle: true,
               }
+            },
+            workflowLinks: {
+              orderBy: {
+                sortOrder: 'asc'
+              },
+              include: {
+                template: {
+                  select: {
+                    id: true,
+                    name: true,
+                  }
+                }
+              }
             }
           }
         }
@@ -100,6 +116,8 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
     const deleteAnswerOptionAction = isAdmin ? deleteWorkflowAnswerOptionById.bind(null, surgeryId, templateId) : undefined
     const deleteNodeAction = isAdmin ? deleteWorkflowNodeById.bind(null, surgeryId, templateId) : undefined
     const updateNodeAction = isAdmin ? updateWorkflowNodeForDiagram.bind(null, surgeryId, templateId) : undefined
+    const createWorkflowLinkAction = isAdmin ? createWorkflowNodeLink.bind(null, surgeryId, templateId) : undefined
+    const deleteWorkflowLinkAction = isAdmin ? deleteWorkflowNodeLink.bind(null, surgeryId, templateId) : undefined
 
     return (
       <div className="min-h-screen bg-gray-50">

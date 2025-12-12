@@ -124,6 +124,8 @@ export default function WorkflowDiagramClient({
   deleteAnswerOptionAction,
   deleteNodeAction,
   updateNodeAction,
+  createWorkflowLinkAction,
+  deleteWorkflowLinkAction,
 }: WorkflowDiagramClientProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
@@ -399,7 +401,7 @@ export default function WorkflowDiagramClient({
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
             labelBgPadding: hasLabel ? [6, 4] : undefined,
             labelBgBorderRadius: hasLabel ? 8 : undefined,
-            type: 'step',
+            type: 'straight',
             selected: false,
             style: {
               strokeWidth: 2.5,
@@ -979,7 +981,7 @@ export default function WorkflowDiagramClient({
             edgesUpdatable={false}
             selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Strict}
-            connectionLineType={ConnectionLineType.Step}
+            connectionLineType={ConnectionLineType.Straight}
             isValidConnection={isValidConnection}
             fitView
             fitViewOptions={{ padding: 0.2 }}
@@ -1197,8 +1199,8 @@ export default function WorkflowDiagramClient({
                     setEditingTitle('')
                     setEditingBody('')
                     setEditingActionKey(null)
-                    setEditingLinkToTemplateId(null)
-                    setEditingLinkLabel('')
+                    setEditingNewLinkTemplateId('NONE')
+                    setEditingNewLinkLabel('Open linked workflow')
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 >
@@ -1219,12 +1221,12 @@ export default function WorkflowDiagramClient({
                 {/* Linked workflow button */}
                 {selectedNode.linkToTemplateId && (
                   <div className="mb-4">
-                    <a
+                    <Link
                       href={`/s/${surgeryId}/workflow/templates/${selectedNode.linkToTemplateId}/view`}
                       className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
                     >
                       ↗ {selectedNode.linkLabel || 'Open linked workflow'}
-                    </a>
+                    </Link>
                   </div>
                 )}
                 {selectedNode.body && (

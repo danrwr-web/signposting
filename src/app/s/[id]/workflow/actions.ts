@@ -880,9 +880,7 @@ export async function updateWorkflowNodeForDiagram(
   nodeId: string,
   title: string,
   body: string | null,
-  actionKey: WorkflowActionKey | null,
-  linkToTemplateId: string | null,
-  linkLabel: string | null
+  actionKey: WorkflowActionKey | null
 ): Promise<ActionResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -929,8 +927,6 @@ export async function updateWorkflowNodeForDiagram(
         title,
         body: body || null,
         actionKey,
-        linkToTemplateId: linkToTemplateId || null,
-        linkLabel: linkLabel || null,
       },
     })
 
@@ -942,6 +938,152 @@ export async function updateWorkflowNodeForDiagram(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to update node',
+    }
+  }
+}
+
+export async function createWorkflowNodeLink(
+  surgeryId: string,
+  templateId: string,
+  nodeId: string,
+  linkedTemplateId: string,
+  label: string
+): Promise<ActionResult & { link?: any }> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template and node belong to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    const node = await prisma.workflowNodeTemplate.findFirst({
+      where: { id: nodeId, templateId },
+    })
+
+    if (!node) {
+      return {
+        success: false,
+        error: 'Node not found',
+      }
+    }
+
+    // Verify linked template belongs to same surgery
+    const linkedTemplate = await prisma.workflowTemplate.findFirst({
+      where: { id: linkedTemplateId, surgeryId },
+    })
+
+    if (!linkedTemplate) {
+      return {
+        success: false,
+        error: 'Linked template not found or does not belong to this surgery',
+      }
+    }
+
+    // Check if link already exists
+    const existingLink = await prisma.workflowNodeLink.findFirst({
+      where: {
+        nodeId,
+        templateId: linkedTemplateId,
+      },
+    })
+
+    if (existingLink) {
+      return {
+        success: false,
+        error: 'Link to this workflow already exists',
+      }
+    }
+
+    // Get max sortOrder for this node
+    const maxSortOrder = await prisma.workflowNodeLink.aggregate({
+      where: { nodeId },
+      _max: { sortOrder: true },
+    })
+
+    const link = await prisma.workflowNodeLink.create({
+      data: {
+        nodeId,
+        templateId: linkedTemplateId,
+        label: label || 'Open linked workflow',
+        sortOrder: (maxSortOrder._max.sortOrder ?? -1) + 1,
+      },
+      include: {
+        template: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true, link }
+  } catch (error) {
+    console.error('Error creating workflow node link:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create link',
+    }
+  }
+}
+
+export async function deleteWorkflowNodeLink(
+  surgeryId: string,
+  templateId: string,
+  linkId: string
+): Promise<ActionResult> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    // Verify link belongs to a node in this template
+    const link = await prisma.workflowNodeLink.findFirst({
+      where: { id: linkId },
+      include: {
+        node: true,
+      },
+    })
+
+    if (!link || link.node.templateId !== templateId) {
+      return {
+        success: false,
+        error: 'Link not found',
+      }
+    }
+
+    await prisma.workflowNodeLink.delete({
+      where: { id: linkId },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    return { success: true }
+  } catch (error) {
+    console.error('Error deleting workflow node link:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to delete link',
     }
   }
 }

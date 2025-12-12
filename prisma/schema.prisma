@@ -526,10 +526,8 @@ model WorkflowNodeTemplate {
   // For simple "end" nodes, you can attach an action directly.
   actionKey     WorkflowActionKey?
 
-  // Linked workflow navigation (Lucid-style)
-  linkToTemplateId String?
-  linkLabel        String?
-  linkedTemplate   WorkflowTemplate?          @relation("LinkedWorkflow", fields: [linkToTemplateId], references: [id])
+  // Linked workflow navigation (Lucid-style) - supports multiple links per node
+  workflowLinks WorkflowNodeLink[]
 
   answerOptions WorkflowAnswerOptionTemplate[]
   answers       WorkflowAnswerRecord[]        // instance-time answers linked back here
