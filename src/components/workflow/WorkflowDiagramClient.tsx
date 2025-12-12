@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import ReactFlow, {
   Node,
   Edge,
@@ -134,6 +135,7 @@ export default function WorkflowDiagramClient({
   createWorkflowLinkAction,
   deleteWorkflowLinkAction,
 }: WorkflowDiagramClientProps) {
+  const router = useRouter()
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
@@ -1116,7 +1118,12 @@ export default function WorkflowDiagramClient({
                                   try {
                                     const result = await deleteWorkflowLinkAction(link.id)
                                     if (result.success) {
-                                      setSelectedNodeId(null) // Clear selection to force refresh
+                                      // Refresh the page data to show updated links
+                                      router.refresh()
+                                      // Re-select the node after refresh to show updated links
+                                      setTimeout(() => {
+                                        setSelectedNodeId(selectedNode.id)
+                                      }, 100)
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1175,9 +1182,15 @@ export default function WorkflowDiagramClient({
                                 try {
                                   const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
                                   if (result.success && result.link) {
-                                    setSelectedNodeId(null) // Clear selection to force refresh
+                                    // Refresh the page data to show the new link
+                                    router.refresh()
+                                    // Reset form
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
+                                    // Re-select the node after refresh to show updated links
+                                    setTimeout(() => {
+                                      setSelectedNodeId(selectedNode.id)
+                                    }, 100)
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
