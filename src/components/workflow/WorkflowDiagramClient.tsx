@@ -431,9 +431,19 @@ export default function WorkflowDiagramClient({
     setSelectedNodeId(null) // Clear node selection
   }, [isAdmin])
 
+  // Validate connection - only allow source handle "out" to target handle "in"
+  const isValidConnection = useCallback((connection: Connection): boolean => {
+    if (!isAdmin) return false
+    return connection.sourceHandle === 'out' && connection.targetHandle === 'in'
+  }, [isAdmin])
+
   // Handle connection creation
   const onConnect = useCallback(async (connection: Connection) => {
     if (!isAdmin || !createAnswerOptionAction || !connection.source || !connection.target) return
+    if (!isValidConnection(connection)) {
+      console.warn('Invalid connection: only out→in handle pairing allowed')
+      return
+    }
 
     const labelInput = window.prompt('Label for this path (e.g. Yes / No). Leave blank for no label:', '')
     // If user cancels, labelInput is null - we'll treat this as empty string
@@ -448,6 +458,8 @@ export default function WorkflowDiagramClient({
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
+          sourceHandle: connection.sourceHandle || 'out',
+          targetHandle: connection.targetHandle || 'in',
           label: edgeLabel,
           labelStyle: edgeLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670' } : undefined,
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
@@ -471,7 +483,9 @@ export default function WorkflowDiagramClient({
           label: edgeLabel,
           labelType: typeof newEdge.label,
           source: newEdge.source,
-          target: newEdge.target
+          target: newEdge.target,
+          sourceHandle: newEdge.sourceHandle,
+          targetHandle: newEdge.targetHandle,
         })
         
         setEdges((eds) => {
@@ -479,7 +493,7 @@ export default function WorkflowDiagramClient({
           console.log("onConnect - edges after add", updated.map(e => ({
             id: e.id,
             labelType: typeof e.label,
-              labelValue: e.label ? 'string' : 'undefined'
+            labelValue: e.label ? 'string' : 'undefined'
           })))
           return updated
         })
@@ -491,7 +505,7 @@ export default function WorkflowDiagramClient({
       console.error('Error creating connection:', error)
       alert('Failed to create connection')
     }
-  }, [isAdmin, createAnswerOptionAction, setEdges])
+  }, [isAdmin, createAnswerOptionAction, setEdges, isValidConnection])
 
   // Handle creating new node from toolbar
   const handleCreateNode = useCallback(async (nodeType: WorkflowNodeType) => {
