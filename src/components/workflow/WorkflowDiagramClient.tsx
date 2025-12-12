@@ -154,6 +154,10 @@ export default function WorkflowDiagramClient({
   const [previewMode, setPreviewMode] = useState(false)
   const [snapToGridEnabled, setSnapToGridEnabled] = useState(true)
   
+  // Axis locking state for Shift-drag
+  const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
+  const lockedAxisRef = useRef<Map<string, 'x' | 'y' | null>>(new Map())
+  
   // Debounce timer for position updates
   const positionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
@@ -1199,7 +1203,7 @@ export default function WorkflowDiagramClient({
             </button>
           </div>
           <p className="text-xs text-gray-600">
-            Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically.
+            Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically. Tip: hold Shift while dragging to keep steps aligned.
           </p>
           <div className="mt-3 pt-3 border-t border-gray-200">
             <div className="flex items-center gap-4 mb-3">
@@ -1238,6 +1242,8 @@ export default function WorkflowDiagramClient({
             onNodeClick={onNodeClick}
             onEdgeClick={onEdgeClick}
             onConnect={effectiveAdmin ? onConnect : undefined}
+            onNodeDragStart={handleNodeDragStart}
+            onNodeDrag={handleNodeDrag}
             onNodeDragStop={handleNodeDragStop}
             nodesDraggable={effectiveAdmin}
             edgesFocusable={effectiveAdmin}
