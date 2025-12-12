@@ -1167,11 +1167,13 @@ export default function WorkflowDiagramClient({
                                         removed: [...prev.removed, link.id]
                                       }))
                                       
-                                      // Refresh to get the real data from server
-                                      // Optimistic update shows immediately, real data replaces it when refresh completes
-                                      startTransition(() => {
-                                        router.refresh()
-                                      })
+                                      // Reload to get fresh data from server
+                                      // Optimistic update shows immediately, page reload gets real data
+                                      setTimeout(() => {
+                                        if (typeof window !== 'undefined') {
+                                          window.location.reload()
+                                        }
+                                      }, 300)
                                     } else {
                                       alert(`Failed to remove link: ${result.error || 'Unknown error'}`)
                                     }
@@ -1239,11 +1241,13 @@ export default function WorkflowDiagramClient({
                                     setEditingNewLinkTemplateId('NONE')
                                     setEditingNewLinkLabel('Open linked workflow')
                                     
-                                    // Refresh to get the real data from server
-                                    // Optimistic update shows immediately, real data replaces it when refresh completes
-                                    startTransition(() => {
-                                      router.refresh()
-                                    })
+                                    // Reload to get fresh data from server
+                                    // Optimistic update shows immediately, page reload gets real data
+                                    setTimeout(() => {
+                                      if (typeof window !== 'undefined') {
+                                        window.location.reload()
+                                      }
+                                    }, 300)
                                   } else {
                                     alert(`Failed to add link: ${result.error || 'Unknown error'}`)
                                   }
