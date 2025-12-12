@@ -635,7 +635,8 @@ export default function WorkflowDiagramClient({
             <>
               {isAdmin && (
                 <Handle
-                  type="source"
+                  id="in"
+                  type="target"
                   position={Position.Top}
                   className="w-3 h-3 !bg-blue-500"
                 />
@@ -658,7 +659,8 @@ export default function WorkflowDiagramClient({
               </div>
               {isAdmin && (
                 <Handle
-                  type="target"
+                  id="out"
+                  type="source"
                   position={Position.Bottom}
                   className="w-3 h-3 !bg-blue-500"
                 />
@@ -687,6 +689,8 @@ export default function WorkflowDiagramClient({
         id: edgeResult.option.id,
         source: selectedNode.id,
         target: result.node.id,
+        sourceHandle: 'out',
+        targetHandle: 'in',
         label: undefined,
         type: 'smoothstep',
         style: {
