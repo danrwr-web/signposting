@@ -238,10 +238,11 @@ export default function WorkflowDiagramClient({
           // For other nodes, keep label-based rendering (rectangular cards)
           label: (
             <>
-              {/* Source handle (top) for admin connections */}
+              {/* Target handle (top) - connections come IN */}
               {isAdmin && (
                 <Handle
-                  type="source"
+                  id="in"
+                  type="target"
                   position={Position.Top}
                   className="w-3 h-3 !bg-blue-500"
                 />
@@ -296,10 +297,11 @@ export default function WorkflowDiagramClient({
                   </div>
                 )}
               </div>
-              {/* Target handle (bottom) for admin connections */}
+              {/* Source handle (bottom) - connections go OUT */}
               {isAdmin && (
                 <Handle
-                  type="target"
+                  id="out"
+                  type="source"
                   position={Position.Bottom}
                   className="w-3 h-3 !bg-blue-500"
                 />
@@ -332,6 +334,8 @@ export default function WorkflowDiagramClient({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
+            sourceHandle: 'out',
+            targetHandle: 'in',
             label: hasLabel ? labelText : undefined,
             labelStyle: hasLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670' } : undefined,
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
@@ -509,40 +513,42 @@ export default function WorkflowDiagramClient({
           position: { x: initialX, y: initialY },
           selected: false,
           data: {
-            label: (
-              <>
-                {isAdmin && (
-                  <Handle
-                    type="source"
-                    position={Position.Top}
-                    className="w-3 h-3 !bg-blue-500"
-                  />
-                )}
-                <div className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
-                  nodeType === 'QUESTION'
-                    ? 'bg-amber-50 border-amber-200'
-                    : 'bg-white border-gray-200'
-                } border`}>
-                  <div className="flex items-start justify-between px-4 pt-3 pb-2">
-                    <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
-                      {nodeType}
-                    </div>
-                  </div>
-                  <div className="px-4 pb-3">
-                    <div className="font-medium text-gray-900 break-words text-sm leading-snug">
-                      {result.node.title}
-                    </div>
-                  </div>
-                </div>
-                {isAdmin && (
-                  <Handle
-                    type="target"
-                    position={Position.Bottom}
-                    className="w-3 h-3 !bg-blue-500"
-                  />
-                )}
-              </>
-            ),
+                  label: (
+                    <>
+                      {isAdmin && (
+                        <Handle
+                          id="in"
+                          type="target"
+                          position={Position.Top}
+                          className="w-3 h-3 !bg-blue-500"
+                        />
+                      )}
+                      <div className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+                        nodeType === 'QUESTION'
+                          ? 'bg-amber-50 border-amber-200'
+                          : 'bg-white border-gray-200'
+                      } border`}>
+                        <div className="flex items-start justify-between px-4 pt-3 pb-2">
+                          <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
+                            {nodeType}
+                          </div>
+                        </div>
+                        <div className="px-4 pb-3">
+                          <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+                            {result.node.title}
+                          </div>
+                        </div>
+                      </div>
+                      {isAdmin && (
+                        <Handle
+                          id="out"
+                          type="source"
+                          position={Position.Bottom}
+                          className="w-3 h-3 !bg-blue-500"
+                        />
+                      )}
+                    </>
+                  ),
             nodeType: result.node.nodeType,
             title: result.node.title,
             body: result.node.body,
@@ -866,7 +872,8 @@ export default function WorkflowDiagramClient({
             edgesFocusable={isAdmin}
             edgesUpdatable={false}
             selectNodesOnDrag={false}
-            connectionMode={ConnectionMode.Loose}
+            connectionMode={ConnectionMode.Strict}
+            isValidConnection={isValidConnection}
             fitView
             fitViewOptions={{ padding: 0.2 }}
             minZoom={0.3}

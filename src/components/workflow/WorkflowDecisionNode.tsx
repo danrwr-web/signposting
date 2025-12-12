@@ -49,10 +49,11 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
 
   return (
     <>
-      {/* Source handle (top) for admin connections */}
+      {/* Target handle (top) - connections come IN */}
       {isAdmin && (
         <Handle
-          type="source"
+          id="in"
+          type="target"
           position={Position.Top}
           className="w-3 h-3 !bg-blue-500"
         />
@@ -110,10 +111,11 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
         </div>
       </div>
 
-      {/* Target handle (bottom) for admin connections */}
+      {/* Source handle (bottom) - connections go OUT */}
       {isAdmin && (
         <Handle
-          type="target"
+          id="out"
+          type="source"
           position={Position.Bottom}
           className="w-3 h-3 !bg-blue-500"
         />
