@@ -224,58 +224,87 @@ export default function WorkflowDiagramClient({
         type: nodeType,
         position: { x, y },
         selected: isSelected,
-        data: {
+        data: node.nodeType === 'QUESTION' ? {
+          // For QUESTION nodes, pass data to custom component (diamond shape)
+          nodeType: node.nodeType,
+          title: node.title,
+          body: node.body,
+          hasBody,
+          isSelected,
+          isAdmin,
+          onNodeClick: () => toggleNodeSelection(node.id),
+          onInfoClick: () => toggleNodeSelection(node.id),
+        } : {
+          // For other nodes, keep label-based rendering (rectangular cards)
           label: (
-            <div 
-              className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
-                nodeTypeStyles
-              } ${
-                isSelected 
-                  ? 'border-2 border-blue-500 shadow-lg' 
-                  : 'border'
-              }`}
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleNodeSelection(node.id)
-              }}
-            >
-              {/* Badge in top-left */}
-              <div className="flex items-start justify-between px-4 pt-3 pb-2">
-                <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(node.nodeType)}`}>
-                  {node.nodeType}
+            <>
+              {/* Source handle (top) for admin connections */}
+              {isAdmin && (
+                <Handle
+                  type="source"
+                  position={Position.Top}
+                  className="w-3 h-3 !bg-blue-500"
+                />
+              )}
+              <div 
+                className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+                  nodeTypeStyles
+                } ${
+                  isSelected 
+                    ? 'border-2 border-blue-500 shadow-lg' 
+                    : 'border'
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggleNodeSelection(node.id)
+                }}
+              >
+                {/* Badge in top-left */}
+                <div className="flex items-start justify-between px-4 pt-3 pb-2">
+                  <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(node.nodeType)}`}>
+                    {node.nodeType}
+                  </div>
+                  {/* Info indicator - only if has body */}
+                  {hasBody && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleNodeSelection(node.id)
+                      }}
+                      className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
+                      title="Click for reference details"
+                      aria-label="View details"
+                    >
+                      <InfoIcon />
+                    </button>
+                  )}
                 </div>
-                {/* Info indicator - only if has body */}
-                {hasBody && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleNodeSelection(node.id)
-                    }}
-                    className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
-                    title="Click for reference details"
-                    aria-label="View details"
-                  >
-                    <InfoIcon />
-                  </button>
-                )}
-              </div>
-              
-              {/* Title */}
-              <div className="px-4 pb-3">
-                <div className="font-medium text-gray-900 break-words text-sm leading-snug">
-                  {node.title}
-                </div>
-              </div>
-
-              {/* Outcome footer - only if actionKey and no outgoing edges */}
-              {isOutcomeNode && (
-                <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
-                  <div className="text-xs font-medium text-blue-900">
-                    Outcome: {getActionKeyDescription(node.actionKey!)}
+                
+                {/* Title */}
+                <div className="px-4 pb-3">
+                  <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+                    {node.title}
                   </div>
                 </div>
+
+                {/* Outcome footer - only if actionKey and no outgoing edges */}
+                {isOutcomeNode && (
+                  <div className="px-4 py-2 bg-blue-50 border-t border-blue-100">
+                    <div className="text-xs font-medium text-blue-900">
+                      Outcome: {getActionKeyDescription(node.actionKey!)}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Target handle (bottom) for admin connections */}
+              {isAdmin && (
+                <Handle
+                  type="target"
+                  position={Position.Bottom}
+                  className="w-3 h-3 !bg-blue-500"
+                />
               )}
-            </div>
+            </>
           ),
           nodeType: node.nodeType,
           title: node.title,
