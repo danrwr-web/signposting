@@ -63,19 +63,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                 actionKey: true,
               }
             }
-          },
-          select: {
-            id: true,
-            nodeType: true,
-            title: true,
-            body: true,
-            sortOrder: true,
-            positionX: true,
-            positionY: true,
-            actionKey: true,
-            linkToTemplateId: true,
-            linkLabel: true,
-            answerOptions: true,
           }
         }
       }
