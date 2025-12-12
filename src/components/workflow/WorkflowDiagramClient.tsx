@@ -282,15 +282,18 @@ export default function WorkflowDiagramClient({
     })
   }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection])
 
-  // Convert answer options to React Flow edges
-  const flowEdges = useMemo<Edge[]>(() => {
-    const edgesList: Edge[] = []
+  // Initialize nodes and edges from template (once when template changes)
+  useEffect(() => {
+    setNodes(flowNodes)
+    
+    // Convert answer options to React Flow edges from template
+    const initialEdges: Edge[] = []
     
     template.nodes.forEach((node) => {
       node.answerOptions.forEach((option) => {
         if (option.nextNodeId) {
           const label = option.label ?? ''
-          edgesList.push({
+          initialEdges.push({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
@@ -300,9 +303,9 @@ export default function WorkflowDiagramClient({
               </div>
             ) : undefined,
             type: 'smoothstep',
-            selected: selectedEdgeId === option.id,
+            selected: false,
             style: {
-              strokeWidth: selectedEdgeId === option.id ? 3.5 : 2.5,
+              strokeWidth: 2.5,
               stroke: '#005EB8', // NHS blue
             },
             markerEnd: {
@@ -314,15 +317,32 @@ export default function WorkflowDiagramClient({
         }
       })
     })
+    
+    // Debug log
+    console.log("init edges", initialEdges.map(e => ({
+      id: e.id, 
+      labelType: typeof e.label, 
+      labelValue: e.label ? 'JSX element' : 'undefined',
+      source: e.source, 
+      target: e.target
+    })))
+    
+    setEdges(initialEdges)
+  }, [flowNodes, template.nodes, setNodes, setEdges])
 
-    return edgesList
-  }, [template.nodes, selectedEdgeId])
-
-  // Initialize nodes and edges (no auto-selection)
+  // Update edge selection state when selectedEdgeId changes (without resetting all edges)
   useEffect(() => {
-    setNodes(flowNodes)
-    setEdges(flowEdges)
-  }, [flowNodes, flowEdges, setNodes, setEdges])
+    setEdges((currentEdges) =>
+      currentEdges.map((edge) => ({
+        ...edge,
+        selected: edge.id === selectedEdgeId,
+        style: {
+          ...edge.style,
+          strokeWidth: edge.id === selectedEdgeId ? 3.5 : 2.5,
+        },
+      }))
+    )
+  }, [selectedEdgeId, setEdges])
 
   // Handle node drag end - save position to database
   const handleNodeDragStop = useCallback((_event: React.MouseEvent, node: Node) => {
@@ -405,7 +425,25 @@ export default function WorkflowDiagramClient({
           },
           animated: false,
         }
-        setEdges((eds) => [...eds, newEdge])
+        
+        // Debug log
+        console.log("onConnect - creating edge", {
+          id: newEdge.id,
+          label: edgeLabel,
+          labelType: typeof newEdge.label,
+          source: newEdge.source,
+          target: newEdge.target
+        })
+        
+        setEdges((eds) => {
+          const updated = [...eds, newEdge]
+          console.log("onConnect - edges after add", updated.map(e => ({
+            id: e.id,
+            labelType: typeof e.label,
+            labelValue: e.label ? 'JSX element' : 'undefined'
+          })))
+          return updated
+        })
       } else {
         console.error('Failed to create answer option:', result.error)
         alert(`Failed to create connection: ${result.error || 'Unknown error'}`)
