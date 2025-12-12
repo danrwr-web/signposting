@@ -566,9 +566,6 @@ export default function WorkflowDiagramClient({
         setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id))
         setSelectedNodeId(null)
         setSelectedEdgeId(null)
-        if (typeof window !== 'undefined') {
-          window.location.reload()
-        }
       } else {
         alert(`Failed to delete: ${result.error || 'Unknown error'}`)
       }
@@ -603,9 +600,6 @@ export default function WorkflowDiagramClient({
           )
         )
         setSelectedEdgeId(null)
-        if (typeof window !== 'undefined') {
-          window.location.reload()
-        }
       } else {
         alert(`Failed to save: ${result.error || 'Unknown error'}`)
       }
@@ -625,9 +619,6 @@ export default function WorkflowDiagramClient({
       if (result.success) {
         setEdges((eds) => eds.filter((e) => e.id !== selectedEdge.edge.id))
         setSelectedEdgeId(null)
-        if (typeof window !== 'undefined') {
-          window.location.reload()
-        }
       } else {
         alert(`Failed to delete: ${result.error || 'Unknown error'}`)
       }
