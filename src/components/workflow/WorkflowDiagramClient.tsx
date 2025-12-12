@@ -12,9 +12,11 @@ import ReactFlow, {
   Connection,
   Handle,
   Position,
+  NodeTypes,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
+import WorkflowDecisionNode from './WorkflowDecisionNode'
 
 interface WorkflowNode {
   id: string
@@ -214,9 +216,12 @@ export default function WorkflowDiagramClient({
         ? 'bg-amber-50 border-amber-200'
         : 'bg-white border-gray-200'
 
+      // Use custom diamond node type for QUESTION nodes
+      const nodeType = node.nodeType === 'QUESTION' ? 'decisionNode' : 'default'
+
       return {
         id: node.id,
-        type: 'default',
+        type: nodeType,
         position: { x, y },
         selected: isSelected,
         data: {
@@ -734,6 +739,11 @@ export default function WorkflowDiagramClient({
     }
   }, [selectedEdge, deleteAnswerOptionAction, setEdges])
 
+  // Register custom node types
+  const nodeTypes: NodeTypes = useMemo(() => ({
+    decisionNode: WorkflowDecisionNode,
+  }), [])
+
   return (
     <div className="space-y-4">
       {/* Legend */}
@@ -747,9 +757,10 @@ export default function WorkflowDiagramClient({
             <span className="text-sm text-gray-600">Information or checklist</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('QUESTION')}`}>
-              QUESTION
-            </div>
+            <div 
+              className="w-4 h-4 bg-amber-50 border-2 border-amber-200"
+              style={{ transform: 'rotate(45deg)' }}
+            />
             <span className="text-sm text-gray-600">Decision point</span>
           </div>
           <div className="flex items-center gap-2">
@@ -803,6 +814,7 @@ export default function WorkflowDiagramClient({
           <ReactFlow
             nodes={nodes}
             edges={edges}
+            nodeTypes={nodeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
