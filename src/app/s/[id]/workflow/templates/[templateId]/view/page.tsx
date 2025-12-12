@@ -15,6 +15,8 @@ import {
   deleteWorkflowAnswerOptionById,
   deleteWorkflowNodeById,
   updateWorkflowNodeForDiagram,
+  createWorkflowNodeLink,
+  deleteWorkflowNodeLink,
 } from '../../../actions'
 
 interface WorkflowTemplateViewPageProps {
