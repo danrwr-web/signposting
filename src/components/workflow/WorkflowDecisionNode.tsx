@@ -79,10 +79,10 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
           }}
         />
 
-        {/* Content container - normal, unrotated, centered */}
-        <div className="relative h-full flex flex-col items-center justify-center p-3 overflow-hidden">
+        {/* Content container - 3-row grid for optical centering */}
+        <div className="relative h-full grid grid-rows-[auto_1fr_auto] items-center p-3 overflow-hidden">
           {/* Badge and info icon row */}
-          <div className="flex items-start justify-between w-full mb-2 min-h-[20px]">
+          <div className="flex items-start justify-between w-full min-h-[20px]">
             <div className={`text-xs font-semibold px-2 py-0.5 rounded border ${getNodeTypeColor(nodeType)}`}>
               {nodeType}
             </div>
@@ -102,12 +102,15 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
             )}
           </div>
 
-          {/* Title - constrained to ~70% width, optically centred inside diamond */}
-          <div className="flex-1 flex items-center justify-center w-full">
-            <div className="font-medium text-gray-900 break-words text-sm leading-snug text-center max-w-[70%] overflow-hidden">
+          {/* Title row - flexes to center, constrained width, subtle upward nudge */}
+          <div className="flex items-center justify-center w-full -mt-1">
+            <div className="font-medium text-gray-900 break-words text-sm leading-snug text-center max-w-[140px] overflow-hidden">
               {title}
             </div>
           </div>
+
+          {/* Spacer row for visual balance */}
+          <div className="h-[8px]"></div>
         </div>
       </div>
 
