@@ -687,47 +687,32 @@ export default function WorkflowDiagramClient({
           isAdmin,
           onNodeClick: () => {},
           onInfoClick: () => {},
-        } : {
-          label: (
-            <>
-              {isAdmin && (
-                <Handle
-                  id="in"
-                  type="target"
-                  position={Position.Top}
-                  className="w-3 h-3 !bg-blue-500"
-                />
-              )}
-              <div className={`min-w[280px] max-w[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
-                nodeType === 'QUESTION'
-                  ? 'bg-amber-50 border-amber-200'
-                  : 'bg-white border-gray-200'
-              } border`}>
-                <div className="flex items-start justify-between px-4 pt-3 pb-2">
-                  <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
-                    {nodeType}
-                  </div>
-                </div>
-                <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
-                  <div className="font-medium text-gray-900 break-words text-sm leading-snug">
-                    {result.node.title}
-                  </div>
-                </div>
-              </div>
-              {isAdmin && (
-                <Handle
-                  id="out"
-                  type="source"
-                  position={Position.Bottom}
-                  className="w-3 h-3 !bg-blue-500"
-                />
-              )}
-            </>
-          ),
+        } : nodeType === 'INSTRUCTION' ? {
           nodeType: result.node.nodeType,
           title: result.node.title,
           body: result.node.body,
+          hasBody: false,
+          isSelected: false,
+          isAdmin,
+          onNodeClick: () => {},
+          onInfoClick: () => {},
+        } : nodeType === 'END' ? {
+          nodeType: result.node.nodeType,
+          title: result.node.title,
+          body: result.node.body,
+          hasBody: false,
           actionKey: result.node.actionKey,
+          hasOutgoingEdges: false,
+          isSelected: false,
+          isAdmin,
+          onNodeClick: () => {},
+          onInfoClick: () => {},
+          getActionKeyDescription,
+        } : {
+          // Fallback for any other node types (shouldn't happen)
+          nodeType: result.node.nodeType,
+          title: result.node.title,
+          body: result.node.body,
           hasBody: false,
         },
       }
