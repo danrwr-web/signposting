@@ -908,19 +908,6 @@ export async function updateWorkflowNodeForDiagram(
       }
     }
 
-    // Verify linked template belongs to same surgery if provided
-    if (linkToTemplateId) {
-      const linkedTemplate = await prisma.workflowTemplate.findFirst({
-        where: { id: linkToTemplateId, surgeryId },
-      })
-      if (!linkedTemplate) {
-        return {
-          success: false,
-          error: 'Linked template not found or does not belong to this surgery',
-        }
-      }
-    }
-
     await prisma.workflowNodeTemplate.update({
       where: { id: nodeId },
       data: {
