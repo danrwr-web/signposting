@@ -654,19 +654,31 @@ export default function WorkflowDiagramClient({
       })
     )
 
-    // Persist to database
+    // Persist to database - only include nodes that exist in the template
     try {
-      const updates = Array.from(positions.entries()).map(([nodeId, pos]) => ({
-        nodeId,
-        positionX: pos.x,
-        positionY: pos.y,
-      }))
+      const templateNodeIds = new Set(template.nodes.map(n => n.id))
+      const updates = Array.from(positions.entries())
+        .filter(([nodeId]) => templateNodeIds.has(nodeId))
+        .map(([nodeId, pos]) => ({
+          nodeId,
+          positionX: pos.x,
+          positionY: pos.y,
+        }))
 
+      if (updates.length === 0) {
+        console.warn('No valid node positions to update')
+        return
+      }
+
+      console.log('Updating', updates.length, 'node positions')
       const result = await bulkUpdatePositionsAction(updates)
       if (!result.success) {
+        console.error('Bulk update failed:', result.error)
         alert(`Failed to save layout: ${result.error || 'Unknown error'}`)
         // Revert by refreshing - positions weren't saved
         router.refresh()
+      } else {
+        console.log('Layout saved successfully')
       }
     } catch (error) {
       console.error('Error saving tidy layout:', error)

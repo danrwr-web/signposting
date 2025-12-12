@@ -1158,16 +1158,25 @@ export async function bulkUpdateWorkflowNodePositions(
       select: { id: true },
     })
 
-    if (nodes.length !== nodeIds.length) {
+    const foundNodeIds = new Set(nodes.map(n => n.id))
+    const missingNodeIds = nodeIds.filter(id => !foundNodeIds.has(id))
+
+    if (missingNodeIds.length > 0) {
+      console.error('Missing node IDs:', missingNodeIds)
+      console.error('Requested node IDs:', nodeIds)
+      console.error('Found node IDs:', Array.from(foundNodeIds))
       return {
         success: false,
-        error: 'Some nodes not found in template',
+        error: `Some nodes not found in template: ${missingNodeIds.join(', ')}`,
       }
     }
 
+    // Only update nodes that were found (filter out any that don't exist)
+    const validUpdates = updates.filter(u => foundNodeIds.has(u.nodeId))
+
     // Update all positions in a transaction
     await prisma.$transaction(
-      updates.map((update) =>
+      validUpdates.map((update) =>
         prisma.workflowNodeTemplate.update({
           where: { id: update.nodeId },
           data: {
