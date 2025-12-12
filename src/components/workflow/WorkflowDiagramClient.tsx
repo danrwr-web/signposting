@@ -553,6 +553,112 @@ export default function WorkflowDiagramClient({
     }
   }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey])
 
+  // Handle quick create of a new node connected from the selected node
+  const handleQuickCreateConnectedNode = useCallback(async (nodeType: WorkflowNodeType) => {
+    if (!isAdmin || !createNodeAction || !createAnswerOptionAction || !selectedNode) return
+
+    try {
+      // 1) Create the new node on the server
+      const result = await createNodeAction(nodeType)
+      if (!result.success || !result.node) {
+        alert(`Failed to create node: ${result.error || 'Unknown error'}`)
+        return
+      }
+
+      // 2) Determine a position relative to the current node
+      const baseNode = nodes.find((n) => n.id === selectedNode.id)
+      const offsetX = 120
+      const offsetY = 200
+      const newX = baseNode ? baseNode.position.x + offsetX : 0
+      const newY = baseNode ? baseNode.position.y + offsetY : 0
+
+      // 3) Add the node locally
+      const newNode: Node = {
+        id: result.node.id,
+        type: 'default',
+        position: { x: newX, y: newY },
+        selected: false,
+        data: {
+          label: (
+            <>
+              {isAdmin && (
+                <Handle
+                  type="source"
+                  position={Position.Top}
+                  className="w-3 h-3 !bg-blue-500"
+                />
+              )}
+              <div className={`min-w[280px] max-w[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+                nodeType === 'QUESTION'
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-white border-gray-200'
+              } border`}>
+                <div className="flex items-start justify-between px-4 pt-3 pb-2">
+                  <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
+                    {nodeType}
+                  </div>
+                </div>
+                <div className="px-4 pb-3">
+                  <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+                    {result.node.title}
+                  </div>
+                </div>
+              </div>
+              {isAdmin && (
+                <Handle
+                  type="target"
+                  position={Position.Bottom}
+                  className="w-3 h-3 !bg-blue-500"
+                />
+              )}
+            </>
+          ),
+          nodeType: result.node.nodeType,
+          title: result.node.title,
+          body: result.node.body,
+          actionKey: result.node.actionKey,
+          hasBody: false,
+        },
+      }
+
+      setNodes((nds) => [...nds, newNode])
+
+      // 4) Create connection with empty label
+      const edgeResult = await createAnswerOptionAction(selectedNode.id, result.node.id, '')
+      if (!edgeResult.success || !edgeResult.option) {
+        alert(`Node created, but failed to connect: ${edgeResult.error || 'Unknown error'}`)
+        setSelectedNodeId(result.node.id)
+        return
+      }
+
+      const newEdge: Edge = {
+        id: edgeResult.option.id,
+        source: selectedNode.id,
+        target: result.node.id,
+        label: undefined,
+        type: 'smoothstep',
+        style: {
+          strokeWidth: 2.5,
+          stroke: '#005EB8',
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: '#005EB8',
+        },
+        animated: false,
+      }
+
+      setEdges((eds) => [...eds, newEdge])
+
+      // 5) Select the new node for immediate editing
+      setSelectedNodeId(result.node.id)
+      setSelectedEdgeId(null)
+    } catch (error) {
+      console.error('Error creating connected node:', error)
+      alert('Failed to create connected node')
+    }
+  }, [isAdmin, createNodeAction, createAnswerOptionAction, selectedNode, nodes, setNodes, setEdges])
+
   // Handle deleting node
   const handleDeleteNode = useCallback(async () => {
     if (!selectedNode || !deleteNodeAction) return
@@ -764,8 +870,8 @@ export default function WorkflowDiagramClient({
         ) : selectedNode ? (
           isAdmin ? (
             // Admin edit form
-            <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
-              <div className="mb-4">
+            <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200 space-y-4">
+              <div>
                 <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
                   {selectedNode.nodeType}
                 </div>
@@ -836,6 +942,34 @@ export default function WorkflowDiagramClient({
                   )}
                 </div>
               </div>
+
+              {/* Quick add next step */}
+              <div className="pt-4 border-t border-yellow-300">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                  Add next step
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => handleQuickCreateConnectedNode('INSTRUCTION')}
+                    className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    Add instruction
+                  </button>
+                  <button
+                    onClick={() => handleQuickCreateConnectedNode('QUESTION')}
+                    className="px-3 py-1.5 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    Add question
+                  </button>
+                  <button
+                    onClick={() => handleQuickCreateConnectedNode('END')}
+                    className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    Add outcome
+                  </button>
+                </div>
+              </div>
+
               <div className="flex gap-2 pt-4 border-t border-yellow-300">
                 <button
                   onClick={handleSaveNode}
