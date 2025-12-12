@@ -22,6 +22,7 @@ import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
+import WorkflowOrthogonalEdge from './WorkflowOrthogonalEdge'
 
 interface WorkflowNode {
   id: string
@@ -464,7 +465,7 @@ export default function WorkflowDiagramClient({
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
             labelBgPadding: hasLabel ? [6, 4] : undefined,
             labelBgBorderRadius: hasLabel ? 8 : undefined,
-            type: 'smoothstep',
+            type: 'workflowOrthogonal',
             selected: false,
             style: {
               strokeWidth: 2.5,
@@ -831,7 +832,7 @@ export default function WorkflowDiagramClient({
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
           labelBgPadding: edgeLabel ? [6, 4] : undefined,
           labelBgBorderRadius: edgeLabel ? 8 : undefined,
-          type: 'smoothstep',
+          type: 'workflowOrthogonal',
           style: {
             strokeWidth: 2.5,
             stroke: '#005EB8',
@@ -1073,7 +1074,7 @@ export default function WorkflowDiagramClient({
           sourceHandle: 'source-bottom',
           targetHandle: 'target-top',
         label: undefined,
-        type: 'smoothstep',
+          type: 'workflowOrthogonal',
         style: {
           strokeWidth: 2.5,
           stroke: '#005EB8',
@@ -1170,6 +1171,11 @@ export default function WorkflowDiagramClient({
       alert('Failed to delete connection')
     }
   }, [selectedEdge, deleteAnswerOptionAction, setEdges])
+
+  // Register custom edge types
+  const edgeTypes = useMemo(() => ({
+    workflowOrthogonal: WorkflowOrthogonalEdge,
+  }), [])
 
   // Register custom node types
   const nodeTypes: NodeTypes = useMemo(() => ({
@@ -1291,6 +1297,7 @@ export default function WorkflowDiagramClient({
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
