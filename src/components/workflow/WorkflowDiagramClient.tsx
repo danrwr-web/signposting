@@ -292,16 +292,17 @@ export default function WorkflowDiagramClient({
     template.nodes.forEach((node) => {
       node.answerOptions.forEach((option) => {
         if (option.nextNodeId) {
-          const label = option.label ?? ''
+          const labelText = (option.label ?? '').trim()
+          const hasLabel = labelText !== ''
           initialEdges.push({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            label: label && label.trim() !== '' ? (
-              <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
-                {label}
-              </div>
-            ) : undefined,
+            label: hasLabel ? labelText : undefined,
+            labelStyle: hasLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670' } : undefined,
+            labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
+            labelBgPadding: hasLabel ? [6, 4] : undefined,
+            labelBgBorderRadius: hasLabel ? 8 : undefined,
             type: 'smoothstep',
             selected: false,
             style: {
@@ -322,7 +323,7 @@ export default function WorkflowDiagramClient({
     console.log("init edges", initialEdges.map(e => ({
       id: e.id, 
       labelType: typeof e.label, 
-      labelValue: e.label ? 'JSX element' : 'undefined',
+      labelValue: e.label ? 'string' : 'undefined',
       source: e.source, 
       target: e.target
     })))
@@ -404,16 +405,16 @@ export default function WorkflowDiagramClient({
       const result = await createAnswerOptionAction(connection.source, connection.target, label)
       if (result.success && result.option) {
         // Add new edge to the edges state
-        const edgeLabel = result.option.label && result.option.label.trim() !== '' ? result.option.label : undefined
+        const edgeLabel = result.option.label && result.option.label.trim() !== '' ? result.option.label.trim() : undefined
         const newEdge: Edge = {
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
-          label: edgeLabel ? (
-            <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
-              {edgeLabel}
-            </div>
-          ) : undefined,
+          label: edgeLabel,
+          labelStyle: edgeLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670' } : undefined,
+          labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
+          labelBgPadding: edgeLabel ? [6, 4] : undefined,
+          labelBgBorderRadius: edgeLabel ? 8 : undefined,
           type: 'smoothstep',
           style: {
             strokeWidth: 2.5,
@@ -440,7 +441,7 @@ export default function WorkflowDiagramClient({
           console.log("onConnect - edges after add", updated.map(e => ({
             id: e.id,
             labelType: typeof e.label,
-            labelValue: e.label ? 'JSX element' : 'undefined'
+              labelValue: e.label ? 'string' : 'undefined'
           })))
           return updated
         })
@@ -592,11 +593,11 @@ export default function WorkflowDiagramClient({
             e.id === selectedEdge.edge.id
               ? {
                   ...e,
-                  label: trimmedLabel && trimmedLabel !== '' ? (
-                    <div className="px-2.5 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-900 shadow-sm">
-                      {trimmedLabel}
-                    </div>
-                  ) : undefined,
+                  label: trimmedLabel && trimmedLabel !== '' ? trimmedLabel : undefined,
+                  labelStyle: trimmedLabel && trimmedLabel !== '' ? { fontSize: 12, fontWeight: 600, color: '#0b4670' } : undefined,
+                  labelBgStyle: trimmedLabel && trimmedLabel !== '' ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
+                  labelBgPadding: trimmedLabel && trimmedLabel !== '' ? [6, 4] : undefined,
+                  labelBgBorderRadius: trimmedLabel && trimmedLabel !== '' ? 8 : undefined,
                 }
               : e
           )
