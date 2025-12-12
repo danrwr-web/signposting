@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import ReactFlow, {
   Node,
   Edge,
