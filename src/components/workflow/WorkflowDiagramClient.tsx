@@ -390,8 +390,8 @@ export default function WorkflowDiagramClient({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            sourceHandle: 'out',
-            targetHandle: 'in',
+            sourceHandle: (option.sourceHandle || 'source-bottom'),
+            targetHandle: (option.targetHandle || 'target-top'),
             label: hasLabel ? labelText : undefined,
             labelStyle: hasLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' } : undefined,
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
@@ -487,19 +487,20 @@ export default function WorkflowDiagramClient({
     setSelectedNodeId(null) // Clear node selection
   }, [effectiveAdmin])
 
-  // Validate connection - allow source handles "out", "left", "right" to target handle "in"
+  // Validate connection - allow any source handle (source-*) to any target handle (target-*)
   const isValidConnection = useCallback((connection: Connection): boolean => {
     if (!effectiveAdmin) return false
-    // Only allow: sourceHandle ∈ {out, left, right} → targetHandle="in"
-    const validSourceHandles = ['out', 'left', 'right']
-    return validSourceHandles.includes(connection.sourceHandle || '') && connection.targetHandle === 'in'
+    // Allow any source handle (source-*) to any target handle (target-*)
+    const sourceHandle = connection.sourceHandle || ''
+    const targetHandle = connection.targetHandle || ''
+    return sourceHandle.startsWith('source-') && targetHandle.startsWith('target-')
   }, [effectiveAdmin])
 
   // Handle connection creation
   const onConnect = useCallback(async (connection: Connection) => {
     if (!effectiveAdmin || !createAnswerOptionAction || !connection.source || !connection.target) return
     if (!isValidConnection(connection)) {
-      console.warn('Invalid connection: only out/left/right→in handle pairing allowed')
+      console.warn('Invalid connection: source handle must start with "source-" and target handle must start with "target-"')
       return
     }
 
@@ -684,12 +685,14 @@ export default function WorkflowDiagramClient({
         return
       }
 
-      // 2) Determine a position relative to the current node
+      // 2) Calculate position for new node (directly below selected node, snapped to grid)
       const baseNode = nodes.find((n) => n.id === selectedNode.id)
-      const offsetX = 120
-      const offsetY = 200
-      const newX = baseNode ? baseNode.position.x + offsetX : 0
-      const newY = baseNode ? baseNode.position.y + offsetY : 0
+      const gridSize = 16
+      const spacing = 180 // Vertical spacing between nodes
+      const baseX = baseNode?.position.x || 0
+      const baseY = baseNode?.position.y || 0
+      const newX = Math.round(baseX / gridSize) * gridSize // Snap to grid
+      const newY = Math.round((baseY + spacing) / gridSize) * gridSize // Snap to grid
 
       // 3) Add the node locally
       // Map node types to custom components
@@ -750,8 +753,8 @@ export default function WorkflowDiagramClient({
 
       setNodes((nds) => [...nds, newNode])
 
-      // 4) Create connection with empty label
-      const edgeResult = await createAnswerOptionAction(selectedNode.id, result.node.id, '')
+      // 4) Create connection with empty label (bottom to top)
+      const edgeResult = await createAnswerOptionAction(selectedNode.id, result.node.id, '', 'source-bottom', 'target-top')
       if (!edgeResult.success || !edgeResult.option) {
         alert(`Node created, but failed to connect: ${edgeResult.error || 'Unknown error'}`)
         setSelectedNodeId(result.node.id)
@@ -765,7 +768,7 @@ export default function WorkflowDiagramClient({
           sourceHandle: 'source-bottom',
           targetHandle: 'target-top',
         label: undefined,
-        type: 'smoothstep',
+        type: 'step',
         style: {
           strokeWidth: 2.5,
           stroke: '#005EB8',
@@ -974,6 +977,7 @@ export default function WorkflowDiagramClient({
             edgesUpdatable={false}
             selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Strict}
+            connectionLineType={ConnectionLineType.Step}
             isValidConnection={isValidConnection}
             fitView
             fitViewOptions={{ padding: 0.2 }}

@@ -570,7 +570,9 @@ export async function createWorkflowAnswerOptionForDiagram(
   templateId: string,
   fromNodeId: string,
   toNodeId: string,
-  label: string
+  label: string,
+  sourceHandle: string = 'source-bottom',
+  targetHandle: string = 'target-top'
 ): Promise<CreateAnswerOptionResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -647,6 +649,8 @@ export async function createWorkflowAnswerOptionForDiagram(
         label,
         valueKey,
         description: null,
+        sourceHandle: sourceHandle,
+        targetHandle: targetHandle,
         nextNodeId: toNodeId,
         actionKey: null,
       },
