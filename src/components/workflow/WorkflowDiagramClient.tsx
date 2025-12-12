@@ -174,17 +174,22 @@ export default function WorkflowDiagramClient({
   }>({ added: [], removed: [] })
 
   // Track template version to detect when data actually refreshes
-  const templateVersionRef = useRef(template.id + template.nodes.length)
+  // Create a hash of all workflowLink IDs across all nodes to detect changes
+  const getTemplateLinksHash = useCallback((nodes: WorkflowNode[]) => {
+    return nodes.map(n => n.workflowLinks.map(l => l.id).sort().join(',')).sort().join('|')
+  }, [])
   
-  // Clear optimistic updates when template data actually changes (after refresh)
+  const templateLinksHashRef = useRef(getTemplateLinksHash(template.nodes))
+  
+  // Clear optimistic updates when template workflowLinks actually change (after refresh)
   useEffect(() => {
-    const currentVersion = template.id + template.nodes.length
-    if (currentVersion !== templateVersionRef.current) {
-      // Template data has changed - clear optimistic updates
+    const currentHash = getTemplateLinksHash(template.nodes)
+    if (currentHash !== templateLinksHashRef.current) {
+      // Template workflowLinks have changed - clear optimistic updates
       setLocalLinkUpdates({ added: [], removed: [] })
-      templateVersionRef.current = currentVersion
+      templateLinksHashRef.current = currentHash
     }
-  }, [template.id, template.nodes.length])
+  }, [template.nodes, getTemplateLinksHash])
 
   // Find selected node data, including optimistic link updates
   const selectedNode = useMemo(() => {
