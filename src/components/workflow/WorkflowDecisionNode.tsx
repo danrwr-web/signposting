@@ -163,26 +163,6 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
           <div className="h-[8px]"></div>
         </div>
       </div>
-
-      {/* Source handle (right) - connections go OUT */}
-      {isAdmin && (
-        <Handle
-          id="right"
-          type="source"
-          position={Position.Right}
-          className="w-3 h-3 !bg-blue-500"
-        />
-      )}
-
-      {/* Source handle (bottom) - connections go OUT */}
-      {isAdmin && (
-        <Handle
-          id="out"
-          type="source"
-          position={Position.Bottom}
-          className="w-3 h-3 !bg-blue-500"
-        />
-      )}
     </>
   )
 }
