@@ -661,8 +661,17 @@ export default function WorkflowDiagramClient({
       const newY = baseNode ? baseNode.position.y + offsetY : 0
 
       // 3) Add the node locally
-      // Use custom diamond node type for QUESTION nodes
-      const newNodeType = nodeType === 'QUESTION' ? 'decisionNode' : 'default'
+      // Map node types to custom components
+      let newNodeType: string
+      if (nodeType === 'QUESTION') {
+        newNodeType = 'decisionNode'
+      } else if (nodeType === 'INSTRUCTION') {
+        newNodeType = 'instructionNode'
+      } else if (nodeType === 'END') {
+        newNodeType = 'outcomeNode'
+      } else {
+        newNodeType = 'default'
+      }
       
       const newNode: Node = {
         id: result.node.id,
