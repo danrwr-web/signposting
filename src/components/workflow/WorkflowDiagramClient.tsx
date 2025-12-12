@@ -367,6 +367,13 @@ export default function WorkflowDiagramClient({
   }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection])
 
   // Initialize nodes and edges from template (once when template changes)
+  // Use template.id and stable node reference - only reinitialize when template actually changes
+  // Store a serialized version of template.nodes for comparison
+  const templateNodesKey = useMemo(() => 
+    template.nodes.map(n => `${n.id}:${n.answerOptions.map(o => o.id).join(',')}`).join('|'),
+    [template.id, template.nodes.length]
+  )
+
   useEffect(() => {
     setNodes(flowNodes)
     
@@ -415,7 +422,7 @@ export default function WorkflowDiagramClient({
     })))
     
     setEdges(initialEdges)
-  }, [flowNodes, template.nodes, setNodes, setEdges])
+  }, [templateNodesKey, setEdges, template.nodes])
 
   // Update edge selection state when selectedEdgeId changes (without resetting all edges)
   useEffect(() => {
