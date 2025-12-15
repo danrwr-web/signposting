@@ -26,14 +26,14 @@ const WorkflowDiagramClient = dynamic(
 )
 
 interface WorkflowTemplateViewPageProps {
-  params: Promise<{
+  params: {
     id: string
     templateId: string
-  }>
+  }
 }
 
 export default async function WorkflowTemplateViewPage({ params }: WorkflowTemplateViewPageProps) {
-  const { id: surgeryId, templateId } = await params
+  const { id: surgeryId, templateId } = params
 
   try {
     const user = await requireSurgeryAccess(surgeryId)
