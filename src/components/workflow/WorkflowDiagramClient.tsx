@@ -23,6 +23,7 @@ import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
 import SmartStepEdge from './SmartStepEdge'
+import ClinicalStepEdge from './ClinicalStepEdge'
 
 interface WorkflowNode {
   id: string
@@ -683,7 +684,7 @@ export default function WorkflowDiagramClient({
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
           labelBgPadding: edgeLabel ? [6, 4] : undefined,
           labelBgBorderRadius: edgeLabel ? 8 : undefined,
-          type: 'smartstep',
+          type: 'clinical',
           style: {
             strokeWidth: 2.5,
             stroke: '#005EB8',
@@ -903,7 +904,7 @@ export default function WorkflowDiagramClient({
         sourceHandle: 'source-bottom',
         targetHandle: 'target-top',
         label: undefined,
-        type: 'smartstep',
+        type: 'clinical',
         style: {
           strokeWidth: 2.5,
           stroke: '#005EB8',
@@ -1004,6 +1005,7 @@ export default function WorkflowDiagramClient({
   // Register custom edge types
   const edgeTypes = useMemo(() => ({
     smartstep: SmartStepEdge,
+    clinical: ClinicalStepEdge,
   }), [])
 
   // Register custom node types
