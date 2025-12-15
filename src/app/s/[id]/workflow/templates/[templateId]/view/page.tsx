@@ -6,7 +6,7 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import WorkflowDiagramClient from '@/components/workflow/WorkflowDiagramClient'
+import dynamic from 'next/dynamic'
 import {
   updateWorkflowNodePosition,
   createWorkflowNodeForTemplate,
@@ -19,6 +19,11 @@ import {
   deleteWorkflowNodeLink,
   bulkUpdateWorkflowNodePositions,
 } from '../../../actions'
+
+const WorkflowDiagramClient = dynamic(
+  () => import('@/components/workflow/WorkflowDiagramClient'),
+  { ssr: false }
+)
 
 interface WorkflowTemplateViewPageProps {
   params: Promise<{

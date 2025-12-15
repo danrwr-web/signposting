@@ -160,6 +160,7 @@ export default function WorkflowDiagramClient({
   const [editingNewLinkTemplateId, setEditingNewLinkTemplateId] = useState<string>('NONE')
   const [editingNewLinkLabel, setEditingNewLinkLabel] = useState<string>('Open linked workflow')
   const [debugEdgeId, setDebugEdgeId] = useState<string>('')
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   
   // Persist editingMode in localStorage so it survives page refreshes
   const [editingMode, setEditingMode] = useState(() => {
@@ -169,6 +170,7 @@ export default function WorkflowDiagramClient({
     }
     return false
   })
+  const [mounted, setMounted] = useState(false)
   
   // Save editingMode to localStorage whenever it changes
   useEffect(() => {
@@ -176,6 +178,10 @@ export default function WorkflowDiagramClient({
       localStorage.setItem(`workflow-editing-mode-${template.id}`, String(editingMode))
     }
   }, [editingMode, template.id])
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
   
   // Axis locking state for Shift-drag
   const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -1015,6 +1021,14 @@ export default function WorkflowDiagramClient({
     }))
   }, [edges, debugEdgeId])
 
+  if (!mounted) {
+    return (
+      <div className="min-h-[600px] bg-gray-50 border border-gray-200 rounded-lg flex items-center justify-center text-sm text-gray-600">
+        Loading diagram…
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4">
       {/* Legend */}
@@ -1161,6 +1175,27 @@ export default function WorkflowDiagramClient({
           <div className="bg-blue-50 rounded-lg shadow-md p-6 border border-blue-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Connection</h3>
             <div className="space-y-4">
+              <div className="flex items-center gap-2 text-xs text-gray-700">
+                <span className="font-semibold">Connection ID:</span>
+                <span className="px-2 py-1 bg-white border border-gray-300 rounded text-gray-800 truncate" title={selectedEdge.option.id}>
+                  {selectedEdge.option.id}
+                </span>
+                <button
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(selectedEdge.option.id)
+                      setCopyStatus('copied')
+                      setTimeout(() => setCopyStatus('idle'), 1200)
+                    } catch (err) {
+                      console.error('Copy failed', err)
+                    }
+                  }}
+                  className="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  Copy
+                </button>
+                {copyStatus === 'copied' && <span className="text-green-700">Copied</span>}
+              </div>
               <div>
                 <label htmlFor="edge-label" className="block text-sm font-medium text-gray-700 mb-1">
                   Label (leave blank for no label)
