@@ -81,6 +81,7 @@ export default function SmartStepEdge({
   targetY,
   sourcePosition,
   targetPosition,
+  sourceHandle,
   targetHandle,
   style = {},
   markerEnd,
