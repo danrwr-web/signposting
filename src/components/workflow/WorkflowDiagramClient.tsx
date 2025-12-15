@@ -22,7 +22,7 @@ import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
-import WorkflowOrthogonalEdge from './WorkflowOrthogonalEdge'
+import SmartStepEdge from './SmartStepEdge'
 
 interface WorkflowNode {
   id: string
@@ -480,7 +480,7 @@ export default function WorkflowDiagramClient({
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
             labelBgPadding: hasLabel ? [6, 4] : undefined,
             labelBgBorderRadius: hasLabel ? 8 : undefined,
-            type: 'workflowOrthogonal',
+            type: 'smartstep',
             selected: false,
             style: {
               strokeWidth: 2.5,
@@ -670,7 +670,7 @@ export default function WorkflowDiagramClient({
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
           labelBgPadding: edgeLabel ? [6, 4] : undefined,
           labelBgBorderRadius: edgeLabel ? 8 : undefined,
-          type: 'workflowOrthogonal',
+          type: 'smartstep',
           style: {
             strokeWidth: 2.5,
             stroke: '#005EB8',
@@ -883,14 +883,14 @@ export default function WorkflowDiagramClient({
         return
       }
 
-        const newEdge: Edge = {
-          id: edgeResult.option.id,
-          source: selectedNode.id,
-          target: result.node.id,
-          sourceHandle: 'source-bottom',
-          targetHandle: 'target-top',
+      const newEdge: Edge = {
+        id: edgeResult.option.id,
+        source: selectedNode.id,
+        target: result.node.id,
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-top',
         label: undefined,
-          type: 'workflowOrthogonal',
+        type: 'smartstep',
         style: {
           strokeWidth: 2.5,
           stroke: '#005EB8',
@@ -990,7 +990,7 @@ export default function WorkflowDiagramClient({
 
   // Register custom edge types
   const edgeTypes = useMemo(() => ({
-    workflowOrthogonal: WorkflowOrthogonalEdge,
+    smartstep: SmartStepEdge,
   }), [])
 
   // Register custom node types
