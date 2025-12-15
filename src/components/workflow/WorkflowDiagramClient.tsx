@@ -1200,6 +1200,13 @@ export default function WorkflowDiagramClient({
                 </button>
                 {copyStatus === 'copied' && <span className="text-green-700">Copied</span>}
               </div>
+              {ENABLE_EDGE_DEBUG && (
+                <div className="text-xs text-gray-600 space-y-1 bg-gray-100 p-2 rounded border border-gray-300">
+                  <div><span className="font-semibold">Edge ID:</span> {selectedEdge.edge.id}</div>
+                  <div><span className="font-semibold">Source Handle:</span> {selectedEdge.edge.sourceHandle || '(none)'}</div>
+                  <div><span className="font-semibold">Target Handle:</span> {selectedEdge.edge.targetHandle || '(none)'}</div>
+                </div>
+              )}
               <div>
                 <label htmlFor="edge-label" className="block text-sm font-medium text-gray-700 mb-1">
                   Label (leave blank for no label)

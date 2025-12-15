@@ -113,7 +113,22 @@ export default function ClinicalStepEdge({
     }
   }
 
-  if (
+  // Handle left→right and right→left connections with horizontal-first routing
+  if (isRightHandle(sourceHandle) && targetHandle === 'target-left') {
+    // Right → Left: horizontal-first routing
+    // exit point is already offset right from source
+    // approach point is already offset left from target
+    const midY = exitPoint.y
+    addPoint({ x: approachPoint.x, y: midY })
+    // Final segment is horizontal into the left handle (arrow points right)
+  } else if (isLeftHandle(sourceHandle) && targetHandle === 'target-right') {
+    // Left → Right: horizontal-first routing (mirror)
+    // exit point is already offset left from source
+    // approach point is already offset right from target
+    const midY = exitPoint.y
+    addPoint({ x: approachPoint.x, y: midY })
+    // Final segment is horizontal into the right handle (arrow points left)
+  } else if (
     isQuestionSource &&
     isInstructionTarget &&
     isRightHandle(sourceHandle) &&
