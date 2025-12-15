@@ -6,22 +6,10 @@ import {
   EdgeLabelRenderer,
   EdgeProps,
   Position,
-  useStore,
 } from 'reactflow'
 
-type Rect = {
-  x1: number
-  x2: number
-  y1: number
-  y2: number
-}
-
-const DEBUG = true
-const MIN_RUN = 40
-const PADDING = 12
-const LANE_STEP = 24
-const MAX_LANE_ATTEMPTS = 10
-const FINAL_RUN = Math.min(MIN_RUN, 24)
+const DEBUG = false
+const STEP = 24
 
 function buildPathFromPoints(points: Array<{ x: number; y: number }>): string {
   if (points.length === 0) return ''
@@ -30,26 +18,23 @@ function buildPathFromPoints(points: Array<{ x: number; y: number }>): string {
   return `M ${first.x},${first.y} ${segments}`
 }
 
-function horizontalIntersects(rect: Rect, y: number, x1: number, x2: number): boolean {
-  const minX = Math.min(x1, x2)
-  const maxX = Math.max(x1, x2)
-  return y >= rect.y1 && y <= rect.y2 && maxX >= rect.x1 && minX <= rect.x2
-}
-
-function verticalIntersects(rect: Rect, x: number, y1: number, y2: number): boolean {
-  const minY = Math.min(y1, y2)
-  const maxY = Math.max(y1, y2)
-  return x >= rect.x1 && x <= rect.x2 && maxY >= rect.y1 && minY <= rect.y2
-}
-
-function getLaneOffsets(): number[] {
-  const offsets: number[] = [0]
-  for (let i = 1; i < MAX_LANE_ATTEMPTS; i += 1) {
-    const magnitude = Math.ceil(i / 2)
-    const sign = i % 2 === 0 ? -1 : 1
-    offsets.push(sign * magnitude)
+function getExitPoint(
+  sourceHandle: string | null | undefined,
+  sourceX: number,
+  sourceY: number
+): { x: number; y: number } {
+  switch (sourceHandle) {
+    case 'source-top':
+      return { x: sourceX, y: sourceY - STEP }
+    case 'source-bottom':
+      return { x: sourceX, y: sourceY + STEP }
+    case 'source-left':
+      return { x: sourceX - STEP, y: sourceY }
+    case 'source-right':
+      return { x: sourceX + STEP, y: sourceY }
+    default:
+      return { x: sourceX, y: sourceY + STEP }
   }
-  return offsets
 }
 
 function getApproachPoint(
@@ -59,15 +44,15 @@ function getApproachPoint(
 ): { x: number; y: number } {
   switch (targetHandle) {
     case 'target-top':
-      return { x: targetX, y: targetY - FINAL_RUN }
+      return { x: targetX, y: targetY - STEP }
     case 'target-bottom':
-      return { x: targetX, y: targetY + FINAL_RUN }
+      return { x: targetX, y: targetY + STEP }
     case 'target-left':
-      return { x: targetX - FINAL_RUN, y: targetY }
+      return { x: targetX - STEP, y: targetY }
     case 'target-right':
-      return { x: targetX + FINAL_RUN, y: targetY }
+      return { x: targetX + STEP, y: targetY }
     default:
-      return { x: targetX, y: targetY }
+      return { x: targetX, y: targetY - STEP }
   }
 }
 
@@ -91,76 +76,43 @@ export default function SmartStepEdge({
   labelBgPadding,
   labelBgBorderRadius,
 }: EdgeProps) {
-  const nodeInternals = useStore((store) => store.nodeInternals)
+  const exitPoint = useMemo(
+    () => getExitPoint(sourceHandle, sourceX, sourceY),
+    [sourceHandle, sourceX, sourceY]
+  )
 
-  const approach = useMemo(
+  const approachPoint = useMemo(
     () => getApproachPoint(targetHandle, targetX, targetY),
     [targetHandle, targetX, targetY]
   )
 
-  const inflatedRects = useMemo(() => {
-    const exclude = new Set([source, target])
-    return Array.from(nodeInternals.values())
-      .filter((node) => node.width != null && node.height != null && node.positionAbsolute)
-      .filter((node) => !exclude.has(node.id))
-      .map((node) => {
-        const { x, y } = node.positionAbsolute!
-        const width = node.width ?? 0
-        const height = node.height ?? 0
-        return {
-          x1: x - PADDING,
-          y1: y - PADDING,
-          x2: x + width + PADDING,
-          y2: y + height + PADDING,
-        }
-      })
-  }, [nodeInternals, source, target])
+  const dx = Math.abs(exitPoint.x - approachPoint.x)
+  const dy = Math.abs(exitPoint.y - approachPoint.y)
+  const verticalFirst = dy >= dx
 
-  const verticalFirst =
-    sourcePosition === Position.Top || sourcePosition === Position.Bottom
-
-  const baseLane = verticalFirst
-    ? sourceY + (sourcePosition === Position.Top ? -MIN_RUN : MIN_RUN)
-    : sourceX + (sourcePosition === Position.Left ? -MIN_RUN : MIN_RUN)
-
-  const laneOffsets = useMemo(() => getLaneOffsets(), [])
-
-  const laneCoordinate = laneOffsets.reduce<number | null>((chosen, offset) => {
-    if (chosen !== null) return chosen
-    const candidate = baseLane + offset * LANE_STEP
-
-    const collides = inflatedRects.some((rect) =>
-      verticalFirst
-        ? horizontalIntersects(rect, candidate, sourceX, approach.x)
-        : verticalIntersects(rect, candidate, sourceY, approach.y)
-    )
-
-    return collides ? null : candidate
-  }, null)
-
-  const lane = laneCoordinate ?? baseLane
-
-  const points = verticalFirst
+  const middlePoints = verticalFirst
     ? [
-        { x: sourceX, y: sourceY },
-        { x: sourceX, y: lane },
-        { x: approach.x, y: lane },
-        { x: approach.x, y: approach.y },
-        { x: targetX, y: targetY },
+        { x: exitPoint.x, y: approachPoint.y },
       ]
     : [
-        { x: sourceX, y: sourceY },
-        { x: lane, y: sourceY },
-        { x: lane, y: approach.y },
-        { x: approach.x, y: approach.y },
-        { x: targetX, y: targetY },
+        { x: approachPoint.x, y: exitPoint.y },
       ]
+
+  const points = [
+    { x: sourceX, y: sourceY },
+    exitPoint,
+    ...middlePoints,
+    approachPoint,
+    { x: targetX, y: targetY },
+  ]
 
   const path = buildPathFromPoints(points)
 
-  const labelCenter = verticalFirst
-    ? { x: (points[1].x + points[2].x) / 2, y: lane }
-    : { x: lane, y: (points[1].y + points[2].y) / 2 }
+  const labelAnchorIndex = Math.max(1, Math.floor((points.length - 1) / 2))
+  const labelCenter = {
+    x: (points[labelAnchorIndex].x + points[labelAnchorIndex - 1].x) / 2,
+    y: (points[labelAnchorIndex].y + points[labelAnchorIndex - 1].y) / 2,
+  }
 
   const mergedStyle = {
     stroke: '#005EB8',
@@ -186,6 +138,8 @@ export default function SmartStepEdge({
       sourceY,
       targetX,
       targetY,
+      exitPoint,
+      approachPoint,
       lastPoints,
     })
   }
@@ -195,8 +149,10 @@ export default function SmartStepEdge({
       <BaseEdge id={id} path={path} markerEnd={markerEnd} style={mergedStyle} />
       {DEBUG && (
         <g>
-          <circle cx={targetX} cy={targetY} r={4} fill="red" />
-          <circle cx={approach.x} cy={approach.y} r={4} fill="orange" />
+          <circle cx={sourceX} cy={sourceY} r={3} fill="cyan" />
+          <circle cx={exitPoint.x} cy={exitPoint.y} r={3} fill="blue" />
+          <circle cx={approachPoint.x} cy={approachPoint.y} r={3} fill="orange" />
+          <circle cx={targetX} cy={targetY} r={3} fill="red" />
           {points.length >= 2 && (
             <circle
               cx={points[points.length - 2].x}
