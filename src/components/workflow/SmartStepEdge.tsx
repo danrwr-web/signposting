@@ -94,6 +94,7 @@ export default function SmartStepEdge({
   targetPosition,
   sourceHandle,
   targetHandle,
+  data,
   style = {},
   markerEnd,
   label,
@@ -247,13 +248,15 @@ export default function SmartStepEdge({
   const paddingY = typeof labelBgPadding?.[1] === 'number' ? labelBgPadding[1] : 0
   const { transform: _ignoredTransform, ...restLabelStyle } = labelStyle ?? {}
 
-  const debugActive = DEBUG && (!DEBUG_EDGE_ID || DEBUG_EDGE_ID === id)
+  const debugEdgeId = typeof data?.debugEdgeId === 'string' && data.debugEdgeId.length > 0 ? data.debugEdgeId : null
+  const debugActive = (DEBUG && (!DEBUG_EDGE_ID || DEBUG_EDGE_ID === id)) || (debugEdgeId && debugEdgeId === id)
 
   if (debugActive) {
     const lastPoints = points.slice(-3)
     // eslint-disable-next-line no-console
-    console.log('SmartStepEdge', {
+    console.log('[SmartStepEdge]', {
       id,
+      type: 'smartstep',
       source,
       target,
       sourceHandle,
@@ -305,6 +308,9 @@ export default function SmartStepEdge({
             stroke="magenta"
             strokeWidth={1.5}
           />
+          <text x={labelCenter.x} y={labelCenter.y - 12} fontSize={10} fill="magenta">
+            SMARTSTEP
+          </text>
         </g>
       )}
       {label && (

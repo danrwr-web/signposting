@@ -159,6 +159,7 @@ export default function WorkflowDiagramClient({
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
   const [editingNewLinkTemplateId, setEditingNewLinkTemplateId] = useState<string>('NONE')
   const [editingNewLinkLabel, setEditingNewLinkLabel] = useState<string>('Open linked workflow')
+  const [debugEdgeId, setDebugEdgeId] = useState<string>('')
   
   // Persist editingMode in localStorage so it survives page refreshes
   const [editingMode, setEditingMode] = useState(() => {
@@ -376,7 +377,7 @@ export default function WorkflowDiagramClient({
             <>
               {/* Target handle (top) - connections come IN */}
               <Handle
-                id="in"
+                id="target-top"
                 type="target"
                 position={Position.Top}
                 className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
@@ -433,7 +434,7 @@ export default function WorkflowDiagramClient({
               </div>
               {/* Source handle (bottom) - connections go OUT */}
               <Handle
-                id="out"
+                id="source-bottom"
                 type="source"
                 position={Position.Bottom}
                 className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
@@ -1006,6 +1007,14 @@ export default function WorkflowDiagramClient({
     outcomeNode: WorkflowOutcomeNode,
   }), [])
 
+  const edgesForRender = useMemo(() => {
+    if (!debugEdgeId) return edges
+    return edges.map((edge) => ({
+      ...edge,
+      data: { ...(edge.data || {}), debugEdgeId },
+    }))
+  }, [edges, debugEdgeId])
+
   return (
     <div className="space-y-4">
       {/* Legend */}
@@ -1084,6 +1093,21 @@ export default function WorkflowDiagramClient({
               Add outcome
             </button>
           </div>
+          <div className="flex items-center gap-2 mb-2">
+            <label className="text-xs font-medium text-gray-700">Edge debug ID:</label>
+            <input
+              value={debugEdgeId}
+              onChange={(e) => setDebugEdgeId(e.target.value.trim())}
+              placeholder="Paste edge id (answer option)"
+              className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
+            />
+            <button
+              onClick={() => setDebugEdgeId('')}
+              className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              Clear
+            </button>
+          </div>
           <p className="text-xs text-gray-600">
             Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically. Tip: hold Shift while dragging to keep steps aligned.
           </p>
@@ -1100,7 +1124,7 @@ export default function WorkflowDiagramClient({
           )}
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={edgesForRender}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
