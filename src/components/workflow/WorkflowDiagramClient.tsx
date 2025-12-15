@@ -1090,7 +1090,12 @@ export default function WorkflowDiagramClient({
 
       <div className="flex gap-6 h-[800px]">
         {/* Diagram Area */}
-        <div className="flex-1 bg-white rounded-lg border border-gray-300 overflow-hidden">
+        <div className="relative flex-1 bg-white rounded-lg border border-gray-300 overflow-hidden">
+          {process.env.NODE_ENV !== 'production' && (
+            <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
+              Nodes {nodes.length} · Edges {edges.length}
+            </div>
+          )}
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1105,7 +1110,7 @@ export default function WorkflowDiagramClient({
             onNodeDrag={handleNodeDrag}
             onNodeDragStop={handleNodeDragStop}
             nodesDraggable={effectiveAdmin}
-            edgesFocusable={effectiveAdmin}
+            edgesFocusable
             snapToGrid={false}
             edgesUpdatable={false}
             selectNodesOnDrag={false}
