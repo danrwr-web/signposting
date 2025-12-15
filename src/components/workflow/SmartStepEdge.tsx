@@ -16,7 +16,7 @@ type Rect = {
   y2: number
 }
 
-const DEBUG = false
+const DEBUG = true
 const MIN_RUN = 40
 const PADDING = 12
 const LANE_STEP = 24
