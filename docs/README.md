@@ -28,6 +28,7 @@ Use this site if you are:
   - User Guide link restored in marketing site navigation alongside Docs link
   - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
+  - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
 
 - **v1.1 – December 2025**
   - AI Suggested Questions panel helps staff gather information consistently

@@ -20,6 +20,7 @@ _Changes in development or planned for the next release._
 - "Why practices choose" section condensed and moved higher on the landing page.
 - Docs site logo now links to www.signpostingtool.co.uk (marketing homepage).
 - All marketing site CTAs verified to use app.signpostingtool.co.uk.
+- Workflow diagram viewer restores connector lines, arrowheads, and labels for saved and newly created edges.
 
 ---
 

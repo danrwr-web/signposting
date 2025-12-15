@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, useRef, startTransition } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ReactFlow, {
@@ -66,11 +66,19 @@ interface WorkflowDiagramClientProps {
   surgeryId: string
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
   createNodeAction?: (nodeType: WorkflowNodeType, title?: string) => Promise<{ success: boolean; error?: string; node?: any }>
-  createAnswerOptionAction?: (fromNodeId: string, toNodeId: string, label: string) => Promise<{ success: boolean; error?: string; option?: any }>
+  createAnswerOptionAction?: (
+    fromNodeId: string,
+    toNodeId: string,
+    label: string,
+    sourceHandle?: string,
+    targetHandle?: string
+  ) => Promise<{ success: boolean; error?: string; option?: any }>
   updateAnswerOptionLabelAction?: (optionId: string, label: string) => Promise<{ success: boolean; error?: string }>
   deleteAnswerOptionAction?: (optionId: string) => Promise<{ success: boolean; error?: string }>
   deleteNodeAction?: (nodeId: string) => Promise<{ success: boolean; error?: string }>
   updateNodeAction?: (nodeId: string, title: string, body: string | null, actionKey: WorkflowActionKey | null) => Promise<{ success: boolean; error?: string }>
+  createWorkflowLinkAction?: (nodeId: string, templateId: string, label: string) => Promise<{ success: boolean; error?: string; link?: any }>
+  deleteWorkflowLinkAction?: (linkId: string) => Promise<{ success: boolean; error?: string }>
 }
 
 function formatActionKey(key: string): string {
@@ -221,7 +229,6 @@ export default function WorkflowDiagramClient({
 
     // Apply optimistic updates to workflowLinks
     let links = [...node.workflowLinks]
-    console.log('Computing selectedNode - base links:', links, 'optimistic updates:', localLinkUpdates)
     
     // Remove links that were deleted optimistically
     links = links.filter(link => !localLinkUpdates.removed.includes(link.id))
@@ -237,7 +244,6 @@ export default function WorkflowDiagramClient({
       ...node,
       workflowLinks: links,
     }
-    console.log('Computed selectedNode with workflowLinks:', result.workflowLinks)
     return result
   }, [selectedNodeId, template.nodes, localLinkUpdates])
 
@@ -446,35 +452,35 @@ export default function WorkflowDiagramClient({
         },
       }
     })
-  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection])
+  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection, effectiveAdmin])
 
-  // Initialize nodes and edges from template (once when template changes)
-  // Use template.id and stable node reference - only reinitialize when template actually changes
-  // Store a serialized version of template.nodes for comparison
-  const templateNodesKey = useMemo(() => 
-    template.nodes.map(n => `${n.id}:${n.answerOptions.map(o => o.id).join(',')}`).join('|'),
-    [template.id, template.nodes.length]
+  const connectionCount = useMemo(
+    () =>
+      template.nodes.reduce(
+        (count, node) => count + node.answerOptions.filter((option) => option.nextNodeId !== null).length,
+        0
+      ),
+    [template.nodes]
   )
 
-  useEffect(() => {
-    setNodes(flowNodes)
-    
-    // Convert answer options to React Flow edges from template
-    const initialEdges: Edge[] = []
-    
+  const initialEdges = useMemo<Edge[]>(() => {
+    const edgesFromTemplate: Edge[] = []
+
     template.nodes.forEach((node) => {
       node.answerOptions.forEach((option) => {
         if (option.nextNodeId) {
           const labelText = (option.label ?? '').trim()
           const hasLabel = labelText !== ''
-          initialEdges.push({
+          edgesFromTemplate.push({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            sourceHandle: (option.sourceHandle || 'source-bottom'),
-            targetHandle: (option.targetHandle || 'target-top'),
+            sourceHandle: option.sourceHandle || 'source-bottom',
+            targetHandle: option.targetHandle || 'target-top',
             label: hasLabel ? labelText : undefined,
-            labelStyle: hasLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' } : undefined,
+            labelStyle: hasLabel
+              ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' }
+              : undefined,
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
             labelBgPadding: hasLabel ? [6, 4] : undefined,
             labelBgBorderRadius: hasLabel ? 8 : undefined,
@@ -482,7 +488,7 @@ export default function WorkflowDiagramClient({
             selected: false,
             style: {
               strokeWidth: 2.5,
-              stroke: '#005EB8', // NHS blue
+              stroke: '#005EB8',
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
@@ -493,18 +499,27 @@ export default function WorkflowDiagramClient({
         }
       })
     })
-    
-    // Debug log
-    console.log("init edges", initialEdges.map(e => ({
-      id: e.id, 
-      labelType: typeof e.label, 
-      labelValue: e.label ? 'string' : 'undefined',
-      source: e.source, 
-      target: e.target
-    })))
-    
+
+    return edgesFromTemplate
+  }, [template.nodes])
+
+  useEffect(() => {
+    setNodes(flowNodes)
+  }, [flowNodes, setNodes])
+
+  useEffect(() => {
     setEdges(initialEdges)
-  }, [templateNodesKey, setEdges, template.nodes])
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('WorkflowDiagramClient: initial edges count', initialEdges.length)
+    }
+
+    if (process.env.NODE_ENV !== 'production' && connectionCount > 0 && initialEdges.length === 0) {
+      console.warn('WorkflowDiagramClient: edges missing despite connections', {
+        templateId: template.id,
+        connectionCount,
+      })
+    }
+  }, [connectionCount, initialEdges, setEdges, template.id])
 
   // Update edge selection state when selectedEdgeId changes (without resetting all edges)
   useEffect(() => {
@@ -671,25 +686,8 @@ export default function WorkflowDiagramClient({
           animated: false,
         }
         
-        // Debug log
-        console.log("onConnect - creating edge", {
-          id: newEdge.id,
-          label: edgeLabel,
-          labelType: typeof newEdge.label,
-          source: newEdge.source,
-          target: newEdge.target,
-          sourceHandle: newEdge.sourceHandle,
-          targetHandle: newEdge.targetHandle,
-        })
-        
         setEdges((eds) => {
-          const updated = [...eds, newEdge]
-          console.log("onConnect - edges after add", updated.map(e => ({
-            id: e.id,
-            labelType: typeof e.label,
-            labelValue: e.label ? 'string' : 'undefined'
-          })))
-          return updated
+          return [...eds, newEdge]
         })
       } else {
         console.error('Failed to create answer option:', result.error)
@@ -1306,29 +1304,19 @@ export default function WorkflowDiagramClient({
                             <button
                               onClick={async () => {
                                 try {
-                                  console.log('=== ADD LINK BUTTON CLICKED ===')
-                                  console.log('selectedNode.id:', selectedNode.id)
-                                  console.log('editingNewLinkTemplateId:', editingNewLinkTemplateId)
-                                  console.log('editingNewLinkLabel:', editingNewLinkLabel)
-                                  
                                   if (editingNewLinkTemplateId === 'NONE') {
                                     alert('Please select a workflow template first')
                                     return
                                   }
                                   
-                                  console.log('Calling createWorkflowLinkAction...')
                                   const result = await createWorkflowLinkAction(selectedNode.id, editingNewLinkTemplateId, editingNewLinkLabel || 'Open linked workflow')
-                                  console.log('=== CREATE LINK RESULT ===', result)
                                   if (result.success && result.link) {
-                                    console.log('Link created successfully, adding optimistically:', result.link)
                                     // Optimistically add the link to local state for immediate UI feedback
                                     setLocalLinkUpdates(prev => {
-                                      const updated = {
+                                      return {
                                         ...prev,
                                         added: [...prev.added, result.link!]
                                       }
-                                      console.log('Updated localLinkUpdates:', updated)
-                                      return updated
                                     })
                                     // Reset form
                                     setEditingNewLinkTemplateId('NONE')

@@ -9,6 +9,7 @@
     "build:dev": "prisma generate && prisma db push && next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
     "db:push": "prisma db push",

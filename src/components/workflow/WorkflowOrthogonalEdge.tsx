@@ -1,6 +1,6 @@
 'use client'
 
-import { BaseEdge, EdgeProps, getStraightPath, getMarkerId } from 'reactflow'
+import { BaseEdge, EdgeProps, EdgeLabelRenderer, getStraightPath } from 'reactflow'
 
 export default function WorkflowOrthogonalEdge({
   id,
@@ -71,50 +71,48 @@ export default function WorkflowOrthogonalEdge({
     labelY = midY
   }
 
-  // Convert markerEnd object to string ID using React Flow's getMarkerId helper
-  const markerEndId = markerEnd ? (typeof markerEnd === 'string' ? markerEnd : getMarkerId(markerEnd)) : undefined
+  const mergedStyle = {
+    stroke: '#005EB8',
+    strokeWidth: 2.5,
+    ...style,
+  }
 
-  // Calculate label dimensions for background
   const labelText = typeof label === 'string' ? label : ''
-  const fontSize = labelStyle?.fontSize ? Number(labelStyle.fontSize) : 12
   const paddingX = typeof labelBgPadding?.[0] === 'number' ? labelBgPadding[0] : 0
   const paddingY = typeof labelBgPadding?.[1] === 'number' ? labelBgPadding[1] : 0
-  // Rough estimate: ~7px per character for 12px font
-  const textWidth = labelText.length * (fontSize * 0.6)
-  const textHeight = fontSize
 
   return (
     <>
       <BaseEdge
         id={id}
         path={edgePath}
-        markerEnd={markerEndId}
-        style={style}
+        markerEnd={markerEnd}
+        style={mergedStyle}
       />
       {label && (
-        <g className="react-flow__edge-textwrapper">
-          {labelBgStyle && (
-            <rect
-              x={labelX - textWidth / 2 - paddingX}
-              y={labelY - textHeight / 2 - paddingY}
-              width={textWidth + paddingX * 2}
-              height={textHeight + paddingY * 2}
-              rx={labelBgBorderRadius || 0}
-              ry={labelBgBorderRadius || 0}
-              style={labelBgStyle}
-            />
-          )}
-          <text
-            x={labelX}
-            y={labelY}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={labelStyle}
+        <EdgeLabelRenderer>
+          <div
             className="react-flow__edge-text"
+            style={{
+              position: 'absolute',
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              pointerEvents: 'all',
+              background: labelBgStyle?.fill ?? '#ffffff',
+              border: labelBgStyle?.stroke
+                ? `${labelBgStyle?.strokeWidth ?? 1}px solid ${labelBgStyle.stroke}`
+                : undefined,
+              borderRadius: labelBgBorderRadius ?? 0,
+              padding: `${paddingY}px ${paddingX}px`,
+              color: labelStyle?.color ?? '#0b4670',
+              fontSize: (labelStyle?.fontSize as number | undefined) ?? 12,
+              fontWeight: labelStyle?.fontWeight ?? 600,
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+            }}
           >
             {labelText}
-          </text>
-        </g>
+          </div>
+        </EdgeLabelRenderer>
       )}
     </>
   )

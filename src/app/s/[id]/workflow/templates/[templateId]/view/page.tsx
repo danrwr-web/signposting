@@ -111,6 +111,11 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       }
     }) : []
 
+    const answerOptionsWithNextCount = template.nodes.reduce((count, node) => {
+      return count + node.answerOptions.filter((option) => option.nextNodeId !== null).length
+    }, 0)
+    const showDebugCounts = process.env.NODE_ENV !== 'production'
+
     // Create bound server actions for admin editing
     const updatePositionAction = isAdmin ? updateWorkflowNodePosition.bind(null, surgeryId, templateId) : undefined
     const createNodeAction = isAdmin ? createWorkflowNodeForTemplate.bind(null, surgeryId, templateId) : undefined
@@ -141,6 +146,11 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             {template.description && (
               <p className="text-gray-600 mt-2">
                 {template.description}
+              </p>
+            )}
+            {showDebugCounts && (
+              <p className="text-xs text-gray-500 mt-2">
+                Debug: nodes {template.nodes.length} · connections {answerOptionsWithNextCount}
               </p>
             )}
           </div>
