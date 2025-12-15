@@ -50,9 +50,13 @@ interface Props {
   updateAnswerOptionLabelAction?: (optionId: string, label: string) => Promise<{ success: boolean; error?: string }>
   deleteAnswerOptionAction?: (optionId: string) => Promise<{ success: boolean; error?: string }>
   deleteNodeAction?: (nodeId: string) => Promise<{ success: boolean; error?: string }>
-  updateNodeAction?: (nodeId: string, title: string, body: string | null, actionKey: WorkflowActionKey | null) => Promise<{ success: boolean; error?: string }>
-  createWorkflowLinkAction?: (nodeId: string, templateId: string, label: string) => Promise<{ success: boolean; error?: string; link?: any }>
-  deleteWorkflowLinkAction?: (linkId: string) => Promise<{ success: boolean; error?: string }>
+  updateNodeAction?: (
+    nodeId: string,
+    title: string,
+    body: string | null,
+    actionKey: WorkflowActionKey | null,
+    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
+  ) => Promise<{ success: boolean; error?: string }>
 }
 
 export default function WorkflowDiagramClientWrapper(props: Props) {

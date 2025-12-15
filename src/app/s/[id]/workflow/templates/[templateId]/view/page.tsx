@@ -124,8 +124,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
     const deleteAnswerOptionAction = isAdmin ? deleteWorkflowAnswerOptionById.bind(null, surgeryId, templateId) : undefined
     const deleteNodeAction = isAdmin ? deleteWorkflowNodeById.bind(null, surgeryId, templateId) : undefined
     const updateNodeAction = isAdmin ? updateWorkflowNodeForDiagram.bind(null, surgeryId, templateId) : undefined
-    const createWorkflowLinkAction = isAdmin ? createWorkflowNodeLink.bind(null, surgeryId, templateId) : undefined
-    const deleteWorkflowLinkAction = isAdmin ? deleteWorkflowNodeLink.bind(null, surgeryId, templateId) : undefined
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -167,8 +165,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             deleteAnswerOptionAction={deleteAnswerOptionAction}
             deleteNodeAction={deleteNodeAction}
             updateNodeAction={updateNodeAction}
-            createWorkflowLinkAction={createWorkflowLinkAction}
-            deleteWorkflowLinkAction={deleteWorkflowLinkAction}
           />
         </div>
       </div>

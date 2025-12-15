@@ -880,7 +880,8 @@ export async function updateWorkflowNodeForDiagram(
   nodeId: string,
   title: string,
   body: string | null,
-  actionKey: WorkflowActionKey | null
+  actionKey: WorkflowActionKey | null,
+  linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
 ): Promise<ActionResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -908,13 +909,60 @@ export async function updateWorkflowNodeForDiagram(
       }
     }
 
-    await prisma.workflowNodeTemplate.update({
-      where: { id: nodeId },
-      data: {
-        title,
-        body: body || null,
-        actionKey,
-      },
+    // Validate linked workflows if provided
+    if (linkedWorkflows !== undefined) {
+      // Check all linked templates belong to same surgery and no self-links
+      for (const link of linkedWorkflows) {
+        const linkedTemplate = await prisma.workflowTemplate.findFirst({
+          where: { id: link.toTemplateId, surgeryId },
+        })
+
+        if (!linkedTemplate) {
+          return {
+            success: false,
+            error: `Linked template ${link.toTemplateId} not found or does not belong to this surgery`,
+          }
+        }
+
+        if (link.toTemplateId === templateId) {
+          return {
+            success: false,
+            error: 'Cannot link to the same workflow template',
+          }
+        }
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Update node fields
+      await tx.workflowNodeTemplate.update({
+        where: { id: nodeId },
+        data: {
+          title,
+          body: body || null,
+          actionKey,
+        },
+      })
+
+      // Replace all linked workflows if provided
+      if (linkedWorkflows !== undefined) {
+        // Delete existing links
+        await tx.workflowNodeLink.deleteMany({
+          where: { nodeId },
+        })
+
+        // Insert new links with sortOrder
+        if (linkedWorkflows.length > 0) {
+          await tx.workflowNodeLink.createMany({
+            data: linkedWorkflows.map((link, index) => ({
+              nodeId,
+              templateId: link.toTemplateId,
+              label: link.label || 'Open linked workflow',
+              sortOrder: link.sortOrder ?? index,
+            })),
+          })
+        }
+      }
     })
 
     revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
