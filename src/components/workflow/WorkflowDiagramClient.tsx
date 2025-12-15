@@ -375,14 +375,12 @@ export default function WorkflowDiagramClient({
           label: (
             <>
               {/* Target handle (top) - connections come IN */}
-              {effectiveAdmin && (
-                <Handle
-                  id="in"
-                  type="target"
-                  position={Position.Top}
-                  className="w-3 h-3 !bg-blue-500"
-                />
-              )}
+              <Handle
+                id="in"
+                type="target"
+                position={Position.Top}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
               <div 
                 className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
                   nodeTypeStyles
@@ -434,14 +432,12 @@ export default function WorkflowDiagramClient({
                 )}
               </div>
               {/* Source handle (bottom) - connections go OUT */}
-              {isAdmin && (
-                <Handle
-                  id="out"
-                  type="source"
-                  position={Position.Bottom}
-                  className="w-3 h-3 !bg-blue-500"
-                />
-              )}
+              <Handle
+                id="out"
+                type="source"
+                position={Position.Bottom}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
             </>
           ),
           nodeType: node.nodeType,
