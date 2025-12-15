@@ -20,6 +20,7 @@ const MIN_RUN = 40
 const PADDING = 12
 const LANE_STEP = 24
 const MAX_LANE_ATTEMPTS = 10
+const FINAL_RUN = Math.min(MIN_RUN, 24)
 
 function buildPathFromPoints(points: Array<{ x: number; y: number }>): string {
   if (points.length === 0) return ''
@@ -57,13 +58,13 @@ function getApproachPoint(
 ): { x: number; y: number } {
   switch (targetHandle) {
     case 'target-top':
-      return { x: targetX, y: targetY - MIN_RUN }
+      return { x: targetX, y: targetY - FINAL_RUN }
     case 'target-bottom':
-      return { x: targetX, y: targetY + MIN_RUN }
+      return { x: targetX, y: targetY + FINAL_RUN }
     case 'target-left':
-      return { x: targetX - MIN_RUN, y: targetY }
+      return { x: targetX - FINAL_RUN, y: targetY }
     case 'target-right':
-      return { x: targetX + MIN_RUN, y: targetY }
+      return { x: targetX + FINAL_RUN, y: targetY }
     default:
       return { x: targetX, y: targetY }
   }
