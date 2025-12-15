@@ -50,6 +50,25 @@ function getLaneOffsets(): number[] {
   return offsets
 }
 
+function getApproachPoint(
+  targetHandle: string | null | undefined,
+  targetX: number,
+  targetY: number
+): { x: number; y: number } {
+  switch (targetHandle) {
+    case 'target-top':
+      return { x: targetX, y: targetY - MIN_RUN }
+    case 'target-bottom':
+      return { x: targetX, y: targetY + MIN_RUN }
+    case 'target-left':
+      return { x: targetX - MIN_RUN, y: targetY }
+    case 'target-right':
+      return { x: targetX + MIN_RUN, y: targetY }
+    default:
+      return { x: targetX, y: targetY }
+  }
+}
+
 export default function SmartStepEdge({
   id,
   source,
@@ -60,6 +79,7 @@ export default function SmartStepEdge({
   targetY,
   sourcePosition,
   targetPosition,
+  targetHandle,
   style = {},
   markerEnd,
   label,
@@ -69,6 +89,11 @@ export default function SmartStepEdge({
   labelBgBorderRadius,
 }: EdgeProps) {
   const nodeInternals = useStore((store) => store.nodeInternals)
+
+  const approach = useMemo(
+    () => getApproachPoint(targetHandle, targetX, targetY),
+    [targetHandle, targetX, targetY]
+  )
 
   const inflatedRects = useMemo(() => {
     const exclude = new Set([source, target])
@@ -103,8 +128,8 @@ export default function SmartStepEdge({
 
     const collides = inflatedRects.some((rect) =>
       verticalFirst
-        ? horizontalIntersects(rect, candidate, sourceX, targetX)
-        : verticalIntersects(rect, candidate, sourceY, targetY)
+        ? horizontalIntersects(rect, candidate, sourceX, approach.x)
+        : verticalIntersects(rect, candidate, sourceY, approach.y)
     )
 
     return collides ? null : candidate
@@ -116,13 +141,15 @@ export default function SmartStepEdge({
     ? [
         { x: sourceX, y: sourceY },
         { x: sourceX, y: lane },
-        { x: targetX, y: lane },
+        { x: approach.x, y: lane },
+        { x: approach.x, y: approach.y },
         { x: targetX, y: targetY },
       ]
     : [
         { x: sourceX, y: sourceY },
         { x: lane, y: sourceY },
-        { x: lane, y: targetY },
+        { x: lane, y: approach.y },
+        { x: approach.x, y: approach.y },
         { x: targetX, y: targetY },
       ]
 
