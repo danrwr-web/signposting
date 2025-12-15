@@ -22,8 +22,6 @@ import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
-import SmartStepEdge from './SmartStepEdge'
-import ClinicalStepEdge from './ClinicalStepEdge'
 
 interface WorkflowNode {
   id: string
@@ -160,7 +158,6 @@ export default function WorkflowDiagramClient({
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
   const [editingNewLinkTemplateId, setEditingNewLinkTemplateId] = useState<string>('NONE')
   const [editingNewLinkLabel, setEditingNewLinkLabel] = useState<string>('Open linked workflow')
-  const [debugEdgeId, setDebugEdgeId] = useState<string>('')
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   
   // Persist editingMode in localStorage so it survives page refreshes
@@ -488,7 +485,7 @@ export default function WorkflowDiagramClient({
             labelBgStyle: hasLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
             labelBgPadding: hasLabel ? [6, 4] : undefined,
             labelBgBorderRadius: hasLabel ? 8 : undefined,
-            type: 'smartstep',
+            type: 'step',
             selected: false,
             style: {
               strokeWidth: 2.5,
@@ -684,7 +681,7 @@ export default function WorkflowDiagramClient({
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
           labelBgPadding: edgeLabel ? [6, 4] : undefined,
           labelBgBorderRadius: edgeLabel ? 8 : undefined,
-          type: 'clinical',
+          type: 'step',
           style: {
             strokeWidth: 2.5,
             stroke: '#005EB8',
@@ -904,7 +901,7 @@ export default function WorkflowDiagramClient({
         sourceHandle: 'source-bottom',
         targetHandle: 'target-top',
         label: undefined,
-        type: 'clinical',
+        type: 'step',
         style: {
           strokeWidth: 2.5,
           stroke: '#005EB8',
@@ -1002,12 +999,6 @@ export default function WorkflowDiagramClient({
     }
   }, [selectedEdge, deleteAnswerOptionAction, setEdges])
 
-  // Register custom edge types
-  const edgeTypes = useMemo(() => ({
-    smartstep: SmartStepEdge,
-    clinical: ClinicalStepEdge,
-  }), [])
-
   // Register custom node types
   const nodeTypes: NodeTypes = useMemo(() => ({
     decisionNode: WorkflowDecisionNode,
@@ -1015,13 +1006,6 @@ export default function WorkflowDiagramClient({
     outcomeNode: WorkflowOutcomeNode,
   }), [])
 
-  const edgesForRender = useMemo(() => {
-    if (!debugEdgeId) return edges
-    return edges.map((edge) => ({
-      ...edge,
-      data: { ...(edge.data || {}), debugEdgeId },
-    }))
-  }, [edges, debugEdgeId])
 
   if (!mounted) {
     return (
@@ -1109,21 +1093,6 @@ export default function WorkflowDiagramClient({
               Add outcome
             </button>
           </div>
-          <div className="flex items-center gap-2 mb-2">
-            <label className="text-xs font-medium text-gray-700">Edge debug ID:</label>
-            <input
-              value={debugEdgeId}
-              onChange={(e) => setDebugEdgeId(e.target.value.trim())}
-              placeholder="Paste edge id (answer option)"
-              className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 w-64"
-            />
-            <button
-              onClick={() => setDebugEdgeId('')}
-              className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              Clear
-            </button>
-          </div>
           <p className="text-xs text-gray-600">
             Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically. Tip: hold Shift while dragging to keep steps aligned.
           </p>
@@ -1140,9 +1109,8 @@ export default function WorkflowDiagramClient({
           )}
           <ReactFlow
             nodes={nodes}
-            edges={edgesForRender}
+            edges={edges}
             nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onNodeClick={onNodeClick}
@@ -1157,7 +1125,7 @@ export default function WorkflowDiagramClient({
             edgesUpdatable={false}
             selectNodesOnDrag={false}
             connectionMode={ConnectionMode.Strict}
-            connectionLineType={ConnectionLineType.SmoothStep}
+            connectionLineType={ConnectionLineType.Step}
             isValidConnection={isValidConnection}
             fitView
             fitViewOptions={{ padding: 0.2 }}
