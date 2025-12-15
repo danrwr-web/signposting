@@ -471,8 +471,8 @@ export default function WorkflowDiagramClient({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            sourceHandle: option.sourceHandle || 'source-bottom',
-            targetHandle: option.targetHandle || 'target-top',
+            sourceHandle: option.sourceHandle ?? 'source-bottom',
+            targetHandle: option.targetHandle ?? 'target-top',
             label: hasLabel ? labelText : undefined,
             labelStyle: hasLabel
               ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' }
@@ -655,7 +655,13 @@ export default function WorkflowDiagramClient({
     const label = labelInput === null ? '' : labelInput.trim()
 
     try {
-      const result = await createAnswerOptionAction(connection.source, connection.target, label, connection.sourceHandle || 'source-bottom', connection.targetHandle || 'target-top')
+      const result = await createAnswerOptionAction(
+        connection.source,
+        connection.target,
+        label,
+        connection.sourceHandle ?? 'source-bottom',
+        connection.targetHandle ?? 'target-top'
+      )
       if (result.success && result.option) {
         // Add new edge to the edges state
         const edgeLabel = result.option.label && result.option.label.trim() !== '' ? result.option.label.trim() : undefined
@@ -663,8 +669,8 @@ export default function WorkflowDiagramClient({
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
-          sourceHandle: connection.sourceHandle || 'source-bottom',
-          targetHandle: connection.targetHandle || 'target-top',
+          sourceHandle: connection.sourceHandle ?? 'source-bottom',
+          targetHandle: connection.targetHandle ?? 'target-top',
           label: edgeLabel,
           labelStyle: edgeLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' } : undefined,
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,

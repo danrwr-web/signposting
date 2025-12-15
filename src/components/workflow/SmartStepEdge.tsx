@@ -16,6 +16,7 @@ type Rect = {
   y2: number
 }
 
+const DEBUG = false
 const MIN_RUN = 40
 const PADDING = 12
 const LANE_STEP = 24
@@ -171,9 +172,40 @@ export default function SmartStepEdge({
   const paddingY = typeof labelBgPadding?.[1] === 'number' ? labelBgPadding[1] : 0
   const { transform: _ignoredTransform, ...restLabelStyle } = labelStyle ?? {}
 
+  if (DEBUG) {
+    const lastPoints = points.slice(-3)
+    // eslint-disable-next-line no-console
+    console.log('SmartStepEdge', {
+      id,
+      source,
+      target,
+      sourceHandle,
+      targetHandle,
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      lastPoints,
+    })
+  }
+
   return (
     <>
       <BaseEdge id={id} path={path} markerEnd={markerEnd} style={mergedStyle} />
+      {DEBUG && (
+        <g>
+          <circle cx={targetX} cy={targetY} r={4} fill="red" />
+          <circle cx={approach.x} cy={approach.y} r={4} fill="orange" />
+          {points.length >= 2 && (
+            <circle
+              cx={points[points.length - 2].x}
+              cy={points[points.length - 2].y}
+              r={4}
+              fill="purple"
+            />
+          )}
+        </g>
+      )}
       {label && (
         <EdgeLabelRenderer>
           <div
