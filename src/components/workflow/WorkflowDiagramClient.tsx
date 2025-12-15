@@ -22,6 +22,7 @@ import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
+import { renderBulletText } from './renderBulletText'
 
 interface WorkflowNode {
   id: string
@@ -1479,10 +1480,8 @@ export default function WorkflowDiagramClient({
                   </div>
                 )}
                 {selectedNode.body && (
-                  <div className="text-gray-800 whitespace-pre-wrap mb-4 text-sm leading-relaxed">
-                    {selectedNode.body.split('\n').map((line, index) => (
-                      <p key={index} className={index > 0 ? 'mt-2' : ''}>{line || '\u00A0'}</p>
-                    ))}
+                  <div className="text-gray-800 mb-4 text-sm leading-relaxed">
+                    {renderBulletText(selectedNode.body)}
                   </div>
                 )}
               </div>
@@ -1498,30 +1497,36 @@ export default function WorkflowDiagramClient({
                 </div>
               )}
 
-              {selectedNode.answerOptions.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-yellow-300">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-2">
-                    Answer Options
-                  </h3>
-                  <ul className="space-y-2">
-                    {selectedNode.answerOptions.map((option) => (
-                      <li key={option.id} className="text-sm text-gray-800">
-                        <span className="font-medium">{option.label || '(no label)'}</span>
-                        {option.nextNodeId && (
-                          <span className="text-gray-600 ml-2">
-                            → {template.nodes.find((n) => n.id === option.nextNodeId)?.title || 'Next node'}
-                          </span>
-                        )}
-                        {option.actionKey && !option.nextNodeId && (
-                          <span className="text-gray-600 ml-2">
-                            → {getActionKeyDescription(option.actionKey)}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {(() => {
+                const labelledOptions = selectedNode.answerOptions.filter(
+                  (o) => (o.label ?? '').trim().length > 0
+                )
+                if (labelledOptions.length === 0) return null
+                return (
+                  <div className="mt-4 pt-4 border-t border-yellow-300">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">
+                      Answer Options
+                    </h3>
+                    <ul className="space-y-2">
+                      {labelledOptions.map((option) => (
+                        <li key={option.id} className="text-sm text-gray-800">
+                          <span className="font-medium">{option.label}</span>
+                          {option.nextNodeId && (
+                            <span className="text-gray-600 ml-2">
+                              → {template.nodes.find((n) => n.id === option.nextNodeId)?.title || 'Next node'}
+                            </span>
+                          )}
+                          {option.actionKey && !option.nextNodeId && (
+                            <span className="text-gray-600 ml-2">
+                              → {getActionKeyDescription(option.actionKey)}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )
+              })()}
 
               <button
                 onClick={() => setSelectedNodeId(null)}
