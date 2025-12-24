@@ -1076,6 +1076,7 @@ export default function WorkflowDiagramClient({
           >
             <Controls showInteractive={false} />
           </ReactFlow>
+          </div>
         </div>
 
       {/* Side Panel - Only show when editing mode ON and no node/edge selected */}
@@ -1489,7 +1490,11 @@ export default function WorkflowDiagramClient({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!editingMode && confirm('You\'re entering editing mode. Changes affect staff guidance.\n\nContinue?')) {
+                      if (!editingMode) {
+                        if (confirm("You're entering editing mode. Changes affect staff guidance.\n\nContinue?")) {
+                          setEditingMode(true)
+                        }
+                      } else {
                         setEditingMode(true)
                       }
                     }}
@@ -1599,7 +1604,11 @@ export default function WorkflowDiagramClient({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!editingMode && confirm('You\'re entering editing mode. Changes affect staff guidance.\n\nContinue?')) {
+                      if (!editingMode) {
+                        if (confirm("You're entering editing mode. Changes affect staff guidance.\n\nContinue?")) {
+                          setEditingMode(true)
+                        }
+                      } else {
                         setEditingMode(true)
                       }
                     }}
