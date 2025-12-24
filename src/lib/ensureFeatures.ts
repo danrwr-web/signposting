@@ -23,6 +23,11 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
     name: 'AI surgery-specific customisation',
     description: 'Allow AI to rewrite symptom instructions based on the surgery onboarding profile.',
   },
+  {
+    key: 'workflow_guidance',
+    name: 'Workflow guidance',
+    description: 'Enable document workflow guidance for reception and care navigation teams.',
+  },
 ]
 
 /**

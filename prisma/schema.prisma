@@ -101,9 +101,6 @@ model Surgery {
   onboardingProfile       SurgeryOnboardingProfile?
   workflowTemplates       WorkflowTemplate[]
   workflowInstances       WorkflowInstance[]
-  
-  // Feature flags
-  workflowsEnabled        Boolean @default(false) // Enable/disable workflow module for this surgery
 }
 
 model BaseSymptom {

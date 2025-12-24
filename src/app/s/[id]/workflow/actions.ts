@@ -1493,8 +1493,18 @@ export async function approveWorkflowTemplate(
 }
 
 /**
- * Create a surgery-specific override from a Global Default workflow template
- * Copies the global template structure (nodes, options, links) to a new local template
+ * Create a surgery-specific override from a Global Default workflow template.
+ * 
+ * Safety: Only one override per (surgeryId, sourceTemplateId) is allowed.
+ * If an override already exists, this function returns the existing override ID
+ * instead of creating a duplicate, allowing the UI to redirect to it.
+ * 
+ * Copies the global template structure (nodes, options, links) to a new local template.
+ * The new override starts as DRAFT and must be approved before staff can see it.
+ * 
+ * @param surgeryId - The surgery creating the override
+ * @param globalTemplateId - The global template ID to override
+ * @returns Success with templateId (existing or new)
  */
 export async function createWorkflowOverride(
   surgeryId: string,
@@ -1503,6 +1513,8 @@ export async function createWorkflowOverride(
   try {
     await requireSurgeryAdmin(surgeryId)
 
+    // Global Default surgery ID - stores shared workflow templates
+    // These are inherited by all surgeries and can be overridden per-surgery
     const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
     // Verify global template exists and belongs to Global Default surgery
@@ -1531,7 +1543,7 @@ export async function createWorkflowOverride(
       }
     }
 
-    // Check if override already exists
+    // Check if override already exists - if so, redirect to it instead of creating duplicate
     const existingOverride = await prisma.workflowTemplate.findFirst({
       where: {
         surgeryId,
@@ -1540,9 +1552,12 @@ export async function createWorkflowOverride(
     })
 
     if (existingOverride) {
+      // Override already exists - return success with existing template ID to redirect
+      revalidatePath(`/s/${surgeryId}/workflow/templates`)
+      revalidatePath(`/s/${surgeryId}/workflow`)
       return {
-        success: false,
-        error: 'Override already exists for this workflow',
+        success: true,
+        templateId: existingOverride.id,
       }
     }
 

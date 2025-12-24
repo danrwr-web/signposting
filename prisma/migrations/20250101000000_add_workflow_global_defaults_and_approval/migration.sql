@@ -6,8 +6,7 @@ ALTER TABLE "WorkflowTemplate" ADD COLUMN "approvedAt" TIMESTAMP(3);
 ALTER TABLE "WorkflowTemplate" ADD COLUMN "lastEditedBy" TEXT;
 ALTER TABLE "WorkflowTemplate" ADD COLUMN "lastEditedAt" TIMESTAMP(3);
 
--- AlterTable
-ALTER TABLE "Surgery" ADD COLUMN "workflowsEnabled" BOOLEAN NOT NULL DEFAULT false;
+-- Note: workflowsEnabled flag removed - workflow guidance is now controlled via feature flags (workflow_guidance feature)
 
 -- AddForeignKey
 ALTER TABLE "WorkflowTemplate" ADD CONSTRAINT "WorkflowTemplate_sourceTemplateId_fkey" FOREIGN KEY ("sourceTemplateId") REFERENCES "WorkflowTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -12,6 +12,9 @@ interface Template {
   isActive: boolean
   workflowType: string | null
   createdAt: Date
+  approvalStatus?: string
+  source?: 'global' | 'override' | 'custom'
+  sourceTemplateId?: string | null
 }
 
 interface TemplatesClientProps {
@@ -143,7 +146,24 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
               templates.map((template) => (
                 <tr key={template.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {template.name}
+                    <div className="flex items-center gap-2">
+                      <span>{template.name}</span>
+                      {template.approvalStatus === 'DRAFT' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                          Draft (not visible to staff)
+                        </span>
+                      )}
+                      {template.source === 'global' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                          Global
+                        </span>
+                      )}
+                      {template.source === 'override' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                          Customised
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
                     {template.description || '—'}

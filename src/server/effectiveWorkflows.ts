@@ -1,6 +1,21 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 
+/**
+ * Effective Workflows Resolution
+ * 
+ * This module handles resolving "effective workflows" for a surgery by merging:
+ * 1. Global Default workflows (from the "global-default-buttons" surgery)
+ * 2. Surgery-specific overrides (local templates with sourceTemplateId pointing to global)
+ * 3. Surgery-only custom workflows (local templates with no sourceTemplateId)
+ * 
+ * Approval Visibility Rules:
+ * - Admins: Can see both DRAFT and APPROVED workflows (when includeDrafts=true)
+ * - Staff: Can only see APPROVED workflows (includeDrafts=false by default)
+ * 
+ * This ensures staff never see unapproved content, while admins can manage drafts safely.
+ */
+
 export interface EffectiveWorkflow {
   id: string
   name: string
@@ -20,7 +35,9 @@ export interface EffectiveWorkflow {
   updatedAt: Date
 }
 
-const GLOBAL_SURGERY_ID = 'global-default-buttons' // Same ID used for global defaults
+// Global Default surgery ID - used to store shared workflow templates
+// These templates are inherited by all surgeries and can be overridden per-surgery
+const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
 type WorkflowOptions = {
   includeDrafts?: boolean // Include DRAFT workflows (default: false for staff, true for admin)
@@ -296,14 +313,15 @@ export async function getEffectiveWorkflowById(
 }
 
 /**
- * Check if a surgery has workflows enabled
+ * Check if workflow guidance feature is enabled for a surgery.
+ * Uses the feature flag system (workflow_guidance feature).
+ * 
+ * @deprecated Use isFeatureEnabledForSurgery from @/lib/features instead
+ * This function is kept for backward compatibility during migration.
  */
 export async function isWorkflowsEnabled(surgeryId: string): Promise<boolean> {
-  const surgery = await prisma.surgery.findUnique({
-    where: { id: surgeryId },
-    select: { workflowsEnabled: true },
-  })
-
-  return surgery?.workflowsEnabled ?? false
+  // Import here to avoid circular dependency
+  const { isFeatureEnabledForSurgery } = await import('@/lib/features')
+  return isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
 }
 

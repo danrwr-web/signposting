@@ -1,7 +1,8 @@
 import 'server-only'
-import { requireSurgeryAdmin } from '@/lib/rbac'
+import { requireSurgeryAdmin, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getEffectiveWorkflows } from '@/server/effectiveWorkflows'
 import TemplatesClient from './TemplatesClient'
 
 interface WorkflowTemplatesPageProps {
@@ -29,34 +30,26 @@ export default async function WorkflowTemplatesPage({ params }: WorkflowTemplate
       redirect('/unauthorized')
     }
 
-    // Get workflow templates for this surgery
-    let templates
-    try {
-      templates = await prisma.workflowTemplate.findMany({
-        where: {
-          surgeryId: surgeryId
-        },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        select: {
-          id: true,
-          name: true,
-          description: true,
-          isActive: true,
-          workflowType: true,
-          createdAt: true,
-        }
-      })
-    } catch (error) {
-      console.error('Error fetching workflow templates:', error)
-      // If tables don't exist yet, return empty array instead of crashing
-      if (error instanceof Error && error.message.includes('does not exist')) {
-        templates = []
-      } else {
-        throw error
-      }
-    }
+    // Get effective workflows (includes global defaults, overrides, and custom)
+    // Admins can see drafts, so includeDrafts=true
+    const isAdmin = can(user).isAdminOfSurgery(surgeryId)
+    const effectiveWorkflows = await getEffectiveWorkflows(surgeryId, {
+      includeDrafts: isAdmin, // Admins see drafts, staff do not
+      includeInactive: true, // Show all for admin management
+    })
+
+    // Transform to format expected by TemplatesClient
+    const templates = effectiveWorkflows.map(w => ({
+      id: w.id,
+      name: w.name,
+      description: w.description,
+      isActive: w.isActive,
+      workflowType: w.workflowType,
+      createdAt: w.createdAt,
+      approvalStatus: w.approvalStatus,
+      source: w.source,
+      sourceTemplateId: w.sourceTemplateId,
+    }))
 
     return (
       <div className="min-h-screen bg-gray-50">

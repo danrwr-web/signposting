@@ -3,7 +3,8 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import { getEffectiveWorkflows, isWorkflowsEnabled } from '@/server/effectiveWorkflows'
+import { getEffectiveWorkflows } from '@/server/effectiveWorkflows'
+import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { CustomiseWorkflowButton } from '@/components/workflow/CustomiseWorkflowButton'
 
 interface WorkflowDashboardPageProps {
@@ -43,8 +44,8 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       redirect('/unauthorized')
     }
 
-    // Check if workflows are enabled for this surgery
-    const workflowsEnabled = await isWorkflowsEnabled(surgeryId)
+    // Check if workflow guidance feature is enabled for this surgery
+    const workflowsEnabled = await isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
     
     // Allow admins to access even if workflows aren't enabled (so they can enable them)
@@ -73,8 +74,13 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     }
 
     // Get effective workflows (resolves global defaults, overrides, and custom)
+    // 
+    // Draft visibility rules:
+    // - Admins: Can see both DRAFT and APPROVED workflows (includeDrafts=true)
+    // - Staff: Can only see APPROVED workflows (includeDrafts=false)
+    // This ensures staff never see unapproved content, while admins can manage drafts safely.
     const effectiveWorkflows = await getEffectiveWorkflows(surgeryId, {
-      includeDrafts: false, // Staff view: only show approved workflows
+      includeDrafts: isAdmin, // Admins can see drafts, staff cannot
       includeInactive: false,
     })
 
