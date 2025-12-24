@@ -65,6 +65,10 @@ export async function updateWorkflowTemplate(
     const description = formData.get('description') as string | null
     const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true'
     const colourHex = (formData.get('colourHex') as string) || null
+    const landingCategoryRaw = formData.get('landingCategory') as string
+    const landingCategory = landingCategoryRaw && ['PRIMARY', 'SECONDARY', 'ADMIN'].includes(landingCategoryRaw) 
+      ? landingCategoryRaw 
+      : 'PRIMARY'
 
     await prisma.workflowTemplate.update({
       where: { id: templateId },
@@ -73,6 +77,7 @@ export async function updateWorkflowTemplate(
         description: description || null,
         isActive,
         colourHex: colourHex || null,
+        landingCategory,
       },
     })
 
