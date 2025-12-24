@@ -995,35 +995,6 @@ export default function WorkflowDiagramClient({
 
   return (
     <div className="space-y-4">
-      {/* Editing mode toggle - only in main column now */}
-      {isAdmin && (
-        <div className={`bg-white rounded-lg border shadow-sm transition-all ${
-          editingMode 
-            ? 'border-blue-300 bg-blue-50/30' 
-            : 'border-gray-200'
-        }`}>
-          <label className="flex items-center gap-3 cursor-pointer px-4 py-2.5">
-            <input
-              type="checkbox"
-              checked={editingMode}
-              onChange={(e) => setEditingMode(e.target.checked)}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <div>
-              <span className={`text-sm font-medium block ${
-                editingMode ? 'text-blue-900' : 'text-gray-700'
-              }`}>
-                {editingMode ? 'Editing mode' : 'View mode'}
-              </span>
-              {!editingMode && (
-                <span className="text-xs text-gray-500 block mt-0.5">
-                  Enable to edit
-                </span>
-              )}
-            </div>
-          </label>
-        </div>
-      )}
 
       {/* Admin toolbar */}
       {effectiveAdmin && (
@@ -1057,7 +1028,19 @@ export default function WorkflowDiagramClient({
 
       <div className="flex gap-8 h-[800px]">
         {/* Diagram Area - More whitespace, softer borders */}
-        <div className="relative flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className={`relative flex-1 bg-white rounded-xl border shadow-sm overflow-hidden transition-colors ${
+          editingMode && isAdmin 
+            ? 'border-blue-200 bg-blue-50/20' 
+            : 'border-gray-200'
+        }`}>
+          {/* Subtle editing mode indicator */}
+          {editingMode && isAdmin && (
+            <div className="absolute top-3 right-3 z-10">
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
+                Editing
+              </span>
+            </div>
+          )}
           {process.env.NODE_ENV !== 'production' && (
             <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
               Nodes {nodes.length} · Edges {edges.length}
@@ -1483,6 +1466,41 @@ export default function WorkflowDiagramClient({
         ) : effectiveAdmin && !selectedNode && !selectedEdge ? (
           // Helper panel - only shown when editing mode is ON and nothing is selected
           <div className="space-y-4">
+            {/* View/Editing mode toggle - segmented control */}
+            {isAdmin && (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Mode
+                </label>
+                <div className="flex rounded-md border border-gray-300 overflow-hidden" role="group" aria-label="View or edit mode">
+                  <button
+                    type="button"
+                    onClick={() => setEditingMode(false)}
+                    className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                      !editingMode
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                    aria-pressed={!editingMode}
+                  >
+                    Viewing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingMode(true)}
+                    className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                      editingMode
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                    aria-pressed={editingMode}
+                  >
+                    Editing
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Getting started</h3>
               <p className="text-sm text-gray-600 leading-relaxed mb-4">
@@ -1549,6 +1567,41 @@ export default function WorkflowDiagramClient({
           </div>
         ) : !effectiveAdmin && !selectedNode ? (
           <div className="space-y-4">
+            {/* View/Editing mode toggle - segmented control (admin only) */}
+            {isAdmin && (
+              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Mode
+                </label>
+                <div className="flex rounded-md border border-gray-300 overflow-hidden" role="group" aria-label="View or edit mode">
+                  <button
+                    type="button"
+                    onClick={() => setEditingMode(false)}
+                    className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                      !editingMode
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                    aria-pressed={!editingMode}
+                  >
+                    Viewing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingMode(true)}
+                    className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
+                      editingMode
+                        ? 'bg-gray-900 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                    aria-pressed={editingMode}
+                  >
+                    Editing
+                  </button>
+                </div>
+              </div>
+            )}
+            
             <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
               <p className="text-sm text-gray-600 leading-relaxed">
                 Click a node with the <span className="inline-flex items-center text-blue-600">ⓘ</span> icon in the diagram to view reference details.
