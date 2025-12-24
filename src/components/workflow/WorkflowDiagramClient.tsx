@@ -1026,21 +1026,22 @@ export default function WorkflowDiagramClient({
         </div>
       )}
 
-      <div className="flex gap-8 h-[800px]">
+      <div className="flex gap-8">
         {/* Diagram Area - More whitespace, softer borders */}
-        <div className={`relative flex-1 bg-white rounded-xl border shadow-sm overflow-hidden transition-colors ${
-          editingMode && isAdmin 
-            ? 'border-blue-200 bg-blue-50/20' 
-            : 'border-gray-200'
-        }`}>
-          {/* Subtle editing mode indicator */}
+        <div className="flex-1 flex flex-col gap-2">
+          {/* Subtle editing mode banner */}
           {editingMode && isAdmin && (
-            <div className="absolute top-3 right-3 z-10">
-              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200">
-                Editing
-              </span>
+            <div className="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md">
+              <p className="text-xs text-blue-700 font-medium">
+                Editing mode active
+              </p>
             </div>
           )}
+          <div className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-colors flex-1 min-h-[800px] ${
+            editingMode && isAdmin 
+              ? 'border-blue-200' 
+              : 'border-gray-200'
+          }`}>
           {process.env.NODE_ENV !== 'production' && (
             <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
               Nodes {nodes.length} · Edges {edges.length}
@@ -1472,14 +1473,14 @@ export default function WorkflowDiagramClient({
                 <label className="block text-xs font-medium text-gray-700 mb-2">
                   Mode
                 </label>
-                <div className="flex rounded-md border border-gray-300 overflow-hidden" role="group" aria-label="View or edit mode">
+                <div className="flex rounded-md border border-gray-200 overflow-hidden" role="group" aria-label="View or edit mode">
                   <button
                     type="button"
                     onClick={() => setEditingMode(false)}
                     className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
                       !editingMode
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        ? 'bg-gray-50 text-gray-700 border-r border-gray-200'
+                        : 'bg-white text-gray-500 hover:bg-gray-50'
                     }`}
                     aria-pressed={!editingMode}
                   >
@@ -1487,10 +1488,14 @@ export default function WorkflowDiagramClient({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingMode(true)}
+                    onClick={() => {
+                      if (!editingMode && confirm('You\'re entering editing mode. Changes affect staff guidance.\n\nContinue?')) {
+                        setEditingMode(true)
+                      }
+                    }}
                     className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
                       editingMode
-                        ? 'bg-gray-900 text-white'
+                        ? 'bg-blue-600 text-white'
                         : 'bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                     aria-pressed={editingMode}
@@ -1498,6 +1503,11 @@ export default function WorkflowDiagramClient({
                     Editing
                   </button>
                 </div>
+                {editingMode && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Editing mode active
+                  </p>
+                )}
               </div>
             )}
             
@@ -1573,14 +1583,14 @@ export default function WorkflowDiagramClient({
                 <label className="block text-xs font-medium text-gray-700 mb-2">
                   Mode
                 </label>
-                <div className="flex rounded-md border border-gray-300 overflow-hidden" role="group" aria-label="View or edit mode">
+                <div className="flex rounded-md border border-gray-200 overflow-hidden" role="group" aria-label="View or edit mode">
                   <button
                     type="button"
                     onClick={() => setEditingMode(false)}
                     className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
                       !editingMode
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                        ? 'bg-gray-50 text-gray-700 border-r border-gray-200'
+                        : 'bg-white text-gray-500 hover:bg-gray-50'
                     }`}
                     aria-pressed={!editingMode}
                   >
@@ -1588,10 +1598,14 @@ export default function WorkflowDiagramClient({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingMode(true)}
+                    onClick={() => {
+                      if (!editingMode && confirm('You\'re entering editing mode. Changes affect staff guidance.\n\nContinue?')) {
+                        setEditingMode(true)
+                      }
+                    }}
                     className={`flex-1 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset ${
                       editingMode
-                        ? 'bg-gray-900 text-white'
+                        ? 'bg-blue-600 text-white'
                         : 'bg-white text-gray-700 hover:bg-gray-50'
                     }`}
                     aria-pressed={editingMode}
@@ -1599,6 +1613,11 @@ export default function WorkflowDiagramClient({
                     Editing
                   </button>
                 </div>
+                {editingMode && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Editing mode active
+                  </p>
+                )}
               </div>
             )}
             
