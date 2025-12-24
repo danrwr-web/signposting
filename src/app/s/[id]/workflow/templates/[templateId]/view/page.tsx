@@ -128,26 +128,37 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <Link
-              href={`/s/${surgeryId}/workflow`}
-              className="text-blue-600 hover:text-blue-800 underline mb-2 inline-block"
-            >
-              ← Back to Workflow Guidance
-            </Link>
-            <h1 className="text-2xl font-bold text-gray-900 mt-2">
-              Visual guidance for handling: {template.name}
-            </h1>
-            <p className="text-gray-600">
-              {surgery.name}
-            </p>
-            {template.description && (
-              <p className="text-gray-600 mt-2">
-                {template.description}
-              </p>
-            )}
+          {/* Header - Visually grouped */}
+          <div className="mb-8">
+            {/* Quiet context */}
+            <div className="mb-4">
+              <Link
+                href={`/s/${surgeryId}/workflow`}
+                className="text-sm text-gray-500 hover:text-gray-700 transition-colors inline-flex items-center gap-1"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Workflow Guidance
+              </Link>
+              <span className="text-sm text-gray-400 mx-2">·</span>
+              <span className="text-sm text-gray-500">{surgery.name}</span>
+            </div>
+            
+            {/* Strong workflow title + description */}
+            <div className="mb-6">
+              <h1 className="text-3xl font-semibold text-gray-900 mb-2 tracking-tight">
+                {template.name}
+              </h1>
+              {template.description && (
+                <p className="text-base text-gray-600 leading-relaxed max-w-3xl">
+                  {template.description}
+                </p>
+              )}
+            </div>
+            
             {showDebugCounts && (
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-400 mt-2">
                 Debug: nodes {template.nodes.length} · connections {answerOptionsWithNextCount}
               </p>
             )}
