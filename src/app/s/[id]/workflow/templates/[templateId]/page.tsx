@@ -3,16 +3,7 @@ import { requireSurgeryAdmin } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import {
-  updateWorkflowTemplate,
-  createWorkflowNode,
-  updateWorkflowNode,
-  deleteWorkflowNode,
-  createWorkflowAnswerOption,
-  updateWorkflowAnswerOption,
-  deleteWorkflowAnswerOption,
-} from '../../actions'
-import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
+import { updateWorkflowTemplate } from '../../actions'
 import TemplateEditClient from './TemplateEditClient'
 
 interface WorkflowTemplateEditPageProps {
@@ -46,7 +37,7 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
       redirect('/unauthorized')
     }
 
-    // Get workflow template with nodes and answer options
+    // Get workflow template
     let template
     try {
       template = await prisma.workflowTemplate.findFirst({
@@ -54,19 +45,12 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
           id: templateId,
           surgeryId: surgeryId
         },
-        include: {
-          nodes: {
-            orderBy: {
-              sortOrder: 'asc'
-            },
-            include: {
-              answerOptions: {
-                orderBy: {
-                  label: 'asc'
-                }
-              }
-            }
-          }
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          colourHex: true,
+          isActive: true,
         }
       })
     } catch (error) {
@@ -83,14 +67,8 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
       redirect('/unauthorized')
     }
 
-    // Create bound server actions using .bind() to preserve 'use server' marking
+    // Create bound server action using .bind() to preserve 'use server' marking
     const updateTemplateAction = updateWorkflowTemplate.bind(null, surgeryId, templateId)
-    const createNodeAction = createWorkflowNode.bind(null, surgeryId, templateId)
-    const updateNodeAction = updateWorkflowNode.bind(null, surgeryId, templateId)
-    const deleteNodeAction = deleteWorkflowNode.bind(null, surgeryId, templateId)
-    const createAnswerOptionAction = createWorkflowAnswerOption.bind(null, surgeryId, templateId)
-    const updateAnswerOptionAction = updateWorkflowAnswerOption.bind(null, surgeryId, templateId)
-    const deleteAnswerOptionAction = deleteWorkflowAnswerOption.bind(null, surgeryId, templateId)
 
     return (
       <TemplateEditClient
@@ -99,12 +77,6 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
         surgeryName={surgery.name}
         template={template}
         updateTemplateAction={updateTemplateAction}
-        createNodeAction={createNodeAction}
-        updateNodeAction={updateNodeAction}
-        deleteNodeAction={deleteNodeAction}
-        createAnswerOptionAction={createAnswerOptionAction}
-        updateAnswerOptionAction={updateAnswerOptionAction}
-        deleteAnswerOptionAction={deleteAnswerOptionAction}
         initialError={error}
         initialSuccess={success}
       />
