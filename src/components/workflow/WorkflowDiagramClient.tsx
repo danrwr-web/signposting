@@ -994,89 +994,36 @@ export default function WorkflowDiagramClient({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Secondary controls: Legend + Editing toggle */}
-      <div className="flex items-start justify-between gap-4">
-        {/* Collapsible Legend */}
-        <div className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-          <button
-            onClick={() => setLegendExpanded(!legendExpanded)}
-            className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-            aria-expanded={legendExpanded}
-          >
-            <span className="font-medium text-gray-700">Legend</span>
-            <svg
-              className={`w-4 h-4 transition-transform ${legendExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {legendExpanded && (
-            <div className="px-4 pb-4 pt-2 border-t border-gray-100">
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center gap-2">
-                  <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('INSTRUCTION')}`}>
-                    INSTRUCTION
-                  </div>
-                  <span className="text-sm text-gray-600">Information or checklist</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-4 h-4 bg-amber-50 border-2 border-amber-200"
-                    style={{ transform: 'rotate(45deg)' }}
-                  />
-                  <span className="text-sm text-gray-600">Decision point</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('END')}`}>
-                    END
-                  </div>
-                  <span className="text-sm text-gray-600">Final outcome</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex items-center justify-center w-5 h-5 text-blue-600">
-                    <InfoIcon />
-                  </div>
-                  <span className="text-sm text-gray-600">ⓘ Click for details</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Editing mode toggle */}
-        {isAdmin && (
-          <div className={`bg-white rounded-lg border shadow-sm transition-all ${
-            editingMode 
-              ? 'border-blue-300 bg-blue-50/30' 
-              : 'border-gray-200'
-          }`}>
-            <label className="flex items-center gap-3 cursor-pointer px-4 py-2.5">
-              <input
-                type="checkbox"
-                checked={editingMode}
-                onChange={(e) => setEditingMode(e.target.checked)}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <div>
-                <span className={`text-sm font-medium block ${
-                  editingMode ? 'text-blue-900' : 'text-gray-700'
-                }`}>
-                  {editingMode ? 'Editing mode' : 'View mode'}
+    <div className="space-y-4">
+      {/* Editing mode toggle - only in main column now */}
+      {isAdmin && (
+        <div className={`bg-white rounded-lg border shadow-sm transition-all ${
+          editingMode 
+            ? 'border-blue-300 bg-blue-50/30' 
+            : 'border-gray-200'
+        }`}>
+          <label className="flex items-center gap-3 cursor-pointer px-4 py-2.5">
+            <input
+              type="checkbox"
+              checked={editingMode}
+              onChange={(e) => setEditingMode(e.target.checked)}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <div>
+              <span className={`text-sm font-medium block ${
+                editingMode ? 'text-blue-900' : 'text-gray-700'
+              }`}>
+                {editingMode ? 'Editing mode' : 'View mode'}
+              </span>
+              {!editingMode && (
+                <span className="text-xs text-gray-500 block mt-0.5">
+                  Enable to edit
                 </span>
-                {!editingMode && (
-                  <span className="text-xs text-gray-500 block mt-0.5">
-                    Enable to edit
-                  </span>
-                )}
-              </div>
-            </label>
-          </div>
-        )}
-      </div>
+              )}
+            </div>
+          </label>
+        </div>
+      )}
 
       {/* Admin toolbar */}
       {effectiveAdmin && (
@@ -1535,22 +1482,130 @@ export default function WorkflowDiagramClient({
           )
         ) : effectiveAdmin && !selectedNode && !selectedEdge ? (
           // Helper panel - only shown when editing mode is ON and nothing is selected
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Getting started</h3>
-            <p className="text-sm text-gray-600 leading-relaxed mb-4">
-              Click a node to edit it, or click a connection to edit its label. Drag from node handles to create connections.
-            </p>
-            <div className="space-y-2 text-xs text-gray-500">
-              <p>• Use the toolbar above to add new steps</p>
-              <p>• Drag nodes to reposition them</p>
-              <p>• Hold Shift while dragging to lock to one axis</p>
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Getting started</h3>
+              <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                Click a node to edit it, or click a connection to edit its label. Drag from node handles to create connections.
+              </p>
+              <div className="space-y-2 text-xs text-gray-500">
+                <p>• Use the toolbar above to add new steps</p>
+                <p>• Drag nodes to reposition them</p>
+                <p>• Hold Shift while dragging to lock to one axis</p>
+              </div>
+            </div>
+            
+            {/* Diagram legend - collapsible, visually quiet */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <button
+                onClick={() => setLegendExpanded(!legendExpanded)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                aria-expanded={legendExpanded}
+                aria-label="Toggle diagram legend"
+              >
+                <span className="font-medium text-gray-700">Diagram legend</span>
+                <svg
+                  className={`w-4 h-4 transition-transform ${legendExpanded ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {legendExpanded && (
+                <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('INSTRUCTION')}`}>
+                        INSTRUCTION
+                      </div>
+                      <span className="text-sm text-gray-600">Information or checklist</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-4 h-4 bg-amber-50 border-2 border-amber-200"
+                        style={{ transform: 'rotate(45deg)' }}
+                      />
+                      <span className="text-sm text-gray-600">Decision point</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('END')}`}>
+                        END
+                      </div>
+                      <span className="text-sm text-gray-600">Final outcome</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-5 h-5 text-blue-600">
+                        <InfoIcon />
+                      </div>
+                      <span className="text-sm text-gray-600">ⓘ Click for details</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : !effectiveAdmin && !selectedNode ? (
-          <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Click a node with the <span className="inline-flex items-center text-blue-600">ⓘ</span> icon in the diagram to view reference details.
-            </p>
+          <div className="space-y-4">
+            <div className="bg-gray-50 rounded-lg border border-gray-200 p-6">
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Click a node with the <span className="inline-flex items-center text-blue-600">ⓘ</span> icon in the diagram to view reference details.
+              </p>
+            </div>
+            
+            {/* Diagram legend - collapsible, visually quiet */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+              <button
+                onClick={() => setLegendExpanded(!legendExpanded)}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                aria-expanded={legendExpanded}
+                aria-label="Toggle diagram legend"
+              >
+                <span className="font-medium text-gray-700">Diagram legend</span>
+                <svg
+                  className={`w-4 h-4 transition-transform ${legendExpanded ? 'rotate-180' : ''}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {legendExpanded && (
+                <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('INSTRUCTION')}`}>
+                        INSTRUCTION
+                      </div>
+                      <span className="text-sm text-gray-600">Information or checklist</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-4 h-4 bg-amber-50 border-2 border-amber-200"
+                        style={{ transform: 'rotate(45deg)' }}
+                      />
+                      <span className="text-sm text-gray-600">Decision point</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor('END')}`}>
+                        END
+                      </div>
+                      <span className="text-sm text-gray-600">Final outcome</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-5 h-5 text-blue-600">
+                        <InfoIcon />
+                      </div>
+                      <span className="text-sm text-gray-600">ⓘ Click for details</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
       </div>
