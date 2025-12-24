@@ -499,6 +499,7 @@ model WorkflowTemplate {
   colourHex       String? // optional – to mirror Lucid colours
   isActive        Boolean @default(true)
   landingCategory String  @default("PRIMARY") // "PRIMARY" | "SECONDARY" | "ADMIN" - controls prominence on landing page
+  workflowType    String  @default("SUPPORTING") // "PRIMARY" | "SUPPORTING" | "MODULE" - workflow type for landing page hierarchy
 
   nodes           WorkflowNodeTemplate[]
   linkedFromNodes WorkflowNodeLink[]     @relation("LinkedWorkflow")

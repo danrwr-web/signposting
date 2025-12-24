@@ -18,20 +18,49 @@ export async function createWorkflowTemplate(
   try {
     await requireSurgeryAdmin(surgeryId)
 
-    const name = (formData.get('name') as string) || 'New workflow'
+    const name = (formData.get('name') as string)?.trim()
+    const description = (formData.get('description') as string)?.trim() || null
+    const colourHex = (formData.get('colourHex') as string)?.trim() || null
+    const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true'
+    const workflowType = (formData.get('workflowType') as string) || 'SUPPORTING'
+
+    // Validation
+    if (!name || name.length === 0) {
+      return {
+        success: false,
+        error: 'Workflow name is required',
+      }
+    }
+    if (name.toLowerCase() === 'new workflow') {
+      return {
+        success: false,
+        error: 'Please enter a specific workflow name',
+      }
+    }
+
+    // Validate workflow type
+    const validTypes = ['PRIMARY', 'SUPPORTING', 'MODULE']
+    if (!validTypes.includes(workflowType)) {
+      return {
+        success: false,
+        error: 'Invalid workflow type',
+      }
+    }
 
     const template = await prisma.workflowTemplate.create({
       data: {
         surgeryId,
         name,
-        description: null,
-        isActive: true,
-        colourHex: null,
+        description,
+        isActive,
+        colourHex,
+        workflowType: workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
       },
     })
 
     revalidatePath(`/s/${surgeryId}/workflow/templates`)
-    redirect(`/s/${surgeryId}/workflow/templates/${template.id}`)
+    revalidatePath(`/s/${surgeryId}/workflow`)
+    redirect(`/s/${surgeryId}/workflow/templates/${template.id}/view`)
   } catch (error) {
     console.error('Error creating workflow template:', error)
     return {
@@ -69,6 +98,10 @@ export async function updateWorkflowTemplate(
     const landingCategory = landingCategoryRaw && ['PRIMARY', 'SECONDARY', 'ADMIN'].includes(landingCategoryRaw) 
       ? landingCategoryRaw 
       : 'PRIMARY'
+    const workflowTypeRaw = formData.get('workflowType') as string
+    const workflowType = workflowTypeRaw && ['PRIMARY', 'SUPPORTING', 'MODULE'].includes(workflowTypeRaw)
+      ? workflowTypeRaw
+      : existing.workflowType || 'SUPPORTING'
 
     await prisma.workflowTemplate.update({
       where: { id: templateId },
@@ -78,6 +111,7 @@ export async function updateWorkflowTemplate(
         isActive,
         colourHex: colourHex || null,
         landingCategory,
+        workflowType: workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
       },
     })
 

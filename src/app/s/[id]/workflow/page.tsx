@@ -52,7 +52,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
         id: true,
         name: true,
         description: true,
-        landingCategory: true,
+        workflowType: true,
         _count: {
           select: {
             linkedFromNodes: true,
@@ -61,29 +61,30 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       }
     })
 
-    // TODO: make landing category editable via admin UI
-    // For now, hard-code "Discharge Summaries" as the primary workflow
-    const PRIMARY_WORKFLOW_NAME = 'Discharge Summaries'
-    
-    // Classify workflows: identify primary workflow by name match, everything else is supporting
+    // Classify workflows using workflowType field
+    // Default to SUPPORTING if workflowType is null (for existing workflows)
     const workflows: WorkflowTemplateWithCategory[] = activeTemplates.map((template) => {
       const isDependent = template._count.linkedFromNodes > 0
-      const normalizedName = template.name.trim()
-      const isPrimaryWorkflow = normalizedName.toLowerCase() === PRIMARY_WORKFLOW_NAME.toLowerCase()
+      const workflowType = (template.workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE') || 'SUPPORTING'
 
       return {
         id: template.id,
         name: template.name,
         description: template.description,
-        landingCategory: isPrimaryWorkflow ? 'PRIMARY' : 'SECONDARY',
+        landingCategory: workflowType,
         isDependent,
       }
     })
 
-    // Separate primary workflow (Discharge Summaries) from supporting workflows
-    const primaryWorkflow = workflows.find(w => w.landingCategory === 'PRIMARY')
-    const supportingWorkflows = workflows.filter(w => w.landingCategory === 'SECONDARY')
-    const adminWorkflows = workflows.filter(w => w.landingCategory === 'ADMIN')
+    // Separate workflows by type
+    const primaryWorkflows = workflows.filter(w => w.landingCategory === 'PRIMARY')
+    const supportingWorkflows = workflows.filter(w => w.landingCategory === 'SUPPORTING')
+    const moduleWorkflows = workflows.filter(w => w.landingCategory === 'MODULE')
+    
+    // For backward compatibility: if no PRIMARY workflows but "Discharge Summaries" exists, use it
+    const primaryWorkflow = primaryWorkflows.length > 0 
+      ? primaryWorkflows[0] 
+      : workflows.find(w => w.name.toLowerCase() === 'discharge summaries')
 
     // Check if user is admin
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
@@ -104,8 +105,48 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
             </p>
           </div>
 
-          {/* Primary Document Workflow - Dominant */}
-          {primaryWorkflow && (
+          {/* Primary Document Workflows - Dominant */}
+          {primaryWorkflows.length > 0 && (
+            <section className="mb-20" aria-labelledby="primary-workflows-heading">
+              <h2 id="primary-workflows-heading" className="text-xl font-medium text-gray-900 mb-6">
+                Primary document workflow{primaryWorkflows.length > 1 ? 's' : ''}
+              </h2>
+              {primaryWorkflows.map((workflow) => (
+                <Link
+                  key={workflow.id}
+                  href={`/s/${surgeryId}/workflow/templates/${workflow.id}/view`}
+                  className="group relative block bg-blue-50/50 rounded-2xl border-2 border-blue-100 p-10 hover:border-blue-200 hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 mb-6 last:mb-0"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-3">
+                        <h3 className="text-2xl font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
+                          {workflow.name}
+                        </h3>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Primary
+                        </span>
+                      </div>
+                      {workflow.description && (
+                        <p className="text-base text-gray-700 mb-6 leading-relaxed max-w-3xl">
+                          {workflow.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg group-hover:bg-blue-700 transition-colors shadow-sm">
+                    Open workflow
+                    <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </span>
+                </Link>
+              ))}
+            </section>
+          )}
+
+          {/* Fallback: Show "Discharge Summaries" as primary if no PRIMARY workflows exist */}
+          {primaryWorkflows.length === 0 && primaryWorkflow && (
             <section className="mb-20" aria-labelledby="primary-workflow-heading">
               <h2 id="primary-workflow-heading" className="text-xl font-medium text-gray-900 mb-6">
                 Primary document workflow
@@ -174,8 +215,33 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
             </section>
           )}
 
+          {/* Linked Modules - Very Subdued */}
+          {moduleWorkflows.length > 0 && (
+            <section className="mb-16" aria-labelledby="module-workflows-heading">
+              <h2 id="module-workflows-heading" className="text-sm font-medium text-gray-400 mb-4 uppercase tracking-wide">
+                Linked Modules
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {moduleWorkflows.map((template) => (
+                  <Link
+                    key={template.id}
+                    href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
+                    className="group bg-gray-50 rounded-lg border border-gray-100 p-4 hover:bg-white hover:border-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    <h3 className="text-sm font-medium text-gray-600 mb-1 group-hover:text-gray-900 transition-colors">
+                      {template.name}
+                    </h3>
+                    <span className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+                      View →
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Empty State */}
-          {!primaryWorkflow && supportingWorkflows.length === 0 && (
+          {primaryWorkflows.length === 0 && !primaryWorkflow && supportingWorkflows.length === 0 && moduleWorkflows.length === 0 && (
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-12 text-center">
               <p className="text-gray-500 mb-4">No workflow templates available.</p>
               {isAdmin && (
