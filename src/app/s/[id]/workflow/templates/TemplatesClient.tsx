@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import CreateWorkflowModal from '@/components/workflow/CreateWorkflowModal'
 
 interface Template {
@@ -20,6 +21,10 @@ interface TemplatesClientProps {
 
 export default function TemplatesClient({ surgeryId, templates }: TemplatesClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const router = useRouter()
 
   const getWorkflowTypeBadge = (type: string | null) => {
     if (!type) return null
@@ -38,6 +43,46 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
         {badge.label}
       </span>
     )
+  }
+
+  const handleDeleteClick = (templateId: string, templateName: string) => {
+    setDeletingId(templateId)
+    setDeleteConfirm('')
+  }
+
+  const handleDeleteCancel = () => {
+    setDeletingId(null)
+    setDeleteConfirm('')
+  }
+
+  const handleDeleteConfirm = async (templateId: string) => {
+    if (deleteConfirm !== 'DELETE' || isDeleting) {
+      return
+    }
+
+    setIsDeleting(true)
+    
+    try {
+      const response = await fetch(`/api/workflow/delete?SurgeryId=${surgeryId}&TemplateId=${templateId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to delete workflow')
+      }
+
+      // Reset state and refresh the page to show updated list
+      setDeletingId(null)
+      setDeleteConfirm('')
+      setIsDeleting(false)
+      router.refresh()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to delete workflow')
+      setDeletingId(null)
+      setDeleteConfirm('')
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -132,6 +177,47 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
                     >
                       Edit
                     </Link>
+                    <span className="text-gray-300">|</span>
+                    {deletingId === template.id ? (
+                      <span className="inline-flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={deleteConfirm}
+                          onChange={(e) => setDeleteConfirm(e.target.value)}
+                          placeholder="Type DELETE"
+                          className="w-28 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && deleteConfirm === 'DELETE') {
+                              handleDeleteConfirm(template.id)
+                            } else if (e.key === 'Escape') {
+                              handleDeleteCancel()
+                            }
+                          }}
+                        />
+                        <button
+                          onClick={() => handleDeleteConfirm(template.id)}
+                          disabled={deleteConfirm !== 'DELETE' || isDeleting}
+                          className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                        >
+                          {isDeleting ? 'Deleting...' : 'Confirm'}
+                        </button>
+                        <button
+                          onClick={handleDeleteCancel}
+                          disabled={isDeleting}
+                          className="px-2 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleDeleteClick(template.id, template.name)}
+                        className="text-red-600 hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 rounded"
+                      >
+                        Delete
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
