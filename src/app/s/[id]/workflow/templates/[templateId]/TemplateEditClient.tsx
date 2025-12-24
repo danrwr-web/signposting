@@ -11,6 +11,7 @@ interface WorkflowTemplate {
   description: string | null
   colourHex: string | null
   isActive: boolean
+  workflowType: string
 }
 
 interface TemplateEditClientProps {
@@ -130,6 +131,46 @@ export default function TemplateEditClient({
                 rows={3}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+            <div>
+              <label htmlFor="workflowType" className="block text-sm font-medium text-gray-700 mb-1">
+                Workflow type *
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="workflowType"
+                    value="PRIMARY"
+                    defaultChecked={template.workflowType === 'PRIMARY'}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span className="ml-2 text-sm text-gray-900">Primary workflow</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="workflowType"
+                    value="SUPPORTING"
+                    defaultChecked={template.workflowType === 'SUPPORTING' || !template.workflowType}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span className="ml-2 text-sm text-gray-900">Supporting workflow</span>
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="workflowType"
+                    value="MODULE"
+                    defaultChecked={template.workflowType === 'MODULE'}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                  <span className="ml-2 text-sm text-gray-900">Linked module</span>
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Controls how this workflow appears on the Workflow Guidance landing page.
+              </p>
             </div>
             <div className="flex items-center">
               <input

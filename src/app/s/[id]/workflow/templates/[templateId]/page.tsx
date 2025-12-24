@@ -51,6 +51,7 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
           description: true,
           colourHex: true,
           isActive: true,
+          workflowType: true,
         }
       })
     } catch (error) {

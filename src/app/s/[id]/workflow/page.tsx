@@ -76,15 +76,10 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       }
     })
 
-    // Separate workflows by type
+    // Separate workflows by type - workflowType is the single source of truth
     const primaryWorkflows = workflows.filter(w => w.landingCategory === 'PRIMARY')
     const supportingWorkflows = workflows.filter(w => w.landingCategory === 'SUPPORTING')
     const moduleWorkflows = workflows.filter(w => w.landingCategory === 'MODULE')
-    
-    // For backward compatibility: if no PRIMARY workflows but "Discharge Summaries" exists, use it
-    const primaryWorkflow = primaryWorkflows.length > 0 
-      ? primaryWorkflows[0] 
-      : workflows.find(w => w.name.toLowerCase() === 'discharge summaries')
 
     // Check if user is admin
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
@@ -145,42 +140,6 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
             </section>
           )}
 
-          {/* Fallback: Show "Discharge Summaries" as primary if no PRIMARY workflows exist */}
-          {primaryWorkflows.length === 0 && primaryWorkflow && (
-            <section className="mb-20" aria-labelledby="primary-workflow-heading">
-              <h2 id="primary-workflow-heading" className="text-xl font-medium text-gray-900 mb-6">
-                Primary document workflow
-              </h2>
-              <Link
-                href={`/s/${surgeryId}/workflow/templates/${primaryWorkflow.id}/view`}
-                className="group relative block bg-blue-50/50 rounded-2xl border-2 border-blue-100 p-10 hover:border-blue-200 hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-2xl font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
-                        {primaryWorkflow.name}
-                      </h3>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        Primary
-                      </span>
-                    </div>
-                    {primaryWorkflow.description && (
-                      <p className="text-base text-gray-700 mb-6 leading-relaxed max-w-3xl">
-                        {primaryWorkflow.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <span className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-lg group-hover:bg-blue-700 transition-colors shadow-sm">
-                  Open workflow
-                  <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
-              </Link>
-            </section>
-          )}
 
           {/* Supporting Workflows - Calmer Grid */}
           {supportingWorkflows.length > 0 && (
@@ -241,7 +200,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
           )}
 
           {/* Empty State */}
-          {primaryWorkflows.length === 0 && !primaryWorkflow && supportingWorkflows.length === 0 && moduleWorkflows.length === 0 && (
+          {primaryWorkflows.length === 0 && supportingWorkflows.length === 0 && moduleWorkflows.length === 0 && (
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-12 text-center">
               <p className="text-gray-500 mb-4">No workflow templates available.</p>
               {isAdmin && (
