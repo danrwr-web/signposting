@@ -38,6 +38,10 @@ model User {
 
   // Workflow instances
   workflowInstances WorkflowInstance[]
+  
+  // Workflow governance
+  workflowApprovals WorkflowTemplate[] @relation("WorkflowApprovals")
+  workflowEdits     WorkflowTemplate[] @relation("WorkflowEdits")
 
   // NextAuth.js fields
   emailVerified DateTime?
@@ -97,6 +101,9 @@ model Surgery {
   onboardingProfile       SurgeryOnboardingProfile?
   workflowTemplates       WorkflowTemplate[]
   workflowInstances       WorkflowInstance[]
+  
+  // Feature flags
+  workflowsEnabled        Boolean @default(false) // Enable/disable workflow module for this surgery
 }
 
 model BaseSymptom {
@@ -500,6 +507,20 @@ model WorkflowTemplate {
   isActive        Boolean @default(true)
   landingCategory String  @default("PRIMARY") // "PRIMARY" | "SECONDARY" | "ADMIN" - controls prominence on landing page
   workflowType    String  @default("SUPPORTING") // "PRIMARY" | "SUPPORTING" | "MODULE" - workflow type for landing page hierarchy
+
+  // Global Default inheritance
+  sourceTemplateId String? // Points to global template when this is a surgery override
+  sourceTemplate   WorkflowTemplate? @relation("WorkflowOverrides", fields: [sourceTemplateId], references: [id])
+  overrideTemplates WorkflowTemplate[] @relation("WorkflowOverrides")
+
+  // Governance / approval fields
+  approvalStatus String @default("DRAFT") // "DRAFT" | "APPROVED" | "SUPERSEDED"
+  approvedBy     String?
+  approvedAt     DateTime?
+  approvedByUser User?  @relation("WorkflowApprovals", fields: [approvedBy], references: [id])
+  lastEditedBy   String?
+  lastEditedAt   DateTime?
+  lastEditedByUser User? @relation("WorkflowEdits", fields: [lastEditedBy], references: [id])
 
   nodes           WorkflowNodeTemplate[]
   linkedFromNodes WorkflowNodeLink[]     @relation("LinkedWorkflow")

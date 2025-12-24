@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { updateWorkflowTemplate } from '../../actions'
+import { updateWorkflowTemplate, approveWorkflowTemplate } from '../../actions'
 
 interface WorkflowTemplate {
   id: string
@@ -12,6 +12,12 @@ interface WorkflowTemplate {
   colourHex: string | null
   isActive: boolean
   workflowType: string
+  approvalStatus: string
+  approvedBy: string | null
+  approvedAt: Date | null
+  lastEditedBy: string | null
+  lastEditedAt: Date | null
+  sourceTemplateId: string | null
 }
 
 interface TemplateEditClientProps {
@@ -194,6 +200,97 @@ export default function TemplateEditClient({
               </button>
             </div>
           </form>
+        </div>
+
+        {/* Approval Status Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">
+            Approval Status
+          </h2>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  template.approvalStatus === 'APPROVED'
+                    ? 'bg-green-100 text-green-800'
+                    : template.approvalStatus === 'SUPERSEDED'
+                    ? 'bg-gray-100 text-gray-800'
+                    : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {template.approvalStatus}
+                </span>
+                {template.approvalStatus === 'DRAFT' && (
+                  <span className="text-xs text-gray-500">
+                    (Not visible to staff until approved)
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {template.approvalStatus === 'APPROVED' && template.approvedAt && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Approved
+                </label>
+                <p className="text-sm text-gray-600">
+                  {new Date(template.approvedAt).toLocaleDateString('en-GB', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            )}
+
+            {template.lastEditedAt && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last edited
+                </label>
+                <p className="text-sm text-gray-600">
+                  {new Date(template.lastEditedAt).toLocaleDateString('en-GB', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </p>
+              </div>
+            )}
+
+            {template.approvalStatus !== 'APPROVED' && (
+              <div>
+                <form action={async () => {
+                  startTransition(async () => {
+                    const result = await approveWorkflowTemplate(surgeryId, templateId)
+                    if (result.success) {
+                      setSuccess('Workflow approved successfully')
+                      router.refresh()
+                    } else {
+                      setError(result.error || 'Failed to approve workflow')
+                    }
+                  })
+                }}>
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                  >
+                    {isPending ? 'Approving...' : 'Mark as Approved'}
+                  </button>
+                </form>
+                <p className="text-xs text-gray-500 mt-2">
+                  Approved workflows are visible to staff. Editing an approved workflow will revert it to Draft.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

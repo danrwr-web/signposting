@@ -52,6 +52,12 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
           colourHex: true,
           isActive: true,
           workflowType: true,
+          approvalStatus: true,
+          approvedBy: true,
+          approvedAt: true,
+          lastEditedBy: true,
+          lastEditedAt: true,
+          sourceTemplateId: true,
         }
       })
     } catch (error) {

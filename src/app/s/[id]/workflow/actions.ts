@@ -103,6 +103,18 @@ export async function updateWorkflowTemplate(
       ? workflowTypeRaw
       : existing.workflowType || 'SUPPORTING'
 
+    const user = await getSessionUser()
+    if (!user) {
+      return {
+        success: false,
+        error: 'Unauthorized',
+      }
+    }
+
+    // If workflow was approved, editing reverts it to DRAFT (safe default)
+    const wasApproved = existing.approvalStatus === 'APPROVED'
+    const approvalStatus = wasApproved ? 'DRAFT' : existing.approvalStatus
+
     await prisma.workflowTemplate.update({
       where: { id: templateId },
       data: {
@@ -112,6 +124,9 @@ export async function updateWorkflowTemplate(
         colourHex: colourHex || null,
         landingCategory,
         workflowType: workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
+        approvalStatus,
+        lastEditedBy: user.id,
+        lastEditedAt: new Date(),
       },
     })
 
@@ -1429,6 +1444,192 @@ export async function deleteWorkflowTemplate(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to delete workflow template',
+    }
+  }
+}
+
+/**
+ * Approve a workflow template (sets approvalStatus to APPROVED)
+ */
+export async function approveWorkflowTemplate(
+  surgeryId: string,
+  templateId: string
+): Promise<ActionResult> {
+  try {
+    const user = await requireSurgeryAdmin(surgeryId)
+
+    // Verify template belongs to surgery
+    const existing = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Template not found',
+      }
+    }
+
+    await prisma.workflowTemplate.update({
+      where: { id: templateId },
+      data: {
+        approvalStatus: 'APPROVED',
+        approvedBy: user.id,
+        approvedAt: new Date(),
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}`)
+    revalidatePath(`/s/${surgeryId}/workflow`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error approving workflow template:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to approve template',
+    }
+  }
+}
+
+/**
+ * Create a surgery-specific override from a Global Default workflow template
+ * Copies the global template structure (nodes, options, links) to a new local template
+ */
+export async function createWorkflowOverride(
+  surgeryId: string,
+  globalTemplateId: string
+): Promise<ActionResult & { templateId?: string }> {
+  try {
+    await requireSurgeryAdmin(surgeryId)
+
+    const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
+    // Verify global template exists and belongs to Global Default surgery
+    const globalTemplate = await prisma.workflowTemplate.findFirst({
+      where: {
+        id: globalTemplateId,
+        surgeryId: GLOBAL_SURGERY_ID,
+      },
+      include: {
+        nodes: {
+          include: {
+            answerOptions: true,
+            workflowLinks: true,
+          },
+          orderBy: {
+            sortOrder: 'asc',
+          },
+        },
+      },
+    })
+
+    if (!globalTemplate) {
+      return {
+        success: false,
+        error: 'Global template not found',
+      }
+    }
+
+    // Check if override already exists
+    const existingOverride = await prisma.workflowTemplate.findFirst({
+      where: {
+        surgeryId,
+        sourceTemplateId: globalTemplateId,
+      },
+    })
+
+    if (existingOverride) {
+      return {
+        success: false,
+        error: 'Override already exists for this workflow',
+      }
+    }
+
+    // Create override in transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the override template
+      const overrideTemplate = await tx.workflowTemplate.create({
+        data: {
+          surgeryId,
+          name: globalTemplate.name,
+          description: globalTemplate.description,
+          colourHex: globalTemplate.colourHex,
+          isActive: globalTemplate.isActive,
+          landingCategory: globalTemplate.landingCategory,
+          workflowType: globalTemplate.workflowType,
+          sourceTemplateId: globalTemplateId,
+          approvalStatus: 'DRAFT', // New override starts as draft
+        },
+      })
+
+      // Create a map of old node IDs to new node IDs
+      const nodeIdMap = new Map<string, string>()
+
+      // Copy nodes
+      for (const globalNode of globalTemplate.nodes) {
+        const newNode = await tx.workflowNodeTemplate.create({
+          data: {
+            templateId: overrideTemplate.id,
+            nodeType: globalNode.nodeType,
+            title: globalNode.title,
+            body: globalNode.body,
+            sortOrder: globalNode.sortOrder,
+            isStart: globalNode.isStart,
+            positionX: globalNode.positionX,
+            positionY: globalNode.positionY,
+            actionKey: globalNode.actionKey,
+          },
+        })
+        nodeIdMap.set(globalNode.id, newNode.id)
+
+        // Copy answer options
+        for (const option of globalNode.answerOptions) {
+          // Map nextNodeId if it exists
+          const nextNodeId = option.nextNodeId ? nodeIdMap.get(option.nextNodeId) || null : null
+          
+          await tx.workflowAnswerOptionTemplate.create({
+            data: {
+              nodeId: newNode.id,
+              label: option.label,
+              valueKey: option.valueKey,
+              description: option.description,
+              nextNodeId,
+              actionKey: option.actionKey,
+              sourceHandle: option.sourceHandle,
+              targetHandle: option.targetHandle,
+            },
+          })
+        }
+
+        // Copy workflow links (links to other templates)
+        for (const link of globalNode.workflowLinks) {
+          await tx.workflowNodeLink.create({
+            data: {
+              nodeId: newNode.id,
+              templateId: overrideTemplate.id,
+              label: link.label,
+              sortOrder: link.sortOrder,
+            },
+          })
+        }
+      }
+
+      return overrideTemplate
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates`)
+    revalidatePath(`/s/${surgeryId}/workflow`)
+
+    return {
+      success: true,
+      templateId: result.id,
+    }
+  } catch (error) {
+    console.error('Error creating workflow override:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create override',
     }
   }
 }
