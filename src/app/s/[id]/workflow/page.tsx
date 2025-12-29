@@ -87,13 +87,15 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     // Get linkedFromNodes count for each workflow to identify dependent workflows
     const workflowIds = effectiveWorkflows.map(w => w.id)
     const linkedCounts = await prisma.workflowNodeLink.groupBy({
-      by: ['linkedTemplateId'],
+      by: ['templateId'],
       where: {
-        linkedTemplateId: { in: workflowIds },
+        templateId: { in: workflowIds },
       },
-      _count: true,
+      _count: {
+        _all: true,
+      },
     })
-    const linkedCountMap = new Map(linkedCounts.map(l => [l.linkedTemplateId, l._count]))
+    const linkedCountMap = new Map(linkedCounts.map(l => [l.templateId, l._count._all]))
 
     // Classify workflows using workflowType field
     const workflows: WorkflowTemplateWithCategory[] = effectiveWorkflows.map((template) => {
