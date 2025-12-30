@@ -20,6 +20,8 @@ import {
   bulkUpdateWorkflowNodePositions,
 } from '../../../actions'
 
+const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
 interface WorkflowTemplateViewPageProps {
   params: {
     id: string
@@ -46,21 +48,33 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       redirect('/unauthorized')
     }
 
-    // Get workflow template with nodes and answer options
+    // Resolve template from either the current surgery or the Global Default surgery.
+    // This allows surgeries to view inherited "Global Default" workflows without copying them.
+    const templateOwnerSurgeryId = await (async () => {
+      const local = await prisma.workflowTemplate.findFirst({
+        where: {
+          id: templateId,
+          surgeryId,
+        },
+        select: { id: true },
+      })
+      return local ? surgeryId : GLOBAL_SURGERY_ID
+    })()
+
     const template = await prisma.workflowTemplate.findFirst({
       where: {
         id: templateId,
-        surgeryId: surgeryId
+        surgeryId: templateOwnerSurgeryId,
       },
       include: {
         nodes: {
           orderBy: {
-            sortOrder: 'asc'
+            sortOrder: 'asc',
           },
           include: {
             answerOptions: {
               orderBy: {
-                label: 'asc'
+                label: 'asc',
               },
               select: {
                 id: true,
@@ -69,37 +83,42 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                 actionKey: true,
                 sourceHandle: true,
                 targetHandle: true,
-              }
+              },
             },
             workflowLinks: {
               orderBy: {
-                sortOrder: 'asc'
+                sortOrder: 'asc',
               },
               include: {
                 template: {
                   select: {
                     id: true,
                     name: true,
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     })
 
     if (!template) {
       redirect('/unauthorized')
     }
 
-    // Check if user is admin
-    const isAdmin = can(user).isAdminOfSurgery(surgeryId)
+    // Check if user can admin *this template* (global templates should only be editable by superusers).
+    const isAdmin = can(user).isAdminOfSurgery(templateOwnerSurgeryId)
 
-    // Get all active templates for the surgery (for linked workflow dropdown)
+    // Staff (and non-global admins) must not see draft templates.
+    if (!isAdmin && template.approvalStatus !== 'APPROVED') {
+      redirect('/unauthorized')
+    }
+
+    // Get all active templates for the template owner surgery (for linked workflow dropdown)
     const allTemplates = isAdmin ? await prisma.workflowTemplate.findMany({
       where: {
-        surgeryId: surgeryId,
+        surgeryId: templateOwnerSurgeryId,
         isActive: true,
       },
       select: {
