@@ -1,0 +1,75 @@
+name: Migrate workflows to Global Default (one-off)
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "If true, prints what would change (no writes)."
+        type: boolean
+        default: true
+        required: true
+      allow_name_collision:
+        description: "If true, bypass name collision protection (NOT recommended)."
+        type: boolean
+        default: false
+        required: true
+      source_surgery_name:
+        description: "Source surgery name to migrate from."
+        type: string
+        default: "Ide Lane Surgery"
+        required: true
+      target_global_key:
+        description: "Target global surgery key (matched against surgery.id first, then surgery.slug)."
+        type: string
+        default: "global-default-buttons"
+        required: true
+      confirm:
+        description: "Required ONLY when dry_run=false. Must equal MOVE_WORKFLOWS_TO_GLOBAL_DEFAULT"
+        type: string
+        default: ""
+        required: false
+
+jobs:
+  migrate:
+    name: Run migration script
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Safety guard (confirm required when not dry run)
+        if: ${{ inputs.dry_run == false }}
+        run: |
+          if [ "${{ inputs.confirm }}" != "MOVE_WORKFLOWS_TO_GLOBAL_DEFAULT" ]; then
+            echo "::error::Refusing to run with dry_run=false. Set 'confirm' exactly to: MOVE_WORKFLOWS_TO_GLOBAL_DEFAULT"
+            exit 1
+          fi
+
+      - name: Ensure DATABASE_URL secret is set
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Missing required secret DATABASE_URL. Set it in GitHub repo settings (Actions secrets)."
+            exit 1
+          fi
+
+      - name: Run migration script
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '0' }}
+          ALLOW_NAME_COLLISION: ${{ inputs.allow_name_collision && '1' || '0' }}
+          SOURCE_SURGERY_NAME: ${{ inputs.source_surgery_name }}
+          TARGET_GLOBAL_KEY: ${{ inputs.target_global_key }}
+        run: npx tsx scripts/migrateWorkflowsToGlobalDefault.ts
