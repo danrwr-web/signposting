@@ -94,6 +94,37 @@ Prisma migrations apply automatically via Vercel build or by running the seed sc
 
 No secrets appear in the repository.
 
+## One-off migration: move workflows to Global Default (GitHub Actions)
+
+This repo includes a one-off workflow migration script (`scripts/migrateWorkflowsToGlobalDefault.ts`) and a manual GitHub Actions workflow to run it.
+
+### Prerequisites
+
+- Ensure the repository has an Actions secret named **`DATABASE_URL`** pointing at the correct Neon Postgres database.
+
+### Run (DRY RUN first)
+
+1. GitHub → **Actions**
+2. Select **“Migrate workflows to Global Default (one-off)”**
+3. Click **Run workflow**
+4. Leave **`dry_run` = true** and run it
+5. Review the logs (it prints the templates it would move)
+
+### Run (real migration)
+
+1. Run the workflow again with **`dry_run` = false**
+2. Set **`confirm`** to exactly:
+
+MOVE_WORKFLOWS_TO_GLOBAL_DEFAULT
+
+If `confirm` does not match exactly, the workflow will fail early and do nothing.
+
+### After running
+
+- Check Global Default templates list shows the moved workflows
+- Check Ide Lane no longer owns those workflows (unless it has overrides)
+- Open a migrated workflow diagram and confirm nodes/links are intact
+
 📚 Documentation & Wiki Automation
 
 Documentation resides entirely in:
