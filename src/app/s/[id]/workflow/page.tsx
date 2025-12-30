@@ -7,13 +7,13 @@ import { getEffectiveWorkflows } from '@/server/effectiveWorkflows'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { CustomiseWorkflowButton } from '@/components/workflow/CustomiseWorkflowButton'
 
+const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
 interface WorkflowDashboardPageProps {
   params: Promise<{
     id: string
   }>
 }
-
-type WorkflowCategory = 'PRIMARY' | 'SECONDARY' | 'ADMIN'
 
 interface WorkflowTemplateWithCategory {
   id: string
@@ -23,6 +23,7 @@ interface WorkflowTemplateWithCategory {
   isDependent: boolean
   source: 'global' | 'override' | 'custom'
   sourceTemplateId: string | null
+  approvalStatus: string
 }
 
 export default async function WorkflowDashboardPage({ params }: WorkflowDashboardPageProps) {
@@ -47,6 +48,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     // Check if workflow guidance feature is enabled for this surgery
     const workflowsEnabled = await isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
+    const isGlobalSurgery = surgeryId === GLOBAL_SURGERY_ID
     
     // Allow admins to access even if workflows aren't enabled (so they can enable them)
     // For non-admins, show a message if workflows aren't enabled
@@ -84,8 +86,14 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       includeInactive: false,
     })
 
+    // Defensive de-duplication (and protects Global Default surgery view).
+    // We always want each workflow to appear once on the landing page.
+    const uniqueEffectiveWorkflows = Array.from(
+      new Map(effectiveWorkflows.map((w) => [w.id, w])).values(),
+    )
+
     // Get linkedFromNodes count for each workflow to identify dependent workflows
-    const workflowIds = effectiveWorkflows.map(w => w.id)
+    const workflowIds = uniqueEffectiveWorkflows.map(w => w.id)
     const linkedCounts = await prisma.workflowNodeLink.groupBy({
       by: ['templateId'],
       where: {
@@ -98,7 +106,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     const linkedCountMap = new Map(linkedCounts.map(l => [l.templateId, l._count._all]))
 
     // Classify workflows using workflowType field
-    const workflows: WorkflowTemplateWithCategory[] = effectiveWorkflows.map((template) => {
+    const workflows: WorkflowTemplateWithCategory[] = uniqueEffectiveWorkflows.map((template) => {
       const isDependent = (linkedCountMap.get(template.id) ?? 0) > 0
       const workflowType = (template.workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE') || 'SUPPORTING'
 
@@ -110,6 +118,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
         isDependent,
         source: template.source,
         sourceTemplateId: template.sourceTemplateId,
+        approvalStatus: template.approvalStatus,
       }
     })
 
@@ -121,6 +130,14 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+          <div className="mb-6">
+            <Link
+              href={`/s/${surgeryId}`}
+              className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            >
+              ← Back to Signposting
+            </Link>
+          </div>
           {/* Admin warning if workflows not enabled */}
           {isAdmin && !workflowsEnabled && (
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
@@ -169,10 +186,15 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
                         <h3 className="text-2xl font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">
                           {workflow.name}
                         </h3>
+                        {workflow.approvalStatus === 'DRAFT' && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Draft (not visible to staff)
+                          </span>
+                        )}
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           Primary
                         </span>
-                        {workflow.source === 'global' && (
+                        {!isGlobalSurgery && workflow.source === 'global' && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
                             Global Default
                           </span>
@@ -200,7 +222,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                     </Link>
-                    {isAdmin && workflow.source === 'global' && workflow.sourceTemplateId === null && (
+                    {isAdmin && !isGlobalSurgery && workflow.source === 'global' && (
                       <CustomiseWorkflowButton
                         surgeryId={surgeryId}
                         globalTemplateId={workflow.id}
@@ -230,9 +252,14 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
                       <h3 className="text-base font-semibold text-gray-900 group-hover:text-blue-600 transition-colors flex-1">
                         {template.name}
                       </h3>
-                      {template.source === 'global' && (
+                      {template.approvalStatus === 'DRAFT' && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 ml-2">
+                          Draft
+                        </span>
+                      )}
+                      {!isGlobalSurgery && template.source === 'global' && (
                         <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600 ml-2">
-                          Global
+                          Global Default
                         </span>
                       )}
                       {template.source === 'override' && (
@@ -256,7 +283,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </Link>
-                      {isAdmin && template.source === 'global' && template.sourceTemplateId === null && (
+                      {isAdmin && !isGlobalSurgery && template.source === 'global' && (
                         <CustomiseWorkflowButton
                           surgeryId={surgeryId}
                           globalTemplateId={template.id}
@@ -278,18 +305,48 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {moduleWorkflows.map((template) => (
-                  <Link
+                  <div
                     key={template.id}
-                    href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
-                    className="group bg-gray-50 rounded-lg border border-gray-100 p-4 hover:bg-white hover:border-gray-200 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    className="group bg-gray-50 rounded-lg border border-gray-100 p-4 hover:bg-white hover:border-gray-200 transition-all duration-200"
                   >
-                    <h3 className="text-sm font-medium text-gray-600 mb-1 group-hover:text-gray-900 transition-colors">
-                      {template.name}
-                    </h3>
-                    <span className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-                      View →
-                    </span>
-                  </Link>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Link
+                            href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
+                            className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                          >
+                            {template.name}
+                          </Link>
+                          {template.approvalStatus === 'DRAFT' && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                              Draft
+                            </span>
+                          )}
+                          {!isGlobalSurgery && template.source === 'global' && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                              Global Default
+                            </span>
+                          )}
+                          {template.source === 'override' && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
+                              Customised
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
+                          View →
+                        </span>
+                      </div>
+                      {isAdmin && !isGlobalSurgery && template.source === 'global' && (
+                        <CustomiseWorkflowButton
+                          surgeryId={surgeryId}
+                          globalTemplateId={template.id}
+                          workflowName={template.name}
+                        />
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>

@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import HomePageClient from '@/app/HomePageClient'
+import { isFeatureEnabledForSurgery } from '@/lib/features'
 
 // Disable caching for this page to ensure fresh requiresClinicalReview data
 export const dynamic = 'force-dynamic'
@@ -43,7 +44,17 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
   // Get effective symptoms for this surgery (with overrides applied)
   const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
-    return <HomePageClient surgeries={surgeries} symptoms={symptoms} requiresClinicalReview={surgery.requiresClinicalReview} surgeryName={surgery.name} />
+    const workflowGuidanceEnabled = await isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
+
+    return (
+      <HomePageClient
+        surgeries={surgeries}
+        symptoms={symptoms}
+        requiresClinicalReview={surgery.requiresClinicalReview}
+        surgeryName={surgery.name}
+        workflowGuidanceEnabled={workflowGuidanceEnabled}
+      />
+    )
   } catch (error) {
     redirect('/unauthorized')
   }

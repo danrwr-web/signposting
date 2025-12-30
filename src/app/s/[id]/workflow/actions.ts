@@ -90,8 +90,8 @@ export async function updateWorkflowTemplate(
       }
     }
 
-    const name = formData.get('name') as string
-    const description = formData.get('description') as string | null
+    const name = (formData.get('name') as string)?.trim()
+    const description = ((formData.get('description') as string | null) ?? '')?.trim() || null
     const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true'
     const colourHex = (formData.get('colourHex') as string) || null
     const landingCategoryRaw = formData.get('landingCategory') as string
@@ -111,20 +111,30 @@ export async function updateWorkflowTemplate(
       }
     }
 
-    // If workflow was approved, editing reverts it to DRAFT (safe default)
-    const wasApproved = existing.approvalStatus === 'APPROVED'
-    const approvalStatus = wasApproved ? 'DRAFT' : existing.approvalStatus
+    const editableFieldsChanged =
+      name !== existing.name ||
+      description !== existing.description ||
+      isActive !== existing.isActive ||
+      (colourHex || null) !== existing.colourHex ||
+      landingCategory !== existing.landingCategory ||
+      (workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE') !== existing.workflowType
+
+    // If workflow was approved and editable fields changed, revert to DRAFT and clear approval fields.
+    const shouldRevertApproval = existing.approvalStatus === 'APPROVED' && editableFieldsChanged
+    const nextApprovalStatus = shouldRevertApproval ? 'DRAFT' : existing.approvalStatus
 
     await prisma.workflowTemplate.update({
       where: { id: templateId },
       data: {
         name,
-        description: description || null,
+        description,
         isActive,
         colourHex: colourHex || null,
         landingCategory,
         workflowType: workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
-        approvalStatus,
+        approvalStatus: nextApprovalStatus,
+        approvedBy: shouldRevertApproval ? null : existing.approvedBy,
+        approvedAt: shouldRevertApproval ? null : existing.approvedAt,
         lastEditedBy: user.id,
         lastEditedAt: new Date(),
       },
@@ -132,6 +142,8 @@ export async function updateWorkflowTemplate(
 
     revalidatePath(`/s/${surgeryId}/workflow/templates`)
     revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}`)
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    revalidatePath(`/s/${surgeryId}/workflow`)
     
     return { success: true }
   } catch (error) {
@@ -142,6 +154,10 @@ export async function updateWorkflowTemplate(
     }
   }
 }
+
+// TODO(workflow-approval): Diagram edits (nodes/options/links) are saved by separate actions below.
+// If an APPROVED workflow’s diagram is changed, we should also revert approvalStatus to DRAFT and clear
+// approvedBy/approvedAt in those actions (without refactoring workflow engine behaviour here).
 
 export async function createWorkflowNode(
   surgeryId: string,
