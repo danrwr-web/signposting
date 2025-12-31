@@ -1,3 +1,5 @@
+# User Guide
+
 ## Navigation
 
 - [Home](Home)
@@ -14,15 +16,17 @@
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Workflow Guidance](Workflow-Guidance)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
 
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
 
+- [Admin Guide](Admin-Guide)
+
 - [Developer Guide](Developer-Guide)
 
 ---
-
-# User Guide
 
 A practical guide for reception and care-navigation teams using the Signposting Toolkit.
 

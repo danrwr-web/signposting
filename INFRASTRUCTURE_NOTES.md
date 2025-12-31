@@ -125,6 +125,35 @@ If `confirm` does not match exactly, the workflow will fail early and do nothing
 - Check Ide Lane no longer owns those workflows (unless it has overrides)
 - Open a migrated workflow diagram and confirm nodes/links are intact
 
+## Workflow Guidance Governance Model
+
+Workflow Guidance follows the same governance principles as the Signposting Toolkit.
+
+Global Default workflows
+	•	Stored under the global-default-buttons surgery
+	•	Maintained centrally by superusers
+	•	Act as the base template for all surgeries
+
+Surgery-specific overrides
+	•	Created by copying a Global Default workflow
+	•	Linked via sourceTemplateId
+	•	Allow local adaptation without affecting the global template
+
+Approval lifecycle
+	•	All workflows start in DRAFT
+	•	Only APPROVED workflows are visible to staff
+	•	Editing an approved workflow automatically reverts it to DRAFT
+
+Audit metadata
+	•	Approved by
+	•	Approved at
+	•	Last edited by
+	•	Last edited at
+
+Feature gating
+	•	Workflow Guidance is enabled per surgery using existing feature flags
+	•	If disabled, workflows are not visible to staff or linked from signposting
+
 📚 Documentation & Wiki Automation
 
 Documentation resides entirely in:
