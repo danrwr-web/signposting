@@ -261,6 +261,102 @@ export default function LandingPageClient() {
         </div>
       </section>
 
+      {/* Testimonial */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900">What people are saying</h2>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <figure className="relative bg-slate-50 border border-slate-200 rounded-xl p-8 sm:p-10">
+              <div aria-hidden="true" className="absolute top-6 left-6 text-blue-600/20">
+                <svg className="h-10 w-10" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7.17 6A4.17 4.17 0 0 0 3 10.17V19h8v-8H7.17A1.17 1.17 0 0 1 6 9.83V9.67C6 8.75 6.75 8 7.67 8H9V6H7.17Zm13 0A4.17 4.17 0 0 0 16 10.17V19h8v-8h-3.83A1.17 1.17 0 0 1 19 9.83V9.67C19 8.75 19.75 8 20.67 8H22V6h-1.83Z" />
+                </svg>
+              </div>
+
+              <blockquote className="text-gray-800 leading-relaxed">
+                <p className="text-base sm:text-lg">
+                  “I have seen a number of signposting tools and techniques in over 50 practices across the South West. This signposting tool is easy for receptionists/care navigators to use and gives clear guidance on how to direct patients appropriately.
+                </p>
+                <p className="mt-4 text-base sm:text-lg">
+                  The visuals have been tailored to allow users to find the condition they require quickly. Having useful phrases and questions, which have been developed by both clinical and non-clinical team members, allows the user to navigate the patient promptly and capture the required information for the clinician without sounding robotic or lacking in empathy.
+                </p>
+                <p className="mt-4 text-base sm:text-lg">
+                  The tool is excellent for new starters or temporary staff who are learning the practice systems and allows all users to carry out the correct booking process/urgency consistently.”
+                </p>
+              </blockquote>
+
+              <figcaption className="mt-8 pt-6 border-t border-slate-200">
+                <p className="font-semibold text-gray-900">Emma Gregory</p>
+                <p className="text-sm text-gray-600">PLS Programme Facilitator &amp; Former Practice Manager</p>
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900">Pricing</h2>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 sm:p-10">
+              <p className="text-sm font-semibold text-blue-700">Early adopter offer</p>
+              <p className="mt-3 text-4xl sm:text-5xl font-bold text-gray-900">£0.07 per patient per year</p>
+              <p className="mt-3 text-base text-gray-700">Available to the next 10 practices to onboard.</p>
+
+              <div className="mt-8 pt-6 border-t border-slate-200">
+                <h3 className="text-base font-semibold text-gray-900">What’s included</h3>
+                <ul className="mt-4 space-y-2 text-gray-700">
+                  {[
+                    'Unlimited users',
+                    'Full symptom library',
+                    'Local customisation',
+                    'Clinical review & governance workflow',
+                    'Appointment directory',
+                    'Ongoing updates and improvements',
+                  ].map((item) => (
+                    <li key={item} className="flex items-start gap-3">
+                      <svg
+                        className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <p className="mt-6 text-sm text-gray-600">
+                  Future pricing will be reviewed once the early adopter phase is complete.
+                </p>
+
+                <div className="mt-8">
+                  <Link
+                    href="/demo-request"
+                    className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Request a demo
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Pharmacy First Impact Statement */}
       <section className="bg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
