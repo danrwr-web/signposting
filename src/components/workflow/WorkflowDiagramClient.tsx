@@ -436,10 +436,20 @@ export default function WorkflowDiagramClient({
 
   const initialEdges = useMemo<Edge[]>(() => {
     const edgesFromTemplate: Edge[] = []
+    const nodeIds = new Set(template.nodes.map((n) => n.id))
 
     template.nodes.forEach((node) => {
       node.answerOptions.forEach((option) => {
         if (option.nextNodeId) {
+          if (process.env.NODE_ENV !== 'production' && !nodeIds.has(option.nextNodeId)) {
+            console.warn('WorkflowDiagramClient: answer option references missing node', {
+              templateId: template.id,
+              fromNodeId: node.id,
+              optionId: option.id,
+              nextNodeId: option.nextNodeId,
+            })
+          }
+
           const labelText = (option.label ?? '').trim()
           const hasLabel = labelText !== ''
           edgesFromTemplate.push({

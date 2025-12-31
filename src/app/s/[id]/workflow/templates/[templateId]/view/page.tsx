@@ -22,6 +22,66 @@ import {
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
+type WorkflowTemplateWithGraph = NonNullable<Awaited<ReturnType<typeof prisma.workflowTemplate.findFirst>>>
+
+function buildNodeMatchKey(node: { sortOrder: number; nodeType: unknown; title: string }): string {
+  return `${node.sortOrder}::${String(node.nodeType)}::${node.title.trim()}`
+}
+
+function repairOverrideAnswerOptionLinks(
+  overrideTemplate: WorkflowTemplateWithGraph,
+  sourceTemplate: WorkflowTemplateWithGraph,
+): WorkflowTemplateWithGraph {
+  // Only repair when shapes look as expected
+  if (!overrideTemplate.nodes?.length || !sourceTemplate.nodes?.length) return overrideTemplate
+
+  const overrideByKey = new Map<string, string>()
+  for (const n of overrideTemplate.nodes) {
+    overrideByKey.set(buildNodeMatchKey(n), n.id)
+  }
+
+  const sourceByKey = new Map<string, typeof sourceTemplate.nodes[number]>()
+  for (const n of sourceTemplate.nodes) {
+    sourceByKey.set(buildNodeMatchKey(n), n)
+  }
+
+  const sourceNodeIdToOverrideNodeId = new Map<string, string>()
+  for (const sourceNode of sourceTemplate.nodes) {
+    const key = buildNodeMatchKey(sourceNode)
+    const overrideNodeId = overrideByKey.get(key)
+    if (overrideNodeId) {
+      sourceNodeIdToOverrideNodeId.set(sourceNode.id, overrideNodeId)
+    }
+  }
+
+  // Repair only missing nextNodeId where the source has a nextNodeId.
+  const repairedNodes = overrideTemplate.nodes.map((overrideNode) => {
+    const sourceNode = sourceByKey.get(buildNodeMatchKey(overrideNode))
+    if (!sourceNode) return overrideNode
+
+    const sourceOptionByValueKey = new Map<string, typeof sourceNode.answerOptions[number]>()
+    for (const opt of sourceNode.answerOptions) {
+      sourceOptionByValueKey.set(opt.valueKey, opt)
+    }
+
+    const repairedOptions = overrideNode.answerOptions.map((overrideOpt) => {
+      if (overrideOpt.nextNodeId) return overrideOpt
+
+      const sourceOpt = sourceOptionByValueKey.get(overrideOpt.valueKey)
+      if (!sourceOpt?.nextNodeId) return overrideOpt
+
+      const mappedNext = sourceNodeIdToOverrideNodeId.get(sourceOpt.nextNodeId) ?? null
+      if (!mappedNext) return overrideOpt
+
+      return { ...overrideOpt, nextNodeId: mappedNext }
+    })
+
+    return { ...overrideNode, answerOptions: repairedOptions }
+  })
+
+  return { ...overrideTemplate, nodes: repairedNodes }
+}
+
 interface WorkflowTemplateViewPageProps {
   params: {
     id: string
@@ -79,6 +139,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
               select: {
                 id: true,
                 label: true,
+                valueKey: true,
                 nextNodeId: true,
                 actionKey: true,
                 sourceHandle: true,
@@ -107,11 +168,38 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       redirect('/unauthorized')
     }
 
+    let templateForRender = template
+
+    // If viewing a surgery-owned override, repair any missing nextNodeId mappings from the source Global Default template.
+    // This is non-destructive: it only affects what we render, and avoids silent loss of edges after migrations.
+    if (templateOwnerSurgeryId === surgeryId && template.sourceTemplateId) {
+      const sourceTemplate = await prisma.workflowTemplate.findFirst({
+        where: {
+          id: template.sourceTemplateId,
+          surgeryId: GLOBAL_SURGERY_ID,
+        },
+        include: {
+          nodes: {
+            orderBy: {
+              sortOrder: 'asc',
+            },
+            include: {
+              answerOptions: true,
+            },
+          },
+        },
+      })
+
+      if (sourceTemplate) {
+        templateForRender = repairOverrideAnswerOptionLinks(template as WorkflowTemplateWithGraph, sourceTemplate)
+      }
+    }
+
     // Check if user can admin *this template* (global templates should only be editable by superusers).
     const isAdmin = can(user).isAdminOfSurgery(templateOwnerSurgeryId)
 
     // Staff (and non-global admins) must not see draft templates.
-    if (!isAdmin && template.approvalStatus !== 'APPROVED') {
+    if (!isAdmin && templateForRender.approvalStatus !== 'APPROVED') {
       redirect('/unauthorized')
     }
 
@@ -130,10 +218,26 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       }
     }) : []
 
-    const answerOptionsWithNextCount = template.nodes.reduce((count, node) => {
+    const answerOptionsWithNextCount = templateForRender.nodes.reduce((count, node) => {
       return count + node.answerOptions.filter((option) => option.nextNodeId !== null).length
     }, 0)
     const showDebugCounts = process.env.NODE_ENV !== 'production'
+    const nodeCount = templateForRender.nodes.length
+    const missingTargetCount = templateForRender.nodes.reduce((acc, node) => {
+      const ids = new Set(templateForRender.nodes.map((n) => n.id))
+      return acc + node.answerOptions.filter((opt) => opt.nextNodeId && !ids.has(opt.nextNodeId)).length
+    }, 0)
+
+    if (showDebugCounts) {
+      console.info('[WorkflowDiagram] Loaded template', {
+        surgeryId,
+        templateId,
+        templateOwnerSurgeryId,
+        nodeCount,
+        answerOptionsWithNextCount,
+        missingTargetCount,
+      })
+    }
 
     // Create bound server actions for admin editing
     const updatePositionAction = isAdmin ? updateWorkflowNodePosition.bind(null, surgeryId, templateId) : undefined
@@ -184,7 +288,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
           </div>
 
           <WorkflowDiagramClientWrapper
-            template={template}
+            template={templateForRender}
             isAdmin={isAdmin}
             allTemplates={allTemplates}
             surgeryId={surgeryId}

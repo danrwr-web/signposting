@@ -1597,7 +1597,7 @@ export async function createWorkflowOverride(
       // Create a map of old node IDs to new node IDs
       const nodeIdMap = new Map<string, string>()
 
-      // Copy nodes
+      // Copy nodes first (two-pass) so nextNodeId mapping always works.
       for (const globalNode of globalTemplate.nodes) {
         const newNode = await tx.workflowNodeTemplate.create({
           data: {
@@ -1613,15 +1613,21 @@ export async function createWorkflowOverride(
           },
         })
         nodeIdMap.set(globalNode.id, newNode.id)
+      }
 
-        // Copy answer options
+      // Copy answer options and workflow links in a second pass.
+      for (const globalNode of globalTemplate.nodes) {
+        const newNodeId = nodeIdMap.get(globalNode.id)
+        if (!newNodeId) {
+          throw new Error('Failed to map node IDs during override creation')
+        }
+
         for (const option of globalNode.answerOptions) {
-          // Map nextNodeId if it exists
           const nextNodeId = option.nextNodeId ? nodeIdMap.get(option.nextNodeId) || null : null
-          
+
           await tx.workflowAnswerOptionTemplate.create({
             data: {
-              nodeId: newNode.id,
+              nodeId: newNodeId,
               label: option.label,
               valueKey: option.valueKey,
               description: option.description,
@@ -1633,12 +1639,12 @@ export async function createWorkflowOverride(
           })
         }
 
-        // Copy workflow links (links to other templates)
+        // WorkflowNodeLink points to another workflow template (NOT the current template).
         for (const link of globalNode.workflowLinks) {
           await tx.workflowNodeLink.create({
             data: {
-              nodeId: newNode.id,
-              templateId: overrideTemplate.id,
+              nodeId: newNodeId,
+              templateId: link.templateId,
               label: link.label,
               sortOrder: link.sortOrder,
             },
