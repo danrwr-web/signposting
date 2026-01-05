@@ -453,11 +453,29 @@ export default function WorkflowDiagramClient({
           // Fallback for any other node types (shouldn't happen)
           label: (
             <>
-              {/* Target handle (top) - connections come IN */}
+              {/* Target handles - connections come IN */}
               <Handle
                 id="target-top"
                 type="target"
                 position={Position.Top}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="target-right"
+                type="target"
+                position={Position.Right}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="target-bottom"
+                type="target"
+                position={Position.Bottom}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="target-left"
+                type="target"
+                position={Position.Left}
                 className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <div 
@@ -510,11 +528,29 @@ export default function WorkflowDiagramClient({
                   </div>
                 )}
               </div>
-              {/* Source handle (bottom) - connections go OUT */}
+              {/* Source handles - connections go OUT */}
+              <Handle
+                id="source-top"
+                type="source"
+                position={Position.Top}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="source-right"
+                type="source"
+                position={Position.Right}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
               <Handle
                 id="source-bottom"
                 type="source"
                 position={Position.Bottom}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="source-left"
+                type="source"
+                position={Position.Left}
                 className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
             </>
@@ -538,6 +574,36 @@ export default function WorkflowDiagramClient({
     [template.nodes]
   )
 
+  // Helper to normalize handle IDs for backwards compatibility
+  // Maps legacy handle IDs to standard ones, or returns undefined if handle doesn't exist
+  const normalizeHandleId = useCallback((handleId: string | null | undefined, isSource: boolean): string | undefined => {
+    if (!handleId) {
+      return undefined
+    }
+    
+    const handle = handleId.trim()
+    
+    // Standard handles (already correct) - validate format
+    if (handle.startsWith(isSource ? 'source-' : 'target-')) {
+      const suffix = handle.split('-')[1]
+      // Validate suffix is one of: top, right, bottom, left
+      if (['top', 'right', 'bottom', 'left'].includes(suffix)) {
+        return handle
+      }
+    }
+    
+    // Legacy handle IDs (without position suffix) - map to defaults
+    if (handle === 'source') {
+      return isSource ? 'source-bottom' : undefined
+    }
+    if (handle === 'target') {
+      return isSource ? undefined : 'target-top'
+    }
+    
+    // Unknown handle ID - return undefined to let React Flow use default
+    return undefined
+  }, [])
+
   const initialEdges = useMemo<Edge[]>(() => {
     const edgesFromTemplate: Edge[] = []
     const nodeIds = new Set(template.nodes.map((n) => n.id))
@@ -556,12 +622,17 @@ export default function WorkflowDiagramClient({
 
           const labelText = (option.label ?? '').trim()
           const hasLabel = labelText !== ''
+          
+          // Normalize handle IDs for backwards compatibility
+          const normalizedSourceHandle = normalizeHandleId(option.sourceHandle, true) ?? 'source-bottom'
+          const normalizedTargetHandle = normalizeHandleId(option.targetHandle, false) ?? 'target-top'
+          
           edgesFromTemplate.push({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            sourceHandle: option.sourceHandle ?? 'source-bottom',
-            targetHandle: option.targetHandle ?? 'target-top',
+            sourceHandle: normalizedSourceHandle,
+            targetHandle: normalizedTargetHandle,
             label: hasLabel ? labelText : undefined,
             labelStyle: hasLabel
               ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' }
@@ -586,7 +657,7 @@ export default function WorkflowDiagramClient({
     })
 
     return edgesFromTemplate
-  }, [template.nodes])
+  }, [template.nodes, normalizeHandleId])
 
   // Update ref whenever nodes change
   useEffect(() => {
@@ -1043,13 +1114,17 @@ export default function WorkflowDiagramClient({
     // If user cancels, labelInput is null - we'll treat this as empty string
     const label = labelInput === null ? '' : labelInput.trim()
 
+    // Normalize handle IDs for backwards compatibility
+    const normalizedSourceHandle = normalizeHandleId(connection.sourceHandle, true) ?? 'source-bottom'
+    const normalizedTargetHandle = normalizeHandleId(connection.targetHandle, false) ?? 'target-top'
+
     try {
       const result = await createAnswerOptionAction(
         connection.source,
         connection.target,
         label,
-        connection.sourceHandle ?? 'source-bottom',
-        connection.targetHandle ?? 'target-top'
+        normalizedSourceHandle,
+        normalizedTargetHandle
       )
       if (result.success && result.option) {
         // Add new edge to the edges state
@@ -1058,8 +1133,8 @@ export default function WorkflowDiagramClient({
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
-          sourceHandle: connection.sourceHandle ?? 'source-bottom',
-          targetHandle: connection.targetHandle ?? 'target-top',
+          sourceHandle: normalizedSourceHandle,
+          targetHandle: normalizedTargetHandle,
           label: edgeLabel,
           labelStyle: edgeLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' } : undefined,
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
@@ -1088,7 +1163,7 @@ export default function WorkflowDiagramClient({
       console.error('Error creating connection:', error)
       alert('Failed to create connection')
     }
-  }, [isAdmin, createAnswerOptionAction, setEdges, isValidConnection])
+  }, [effectiveAdmin, createAnswerOptionAction, setEdges, isValidConnection, normalizeHandleId])
 
   // Handle creating new node from toolbar
   const handleCreateNode = useCallback(async (nodeType: WorkflowNodeType) => {
@@ -1337,6 +1412,7 @@ export default function WorkflowDiagramClient({
       setNodes((nds) => [...nds, newNode])
 
       // 4) Create connection with empty label (bottom to top)
+      // Use standard handle IDs for new connections
       const edgeResult = await createAnswerOptionAction(selectedNode.id, result.node.id, '', 'source-bottom', 'target-top')
       if (!edgeResult.success || !edgeResult.option) {
         alert(`Node created, but failed to connect: ${edgeResult.error || 'Unknown error'}`)

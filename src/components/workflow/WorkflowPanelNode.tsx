@@ -55,15 +55,7 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
         />
       )}
 
-      {/* Panel nodes typically don't have handles, but we'll add them for admin editing */}
-      {isAdmin && (
-        <>
-          <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
-          <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
-          <Handle id="target-bottom" type="target" position={Position.Bottom} className={handleClass} />
-          <Handle id="target-left" type="target" position={Position.Left} className={handleClass} />
-        </>
-      )}
+      {/* Panel nodes are not connectable - no handles */}
 
       {/* Panel container - explicitly fills React Flow node dimensions */}
       <div
