@@ -62,16 +62,16 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
   const nodeStyles = getNodeTypeColor(nodeType)
 
   return (
-    <div className="w-full h-full relative">
+    <div className="relative" style={{ width: 300 }}>
       {/* Target handles - connections come IN */}
       <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
       <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
       <Handle id="target-bottom" type="target" position={Position.Bottom} className={handleClass} />
       <Handle id="target-left" type="target" position={Position.Left} className={handleClass} />
 
-      {/* Card container - fills wrapper and matches React Flow bounds */}
+      {/* Card container */}
       <div 
-        className={`w-full h-full rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border bg-white border-gray-200 ${
+        className={`rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border bg-white border-gray-200 ${
           styleClasses
         } ${
           isSelected || selected

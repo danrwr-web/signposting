@@ -69,7 +69,7 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
   const borderColor = hasExplicitBorder ? (style?.borderColor || '') : '#fbbf24'
 
   return (
-    <div className="w-full h-full relative">
+    <div className="relative cursor-pointer transition-all" style={{ width: 240, height: 160 }}>
       {/* Target handles - connections come IN */}
       <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
       <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
@@ -82,9 +82,9 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
       <Handle id="source-right" type="source" position={Position.Right} className={handleClass} />
       <Handle id="source-bottom" type="source" position={Position.Bottom} className={handleClass} />
 
-      {/* Diamond container - fills wrapper and matches React Flow bounds */}
+      {/* Diamond container - fixed size matching React Flow node bounds */}
       <div
-        className={`w-full h-full relative cursor-pointer transition-all ${
+        className={`relative w-full h-full cursor-pointer transition-all ${
           isSelected || selected
             ? 'ring-2 ring-blue-500 shadow-lg'
             : 'shadow-md'
@@ -94,7 +94,7 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
           onNodeClick?.()
         }}
       >
-        {/* Diamond background - SVG that fills 100% of wrapper */}
+        {/* Diamond background - SVG that fills the container */}
         <svg
           width="100%"
           height="100%"

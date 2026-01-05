@@ -388,6 +388,10 @@ export default function WorkflowDiagramClient({
         }
         // Set style on node object for React Flow explicit sizing
         nodeDimensions.style = { width, height }
+      } else if (node.nodeType === 'QUESTION') {
+        // QUESTION nodes (diamond) need explicit dimensions for proper sizing
+        nodeDimensions.width = 240
+        nodeDimensions.height = 160
       }
       
       return {
