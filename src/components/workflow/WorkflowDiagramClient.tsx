@@ -364,17 +364,31 @@ export default function WorkflowDiagramClient({
       }
 
       // For PANEL nodes, compute dimensions from DB style (source of truth)
-      // Always set width/height from computed values, never fall back to measured/current values
-      const nodeDimensions = node.nodeType === 'PANEL' 
-        ? (() => {
-            const styleWidth = (node.style as { width?: number } | null)?.width
-            const styleHeight = (node.style as { height?: number } | null)?.height
-            // Compute from DB style, clamp to minimums
-            const width = Math.max(styleWidth ?? 500, PANEL_MIN_W)
-            const height = Math.max(styleHeight ?? 400, PANEL_MIN_H)
-            return { width, height }
-          })()
-        : {}
+      // Always set width/height explicitly on both node.width/node.height AND node.style
+      // This prevents React Flow from treating them as auto-sized and re-measuring
+      let nodeDimensions: { width?: number; height?: number; style?: React.CSSProperties } = {}
+      let panelStyle = node.style
+      
+      if (node.nodeType === 'PANEL') {
+        const styleWidth = (node.style as { width?: number } | null)?.width
+        const styleHeight = (node.style as { height?: number } | null)?.height
+        // Compute from DB style, clamp to minimums
+        const width = Math.max(styleWidth ?? 500, PANEL_MIN_W)
+        const height = Math.max(styleHeight ?? 400, PANEL_MIN_H)
+        
+        // Set on node properties
+        nodeDimensions.width = width
+        nodeDimensions.height = height
+        
+        // Also ensure style object has width/height for explicit sizing
+        panelStyle = {
+          ...(node.style || {}),
+          width,
+          height,
+        }
+        // Set style on node object for React Flow explicit sizing
+        nodeDimensions.style = { width, height }
+      }
       
       return {
         id: node.id,
@@ -427,7 +441,7 @@ export default function WorkflowDiagramClient({
           nodeType: node.nodeType,
           title: node.title,
           badges: node.badges || [],
-          style: node.style,
+          style: panelStyle, // Use panelStyle which includes width/height
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
@@ -593,23 +607,49 @@ export default function WorkflowDiagramClient({
       const mergedNode = { ...incomingNode }
       
       // For PANEL nodes: always preserve existing dimensions if they exist
+      // Ensure width/height are ALWAYS set on both node properties AND node.style
       const isPanelNode = incomingNode.type === 'panelNode'
       if (isPanelNode) {
-        // If current node has width/height numbers, ALWAYS preserve them (ignore incoming)
-        // This prevents server-driven sync from overwriting local dimensions during a live session
+        let chosenWidth: number
+        let chosenHeight: number
+        
+        // Choose dimensions: prefer current if they exist, else use incoming
         if (currentNode.width !== undefined && currentNode.height !== undefined &&
             typeof currentNode.width === 'number' && typeof currentNode.height === 'number') {
           // Preserve existing dimensions and clamp to minimums
-          mergedNode.width = Math.max(currentNode.width, PANEL_MIN_W)
-          mergedNode.height = Math.max(currentNode.height, PANEL_MIN_H)
+          chosenWidth = Math.max(currentNode.width, PANEL_MIN_W)
+          chosenHeight = Math.max(currentNode.height, PANEL_MIN_H)
         } else {
           // No current dimensions yet - use incoming dimensions from DB (initial load)
           // Clamp to minimums
-          if (mergedNode.width !== undefined) {
-            mergedNode.width = Math.max(mergedNode.width, PANEL_MIN_W)
-          }
-          if (mergedNode.height !== undefined) {
-            mergedNode.height = Math.max(mergedNode.height, PANEL_MIN_H)
+          const incomingWidth = typeof incomingNode.width === 'number' ? incomingNode.width : PANEL_MIN_W
+          const incomingHeight = typeof incomingNode.height === 'number' ? incomingNode.height : PANEL_MIN_H
+          chosenWidth = Math.max(incomingWidth, PANEL_MIN_W)
+          chosenHeight = Math.max(incomingHeight, PANEL_MIN_H)
+        }
+        
+        // FORCE: Always set width/height on both node properties AND node.style
+        mergedNode.width = chosenWidth
+        mergedNode.height = chosenHeight
+        
+        // Ensure style object exists and has width/height
+        const currentStyle = (mergedNode.style as React.CSSProperties) || {}
+        mergedNode.style = {
+          ...currentStyle,
+          width: chosenWidth,
+          height: chosenHeight,
+        }
+        
+        // Debug assertion in dev only
+        if (process.env.NODE_ENV !== 'production') {
+          if (mergedNode.width === undefined || mergedNode.height === undefined ||
+              typeof mergedNode.width !== 'number' || typeof mergedNode.height !== 'number') {
+            console.warn('[PANEL merge] PANEL node missing width/height after merge:', {
+              nodeId: mergedNode.id,
+              width: mergedNode.width,
+              height: mergedNode.height,
+              hasStyle: !!mergedNode.style,
+            })
           }
         }
       }
