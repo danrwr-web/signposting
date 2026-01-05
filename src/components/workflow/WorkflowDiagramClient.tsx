@@ -175,7 +175,7 @@ export default function WorkflowDiagramClient({
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [nodes, setNodes, onNodesChangeBase] = useNodesState([])
+  const [nodes, setNodes, onNodesChangeInternal] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   
   // Debounce timer for panel dimension updates
@@ -186,6 +186,9 @@ export default function WorkflowDiagramClient({
   
   // Ref to track current nodes state for async operations
   const nodesRef = useRef<Node[]>([])
+  
+  // Track pending dimension changes to save
+  const pendingDimensionSavesRef = useRef<Map<string, { width: number; height: number }>>(new Map())
   
   // Editing state for admin
   const [editingTitle, setEditingTitle] = useState('')
@@ -558,20 +561,16 @@ export default function WorkflowDiagramClient({
     return edgesFromTemplate
   }, [template.nodes])
 
+  // Update ref whenever nodes change
   useEffect(() => {
-    // Update ref with current nodes
     nodesRef.current = nodes
   }, [nodes])
   
   useEffect(() => {
     // Don't overwrite nodes that are currently being resized
-    setNodes((currentNodes) => {
-      // Update ref with current nodes
-      nodesRef.current = currentNodes
-      
-      // If any nodes are being resized, skip updating those nodes entirely
-      if (resizingNodesRef.current.size > 0) {
-        // Only update nodes that are NOT being resized
+    if (resizingNodesRef.current.size > 0) {
+      // Only update nodes that are NOT being resized
+      setNodes((currentNodes) => {
         const updatedNodes = flowNodes.map((flowNode) => {
           // If this node is being resized, keep its current state from React Flow
           if (resizingNodesRef.current.has(flowNode.id)) {
@@ -585,11 +584,12 @@ export default function WorkflowDiagramClient({
           return flowNode
         })
         return updatedNodes
-      }
+      })
+    } else {
       // No nodes being resized - apply flowNodes normally
-      return flowNodes
-    })
-  }, [flowNodes, setNodes, nodes])
+      setNodes(flowNodes)
+    }
+  }, [flowNodes, setNodes])
 
   useEffect(() => {
     setEdges(initialEdges)
@@ -713,18 +713,30 @@ export default function WorkflowDiagramClient({
   
   // Custom onNodesChange handler to intercept panel dimension changes
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // Apply changes to React Flow state first
-    setNodes((nds) => {
-      const updatedNodes = applyNodeChanges(changes, nds)
-      
-      // Intercept dimension changes for PANEL nodes
-      if (effectiveAdmin && updateNodeAction) {
-        for (const change of changes) {
-          if (change.type === 'dimensions') {
-            const node = updatedNodes.find((n) => n.id === change.id)
-            if (node && node.type === 'panelNode' && change.dimensions) {
-              // Mark node as being resized
-              resizingNodesRef.current.add(change.id)
+    // First, apply changes using React Flow's built-in handler
+    onNodesChangeInternal(changes)
+    
+    // Then intercept dimension changes for PANEL nodes (store for later processing)
+    if (effectiveAdmin && updateNodeAction) {
+      for (const change of changes) {
+        if (change.type === 'dimensions' && change.dimensions) {
+          const nodeId = change.id
+          
+          // Check if this is a panel node by looking at current nodes
+          // Use a small delay to let React Flow update first
+          setTimeout(() => {
+            const node = nodesRef.current.find((n) => n.id === nodeId)
+            
+            // Only process panel nodes
+            if (node && node.type === 'panelNode') {
+              // Mark node as being resized immediately
+              resizingNodesRef.current.add(nodeId)
+              
+              // Store dimensions for later save (use dimensions from change event)
+              pendingDimensionSavesRef.current.set(nodeId, {
+                width: change.dimensions.width,
+                height: change.dimensions.height,
+              })
               
               // Clear existing timeout for this specific node
               if (panelDimensionUpdateTimeoutRef.current) {
@@ -736,20 +748,18 @@ export default function WorkflowDiagramClient({
               
               // Debounce dimension updates (500ms after resizing ends, or 300ms for ongoing resize)
               const debounceDelay = resizingEnded ? 500 : 300
-              const nodeIdToSave = change.id
-              panelDimensionUpdateTimeoutRef.current = setTimeout(async () => {
-                // Read current dimensions from React Flow state ref at the time of save
-                // This ensures we save the actual resized dimensions, not stale closure values
-                const currentNode = nodesRef.current.find((n) => n.id === nodeIdToSave)
-                if (!currentNode || !currentNode.width || !currentNode.height) {
-                  resizingNodesRef.current.delete(nodeIdToSave)
+              panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
+                const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
+                if (!pendingSave) {
+                  resizingNodesRef.current.delete(nodeId)
                   return
                 }
                 
                 // Find the original node data to get current style
-                const originalNode = template.nodes.find((n) => n.id === nodeIdToSave)
+                const originalNode = template.nodes.find((n) => n.id === nodeId)
                 if (!originalNode) {
-                  resizingNodesRef.current.delete(nodeIdToSave)
+                  resizingNodesRef.current.delete(nodeId)
+                  pendingDimensionSavesRef.current.delete(nodeId)
                   return
                 }
                 
@@ -757,38 +767,37 @@ export default function WorkflowDiagramClient({
                 const currentStyle = originalNode.style || {}
                 const updatedStyle = {
                   ...currentStyle,
-                  width: currentNode.width,
-                  height: currentNode.height,
+                  width: pendingSave.width,
+                  height: pendingSave.height,
                 }
                 
-                try {
-                  await updateNodeAction(
-                    nodeIdToSave,
-                    originalNode.title,
-                    originalNode.body,
-                    originalNode.actionKey,
-                    undefined, // linkedWorkflows
-                    originalNode.badges || [],
-                    updatedStyle
-                  )
+                // Save to DB asynchronously
+                updateNodeAction(
+                  nodeId,
+                  originalNode.title,
+                  originalNode.body,
+                  originalNode.actionKey,
+                  undefined, // linkedWorkflows
+                  originalNode.badges || [],
+                  updatedStyle
+                ).then(() => {
                   // Remove from resizing set after successful save
-                  // Wait longer to prevent race conditions with re-renders
                   setTimeout(() => {
-                    resizingNodesRef.current.delete(nodeIdToSave)
+                    resizingNodesRef.current.delete(nodeId)
+                    pendingDimensionSavesRef.current.delete(nodeId)
                   }, 1000)
-                } catch (error) {
+                }).catch((error) => {
                   console.error('Error updating panel dimensions:', error)
-                  resizingNodesRef.current.delete(nodeIdToSave)
-                }
+                  resizingNodesRef.current.delete(nodeId)
+                  pendingDimensionSavesRef.current.delete(nodeId)
+                })
               }, debounceDelay)
             }
-          }
+          }, 0)
         }
       }
-      
-      return updatedNodes
-    })
-  }, [setNodes, effectiveAdmin, updateNodeAction, template.nodes])
+    }
+  }, [onNodesChangeInternal, effectiveAdmin, updateNodeAction, template.nodes])
 
   // Handle node click (node selection is handled in the label onClick)
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
