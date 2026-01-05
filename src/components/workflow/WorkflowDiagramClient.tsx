@@ -29,78 +29,74 @@ import WorkflowOutcomeNode from './WorkflowOutcomeNode'
 import WorkflowPanelNode from './WorkflowPanelNode'
 import { renderBulletText } from './renderBulletText'
 
-// Debug component to access ReactFlow instance (dev only)
-function DebugFlowAccessor() {
-  const { getNodes, getEdges } = useReactFlow()
-  
-  // Store accessor functions in a global ref so parent can call them
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      (window as any).__debugGetReactFlowNodes = () => getNodes()
-      ;(window as any).__debugGetReactFlowEdges = () => getEdges()
-    }
-  }, [getNodes, getEdges])
-  
-  return null
-}
-
-// Debug button component (dev only)
-function DebugButton({ 
+// Debug component to access ReactFlow instance and expose debug function
+// Only enabled when URL contains debugRF=1 query parameter
+function DebugFlowAccessor({ 
   template, 
-  flowNodes, 
-  nodes, 
-  edges 
+  flowNodes 
 }: { 
   template: any
   flowNodes: Node[]
-  nodes: Node[]
-  edges: Edge[]
 }) {
-  const handleDebugClick = useCallback(() => {
-    console.group('🔍 React Flow Debug Snapshot')
+  const { getNodes, getEdges } = useReactFlow()
+  
+  // Expose debug function on window when debugRF=1 is in URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return
     
-    // A) Template positions (from server)
-    const templatePositions = template.nodes.map((n: any) => ({
-      id: n.id,
-      type: n.nodeType,
-      x: n.positionX,
-      y: n.positionY,
-      style: n.style,
-    }))
-    console.log('A) Template positions (from server):', templatePositions)
+    const urlParams = new URLSearchParams(window.location.search)
+    const debugEnabled = urlParams.get('debugRF') === '1'
     
-    // Check for duplicate IDs in template
-    const templateIds = template.nodes.map((n: any) => n.id)
-    const templateDuplicates = templateIds.filter((id: string, idx: number) => templateIds.indexOf(id) !== idx)
-    if (templateDuplicates.length > 0) {
-      console.error('❌ Duplicate IDs in template:', [...new Set(templateDuplicates)])
+    if (!debugEnabled) {
+      // Clean up if query param removed
+      if ((window as any).__debugRF) {
+        delete (window as any).__debugRF
+      }
+      return
     }
     
-    // B) FlowNodes mapped positions (what we pass to setNodes/ReactFlow)
-    const flowNodesPositions = flowNodes.map((n) => ({
-      id: n.id,
-      type: n.type,
-      x: n.position.x,
-      y: n.position.y,
-      w: n.width,
-      h: n.height,
-    }))
-    console.log('B) FlowNodes mapped positions (passed to ReactFlow):', flowNodesPositions)
-    
-    // Check for duplicate IDs in flowNodes
-    const flowNodeIds = flowNodes.map((n) => n.id)
-    const flowNodeDuplicates = flowNodeIds.filter((id, idx) => flowNodeIds.indexOf(id) !== idx)
-    if (flowNodeDuplicates.length > 0) {
-      console.error('❌ Duplicate IDs in flowNodes:', [...new Set(flowNodeDuplicates)])
-    }
-    
-    // C) ReactFlow live positions (what ReactFlow actually has)
-    const getReactFlowNodes = (window as any).__debugGetReactFlowNodes
-    const getReactFlowEdges = (window as any).__debugGetReactFlowEdges
-    
-    if (getReactFlowNodes && getReactFlowEdges) {
-      const rfNodes = getReactFlowNodes()
-      const rfEdges = getReactFlowEdges()
+    // Expose debug function
+    ;(window as any).__debugRF = () => {
+      console.group('🔍 React Flow Debug Snapshot')
+      
+      // A) Template positions (from server)
+      const templatePositions = template.nodes.map((n: any) => ({
+        id: n.id,
+        type: n.nodeType,
+        x: n.positionX,
+        y: n.positionY,
+        style: n.style,
+      }))
+      console.log('A) Template positions (from server):', templatePositions)
+      
+      // Check for duplicate IDs in template
+      const templateIds = template.nodes.map((n: any) => n.id)
+      const templateDuplicates = templateIds.filter((id: string, idx: number) => templateIds.indexOf(id) !== idx)
+      if (templateDuplicates.length > 0) {
+        console.error('❌ Duplicate IDs in template:', [...new Set(templateDuplicates)])
+      }
+      
+      // B) FlowNodes mapped positions (what we pass to setNodes/ReactFlow)
+      const flowNodesPositions = flowNodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        x: n.position.x,
+        y: n.position.y,
+        w: n.width,
+        h: n.height,
+      }))
+      console.log('B) FlowNodes mapped positions (passed to ReactFlow):', flowNodesPositions)
+      
+      // Check for duplicate IDs in flowNodes
+      const flowNodeIds = flowNodes.map((n) => n.id)
+      const flowNodeDuplicates = flowNodeIds.filter((id, idx) => flowNodeIds.indexOf(id) !== idx)
+      if (flowNodeDuplicates.length > 0) {
+        console.error('❌ Duplicate IDs in flowNodes:', [...new Set(flowNodeDuplicates)])
+      }
+      
+      // C) ReactFlow live positions (what ReactFlow actually has)
+      const rfNodes = getNodes()
+      const rfEdges = getEdges()
       
       const rfNodePositions = rfNodes.map((n: Node) => ({
         id: n.id,
@@ -152,22 +148,19 @@ function DebugButton({
       } else {
         console.log('✅ flowNodes and ReactFlow positions match')
       }
-    } else {
-      console.warn('⚠️ ReactFlow accessor not available (component may not be mounted)')
+      
+      console.groupEnd()
     }
     
-    console.groupEnd()
-  }, [template, flowNodes, nodes, edges])
+    // Cleanup on unmount
+    return () => {
+      if ((window as any).__debugRF) {
+        delete (window as any).__debugRF
+      }
+    }
+  }, [template, flowNodes, getNodes, getEdges])
   
-  return (
-    <button
-      onClick={handleDebugClick}
-      className="absolute top-2 right-2 z-10 rounded bg-yellow-100 hover:bg-yellow-200 px-3 py-1.5 text-xs font-medium text-yellow-900 border border-yellow-300 shadow-sm transition-colors"
-      title="Log React Flow debug snapshot to console"
-    >
-      Debug RF snapshot
-    </button>
-  )
+  return null
 }
 
 interface WorkflowNode {
@@ -1764,17 +1757,9 @@ export default function WorkflowDiagramClient({
               : 'border-gray-200'
           }`}>
           {process.env.NODE_ENV !== 'production' && (
-            <>
-              <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
-                Nodes {nodes.length} · Edges {edges.length}
-              </div>
-              <DebugButton 
-                template={template}
-                flowNodes={flowNodes}
-                nodes={nodes}
-                edges={edges}
-              />
-            </>
+            <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
+              Nodes {nodes.length} · Edges {edges.length}
+            </div>
           )}
           <ReactFlow
             nodes={nodes}
@@ -1805,7 +1790,7 @@ export default function WorkflowDiagramClient({
             className="react-flow-panels-below"
           >
             <Controls showInteractive={false} />
-            {process.env.NODE_ENV !== 'production' && <DebugFlowAccessor />}
+            <DebugFlowAccessor template={template} flowNodes={flowNodes} />
           </ReactFlow>
           </div>
         </div>
