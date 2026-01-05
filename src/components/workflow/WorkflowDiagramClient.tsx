@@ -361,10 +361,23 @@ export default function WorkflowDiagramClient({
 
       // For PANEL nodes, apply dimensions from style or use defaults
       const nodeDimensions = node.nodeType === 'PANEL' 
-        ? { 
-            width: (node.style as { width?: number } | null)?.width ?? 500, 
-            height: (node.style as { height?: number } | null)?.height ?? 400 
-          } 
+        ? (() => {
+            const styleWidth = (node.style as { width?: number } | null)?.width
+            const styleHeight = (node.style as { height?: number } | null)?.height
+            const width = styleWidth ?? 500
+            const height = styleHeight ?? 400
+            console.log('[PANEL flowNodes]', {
+              nodeId: node.id,
+              title: node.title,
+              styleWidth,
+              styleHeight,
+              computedWidth: width,
+              computedHeight: height,
+              source: styleWidth !== undefined && styleHeight !== undefined ? 'DB style' : 'defaults',
+              timestamp: new Date().toISOString()
+            })
+            return { width, height }
+          })()
         : {}
       
       return {
@@ -584,9 +597,40 @@ export default function WorkflowDiagramClient({
       
       // For PANEL nodes: ALWAYS preserve width/height from React Flow state if they exist
       // This ensures resized dimensions are never overwritten by stale server data
-      if (incomingNode.type === 'panelNode' && currentNode.width !== undefined && currentNode.height !== undefined) {
-        mergedNode.width = currentNode.width
-        mergedNode.height = currentNode.height
+      if (incomingNode.type === 'panelNode') {
+        const incomingWidth = incomingNode.width
+        const incomingHeight = incomingNode.height
+        const currentWidth = currentNode.width
+        const currentHeight = currentNode.height
+        
+        if (currentWidth !== undefined && currentHeight !== undefined) {
+          mergedNode.width = currentWidth
+          mergedNode.height = currentHeight
+          console.log('[PANEL merge]', {
+            nodeId: incomingNode.id,
+            incomingWidth,
+            incomingHeight,
+            currentWidth,
+            currentHeight,
+            resultWidth: mergedNode.width,
+            resultHeight: mergedNode.height,
+            preserved: true,
+            timestamp: new Date().toISOString()
+          })
+        } else {
+          console.log('[PANEL merge]', {
+            nodeId: incomingNode.id,
+            incomingWidth,
+            incomingHeight,
+            currentWidth,
+            currentHeight,
+            resultWidth: mergedNode.width,
+            resultHeight: mergedNode.height,
+            preserved: false,
+            reason: 'current dimensions undefined',
+            timestamp: new Date().toISOString()
+          })
+        }
       }
       
       // Preserve selection state
@@ -609,6 +653,15 @@ export default function WorkflowDiagramClient({
       nodesRef.current = flowNodes
       previousFlowNodesRef.current = flowNodes
       isInitialLoadRef.current = false
+      console.log('[PANEL useEffect] Initial load', {
+        flowNodesCount: flowNodes.length,
+        panelNodes: flowNodes.filter(n => n.type === 'panelNode').map(n => ({
+          id: n.id,
+          width: n.width,
+          height: n.height
+        })),
+        timestamp: new Date().toISOString()
+      })
       return
     }
     
@@ -631,11 +684,39 @@ export default function WorkflowDiagramClient({
       return
     }
     
+    console.log('[PANEL useEffect] Nodes changed, merging', {
+      flowNodesCount: flowNodes.length,
+      panelNodes: flowNodes.filter(n => n.type === 'panelNode').map(n => ({
+        id: n.id,
+        width: n.width,
+        height: n.height
+      })),
+      timestamp: new Date().toISOString()
+    })
+    
     previousFlowNodesRef.current = flowNodes
     
     // After initial load, merge incoming nodes with current nodes (preserves PANEL dimensions)
     setNodes((currentNodes) => {
+      const panelNodesBefore = currentNodes.filter(n => n.type === 'panelNode').map(n => ({
+        id: n.id,
+        width: n.width,
+        height: n.height
+      }))
+      console.log('[PANEL useEffect] Before merge - current nodes', {
+        panelNodes: panelNodesBefore,
+        timestamp: new Date().toISOString()
+      })
       const merged = mergeFlowNodes(currentNodes, flowNodes)
+      const panelNodesAfter = merged.filter(n => n.type === 'panelNode').map(n => ({
+        id: n.id,
+        width: n.width,
+        height: n.height
+      }))
+      console.log('[PANEL useEffect] After merge - merged nodes', {
+        panelNodes: panelNodesAfter,
+        timestamp: new Date().toISOString()
+      })
       nodesRef.current = merged
       return merged
     })
@@ -777,6 +858,13 @@ export default function WorkflowDiagramClient({
           const isPanelNode = originalNode?.nodeType === 'PANEL'
           
           if (isPanelNode) {
+            console.log('[PANEL dimensions change]', {
+              nodeId,
+              resizing: change.resizing,
+              width: change.dimensions.width,
+              height: change.dimensions.height,
+              timestamp: new Date().toISOString()
+            })
             // Store latest dimensions
             pendingDimensionSavesRef.current.set(nodeId, {
               width: change.dimensions.width,
@@ -806,6 +894,14 @@ export default function WorkflowDiagramClient({
                   height: pendingSave.height,
                 }
                 
+                console.log('[PANEL save start]', {
+                  nodeId,
+                  width: pendingSave.width,
+                  height: pendingSave.height,
+                  style: updatedStyle,
+                  timestamp: new Date().toISOString()
+                })
+                
                 // Save to DB
                 updateNodeAction(
                   nodeId,
@@ -815,8 +911,17 @@ export default function WorkflowDiagramClient({
                   undefined, // linkedWorkflows
                   originalNode.badges || [],
                   updatedStyle
-                ).catch((error) => {
-                  console.error('Error updating panel dimensions:', error)
+                ).then(() => {
+                  console.log('[PANEL save resolved]', {
+                    nodeId,
+                    timestamp: new Date().toISOString()
+                  })
+                }).catch((error) => {
+                  console.error('[PANEL save error]', {
+                    nodeId,
+                    error,
+                    timestamp: new Date().toISOString()
+                  })
                 })
                 
                 // Clear pending save after successful save
@@ -843,6 +948,14 @@ export default function WorkflowDiagramClient({
                   height: pendingSave.height,
                 }
                 
+                console.log('[PANEL save start (during resize)]', {
+                  nodeId,
+                  width: pendingSave.width,
+                  height: pendingSave.height,
+                  style: updatedStyle,
+                  timestamp: new Date().toISOString()
+                })
+                
                 updateNodeAction(
                   nodeId,
                   originalNode.title,
@@ -851,8 +964,17 @@ export default function WorkflowDiagramClient({
                   undefined,
                   originalNode.badges || [],
                   updatedStyle
-                ).catch((error) => {
-                  console.error('Error updating panel dimensions during resize:', error)
+                ).then(() => {
+                  console.log('[PANEL save resolved (during resize)]', {
+                    nodeId,
+                    timestamp: new Date().toISOString()
+                  })
+                }).catch((error) => {
+                  console.error('[PANEL save error (during resize)]', {
+                    nodeId,
+                    error,
+                    timestamp: new Date().toISOString()
+                  })
                 })
               }, 1000) // Longer debounce during active resize
             }
