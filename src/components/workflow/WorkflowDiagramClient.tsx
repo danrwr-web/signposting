@@ -181,6 +181,9 @@ export default function WorkflowDiagramClient({
   // Debounce timer for panel dimension updates
   const panelDimensionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
+  // Track nodes that are currently being resized to prevent overwriting from DB refresh
+  const resizingNodesRef = useRef<Set<string>>(new Set())
+  
   // Editing state for admin
   const [editingTitle, setEditingTitle] = useState('')
   const [editingBody, setEditingBody] = useState('')
@@ -553,7 +556,30 @@ export default function WorkflowDiagramClient({
   }, [template.nodes])
 
   useEffect(() => {
-    setNodes(flowNodes)
+    // Don't overwrite nodes that are currently being resized or recently resized
+    setNodes((currentNodes) => {
+      // If any nodes are being resized, merge flowNodes but preserve their dimensions
+      if (resizingNodesRef.current.size > 0) {
+        return flowNodes.map((flowNode) => {
+          const currentNode = currentNodes.find((n) => n.id === flowNode.id)
+          // If this node is being resized, keep its current dimensions from React Flow state
+          if (currentNode && resizingNodesRef.current.has(flowNode.id)) {
+            // Preserve width/height if they exist in current state
+            const preservedNode = { ...flowNode }
+            if (currentNode.width !== undefined) {
+              preservedNode.width = currentNode.width
+            }
+            if (currentNode.height !== undefined) {
+              preservedNode.height = currentNode.height
+            }
+            return preservedNode
+          }
+          return flowNode
+        })
+      }
+      // No nodes being resized - apply flowNodes normally
+      return flowNodes
+    })
   }, [flowNodes, setNodes])
 
   useEffect(() => {
@@ -688,23 +714,39 @@ export default function WorkflowDiagramClient({
           if (change.type === 'dimensions') {
             const node = updatedNodes.find((n) => n.id === change.id)
             if (node && node.type === 'panelNode' && change.dimensions) {
-              // Clear existing timeout
+              // Mark node as being resized
+              resizingNodesRef.current.add(change.id)
+              
+              // Clear existing timeout for this specific node
               if (panelDimensionUpdateTimeoutRef.current) {
                 clearTimeout(panelDimensionUpdateTimeoutRef.current)
               }
               
-              // Debounce dimension updates (300ms)
+              // Check if resizing has ended
+              const resizingEnded = change.resizing === false
+              
+              // Debounce dimension updates (300ms after resizing ends, or 300ms after last change)
               panelDimensionUpdateTimeoutRef.current = setTimeout(async () => {
                 // Find the original node data to get current style
                 const originalNode = template.nodes.find((n) => n.id === change.id)
-                if (!originalNode) return
+                if (!originalNode) {
+                  resizingNodesRef.current.delete(change.id)
+                  return
+                }
+                
+                // Get the current dimensions from the updated node
+                const currentNode = updatedNodes.find((n) => n.id === change.id)
+                if (!currentNode || !currentNode.width || !currentNode.height) {
+                  resizingNodesRef.current.delete(change.id)
+                  return
+                }
                 
                 // Merge width/height into existing style
                 const currentStyle = originalNode.style || {}
                 const updatedStyle = {
                   ...currentStyle,
-                  width: change.dimensions.width,
-                  height: change.dimensions.height,
+                  width: currentNode.width,
+                  height: currentNode.height,
                 }
                 
                 try {
@@ -717,12 +759,16 @@ export default function WorkflowDiagramClient({
                     originalNode.badges || [],
                     updatedStyle
                   )
-                  // Refresh to get updated data
-                  router.refresh()
+                  // Remove from resizing set after successful save
+                  // Wait a bit longer to ensure DB transaction completes
+                  setTimeout(() => {
+                    resizingNodesRef.current.delete(change.id)
+                  }, 200)
                 } catch (error) {
                   console.error('Error updating panel dimensions:', error)
+                  resizingNodesRef.current.delete(change.id)
                 }
-              }, 300)
+              }, resizingEnded ? 100 : 300) // Shorter delay if resizing just ended
             }
           }
         }
@@ -730,7 +776,7 @@ export default function WorkflowDiagramClient({
       
       return updatedNodes
     })
-  }, [setNodes, effectiveAdmin, updateNodeAction, template.nodes, router])
+  }, [setNodes, effectiveAdmin, updateNodeAction, template.nodes])
 
   // Handle node click (node selection is handled in the label onClick)
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
