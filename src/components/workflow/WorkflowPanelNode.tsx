@@ -1,6 +1,8 @@
 'use client'
 
 import { Handle, Position } from 'reactflow'
+import { NodeResizer } from '@reactflow/node-resizer'
+import '@reactflow/node-resizer/dist/style.css'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 
@@ -35,9 +37,22 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
   const defaultBg = style?.bgColor || (style?.theme === 'panel' ? '#f3f4f6' : '#f9fafb')
   const defaultBorder = style?.borderColor || '#d1d5db'
   const defaultRadius = style?.radius !== undefined ? style.radius : 12
+  
+  // Display title or placeholder
+  const displayTitle = title?.trim() || 'Untitled panel'
 
   return (
     <>
+      {/* NodeResizer - only visible when selected and admin */}
+      {(isSelected || selected) && isAdmin && (
+        <NodeResizer
+          minWidth={300}
+          minHeight={200}
+          isVisible={isSelected || selected}
+          style={{ pointerEvents: 'auto' }}
+        />
+      )}
+
       {/* Panel nodes typically don't have handles, but we'll add them for admin editing */}
       {isAdmin && (
         <>
@@ -48,9 +63,9 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
         </>
       )}
 
-      {/* Panel container - larger, background-style */}
+      {/* Panel container - uses 100% width/height to respect React Flow node dimensions */}
       <div
-        className={`min-w-[400px] min-h-[300px] rounded-lg shadow-sm transition-all cursor-pointer border-2 ${
+        className={`panel-background w-full h-full rounded-lg shadow-sm transition-all cursor-pointer border-2 flex flex-col ${
           styleClasses || 'bg-gray-100 border-gray-300'
         } ${
           isSelected || selected
@@ -62,18 +77,24 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
           backgroundColor: inlineStyles.backgroundColor || defaultBg,
           borderColor: inlineStyles.borderColor || defaultBorder,
           borderRadius: inlineStyles.borderRadius || `${defaultRadius}px`,
-          zIndex: -1, // Panel sits behind other nodes
-        }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onNodeClick?.()
+          position: 'relative',
+          zIndex: -1, // Panel sits behind other nodes (edges are in separate SVG layer)
+          pointerEvents: 'none', // Background doesn't block interactions
         }}
       >
-        {/* Panel header */}
-        <div className="px-4 py-3 border-b border-gray-300 flex items-center justify-between">
+        {/* Panel header - pointer-events:auto so it can be clicked */}
+        <div 
+          className="px-4 py-3 border-b border-gray-300 flex items-center justify-between flex-shrink-0"
+          style={{ pointerEvents: 'auto' }}
+          onClick={(e) => {
+            e.stopPropagation()
+            onNodeClick?.()
+          }}
+        >
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="text-xs font-semibold px-2.5 py-1 rounded border bg-gray-200 text-gray-700 border-gray-300">
-              {nodeType}
+            {/* Panel title as primary header */}
+            <div className={`font-semibold break-words text-sm ${style?.textColor ? '' : 'text-gray-800'}`} style={style?.textColor ? { color: style.textColor } : {}}>
+              {displayTitle}
             </div>
             {/* Panel badges */}
             {badges.length > 0 && (
@@ -84,11 +105,9 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
           </div>
         </div>
         
-        {/* Panel title/content */}
-        <div className="px-4 py-4">
-          <div className={`font-medium break-words text-sm ${style?.textColor ? '' : 'text-gray-800'}`}>
-            {title}
-          </div>
+        {/* Panel content area - flex-grow to fill remaining space */}
+        <div className="flex-1 px-4 py-4 overflow-hidden">
+          {/* Empty content area - can be used for future content */}
         </div>
       </div>
     </>

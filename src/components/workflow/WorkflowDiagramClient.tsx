@@ -18,6 +18,7 @@ import ReactFlow, {
   NodeTypes,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
+import './panel-styles.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
@@ -342,10 +343,16 @@ export default function WorkflowDiagramClient({
         nodeType = 'default'
       }
 
+      // For PANEL nodes, ensure they have initial dimensions
+      const nodeDimensions = node.nodeType === 'PANEL' 
+        ? { width: 500, height: 400 } 
+        : {}
+      
       return {
         id: node.id,
         type: nodeType,
         position: { x, y },
+        ...nodeDimensions,
         selected: isSelected,
         data: node.nodeType === 'QUESTION' ? {
           // For QUESTION nodes, pass data to custom component (diamond shape)
@@ -764,10 +771,16 @@ export default function WorkflowDiagramClient({
           newNodeType = 'default'
         }
 
+        // For PANEL nodes, add initial dimensions
+        const newNodeDimensions = nodeType === 'PANEL' 
+          ? { width: 500, height: 400 } 
+          : {}
+        
         const newNode: Node = {
           id: result.node.id,
           type: newNodeType,
           position: { x: initialX, y: initialY },
+          ...newNodeDimensions,
           selected: false,
           data: nodeType === 'QUESTION' ? {
             nodeType: result.node.nodeType,
@@ -906,10 +919,16 @@ export default function WorkflowDiagramClient({
         newNodeType = 'default'
       }
       
+      // For PANEL nodes, add initial dimensions
+      const newNodeDimensions = nodeType === 'PANEL' 
+        ? { width: 500, height: 400 } 
+        : {}
+      
       const newNode: Node = {
         id: result.node.id,
         type: newNodeType,
         position: { x: newX, y: newY },
+        ...newNodeDimensions,
         selected: false,
         data: nodeType === 'QUESTION' ? {
           nodeType: result.node.nodeType,
@@ -1184,6 +1203,7 @@ export default function WorkflowDiagramClient({
             maxZoom={1.5}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
             proOptions={{ hideAttribution: true }}
+            className="react-flow-panels-below"
           >
             <Controls showInteractive={false} />
           </ReactFlow>
