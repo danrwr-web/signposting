@@ -805,7 +805,7 @@ export default function WorkflowDiagramClient({
         } : {
           // Fallback for any other node types (shouldn't happen)
           label: (
-            <div className="relative" style={{ minWidth: 300 }}>
+            <div className="relative" style={{ width: 300 }}>
               {/* Target handles - connections come IN */}
               <Handle
                 id="target-top"

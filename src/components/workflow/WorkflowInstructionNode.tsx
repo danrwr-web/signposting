@@ -62,7 +62,7 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
   const nodeStyles = getNodeTypeColor(nodeType)
 
   return (
-    <div className="relative" style={{ minWidth: 300 }}>
+    <div className="relative" style={{ width: 300 }}>
       {/* Target handles - connections come IN */}
       <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
       <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
