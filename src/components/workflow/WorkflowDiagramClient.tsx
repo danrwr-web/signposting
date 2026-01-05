@@ -184,6 +184,9 @@ export default function WorkflowDiagramClient({
   // Track nodes that are currently being resized to prevent overwriting from DB refresh
   const resizingNodesRef = useRef<Set<string>>(new Set())
   
+  // Ref to track current nodes state for async operations
+  const nodesRef = useRef<Node[]>([])
+  
   // Editing state for admin
   const [editingTitle, setEditingTitle] = useState('')
   const [editingBody, setEditingBody] = useState('')
@@ -556,31 +559,37 @@ export default function WorkflowDiagramClient({
   }, [template.nodes])
 
   useEffect(() => {
-    // Don't overwrite nodes that are currently being resized or recently resized
+    // Update ref with current nodes
+    nodesRef.current = nodes
+  }, [nodes])
+  
+  useEffect(() => {
+    // Don't overwrite nodes that are currently being resized
     setNodes((currentNodes) => {
-      // If any nodes are being resized, merge flowNodes but preserve their dimensions
+      // Update ref with current nodes
+      nodesRef.current = currentNodes
+      
+      // If any nodes are being resized, skip updating those nodes entirely
       if (resizingNodesRef.current.size > 0) {
-        return flowNodes.map((flowNode) => {
-          const currentNode = currentNodes.find((n) => n.id === flowNode.id)
-          // If this node is being resized, keep its current dimensions from React Flow state
-          if (currentNode && resizingNodesRef.current.has(flowNode.id)) {
-            // Preserve width/height if they exist in current state
-            const preservedNode = { ...flowNode }
-            if (currentNode.width !== undefined) {
-              preservedNode.width = currentNode.width
+        // Only update nodes that are NOT being resized
+        const updatedNodes = flowNodes.map((flowNode) => {
+          // If this node is being resized, keep its current state from React Flow
+          if (resizingNodesRef.current.has(flowNode.id)) {
+            const currentNode = currentNodes.find((n) => n.id === flowNode.id)
+            if (currentNode) {
+              // Preserve the entire current node state (including dimensions)
+              return currentNode
             }
-            if (currentNode.height !== undefined) {
-              preservedNode.height = currentNode.height
-            }
-            return preservedNode
           }
+          // Not being resized - update from flowNodes
           return flowNode
         })
+        return updatedNodes
       }
       // No nodes being resized - apply flowNodes normally
       return flowNodes
     })
-  }, [flowNodes, setNodes])
+  }, [flowNodes, setNodes, nodes])
 
   useEffect(() => {
     setEdges(initialEdges)
@@ -725,19 +734,22 @@ export default function WorkflowDiagramClient({
               // Check if resizing has ended
               const resizingEnded = change.resizing === false
               
-              // Debounce dimension updates (300ms after resizing ends, or 300ms after last change)
+              // Debounce dimension updates (500ms after resizing ends, or 300ms for ongoing resize)
+              const debounceDelay = resizingEnded ? 500 : 300
+              const nodeIdToSave = change.id
               panelDimensionUpdateTimeoutRef.current = setTimeout(async () => {
-                // Find the original node data to get current style
-                const originalNode = template.nodes.find((n) => n.id === change.id)
-                if (!originalNode) {
-                  resizingNodesRef.current.delete(change.id)
+                // Read current dimensions from React Flow state ref at the time of save
+                // This ensures we save the actual resized dimensions, not stale closure values
+                const currentNode = nodesRef.current.find((n) => n.id === nodeIdToSave)
+                if (!currentNode || !currentNode.width || !currentNode.height) {
+                  resizingNodesRef.current.delete(nodeIdToSave)
                   return
                 }
                 
-                // Get the current dimensions from the updated node
-                const currentNode = updatedNodes.find((n) => n.id === change.id)
-                if (!currentNode || !currentNode.width || !currentNode.height) {
-                  resizingNodesRef.current.delete(change.id)
+                // Find the original node data to get current style
+                const originalNode = template.nodes.find((n) => n.id === nodeIdToSave)
+                if (!originalNode) {
+                  resizingNodesRef.current.delete(nodeIdToSave)
                   return
                 }
                 
@@ -751,7 +763,7 @@ export default function WorkflowDiagramClient({
                 
                 try {
                   await updateNodeAction(
-                    change.id,
+                    nodeIdToSave,
                     originalNode.title,
                     originalNode.body,
                     originalNode.actionKey,
@@ -760,15 +772,15 @@ export default function WorkflowDiagramClient({
                     updatedStyle
                   )
                   // Remove from resizing set after successful save
-                  // Wait a bit longer to ensure DB transaction completes
+                  // Wait longer to prevent race conditions with re-renders
                   setTimeout(() => {
-                    resizingNodesRef.current.delete(change.id)
-                  }, 200)
+                    resizingNodesRef.current.delete(nodeIdToSave)
+                  }, 1000)
                 } catch (error) {
                   console.error('Error updating panel dimensions:', error)
-                  resizingNodesRef.current.delete(change.id)
+                  resizingNodesRef.current.delete(nodeIdToSave)
                 }
-              }, resizingEnded ? 100 : 300) // Shorter delay if resizing just ended
+              }, debounceDelay)
             }
           }
         }

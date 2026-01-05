@@ -1,20 +1,28 @@
 /* Explicit z-index layering for React Flow elements */
-/* Edges should appear above panels but below normal nodes */
+/* React Flow renders nodes and edges in separate containers with their own stacking contexts */
+/* We need to ensure panels are behind edges and normal nodes */
+
+/* Panel nodes should be behind everything - use data attribute as fallback */
+.react-flow-panels-below .react-flow__node.panel,
+.react-flow-panels-below .react-flow__node[data-node-type="panelNode"] {
+  z-index: 0 !important;
+  position: relative;
+}
+
+/* Normal nodes should be above panels */
+.react-flow-panels-below .react-flow__node:not(.panel):not([data-node-type="panelNode"]) {
+  z-index: 1 !important;
+  position: relative;
+}
+
+/* Edges container should appear above panels but below normal nodes */
 .react-flow-panels-below .react-flow__edges {
   z-index: 2 !important;
+  position: relative;
 }
 
-/* Normal nodes should be above edges */
-.react-flow-panels-below .react-flow__nodes {
-  z-index: 3 !important;
-}
-
-/* Panel nodes should be behind everything - target by className */
-.react-flow-panels-below .react-flow__node.panel {
-  z-index: 1 !important;
-}
-
-/* Also ensure panel background div doesn't interfere */
-.react-flow-panels-below .react-flow__node.panel .panel-background {
-  z-index: -1 !important;
+/* Ensure panel background doesn't interfere with interactions */
+.react-flow-panels-below .react-flow__node.panel .panel-background,
+.react-flow-panels-below .react-flow__node[data-node-type="panelNode"] .panel-background {
+  pointer-events: none !important;
 }

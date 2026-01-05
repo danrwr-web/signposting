@@ -80,7 +80,6 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
           borderColor: inlineStyles.borderColor || defaultBorder,
           borderRadius: inlineStyles.borderRadius || `${defaultRadius}px`,
           position: 'relative',
-          zIndex: -1, // Panel sits behind other nodes (edges are in separate SVG layer)
           pointerEvents: 'none', // Background doesn't block interactions
         }}
       >
