@@ -65,9 +65,9 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
         </>
       )}
 
-      {/* Panel container - uses 100% width/height to respect React Flow node dimensions */}
+      {/* Panel container - explicitly fills React Flow node dimensions */}
       <div
-        className={`panel-background w-full h-full rounded-lg shadow-sm transition-all cursor-pointer border-2 flex flex-col ${
+        className={`panel-background rounded-lg shadow-sm transition-all cursor-pointer border-2 flex flex-col ${
           styleClasses || 'bg-gray-100 border-gray-300'
         } ${
           isSelected || selected
@@ -76,6 +76,11 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
         }`}
         style={{
           ...inlineStyles,
+          width: '100%',
+          height: '100%',
+          minWidth: '100%',
+          minHeight: '100%',
+          boxSizing: 'border-box',
           backgroundColor: inlineStyles.backgroundColor || defaultBg,
           borderColor: inlineStyles.borderColor || defaultBorder,
           borderRadius: inlineStyles.borderRadius || `${defaultRadius}px`,
