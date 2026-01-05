@@ -566,6 +566,38 @@ export default function WorkflowDiagramClient({
     nodesRef.current = nodes
   }, [nodes])
   
+  // Helper function to merge incoming nodes into current nodes, preserving PANEL dimensions
+  const mergeFlowNodes = useCallback((currentNodes: Node[], incomingNodes: Node[]): Node[] => {
+    const currentById = new Map(currentNodes.map(n => [n.id, n]))
+    
+    // Merge: update existing, add new, preserve PANEL dimensions
+    const merged: Node[] = incomingNodes.map((incomingNode) => {
+      const currentNode = currentById.get(incomingNode.id)
+      
+      if (!currentNode) {
+        // New node - use as-is
+        return incomingNode
+      }
+      
+      // Existing node - merge properties
+      const mergedNode = { ...incomingNode }
+      
+      // For PANEL nodes: ALWAYS preserve width/height from React Flow state if they exist
+      // This ensures resized dimensions are never overwritten by stale server data
+      if (incomingNode.type === 'panelNode' && currentNode.width !== undefined && currentNode.height !== undefined) {
+        mergedNode.width = currentNode.width
+        mergedNode.height = currentNode.height
+      }
+      
+      // Preserve selection state
+      mergedNode.selected = currentNode.selected
+      
+      return mergedNode
+    })
+    
+    return merged
+  }, [])
+  
   // Track if this is the initial load
   const isInitialLoadRef = useRef(true)
   const previousFlowNodesRef = useRef<Node[]>([])
@@ -580,7 +612,7 @@ export default function WorkflowDiagramClient({
       return
     }
     
-    // Check if flowNodes actually changed (compare IDs and key properties)
+    // Check if flowNodes actually changed (compare IDs and key properties including dimensions)
     const nodesChanged = flowNodes.length !== previousFlowNodesRef.current.length ||
       flowNodes.some((fn, idx) => {
         const prev = previousFlowNodesRef.current[idx]
@@ -589,6 +621,8 @@ export default function WorkflowDiagramClient({
           fn.type !== prev.type ||
           fn.position.x !== prev.position.x ||
           fn.position.y !== prev.position.y ||
+          fn.width !== prev.width ||
+          fn.height !== prev.height ||
           (fn.data as any)?.title !== (prev.data as any)?.title
       })
     
@@ -599,32 +633,13 @@ export default function WorkflowDiagramClient({
     
     previousFlowNodesRef.current = flowNodes
     
-    // After initial load, don't overwrite nodes that are currently being resized
-    if (resizingNodesRef.current.size > 0) {
-      // Only update nodes that are NOT being resized
-      setNodes((currentNodes) => {
-        const updatedNodes = flowNodes.map((flowNode) => {
-          // If this node is being resized, keep its current state from React Flow
-          if (resizingNodesRef.current.has(flowNode.id)) {
-            const currentNode = currentNodes.find((n) => n.id === flowNode.id)
-            if (currentNode) {
-              // Preserve the entire current node state (including dimensions and all properties)
-              return currentNode
-            }
-          }
-          // Not being resized - update from flowNodes
-          return flowNode
-        })
-        // Update ref
-        nodesRef.current = updatedNodes
-        return updatedNodes
-      })
-    } else {
-      // No nodes being resized - apply flowNodes normally
-      setNodes(flowNodes)
-      nodesRef.current = flowNodes
-    }
-  }, [flowNodes, setNodes])
+    // After initial load, merge incoming nodes with current nodes (preserves PANEL dimensions)
+    setNodes((currentNodes) => {
+      const merged = mergeFlowNodes(currentNodes, flowNodes)
+      nodesRef.current = merged
+      return merged
+    })
+  }, [flowNodes, setNodes, mergeFlowNodes])
 
   useEffect(() => {
     setEdges(initialEdges)
@@ -762,68 +777,85 @@ export default function WorkflowDiagramClient({
           const isPanelNode = originalNode?.nodeType === 'PANEL'
           
           if (isPanelNode) {
-            // Mark node as being resized immediately
-            resizingNodesRef.current.add(nodeId)
-            
-            // Store dimensions for later save (use dimensions from change event)
+            // Store latest dimensions
             pendingDimensionSavesRef.current.set(nodeId, {
               width: change.dimensions.width,
               height: change.dimensions.height,
             })
             
-            // Clear existing timeout
-            if (panelDimensionUpdateTimeoutRef.current) {
-              clearTimeout(panelDimensionUpdateTimeoutRef.current)
-            }
-            
-            // Check if resizing has ended
+            // Check if resizing has ended - PRIMARY SAVE POINT
             const resizingEnded = change.resizing === false
             
-            // Debounce dimension updates (500ms after resizing ends, or 300ms for ongoing resize)
-            const debounceDelay = resizingEnded ? 500 : 300
-            panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
-              const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
-              if (!pendingSave) {
-                resizingNodesRef.current.delete(nodeId)
-                return
+            if (resizingEnded) {
+              // Resizing ended - save immediately (with small debounce to batch rapid end events)
+              if (panelDimensionUpdateTimeoutRef.current) {
+                clearTimeout(panelDimensionUpdateTimeoutRef.current)
               }
               
-              // Find the original node data to get current style
-              if (!originalNode) {
-                resizingNodesRef.current.delete(nodeId)
+              panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
+                const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
+                if (!pendingSave || !originalNode) {
+                  return
+                }
+                
+                // Merge width/height into existing style
+                const currentStyle = originalNode.style || {}
+                const updatedStyle = {
+                  ...currentStyle,
+                  width: pendingSave.width,
+                  height: pendingSave.height,
+                }
+                
+                // Save to DB
+                updateNodeAction(
+                  nodeId,
+                  originalNode.title,
+                  originalNode.body,
+                  originalNode.actionKey,
+                  undefined, // linkedWorkflows
+                  originalNode.badges || [],
+                  updatedStyle
+                ).catch((error) => {
+                  console.error('Error updating panel dimensions:', error)
+                })
+                
+                // Clear pending save after successful save
                 pendingDimensionSavesRef.current.delete(nodeId)
-                return
+              }, 200) // Small debounce for resize-end events
+            } else {
+              // Still resizing - optional debounced save during resize (secondary)
+              if (panelDimensionUpdateTimeoutRef.current) {
+                clearTimeout(panelDimensionUpdateTimeoutRef.current)
               }
               
-              // Merge width/height into existing style
-              const currentStyle = originalNode.style || {}
-              const updatedStyle = {
-                ...currentStyle,
-                width: pendingSave.width,
-                height: pendingSave.height,
-              }
-              
-              // Save to DB asynchronously
-              updateNodeAction(
-                nodeId,
-                originalNode.title,
-                originalNode.body,
-                originalNode.actionKey,
-                undefined, // linkedWorkflows
-                originalNode.badges || [],
-                updatedStyle
-              ).then(() => {
-                // Remove from resizing set after successful save
-                setTimeout(() => {
-                  resizingNodesRef.current.delete(nodeId)
-                  pendingDimensionSavesRef.current.delete(nodeId)
-                }, 1000)
-              }).catch((error) => {
-                console.error('Error updating panel dimensions:', error)
-                resizingNodesRef.current.delete(nodeId)
-                pendingDimensionSavesRef.current.delete(nodeId)
-              })
-            }, debounceDelay)
+              panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
+                const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
+                if (!pendingSave || !originalNode) {
+                  return
+                }
+                
+                // Only save if still resizing (not ended)
+                // This is optional - primary save happens on resize end
+                const currentStyle = originalNode.style || {}
+                const updatedStyle = {
+                  ...currentStyle,
+                  width: pendingSave.width,
+                  height: pendingSave.height,
+                }
+                
+                updateNodeAction(
+                  nodeId,
+                  originalNode.title,
+                  originalNode.body,
+                  originalNode.actionKey,
+                  undefined,
+                  originalNode.badges || [],
+                  updatedStyle
+                ).catch((error) => {
+                  console.error('Error updating panel dimensions during resize:', error)
+                })
+              }, 1000) // Longer debounce during active resize
+            }
           }
         }
       }
