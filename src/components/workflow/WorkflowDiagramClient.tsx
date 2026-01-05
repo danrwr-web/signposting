@@ -178,17 +178,17 @@ export default function WorkflowDiagramClient({
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   
-  // Debounce timer for panel dimension updates
-  const panelDimensionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // Track active panel resize sessions (user-driven resizes only)
+  const activePanelResizeRef = useRef<Map<string, { lastWidth: number; lastHeight: number; lastSeenAt: number }>>(new Map())
+  
+  // Track resize-end timeouts per node
+  const resizeEndTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
   
   // Track nodes that are currently being resized to prevent overwriting from DB refresh
   const resizingNodesRef = useRef<Set<string>>(new Set())
   
   // Ref to track current nodes state for async operations
   const nodesRef = useRef<Node[]>([])
-  
-  // Track pending dimension changes to save
-  const pendingDimensionSavesRef = useRef<Map<string, { width: number; height: number }>>(new Map())
   
   // Editing state for admin
   const [editingTitle, setEditingTitle] = useState('')
@@ -361,23 +361,10 @@ export default function WorkflowDiagramClient({
 
       // For PANEL nodes, apply dimensions from style or use defaults
       const nodeDimensions = node.nodeType === 'PANEL' 
-        ? (() => {
-            const styleWidth = (node.style as { width?: number } | null)?.width
-            const styleHeight = (node.style as { height?: number } | null)?.height
-            const width = styleWidth ?? 500
-            const height = styleHeight ?? 400
-            console.log('[PANEL flowNodes]', {
-              nodeId: node.id,
-              title: node.title,
-              styleWidth,
-              styleHeight,
-              computedWidth: width,
-              computedHeight: height,
-              source: styleWidth !== undefined && styleHeight !== undefined ? 'DB style' : 'defaults',
-              timestamp: new Date().toISOString()
-            })
-            return { width, height }
-          })()
+        ? { 
+            width: (node.style as { width?: number } | null)?.width ?? 500, 
+            height: (node.style as { height?: number } | null)?.height ?? 400 
+          } 
         : {}
       
       return {
@@ -597,40 +584,9 @@ export default function WorkflowDiagramClient({
       
       // For PANEL nodes: ALWAYS preserve width/height from React Flow state if they exist
       // This ensures resized dimensions are never overwritten by stale server data
-      if (incomingNode.type === 'panelNode') {
-        const incomingWidth = incomingNode.width
-        const incomingHeight = incomingNode.height
-        const currentWidth = currentNode.width
-        const currentHeight = currentNode.height
-        
-        if (currentWidth !== undefined && currentHeight !== undefined) {
-          mergedNode.width = currentWidth
-          mergedNode.height = currentHeight
-          console.log('[PANEL merge]', {
-            nodeId: incomingNode.id,
-            incomingWidth,
-            incomingHeight,
-            currentWidth,
-            currentHeight,
-            resultWidth: mergedNode.width,
-            resultHeight: mergedNode.height,
-            preserved: true,
-            timestamp: new Date().toISOString()
-          })
-        } else {
-          console.log('[PANEL merge]', {
-            nodeId: incomingNode.id,
-            incomingWidth,
-            incomingHeight,
-            currentWidth,
-            currentHeight,
-            resultWidth: mergedNode.width,
-            resultHeight: mergedNode.height,
-            preserved: false,
-            reason: 'current dimensions undefined',
-            timestamp: new Date().toISOString()
-          })
-        }
+      if (incomingNode.type === 'panelNode' && currentNode.width !== undefined && currentNode.height !== undefined) {
+        mergedNode.width = currentNode.width
+        mergedNode.height = currentNode.height
       }
       
       // Preserve selection state
@@ -653,15 +609,6 @@ export default function WorkflowDiagramClient({
       nodesRef.current = flowNodes
       previousFlowNodesRef.current = flowNodes
       isInitialLoadRef.current = false
-      console.log('[PANEL useEffect] Initial load', {
-        flowNodesCount: flowNodes.length,
-        panelNodes: flowNodes.filter(n => n.type === 'panelNode').map(n => ({
-          id: n.id,
-          width: n.width,
-          height: n.height
-        })),
-        timestamp: new Date().toISOString()
-      })
       return
     }
     
@@ -684,39 +631,11 @@ export default function WorkflowDiagramClient({
       return
     }
     
-    console.log('[PANEL useEffect] Nodes changed, merging', {
-      flowNodesCount: flowNodes.length,
-      panelNodes: flowNodes.filter(n => n.type === 'panelNode').map(n => ({
-        id: n.id,
-        width: n.width,
-        height: n.height
-      })),
-      timestamp: new Date().toISOString()
-    })
-    
     previousFlowNodesRef.current = flowNodes
     
     // After initial load, merge incoming nodes with current nodes (preserves PANEL dimensions)
     setNodes((currentNodes) => {
-      const panelNodesBefore = currentNodes.filter(n => n.type === 'panelNode').map(n => ({
-        id: n.id,
-        width: n.width,
-        height: n.height
-      }))
-      console.log('[PANEL useEffect] Before merge - current nodes', {
-        panelNodes: panelNodesBefore,
-        timestamp: new Date().toISOString()
-      })
       const merged = mergeFlowNodes(currentNodes, flowNodes)
-      const panelNodesAfter = merged.filter(n => n.type === 'panelNode').map(n => ({
-        id: n.id,
-        width: n.width,
-        height: n.height
-      }))
-      console.log('[PANEL useEffect] After merge - merged nodes', {
-        panelNodes: panelNodesAfter,
-        timestamp: new Date().toISOString()
-      })
       nodesRef.current = merged
       return merged
     })
@@ -836,13 +755,16 @@ export default function WorkflowDiagramClient({
       if (positionUpdateTimeoutRef.current) {
         clearTimeout(positionUpdateTimeoutRef.current)
       }
-      if (panelDimensionUpdateTimeoutRef.current) {
-        clearTimeout(panelDimensionUpdateTimeoutRef.current)
-      }
+      // Clear all resize-end timeouts
+      resizeEndTimeoutRef.current.forEach((timeout) => {
+        clearTimeout(timeout)
+      })
+      resizeEndTimeoutRef.current.clear()
     }
   }, [])
   
   // Custom onNodesChange handler to intercept panel dimension changes
+  // Only persists dimensions for user-driven resizes, ignoring React Flow measurement/reflow events
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     // First, apply changes using React Flow's built-in handler
     onNodesChangeInternal(changes)
@@ -857,127 +779,119 @@ export default function WorkflowDiagramClient({
           const originalNode = template.nodes.find((n) => n.id === nodeId)
           const isPanelNode = originalNode?.nodeType === 'PANEL'
           
-          if (isPanelNode) {
-            console.log('[PANEL dimensions change]', {
-              nodeId,
-              resizing: change.resizing,
-              width: change.dimensions.width,
-              height: change.dimensions.height,
-              timestamp: new Date().toISOString()
-            })
-            // Store latest dimensions
-            pendingDimensionSavesRef.current.set(nodeId, {
-              width: change.dimensions.width,
-              height: change.dimensions.height,
+          if (!isPanelNode || !originalNode) {
+            continue
+          }
+          
+          const { width, height } = change.dimensions
+          const isResizing = change.resizing === true
+          const resizingUndefined = change.resizing === undefined
+          
+          if (isResizing) {
+            // User is actively resizing - track this as an active resize session
+            activePanelResizeRef.current.set(nodeId, {
+              lastWidth: width,
+              lastHeight: height,
+              lastSeenAt: Date.now()
             })
             
-            // Check if resizing has ended - PRIMARY SAVE POINT
-            const resizingEnded = change.resizing === false
-            
-            if (resizingEnded) {
-              // Resizing ended - save immediately (with small debounce to batch rapid end events)
-              if (panelDimensionUpdateTimeoutRef.current) {
-                clearTimeout(panelDimensionUpdateTimeoutRef.current)
-              }
-              
-              panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
-                const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
-                if (!pendingSave || !originalNode) {
-                  return
-                }
-                
-                // Merge width/height into existing style
-                const currentStyle = originalNode.style || {}
-                const updatedStyle = {
-                  ...currentStyle,
-                  width: pendingSave.width,
-                  height: pendingSave.height,
-                }
-                
-                console.log('[PANEL save start]', {
-                  nodeId,
-                  width: pendingSave.width,
-                  height: pendingSave.height,
-                  style: updatedStyle,
-                  timestamp: new Date().toISOString()
-                })
-                
-                // Save to DB
-                updateNodeAction(
-                  nodeId,
-                  originalNode.title,
-                  originalNode.body,
-                  originalNode.actionKey,
-                  undefined, // linkedWorkflows
-                  originalNode.badges || [],
-                  updatedStyle
-                ).then(() => {
-                  console.log('[PANEL save resolved]', {
-                    nodeId,
-                    timestamp: new Date().toISOString()
-                  })
-                }).catch((error) => {
-                  console.error('[PANEL save error]', {
-                    nodeId,
-                    error,
-                    timestamp: new Date().toISOString()
-                  })
-                })
-                
-                // Clear pending save after successful save
-                pendingDimensionSavesRef.current.delete(nodeId)
-              }, 200) // Small debounce for resize-end events
-            } else {
-              // Still resizing - optional debounced save during resize (secondary)
-              if (panelDimensionUpdateTimeoutRef.current) {
-                clearTimeout(panelDimensionUpdateTimeoutRef.current)
-              }
-              
-              panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
-                const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
-                if (!pendingSave || !originalNode) {
-                  return
-                }
-                
-                // Only save if still resizing (not ended)
-                // This is optional - primary save happens on resize end
-                const currentStyle = originalNode.style || {}
-                const updatedStyle = {
-                  ...currentStyle,
-                  width: pendingSave.width,
-                  height: pendingSave.height,
-                }
-                
-                console.log('[PANEL save start (during resize)]', {
-                  nodeId,
-                  width: pendingSave.width,
-                  height: pendingSave.height,
-                  style: updatedStyle,
-                  timestamp: new Date().toISOString()
-                })
-                
-                updateNodeAction(
-                  nodeId,
-                  originalNode.title,
-                  originalNode.body,
-                  originalNode.actionKey,
-                  undefined,
-                  originalNode.badges || [],
-                  updatedStyle
-                ).then(() => {
-                  console.log('[PANEL save resolved (during resize)]', {
-                    nodeId,
-                    timestamp: new Date().toISOString()
-                  })
-                }).catch((error) => {
-                  console.error('[PANEL save error (during resize)]', {
-                    nodeId,
-                    error,
-                    timestamp: new Date().toISOString()
-                  })
-                })
-              }, 1000) // Longer debounce during active resize
+            // Clear any existing resize-end timeout for this node
+            const existingTimeout = resizeEndTimeoutRef.current.get(nodeId)
+            if (existingTimeout) {
+              clearTimeout(existingTimeout)
+              resizeEndTimeoutRef.current.delete(nodeId)
             }
+            
+            // Set a new timeout to save when resize ends (user stops dragging)
+            const timeoutId = setTimeout(() => {
+              const activeResize = activePanelResizeRef.current.get(nodeId)
+              if (!activeResize || !originalNode) {
+                return
+              }
+              
+              // Apply minimum size constraints
+              const minWidth = 300
+              const minHeight = 200
+              const finalWidth = Math.max(activeResize.lastWidth, minWidth)
+              const finalHeight = Math.max(activeResize.lastHeight, minHeight)
+              
+              // Merge width/height into existing style
+              const currentStyle = originalNode.style || {}
+              const updatedStyle = {
+                ...currentStyle,
+                width: finalWidth,
+                height: finalHeight,
+              }
+              
+              // Save to DB - this is the ONLY save point for user resizes
+              updateNodeAction(
+                nodeId,
+                originalNode.title,
+                originalNode.body,
+                originalNode.actionKey,
+                undefined, // linkedWorkflows
+                originalNode.badges || [],
+                updatedStyle
+              ).catch((error) => {
+                console.error('Error updating panel dimensions:', error)
+              })
+              
+              // Clean up: remove from active resize tracking and timeout map
+              activePanelResizeRef.current.delete(nodeId)
+              resizeEndTimeoutRef.current.delete(nodeId)
+            }, 250) // Debounce: save 250ms after user stops resizing
+            
+            resizeEndTimeoutRef.current.set(nodeId, timeoutId)
+            
+          } else if (resizingUndefined || change.resizing === false) {
+            // This is a measurement/reflow event (resizing === undefined) or explicit end (resizing === false)
+            // Only persist if we're in an active resize session (user was resizing)
+            const activeResize = activePanelResizeRef.current.get(nodeId)
+            
+            if (!activeResize) {
+              // No active resize session - this is a React Flow measurement/reflow event
+              // Ignore it completely to prevent overwriting correct dimensions
+              continue
+            }
+            
+            // We have an active session, but resizing is now undefined/false
+            // This means the resize ended - use the tracked dimensions from the session
+            // Clear any existing timeout and save immediately
+            const existingTimeout = resizeEndTimeoutRef.current.get(nodeId)
+            if (existingTimeout) {
+              clearTimeout(existingTimeout)
+              resizeEndTimeoutRef.current.delete(nodeId)
+            }
+            
+            // Apply minimum size constraints
+            const minWidth = 300
+            const minHeight = 200
+            const finalWidth = Math.max(activeResize.lastWidth, minWidth)
+            const finalHeight = Math.max(activeResize.lastHeight, minHeight)
+            
+            // Merge width/height into existing style
+            const currentStyle = originalNode.style || {}
+            const updatedStyle = {
+              ...currentStyle,
+              width: finalWidth,
+              height: finalHeight,
+            }
+            
+            // Save to DB
+            updateNodeAction(
+              nodeId,
+              originalNode.title,
+              originalNode.body,
+              originalNode.actionKey,
+              undefined, // linkedWorkflows
+              originalNode.badges || [],
+              updatedStyle
+            ).catch((error) => {
+              console.error('Error updating panel dimensions:', error)
+            })
+            
+            // Clean up: remove from active resize tracking
+            activePanelResizeRef.current.delete(nodeId)
           }
         }
       }
