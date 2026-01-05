@@ -1060,9 +1060,14 @@ export async function updateWorkflowNodeForDiagram(
       }
       
       if (style !== undefined) {
-        // Read current style from DB to merge with incoming style
-        // This preserves width/height and other properties that may not be in the incoming style
-        const existingStyle = (node.style as {
+        // Fetch current node style from DB within transaction to ensure latest data
+        // This prevents stale style writes from overwriting correct dimensions
+        const currentNode = await tx.workflowNodeTemplate.findUnique({
+          where: { id: nodeId },
+          select: { style: true },
+        })
+        
+        const existingStyle = (currentNode?.style as {
           bgColor?: string
           textColor?: string
           borderColor?: string
@@ -1080,22 +1085,28 @@ export async function updateWorkflowNodeForDiagram(
           ...(style ?? {}),
         }
         
-        // Defensive normalization: ensure width/height are numbers if they exist
+        // Process width/height: coerce to numbers, clamp to minimums, remove if NaN
         if (mergedStyle.width !== undefined) {
-          mergedStyle.width = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
-          if (isNaN(mergedStyle.width)) {
+          const widthValue = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
+          if (isNaN(widthValue)) {
             delete mergedStyle.width
+          } else {
+            // Clamp width to minimum 300
+            mergedStyle.width = Math.max(widthValue, 300)
           }
         }
         if (mergedStyle.height !== undefined) {
-          mergedStyle.height = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
-          if (isNaN(mergedStyle.height)) {
+          const heightValue = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
+          if (isNaN(heightValue)) {
             delete mergedStyle.height
+          } else {
+            // Clamp height to minimum 200
+            mergedStyle.height = Math.max(heightValue, 200)
           }
         }
         
-        // If style is explicitly null, allow clearing it (treat as empty object for merge)
-        // Otherwise, use merged style
+        // If style is explicitly null, allow clearing it
+        // Otherwise, use merged style with clamped dimensions
         updateData.style = style === null ? null : mergedStyle
       }
       
