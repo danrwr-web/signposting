@@ -62,18 +62,16 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
   const nodeStyles = getNodeTypeColor(nodeType)
 
   return (
-    <>
+    <div className="w-full h-full relative">
       {/* Target handles - connections come IN */}
-      <>
-        <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
-        <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
-        <Handle id="target-bottom" type="target" position={Position.Bottom} className={handleClass} />
-        <Handle id="target-left" type="target" position={Position.Left} className={handleClass} />
-      </>
+      <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
+      <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
+      <Handle id="target-bottom" type="target" position={Position.Bottom} className={handleClass} />
+      <Handle id="target-left" type="target" position={Position.Left} className={handleClass} />
 
-      {/* Card container */}
+      {/* Card container - fills wrapper and matches React Flow bounds */}
       <div 
-        className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border bg-white border-gray-200 ${
+        className={`w-full h-full rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border bg-white border-gray-200 ${
           styleClasses
         } ${
           isSelected || selected
@@ -124,12 +122,10 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
       </div>
 
       {/* Source handles - connections go OUT */}
-      <>
-        <Handle id="source-top" type="source" position={Position.Top} className={handleClass} />
-        <Handle id="source-right" type="source" position={Position.Right} className={handleClass} />
-        <Handle id="source-bottom" type="source" position={Position.Bottom} className={handleClass} />
-        <Handle id="source-left" type="source" position={Position.Left} className={handleClass} />
-      </>
-    </>
+      <Handle id="source-top" type="source" position={Position.Top} className={handleClass} />
+      <Handle id="source-right" type="source" position={Position.Right} className={handleClass} />
+      <Handle id="source-bottom" type="source" position={Position.Bottom} className={handleClass} />
+      <Handle id="source-left" type="source" position={Position.Left} className={handleClass} />
+    </div>
   )
 }
