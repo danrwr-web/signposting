@@ -62,9 +62,11 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
   const nodeStyles = getNodeTypeColor(nodeType)
   
   // For diamond shape, we need to apply styles to the background div
-  // Only use explicit style colors if provided, otherwise use original default amber colors
-  const bgColor = style?.bgColor || 'rgba(251, 191, 36, 0.7)'
-  const borderColor = style?.borderColor || '#fbbf24'
+  // Use explicit style colors if provided, otherwise use original default amber colors
+  const hasExplicitBg = style?.bgColor !== undefined || style?.backgroundColor !== undefined
+  const hasExplicitBorder = style?.borderColor !== undefined
+  const bgColor = hasExplicitBg ? (style?.bgColor || style?.backgroundColor) : 'rgba(251, 191, 36, 0.7)'
+  const borderColor = hasExplicitBorder ? (style?.borderColor || '') : '#fbbf24'
 
   return (
     <>
@@ -140,7 +142,7 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
 
           {/* Title row - flexes to center, constrained width, subtle upward nudge */}
           <div className="flex items-center justify-center w-full -mt-1">
-            <div className={`font-medium break-words text-sm leading-snug text-center max-w-[140px] overflow-hidden ${style?.textColor ? '' : 'text-gray-900'}`} style={style?.textColor ? { color: style.textColor } : {}}>
+            <div className={`font-medium break-words text-sm leading-snug text-center max-w-[140px] overflow-hidden text-gray-900`} style={style?.textColor ? { color: style.textColor } : undefined}>
               {title}
             </div>
           </div>

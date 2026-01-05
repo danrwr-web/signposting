@@ -15,29 +15,26 @@ export interface NodeStyle {
 }
 
 /**
- * Get Tailwind classes for a theme preset
+ * Check if style JSON has explicit color overrides
+ * Returns true only if styleJson includes at least one of: backgroundColor/bgColor, textColor, or borderColor
+ * Ignores width/height and other keys
  */
-function getThemeClasses(theme: NodeStyle['theme']): { bg: string; text: string; border: string } {
-  switch (theme) {
-    case 'info':
-      return { bg: 'bg-blue-50', text: 'text-blue-900', border: 'border-blue-200' }
-    case 'warning':
-      return { bg: 'bg-amber-50', text: 'text-amber-900', border: 'border-amber-200' }
-    case 'success':
-      return { bg: 'bg-green-50', text: 'text-green-900', border: 'border-green-200' }
-    case 'muted':
-      return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
-    case 'panel':
-      return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300' }
-    default:
-      return { bg: 'bg-white', text: 'text-gray-900', border: 'border-gray-200' }
+export function hasExplicitStyle(styleJson: NodeStyle | null | undefined): boolean {
+  if (!styleJson) {
+    return false
   }
+  
+  // Check for explicit color properties (support both backgroundColor and bgColor)
+  return (styleJson.backgroundColor !== undefined || styleJson.bgColor !== undefined) ||
+         styleJson.textColor !== undefined ||
+         styleJson.borderColor !== undefined
 }
 
 /**
  * Get inline styles for custom colors
- * Only applies styles if node has explicit style overrides (bgColor, textColor, or borderColor)
+ * Only applies styles if node has explicit style overrides (bgColor/backgroundColor, textColor, or borderColor)
  * Returns empty styles for nodes without explicit overrides to preserve original appearance
+ * Does NOT inject theme defaults for missing keys
  */
 export function getNodeStyles(style: NodeStyle | null | undefined): {
   className: string
@@ -48,51 +45,45 @@ export function getNodeStyles(style: NodeStyle | null | undefined): {
   }
 
   // Only apply styles if at least one explicit color property is set
-  const hasExplicitStyle = style.bgColor !== undefined || 
-                          style.textColor !== undefined || 
-                          style.borderColor !== undefined
-
-  if (!hasExplicitStyle) {
+  if (!hasExplicitStyle(style)) {
     // No explicit style overrides - return empty to preserve original node styling
     return { className: '', style: {} }
   }
 
-  const themeClasses = style.theme ? getThemeClasses(style.theme) : null
   const classes: string[] = []
   const inlineStyles: React.CSSProperties = {}
 
-  // Background color
-  if (style.bgColor) {
+  // Background color - prefer backgroundColor, fallback to bgColor
+  if (style.backgroundColor !== undefined) {
+    inlineStyles.backgroundColor = style.backgroundColor
+  } else if (style.bgColor !== undefined) {
     inlineStyles.backgroundColor = style.bgColor
-  } else if (themeClasses) {
-    classes.push(themeClasses.bg)
   }
+  // Do NOT inject theme defaults for missing keys
 
-  // Text color
-  if (style.textColor) {
+  // Text color - only if explicitly set
+  if (style.textColor !== undefined) {
     inlineStyles.color = style.textColor
-  } else if (themeClasses) {
-    classes.push(themeClasses.text)
   }
+  // Do NOT inject theme defaults for missing keys
 
-  // Border color
-  if (style.borderColor) {
+  // Border color - only if explicitly set
+  if (style.borderColor !== undefined) {
     inlineStyles.borderColor = style.borderColor
-  } else if (themeClasses) {
-    classes.push(themeClasses.border)
   }
+  // Do NOT inject theme defaults for missing keys
 
-  // Border width
+  // Border width - only if explicitly set
   if (style.borderWidth !== undefined) {
     inlineStyles.borderWidth = `${style.borderWidth}px`
   }
 
-  // Border radius
+  // Border radius - only if explicitly set
   if (style.radius !== undefined) {
     inlineStyles.borderRadius = `${style.radius}px`
   }
 
-  // Font weight
+  // Font weight - only if explicitly set
   if (style.fontWeight) {
     switch (style.fontWeight) {
       case 'bold':

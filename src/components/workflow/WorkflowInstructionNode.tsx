@@ -73,14 +73,14 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
 
       {/* Card container */}
       <div 
-        className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border ${
-          styleClasses || 'bg-white border-gray-200'
+        className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border bg-white border-gray-200 ${
+          styleClasses
         } ${
           isSelected || selected
             ? 'border-2 border-blue-500 shadow-lg'
             : ''
         }`}
-        style={inlineStyles}
+        style={Object.keys(inlineStyles).length > 0 ? inlineStyles : undefined}
         onClick={(e) => {
           e.stopPropagation()
           onNodeClick?.()
@@ -117,7 +117,7 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
         
         {/* Title - constrained with overflow protection */}
         <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
-          <div className={`font-medium break-words text-sm leading-snug ${style?.textColor ? '' : 'text-gray-900'}`}>
+          <div className={`font-medium break-words text-sm leading-snug text-gray-900`} style={style?.textColor ? { color: style.textColor } : undefined}>
             {title}
           </div>
         </div>
