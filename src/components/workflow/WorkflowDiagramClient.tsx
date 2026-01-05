@@ -575,11 +575,12 @@ export default function WorkflowDiagramClient({
     nodesRef.current = nodes
   }, [nodes])
   
-  // Helper function to merge incoming nodes into current nodes, preserving PANEL dimensions during active resize only
+  // Helper function to merge incoming nodes into current nodes, preserving PANEL dimensions if they exist
+  // This prevents server-driven flowNodes sync from overwriting local PANEL dimensions during a live session
   const mergeFlowNodes = useCallback((currentNodes: Node[], incomingNodes: Node[]): Node[] => {
     const currentById = new Map(currentNodes.map(n => [n.id, n]))
     
-    // Merge: update existing, add new, preserve PANEL dimensions only during active resize
+    // Merge: update existing, add new, preserve PANEL dimensions if they exist in current state
     const merged: Node[] = incomingNodes.map((incomingNode) => {
       const currentNode = currentById.get(incomingNode.id)
       
@@ -591,20 +592,18 @@ export default function WorkflowDiagramClient({
       // Existing node - merge properties
       const mergedNode = { ...incomingNode }
       
-      // For PANEL nodes: check if user is actively resizing
+      // For PANEL nodes: always preserve existing dimensions if they exist
       const isPanelNode = incomingNode.type === 'panelNode'
       if (isPanelNode) {
-        const nodeId = incomingNode.id
-        const isActivelyResizing = activePanelResizeRef.current.has(nodeId)
-        
-        if (isActivelyResizing) {
-          // User is actively resizing - preserve current dimensions from React Flow state
-          if (currentNode.width !== undefined && currentNode.height !== undefined) {
-            mergedNode.width = Math.max(currentNode.width, PANEL_MIN_W)
-            mergedNode.height = Math.max(currentNode.height, PANEL_MIN_H)
-          }
+        // If current node has width/height numbers, ALWAYS preserve them (ignore incoming)
+        // This prevents server-driven sync from overwriting local dimensions during a live session
+        if (currentNode.width !== undefined && currentNode.height !== undefined &&
+            typeof currentNode.width === 'number' && typeof currentNode.height === 'number') {
+          // Preserve existing dimensions and clamp to minimums
+          mergedNode.width = Math.max(currentNode.width, PANEL_MIN_W)
+          mergedNode.height = Math.max(currentNode.height, PANEL_MIN_H)
         } else {
-          // Not actively resizing - use incoming dimensions from DB (source of truth)
+          // No current dimensions yet - use incoming dimensions from DB (initial load)
           // Clamp to minimums
           if (mergedNode.width !== undefined) {
             mergedNode.width = Math.max(mergedNode.width, PANEL_MIN_W)
