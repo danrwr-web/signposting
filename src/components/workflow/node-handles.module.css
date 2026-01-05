@@ -1,5 +1,5 @@
 /* Shared styles for connectable node wrappers */
-.node-wrapper {
+.nodeWrapper {
   position: relative;
   width: 100%;
   height: 100%;
@@ -8,28 +8,28 @@
 
 /* Explicit handle positioning to ensure they're on the node edges */
 /* Use !important to override React Flow's inline positioning styles */
-.handle-position-top {
+.handlePositionTop {
   position: absolute !important;
   top: 0 !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
 }
 
-.handle-position-right {
+.handlePositionRight {
   position: absolute !important;
   right: 0 !important;
   top: 50% !important;
   transform: translate(50%, -50%) !important;
 }
 
-.handle-position-bottom {
+.handlePositionBottom {
   position: absolute !important;
   bottom: 0 !important;
   left: 50% !important;
   transform: translate(-50%, 50%) !important;
 }
 
-.handle-position-left {
+.handlePositionLeft {
   position: absolute !important;
   left: 0 !important;
   top: 50% !important;

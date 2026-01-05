@@ -3,7 +3,7 @@
 import { Handle, Position } from 'reactflow'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
-import './node-handles.css'
+import styles from './node-handles.module.css'
 
 interface WorkflowOutcomeNodeProps {
   data: {
@@ -83,12 +83,12 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
   const nodeStyles = getNodeTypeColor(nodeType)
 
   return (
-    <div className="node-wrapper" style={{ width: 300 }}>
+    <div className={styles.nodeWrapper} style={{ width: 300 }}>
       {/* Target handles - connections come IN */}
-      <Handle id="target-top" type="target" position={Position.Top} className={`${handleClass} handle-position-top`} />
-      <Handle id="target-right" type="target" position={Position.Right} className={`${handleClass} handle-position-right`} />
-      <Handle id="target-bottom" type="target" position={Position.Bottom} className={`${handleClass} handle-position-bottom`} />
-      <Handle id="target-left" type="target" position={Position.Left} className={`${handleClass} handle-position-left`} />
+      <Handle id="target-top" type="target" position={Position.Top} className={`${handleClass} ${styles.handlePositionTop}`} />
+      <Handle id="target-right" type="target" position={Position.Right} className={`${handleClass} ${styles.handlePositionRight}`} />
+      <Handle id="target-bottom" type="target" position={Position.Bottom} className={`${handleClass} ${styles.handlePositionBottom}`} />
+      <Handle id="target-left" type="target" position={Position.Left} className={`${handleClass} ${styles.handlePositionLeft}`} />
 
       {/* Card container - fills wrapper */}
       <div 
@@ -158,10 +158,10 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
       </div>
 
       {/* Source handles - connections go OUT */}
-      <Handle id="source-top" type="source" position={Position.Top} className={`${handleClass} handle-position-top`} />
-      <Handle id="source-right" type="source" position={Position.Right} className={`${handleClass} handle-position-right`} />
-      <Handle id="source-bottom" type="source" position={Position.Bottom} className={`${handleClass} handle-position-bottom`} />
-      <Handle id="source-left" type="source" position={Position.Left} className={`${handleClass} handle-position-left`} />
+      <Handle id="source-top" type="source" position={Position.Top} className={`${handleClass} ${styles.handlePositionTop}`} />
+      <Handle id="source-right" type="source" position={Position.Right} className={`${handleClass} ${styles.handlePositionRight}`} />
+      <Handle id="source-bottom" type="source" position={Position.Bottom} className={`${handleClass} ${styles.handlePositionBottom}`} />
+      <Handle id="source-left" type="source" position={Position.Left} className={`${handleClass} ${styles.handlePositionLeft}`} />
     </div>
   )
 }

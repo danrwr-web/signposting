@@ -22,7 +22,7 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import './panel-styles.css'
-import './node-handles.css'
+import nodeHandleStyles from './node-handles.module.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
@@ -649,31 +649,31 @@ export default function WorkflowDiagramClient({
         } : {
           // Fallback for any other node types (shouldn't happen)
           label: (
-            <div className="node-wrapper" style={{ width: 300 }}>
+            <div className={nodeHandleStyles.nodeWrapper} style={{ width: 300 }}>
               {/* Target handles - connections come IN */}
               <Handle
                 id="target-top"
                 type="target"
                 position={Position.Top}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-top`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionTop}`}
               />
               <Handle
                 id="target-right"
                 type="target"
                 position={Position.Right}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-right`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionRight}`}
               />
               <Handle
                 id="target-bottom"
                 type="target"
                 position={Position.Bottom}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-bottom`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionBottom}`}
               />
               <Handle
                 id="target-left"
                 type="target"
                 position={Position.Left}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-left`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionLeft}`}
               />
               <div 
                 className={`w-full h-full rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
@@ -731,25 +731,25 @@ export default function WorkflowDiagramClient({
                 id="source-top"
                 type="source"
                 position={Position.Top}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-top`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionTop}`}
               />
               <Handle
                 id="source-right"
                 type="source"
                 position={Position.Right}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-right`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionRight}`}
               />
               <Handle
                 id="source-bottom"
                 type="source"
                 position={Position.Bottom}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-bottom`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionBottom}`}
               />
               <Handle
                 id="source-left"
                 type="source"
                 position={Position.Left}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} handle-position-left`}
+                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionLeft}`}
               />
             </div>
           ),
