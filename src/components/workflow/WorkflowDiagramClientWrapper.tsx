@@ -25,6 +25,8 @@ type WorkflowTemplate = {
       radius?: number
       fontWeight?: 'normal' | 'medium' | 'bold'
       theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      width?: number
+      height?: number
     } | null
     workflowLinks: Array<{
       id: string
@@ -76,6 +78,8 @@ interface Props {
       radius?: number
       fontWeight?: 'normal' | 'medium' | 'bold'
       theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      width?: number
+      height?: number
     } | null
   ) => Promise<{ success: boolean; error?: string }>
 }

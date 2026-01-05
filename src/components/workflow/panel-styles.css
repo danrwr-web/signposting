@@ -1,3 +1,20 @@
-/* Panel nodes should render behind edges and other nodes */
-/* React Flow renders edges in a separate SVG layer above nodes, so we just need to ensure */
-/* panel nodes are behind normal nodes. The z-index on the panel-background div handles this. */
+/* Explicit z-index layering for React Flow elements */
+/* Edges should appear above panels but below normal nodes */
+.react-flow-panels-below .react-flow__edges {
+  z-index: 2 !important;
+}
+
+/* Normal nodes should be above edges */
+.react-flow-panels-below .react-flow__nodes {
+  z-index: 3 !important;
+}
+
+/* Panel nodes should be behind everything - target by className */
+.react-flow-panels-below .react-flow__node.panel {
+  z-index: 1 !important;
+}
+
+/* Also ensure panel background div doesn't interfere */
+.react-flow-panels-below .react-flow__node.panel .panel-background {
+  z-index: -1 !important;
+}

@@ -987,6 +987,8 @@ export async function updateWorkflowNodeForDiagram(
     radius?: number
     fontWeight?: 'normal' | 'medium' | 'bold'
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    width?: number
+    height?: number
   } | null
 ): Promise<ActionResult> {
   try {

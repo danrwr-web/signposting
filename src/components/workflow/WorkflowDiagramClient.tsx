@@ -16,6 +16,8 @@ import ReactFlow, {
   Handle,
   Position,
   NodeTypes,
+  NodeChange,
+  applyNodeChanges,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import './panel-styles.css'
@@ -173,8 +175,11 @@ export default function WorkflowDiagramClient({
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [nodes, setNodes, onNodesChangeBase] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  
+  // Debounce timer for panel dimension updates
+  const panelDimensionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   // Editing state for admin
   const [editingTitle, setEditingTitle] = useState('')
@@ -191,6 +196,8 @@ export default function WorkflowDiagramClient({
     radius?: number
     fontWeight?: 'normal' | 'medium' | 'bold'
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    width?: number
+    height?: number
   } | null>(null)
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   const [legendExpanded, setLegendExpanded] = useState(false)
@@ -343,9 +350,12 @@ export default function WorkflowDiagramClient({
         nodeType = 'default'
       }
 
-      // For PANEL nodes, ensure they have initial dimensions
+      // For PANEL nodes, apply dimensions from style or use defaults
       const nodeDimensions = node.nodeType === 'PANEL' 
-        ? { width: 500, height: 400 } 
+        ? { 
+            width: (node.style as { width?: number } | null)?.width ?? 500, 
+            height: (node.style as { height?: number } | null)?.height ?? 400 
+          } 
         : {}
       
       return {
@@ -353,6 +363,7 @@ export default function WorkflowDiagramClient({
         type: nodeType,
         position: { x, y },
         ...nodeDimensions,
+        className: node.nodeType === 'PANEL' ? 'panel' : undefined,
         selected: isSelected,
         data: node.nodeType === 'QUESTION' ? {
           // For QUESTION nodes, pass data to custom component (diamond shape)
@@ -653,14 +664,73 @@ export default function WorkflowDiagramClient({
     }, 400)
   }, [effectiveAdmin, updatePositionAction])
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (positionUpdateTimeoutRef.current) {
         clearTimeout(positionUpdateTimeoutRef.current)
       }
+      if (panelDimensionUpdateTimeoutRef.current) {
+        clearTimeout(panelDimensionUpdateTimeoutRef.current)
+      }
     }
   }, [])
+  
+  // Custom onNodesChange handler to intercept panel dimension changes
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    // Apply changes to React Flow state first
+    setNodes((nds) => {
+      const updatedNodes = applyNodeChanges(changes, nds)
+      
+      // Intercept dimension changes for PANEL nodes
+      if (effectiveAdmin && updateNodeAction) {
+        for (const change of changes) {
+          if (change.type === 'dimensions') {
+            const node = updatedNodes.find((n) => n.id === change.id)
+            if (node && node.type === 'panelNode' && change.dimensions) {
+              // Clear existing timeout
+              if (panelDimensionUpdateTimeoutRef.current) {
+                clearTimeout(panelDimensionUpdateTimeoutRef.current)
+              }
+              
+              // Debounce dimension updates (300ms)
+              panelDimensionUpdateTimeoutRef.current = setTimeout(async () => {
+                // Find the original node data to get current style
+                const originalNode = template.nodes.find((n) => n.id === change.id)
+                if (!originalNode) return
+                
+                // Merge width/height into existing style
+                const currentStyle = originalNode.style || {}
+                const updatedStyle = {
+                  ...currentStyle,
+                  width: change.dimensions.width,
+                  height: change.dimensions.height,
+                }
+                
+                try {
+                  await updateNodeAction(
+                    change.id,
+                    originalNode.title,
+                    originalNode.body,
+                    originalNode.actionKey,
+                    undefined, // linkedWorkflows
+                    originalNode.badges || [],
+                    updatedStyle
+                  )
+                  // Refresh to get updated data
+                  router.refresh()
+                } catch (error) {
+                  console.error('Error updating panel dimensions:', error)
+                }
+              }, 300)
+            }
+          }
+        }
+      }
+      
+      return updatedNodes
+    })
+  }, [setNodes, effectiveAdmin, updateNodeAction, template.nodes, router])
 
   // Handle node click (node selection is handled in the label onClick)
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
@@ -781,6 +851,7 @@ export default function WorkflowDiagramClient({
           type: newNodeType,
           position: { x: initialX, y: initialY },
           ...newNodeDimensions,
+          className: nodeType === 'PANEL' ? 'panel' : undefined,
           selected: false,
           data: nodeType === 'QUESTION' ? {
             nodeType: result.node.nodeType,
@@ -929,6 +1000,7 @@ export default function WorkflowDiagramClient({
         type: newNodeType,
         position: { x: newX, y: newY },
         ...newNodeDimensions,
+        className: nodeType === 'PANEL' ? 'panel' : undefined,
         selected: false,
         data: nodeType === 'QUESTION' ? {
           nodeType: result.node.nodeType,

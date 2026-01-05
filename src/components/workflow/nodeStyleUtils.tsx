@@ -10,6 +10,8 @@ export interface NodeStyle {
   radius?: number
   fontWeight?: 'normal' | 'medium' | 'bold'
   theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  width?: number
+  height?: number
 }
 
 /**
