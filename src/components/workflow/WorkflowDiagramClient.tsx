@@ -18,6 +18,7 @@ import ReactFlow, {
   NodeTypes,
   NodeChange,
   applyNodeChanges,
+  useReactFlow,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import './panel-styles.css'
@@ -27,6 +28,147 @@ import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
 import WorkflowPanelNode from './WorkflowPanelNode'
 import { renderBulletText } from './renderBulletText'
+
+// Debug component to access ReactFlow instance (dev only)
+function DebugFlowAccessor() {
+  const { getNodes, getEdges } = useReactFlow()
+  
+  // Store accessor functions in a global ref so parent can call them
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__debugGetReactFlowNodes = () => getNodes()
+      ;(window as any).__debugGetReactFlowEdges = () => getEdges()
+    }
+  }, [getNodes, getEdges])
+  
+  return null
+}
+
+// Debug button component (dev only)
+function DebugButton({ 
+  template, 
+  flowNodes, 
+  nodes, 
+  edges 
+}: { 
+  template: any
+  flowNodes: Node[]
+  nodes: Node[]
+  edges: Edge[]
+}) {
+  const handleDebugClick = useCallback(() => {
+    console.group('🔍 React Flow Debug Snapshot')
+    
+    // A) Template positions (from server)
+    const templatePositions = template.nodes.map((n: any) => ({
+      id: n.id,
+      type: n.nodeType,
+      x: n.positionX,
+      y: n.positionY,
+      style: n.style,
+    }))
+    console.log('A) Template positions (from server):', templatePositions)
+    
+    // Check for duplicate IDs in template
+    const templateIds = template.nodes.map((n: any) => n.id)
+    const templateDuplicates = templateIds.filter((id: string, idx: number) => templateIds.indexOf(id) !== idx)
+    if (templateDuplicates.length > 0) {
+      console.error('❌ Duplicate IDs in template:', [...new Set(templateDuplicates)])
+    }
+    
+    // B) FlowNodes mapped positions (what we pass to setNodes/ReactFlow)
+    const flowNodesPositions = flowNodes.map((n) => ({
+      id: n.id,
+      type: n.type,
+      x: n.position.x,
+      y: n.position.y,
+      w: n.width,
+      h: n.height,
+    }))
+    console.log('B) FlowNodes mapped positions (passed to ReactFlow):', flowNodesPositions)
+    
+    // Check for duplicate IDs in flowNodes
+    const flowNodeIds = flowNodes.map((n) => n.id)
+    const flowNodeDuplicates = flowNodeIds.filter((id, idx) => flowNodeIds.indexOf(id) !== idx)
+    if (flowNodeDuplicates.length > 0) {
+      console.error('❌ Duplicate IDs in flowNodes:', [...new Set(flowNodeDuplicates)])
+    }
+    
+    // C) ReactFlow live positions (what ReactFlow actually has)
+    const getReactFlowNodes = (window as any).__debugGetReactFlowNodes
+    const getReactFlowEdges = (window as any).__debugGetReactFlowEdges
+    
+    if (getReactFlowNodes && getReactFlowEdges) {
+      const rfNodes = getReactFlowNodes()
+      const rfEdges = getReactFlowEdges()
+      
+      const rfNodePositions = rfNodes.map((n: Node) => ({
+        id: n.id,
+        type: n.type,
+        x: n.position.x,
+        y: n.position.y,
+        absX: (n as any).positionAbsolute?.x,
+        absY: (n as any).positionAbsolute?.y,
+        w: n.width,
+        h: n.height,
+      }))
+      console.log('C) ReactFlow live positions (current state):', rfNodePositions)
+      
+      const rfEdgeData = rfEdges.map((e: Edge) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+      }))
+      console.log('C) ReactFlow live edges:', rfEdgeData)
+      
+      // Check for duplicate IDs in ReactFlow nodes
+      const rfNodeIds = rfNodes.map((n: Node) => n.id)
+      const rfNodeDuplicates = rfNodeIds.filter((id, idx) => rfNodeIds.indexOf(id) !== idx)
+      if (rfNodeDuplicates.length > 0) {
+        console.error('❌ Duplicate IDs in ReactFlow nodes:', [...new Set(rfNodeDuplicates)])
+      }
+      
+      // Compare positions between flowNodes and ReactFlow
+      const positionMismatches = flowNodes
+        .map((flowNode) => {
+          const rfNode = rfNodes.find((n: Node) => n.id === flowNode.id)
+          if (!rfNode) return null
+          if (rfNode.position.x !== flowNode.position.x || 
+              rfNode.position.y !== flowNode.position.y) {
+            return {
+              nodeId: flowNode.id,
+              flowNodePos: { x: flowNode.position.x, y: flowNode.position.y },
+              rfNodePos: { x: rfNode.position.x, y: rfNode.position.y },
+            }
+          }
+          return null
+        })
+        .filter((m) => m !== null)
+      
+      if (positionMismatches.length > 0) {
+        console.warn('⚠️ Position mismatches (flowNodes vs ReactFlow):', positionMismatches)
+      } else {
+        console.log('✅ flowNodes and ReactFlow positions match')
+      }
+    } else {
+      console.warn('⚠️ ReactFlow accessor not available (component may not be mounted)')
+    }
+    
+    console.groupEnd()
+  }, [template, flowNodes, nodes, edges])
+  
+  return (
+    <button
+      onClick={handleDebugClick}
+      className="absolute top-2 right-2 z-10 rounded bg-yellow-100 hover:bg-yellow-200 px-3 py-1.5 text-xs font-medium text-yellow-900 border border-yellow-300 shadow-sm transition-colors"
+      title="Log React Flow debug snapshot to console"
+    >
+      Debug RF snapshot
+    </button>
+  )
+}
 
 interface WorkflowNode {
   id: string
@@ -769,6 +911,30 @@ export default function WorkflowDiagramClient({
     if (!nodesChanged) {
       // Nothing changed, don't update
       return
+    }
+    
+    // Diagnostic: Log position mismatches when sync effect runs
+    if (process.env.NODE_ENV !== 'production') {
+      const currentNodes = nodesRef.current || []
+      const positionMismatches = flowNodes
+        .map((incomingNode) => {
+          const currentNode = currentNodes.find((n) => n.id === incomingNode.id)
+          if (!currentNode) return null
+          if (currentNode.position.x !== incomingNode.position.x || 
+              currentNode.position.y !== incomingNode.position.y) {
+            return {
+              nodeId: incomingNode.id,
+              currentPos: { x: currentNode.position.x, y: currentNode.position.y },
+              incomingPos: { x: incomingNode.position.x, y: incomingNode.position.y },
+            }
+          }
+          return null
+        })
+        .filter((m) => m !== null)
+      
+      if (positionMismatches.length > 0) {
+        console.log('[PANEL sync effect] Position mismatches detected:', positionMismatches)
+      }
     }
     
     previousFlowNodesRef.current = flowNodes
@@ -1598,9 +1764,17 @@ export default function WorkflowDiagramClient({
               : 'border-gray-200'
           }`}>
           {process.env.NODE_ENV !== 'production' && (
-            <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
-              Nodes {nodes.length} · Edges {edges.length}
-            </div>
+            <>
+              <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
+                Nodes {nodes.length} · Edges {edges.length}
+              </div>
+              <DebugButton 
+                template={template}
+                flowNodes={flowNodes}
+                nodes={nodes}
+                edges={edges}
+              />
+            </>
           )}
           <ReactFlow
             nodes={nodes}
@@ -1631,6 +1805,7 @@ export default function WorkflowDiagramClient({
             className="react-flow-panels-below"
           >
             <Controls showInteractive={false} />
+            {process.env.NODE_ENV !== 'production' && <DebugFlowAccessor />}
           </ReactFlow>
           </div>
         </div>
