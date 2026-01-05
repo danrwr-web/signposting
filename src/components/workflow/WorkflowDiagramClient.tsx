@@ -178,6 +178,10 @@ export default function WorkflowDiagramClient({
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   
+  // PANEL dimension constants
+  const PANEL_MIN_W = 300
+  const PANEL_MIN_H = 200
+
   // Track active panel resize sessions (user-driven resizes only)
   const activePanelResizeRef = useRef<Map<string, { lastWidth: number; lastHeight: number; lastSeenAt: number }>>(new Map())
   
@@ -359,12 +363,17 @@ export default function WorkflowDiagramClient({
         nodeType = 'default'
       }
 
-      // For PANEL nodes, apply dimensions from style or use defaults
+      // For PANEL nodes, compute dimensions from DB style (source of truth)
+      // Always set width/height from computed values, never fall back to measured/current values
       const nodeDimensions = node.nodeType === 'PANEL' 
-        ? { 
-            width: (node.style as { width?: number } | null)?.width ?? 500, 
-            height: (node.style as { height?: number } | null)?.height ?? 400 
-          } 
+        ? (() => {
+            const styleWidth = (node.style as { width?: number } | null)?.width
+            const styleHeight = (node.style as { height?: number } | null)?.height
+            // Compute from DB style, clamp to minimums
+            const width = Math.max(styleWidth ?? 500, PANEL_MIN_W)
+            const height = Math.max(styleHeight ?? 400, PANEL_MIN_H)
+            return { width, height }
+          })()
         : {}
       
       return {
@@ -566,27 +575,44 @@ export default function WorkflowDiagramClient({
     nodesRef.current = nodes
   }, [nodes])
   
-  // Helper function to merge incoming nodes into current nodes, preserving PANEL dimensions
+  // Helper function to merge incoming nodes into current nodes, preserving PANEL dimensions during active resize only
   const mergeFlowNodes = useCallback((currentNodes: Node[], incomingNodes: Node[]): Node[] => {
     const currentById = new Map(currentNodes.map(n => [n.id, n]))
     
-    // Merge: update existing, add new, preserve PANEL dimensions
+    // Merge: update existing, add new, preserve PANEL dimensions only during active resize
     const merged: Node[] = incomingNodes.map((incomingNode) => {
       const currentNode = currentById.get(incomingNode.id)
       
       if (!currentNode) {
-        // New node - use as-is
+        // New node - use as-is (dimensions already computed from DB in flowNodes)
         return incomingNode
       }
       
       // Existing node - merge properties
       const mergedNode = { ...incomingNode }
       
-      // For PANEL nodes: ALWAYS preserve width/height from React Flow state if they exist
-      // This ensures resized dimensions are never overwritten by stale server data
-      if (incomingNode.type === 'panelNode' && currentNode.width !== undefined && currentNode.height !== undefined) {
-        mergedNode.width = currentNode.width
-        mergedNode.height = currentNode.height
+      // For PANEL nodes: check if user is actively resizing
+      const isPanelNode = incomingNode.type === 'panelNode'
+      if (isPanelNode) {
+        const nodeId = incomingNode.id
+        const isActivelyResizing = activePanelResizeRef.current.has(nodeId)
+        
+        if (isActivelyResizing) {
+          // User is actively resizing - preserve current dimensions from React Flow state
+          if (currentNode.width !== undefined && currentNode.height !== undefined) {
+            mergedNode.width = Math.max(currentNode.width, PANEL_MIN_W)
+            mergedNode.height = Math.max(currentNode.height, PANEL_MIN_H)
+          }
+        } else {
+          // Not actively resizing - use incoming dimensions from DB (source of truth)
+          // Clamp to minimums
+          if (mergedNode.width !== undefined) {
+            mergedNode.width = Math.max(mergedNode.width, PANEL_MIN_W)
+          }
+          if (mergedNode.height !== undefined) {
+            mergedNode.height = Math.max(mergedNode.height, PANEL_MIN_H)
+          }
+        }
       }
       
       // Preserve selection state

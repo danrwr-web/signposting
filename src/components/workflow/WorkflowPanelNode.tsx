@@ -78,8 +78,8 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
           ...inlineStyles,
           width: '100%',
           height: '100%',
-          minWidth: '100%',
-          minHeight: '100%',
+          minWidth: '300px', // Prevent DOM collapse below minimum
+          minHeight: '200px', // Prevent DOM collapse below minimum
           boxSizing: 'border-box',
           backgroundColor: inlineStyles.backgroundColor || defaultBg,
           borderColor: inlineStyles.borderColor || defaultBorder,
