@@ -3,7 +3,6 @@
 import { Handle, Position } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
-import styles from './node-handles.module.css'
 
 interface WorkflowInstructionNodeProps {
   data: {
@@ -63,16 +62,16 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
   const nodeStyles = getNodeTypeColor(nodeType)
 
   return (
-    <div className={styles.nodeWrapper} style={{ width: 300 }}>
+    <div className="relative" style={{ width: 300 }}>
       {/* Target handles - connections come IN */}
-      <Handle id="target-top" type="target" position={Position.Top} className={`${handleClass} ${styles.handlePositionTop}`} />
-      <Handle id="target-right" type="target" position={Position.Right} className={`${handleClass} ${styles.handlePositionRight}`} />
-      <Handle id="target-bottom" type="target" position={Position.Bottom} className={`${handleClass} ${styles.handlePositionBottom}`} />
-      <Handle id="target-left" type="target" position={Position.Left} className={`${handleClass} ${styles.handlePositionLeft}`} />
+      <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
+      <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
+      <Handle id="target-bottom" type="target" position={Position.Bottom} className={handleClass} />
+      <Handle id="target-left" type="target" position={Position.Left} className={handleClass} />
 
-      {/* Card container - fills wrapper */}
+      {/* Card container - intrinsic sizing */}
       <div 
-        className={`w-full h-full rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border bg-white border-gray-200 ${
+        className={`rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border bg-white border-gray-200 ${
           styleClasses
         } ${
           isSelected || selected
@@ -126,10 +125,10 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
       </div>
 
       {/* Source handles - connections go OUT */}
-      <Handle id="source-top" type="source" position={Position.Top} className={`${handleClass} ${styles.handlePositionTop}`} />
-      <Handle id="source-right" type="source" position={Position.Right} className={`${handleClass} ${styles.handlePositionRight}`} />
-      <Handle id="source-bottom" type="source" position={Position.Bottom} className={`${handleClass} ${styles.handlePositionBottom}`} />
-      <Handle id="source-left" type="source" position={Position.Left} className={`${handleClass} ${styles.handlePositionLeft}`} />
+      <Handle id="source-top" type="source" position={Position.Top} className={handleClass} />
+      <Handle id="source-right" type="source" position={Position.Right} className={handleClass} />
+      <Handle id="source-bottom" type="source" position={Position.Bottom} className={handleClass} />
+      <Handle id="source-left" type="source" position={Position.Left} className={handleClass} />
     </div>
   )
 }

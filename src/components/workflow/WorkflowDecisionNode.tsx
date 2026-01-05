@@ -3,7 +3,6 @@
 import { Handle, Position } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
-import styles from './node-handles.module.css'
 
 interface WorkflowDecisionNodeProps {
   data: {
@@ -70,22 +69,22 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
   const borderColor = hasExplicitBorder ? (style?.borderColor || '') : '#fbbf24'
 
   return (
-    <div className={`${styles.nodeWrapper} cursor-pointer transition-all`} style={{ width: 240, height: 160 }}>
+    <div className="relative cursor-pointer transition-all" style={{ width: 240, height: 160 }}>
       {/* Target handles - connections come IN */}
-      <Handle id="target-top" type="target" position={Position.Top} className={`${handleClass} ${styles.handlePositionTop}`} />
-      <Handle id="target-right" type="target" position={Position.Right} className={`${handleClass} ${styles.handlePositionRight}`} />
-      <Handle id="target-bottom" type="target" position={Position.Bottom} className={`${handleClass} ${styles.handlePositionBottom}`} />
-      <Handle id="target-left" type="target" position={Position.Left} className={`${handleClass} ${styles.handlePositionLeft}`} />
+      <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
+      <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
+      <Handle id="target-bottom" type="target" position={Position.Bottom} className={handleClass} />
+      <Handle id="target-left" type="target" position={Position.Left} className={handleClass} />
 
       {/* Source handles - connections go OUT */}
-      <Handle id="source-top" type="source" position={Position.Top} className={`${handleClass} ${styles.handlePositionTop}`} />
-      <Handle id="source-left" type="source" position={Position.Left} className={`${handleClass} ${styles.handlePositionLeft}`} />
-      <Handle id="source-right" type="source" position={Position.Right} className={`${handleClass} ${styles.handlePositionRight}`} />
-      <Handle id="source-bottom" type="source" position={Position.Bottom} className={`${handleClass} ${styles.handlePositionBottom}`} />
+      <Handle id="source-top" type="source" position={Position.Top} className={handleClass} />
+      <Handle id="source-left" type="source" position={Position.Left} className={handleClass} />
+      <Handle id="source-right" type="source" position={Position.Right} className={handleClass} />
+      <Handle id="source-bottom" type="source" position={Position.Bottom} className={handleClass} />
 
       {/* Diamond container - fixed size matching React Flow node bounds */}
       <div
-        className={`relative w-full h-full cursor-pointer transition-all ${
+        className={`absolute inset-0 cursor-pointer transition-all ${
           isSelected || selected
             ? 'ring-2 ring-blue-500 shadow-lg'
             : 'shadow-md'

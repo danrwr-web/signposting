@@ -22,7 +22,6 @@ import ReactFlow, {
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import './panel-styles.css'
-import nodeHandleStyles from './node-handles.module.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
@@ -150,66 +149,68 @@ function DebugFlowAccessor({
         console.log('✅ flowNodes and ReactFlow positions match')
       }
       
-      // Sanity check: Log node wrapper rect + handle rect for QUESTION node
+      // Dimension check: Verify React Flow internal dimensions match DOM size
+      console.group('📐 Dimension Check (React Flow vs DOM)')
       const questionNode = rfNodes.find((n: Node) => n.type === 'decisionNode')
       if (questionNode) {
-        // React Flow renders nodes with data-id attribute
+        const rfWidth = questionNode.width
+        const rfHeight = questionNode.height
         const nodeElement = document.querySelector(`[data-id="${questionNode.id}"]`) as HTMLElement
         if (nodeElement) {
           const nodeRect = nodeElement.getBoundingClientRect()
-          // React Flow handles have data-handleid attribute
-          const sourceRightHandle = nodeElement.querySelector('[data-handleid="source-right"]') as HTMLElement
+          // Get the viewport transform to calculate actual size
+          const viewport = document.querySelector('.react-flow__viewport') as HTMLElement
+          const transform = viewport?.style.transform || ''
+          const scaleMatch = transform.match(/scale\(([^)]+)\)/)
+          const scale = scaleMatch ? parseFloat(scaleMatch[1]) : 1
           
+          // DOM size adjusted for scale
+          const domWidth = nodeRect.width / scale
+          const domHeight = nodeRect.height / scale
+          
+          const widthMatch = Math.abs((rfWidth || 0) - domWidth) <= 2
+          const heightMatch = Math.abs((rfHeight || 0) - domHeight) <= 2
+          
+          console.log('QUESTION node dimensions:', {
+            nodeId: questionNode.id,
+            reactFlow: { width: rfWidth, height: rfHeight },
+            dom: { width: domWidth.toFixed(2), height: domHeight.toFixed(2) },
+            scale: scale.toFixed(2),
+            widthMatch: widthMatch ? '✅' : '❌',
+            heightMatch: heightMatch ? '✅' : '❌',
+            widthDiff: Math.abs((rfWidth || 0) - domWidth).toFixed(2) + 'px',
+            heightDiff: Math.abs((rfHeight || 0) - domHeight).toFixed(2) + 'px',
+          })
+          
+          if (!widthMatch || !heightMatch) {
+            console.warn('⚠️ React Flow dimensions do not match DOM size!')
+          } else {
+            console.log('✅ React Flow dimensions match DOM size')
+          }
+          
+          // Handle alignment check
+          const sourceRightHandle = nodeElement.querySelector('[data-handleid="source-right"]') as HTMLElement
           if (sourceRightHandle) {
             const handleRect = sourceRightHandle.getBoundingClientRect()
-            // Calculate offset: positive = handle is to the right of node edge, negative = handle is to the left
-            const offset = handleRect.left - nodeRect.right
-            const handleSize = { width: handleRect.width, height: handleRect.height }
+            const offset = (handleRect.left - nodeRect.right) / scale
+            const isAligned = Math.abs(offset) <= 1
             
-            console.log('📏 Handle alignment check (QUESTION node):', {
-              nodeId: questionNode.id,
-              nodeWrapper: {
-                left: nodeRect.left.toFixed(2),
-                right: nodeRect.right.toFixed(2),
-                width: nodeRect.width.toFixed(2),
-                height: nodeRect.height.toFixed(2),
-              },
-              sourceRightHandle: {
-                left: handleRect.left.toFixed(2),
-                right: handleRect.right.toFixed(2),
-                width: handleRect.width.toFixed(2),
-                height: handleRect.height.toFixed(2),
-              },
+            console.log('Handle alignment:', {
               offset: offset.toFixed(2) + 'px',
-              handleSize: handleSize,
-              isAligned: Math.abs(offset) <= 1,
+              isAligned: isAligned ? '✅' : '❌',
             })
             
-            if (Math.abs(offset) > 1) {
-              console.warn('⚠️ Handle is outside node wrapper!', { offset: offset.toFixed(2) + 'px' })
-            } else {
-              console.log('✅ Handle aligns with node wrapper edge (within 1px)')
+            if (!isAligned) {
+              console.warn('⚠️ Handle is misaligned!', { offset: offset.toFixed(2) + 'px' })
             }
-            
-            // Check handle size (should be ~12px for w-3 h-3)
-            const expectedSize = 12
-            const sizeDiff = Math.abs(handleRect.width - expectedSize)
-            if (sizeDiff > 2) {
-              console.warn('⚠️ Handle size unexpected!', { 
-                expected: expectedSize + 'px', 
-                actual: handleRect.width.toFixed(2) + 'px',
-                diff: sizeDiff.toFixed(2) + 'px'
-              })
-            } else {
-              console.log('✅ Handle size is correct (~12px)')
-            }
-          } else {
-            console.warn('⚠️ Could not find source-right handle for QUESTION node')
           }
         } else {
           console.warn('⚠️ Could not find DOM element for QUESTION node')
         }
+      } else {
+        console.log('No QUESTION node found for dimension check')
       }
+      console.groupEnd()
       
       console.groupEnd()
     }
@@ -649,34 +650,34 @@ export default function WorkflowDiagramClient({
         } : {
           // Fallback for any other node types (shouldn't happen)
           label: (
-            <div className={nodeHandleStyles.nodeWrapper} style={{ width: 300 }}>
+            <div className="relative" style={{ width: 300 }}>
               {/* Target handles - connections come IN */}
               <Handle
                 id="target-top"
                 type="target"
                 position={Position.Top}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionTop}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <Handle
                 id="target-right"
                 type="target"
                 position={Position.Right}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionRight}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <Handle
                 id="target-bottom"
                 type="target"
                 position={Position.Bottom}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionBottom}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <Handle
                 id="target-left"
                 type="target"
                 position={Position.Left}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionLeft}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <div 
-                className={`w-full h-full rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+                className={`rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
                   nodeTypeStyles
                 } ${
                   isSelected 
@@ -731,25 +732,25 @@ export default function WorkflowDiagramClient({
                 id="source-top"
                 type="source"
                 position={Position.Top}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionTop}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <Handle
                 id="source-right"
                 type="source"
                 position={Position.Right}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionRight}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <Handle
                 id="source-bottom"
                 type="source"
                 position={Position.Bottom}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionBottom}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
               <Handle
                 id="source-left"
                 type="source"
                 position={Position.Left}
-                className={`${effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'} ${nodeHandleStyles.handlePositionLeft}`}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
             </div>
           ),
