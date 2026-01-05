@@ -25,6 +25,7 @@ type WorkflowTemplate = {
     answerOptions: Array<{
       id: string
       label: string
+      valueKey?: string
       nextNodeId: string | null
       actionKey: WorkflowActionKey | null
       sourceHandle: string | null

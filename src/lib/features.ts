@@ -89,6 +89,49 @@ export const isFeatureEnabledForUser = cache(async (userId: string, featureKey: 
 })
 
 /**
+ * Check if a feature is enabled for a specific surgery.
+ *
+ * Logic:
+ * 1. Find feature by key
+ * 2. Check SurgeryFeatureFlag (if missing or false → return false)
+ * 3. Otherwise return true
+ *
+ * Note: This does not consider user-level overrides. Use `isFeatureEnabledForUser`
+ * where you need per-user feature overrides.
+ */
+export const isFeatureEnabledForSurgery = cache(
+  async (surgeryId: string, featureKey: string): Promise<boolean> => {
+    try {
+      const feature = await prisma.feature.findUnique({
+        where: { key: featureKey },
+        select: { id: true },
+      })
+
+      if (!feature) {
+        // Feature doesn't exist, default to false
+        return false
+      }
+
+      const surgeryFlag = await prisma.surgeryFeatureFlag.findUnique({
+        where: {
+          surgeryId_featureId: {
+            surgeryId,
+            featureId: feature.id,
+          },
+        },
+        select: { enabled: true },
+      })
+
+      return surgeryFlag?.enabled ?? false
+    } catch (error) {
+      console.error('Error checking surgery feature flag:', error)
+      // On error, default to false for safety
+      return false
+    }
+  },
+)
+
+/**
  * Get all features enabled for a user.
  * 
  * @param userId - The user ID

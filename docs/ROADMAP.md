@@ -4,6 +4,24 @@ This roadmap organises future development into phases, each with purpose, ration
 
 ---
 
+## ✅ Completed / In Progress
+
+### Workflow Guidance Engine
+- Visual workflow editor and viewer
+- Global Default workflows with per-surgery overrides
+- Draft / Approved lifecycle with audit metadata
+- Feature-flag controlled rollout
+
+---
+
+## 🔮 Future Enhancements
+
+- Linking workflows directly from signposting symptoms
+- Workflow usage analytics
+- Optional standalone deployment of workflow module
+
+---
+
 ## 🚦 Phase 1 — Refinement (Q1–Q2)
 
 ### ⭐ Surgery Profile Panel

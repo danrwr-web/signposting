@@ -16,9 +16,16 @@ interface HomePageClientProps {
   symptoms: EffectiveSymptom[]
   requiresClinicalReview?: boolean
   surgeryName?: string
+  workflowGuidanceEnabled?: boolean
 }
 
-function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName }: HomePageClientProps) {
+function HomePageClientContent({
+  surgeries,
+  symptoms: initialSymptoms,
+  requiresClinicalReview,
+  surgeryName,
+  workflowGuidanceEnabled,
+}: HomePageClientProps) {
   const { surgery, currentSurgerySlug } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
@@ -192,6 +199,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         totalCount={initialSymptoms.length}
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
+        workflowGuidanceEnabled={workflowGuidanceEnabled}
       />
 
       {/* Clinical Review Warning Banner */}

@@ -54,6 +54,42 @@ export async function getEffectiveWorkflows(
   surgeryId: string,
   { includeDrafts = false, includeInactive = false }: WorkflowOptions = {}
 ): Promise<EffectiveWorkflow[]> {
+  // Special case: for the Global Default surgery, "global templates" and "local templates" are the same records.
+  // Avoid returning duplicates by resolving directly from the global template list.
+  if (surgeryId === GLOBAL_SURGERY_ID) {
+    const globalTemplates = await prisma.workflowTemplate.findMany({
+      where: {
+        surgeryId: GLOBAL_SURGERY_ID,
+        ...(includeInactive ? {} : { isActive: true }),
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        colourHex: true,
+        isActive: true,
+        landingCategory: true,
+        workflowType: true,
+        approvalStatus: true,
+        approvedBy: true,
+        approvedAt: true,
+        lastEditedBy: true,
+        lastEditedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { name: 'asc' },
+    })
+
+    return globalTemplates
+      .filter((t) => includeDrafts || t.approvalStatus === 'APPROVED')
+      .map((t) => ({
+        ...t,
+        source: 'global',
+        sourceTemplateId: null,
+      }))
+  }
+
   // Fetch global defaults, local overrides, and custom workflows in parallel
   const [globalTemplates, localTemplates] = await Promise.all([
     // Global Default workflows (from the Global Default surgery)

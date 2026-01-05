@@ -12,6 +12,12 @@ _Changes in development or planned for the next release._
 - Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section.
 - Added trust section highlighting GP-built origins and local clinical control.
 - User Guide link restored in marketing site navigation alongside Docs link.
+- Workflow Guidance Module (Initial Release)
+  - Visual workflow guidance engine
+  - Global Default workflows
+  - Per-surgery customisation
+  - Draft / Approved governance lifecycle
+  - Feature-flag controlled rollout
 
 ### 🧹 Updated
 - AI questions panel now titled "Suggested wording for questions to ask" with supporting text to encourage safe, consistent phrasing.

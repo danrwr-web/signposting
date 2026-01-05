@@ -25,9 +25,13 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Workflow Guidance](Workflow-Guidance)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
 
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
+- [Admin Guide](Admin-Guide)
 
 - [Developer Guide](Developer-Guide)
 
@@ -51,6 +55,7 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
   - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
   - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
+  - Workflow Guidance module added behind feature flags, with Global Default workflows and per-surgery customisation
 
 - **v1.1 – December 2025**
   - AI Suggested Questions panel helps staff gather information consistently
@@ -102,6 +107,12 @@ Automatic colour-coding highlights urgent phrases and high-risk symptoms, helpin
 
 ### [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
 Full multi-tenancy with role-based access control. Each surgery operates independently with Superuser, Admin, and Standard user roles.
+
+### Workflow Guidance
+
+Visual, clinically governed workflows to guide staff through common document and administrative processes.
+
+See: [Workflow Guidance →](Workflow-Guidance)
 
 ---
 

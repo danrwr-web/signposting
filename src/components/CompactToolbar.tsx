@@ -27,6 +27,7 @@ interface CompactToolbarProps {
   totalCount: number
   showSurgerySelector: boolean
   onShowSurgerySelector: (show: boolean) => void
+  workflowGuidanceEnabled?: boolean
 }
 
 export default function CompactToolbar({
@@ -41,7 +42,8 @@ export default function CompactToolbar({
   resultsCount,
   totalCount,
   showSurgerySelector,
-  onShowSurgerySelector
+  onShowSurgerySelector,
+  workflowGuidanceEnabled,
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const { data: session } = useSession()
@@ -147,6 +149,16 @@ export default function CompactToolbar({
                 className="text-sm font-medium text-slate-700 hover:text-sky-700"
               >
                 Appointment Directory
+              </Link>
+            )}
+
+            {/* Workflow Guidance Link - only when enabled for this surgery */}
+            {currentSurgeryId && workflowGuidanceEnabled && (
+              <Link
+                href={`/s/${currentSurgeryId}/workflow`}
+                className="text-sm font-medium text-slate-700 hover:text-sky-700"
+              >
+                Workflow guidance
               </Link>
             )}
 

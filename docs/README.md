@@ -29,6 +29,7 @@ Use this site if you are:
   - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
   - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
+  - Workflow Guidance module added behind feature flags, with Global Default workflows and per-surgery customisation
 
 - **v1.1 – December 2025**
   - AI Suggested Questions panel helps staff gather information consistently
@@ -59,11 +60,15 @@ The full documentation is organised into the following sections:
 
 - [Appointment Directory](wiki/Appointment-Directory) – Configuring appointment types, teams, and local services
 
+- [Workflow Guidance](wiki/Workflow-Guidance) – Visual workflows to guide staff through common document and administrative processes
+
 - [AI Features](wiki/AI-Features) – Instruction Editor and Suggested Questions (with clinical review safeguards)
 
 - [High-Risk & Highlighting](wiki/High-Risk-&-Highlighting) – Colour rules, high-risk buttons, and highlighting behaviour
 
 - [Multi-Surgery & RBAC](wiki/Multi-Surgery-&-RBAC) – Multi-site configuration and role-based access control
+
+- [Admin Guide](wiki/Admin-Guide) – Managing surgery configuration and governance features
 
 - [Developer Guide](wiki/Developer-Guide) – Architecture, local setup, and contribution guidelines
 
