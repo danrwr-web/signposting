@@ -16,6 +16,16 @@ type WorkflowTemplate = {
     positionX: number | null
     positionY: number | null
     actionKey: WorkflowActionKey | null
+    badges: string[]
+    style: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    } | null
     workflowLinks: Array<{
       id: string
       templateId: string
@@ -56,7 +66,17 @@ interface Props {
     title: string,
     body: string | null,
     actionKey: WorkflowActionKey | null,
-    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
+    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>,
+    badges?: string[],
+    style?: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    } | null
   ) => Promise<{ success: boolean; error?: string }>
 }
 

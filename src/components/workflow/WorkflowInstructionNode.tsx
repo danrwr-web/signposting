@@ -2,6 +2,7 @@
 
 import { Handle, Position } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
+import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 
 interface WorkflowInstructionNodeProps {
   data: {
@@ -9,6 +10,16 @@ interface WorkflowInstructionNodeProps {
     title: string
     body: string | null
     hasBody: boolean
+    badges?: string[]
+    style?: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    } | null
     isSelected: boolean
     isAdmin?: boolean
     onNodeClick?: () => void
@@ -45,8 +56,10 @@ function InfoIcon() {
 }
 
 export default function WorkflowInstructionNode({ data, selected }: WorkflowInstructionNodeProps) {
-  const { nodeType, title, hasBody, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
+  const { nodeType, title, hasBody, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const nodeStyles = getNodeTypeColor(nodeType)
 
   return (
     <>
@@ -60,11 +73,14 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
 
       {/* Card container */}
       <div 
-        className={`min-w-[280px] max-w-[320px] bg-white border-gray-200 rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+        className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer border ${
+          styleClasses || 'bg-white border-gray-200'
+        } ${
           isSelected || selected
             ? 'border-2 border-blue-500 shadow-lg'
-            : 'border'
+            : ''
         }`}
+        style={inlineStyles}
         onClick={(e) => {
           e.stopPropagation()
           onNodeClick?.()
@@ -72,8 +88,16 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
       >
         {/* Badge in top-left */}
         <div className="flex items-start justify-between px-4 pt-3 pb-2">
-          <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
-            {nodeType}
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${nodeStyles}`}>
+              {nodeType}
+            </div>
+            {/* Node badges */}
+            {badges.length > 0 && (
+              <div className="flex items-center gap-1">
+                {renderBadges(badges)}
+              </div>
+            )}
           </div>
           {/* Info indicator - only if has body */}
           {hasBody && (
@@ -93,7 +117,7 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
         
         {/* Title - constrained with overflow protection */}
         <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
-          <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+          <div className={`font-medium break-words text-sm leading-snug ${style?.textColor ? '' : 'text-gray-900'}`}>
             {title}
           </div>
         </div>

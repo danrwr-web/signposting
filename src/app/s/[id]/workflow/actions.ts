@@ -540,6 +540,16 @@ export interface CreateNodeResult {
     positionX: number | null
     positionY: number | null
     actionKey: WorkflowActionKey | null
+    badges: string[]
+    style: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    } | null
   }
 }
 
@@ -594,6 +604,7 @@ export async function createWorkflowNodeForTemplate(
     const defaultTitle = title || (
       nodeType === 'INSTRUCTION' ? 'New instruction' :
       nodeType === 'QUESTION' ? 'New question' :
+      nodeType === 'PANEL' ? 'New panel' :
       'New outcome'
     )
 
@@ -606,12 +617,17 @@ export async function createWorkflowNodeForTemplate(
         sortOrder: maxSortOrder + 1,
         isStart: false,
         actionKey: null,
+        badges: [],
+        style: null,
         positionX: null,
         positionY: null,
       },
     })
 
     revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    // Parse badges from JSONB (Prisma returns it as JsonValue)
+    const badges = Array.isArray(node.badges) ? node.badges as string[] : []
     
     return {
       success: true,
@@ -624,6 +640,16 @@ export async function createWorkflowNodeForTemplate(
         positionX: node.positionX,
         positionY: node.positionY,
         actionKey: node.actionKey,
+        badges,
+        style: node.style as {
+          bgColor?: string
+          textColor?: string
+          borderColor?: string
+          borderWidth?: number
+          radius?: number
+          fontWeight?: 'normal' | 'medium' | 'bold'
+          theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+        } | null,
       },
     }
   } catch (error) {
@@ -951,7 +977,17 @@ export async function updateWorkflowNodeForDiagram(
   title: string,
   body: string | null,
   actionKey: WorkflowActionKey | null,
-  linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
+  linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>,
+  badges?: string[],
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  } | null
 ): Promise<ActionResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -1005,13 +1041,29 @@ export async function updateWorkflowNodeForDiagram(
 
     await prisma.$transaction(async (tx) => {
       // Update node fields
+      const updateData: {
+        title: string
+        body: string | null
+        actionKey: WorkflowActionKey | null
+        badges?: unknown
+        style?: unknown
+      } = {
+        title,
+        body: body || null,
+        actionKey,
+      }
+      
+      if (badges !== undefined) {
+        updateData.badges = badges
+      }
+      
+      if (style !== undefined) {
+        updateData.style = style
+      }
+      
       await tx.workflowNodeTemplate.update({
         where: { id: nodeId },
-        data: {
-          title,
-          body: body || null,
-          actionKey,
-        },
+        data: updateData,
       })
 
       // Replace all linked workflows if provided

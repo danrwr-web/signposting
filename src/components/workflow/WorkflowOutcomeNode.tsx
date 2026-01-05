@@ -2,6 +2,7 @@
 
 import { Handle, Position } from 'reactflow'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
+import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 
 interface WorkflowOutcomeNodeProps {
   data: {
@@ -11,6 +12,16 @@ interface WorkflowOutcomeNodeProps {
     hasBody: boolean
     actionKey: WorkflowActionKey | null
     hasOutgoingEdges: boolean
+    badges?: string[]
+    style?: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    } | null
     isSelected: boolean
     isAdmin?: boolean
     onNodeClick?: () => void
@@ -62,11 +73,13 @@ function InfoIcon() {
 }
 
 export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeNodeProps) {
-  const { nodeType, title, hasBody, actionKey, hasOutgoingEdges, isSelected, isAdmin = false, onNodeClick, onInfoClick, getActionKeyDescription: customGetActionKeyDescription } = data
+  const { nodeType, title, hasBody, actionKey, hasOutgoingEdges, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick, getActionKeyDescription: customGetActionKeyDescription } = data
   
   const isOutcomeNode = actionKey !== null && !hasOutgoingEdges
   const getDescription = customGetActionKeyDescription || getActionKeyDescription
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const nodeStyles = getNodeTypeColor(nodeType)
 
   return (
     <>
@@ -80,11 +93,14 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
 
       {/* Card container */}
       <div 
-        className={`min-w-[280px] max-w-[320px] bg-white border-gray-200 rounded-lg shadow-md overflow-hidden transition-all cursor-pointer flex flex-col ${
+        className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer flex flex-col border ${
+          styleClasses || 'bg-white border-gray-200'
+        } ${
           isSelected || selected
             ? 'border-2 border-blue-500 shadow-lg'
-            : 'border'
+            : ''
         }`}
+        style={inlineStyles}
         onClick={(e) => {
           e.stopPropagation()
           onNodeClick?.()
@@ -94,8 +110,16 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
         <div className="flex-1 flex flex-col justify-center px-4 py-3">
           {/* Badge and info icon row */}
           <div className="flex items-center justify-between mb-2">
-            <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
-              {nodeType}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${nodeStyles}`}>
+                {nodeType}
+              </div>
+              {/* Node badges */}
+              {badges.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {renderBadges(badges)}
+                </div>
+              )}
             </div>
             {/* Info indicator - only if has body */}
             {hasBody && (
@@ -115,7 +139,7 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
           
           {/* Title - constrained with overflow protection */}
           <div className="min-h-[2.5rem] overflow-hidden">
-            <div className="font-medium text-gray-900 break-words text-sm leading-snug">
+            <div className={`font-medium break-words text-sm leading-snug ${style?.textColor ? '' : 'text-gray-900'}`}>
               {title}
             </div>
           </div>

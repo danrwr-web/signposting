@@ -22,6 +22,7 @@ import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
+import WorkflowPanelNode from './WorkflowPanelNode'
 import { renderBulletText } from './renderBulletText'
 
 interface WorkflowNode {
@@ -33,6 +34,16 @@ interface WorkflowNode {
   positionX: number | null
   positionY: number | null
   actionKey: WorkflowActionKey | null
+  badges: string[] // Array of badge strings (e.g. ["STAMP"])
+  style: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  } | null
   workflowLinks: Array<{
     id: string
     templateId: string
@@ -81,7 +92,17 @@ interface WorkflowDiagramClientProps {
     title: string,
     body: string | null,
     actionKey: WorkflowActionKey | null,
-    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
+    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>,
+    badges?: string[],
+    style?: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    } | null
   ) => Promise<{ success: boolean; error?: string }>
 }
 
@@ -160,6 +181,16 @@ export default function WorkflowDiagramClient({
   const [editingActionKey, setEditingActionKey] = useState<WorkflowActionKey | null>(null)
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
   const [editingLinkedWorkflows, setEditingLinkedWorkflows] = useState<Array<{ id?: string; toTemplateId: string; label: string; sortOrder: number }>>([])
+  const [editingBadges, setEditingBadges] = useState<string[]>([])
+  const [editingStyle, setEditingStyle] = useState<{
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  } | null>(null)
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   const [legendExpanded, setLegendExpanded] = useState(false)
   
@@ -217,6 +248,8 @@ export default function WorkflowDiagramClient({
       setEditingTitle(selectedNode.title)
       setEditingBody(selectedNode.body || '')
       setEditingActionKey(selectedNode.actionKey)
+      setEditingBadges(selectedNode.badges || [])
+      setEditingStyle(selectedNode.style)
       // Initialize linked workflows from node data
       const sortedLinks = [...selectedNode.workflowLinks].sort((a, b) => {
         // Links should already be sorted by sortOrder from query
@@ -303,6 +336,8 @@ export default function WorkflowDiagramClient({
         nodeType = 'instructionNode'
       } else if (node.nodeType === 'END') {
         nodeType = 'outcomeNode'
+      } else if (node.nodeType === 'PANEL') {
+        nodeType = 'panelNode'
       } else {
         nodeType = 'default'
       }
@@ -318,6 +353,8 @@ export default function WorkflowDiagramClient({
           title: node.title,
           body: node.body,
           hasBody,
+          badges: node.badges || [],
+          style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
@@ -328,6 +365,8 @@ export default function WorkflowDiagramClient({
           title: node.title,
           body: node.body,
           hasBody,
+          badges: node.badges || [],
+          style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
@@ -340,11 +379,22 @@ export default function WorkflowDiagramClient({
           hasBody,
           actionKey: node.actionKey,
           hasOutgoingEdges,
+          badges: node.badges || [],
+          style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
           onInfoClick: () => toggleNodeSelection(node.id),
           getActionKeyDescription,
+        } : node.nodeType === 'PANEL' ? {
+          // For PANEL nodes, pass data to custom component
+          nodeType: node.nodeType,
+          title: node.title,
+          badges: node.badges || [],
+          style: node.style,
+          isSelected,
+          isAdmin: effectiveAdmin,
+          onNodeClick: () => toggleNodeSelection(node.id),
         } : {
           // Fallback for any other node types (shouldn't happen)
           label: (
@@ -700,53 +750,77 @@ export default function WorkflowDiagramClient({
         const initialX = 0
         const initialY = maxY + 200
 
+        // Map node types to custom components
+        let newNodeType: string
+        if (nodeType === 'QUESTION') {
+          newNodeType = 'decisionNode'
+        } else if (nodeType === 'INSTRUCTION') {
+          newNodeType = 'instructionNode'
+        } else if (nodeType === 'END') {
+          newNodeType = 'outcomeNode'
+        } else if (nodeType === 'PANEL') {
+          newNodeType = 'panelNode'
+        } else {
+          newNodeType = 'default'
+        }
+
         const newNode: Node = {
           id: result.node.id,
-          type: 'default',
+          type: newNodeType,
           position: { x: initialX, y: initialY },
           selected: false,
-          data: {
-                  label: (
-                    <>
-                      {isAdmin && (
-                        <Handle
-                          id="in"
-                          type="target"
-                          position={Position.Top}
-                          className="w-3 h-3 !bg-blue-500"
-                        />
-                      )}
-                      <div className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
-                        nodeType === 'QUESTION'
-                          ? 'bg-amber-50 border-amber-200'
-                          : 'bg-white border-gray-200'
-                      } border`}>
-                        <div className="flex items-start justify-between px-4 pt-3 pb-2">
-                          <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
-                            {nodeType}
-                          </div>
-                        </div>
-                        <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
-                          <div className="font-medium text-gray-900 break-words text-sm leading-snug">
-                            {result.node.title}
-                          </div>
-                        </div>
-                      </div>
-                      {isAdmin && (
-                        <Handle
-                          id="out"
-                          type="source"
-                          position={Position.Bottom}
-                          className="w-3 h-3 !bg-blue-500"
-                        />
-                      )}
-                    </>
-                  ),
+          data: nodeType === 'QUESTION' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            body: result.node.body,
+            hasBody: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+            onInfoClick: () => {},
+          } : nodeType === 'INSTRUCTION' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            body: result.node.body,
+            hasBody: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+            onInfoClick: () => {},
+          } : nodeType === 'END' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            body: result.node.body,
+            hasBody: false,
+            actionKey: result.node.actionKey,
+            hasOutgoingEdges: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+            onInfoClick: () => {},
+            getActionKeyDescription,
+          } : nodeType === 'PANEL' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+          } : {
             nodeType: result.node.nodeType,
             title: result.node.title,
             body: result.node.body,
             actionKey: result.node.actionKey,
             hasBody: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
           },
         }
         setNodes((nds) => [...nds, newNode])
@@ -781,7 +855,9 @@ export default function WorkflowDiagramClient({
         editingTitle, 
         editingBody || null, 
         editingActionKey,
-        linkedWorkflows
+        linkedWorkflows,
+        editingBadges,
+        editingStyle
       )
       if (result.success) {
         router.refresh()
@@ -792,7 +868,7 @@ export default function WorkflowDiagramClient({
       console.error('Error saving node:', error)
       alert('Failed to save changes')
     }
-  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, router])
+  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, editingBadges, editingStyle, router])
 
   // Handle quick create of a new node connected from the selected node
   const handleQuickCreateConnectedNode = useCallback(async (nodeType: WorkflowNodeType) => {
@@ -824,6 +900,8 @@ export default function WorkflowDiagramClient({
         newNodeType = 'instructionNode'
       } else if (nodeType === 'END') {
         newNodeType = 'outcomeNode'
+      } else if (nodeType === 'PANEL') {
+        newNodeType = 'panelNode'
       } else {
         newNodeType = 'default'
       }
@@ -838,6 +916,8 @@ export default function WorkflowDiagramClient({
           title: result.node.title,
           body: result.node.body,
           hasBody: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
@@ -847,6 +927,8 @@ export default function WorkflowDiagramClient({
           title: result.node.title,
           body: result.node.body,
           hasBody: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
@@ -858,17 +940,29 @@ export default function WorkflowDiagramClient({
           hasBody: false,
           actionKey: result.node.actionKey,
           hasOutgoingEdges: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
           onInfoClick: () => {},
           getActionKeyDescription,
+        } : nodeType === 'PANEL' ? {
+          nodeType: result.node.nodeType,
+          title: result.node.title,
+          badges: result.node.badges || [],
+          style: result.node.style,
+          isSelected: false,
+          isAdmin,
+          onNodeClick: () => {},
         } : {
           // Fallback for any other node types (shouldn't happen)
           nodeType: result.node.nodeType,
           title: result.node.title,
           body: result.node.body,
           hasBody: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
         },
       }
 
@@ -992,6 +1086,7 @@ export default function WorkflowDiagramClient({
     decisionNode: WorkflowDecisionNode,
     instructionNode: WorkflowInstructionNode,
     outcomeNode: WorkflowOutcomeNode,
+    panelNode: WorkflowPanelNode,
   }), [])
 
 
@@ -1028,6 +1123,12 @@ export default function WorkflowDiagramClient({
               className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
             >
               Add outcome
+            </button>
+            <button
+              onClick={() => handleCreateNode('PANEL')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+            >
+              Add panel
             </button>
           </div>
           <p className="text-xs text-gray-500">
@@ -1186,6 +1287,130 @@ export default function WorkflowDiagramClient({
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+                  
+                  {/* Badges section */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <label htmlFor="node-badges" className="block text-sm font-medium text-gray-700 mb-2">
+                      Badges
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {['STAMP'].map((badge) => (
+                          <label key={badge} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingBadges.includes(badge)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditingBadges([...editingBadges, badge])
+                                } else {
+                                  setEditingBadges(editingBadges.filter(b => b !== badge))
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{badge}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Style section */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                      Node Styling
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label htmlFor="node-theme" className="block text-sm font-medium text-gray-700 mb-1">
+                          Theme
+                        </label>
+                        <select
+                          id="node-theme"
+                          value={editingStyle?.theme || 'default'}
+                          onChange={(e) => {
+                            const theme = e.target.value as 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel' | 'default'
+                            setEditingStyle({
+                              ...editingStyle,
+                              theme: theme === 'default' ? undefined : theme,
+                            })
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="default">Default</option>
+                          <option value="info">Info (Blue)</option>
+                          <option value="warning">Warning (Amber)</option>
+                          <option value="success">Success (Green)</option>
+                          <option value="muted">Muted (Gray)</option>
+                          <option value="panel">Panel (Background)</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="node-bg-color" className="block text-xs font-medium text-gray-600 mb-1">
+                            Background
+                          </label>
+                          <input
+                            id="node-bg-color"
+                            type="color"
+                            value={editingStyle?.bgColor || '#ffffff'}
+                            onChange={(e) => {
+                              setEditingStyle({
+                                ...editingStyle,
+                                bgColor: e.target.value,
+                              })
+                            }}
+                            className="w-full h-8 border border-gray-300 rounded cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="node-text-color" className="block text-xs font-medium text-gray-600 mb-1">
+                            Text
+                          </label>
+                          <input
+                            id="node-text-color"
+                            type="color"
+                            value={editingStyle?.textColor || '#111827'}
+                            onChange={(e) => {
+                              setEditingStyle({
+                                ...editingStyle,
+                                textColor: e.target.value,
+                              })
+                            }}
+                            className="w-full h-8 border border-gray-300 rounded cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="node-border-color" className="block text-xs font-medium text-gray-600 mb-1">
+                          Border
+                        </label>
+                        <input
+                          id="node-border-color"
+                          type="color"
+                          value={editingStyle?.borderColor || '#e5e7eb'}
+                          onChange={(e) => {
+                            setEditingStyle({
+                              ...editingStyle,
+                              borderColor: e.target.value,
+                            })
+                          }}
+                          className="w-full h-8 border border-gray-300 rounded cursor-pointer"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingStyle(null)
+                        }}
+                        className="w-full px-3 py-1.5 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Reset to defaults
+                      </button>
+                    </div>
+                  </div>
+
                   {(selectedNode.nodeType === 'END' || selectedNode.actionKey) && (
                     <div>
                       <label htmlFor="node-actionKey" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1378,6 +1603,8 @@ export default function WorkflowDiagramClient({
                     setEditingBody('')
                     setEditingActionKey(null)
                     setEditingLinkedWorkflows([])
+                    setEditingBadges([])
+                    setEditingStyle(null)
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                 >

@@ -2,6 +2,7 @@
 
 import { Handle, Position } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
+import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 
 interface WorkflowDecisionNodeProps {
   data: {
@@ -9,6 +10,16 @@ interface WorkflowDecisionNodeProps {
     title: string
     body: string | null
     hasBody: boolean
+    badges?: string[]
+    style?: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    } | null
     isSelected: boolean
     isAdmin?: boolean
     onNodeClick?: () => void
@@ -45,8 +56,14 @@ function InfoIcon() {
 }
 
 export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisionNodeProps) {
-  const { nodeType, title, hasBody, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
+  const { nodeType, title, hasBody, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const nodeStyles = getNodeTypeColor(nodeType)
+  
+  // For diamond shape, we need to apply styles to the background div
+  const bgColor = style?.bgColor || (style?.theme === 'warning' ? 'rgba(251, 191, 36, 0.7)' : 'rgba(251, 191, 36, 0.7)')
+  const borderColor = style?.borderColor || '#fbbf24'
 
   return (
     <>
@@ -80,9 +97,12 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
       >
         {/* Diamond background - clipped with polygon */}
         <div
-          className="absolute inset-0 bg-amber-50/70 border-2 border-amber-200"
+          className="absolute inset-0 border-2"
           style={{
             clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+            backgroundColor: bgColor,
+            borderColor: borderColor,
+            borderWidth: style?.borderWidth !== undefined ? `${style.borderWidth}px` : '2px',
           }}
         />
 
@@ -90,8 +110,16 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
         <div className="relative h-full grid grid-rows-[auto_1fr_auto] items-center p-3 overflow-hidden">
           {/* Badge and info icon row */}
           <div className="flex items-start justify-between w-full min-h-[20px]">
-            <div className={`text-xs font-semibold px-2 py-0.5 rounded border ${getNodeTypeColor(nodeType)}`}>
-              {nodeType}
+            <div className="flex items-center gap-1 flex-wrap">
+              <div className={`text-xs font-semibold px-2 py-0.5 rounded border ${nodeStyles}`}>
+                {nodeType}
+              </div>
+              {/* Node badges */}
+              {badges.length > 0 && (
+                <div className="flex items-center gap-1">
+                  {renderBadges(badges)}
+                </div>
+              )}
             </div>
             {/* Info indicator - only if has body */}
             {hasBody && (
@@ -111,7 +139,7 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
 
           {/* Title row - flexes to center, constrained width, subtle upward nudge */}
           <div className="flex items-center justify-center w-full -mt-1">
-            <div className="font-medium text-gray-900 break-words text-sm leading-snug text-center max-w-[140px] overflow-hidden">
+            <div className={`font-medium break-words text-sm leading-snug text-center max-w-[140px] overflow-hidden ${style?.textColor ? '' : 'text-gray-900'}`} style={style?.textColor ? { color: style.textColor } : {}}>
               {title}
             </div>
           </div>
