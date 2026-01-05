@@ -566,8 +566,40 @@ export default function WorkflowDiagramClient({
     nodesRef.current = nodes
   }, [nodes])
   
+  // Track if this is the initial load
+  const isInitialLoadRef = useRef(true)
+  const previousFlowNodesRef = useRef<Node[]>([])
+  
   useEffect(() => {
-    // Don't overwrite nodes that are currently being resized
+    // On initial load, set nodes directly
+    if (isInitialLoadRef.current) {
+      setNodes(flowNodes)
+      nodesRef.current = flowNodes
+      previousFlowNodesRef.current = flowNodes
+      isInitialLoadRef.current = false
+      return
+    }
+    
+    // Check if flowNodes actually changed (compare IDs and key properties)
+    const nodesChanged = flowNodes.length !== previousFlowNodesRef.current.length ||
+      flowNodes.some((fn, idx) => {
+        const prev = previousFlowNodesRef.current[idx]
+        return !prev || 
+          fn.id !== prev.id || 
+          fn.type !== prev.type ||
+          fn.position.x !== prev.position.x ||
+          fn.position.y !== prev.position.y ||
+          (fn.data as any)?.title !== (prev.data as any)?.title
+      })
+    
+    if (!nodesChanged) {
+      // Nothing changed, don't update
+      return
+    }
+    
+    previousFlowNodesRef.current = flowNodes
+    
+    // After initial load, don't overwrite nodes that are currently being resized
     if (resizingNodesRef.current.size > 0) {
       // Only update nodes that are NOT being resized
       setNodes((currentNodes) => {
@@ -576,18 +608,21 @@ export default function WorkflowDiagramClient({
           if (resizingNodesRef.current.has(flowNode.id)) {
             const currentNode = currentNodes.find((n) => n.id === flowNode.id)
             if (currentNode) {
-              // Preserve the entire current node state (including dimensions)
+              // Preserve the entire current node state (including dimensions and all properties)
               return currentNode
             }
           }
           // Not being resized - update from flowNodes
           return flowNode
         })
+        // Update ref
+        nodesRef.current = updatedNodes
         return updatedNodes
       })
     } else {
       // No nodes being resized - apply flowNodes normally
       setNodes(flowNodes)
+      nodesRef.current = flowNodes
     }
   }, [flowNodes, setNodes])
 
@@ -716,84 +751,80 @@ export default function WorkflowDiagramClient({
     // First, apply changes using React Flow's built-in handler
     onNodesChangeInternal(changes)
     
-    // Then intercept dimension changes for PANEL nodes (store for later processing)
+    // Then intercept dimension changes for PANEL nodes
     if (effectiveAdmin && updateNodeAction) {
       for (const change of changes) {
         if (change.type === 'dimensions' && change.dimensions) {
           const nodeId = change.id
           
-          // Check if this is a panel node by looking at current nodes
-          // Use a small delay to let React Flow update first
-          setTimeout(() => {
-            const node = nodesRef.current.find((n) => n.id === nodeId)
+          // Check if this is a panel node from template
+          const originalNode = template.nodes.find((n) => n.id === nodeId)
+          const isPanelNode = originalNode?.nodeType === 'PANEL'
+          
+          if (isPanelNode) {
+            // Mark node as being resized immediately
+            resizingNodesRef.current.add(nodeId)
             
-            // Only process panel nodes
-            if (node && node.type === 'panelNode') {
-              // Mark node as being resized immediately
-              resizingNodesRef.current.add(nodeId)
-              
-              // Store dimensions for later save (use dimensions from change event)
-              pendingDimensionSavesRef.current.set(nodeId, {
-                width: change.dimensions.width,
-                height: change.dimensions.height,
-              })
-              
-              // Clear existing timeout for this specific node
-              if (panelDimensionUpdateTimeoutRef.current) {
-                clearTimeout(panelDimensionUpdateTimeoutRef.current)
+            // Store dimensions for later save (use dimensions from change event)
+            pendingDimensionSavesRef.current.set(nodeId, {
+              width: change.dimensions.width,
+              height: change.dimensions.height,
+            })
+            
+            // Clear existing timeout
+            if (panelDimensionUpdateTimeoutRef.current) {
+              clearTimeout(panelDimensionUpdateTimeoutRef.current)
+            }
+            
+            // Check if resizing has ended
+            const resizingEnded = change.resizing === false
+            
+            // Debounce dimension updates (500ms after resizing ends, or 300ms for ongoing resize)
+            const debounceDelay = resizingEnded ? 500 : 300
+            panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
+              const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
+              if (!pendingSave) {
+                resizingNodesRef.current.delete(nodeId)
+                return
               }
               
-              // Check if resizing has ended
-              const resizingEnded = change.resizing === false
+              // Find the original node data to get current style
+              if (!originalNode) {
+                resizingNodesRef.current.delete(nodeId)
+                pendingDimensionSavesRef.current.delete(nodeId)
+                return
+              }
               
-              // Debounce dimension updates (500ms after resizing ends, or 300ms for ongoing resize)
-              const debounceDelay = resizingEnded ? 500 : 300
-              panelDimensionUpdateTimeoutRef.current = setTimeout(() => {
-                const pendingSave = pendingDimensionSavesRef.current.get(nodeId)
-                if (!pendingSave) {
-                  resizingNodesRef.current.delete(nodeId)
-                  return
-                }
-                
-                // Find the original node data to get current style
-                const originalNode = template.nodes.find((n) => n.id === nodeId)
-                if (!originalNode) {
-                  resizingNodesRef.current.delete(nodeId)
-                  pendingDimensionSavesRef.current.delete(nodeId)
-                  return
-                }
-                
-                // Merge width/height into existing style
-                const currentStyle = originalNode.style || {}
-                const updatedStyle = {
-                  ...currentStyle,
-                  width: pendingSave.width,
-                  height: pendingSave.height,
-                }
-                
-                // Save to DB asynchronously
-                updateNodeAction(
-                  nodeId,
-                  originalNode.title,
-                  originalNode.body,
-                  originalNode.actionKey,
-                  undefined, // linkedWorkflows
-                  originalNode.badges || [],
-                  updatedStyle
-                ).then(() => {
-                  // Remove from resizing set after successful save
-                  setTimeout(() => {
-                    resizingNodesRef.current.delete(nodeId)
-                    pendingDimensionSavesRef.current.delete(nodeId)
-                  }, 1000)
-                }).catch((error) => {
-                  console.error('Error updating panel dimensions:', error)
+              // Merge width/height into existing style
+              const currentStyle = originalNode.style || {}
+              const updatedStyle = {
+                ...currentStyle,
+                width: pendingSave.width,
+                height: pendingSave.height,
+              }
+              
+              // Save to DB asynchronously
+              updateNodeAction(
+                nodeId,
+                originalNode.title,
+                originalNode.body,
+                originalNode.actionKey,
+                undefined, // linkedWorkflows
+                originalNode.badges || [],
+                updatedStyle
+              ).then(() => {
+                // Remove from resizing set after successful save
+                setTimeout(() => {
                   resizingNodesRef.current.delete(nodeId)
                   pendingDimensionSavesRef.current.delete(nodeId)
-                })
-              }, debounceDelay)
-            }
-          }, 0)
+                }, 1000)
+              }).catch((error) => {
+                console.error('Error updating panel dimensions:', error)
+                resizingNodesRef.current.delete(nodeId)
+                pendingDimensionSavesRef.current.delete(nodeId)
+              })
+            }, debounceDelay)
+          }
         }
       }
     }
