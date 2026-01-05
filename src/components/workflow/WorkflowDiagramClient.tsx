@@ -790,14 +790,56 @@ export default function WorkflowDiagramClient({
   }, [])
   
   // Custom onNodesChange handler to intercept panel dimension changes
-  // Only persists dimensions for user-driven resizes, ignoring React Flow measurement/reflow events
+  // Filters out non-user dimension events BEFORE applying to state to prevent visual shrinking
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    // First, apply changes using React Flow's built-in handler
-    onNodesChangeInternal(changes)
+    // Split changes into allowed and ignored BEFORE applying to state
+    const allowedChanges: NodeChange[] = []
+    const ignoredPanelDimensionChanges: NodeChange[] = []
     
-    // Then intercept dimension changes for PANEL nodes
+    for (const change of changes) {
+      // Non-dimension changes: always allow
+      if (change.type !== 'dimensions') {
+        allowedChanges.push(change)
+        continue
+      }
+      
+      // Dimension changes: check if this is a PANEL node
+      const nodeId = change.id
+      const originalNode = template.nodes.find((n) => n.id === nodeId)
+      const isPanelNode = originalNode?.nodeType === 'PANEL'
+      
+      // Non-PANEL nodes: always allow dimension changes
+      if (!isPanelNode) {
+        allowedChanges.push(change)
+        continue
+      }
+      
+      // PANEL dimension changes: filter based on resizing state
+      const isResizing = change.resizing === true
+      const resizingFalse = change.resizing === false
+      const resizingUndefined = change.resizing === undefined
+      
+      if (isResizing) {
+        // User is actively resizing - allow this change to update state
+        allowedChanges.push(change)
+      } else if (resizingFalse) {
+        // Explicit resize end - allow this change
+        allowedChanges.push(change)
+      } else if (resizingUndefined) {
+        // Measurement/reflow event - IGNORE it (don't apply to state)
+        ignoredPanelDimensionChanges.push(change)
+      } else {
+        // Unknown state - allow to be safe
+        allowedChanges.push(change)
+      }
+    }
+    
+    // Apply only allowed changes to React Flow state
+    onNodesChangeInternal(allowedChanges)
+    
+    // Then handle persistence logic for PANEL dimension changes that were allowed
     if (effectiveAdmin && updateNodeAction) {
-      for (const change of changes) {
+      for (const change of allowedChanges) {
         if (change.type === 'dimensions' && change.dimensions) {
           const nodeId = change.id
           
