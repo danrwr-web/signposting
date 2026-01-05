@@ -62,7 +62,8 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
   const nodeStyles = getNodeTypeColor(nodeType)
   
   // For diamond shape, we need to apply styles to the background div
-  const bgColor = style?.bgColor || (style?.theme === 'warning' ? 'rgba(251, 191, 36, 0.7)' : 'rgba(251, 191, 36, 0.7)')
+  // Only use explicit style colors if provided, otherwise use original default amber colors
+  const bgColor = style?.bgColor || 'rgba(251, 191, 36, 0.7)'
   const borderColor = style?.borderColor || '#fbbf24'
 
   return (

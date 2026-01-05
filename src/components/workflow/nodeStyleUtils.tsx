@@ -36,12 +36,24 @@ function getThemeClasses(theme: NodeStyle['theme']): { bg: string; text: string;
 
 /**
  * Get inline styles for custom colors
+ * Only applies styles if node has explicit style overrides (bgColor, textColor, or borderColor)
+ * Returns empty styles for nodes without explicit overrides to preserve original appearance
  */
 export function getNodeStyles(style: NodeStyle | null | undefined): {
   className: string
   style: React.CSSProperties
 } {
   if (!style) {
+    return { className: '', style: {} }
+  }
+
+  // Only apply styles if at least one explicit color property is set
+  const hasExplicitStyle = style.bgColor !== undefined || 
+                          style.textColor !== undefined || 
+                          style.borderColor !== undefined
+
+  if (!hasExplicitStyle) {
+    // No explicit style overrides - return empty to preserve original node styling
     return { className: '', style: {} }
   }
 
