@@ -1060,7 +1060,43 @@ export async function updateWorkflowNodeForDiagram(
       }
       
       if (style !== undefined) {
-        updateData.style = style
+        // Read current style from DB to merge with incoming style
+        // This preserves width/height and other properties that may not be in the incoming style
+        const existingStyle = (node.style as {
+          bgColor?: string
+          textColor?: string
+          borderColor?: string
+          borderWidth?: number
+          radius?: number
+          fontWeight?: 'normal' | 'medium' | 'bold'
+          theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+          width?: number
+          height?: number
+        } | null) ?? null
+        
+        // Merge: existing style first, then incoming style (incoming overrides existing)
+        const mergedStyle = {
+          ...(existingStyle ?? {}),
+          ...(style ?? {}),
+        }
+        
+        // Defensive normalization: ensure width/height are numbers if they exist
+        if (mergedStyle.width !== undefined) {
+          mergedStyle.width = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
+          if (isNaN(mergedStyle.width)) {
+            delete mergedStyle.width
+          }
+        }
+        if (mergedStyle.height !== undefined) {
+          mergedStyle.height = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
+          if (isNaN(mergedStyle.height)) {
+            delete mergedStyle.height
+          }
+        }
+        
+        // If style is explicitly null, allow clearing it (treat as empty object for merge)
+        // Otherwise, use merged style
+        updateData.style = style === null ? null : mergedStyle
       }
       
       await tx.workflowNodeTemplate.update({
