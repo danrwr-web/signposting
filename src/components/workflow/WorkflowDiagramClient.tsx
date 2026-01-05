@@ -38,22 +38,22 @@ function DebugFlowAccessor({
   template: any
   flowNodes: Node[]
 }) {
-  const { getNodes, getEdges } = useReactFlow()
+  const { getNodes, getEdges, getViewport } = useReactFlow()
   
-  // Expose debug function on window when debugRF=1 is in URL
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    
-    const urlParams = new URLSearchParams(window.location.search)
-    const debugEnabled = urlParams.get('debugRF') === '1'
-    
-    if (!debugEnabled) {
-      // Clean up if query param removed
-      if ((window as any).__debugRF) {
-        delete (window as any).__debugRF
+    // Expose debug function on window when debugRF=1 is in URL AND not production
+    useEffect(() => {
+      if (typeof window === 'undefined') return
+      
+      const urlParams = new URLSearchParams(window.location.search)
+      const debugEnabled = urlParams.get('debugRF') === '1' && process.env.NODE_ENV !== 'production'
+      
+      if (!debugEnabled) {
+        // Clean up if query param removed
+        if ((window as any).__debugRF) {
+          delete (window as any).__debugRF
+        }
+        return
       }
-      return
-    }
     
     // Expose debug function
     ;(window as any).__debugRF = () => {
@@ -149,67 +149,223 @@ function DebugFlowAccessor({
         console.log('✅ flowNodes and ReactFlow positions match')
       }
       
-      // Dimension check: Verify React Flow internal dimensions match DOM size
-      console.group('📐 Dimension Check (React Flow vs DOM)')
+      // Comprehensive edge anchor diagnostics
+      console.group('🎯 Edge Anchor Diagnostics')
+      
+      const viewport = getViewport()
+      console.log('1) Viewport Info:', {
+        x: viewport.x.toFixed(2),
+        y: viewport.y.toFixed(2),
+        zoom: viewport.zoom.toFixed(3),
+      })
+      
+      // Get wrapper rect for coordinate conversion
+      const wrapper = document.querySelector('.react-flow') as HTMLElement
+      const wrapperRect = wrapper?.getBoundingClientRect()
+      
+      // Find QUESTION and END nodes for testing
       const questionNode = rfNodes.find((n: Node) => n.type === 'decisionNode')
+      const endNode = rfNodes.find((n: Node) => n.type === 'outcomeNode')
+      
+      // Check QUESTION node
       if (questionNode) {
-        const rfWidth = questionNode.width
-        const rfHeight = questionNode.height
-        const nodeElement = document.querySelector(`[data-id="${questionNode.id}"]`) as HTMLElement
-        if (nodeElement) {
+        console.group('QUESTION Node Analysis')
+        
+        // React Flow internal node box
+        const rfNode = questionNode
+        console.log('2) React Flow Internal Node Box:', {
+          id: rfNode.id,
+          position: { x: rfNode.position.x.toFixed(2), y: rfNode.position.y.toFixed(2) },
+          positionAbsolute: {
+            x: ((rfNode as any).positionAbsolute?.x || 0).toFixed(2),
+            y: ((rfNode as any).positionAbsolute?.y || 0).toFixed(2),
+          },
+          width: rfNode.width,
+          height: rfNode.height,
+          hasWidth: rfNode.width !== undefined,
+          hasHeight: rfNode.height !== undefined,
+        })
+        
+        // Check if width/height is set in flowNodes mapping
+        const flowNode = flowNodes.find((n) => n.id === rfNode.id)
+        console.log('2b) FlowNodes Mapping:', {
+          hasWidth: flowNode?.width !== undefined,
+          hasHeight: flowNode?.height !== undefined,
+          width: flowNode?.width,
+          height: flowNode?.height,
+          hasStyleWidth: (flowNode as any)?.style?.width !== undefined,
+          hasStyleHeight: (flowNode as any)?.style?.height !== undefined,
+        })
+        
+        // DOM measurements
+        const nodeElement = document.querySelector(`[data-id="${rfNode.id}"]`) as HTMLElement
+        if (nodeElement && wrapperRect) {
           const nodeRect = nodeElement.getBoundingClientRect()
-          // Get the viewport transform to calculate actual size
-          const viewport = document.querySelector('.react-flow__viewport') as HTMLElement
-          const transform = viewport?.style.transform || ''
-          const scaleMatch = transform.match(/scale\(([^)]+)\)/)
-          const scale = scaleMatch ? parseFloat(scaleMatch[1]) : 1
           
-          // DOM size adjusted for scale
-          const domWidth = nodeRect.width / scale
-          const domHeight = nodeRect.height / scale
+          // Find the visible card element (first child div that's not a handle)
+          const cardElement = Array.from(nodeElement.children).find(
+            (child) => child.tagName === 'DIV' && !child.hasAttribute('data-handleid')
+          ) as HTMLElement
+          const cardRect = cardElement?.getBoundingClientRect()
           
-          const widthMatch = Math.abs((rfWidth || 0) - domWidth) <= 2
-          const heightMatch = Math.abs((rfHeight || 0) - domHeight) <= 2
-          
-          console.log('QUESTION node dimensions:', {
-            nodeId: questionNode.id,
-            reactFlow: { width: rfWidth, height: rfHeight },
-            dom: { width: domWidth.toFixed(2), height: domHeight.toFixed(2) },
-            scale: scale.toFixed(2),
-            widthMatch: widthMatch ? '✅' : '❌',
-            heightMatch: heightMatch ? '✅' : '❌',
-            widthDiff: Math.abs((rfWidth || 0) - domWidth).toFixed(2) + 'px',
-            heightDiff: Math.abs((rfHeight || 0) - domHeight).toFixed(2) + 'px',
+          console.log('3) DOM Measurements:', {
+            nodeWrapper: {
+              left: nodeRect.left.toFixed(2),
+              top: nodeRect.top.toFixed(2),
+              width: nodeRect.width.toFixed(2),
+              height: nodeRect.height.toFixed(2),
+            },
+            cardElement: cardElement ? {
+              left: cardRect.left.toFixed(2),
+              top: cardRect.top.toFixed(2),
+              width: cardRect.width.toFixed(2),
+              height: cardRect.height.toFixed(2),
+            } : 'not found',
+            computedTransform: window.getComputedStyle(nodeElement).transform,
+            parentTransform: nodeElement.parentElement ? window.getComputedStyle(nodeElement.parentElement).transform : 'none',
           })
           
-          if (!widthMatch || !heightMatch) {
-            console.warn('⚠️ React Flow dimensions do not match DOM size!')
-          } else {
-            console.log('✅ React Flow dimensions match DOM size')
-          }
+          // Convert DOM size to flow coordinates (accounting for zoom)
+          const domWidthInFlow = nodeRect.width / viewport.zoom
+          const domHeightInFlow = nodeRect.height / viewport.zoom
           
-          // Handle alignment check
-          const sourceRightHandle = nodeElement.querySelector('[data-handleid="source-right"]') as HTMLElement
-          if (sourceRightHandle) {
-            const handleRect = sourceRightHandle.getBoundingClientRect()
-            const offset = (handleRect.left - nodeRect.right) / scale
-            const isAligned = Math.abs(offset) <= 1
-            
-            console.log('Handle alignment:', {
-              offset: offset.toFixed(2) + 'px',
-              isAligned: isAligned ? '✅' : '❌',
-            })
-            
-            if (!isAligned) {
-              console.warn('⚠️ Handle is misaligned!', { offset: offset.toFixed(2) + 'px' })
+          console.log('3b) Dimension Comparison:', {
+            reactFlowWidth: rfNode.width,
+            reactFlowHeight: rfNode.height,
+            domWidthInFlow: domWidthInFlow.toFixed(2),
+            domHeightInFlow: domHeightInFlow.toFixed(2),
+            widthMatch: rfNode.width ? Math.abs(rfNode.width - domWidthInFlow) <= 2 : 'N/A',
+            heightMatch: rfNode.height ? Math.abs(rfNode.height - domHeightInFlow) <= 2 : 'N/A',
+            widthDiff: rfNode.width ? Math.abs(rfNode.width - domWidthInFlow).toFixed(2) + 'px' : 'N/A',
+            heightDiff: rfNode.height ? Math.abs(rfNode.height - domHeightInFlow).toFixed(2) + 'px' : 'N/A',
+          })
+          
+          // Handle center points
+          const handleIds = ['source-right', 'target-left', 'source-bottom', 'target-top']
+          const handleCoords: Record<string, { screen: { x: number; y: number }; flow: { x: number; y: number } }> = {}
+          
+          handleIds.forEach((handleId) => {
+            const handleElement = nodeElement.querySelector(`[data-handleid="${handleId}"]`) as HTMLElement
+            if (handleElement && wrapperRect) {
+              const handleRect = handleElement.getBoundingClientRect()
+              const screenX = handleRect.left + handleRect.width / 2
+              const screenY = handleRect.top + handleRect.height / 2
+              
+              // Convert to flow coordinates
+              const flowX = (screenX - wrapperRect.left - viewport.x) / viewport.zoom
+              const flowY = (screenY - wrapperRect.top - viewport.y) / viewport.zoom
+              
+              handleCoords[handleId] = {
+                screen: { x: screenX.toFixed(2), y: screenY.toFixed(2) },
+                flow: { x: flowX.toFixed(2), y: flowY.toFixed(2) },
+              }
             }
+          })
+          
+          console.log('4) Handle Center Points (in flow coordinates):', handleCoords)
+          
+          // Check for transform issues
+          const nodeTransform = window.getComputedStyle(nodeElement).transform
+          const hasTransform = nodeTransform && nodeTransform !== 'none'
+          
+          console.log('5) Transform Check:', {
+            nodeTransform: nodeTransform,
+            hasTransform: hasTransform,
+            handleElementsTransformed: Array.from(nodeElement.querySelectorAll('[data-handleid]')).map((el) => ({
+              id: el.getAttribute('data-handleid'),
+              transform: window.getComputedStyle(el as HTMLElement).transform,
+            })),
+          })
+          
+          // Diagnosis
+          console.group('🔍 Diagnosis')
+          if (rfNode.width !== undefined || rfNode.height !== undefined) {
+            console.warn('⚠️ CASE C: Non-panel node has width/height set in flowNodes mapping')
+            console.log('   This forces React Flow to use explicit dimensions instead of measuring DOM')
           }
+          if (rfNode.width && Math.abs(rfNode.width - domWidthInFlow) > 2) {
+            console.warn('⚠️ CASE A: React Flow width does not match DOM width')
+            console.log(`   RF: ${rfNode.width}px, DOM: ${domWidthInFlow.toFixed(2)}px, Diff: ${Math.abs(rfNode.width - domWidthInFlow).toFixed(2)}px`)
+          }
+          if (rfNode.height && Math.abs(rfNode.height - domHeightInFlow) > 2) {
+            console.warn('⚠️ CASE A: React Flow height does not match DOM height')
+            console.log(`   RF: ${rfNode.height}px, DOM: ${domHeightInFlow.toFixed(2)}px, Diff: ${Math.abs(rfNode.height - domHeightInFlow).toFixed(2)}px`)
+          }
+          if (hasTransform) {
+            console.warn('⚠️ CASE B: Node or handle elements have transforms')
+            console.log('   Transforms can cause handles to be positioned incorrectly relative to node edges')
+          }
+          console.groupEnd()
         } else {
           console.warn('⚠️ Could not find DOM element for QUESTION node')
         }
-      } else {
-        console.log('No QUESTION node found for dimension check')
+        console.groupEnd()
       }
+      
+      // Check END node
+      if (endNode) {
+        console.group('END Node Analysis')
+        const rfNode = endNode
+        const nodeElement = document.querySelector(`[data-id="${rfNode.id}"]`) as HTMLElement
+        if (nodeElement && wrapperRect) {
+          const nodeRect = nodeElement.getBoundingClientRect()
+          const domWidthInFlow = nodeRect.width / viewport.zoom
+          const domHeightInFlow = nodeRect.height / viewport.zoom
+          
+          console.log('React Flow:', {
+            width: rfNode.width,
+            height: rfNode.height,
+          })
+          console.log('DOM (in flow coords):', {
+            width: domWidthInFlow.toFixed(2),
+            height: domHeightInFlow.toFixed(2),
+          })
+          
+          const flowNode = flowNodes.find((n) => n.id === rfNode.id)
+          if (flowNode?.width || flowNode?.height) {
+            console.warn('⚠️ CASE C: END node has width/height in flowNodes mapping')
+          }
+        }
+        console.groupEnd()
+      }
+      
+      // Edge endpoint expectation
+      console.group('Edge Endpoint Analysis')
+      rfEdges.forEach((edge) => {
+        const sourceNode = rfNodes.find((n) => n.id === edge.source)
+        const targetNode = rfNodes.find((n) => n.id === edge.target)
+        
+        if (sourceNode && targetNode) {
+          const sourceElement = document.querySelector(`[data-id="${edge.source}"]`) as HTMLElement
+          const targetElement = document.querySelector(`[data-id="${edge.target}"]`) as HTMLElement
+          
+          if (sourceElement && targetElement && wrapperRect) {
+            const sourceHandle = sourceElement.querySelector(`[data-handleid="${edge.sourceHandle}"]`) as HTMLElement
+            const targetHandle = targetElement.querySelector(`[data-handleid="${edge.targetHandle}"]`) as HTMLElement
+            
+            if (sourceHandle && targetHandle) {
+              const sourceHandleRect = sourceHandle.getBoundingClientRect()
+              const targetHandleRect = targetHandle.getBoundingClientRect()
+              
+              const sourceFlowX = (sourceHandleRect.left + sourceHandleRect.width / 2 - wrapperRect.left - viewport.x) / viewport.zoom
+              const sourceFlowY = (sourceHandleRect.top + sourceHandleRect.height / 2 - wrapperRect.top - viewport.y) / viewport.zoom
+              const targetFlowX = (targetHandleRect.left + targetHandleRect.width / 2 - wrapperRect.left - viewport.x) / viewport.zoom
+              const targetFlowY = (targetHandleRect.top + targetHandleRect.height / 2 - wrapperRect.top - viewport.y) / viewport.zoom
+              
+              console.log(`Edge ${edge.id}:`, {
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: edge.sourceHandle,
+                targetHandle: edge.targetHandle,
+                sourceHandleFlowCoords: { x: sourceFlowX.toFixed(2), y: sourceFlowY.toFixed(2) },
+                targetHandleFlowCoords: { x: targetFlowX.toFixed(2), y: targetFlowY.toFixed(2) },
+              })
+            }
+          }
+        }
+      })
+      console.groupEnd()
+      
       console.groupEnd()
       
       console.groupEnd()
@@ -221,7 +377,7 @@ function DebugFlowAccessor({
         delete (window as any).__debugRF
       }
     }
-  }, [template, flowNodes, getNodes, getEdges])
+  }, [template, flowNodes, getNodes, getEdges, getViewport])
   
   return null
 }
@@ -564,6 +720,7 @@ export default function WorkflowDiagramClient({
       // For PANEL nodes, compute dimensions from DB style (source of truth)
       // Always set width/height explicitly on both node.width/node.height AND node.style
       // This prevents React Flow from treating them as auto-sized and re-measuring
+      // For non-PANEL nodes, DO NOT set width/height - let React Flow measure the DOM
       let nodeDimensions: { width?: number; height?: number; style?: React.CSSProperties } = {}
       let panelStyle = node.style
       
@@ -586,11 +743,9 @@ export default function WorkflowDiagramClient({
         }
         // Set style on node object for React Flow explicit sizing
         nodeDimensions.style = { width, height }
-      } else if (node.nodeType === 'QUESTION') {
-        // QUESTION nodes (diamond) need explicit dimensions for proper sizing
-        nodeDimensions.width = 240
-        nodeDimensions.height = 160
       }
+      // NOTE: Non-PANEL nodes (QUESTION, INSTRUCTION, END) should NOT have width/height set
+      // React Flow will measure the DOM to determine their intrinsic size
       
       return {
         id: node.id,
@@ -650,7 +805,7 @@ export default function WorkflowDiagramClient({
         } : {
           // Fallback for any other node types (shouldn't happen)
           label: (
-            <div className="relative" style={{ width: 300 }}>
+            <div className="relative" style={{ minWidth: 300 }}>
               {/* Target handles - connections come IN */}
               <Handle
                 id="target-top"

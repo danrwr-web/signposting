@@ -69,7 +69,7 @@ export default function WorkflowDecisionNode({ data, selected }: WorkflowDecisio
   const borderColor = hasExplicitBorder ? (style?.borderColor || '') : '#fbbf24'
 
   return (
-    <div className="relative cursor-pointer transition-all" style={{ width: 240, height: 160 }}>
+    <div className="relative cursor-pointer transition-all" style={{ minWidth: 240, minHeight: 160 }}>
       {/* Target handles - connections come IN */}
       <Handle id="target-top" type="target" position={Position.Top} className={handleClass} />
       <Handle id="target-right" type="target" position={Position.Right} className={handleClass} />
