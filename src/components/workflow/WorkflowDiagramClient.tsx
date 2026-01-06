@@ -536,6 +536,68 @@ export default function WorkflowDiagramClient({
   const PANEL_MIN_W = 300
   const PANEL_MIN_H = 200
 
+  // React Flow instance for coordinate conversion
+  const reactFlowInstanceRef = useRef<any>(null)
+
+  // Helper to get spawn position at viewport center or near selected node
+  const getSpawnPosition = useCallback((staggerOffset = { x: 20, y: 20 }): { x: number; y: number } => {
+    // If a node is selected, spawn near it
+    if (selectedNodeId) {
+      const selectedNode = nodes.find((n) => n.id === selectedNodeId)
+      if (selectedNode) {
+        return {
+          x: selectedNode.position.x + 80,
+          y: selectedNode.position.y + staggerOffset.y,
+        }
+      }
+    }
+
+    // Otherwise, spawn at viewport center
+    // Try to find React Flow wrapper element
+    const wrapper = document.querySelector('.react-flow') as HTMLElement | null
+    if (!wrapper) {
+      // Fallback if wrapper not found
+      return { x: 0, y: 0 }
+    }
+
+    const rect = wrapper.getBoundingClientRect()
+    const clientPoint = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    }
+
+    // Try to use React Flow's screenToFlowPosition if available
+    if (reactFlowInstanceRef.current?.screenToFlowPosition) {
+      const flowPos = reactFlowInstanceRef.current.screenToFlowPosition(clientPoint)
+      return {
+        x: flowPos.x + staggerOffset.x,
+        y: flowPos.y + staggerOffset.y,
+      }
+    }
+
+    // Fallback: use project if available
+    if (reactFlowInstanceRef.current?.project) {
+      const flowPos = reactFlowInstanceRef.current.project({
+        x: clientPoint.x - rect.left,
+        y: clientPoint.y - rect.top,
+      })
+      return {
+        x: flowPos.x + staggerOffset.x,
+        y: flowPos.y + staggerOffset.y,
+      }
+    }
+
+    // Manual calculation fallback using viewport
+    // This is less accurate but works if React Flow API isn't available
+    const viewport = reactFlowInstanceRef.current?.getViewport?.() || { x: 0, y: 0, zoom: 1 }
+    const flowX = (clientPoint.x - rect.left - viewport.x) / viewport.zoom
+    const flowY = (clientPoint.y - rect.top - viewport.y) / viewport.zoom
+    return {
+      x: flowX + staggerOffset.x,
+      y: flowY + staggerOffset.y,
+    }
+  }, [selectedNodeId, nodes])
+
   // Track active panel resize sessions (user-driven resizes only)
   const activePanelResizeRef = useRef<Map<string, { lastWidth: number; lastHeight: number; lastSeenAt: number }>>(new Map())
   
@@ -1550,12 +1612,8 @@ export default function WorkflowDiagramClient({
     try {
       const result = await createNodeAction(nodeType)
       if (result.success && result.node) {
-        // Calculate initial position (center of viewport or below last node)
-        const maxY = nodes.length > 0 
-          ? Math.max(...nodes.map(n => n.position.y))
-          : 0
-        const initialX = 0
-        const initialY = maxY + 200
+        // Calculate initial position (center of viewport or near selected node)
+        const spawnPos = getSpawnPosition()
 
         // Map node types to custom components
         let newNodeType: string
@@ -1579,7 +1637,7 @@ export default function WorkflowDiagramClient({
         const newNode: Node = {
           id: result.node.id,
           type: newNodeType,
-          position: { x: initialX, y: initialY },
+          position: spawnPos,
           ...newNodeDimensions,
           className: nodeType === 'PANEL' ? 'panel' : undefined,
           selected: false,
@@ -1650,7 +1708,7 @@ export default function WorkflowDiagramClient({
       console.error('Error creating node:', error)
       alert('Failed to create node')
     }
-  }, [createNodeAction, nodes, isAdmin, setNodes])
+  }, [createNodeAction, nodes, isAdmin, setNodes, getSpawnPosition])
 
   // Handle saving node edits
   const handleSaveNode = useCallback(async () => {
@@ -1696,14 +1754,13 @@ export default function WorkflowDiagramClient({
         return
       }
 
-      // 2) Calculate position for new node (directly below selected node, snapped to grid)
+      // 2) Calculate position for new node (near selected node with small offset)
       const baseNode = nodes.find((n) => n.id === selectedNode.id)
-      const gridSize = 16
-      const spacing = 180 // Vertical spacing between nodes
       const baseX = baseNode?.position.x || 0
       const baseY = baseNode?.position.y || 0
-      const newX = Math.round(baseX / gridSize) * gridSize // Snap to grid
-      const newY = Math.round((baseY + spacing) / gridSize) * gridSize // Snap to grid
+      // Spawn to the right of selected node with small vertical offset
+      const newX = baseX + 80
+      const newY = baseY + 20
 
       // 3) Add the node locally
       // Map node types to custom components
@@ -1981,6 +2038,9 @@ export default function WorkflowDiagramClient({
             </div>
           )}
           <ReactFlow
+            onInit={(instance) => {
+              reactFlowInstanceRef.current = instance
+            }}
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
