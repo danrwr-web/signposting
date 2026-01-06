@@ -644,18 +644,19 @@ export default function WorkflowDiagramClient({
     }
     return false
   })
-  const INFO_PANEL_STORAGE_KEY = `workflow-info-panel-open-${template.id}`
-  const [infoPanelOpen, setInfoPanelOpen] = useState<boolean>(() => {
+  const DETAILS_PANEL_STORAGE_KEY = `workflow-details-panel-open-${template.id}`
+  const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(() => {
     // Viewing mode should load collapsed by default.
     if (typeof window === 'undefined') return false
     const editingSaved = localStorage.getItem(`workflow-editing-mode-${template.id}`)
     const initialEditing = editingSaved === 'true'
     if (!initialEditing) return false
 
-    const saved = localStorage.getItem(INFO_PANEL_STORAGE_KEY)
+    const saved = localStorage.getItem(DETAILS_PANEL_STORAGE_KEY)
     if (saved === 'true' || saved === 'false') return saved === 'true'
     return true
   })
+  const [detailsNodeId, setDetailsNodeId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   
   // Save editingMode to localStorage whenever it changes
@@ -668,24 +669,24 @@ export default function WorkflowDiagramClient({
   // Remember panel open state (used mainly for editing mode).
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem(INFO_PANEL_STORAGE_KEY, String(infoPanelOpen))
+      localStorage.setItem(DETAILS_PANEL_STORAGE_KEY, String(isDetailsOpen))
     }
-  }, [INFO_PANEL_STORAGE_KEY, infoPanelOpen])
+  }, [DETAILS_PANEL_STORAGE_KEY, isDetailsOpen])
 
   // When switching modes: default closed for viewing, open (or restore) for editing.
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (editingMode) {
-      const saved = localStorage.getItem(INFO_PANEL_STORAGE_KEY)
+      const saved = localStorage.getItem(DETAILS_PANEL_STORAGE_KEY)
       if (saved === 'true' || saved === 'false') {
-        setInfoPanelOpen(saved === 'true')
+        setIsDetailsOpen(saved === 'true')
       } else {
-        setInfoPanelOpen(true)
+        setIsDetailsOpen(true)
       }
     } else {
-      setInfoPanelOpen(false)
+      setIsDetailsOpen(false)
     }
-  }, [INFO_PANEL_STORAGE_KEY, editingMode])
+  }, [DETAILS_PANEL_STORAGE_KEY, editingMode])
 
   useEffect(() => {
     setMounted(true)
@@ -693,15 +694,15 @@ export default function WorkflowDiagramClient({
 
   // Close the panel with Escape (nice-to-have).
   useEffect(() => {
-    if (!infoPanelOpen) return
+    if (!isDetailsOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setInfoPanelOpen(false)
+        setIsDetailsOpen(false)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [infoPanelOpen])
+  }, [isDetailsOpen])
 
   // React Flow needs a resize signal after layout width changes.
   // Trigger once immediately and once after the panel transition.
@@ -711,16 +712,20 @@ export default function WorkflowDiagramClient({
     const dispatchResize = () => window.dispatchEvent(new Event('resize'))
     dispatchResize()
 
+    let timeoutId: number | null = null
     const rafId = window.requestAnimationFrame(() => {
-      const timeoutId = window.setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         dispatchResize()
       }, 220)
-
-      return () => window.clearTimeout(timeoutId)
     })
 
-    return () => window.cancelAnimationFrame(rafId)
-  }, [infoPanelOpen, mounted])
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [isDetailsOpen, mounted])
   
   // Axis locking state for Shift-drag
   const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -749,25 +754,30 @@ export default function WorkflowDiagramClient({
     return template.nodes.find((n) => n.id === selectedNodeId) || null
   }, [selectedNodeId, template.nodes])
 
+  const detailsNode = useMemo(() => {
+    if (!detailsNodeId) return null
+    return template.nodes.find((n) => n.id === detailsNodeId) || null
+  }, [detailsNodeId, template.nodes])
+
   // Initialize editing state when node is selected
   useEffect(() => {
-    if (selectedNode && effectiveAdmin) {
+    if (detailsNode && effectiveAdmin) {
       // For REFERENCE nodes, use style.reference data
-      if (selectedNode.nodeType === 'REFERENCE') {
-        const referenceData = (selectedNode.style as { reference?: { title?: string; items?: Array<{ text: string; info?: string }> } } | null)?.reference
-        setEditingTitle(referenceData?.title || selectedNode.title || '')
+      if (detailsNode.nodeType === 'REFERENCE') {
+        const referenceData = (detailsNode.style as { reference?: { title?: string; items?: Array<{ text: string; info?: string }> } } | null)?.reference
+        setEditingTitle(referenceData?.title || detailsNode.title || '')
         // Convert items array to newline-separated text
         const itemsText = (referenceData?.items || []).map(item => item.text).join('\n')
         setEditingBody(itemsText)
       } else {
-        setEditingTitle(selectedNode.title)
-        setEditingBody(selectedNode.body || '')
+        setEditingTitle(detailsNode.title)
+        setEditingBody(detailsNode.body || '')
       }
-      setEditingActionKey(selectedNode.actionKey)
-      setEditingBadges(selectedNode.badges || [])
-      setEditingStyle(selectedNode.style)
+      setEditingActionKey(detailsNode.actionKey)
+      setEditingBadges(detailsNode.badges || [])
+      setEditingStyle(detailsNode.style)
       // Initialize linked workflows from node data
-      const sortedLinks = [...selectedNode.workflowLinks].sort((a, b) => {
+      const sortedLinks = [...detailsNode.workflowLinks].sort((a, b) => {
         // Links should already be sorted by sortOrder from query
         return 0
       })
@@ -780,7 +790,7 @@ export default function WorkflowDiagramClient({
         }))
       )
     }
-  }, [selectedNode, effectiveAdmin])
+  }, [detailsNode, effectiveAdmin])
 
   // Find selected edge data
   const selectedEdge = useMemo(() => {
@@ -810,11 +820,11 @@ export default function WorkflowDiagramClient({
     setSelectedNodeId((current) => (current === nodeId ? null : nodeId))
   }, [])
 
-  // ℹ info click should always open the details panel.
-  const handleInfoClick = useCallback((nodeId: string) => {
+  const openDetailsForNode = useCallback((nodeId: string) => {
     setSelectedEdgeId(null)
-    setSelectedNodeId(nodeId)
-    setInfoPanelOpen(true)
+    setSelectedNodeId(nodeId) // keep existing selection/highlight behaviour
+    setDetailsNodeId(nodeId)  // panel content source of truth
+    setIsDetailsOpen(true)
   }, [])
 
   // Check if node has outgoing edges
@@ -915,7 +925,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => handleInfoClick(node.id),
+          onInfoClick: () => openDetailsForNode(node.id),
         } : node.nodeType === 'INSTRUCTION' ? {
           // For INSTRUCTION nodes, pass data to custom component
           nodeType: node.nodeType,
@@ -927,7 +937,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => handleInfoClick(node.id),
+          onInfoClick: () => openDetailsForNode(node.id),
         } : node.nodeType === 'END' ? {
           // For END nodes, pass data to custom component (includes outcome footer logic)
           nodeType: node.nodeType,
@@ -941,7 +951,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => handleInfoClick(node.id),
+          onInfoClick: () => openDetailsForNode(node.id),
           getActionKeyDescription,
         } : node.nodeType === 'PANEL' ? {
           // For PANEL nodes, pass data to custom component
@@ -1013,7 +1023,7 @@ export default function WorkflowDiagramClient({
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleInfoClick(node.id)
+                        openDetailsForNode(node.id)
                       }}
                       className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
                       title="Click for reference details"
@@ -1075,7 +1085,7 @@ export default function WorkflowDiagramClient({
         },
       }
     })
-  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection, handleInfoClick, effectiveAdmin])
+  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection, openDetailsForNode, effectiveAdmin])
 
   const connectionCount = useMemo(
     () =>
@@ -1620,6 +1630,7 @@ export default function WorkflowDiagramClient({
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
     toggleNodeSelection(node.id)
     setSelectedEdgeId(null) // Clear edge selection when node is clicked
+    setDetailsNodeId(node.id) // keep details in sync if panel is already open
   }, [toggleNodeSelection])
 
   // Handle edge click
@@ -1627,6 +1638,8 @@ export default function WorkflowDiagramClient({
     if (!effectiveAdmin) return
     setSelectedEdgeId(edge.id)
     setSelectedNodeId(null) // Clear node selection
+    setDetailsNodeId(null)
+    setIsDetailsOpen(true)
   }, [effectiveAdmin])
 
   // Validate connection - allow any source handle (source-*) to any target handle (target-*)
@@ -1823,7 +1836,7 @@ export default function WorkflowDiagramClient({
 
   // Handle saving node edits
   const handleSaveNode = useCallback(async () => {
-    if (!selectedNode || !updateNodeAction) return
+    if (!detailsNode || !updateNodeAction) return
 
     try {
       const linkedWorkflows = editingLinkedWorkflows.map((link, index) => ({
@@ -1837,7 +1850,7 @@ export default function WorkflowDiagramClient({
       let finalStyle = editingStyle
       let finalBody = editingBody || null
       
-      if (selectedNode.nodeType === 'REFERENCE') {
+      if (detailsNode.nodeType === 'REFERENCE') {
         // Convert newline-separated text to items array
         const items = editingBody
           .split('\n')
@@ -1845,7 +1858,7 @@ export default function WorkflowDiagramClient({
           .filter(Boolean)
           .map(text => {
             // Try to preserve existing info by matching text
-            const existingItem = (selectedNode.style as { reference?: { items?: Array<{ text: string; info?: string }> } } | null)?.reference?.items?.find(item => item.text === text)
+            const existingItem = (detailsNode.style as { reference?: { items?: Array<{ text: string; info?: string }> } } | null)?.reference?.items?.find(item => item.text === text)
             return existingItem ? { text, info: existingItem.info } : { text }
           })
         
@@ -1876,7 +1889,7 @@ export default function WorkflowDiagramClient({
       }
       
       const result = await updateNodeAction(
-        selectedNode.id, 
+        detailsNode.id, 
         editingTitle, 
         finalBody, 
         editingActionKey,
@@ -1886,10 +1899,10 @@ export default function WorkflowDiagramClient({
       )
       if (result.success) {
         // Update local state immediately for REFERENCE nodes to show changes without waiting for refresh
-        if (selectedNode.nodeType === 'REFERENCE') {
+        if (detailsNode.nodeType === 'REFERENCE') {
           setNodes((nds) =>
             nds.map((n) =>
-              n.id === selectedNode.id
+              n.id === detailsNode.id
                 ? {
                     ...n,
                     data: {
@@ -1912,15 +1925,15 @@ export default function WorkflowDiagramClient({
       console.error('Error saving node:', error)
       alert('Failed to save changes')
     }
-  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, editingBadges, editingStyle, router, setNodes])
+  }, [detailsNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, editingBadges, editingStyle, router, setNodes])
 
   // Handle quick create of a new node connected from the selected node
   const handleQuickCreateConnectedNode = useCallback(async (nodeType: WorkflowNodeType) => {
-    if (!effectiveAdmin || !createNodeAction || !createAnswerOptionAction || !selectedNode) return
+    if (!effectiveAdmin || !createNodeAction || !createAnswerOptionAction || !detailsNode) return
 
     try {
       // 1) Calculate position for new node (near selected node with small offset)
-      const baseNode = nodes.find((n) => n.id === selectedNode.id)
+      const baseNode = nodes.find((n) => n.id === detailsNode.id)
       const baseX = baseNode?.position.x || 0
       const baseY = baseNode?.position.y || 0
       // Spawn to the right of selected node with small vertical offset
@@ -2034,7 +2047,7 @@ export default function WorkflowDiagramClient({
 
       // 4) Create connection with empty label (bottom to top)
       // Use standard handle IDs for new connections
-      const edgeResult = await createAnswerOptionAction(selectedNode.id, result.node.id, '', 'source-bottom', 'target-top')
+      const edgeResult = await createAnswerOptionAction(detailsNode.id, result.node.id, '', 'source-bottom', 'target-top')
       if (!edgeResult.success || !edgeResult.option) {
         alert(`Node created, but failed to connect: ${edgeResult.error || 'Unknown error'}`)
         setSelectedNodeId(result.node.id)
@@ -2043,7 +2056,7 @@ export default function WorkflowDiagramClient({
 
       const newEdge: Edge = {
         id: edgeResult.option.id,
-        source: selectedNode.id,
+        source: detailsNode.id,
         target: result.node.id,
         sourceHandle: 'source-bottom',
         targetHandle: 'target-top',
@@ -2069,21 +2082,22 @@ export default function WorkflowDiagramClient({
       console.error('Error creating connected node:', error)
       alert('Failed to create connected node')
     }
-  }, [isAdmin, createNodeAction, createAnswerOptionAction, selectedNode, nodes, setNodes, setEdges])
+  }, [isAdmin, createNodeAction, createAnswerOptionAction, detailsNode, nodes, setNodes, setEdges])
 
   // Handle deleting node
   const handleDeleteNode = useCallback(async () => {
-    if (!selectedNode || !deleteNodeAction) return
+    if (!detailsNode || !deleteNodeAction) return
     if (!confirm('Are you sure you want to delete this step? This will remove the node and its connections.')) return
 
     try {
-      const result = await deleteNodeAction(selectedNode.id)
+      const result = await deleteNodeAction(detailsNode.id)
       if (result.success) {
         // Remove node and its edges from state
-        setNodes((nds) => nds.filter((n) => n.id !== selectedNode.id))
-        setEdges((eds) => eds.filter((e) => e.source !== selectedNode.id && e.target !== selectedNode.id))
+        setNodes((nds) => nds.filter((n) => n.id !== detailsNode.id))
+        setEdges((eds) => eds.filter((e) => e.source !== detailsNode.id && e.target !== detailsNode.id))
         setSelectedNodeId(null)
         setSelectedEdgeId(null)
+        setDetailsNodeId(null)
       } else {
         alert(`Failed to delete: ${result.error || 'Unknown error'}`)
       }
@@ -2091,7 +2105,7 @@ export default function WorkflowDiagramClient({
       console.error('Error deleting node:', error)
       alert('Failed to delete node')
     }
-  }, [selectedNode, deleteNodeAction, setNodes, setEdges])
+  }, [detailsNode, deleteNodeAction, setNodes, setEdges])
 
   // Handle saving edge label
   const handleSaveEdgeLabel = useCallback(async () => {
@@ -2165,7 +2179,7 @@ export default function WorkflowDiagramClient({
   }
 
   return (
-    <div className="space-y-4">
+      <div className="flex flex-col gap-4 h-full w-full">
 
       {/* Admin toolbar */}
       {effectiveAdmin && (
@@ -2209,8 +2223,8 @@ export default function WorkflowDiagramClient({
         </div>
       )}
 
-      <div className={`flex items-stretch ${infoPanelOpen ? 'gap-8' : 'gap-0'}`}>
-        {/* Diagram Area - More whitespace, softer borders */}
+      <div className="flex flex-1 min-h-0 w-full items-stretch">
+        {/* Left column: diagram */}
         <div className="flex-1 min-w-0 flex flex-col gap-2">
           {/* Subtle editing mode banner */}
           {editingMode && isAdmin && (
@@ -2220,7 +2234,7 @@ export default function WorkflowDiagramClient({
               </p>
             </div>
           )}
-          <div className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-colors flex-1 min-h-[800px] ${
+          <div className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-colors flex-1 min-h-[800px] w-full ${
             editingMode && isAdmin 
               ? 'border-blue-200' 
               : 'border-gray-200'
@@ -2259,7 +2273,7 @@ export default function WorkflowDiagramClient({
             maxZoom={1.5}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
             proOptions={{ hideAttribution: true }}
-            className="react-flow-panels-below"
+            className="react-flow-panels-below h-full w-full"
           >
             <Controls showInteractive={false} />
             <DebugFlowAccessor template={template} flowNodes={flowNodes} />
@@ -2267,20 +2281,20 @@ export default function WorkflowDiagramClient({
           </div>
         </div>
 
-        {/* Side Panel (collapsible) */}
+        {/* Right column: details panel (in layout flow) */}
         <div
-          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out ${
-            infoPanelOpen ? 'w-[400px]' : 'w-0'
+          className={`shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out ${
+            isDetailsOpen ? 'w-[420px] border-l border-gray-200 bg-white' : 'w-0'
           }`}
-          aria-hidden={!infoPanelOpen}
+          aria-hidden={!isDetailsOpen}
         >
-          {infoPanelOpen && (
-            <div className="h-full">
+          {isDetailsOpen && (
+            <div className="h-full px-4 py-4">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-gray-900">Details</h2>
                 <button
                   type="button"
-                  onClick={() => setInfoPanelOpen(false)}
+                  onClick={() => setIsDetailsOpen(false)}
                   className="p-2 text-gray-600 hover:text-gray-900 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Close details panel"
                   title="Close"
@@ -2350,13 +2364,13 @@ export default function WorkflowDiagramClient({
               </div>
             </div>
           </div>
-        ) : selectedNode ? (
+        ) : detailsNode ? (
           effectiveAdmin ? (
             // Admin edit form
             <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200 space-y-4">
               <div>
-                <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
-                  {selectedNode.nodeType}
+                <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(detailsNode.nodeType)}`}>
+                  {detailsNode.nodeType}
                 </div>
                 <div className="space-y-4">
                   <div>
@@ -2374,9 +2388,9 @@ export default function WorkflowDiagramClient({
                   </div>
                   <div>
                     <label htmlFor="node-body" className="block text-sm font-medium text-gray-700 mb-1">
-                      {selectedNode.nodeType === 'REFERENCE' ? 'Items (one per line)' : 'Body'}
+                      {detailsNode.nodeType === 'REFERENCE' ? 'Items (one per line)' : 'Body'}
                     </label>
-                    {selectedNode.nodeType === 'REFERENCE' && (
+                    {detailsNode.nodeType === 'REFERENCE' && (
                       <p className="text-xs text-gray-500 mb-2">
                         Enter each reference item on a separate line. The node will display them as a list.
                       </p>
@@ -2387,7 +2401,7 @@ export default function WorkflowDiagramClient({
                       onChange={(e) => setEditingBody(e.target.value)}
                       rows={6}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={selectedNode.nodeType === 'REFERENCE' ? 'Diabetic Eye Screening\nCervical Screening\n...' : undefined}
+                      placeholder={detailsNode.nodeType === 'REFERENCE' ? 'Diabetic Eye Screening\nCervical Screening\n...' : undefined}
                     />
                   </div>
                   
@@ -2514,7 +2528,7 @@ export default function WorkflowDiagramClient({
                     </div>
                   </div>
 
-                  {(selectedNode.nodeType === 'END' || selectedNode.actionKey) && (
+                  {(detailsNode.nodeType === 'END' || detailsNode.actionKey) && (
                     <div>
                       <label htmlFor="node-actionKey" className="block text-sm font-medium text-gray-700 mb-1">
                         Outcome
@@ -2637,13 +2651,13 @@ export default function WorkflowDiagramClient({
                       </button>
                     </div>
                   </div>
-                  {selectedNode.answerOptions.length > 0 && (
+                  {detailsNode.answerOptions.length > 0 && (
                     <div className="pt-4 border-t border-yellow-300">
                       <h3 className="text-sm font-semibold text-gray-900 mb-2">
                         Connections
                       </h3>
                       <ul className="space-y-1">
-                        {selectedNode.answerOptions.map((option) => (
+                        {detailsNode.answerOptions.map((option) => (
                           <li key={option.id} className="text-sm text-gray-800">
                             <span className="font-medium">{option.label || '(no label)'}</span>
                             {option.nextNodeId && (
@@ -2702,6 +2716,7 @@ export default function WorkflowDiagramClient({
                 <button
                   onClick={() => {
                     setSelectedNodeId(null)
+                    setDetailsNodeId(null)
                     setEditingTitle('')
                     setEditingBody('')
                     setEditingActionKey(null)
@@ -2720,19 +2735,19 @@ export default function WorkflowDiagramClient({
             // Read-only view for non-admins and preview mode
             <div className="bg-yellow-50 rounded-lg shadow-md p-6 border border-yellow-200">
               <div className="mb-4">
-                <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(selectedNode.nodeType)}`}>
-                  {selectedNode.nodeType}
+                <div className={`text-xs font-semibold px-2.5 py-1 rounded border inline-block mb-3 ${getNodeTypeColor(detailsNode.nodeType)}`}>
+                  {detailsNode.nodeType}
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-3">
-                  {selectedNode.title}
+                  {detailsNode.title}
                 </h2>
-                {selectedNode.body && (
+                {detailsNode.body && (
                   <div className="text-gray-800 mb-4 text-sm leading-relaxed">
-                    {renderBulletText(selectedNode.body)}
+                    {renderBulletText(detailsNode.body)}
                   </div>
                 )}
                 {/* Linked workflows list */}
-                {selectedNode.workflowLinks.length > 0 && (
+                {detailsNode.workflowLinks.length > 0 && (
                   <div className="mb-4 pt-4 border-t border-yellow-300">
                     <h3 className="text-sm font-semibold text-gray-900 mb-2">
                       Linked workflows
@@ -2741,7 +2756,7 @@ export default function WorkflowDiagramClient({
                       Select the most appropriate pathway to continue.
                     </p>
                     <div className="space-y-2">
-                      {selectedNode.workflowLinks.map((link) => (
+                      {detailsNode.workflowLinks.map((link) => (
                         <Link
                           key={link.id}
                           href={`/s/${surgeryId}/workflow/templates/${link.templateId}/view`}
@@ -2756,19 +2771,19 @@ export default function WorkflowDiagramClient({
                 )}
               </div>
 
-              {selectedNode.actionKey && (
+              {detailsNode.actionKey && (
                 <div className="mt-4 pt-4 border-t border-yellow-300">
                   <h3 className="text-sm font-semibold text-gray-900 mb-1">
                     Outcome
                   </h3>
                   <p className="text-sm text-gray-800">
-                    {getActionKeyDescription(selectedNode.actionKey)}
+                    {getActionKeyDescription(detailsNode.actionKey)}
                   </p>
                 </div>
               )}
 
               {(() => {
-                const labelledOptions = selectedNode.answerOptions.filter(
+                const labelledOptions = detailsNode.answerOptions.filter(
                   (o) => (o.label ?? '').trim().length > 0
                 )
                 if (labelledOptions.length === 0) return null
@@ -2799,14 +2814,14 @@ export default function WorkflowDiagramClient({
               })()}
 
               <button
-                onClick={() => setSelectedNodeId(null)}
+                onClick={() => setDetailsNodeId(null)}
                 className="mt-6 text-sm text-gray-700 hover:text-gray-900 underline focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
               >
                 Clear details
               </button>
             </div>
           )
-        ) : effectiveAdmin && !selectedNode && !selectedEdge ? (
+        ) : effectiveAdmin && !detailsNode && !selectedEdge ? (
           // Helper panel - only shown when editing mode is ON and nothing is selected
           <div className="space-y-4">
             {/* View/Editing mode toggle - segmented control */}
@@ -2921,7 +2936,7 @@ export default function WorkflowDiagramClient({
               )}
             </div>
           </div>
-        ) : !effectiveAdmin && !selectedNode ? (
+        ) : !effectiveAdmin && !detailsNode ? (
           <div className="space-y-4">
             {/* View/Editing mode toggle - segmented control (admin only) */}
             {isAdmin && (
@@ -3034,12 +3049,12 @@ export default function WorkflowDiagramClient({
           )}
         </div>
 
-        {/* Open control (in layout flow) when collapsed */}
-        {!infoPanelOpen && (
-          <div className="flex-shrink-0 flex items-start pt-4">
+        {/* Slim open control when panel is closed (still in layout flow) */}
+        {!isDetailsOpen && (
+          <div className="shrink-0 flex items-start pt-4 pl-3">
             <button
               type="button"
-              onClick={() => setInfoPanelOpen(true)}
+              onClick={() => setIsDetailsOpen(true)}
               className="px-3 py-2 text-sm font-medium bg-white border border-gray-200 rounded-l-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Open details panel"
             >
