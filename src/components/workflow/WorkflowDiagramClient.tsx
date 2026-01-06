@@ -702,6 +702,25 @@ export default function WorkflowDiagramClient({
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [infoPanelOpen])
+
+  // React Flow needs a resize signal after layout width changes.
+  // Trigger once immediately and once after the panel transition.
+  useEffect(() => {
+    if (!mounted) return
+
+    const dispatchResize = () => window.dispatchEvent(new Event('resize'))
+    dispatchResize()
+
+    const rafId = window.requestAnimationFrame(() => {
+      const timeoutId = window.setTimeout(() => {
+        dispatchResize()
+      }, 220)
+
+      return () => window.clearTimeout(timeoutId)
+    })
+
+    return () => window.cancelAnimationFrame(rafId)
+  }, [infoPanelOpen, mounted])
   
   // Axis locking state for Shift-drag
   const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -2190,9 +2209,9 @@ export default function WorkflowDiagramClient({
         </div>
       )}
 
-      <div className={`relative flex ${infoPanelOpen ? 'gap-8' : 'gap-0'}`}>
+      <div className={`flex items-stretch ${infoPanelOpen ? 'gap-8' : 'gap-0'}`}>
         {/* Diagram Area - More whitespace, softer borders */}
-        <div className="flex-1 flex flex-col gap-2">
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
           {/* Subtle editing mode banner */}
           {editingMode && isAdmin && (
             <div className="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md">
@@ -2248,23 +2267,9 @@ export default function WorkflowDiagramClient({
           </div>
         </div>
 
-        {/* Open control when collapsed */}
-        {!infoPanelOpen && (
-          <div className="absolute top-4 right-0 z-20">
-            <button
-              type="button"
-              onClick={() => setInfoPanelOpen(true)}
-              className="px-3 py-2 text-sm font-medium bg-white border border-gray-200 rounded-l-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Open details panel"
-            >
-              Details
-            </button>
-          </div>
-        )}
-
         {/* Side Panel (collapsible) */}
         <div
-          className={`flex-shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out ${
+          className={`flex-shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out ${
             infoPanelOpen ? 'w-[400px]' : 'w-0'
           }`}
           aria-hidden={!infoPanelOpen}
@@ -3028,6 +3033,20 @@ export default function WorkflowDiagramClient({
             </div>
           )}
         </div>
+
+        {/* Open control (in layout flow) when collapsed */}
+        {!infoPanelOpen && (
+          <div className="flex-shrink-0 flex items-start pt-4">
+            <button
+              type="button"
+              onClick={() => setInfoPanelOpen(true)}
+              className="px-3 py-2 text-sm font-medium bg-white border border-gray-200 rounded-l-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Open details panel"
+            >
+              Details
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )
