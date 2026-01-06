@@ -27,6 +27,7 @@ _Changes in development or planned for the next release._
 - Docs site logo now links to www.signpostingtool.co.uk (marketing homepage).
 - All marketing site CTAs verified to use app.signpostingtool.co.uk.
 - Workflow diagram viewer restores connector lines, arrowheads, and labels for saved and newly created edges.
+- Workflow diagram details panel can be collapsed to give more space for the diagram.
 
 ---
 

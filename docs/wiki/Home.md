@@ -1,7 +1,7 @@
 # Signposting Toolkit
 
 <p align="center">
-  <a href="https://www.signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
+  <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
     <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
   </a>
 </p>
@@ -55,6 +55,7 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
   - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
   - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
+  - Workflow diagram details panel can be collapsed to give more space for the diagram
   - Workflow Guidance module added behind feature flags, with Global Default workflows and per-surgery customisation
 
 - **v1.1 – December 2025**

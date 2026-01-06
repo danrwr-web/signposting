@@ -644,6 +644,18 @@ export default function WorkflowDiagramClient({
     }
     return false
   })
+  const INFO_PANEL_STORAGE_KEY = `workflow-info-panel-open-${template.id}`
+  const [infoPanelOpen, setInfoPanelOpen] = useState<boolean>(() => {
+    // Viewing mode should load collapsed by default.
+    if (typeof window === 'undefined') return false
+    const editingSaved = localStorage.getItem(`workflow-editing-mode-${template.id}`)
+    const initialEditing = editingSaved === 'true'
+    if (!initialEditing) return false
+
+    const saved = localStorage.getItem(INFO_PANEL_STORAGE_KEY)
+    if (saved === 'true' || saved === 'false') return saved === 'true'
+    return true
+  })
   const [mounted, setMounted] = useState(false)
   
   // Save editingMode to localStorage whenever it changes
@@ -653,9 +665,43 @@ export default function WorkflowDiagramClient({
     }
   }, [editingMode, template.id])
 
+  // Remember panel open state (used mainly for editing mode).
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(INFO_PANEL_STORAGE_KEY, String(infoPanelOpen))
+    }
+  }, [INFO_PANEL_STORAGE_KEY, infoPanelOpen])
+
+  // When switching modes: default closed for viewing, open (or restore) for editing.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (editingMode) {
+      const saved = localStorage.getItem(INFO_PANEL_STORAGE_KEY)
+      if (saved === 'true' || saved === 'false') {
+        setInfoPanelOpen(saved === 'true')
+      } else {
+        setInfoPanelOpen(true)
+      }
+    } else {
+      setInfoPanelOpen(false)
+    }
+  }, [INFO_PANEL_STORAGE_KEY, editingMode])
+
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Close the panel with Escape (nice-to-have).
+  useEffect(() => {
+    if (!infoPanelOpen) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setInfoPanelOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [infoPanelOpen])
   
   // Axis locking state for Shift-drag
   const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -743,6 +789,13 @@ export default function WorkflowDiagramClient({
   // Toggle node selection
   const toggleNodeSelection = useCallback((nodeId: string) => {
     setSelectedNodeId((current) => (current === nodeId ? null : nodeId))
+  }, [])
+
+  // ℹ info click should always open the details panel.
+  const handleInfoClick = useCallback((nodeId: string) => {
+    setSelectedEdgeId(null)
+    setSelectedNodeId(nodeId)
+    setInfoPanelOpen(true)
   }, [])
 
   // Check if node has outgoing edges
@@ -843,7 +896,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => toggleNodeSelection(node.id),
+          onInfoClick: () => handleInfoClick(node.id),
         } : node.nodeType === 'INSTRUCTION' ? {
           // For INSTRUCTION nodes, pass data to custom component
           nodeType: node.nodeType,
@@ -855,7 +908,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => toggleNodeSelection(node.id),
+          onInfoClick: () => handleInfoClick(node.id),
         } : node.nodeType === 'END' ? {
           // For END nodes, pass data to custom component (includes outcome footer logic)
           nodeType: node.nodeType,
@@ -869,7 +922,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => toggleNodeSelection(node.id),
+          onInfoClick: () => handleInfoClick(node.id),
           getActionKeyDescription,
         } : node.nodeType === 'PANEL' ? {
           // For PANEL nodes, pass data to custom component
@@ -941,7 +994,7 @@ export default function WorkflowDiagramClient({
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        toggleNodeSelection(node.id)
+                        handleInfoClick(node.id)
                       }}
                       className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
                       title="Click for reference details"
@@ -1003,7 +1056,7 @@ export default function WorkflowDiagramClient({
         },
       }
     })
-  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection, effectiveAdmin])
+  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection, handleInfoClick, effectiveAdmin])
 
   const connectionCount = useMemo(
     () =>
@@ -1097,7 +1150,7 @@ export default function WorkflowDiagramClient({
     })
 
     return edgesFromTemplate
-  }, [template.nodes, normalizeHandleId])
+  }, [template.nodes, template.id, normalizeHandleId])
 
   // Update ref whenever nodes change
   useEffect(() => {
@@ -2137,7 +2190,7 @@ export default function WorkflowDiagramClient({
         </div>
       )}
 
-      <div className="flex gap-8">
+      <div className={`relative flex ${infoPanelOpen ? 'gap-8' : 'gap-0'}`}>
         {/* Diagram Area - More whitespace, softer borders */}
         <div className="flex-1 flex flex-col gap-2">
           {/* Subtle editing mode banner */}
@@ -2195,9 +2248,43 @@ export default function WorkflowDiagramClient({
           </div>
         </div>
 
-      {/* Side Panel - Only show when editing mode ON and no node/edge selected */}
-      <div className="w-96 flex-shrink-0">
-        {selectedEdge && effectiveAdmin ? (
+        {/* Open control when collapsed */}
+        {!infoPanelOpen && (
+          <div className="absolute top-4 right-0 z-20">
+            <button
+              type="button"
+              onClick={() => setInfoPanelOpen(true)}
+              className="px-3 py-2 text-sm font-medium bg-white border border-gray-200 rounded-l-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Open details panel"
+            >
+              Details
+            </button>
+          </div>
+        )}
+
+        {/* Side Panel (collapsible) */}
+        <div
+          className={`flex-shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out ${
+            infoPanelOpen ? 'w-[400px]' : 'w-0'
+          }`}
+          aria-hidden={!infoPanelOpen}
+        >
+          {infoPanelOpen && (
+            <div className="h-full">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-gray-900">Details</h2>
+                <button
+                  type="button"
+                  onClick={() => setInfoPanelOpen(false)}
+                  className="p-2 text-gray-600 hover:text-gray-900 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  aria-label="Close details panel"
+                  title="Close"
+                >
+                  <span aria-hidden="true">×</span>
+                </button>
+              </div>
+
+              {selectedEdge && effectiveAdmin ? (
           // Edge editing panel for admins
           <div className="bg-blue-50 rounded-lg shadow-md p-6 border border-blue-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Connection</h3>
@@ -2938,7 +3025,9 @@ export default function WorkflowDiagramClient({
             </div>
           </div>
         ) : null}
-      </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
