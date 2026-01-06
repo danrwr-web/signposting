@@ -540,6 +540,20 @@ export interface CreateNodeResult {
     positionX: number | null
     positionY: number | null
     actionKey: WorkflowActionKey | null
+    badges: string[]
+    style: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      reference?: {
+        title?: string
+        items?: Array<{ text: string; info?: string }>
+      }
+    } | null
   }
 }
 
@@ -567,7 +581,9 @@ export async function createWorkflowNodeForTemplate(
   surgeryId: string,
   templateId: string,
   nodeType: WorkflowNodeType,
-  title?: string
+  title?: string,
+  positionX?: number,
+  positionY?: number
 ): Promise<CreateNodeResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -594,8 +610,18 @@ export async function createWorkflowNodeForTemplate(
     const defaultTitle = title || (
       nodeType === 'INSTRUCTION' ? 'New instruction' :
       nodeType === 'QUESTION' ? 'New question' :
+      nodeType === 'PANEL' ? 'New panel' :
+      nodeType === 'REFERENCE' ? 'Reference' :
       'New outcome'
     )
+
+    // For REFERENCE nodes, create default reference data structure
+    const defaultStyle = nodeType === 'REFERENCE' ? {
+      reference: {
+        title: defaultTitle,
+        items: [{ text: 'New item' }],
+      },
+    } : null
 
     const node = await prisma.workflowNodeTemplate.create({
       data: {
@@ -606,12 +632,17 @@ export async function createWorkflowNodeForTemplate(
         sortOrder: maxSortOrder + 1,
         isStart: false,
         actionKey: null,
-        positionX: null,
-        positionY: null,
+        badges: [],
+        style: defaultStyle,
+        positionX: positionX !== undefined ? Math.round(positionX) : null,
+        positionY: positionY !== undefined ? Math.round(positionY) : null,
       },
     })
 
     revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    
+    // Parse badges from JSONB (Prisma returns it as JsonValue)
+    const badges = Array.isArray(node.badges) ? node.badges as string[] : []
     
     return {
       success: true,
@@ -624,6 +655,20 @@ export async function createWorkflowNodeForTemplate(
         positionX: node.positionX,
         positionY: node.positionY,
         actionKey: node.actionKey,
+        badges,
+        style: node.style as {
+          bgColor?: string
+          textColor?: string
+          borderColor?: string
+          borderWidth?: number
+          radius?: number
+          fontWeight?: 'normal' | 'medium' | 'bold'
+          theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+          reference?: {
+            title?: string
+            items?: Array<{ text: string; info?: string }>
+          }
+        } | null,
       },
     }
   } catch (error) {
@@ -951,7 +996,23 @@ export async function updateWorkflowNodeForDiagram(
   title: string,
   body: string | null,
   actionKey: WorkflowActionKey | null,
-  linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
+  linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>,
+  badges?: string[],
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    width?: number
+    height?: number
+    reference?: {
+      title?: string
+      items?: Array<{ text: string; info?: string }>
+    }
+  } | null
 ): Promise<ActionResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -1005,13 +1066,94 @@ export async function updateWorkflowNodeForDiagram(
 
     await prisma.$transaction(async (tx) => {
       // Update node fields
+      const updateData: {
+        title: string
+        body: string | null
+        actionKey: WorkflowActionKey | null
+        badges?: unknown
+        style?: unknown
+      } = {
+        title,
+        body: body || null,
+        actionKey,
+      }
+      
+      if (badges !== undefined) {
+        updateData.badges = badges
+      }
+      
+      if (style !== undefined) {
+        // Fetch current node style from DB within transaction to ensure latest data
+        // This prevents stale style writes from overwriting correct dimensions
+        const currentNode = await tx.workflowNodeTemplate.findUnique({
+          where: { id: nodeId },
+          select: { style: true },
+        })
+        
+        const existingStyle = (currentNode?.style as {
+          bgColor?: string
+          textColor?: string
+          borderColor?: string
+          borderWidth?: number
+          radius?: number
+          fontWeight?: 'normal' | 'medium' | 'bold'
+          theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+          width?: number
+          height?: number
+          reference?: {
+            title?: string
+            items?: Array<{ text: string; info?: string }>
+          }
+        } | null) ?? null
+        
+        // Merge: existing style first, then incoming style (incoming overrides existing)
+        // For reference field, do a deep merge to preserve items.info if text matches
+        const mergedStyle = {
+          ...(existingStyle ?? {}),
+          ...(style ?? {}),
+        }
+        
+        // Deep merge reference field if both exist
+        if (existingStyle?.reference && style?.reference) {
+          mergedStyle.reference = {
+            ...existingStyle.reference,
+            ...style.reference,
+            // Merge items array, preserving info for matching text
+            items: (style.reference.items || []).map(newItem => {
+              const existingItem = existingStyle.reference?.items?.find(item => item.text === newItem.text)
+              return existingItem ? { ...newItem, info: existingItem.info || newItem.info } : newItem
+            }),
+          }
+        }
+        
+        // Process width/height: coerce to numbers, clamp to minimums, remove if NaN
+        if (mergedStyle.width !== undefined) {
+          const widthValue = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
+          if (isNaN(widthValue)) {
+            delete mergedStyle.width
+          } else {
+            // Clamp width to minimum 300
+            mergedStyle.width = Math.max(widthValue, 300)
+          }
+        }
+        if (mergedStyle.height !== undefined) {
+          const heightValue = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
+          if (isNaN(heightValue)) {
+            delete mergedStyle.height
+          } else {
+            // Clamp height to minimum 200
+            mergedStyle.height = Math.max(heightValue, 200)
+          }
+        }
+        
+        // If style is explicitly null, allow clearing it
+        // Otherwise, use merged style with clamped dimensions
+        updateData.style = style === null ? null : mergedStyle
+      }
+      
       await tx.workflowNodeTemplate.update({
         where: { id: nodeId },
-        data: {
-          title,
-          body: body || null,
-          actionKey,
-        },
+        data: updateData,
       })
 
       // Replace all linked workflows if provided

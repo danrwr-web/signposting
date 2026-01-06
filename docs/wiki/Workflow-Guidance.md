@@ -47,6 +47,25 @@ Surgeries can:
 	•	Create local overrides for surgery-specific processes
 	•	Create entirely surgery-specific workflows
 
+## Node Badges and Styling
+
+Workflow nodes support visual badges and custom styling to help distinguish different types of steps:
+
+### Badges
+
+Nodes can display badges (e.g., "STAMP") as small pills in the top-right corner. Badges help quickly identify special requirements or categories.
+
+### Node Styling
+
+Nodes can be customised with:
+- **Theme presets**: Default, Info (blue), Warning (amber), Success (green), Muted (gray), Panel (background)
+- **Custom colours**: Background, text, and border colours
+- **Visual properties**: Border width, border radius, font weight
+
+### Panel Nodes
+
+Panel nodes are background container nodes that can group related workflow steps. They render behind other nodes and can be resized and repositioned to create visual groupings.
+
 ## Draft and Approval States
 
 All workflows operate within a draft-and-approve lifecycle to ensure clinical governance.

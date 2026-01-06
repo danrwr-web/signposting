@@ -1,0 +1,30 @@
+/* Explicit z-index layering for React Flow elements */
+/* React Flow renders nodes and edges in separate containers with their own stacking contexts */
+/* We need to ensure panels are behind edges and normal nodes */
+
+/* Create stacking context on viewport so z-index works without positioning edges/nodes */
+.react-flow-panels-below .react-flow__viewport {
+  position: relative;
+}
+
+/* Panel nodes should be behind everything - use data attribute as fallback */
+.react-flow-panels-below .react-flow__node.panel,
+.react-flow-panels-below .react-flow__node[data-node-type="panelNode"] {
+  z-index: 0 !important;
+}
+
+/* Normal nodes should be above panels */
+.react-flow-panels-below .react-flow__node:not(.panel):not([data-node-type="panelNode"]) {
+  z-index: 1 !important;
+}
+
+/* Edges container should appear above panels but below normal nodes */
+.react-flow-panels-below .react-flow__edges {
+  z-index: 2 !important;
+}
+
+/* Ensure panel background doesn't interfere with interactions */
+.react-flow-panels-below .react-flow__node.panel .panel-background,
+.react-flow-panels-below .react-flow__node[data-node-type="panelNode"] .panel-background {
+  pointer-events: none !important;
+}

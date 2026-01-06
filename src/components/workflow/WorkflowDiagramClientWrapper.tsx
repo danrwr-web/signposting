@@ -16,6 +16,18 @@ type WorkflowTemplate = {
     positionX: number | null
     positionY: number | null
     actionKey: WorkflowActionKey | null
+    badges: string[]
+    style: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      width?: number
+      height?: number
+    } | null
     workflowLinks: Array<{
       id: string
       templateId: string
@@ -40,7 +52,7 @@ interface Props {
   allTemplates: Array<{ id: string; name: string }>
   surgeryId: string
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
-  createNodeAction?: (nodeType: WorkflowNodeType, title?: string) => Promise<{ success: boolean; error?: string; node?: any }>
+  createNodeAction?: (nodeType: WorkflowNodeType, title?: string, positionX?: number, positionY?: number) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (
     fromNodeId: string,
     toNodeId: string,
@@ -56,7 +68,23 @@ interface Props {
     title: string,
     body: string | null,
     actionKey: WorkflowActionKey | null,
-    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
+    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>,
+    badges?: string[],
+    style?: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      width?: number
+      height?: number
+      reference?: {
+        title?: string
+        items?: Array<{ text: string; info?: string }>
+      }
+    } | null
   ) => Promise<{ success: boolean; error?: string }>
 }
 

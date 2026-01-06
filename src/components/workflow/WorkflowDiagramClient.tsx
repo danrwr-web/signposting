@@ -16,13 +16,372 @@ import ReactFlow, {
   Handle,
   Position,
   NodeTypes,
+  NodeChange,
+  applyNodeChanges,
+  useReactFlow,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
+import './panel-styles.css'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
+import WorkflowPanelNode from './WorkflowPanelNode'
+import WorkflowReferenceNode from './WorkflowReferenceNode'
 import { renderBulletText } from './renderBulletText'
+
+// Debug component to access ReactFlow instance and expose debug function
+// Only enabled when URL contains debugRF=1 query parameter
+function DebugFlowAccessor({ 
+  template, 
+  flowNodes 
+}: { 
+  template: any
+  flowNodes: Node[]
+}) {
+  const { getNodes, getEdges, getViewport } = useReactFlow()
+  
+    // Expose debug function on window when debugRF=1 is in URL AND not production
+    useEffect(() => {
+      if (typeof window === 'undefined') return
+      
+      const urlParams = new URLSearchParams(window.location.search)
+      const debugEnabled = urlParams.get('debugRF') === '1' && process.env.NODE_ENV !== 'production'
+      
+      if (!debugEnabled) {
+        // Clean up if query param removed
+        if ((window as any).__debugRF) {
+          delete (window as any).__debugRF
+        }
+        return
+      }
+    
+    // Expose debug function
+    ;(window as any).__debugRF = () => {
+      console.group('🔍 React Flow Debug Snapshot')
+      
+      // A) Template positions (from server)
+      const templatePositions = template.nodes.map((n: any) => ({
+        id: n.id,
+        type: n.nodeType,
+        x: n.positionX,
+        y: n.positionY,
+        style: n.style,
+      }))
+      console.log('A) Template positions (from server):', templatePositions)
+      
+      // Check for duplicate IDs in template
+      const templateIds = template.nodes.map((n: any) => n.id)
+      const templateDuplicates = templateIds.filter((id: string, idx: number) => templateIds.indexOf(id) !== idx)
+      if (templateDuplicates.length > 0) {
+        console.error('❌ Duplicate IDs in template:', [...new Set(templateDuplicates)])
+      }
+      
+      // B) FlowNodes mapped positions (what we pass to setNodes/ReactFlow)
+      const flowNodesPositions = flowNodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        x: n.position.x,
+        y: n.position.y,
+        w: n.width,
+        h: n.height,
+      }))
+      console.log('B) FlowNodes mapped positions (passed to ReactFlow):', flowNodesPositions)
+      
+      // Check for duplicate IDs in flowNodes
+      const flowNodeIds = flowNodes.map((n) => n.id)
+      const flowNodeDuplicates = flowNodeIds.filter((id, idx) => flowNodeIds.indexOf(id) !== idx)
+      if (flowNodeDuplicates.length > 0) {
+        console.error('❌ Duplicate IDs in flowNodes:', [...new Set(flowNodeDuplicates)])
+      }
+      
+      // C) ReactFlow live positions (what ReactFlow actually has)
+      const rfNodes = getNodes()
+      const rfEdges = getEdges()
+      
+      const rfNodePositions = rfNodes.map((n: Node) => ({
+        id: n.id,
+        type: n.type,
+        x: n.position.x,
+        y: n.position.y,
+        absX: (n as any).positionAbsolute?.x,
+        absY: (n as any).positionAbsolute?.y,
+        w: n.width,
+        h: n.height,
+      }))
+      console.log('C) ReactFlow live positions (current state):', rfNodePositions)
+      
+      const rfEdgeData = rfEdges.map((e: Edge) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        sourceHandle: e.sourceHandle,
+        targetHandle: e.targetHandle,
+      }))
+      console.log('C) ReactFlow live edges:', rfEdgeData)
+      
+      // Check for duplicate IDs in ReactFlow nodes
+      const rfNodeIds = rfNodes.map((n: Node) => n.id)
+      const rfNodeDuplicates = rfNodeIds.filter((id, idx) => rfNodeIds.indexOf(id) !== idx)
+      if (rfNodeDuplicates.length > 0) {
+        console.error('❌ Duplicate IDs in ReactFlow nodes:', [...new Set(rfNodeDuplicates)])
+      }
+      
+      // Compare positions between flowNodes and ReactFlow
+      const positionMismatches = flowNodes
+        .map((flowNode) => {
+          const rfNode = rfNodes.find((n: Node) => n.id === flowNode.id)
+          if (!rfNode) return null
+          if (rfNode.position.x !== flowNode.position.x || 
+              rfNode.position.y !== flowNode.position.y) {
+            return {
+              nodeId: flowNode.id,
+              flowNodePos: { x: flowNode.position.x, y: flowNode.position.y },
+              rfNodePos: { x: rfNode.position.x, y: rfNode.position.y },
+            }
+          }
+          return null
+        })
+        .filter((m) => m !== null)
+      
+      if (positionMismatches.length > 0) {
+        console.warn('⚠️ Position mismatches (flowNodes vs ReactFlow):', positionMismatches)
+      } else {
+        console.log('✅ flowNodes and ReactFlow positions match')
+      }
+      
+      // Comprehensive edge anchor diagnostics
+      console.group('🎯 Edge Anchor Diagnostics')
+      
+      const viewport = getViewport()
+      console.log('1) Viewport Info:', {
+        x: viewport.x.toFixed(2),
+        y: viewport.y.toFixed(2),
+        zoom: viewport.zoom.toFixed(3),
+      })
+      
+      // Get wrapper rect for coordinate conversion
+      const wrapper = document.querySelector('.react-flow') as HTMLElement
+      const wrapperRect = wrapper?.getBoundingClientRect()
+      
+      // Find QUESTION and END nodes for testing
+      const questionNode = rfNodes.find((n: Node) => n.type === 'decisionNode')
+      const endNode = rfNodes.find((n: Node) => n.type === 'outcomeNode')
+      
+      // Check QUESTION node
+      if (questionNode) {
+        console.group('QUESTION Node Analysis')
+        
+        // React Flow internal node box
+        const rfNode = questionNode
+        console.log('2) React Flow Internal Node Box:', {
+          id: rfNode.id,
+          position: { x: rfNode.position.x.toFixed(2), y: rfNode.position.y.toFixed(2) },
+          positionAbsolute: {
+            x: ((rfNode as any).positionAbsolute?.x || 0).toFixed(2),
+            y: ((rfNode as any).positionAbsolute?.y || 0).toFixed(2),
+          },
+          width: rfNode.width,
+          height: rfNode.height,
+          hasWidth: rfNode.width !== undefined,
+          hasHeight: rfNode.height !== undefined,
+        })
+        
+        // Check if width/height is set in flowNodes mapping
+        const flowNode = flowNodes.find((n) => n.id === rfNode.id)
+        console.log('2b) FlowNodes Mapping:', {
+          hasWidth: flowNode?.width !== undefined,
+          hasHeight: flowNode?.height !== undefined,
+          width: flowNode?.width,
+          height: flowNode?.height,
+          hasStyleWidth: (flowNode as any)?.style?.width !== undefined,
+          hasStyleHeight: (flowNode as any)?.style?.height !== undefined,
+        })
+        
+        // DOM measurements
+        const nodeElement = document.querySelector(`[data-id="${rfNode.id}"]`) as HTMLElement
+        if (nodeElement && wrapperRect) {
+          const nodeRect = nodeElement.getBoundingClientRect()
+          
+          // Find the visible card element (first child div that's not a handle)
+          const cardElement = Array.from(nodeElement.children).find(
+            (child) => child.tagName === 'DIV' && !child.hasAttribute('data-handleid')
+          ) as HTMLElement
+          const cardRect = cardElement?.getBoundingClientRect()
+          
+          console.log('3) DOM Measurements:', {
+            nodeWrapper: {
+              left: nodeRect.left.toFixed(2),
+              top: nodeRect.top.toFixed(2),
+              width: nodeRect.width.toFixed(2),
+              height: nodeRect.height.toFixed(2),
+            },
+            cardElement: cardElement ? {
+              left: cardRect.left.toFixed(2),
+              top: cardRect.top.toFixed(2),
+              width: cardRect.width.toFixed(2),
+              height: cardRect.height.toFixed(2),
+            } : 'not found',
+            computedTransform: window.getComputedStyle(nodeElement).transform,
+            parentTransform: nodeElement.parentElement ? window.getComputedStyle(nodeElement.parentElement).transform : 'none',
+          })
+          
+          // Convert DOM size to flow coordinates (accounting for zoom)
+          const domWidthInFlow = nodeRect.width / viewport.zoom
+          const domHeightInFlow = nodeRect.height / viewport.zoom
+          
+          console.log('3b) Dimension Comparison:', {
+            reactFlowWidth: rfNode.width,
+            reactFlowHeight: rfNode.height,
+            domWidthInFlow: domWidthInFlow.toFixed(2),
+            domHeightInFlow: domHeightInFlow.toFixed(2),
+            widthMatch: rfNode.width ? Math.abs(rfNode.width - domWidthInFlow) <= 2 : 'N/A',
+            heightMatch: rfNode.height ? Math.abs(rfNode.height - domHeightInFlow) <= 2 : 'N/A',
+            widthDiff: rfNode.width ? Math.abs(rfNode.width - domWidthInFlow).toFixed(2) + 'px' : 'N/A',
+            heightDiff: rfNode.height ? Math.abs(rfNode.height - domHeightInFlow).toFixed(2) + 'px' : 'N/A',
+          })
+          
+          // Handle center points
+          const handleIds = ['source-right', 'target-left', 'source-bottom', 'target-top']
+          const handleCoords: Record<string, { screen: { x: number; y: number }; flow: { x: number; y: number } }> = {}
+          
+          handleIds.forEach((handleId) => {
+            const handleElement = nodeElement.querySelector(`[data-handleid="${handleId}"]`) as HTMLElement
+            if (handleElement && wrapperRect) {
+              const handleRect = handleElement.getBoundingClientRect()
+              const screenX = handleRect.left + handleRect.width / 2
+              const screenY = handleRect.top + handleRect.height / 2
+              
+              // Convert to flow coordinates
+              const flowX = (screenX - wrapperRect.left - viewport.x) / viewport.zoom
+              const flowY = (screenY - wrapperRect.top - viewport.y) / viewport.zoom
+              
+              handleCoords[handleId] = {
+                screen: { x: screenX.toFixed(2), y: screenY.toFixed(2) },
+                flow: { x: flowX.toFixed(2), y: flowY.toFixed(2) },
+              }
+            }
+          })
+          
+          console.log('4) Handle Center Points (in flow coordinates):', handleCoords)
+          
+          // Check for transform issues
+          const nodeTransform = window.getComputedStyle(nodeElement).transform
+          const hasTransform = nodeTransform && nodeTransform !== 'none'
+          
+          console.log('5) Transform Check:', {
+            nodeTransform: nodeTransform,
+            hasTransform: hasTransform,
+            handleElementsTransformed: Array.from(nodeElement.querySelectorAll('[data-handleid]')).map((el) => ({
+              id: el.getAttribute('data-handleid'),
+              transform: window.getComputedStyle(el as HTMLElement).transform,
+            })),
+          })
+          
+          // Diagnosis
+          console.group('🔍 Diagnosis')
+          if (rfNode.width !== undefined || rfNode.height !== undefined) {
+            console.warn('⚠️ CASE C: Non-panel node has width/height set in flowNodes mapping')
+            console.log('   This forces React Flow to use explicit dimensions instead of measuring DOM')
+          }
+          if (rfNode.width && Math.abs(rfNode.width - domWidthInFlow) > 2) {
+            console.warn('⚠️ CASE A: React Flow width does not match DOM width')
+            console.log(`   RF: ${rfNode.width}px, DOM: ${domWidthInFlow.toFixed(2)}px, Diff: ${Math.abs(rfNode.width - domWidthInFlow).toFixed(2)}px`)
+          }
+          if (rfNode.height && Math.abs(rfNode.height - domHeightInFlow) > 2) {
+            console.warn('⚠️ CASE A: React Flow height does not match DOM height')
+            console.log(`   RF: ${rfNode.height}px, DOM: ${domHeightInFlow.toFixed(2)}px, Diff: ${Math.abs(rfNode.height - domHeightInFlow).toFixed(2)}px`)
+          }
+          if (hasTransform) {
+            console.warn('⚠️ CASE B: Node or handle elements have transforms')
+            console.log('   Transforms can cause handles to be positioned incorrectly relative to node edges')
+          }
+          console.groupEnd()
+        } else {
+          console.warn('⚠️ Could not find DOM element for QUESTION node')
+        }
+        console.groupEnd()
+      }
+      
+      // Check END node
+      if (endNode) {
+        console.group('END Node Analysis')
+        const rfNode = endNode
+        const nodeElement = document.querySelector(`[data-id="${rfNode.id}"]`) as HTMLElement
+        if (nodeElement && wrapperRect) {
+          const nodeRect = nodeElement.getBoundingClientRect()
+          const domWidthInFlow = nodeRect.width / viewport.zoom
+          const domHeightInFlow = nodeRect.height / viewport.zoom
+          
+          console.log('React Flow:', {
+            width: rfNode.width,
+            height: rfNode.height,
+          })
+          console.log('DOM (in flow coords):', {
+            width: domWidthInFlow.toFixed(2),
+            height: domHeightInFlow.toFixed(2),
+          })
+          
+          const flowNode = flowNodes.find((n) => n.id === rfNode.id)
+          if (flowNode?.width || flowNode?.height) {
+            console.warn('⚠️ CASE C: END node has width/height in flowNodes mapping')
+          }
+        }
+        console.groupEnd()
+      }
+      
+      // Edge endpoint expectation
+      console.group('Edge Endpoint Analysis')
+      rfEdges.forEach((edge) => {
+        const sourceNode = rfNodes.find((n) => n.id === edge.source)
+        const targetNode = rfNodes.find((n) => n.id === edge.target)
+        
+        if (sourceNode && targetNode) {
+          const sourceElement = document.querySelector(`[data-id="${edge.source}"]`) as HTMLElement
+          const targetElement = document.querySelector(`[data-id="${edge.target}"]`) as HTMLElement
+          
+          if (sourceElement && targetElement && wrapperRect) {
+            const sourceHandle = sourceElement.querySelector(`[data-handleid="${edge.sourceHandle}"]`) as HTMLElement
+            const targetHandle = targetElement.querySelector(`[data-handleid="${edge.targetHandle}"]`) as HTMLElement
+            
+            if (sourceHandle && targetHandle) {
+              const sourceHandleRect = sourceHandle.getBoundingClientRect()
+              const targetHandleRect = targetHandle.getBoundingClientRect()
+              
+              const sourceFlowX = (sourceHandleRect.left + sourceHandleRect.width / 2 - wrapperRect.left - viewport.x) / viewport.zoom
+              const sourceFlowY = (sourceHandleRect.top + sourceHandleRect.height / 2 - wrapperRect.top - viewport.y) / viewport.zoom
+              const targetFlowX = (targetHandleRect.left + targetHandleRect.width / 2 - wrapperRect.left - viewport.x) / viewport.zoom
+              const targetFlowY = (targetHandleRect.top + targetHandleRect.height / 2 - wrapperRect.top - viewport.y) / viewport.zoom
+              
+              console.log(`Edge ${edge.id}:`, {
+                source: edge.source,
+                target: edge.target,
+                sourceHandle: edge.sourceHandle,
+                targetHandle: edge.targetHandle,
+                sourceHandleFlowCoords: { x: sourceFlowX.toFixed(2), y: sourceFlowY.toFixed(2) },
+                targetHandleFlowCoords: { x: targetFlowX.toFixed(2), y: targetFlowY.toFixed(2) },
+              })
+            }
+          }
+        }
+      })
+      console.groupEnd()
+      
+      console.groupEnd()
+      
+      console.groupEnd()
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if ((window as any).__debugRF) {
+        delete (window as any).__debugRF
+      }
+    }
+  }, [template, flowNodes, getNodes, getEdges, getViewport])
+  
+  return null
+}
 
 interface WorkflowNode {
   id: string
@@ -33,6 +392,16 @@ interface WorkflowNode {
   positionX: number | null
   positionY: number | null
   actionKey: WorkflowActionKey | null
+  badges: string[] // Array of badge strings (e.g. ["STAMP"])
+  style: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  } | null
   workflowLinks: Array<{
     id: string
     templateId: string
@@ -65,7 +434,7 @@ interface WorkflowDiagramClientProps {
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
-  createNodeAction?: (nodeType: WorkflowNodeType, title?: string) => Promise<{ success: boolean; error?: string; node?: any }>
+  createNodeAction?: (nodeType: WorkflowNodeType, title?: string, positionX?: number, positionY?: number) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (
     fromNodeId: string,
     toNodeId: string,
@@ -81,7 +450,21 @@ interface WorkflowDiagramClientProps {
     title: string,
     body: string | null,
     actionKey: WorkflowActionKey | null,
-    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>
+    linkedWorkflows?: Array<{ id?: string; toTemplateId: string; label?: string; sortOrder?: number }>,
+    badges?: string[],
+    style?: {
+      bgColor?: string
+      textColor?: string
+      borderColor?: string
+      borderWidth?: number
+      radius?: number
+      fontWeight?: 'normal' | 'medium' | 'bold'
+      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      reference?: {
+        title?: string
+        items?: Array<{ text: string; info?: string }>
+      }
+    } | null
   ) => Promise<{ success: boolean; error?: string }>
 }
 
@@ -151,8 +534,86 @@ export default function WorkflowDiagramClient({
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [nodes, setNodes, onNodesChangeInternal] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  
+  // PANEL dimension constants
+  const PANEL_MIN_W = 300
+  const PANEL_MIN_H = 200
+
+  // React Flow instance for coordinate conversion
+  const reactFlowInstanceRef = useRef<any>(null)
+
+  // Helper to get spawn position at viewport center or near selected node
+  const getSpawnPosition = useCallback((staggerOffset = { x: 20, y: 20 }): { x: number; y: number } => {
+    // If a node is selected, spawn near it
+    if (selectedNodeId) {
+      const selectedNode = nodes.find((n) => n.id === selectedNodeId)
+      if (selectedNode) {
+        return {
+          x: selectedNode.position.x + 80,
+          y: selectedNode.position.y + staggerOffset.y,
+        }
+      }
+    }
+
+    // Otherwise, spawn at viewport center
+    // Try to find React Flow wrapper element
+    const wrapper = document.querySelector('.react-flow') as HTMLElement | null
+    if (!wrapper) {
+      // Fallback if wrapper not found
+      return { x: 0, y: 0 }
+    }
+
+    const rect = wrapper.getBoundingClientRect()
+    const clientPoint = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    }
+
+    // Try to use React Flow's screenToFlowPosition if available
+    if (reactFlowInstanceRef.current?.screenToFlowPosition) {
+      const flowPos = reactFlowInstanceRef.current.screenToFlowPosition(clientPoint)
+      return {
+        x: flowPos.x + staggerOffset.x,
+        y: flowPos.y + staggerOffset.y,
+      }
+    }
+
+    // Fallback: use project if available
+    if (reactFlowInstanceRef.current?.project) {
+      const flowPos = reactFlowInstanceRef.current.project({
+        x: clientPoint.x - rect.left,
+        y: clientPoint.y - rect.top,
+      })
+      return {
+        x: flowPos.x + staggerOffset.x,
+        y: flowPos.y + staggerOffset.y,
+      }
+    }
+
+    // Manual calculation fallback using viewport
+    // This is less accurate but works if React Flow API isn't available
+    const viewport = reactFlowInstanceRef.current?.getViewport?.() || { x: 0, y: 0, zoom: 1 }
+    const flowX = (clientPoint.x - rect.left - viewport.x) / viewport.zoom
+    const flowY = (clientPoint.y - rect.top - viewport.y) / viewport.zoom
+    return {
+      x: flowX + staggerOffset.x,
+      y: flowY + staggerOffset.y,
+    }
+  }, [selectedNodeId, nodes])
+
+  // Track active panel resize sessions (user-driven resizes only)
+  const activePanelResizeRef = useRef<Map<string, { lastWidth: number; lastHeight: number; lastSeenAt: number }>>(new Map())
+  
+  // Track resize-end timeouts per node
+  const resizeEndTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map())
+  
+  // Track nodes that are currently being resized to prevent overwriting from DB refresh
+  const resizingNodesRef = useRef<Set<string>>(new Set())
+  
+  // Ref to track current nodes state for async operations
+  const nodesRef = useRef<Node[]>([])
   
   // Editing state for admin
   const [editingTitle, setEditingTitle] = useState('')
@@ -160,6 +621,18 @@ export default function WorkflowDiagramClient({
   const [editingActionKey, setEditingActionKey] = useState<WorkflowActionKey | null>(null)
   const [editingEdgeLabel, setEditingEdgeLabel] = useState('')
   const [editingLinkedWorkflows, setEditingLinkedWorkflows] = useState<Array<{ id?: string; toTemplateId: string; label: string; sortOrder: number }>>([])
+  const [editingBadges, setEditingBadges] = useState<string[]>([])
+  const [editingStyle, setEditingStyle] = useState<{
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    width?: number
+    height?: number
+  } | null>(null)
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   const [legendExpanded, setLegendExpanded] = useState(false)
   
@@ -214,9 +687,20 @@ export default function WorkflowDiagramClient({
   // Initialize editing state when node is selected
   useEffect(() => {
     if (selectedNode && effectiveAdmin) {
-      setEditingTitle(selectedNode.title)
-      setEditingBody(selectedNode.body || '')
+      // For REFERENCE nodes, use style.reference data
+      if (selectedNode.nodeType === 'REFERENCE') {
+        const referenceData = (selectedNode.style as { reference?: { title?: string; items?: Array<{ text: string; info?: string }> } } | null)?.reference
+        setEditingTitle(referenceData?.title || selectedNode.title || '')
+        // Convert items array to newline-separated text
+        const itemsText = (referenceData?.items || []).map(item => item.text).join('\n')
+        setEditingBody(itemsText)
+      } else {
+        setEditingTitle(selectedNode.title)
+        setEditingBody(selectedNode.body || '')
+      }
       setEditingActionKey(selectedNode.actionKey)
+      setEditingBadges(selectedNode.badges || [])
+      setEditingStyle(selectedNode.style)
       // Initialize linked workflows from node data
       const sortedLinks = [...selectedNode.workflowLinks].sort((a, b) => {
         // Links should already be sorted by sortOrder from query
@@ -303,14 +787,50 @@ export default function WorkflowDiagramClient({
         nodeType = 'instructionNode'
       } else if (node.nodeType === 'END') {
         nodeType = 'outcomeNode'
+      } else if (node.nodeType === 'PANEL') {
+        nodeType = 'panelNode'
+      } else if (node.nodeType === 'REFERENCE') {
+        nodeType = 'referenceNode'
       } else {
         nodeType = 'default'
       }
 
+      // For PANEL nodes, compute dimensions from DB style (source of truth)
+      // Always set width/height explicitly on both node.width/node.height AND node.style
+      // This prevents React Flow from treating them as auto-sized and re-measuring
+      // For non-PANEL nodes, DO NOT set width/height - let React Flow measure the DOM
+      let nodeDimensions: { width?: number; height?: number; style?: React.CSSProperties } = {}
+      let panelStyle = node.style
+      
+      if (node.nodeType === 'PANEL') {
+        const styleWidth = (node.style as { width?: number } | null)?.width
+        const styleHeight = (node.style as { height?: number } | null)?.height
+        // Compute from DB style, clamp to minimums
+        const width = Math.max(styleWidth ?? 500, PANEL_MIN_W)
+        const height = Math.max(styleHeight ?? 400, PANEL_MIN_H)
+        
+        // Set on node properties
+        nodeDimensions.width = width
+        nodeDimensions.height = height
+        
+        // Also ensure style object has width/height for explicit sizing
+        panelStyle = {
+          ...(node.style || {}),
+          width,
+          height,
+        }
+        // Set style on node object for React Flow explicit sizing
+        nodeDimensions.style = { width, height }
+      }
+      // NOTE: Non-PANEL nodes (QUESTION, INSTRUCTION, END) should NOT have width/height set
+      // React Flow will measure the DOM to determine their intrinsic size
+      
       return {
         id: node.id,
         type: nodeType,
         position: { x, y },
+        ...nodeDimensions,
+        className: node.nodeType === 'PANEL' ? 'panel' : undefined,
         selected: isSelected,
         data: node.nodeType === 'QUESTION' ? {
           // For QUESTION nodes, pass data to custom component (diamond shape)
@@ -318,6 +838,8 @@ export default function WorkflowDiagramClient({
           title: node.title,
           body: node.body,
           hasBody,
+          badges: node.badges || [],
+          style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
@@ -328,6 +850,8 @@ export default function WorkflowDiagramClient({
           title: node.title,
           body: node.body,
           hasBody,
+          badges: node.badges || [],
+          style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
@@ -340,30 +864,68 @@ export default function WorkflowDiagramClient({
           hasBody,
           actionKey: node.actionKey,
           hasOutgoingEdges,
+          badges: node.badges || [],
+          style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
           onInfoClick: () => toggleNodeSelection(node.id),
           getActionKeyDescription,
+        } : node.nodeType === 'PANEL' ? {
+          // For PANEL nodes, pass data to custom component
+          nodeType: node.nodeType,
+          title: node.title,
+          badges: node.badges || [],
+          style: panelStyle, // Use panelStyle which includes width/height
+          isSelected,
+          isAdmin: effectiveAdmin,
+          onNodeClick: () => toggleNodeSelection(node.id),
+        } : node.nodeType === 'REFERENCE' ? {
+          // For REFERENCE nodes, pass data to custom component
+          nodeType: node.nodeType,
+          title: node.title,
+          style: node.style,
+          isSelected,
+          isAdmin: effectiveAdmin,
+          onNodeClick: () => toggleNodeSelection(node.id),
         } : {
           // Fallback for any other node types (shouldn't happen)
           label: (
-            <>
-              {/* Target handle (top) - connections come IN */}
+            <div className="relative" style={{ width: 300 }}>
+              {/* Target handles - connections come IN */}
               <Handle
                 id="target-top"
                 type="target"
                 position={Position.Top}
                 className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
+              <Handle
+                id="target-right"
+                type="target"
+                position={Position.Right}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="target-bottom"
+                type="target"
+                position={Position.Bottom}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="target-left"
+                type="target"
+                position={Position.Left}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
               <div 
-                className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
+                className={`rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
                   nodeTypeStyles
                 } ${
                   isSelected 
                     ? 'border-2 border-blue-500 shadow-lg' 
                     : 'border'
                 }`}
+                style={{ boxSizing: 'border-box' }}
                 onClick={(e) => {
                   e.stopPropagation()
                   toggleNodeSelection(node.id)
@@ -406,14 +968,32 @@ export default function WorkflowDiagramClient({
                   </div>
                 )}
               </div>
-              {/* Source handle (bottom) - connections go OUT */}
+              {/* Source handles - connections go OUT */}
+              <Handle
+                id="source-top"
+                type="source"
+                position={Position.Top}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+              <Handle
+                id="source-right"
+                type="source"
+                position={Position.Right}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
               <Handle
                 id="source-bottom"
                 type="source"
                 position={Position.Bottom}
                 className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
               />
-            </>
+              <Handle
+                id="source-left"
+                type="source"
+                position={Position.Left}
+                className={effectiveAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'}
+              />
+            </div>
           ),
           nodeType: node.nodeType,
           title: node.title,
@@ -434,6 +1014,36 @@ export default function WorkflowDiagramClient({
     [template.nodes]
   )
 
+  // Helper to normalize handle IDs for backwards compatibility
+  // Maps legacy handle IDs to standard ones, or returns undefined if handle doesn't exist
+  const normalizeHandleId = useCallback((handleId: string | null | undefined, isSource: boolean): string | undefined => {
+    if (!handleId) {
+      return undefined
+    }
+    
+    const handle = handleId.trim()
+    
+    // Standard handles (already correct) - validate format
+    if (handle.startsWith(isSource ? 'source-' : 'target-')) {
+      const suffix = handle.split('-')[1]
+      // Validate suffix is one of: top, right, bottom, left
+      if (['top', 'right', 'bottom', 'left'].includes(suffix)) {
+        return handle
+      }
+    }
+    
+    // Legacy handle IDs (without position suffix) - map to defaults
+    if (handle === 'source') {
+      return isSource ? 'source-bottom' : undefined
+    }
+    if (handle === 'target') {
+      return isSource ? undefined : 'target-top'
+    }
+    
+    // Unknown handle ID - return undefined to let React Flow use default
+    return undefined
+  }, [])
+
   const initialEdges = useMemo<Edge[]>(() => {
     const edgesFromTemplate: Edge[] = []
     const nodeIds = new Set(template.nodes.map((n) => n.id))
@@ -452,12 +1062,17 @@ export default function WorkflowDiagramClient({
 
           const labelText = (option.label ?? '').trim()
           const hasLabel = labelText !== ''
+          
+          // Normalize handle IDs for backwards compatibility
+          const normalizedSourceHandle = normalizeHandleId(option.sourceHandle, true) ?? 'source-bottom'
+          const normalizedTargetHandle = normalizeHandleId(option.targetHandle, false) ?? 'target-top'
+          
           edgesFromTemplate.push({
             id: option.id,
             source: node.id,
             target: option.nextNodeId,
-            sourceHandle: option.sourceHandle ?? 'source-bottom',
-            targetHandle: option.targetHandle ?? 'target-top',
+            sourceHandle: normalizedSourceHandle,
+            targetHandle: normalizedTargetHandle,
             label: hasLabel ? labelText : undefined,
             labelStyle: hasLabel
               ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' }
@@ -482,11 +1097,153 @@ export default function WorkflowDiagramClient({
     })
 
     return edgesFromTemplate
-  }, [template.nodes])
+  }, [template.nodes, normalizeHandleId])
 
+  // Update ref whenever nodes change
   useEffect(() => {
-    setNodes(flowNodes)
-  }, [flowNodes, setNodes])
+    nodesRef.current = nodes
+  }, [nodes])
+  
+  // Helper function to merge incoming nodes into current nodes, preserving PANEL dimensions if they exist
+  // This prevents server-driven flowNodes sync from overwriting local PANEL dimensions during a live session
+  const mergeFlowNodes = useCallback((currentNodes: Node[], incomingNodes: Node[]): Node[] => {
+    const currentById = new Map(currentNodes.map(n => [n.id, n]))
+    
+    // Merge: update existing, add new, preserve PANEL dimensions if they exist in current state
+    const merged: Node[] = incomingNodes.map((incomingNode) => {
+      const currentNode = currentById.get(incomingNode.id)
+      
+      if (!currentNode) {
+        // New node - use as-is (dimensions already computed from DB in flowNodes)
+        return incomingNode
+      }
+      
+      // Existing node - merge properties
+      const mergedNode = { ...incomingNode }
+      
+      // For PANEL nodes: always preserve existing dimensions if they exist
+      // Ensure width/height are ALWAYS set on both node properties AND node.style
+      const isPanelNode = incomingNode.type === 'panelNode'
+      if (isPanelNode) {
+        let chosenWidth: number
+        let chosenHeight: number
+        
+        // Choose dimensions: prefer current if they exist, else use incoming
+        if (currentNode.width !== undefined && currentNode.height !== undefined &&
+            typeof currentNode.width === 'number' && typeof currentNode.height === 'number') {
+          // Preserve existing dimensions and clamp to minimums
+          chosenWidth = Math.max(currentNode.width, PANEL_MIN_W)
+          chosenHeight = Math.max(currentNode.height, PANEL_MIN_H)
+        } else {
+          // No current dimensions yet - use incoming dimensions from DB (initial load)
+          // Clamp to minimums
+          const incomingWidth = typeof incomingNode.width === 'number' ? incomingNode.width : PANEL_MIN_W
+          const incomingHeight = typeof incomingNode.height === 'number' ? incomingNode.height : PANEL_MIN_H
+          chosenWidth = Math.max(incomingWidth, PANEL_MIN_W)
+          chosenHeight = Math.max(incomingHeight, PANEL_MIN_H)
+        }
+        
+        // FORCE: Always set width/height on both node properties AND node.style
+        mergedNode.width = chosenWidth
+        mergedNode.height = chosenHeight
+        
+        // Ensure style object exists and has width/height
+        const currentStyle = (mergedNode.style as React.CSSProperties) || {}
+        mergedNode.style = {
+          ...currentStyle,
+          width: chosenWidth,
+          height: chosenHeight,
+        }
+        
+        // Debug assertion in dev only
+        if (process.env.NODE_ENV !== 'production') {
+          if (mergedNode.width === undefined || mergedNode.height === undefined ||
+              typeof mergedNode.width !== 'number' || typeof mergedNode.height !== 'number') {
+            console.warn('[PANEL merge] PANEL node missing width/height after merge:', {
+              nodeId: mergedNode.id,
+              width: mergedNode.width,
+              height: mergedNode.height,
+              hasStyle: !!mergedNode.style,
+            })
+          }
+        }
+      }
+      
+      // Preserve selection state
+      mergedNode.selected = currentNode.selected
+      
+      return mergedNode
+    })
+    
+    return merged
+  }, [])
+  
+  // Track if this is the initial load
+  const isInitialLoadRef = useRef(true)
+  const previousFlowNodesRef = useRef<Node[]>([])
+  
+  useEffect(() => {
+    // On initial load, set nodes directly
+    if (isInitialLoadRef.current) {
+      setNodes(flowNodes)
+      nodesRef.current = flowNodes
+      previousFlowNodesRef.current = flowNodes
+      isInitialLoadRef.current = false
+      return
+    }
+    
+    // Check if flowNodes actually changed (compare IDs and key properties including dimensions)
+    const nodesChanged = flowNodes.length !== previousFlowNodesRef.current.length ||
+      flowNodes.some((fn, idx) => {
+        const prev = previousFlowNodesRef.current[idx]
+        return !prev || 
+          fn.id !== prev.id || 
+          fn.type !== prev.type ||
+          fn.position.x !== prev.position.x ||
+          fn.position.y !== prev.position.y ||
+          fn.width !== prev.width ||
+          fn.height !== prev.height ||
+          (fn.data as any)?.title !== (prev.data as any)?.title
+      })
+    
+    if (!nodesChanged) {
+      // Nothing changed, don't update
+      return
+    }
+    
+    // Diagnostic: Log position mismatches when sync effect runs
+    if (process.env.NODE_ENV !== 'production') {
+      const currentNodes = nodesRef.current || []
+      const positionMismatches = flowNodes
+        .map((incomingNode) => {
+          const currentNode = currentNodes.find((n) => n.id === incomingNode.id)
+          if (!currentNode) return null
+          if (currentNode.position.x !== incomingNode.position.x || 
+              currentNode.position.y !== incomingNode.position.y) {
+            return {
+              nodeId: incomingNode.id,
+              currentPos: { x: currentNode.position.x, y: currentNode.position.y },
+              incomingPos: { x: incomingNode.position.x, y: incomingNode.position.y },
+            }
+          }
+          return null
+        })
+        .filter((m) => m !== null)
+      
+      if (positionMismatches.length > 0) {
+        console.log('[PANEL sync effect] Position mismatches detected:', positionMismatches)
+      }
+    }
+    
+    previousFlowNodesRef.current = flowNodes
+    
+    // After initial load, merge incoming nodes with current nodes (preserves PANEL dimensions)
+    setNodes((currentNodes) => {
+      const merged = mergeFlowNodes(currentNodes, flowNodes)
+      nodesRef.current = merged
+      return merged
+    })
+  }, [flowNodes, setNodes, mergeFlowNodes])
 
   useEffect(() => {
     setEdges(initialEdges)
@@ -596,14 +1353,196 @@ export default function WorkflowDiagramClient({
     }, 400)
   }, [effectiveAdmin, updatePositionAction])
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (positionUpdateTimeoutRef.current) {
         clearTimeout(positionUpdateTimeoutRef.current)
       }
+      // Clear all resize-end timeouts
+      resizeEndTimeoutRef.current.forEach((timeout) => {
+        clearTimeout(timeout)
+      })
+      resizeEndTimeoutRef.current.clear()
     }
   }, [])
+  
+  // Custom onNodesChange handler to intercept panel dimension changes
+  // Filters out non-user dimension events BEFORE applying to state to prevent visual shrinking
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    // Split changes into allowed and ignored BEFORE applying to state
+    const allowedChanges: NodeChange[] = []
+    const ignoredPanelDimensionChanges: NodeChange[] = []
+    
+    for (const change of changes) {
+      // Non-dimension changes: always allow
+      if (change.type !== 'dimensions') {
+        allowedChanges.push(change)
+        continue
+      }
+      
+      // Dimension changes: check if this is a PANEL node
+      const nodeId = change.id
+      const originalNode = template.nodes.find((n) => n.id === nodeId)
+      const isPanelNode = originalNode?.nodeType === 'PANEL'
+      
+      // Non-PANEL nodes: always allow dimension changes
+      if (!isPanelNode) {
+        allowedChanges.push(change)
+        continue
+      }
+      
+      // PANEL dimension changes: filter based on resizing state
+      const isResizing = change.resizing === true
+      const resizingFalse = change.resizing === false
+      const resizingUndefined = change.resizing === undefined
+      
+      if (isResizing) {
+        // User is actively resizing - allow this change to update state
+        allowedChanges.push(change)
+      } else if (resizingFalse) {
+        // Explicit resize end - allow this change
+        allowedChanges.push(change)
+      } else if (resizingUndefined) {
+        // Measurement/reflow event - IGNORE it (don't apply to state)
+        ignoredPanelDimensionChanges.push(change)
+      } else {
+        // Unknown state - allow to be safe
+        allowedChanges.push(change)
+      }
+    }
+    
+    // Apply only allowed changes to React Flow state
+    onNodesChangeInternal(allowedChanges)
+    
+    // Then handle persistence logic for PANEL dimension changes that were allowed
+    if (effectiveAdmin && updateNodeAction) {
+      for (const change of allowedChanges) {
+        if (change.type === 'dimensions' && change.dimensions) {
+          const nodeId = change.id
+          
+          // Check if this is a panel node from template
+          const originalNode = template.nodes.find((n) => n.id === nodeId)
+          const isPanelNode = originalNode?.nodeType === 'PANEL'
+          
+          if (!isPanelNode || !originalNode) {
+            continue
+          }
+          
+          const { width, height } = change.dimensions
+          const isResizing = change.resizing === true
+          const resizingUndefined = change.resizing === undefined
+          
+          if (isResizing) {
+            // User is actively resizing - track this as an active resize session
+            activePanelResizeRef.current.set(nodeId, {
+              lastWidth: width,
+              lastHeight: height,
+              lastSeenAt: Date.now()
+            })
+            
+            // Clear any existing resize-end timeout for this node
+            const existingTimeout = resizeEndTimeoutRef.current.get(nodeId)
+            if (existingTimeout) {
+              clearTimeout(existingTimeout)
+              resizeEndTimeoutRef.current.delete(nodeId)
+            }
+            
+            // Set a new timeout to save when resize ends (user stops dragging)
+            const timeoutId = setTimeout(() => {
+              const activeResize = activePanelResizeRef.current.get(nodeId)
+              if (!activeResize || !originalNode) {
+                return
+              }
+              
+              // Apply minimum size constraints
+              const minWidth = 300
+              const minHeight = 200
+              const finalWidth = Math.max(activeResize.lastWidth, minWidth)
+              const finalHeight = Math.max(activeResize.lastHeight, minHeight)
+              
+              // Merge width/height into existing style
+              const currentStyle = originalNode.style || {}
+              const updatedStyle = {
+                ...currentStyle,
+                width: finalWidth,
+                height: finalHeight,
+              }
+              
+              // Save to DB - this is the ONLY save point for user resizes
+              updateNodeAction(
+                nodeId,
+                originalNode.title,
+                originalNode.body,
+                originalNode.actionKey,
+                undefined, // linkedWorkflows
+                originalNode.badges || [],
+                updatedStyle
+              ).catch((error) => {
+                console.error('Error updating panel dimensions:', error)
+              })
+              
+              // Clean up: remove from active resize tracking and timeout map
+              activePanelResizeRef.current.delete(nodeId)
+              resizeEndTimeoutRef.current.delete(nodeId)
+            }, 250) // Debounce: save 250ms after user stops resizing
+            
+            resizeEndTimeoutRef.current.set(nodeId, timeoutId)
+            
+          } else if (resizingUndefined || change.resizing === false) {
+            // This is a measurement/reflow event (resizing === undefined) or explicit end (resizing === false)
+            // Only persist if we're in an active resize session (user was resizing)
+            const activeResize = activePanelResizeRef.current.get(nodeId)
+            
+            if (!activeResize) {
+              // No active resize session - this is a React Flow measurement/reflow event
+              // Ignore it completely to prevent overwriting correct dimensions
+              continue
+            }
+            
+            // We have an active session, but resizing is now undefined/false
+            // This means the resize ended - use the tracked dimensions from the session
+            // Clear any existing timeout and save immediately
+            const existingTimeout = resizeEndTimeoutRef.current.get(nodeId)
+            if (existingTimeout) {
+              clearTimeout(existingTimeout)
+              resizeEndTimeoutRef.current.delete(nodeId)
+            }
+            
+            // Apply minimum size constraints
+            const minWidth = 300
+            const minHeight = 200
+            const finalWidth = Math.max(activeResize.lastWidth, minWidth)
+            const finalHeight = Math.max(activeResize.lastHeight, minHeight)
+            
+            // Merge width/height into existing style
+            const currentStyle = originalNode.style || {}
+            const updatedStyle = {
+              ...currentStyle,
+              width: finalWidth,
+              height: finalHeight,
+            }
+            
+            // Save to DB
+            updateNodeAction(
+              nodeId,
+              originalNode.title,
+              originalNode.body,
+              originalNode.actionKey,
+              undefined, // linkedWorkflows
+              originalNode.badges || [],
+              updatedStyle
+            ).catch((error) => {
+              console.error('Error updating panel dimensions:', error)
+            })
+            
+            // Clean up: remove from active resize tracking
+            activePanelResizeRef.current.delete(nodeId)
+          }
+        }
+      }
+    }
+  }, [onNodesChangeInternal, effectiveAdmin, updateNodeAction, template.nodes])
 
   // Handle node click (node selection is handled in the label onClick)
   const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
@@ -639,13 +1578,17 @@ export default function WorkflowDiagramClient({
     // If user cancels, labelInput is null - we'll treat this as empty string
     const label = labelInput === null ? '' : labelInput.trim()
 
+    // Normalize handle IDs for backwards compatibility
+    const normalizedSourceHandle = normalizeHandleId(connection.sourceHandle, true) ?? 'source-bottom'
+    const normalizedTargetHandle = normalizeHandleId(connection.targetHandle, false) ?? 'target-top'
+
     try {
       const result = await createAnswerOptionAction(
         connection.source,
         connection.target,
         label,
-        connection.sourceHandle ?? 'source-bottom',
-        connection.targetHandle ?? 'target-top'
+        normalizedSourceHandle,
+        normalizedTargetHandle
       )
       if (result.success && result.option) {
         // Add new edge to the edges state
@@ -654,8 +1597,8 @@ export default function WorkflowDiagramClient({
           id: result.option.id,
           source: connection.source!,
           target: connection.target!,
-          sourceHandle: connection.sourceHandle ?? 'source-bottom',
-          targetHandle: connection.targetHandle ?? 'target-top',
+          sourceHandle: normalizedSourceHandle,
+          targetHandle: normalizedTargetHandle,
           label: edgeLabel,
           labelStyle: edgeLabel ? { fontSize: 12, fontWeight: 600, color: '#0b4670', transform: 'translateY(-6px)' } : undefined,
           labelBgStyle: edgeLabel ? { fill: '#ffffff', stroke: '#76a9fa', strokeWidth: 1 } : undefined,
@@ -684,69 +1627,111 @@ export default function WorkflowDiagramClient({
       console.error('Error creating connection:', error)
       alert('Failed to create connection')
     }
-  }, [isAdmin, createAnswerOptionAction, setEdges, isValidConnection])
+  }, [effectiveAdmin, createAnswerOptionAction, setEdges, isValidConnection, normalizeHandleId])
 
   // Handle creating new node from toolbar
   const handleCreateNode = useCallback(async (nodeType: WorkflowNodeType) => {
     if (!createNodeAction) return
 
     try {
-      const result = await createNodeAction(nodeType)
+      // Calculate initial position (center of viewport or near selected node)
+      const spawnPos = getSpawnPosition()
+      
+      const result = await createNodeAction(nodeType, undefined, spawnPos.x, spawnPos.y)
       if (result.success && result.node) {
-        // Calculate initial position (center of viewport or below last node)
-        const maxY = nodes.length > 0 
-          ? Math.max(...nodes.map(n => n.position.y))
-          : 0
-        const initialX = 0
-        const initialY = maxY + 200
 
+        // Map node types to custom components
+        let newNodeType: string
+        if (nodeType === 'QUESTION') {
+          newNodeType = 'decisionNode'
+        } else if (nodeType === 'INSTRUCTION') {
+          newNodeType = 'instructionNode'
+        } else if (nodeType === 'END') {
+          newNodeType = 'outcomeNode'
+        } else if (nodeType === 'PANEL') {
+          newNodeType = 'panelNode'
+        } else if (nodeType === 'REFERENCE') {
+          newNodeType = 'referenceNode'
+        } else {
+          newNodeType = 'default'
+        }
+
+        // For PANEL nodes, add initial dimensions
+        const newNodeDimensions = nodeType === 'PANEL' 
+          ? { width: 500, height: 400 } 
+          : {}
+        
+        // Use position from server response if available, otherwise use spawnPos
+        const nodePosition = (result.node.positionX !== null && result.node.positionY !== null)
+          ? { x: result.node.positionX, y: result.node.positionY }
+          : spawnPos
+        
         const newNode: Node = {
           id: result.node.id,
-          type: 'default',
-          position: { x: initialX, y: initialY },
+          type: newNodeType,
+          position: nodePosition,
+          ...newNodeDimensions,
+          className: nodeType === 'PANEL' ? 'panel' : undefined,
           selected: false,
-          data: {
-                  label: (
-                    <>
-                      {isAdmin && (
-                        <Handle
-                          id="in"
-                          type="target"
-                          position={Position.Top}
-                          className="w-3 h-3 !bg-blue-500"
-                        />
-                      )}
-                      <div className={`min-w-[280px] max-w-[320px] rounded-lg shadow-md overflow-hidden transition-all cursor-pointer ${
-                        nodeType === 'QUESTION'
-                          ? 'bg-amber-50 border-amber-200'
-                          : 'bg-white border-gray-200'
-                      } border`}>
-                        <div className="flex items-start justify-between px-4 pt-3 pb-2">
-                          <div className={`text-xs font-semibold px-2.5 py-1 rounded border ${getNodeTypeColor(nodeType)}`}>
-                            {nodeType}
-                          </div>
-                        </div>
-                        <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
-                          <div className="font-medium text-gray-900 break-words text-sm leading-snug">
-                            {result.node.title}
-                          </div>
-                        </div>
-                      </div>
-                      {isAdmin && (
-                        <Handle
-                          id="out"
-                          type="source"
-                          position={Position.Bottom}
-                          className="w-3 h-3 !bg-blue-500"
-                        />
-                      )}
-                    </>
-                  ),
+          data: nodeType === 'QUESTION' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            body: result.node.body,
+            hasBody: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+            onInfoClick: () => {},
+          } : nodeType === 'INSTRUCTION' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            body: result.node.body,
+            hasBody: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+            onInfoClick: () => {},
+          } : nodeType === 'END' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            body: result.node.body,
+            hasBody: false,
+            actionKey: result.node.actionKey,
+            hasOutgoingEdges: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+            onInfoClick: () => {},
+            getActionKeyDescription,
+          } : nodeType === 'PANEL' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+          } : nodeType === 'REFERENCE' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+          } : {
             nodeType: result.node.nodeType,
             title: result.node.title,
             body: result.node.body,
             actionKey: result.node.actionKey,
             hasBody: false,
+            badges: result.node.badges || [],
+            style: result.node.style,
           },
         }
         setNodes((nds) => [...nds, newNode])
@@ -762,7 +1747,7 @@ export default function WorkflowDiagramClient({
       console.error('Error creating node:', error)
       alert('Failed to create node')
     }
-  }, [createNodeAction, nodes, isAdmin, setNodes])
+  }, [createNodeAction, nodes, isAdmin, setNodes, getSpawnPosition])
 
   // Handle saving node edits
   const handleSaveNode = useCallback(async () => {
@@ -776,14 +1761,77 @@ export default function WorkflowDiagramClient({
         sortOrder: index,
       }))
       
+      // For REFERENCE nodes, convert body text to items array and update style.reference
+      let finalStyle = editingStyle
+      let finalBody = editingBody || null
+      
+      if (selectedNode.nodeType === 'REFERENCE') {
+        // Convert newline-separated text to items array
+        const items = editingBody
+          .split('\n')
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(text => {
+            // Try to preserve existing info by matching text
+            const existingItem = (selectedNode.style as { reference?: { items?: Array<{ text: string; info?: string }> } } | null)?.reference?.items?.find(item => item.text === text)
+            return existingItem ? { text, info: existingItem.info } : { text }
+          })
+        
+        // Merge reference data into style
+        const existingStyle = (editingStyle || {}) as {
+          bgColor?: string
+          textColor?: string
+          borderColor?: string
+          borderWidth?: number
+          radius?: number
+          fontWeight?: 'normal' | 'medium' | 'bold'
+          theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+          reference?: {
+            title?: string
+            items?: Array<{ text: string; info?: string }>
+          }
+        }
+        
+        finalStyle = {
+          ...existingStyle,
+          reference: {
+            title: editingTitle,
+            items,
+          },
+        }
+        // REFERENCE nodes don't use body field
+        finalBody = null
+      }
+      
       const result = await updateNodeAction(
         selectedNode.id, 
         editingTitle, 
-        editingBody || null, 
+        finalBody, 
         editingActionKey,
-        linkedWorkflows
+        linkedWorkflows,
+        editingBadges,
+        finalStyle
       )
       if (result.success) {
+        // Update local state immediately for REFERENCE nodes to show changes without waiting for refresh
+        if (selectedNode.nodeType === 'REFERENCE') {
+          setNodes((nds) =>
+            nds.map((n) =>
+              n.id === selectedNode.id
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      title: editingTitle,
+                      style: finalStyle,
+                    },
+                  }
+                : n
+            )
+          )
+          // Also update selectedNode state by updating editingStyle
+          setEditingStyle(finalStyle)
+        }
         router.refresh()
       } else {
         alert(`Failed to save: ${result.error || 'Unknown error'}`)
@@ -792,30 +1840,29 @@ export default function WorkflowDiagramClient({
       console.error('Error saving node:', error)
       alert('Failed to save changes')
     }
-  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, router])
+  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, editingBadges, editingStyle, router, setNodes])
 
   // Handle quick create of a new node connected from the selected node
   const handleQuickCreateConnectedNode = useCallback(async (nodeType: WorkflowNodeType) => {
     if (!effectiveAdmin || !createNodeAction || !createAnswerOptionAction || !selectedNode) return
 
     try {
-      // 1) Create the new node on the server
-      const result = await createNodeAction(nodeType)
+      // 1) Calculate position for new node (near selected node with small offset)
+      const baseNode = nodes.find((n) => n.id === selectedNode.id)
+      const baseX = baseNode?.position.x || 0
+      const baseY = baseNode?.position.y || 0
+      // Spawn to the right of selected node with small vertical offset
+      const newX = baseX + 80
+      const newY = baseY + 20
+
+      // 3) Create the new node on the server with position
+      const result = await createNodeAction(nodeType, undefined, newX, newY)
       if (!result.success || !result.node) {
         alert(`Failed to create node: ${result.error || 'Unknown error'}`)
         return
       }
 
-      // 2) Calculate position for new node (directly below selected node, snapped to grid)
-      const baseNode = nodes.find((n) => n.id === selectedNode.id)
-      const gridSize = 16
-      const spacing = 180 // Vertical spacing between nodes
-      const baseX = baseNode?.position.x || 0
-      const baseY = baseNode?.position.y || 0
-      const newX = Math.round(baseX / gridSize) * gridSize // Snap to grid
-      const newY = Math.round((baseY + spacing) / gridSize) * gridSize // Snap to grid
-
-      // 3) Add the node locally
+      // 4) Add the node locally
       // Map node types to custom components
       let newNodeType: string
       if (nodeType === 'QUESTION') {
@@ -824,20 +1871,38 @@ export default function WorkflowDiagramClient({
         newNodeType = 'instructionNode'
       } else if (nodeType === 'END') {
         newNodeType = 'outcomeNode'
+      } else if (nodeType === 'PANEL') {
+        newNodeType = 'panelNode'
+      } else if (nodeType === 'REFERENCE') {
+        newNodeType = 'referenceNode'
       } else {
         newNodeType = 'default'
       }
       
+      // For PANEL nodes, add initial dimensions
+      const newNodeDimensions = nodeType === 'PANEL' 
+        ? { width: 500, height: 400 } 
+        : {}
+      
+      // Use position from server response if available, otherwise use calculated position
+      const nodePosition = (result.node.positionX !== null && result.node.positionY !== null)
+        ? { x: result.node.positionX, y: result.node.positionY }
+        : { x: newX, y: newY }
+      
       const newNode: Node = {
         id: result.node.id,
         type: newNodeType,
-        position: { x: newX, y: newY },
+        position: nodePosition,
+        ...newNodeDimensions,
+        className: nodeType === 'PANEL' ? 'panel' : undefined,
         selected: false,
         data: nodeType === 'QUESTION' ? {
           nodeType: result.node.nodeType,
           title: result.node.title,
           body: result.node.body,
           hasBody: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
@@ -847,6 +1912,8 @@ export default function WorkflowDiagramClient({
           title: result.node.title,
           body: result.node.body,
           hasBody: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
@@ -858,23 +1925,43 @@ export default function WorkflowDiagramClient({
           hasBody: false,
           actionKey: result.node.actionKey,
           hasOutgoingEdges: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
           onInfoClick: () => {},
           getActionKeyDescription,
+        } : nodeType === 'PANEL' ? {
+          nodeType: result.node.nodeType,
+          title: result.node.title,
+          badges: result.node.badges || [],
+          style: result.node.style,
+          isSelected: false,
+          isAdmin,
+          onNodeClick: () => {},
+        } : nodeType === 'REFERENCE' ? {
+          nodeType: result.node.nodeType,
+          title: result.node.title,
+          style: result.node.style,
+          isSelected: false,
+          isAdmin,
+          onNodeClick: () => {},
         } : {
           // Fallback for any other node types (shouldn't happen)
           nodeType: result.node.nodeType,
           title: result.node.title,
           body: result.node.body,
           hasBody: false,
+          badges: result.node.badges || [],
+          style: result.node.style,
         },
       }
 
       setNodes((nds) => [...nds, newNode])
 
       // 4) Create connection with empty label (bottom to top)
+      // Use standard handle IDs for new connections
       const edgeResult = await createAnswerOptionAction(selectedNode.id, result.node.id, '', 'source-bottom', 'target-top')
       if (!edgeResult.success || !edgeResult.option) {
         alert(`Node created, but failed to connect: ${edgeResult.error || 'Unknown error'}`)
@@ -992,6 +2079,8 @@ export default function WorkflowDiagramClient({
     decisionNode: WorkflowDecisionNode,
     instructionNode: WorkflowInstructionNode,
     outcomeNode: WorkflowOutcomeNode,
+    panelNode: WorkflowPanelNode,
+    referenceNode: WorkflowReferenceNode,
   }), [])
 
 
@@ -1029,6 +2118,18 @@ export default function WorkflowDiagramClient({
             >
               Add outcome
             </button>
+            <button
+              onClick={() => handleCreateNode('PANEL')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+            >
+              Add panel
+            </button>
+            <button
+              onClick={() => handleCreateNode('REFERENCE')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+            >
+              Add reference
+            </button>
           </div>
           <p className="text-xs text-gray-500">
             Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically. Tip: hold Shift while dragging to keep steps aligned.
@@ -1058,6 +2159,9 @@ export default function WorkflowDiagramClient({
             </div>
           )}
           <ReactFlow
+            onInit={(instance) => {
+              reactFlowInstanceRef.current = instance
+            }}
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
@@ -1083,8 +2187,10 @@ export default function WorkflowDiagramClient({
             maxZoom={1.5}
             defaultViewport={{ x: 0, y: 0, zoom: 1 }}
             proOptions={{ hideAttribution: true }}
+            className="react-flow-panels-below"
           >
             <Controls showInteractive={false} />
+            <DebugFlowAccessor template={template} flowNodes={flowNodes} />
           </ReactFlow>
           </div>
         </div>
@@ -1176,16 +2282,146 @@ export default function WorkflowDiagramClient({
                   </div>
                   <div>
                     <label htmlFor="node-body" className="block text-sm font-medium text-gray-700 mb-1">
-                      Body
+                      {selectedNode.nodeType === 'REFERENCE' ? 'Items (one per line)' : 'Body'}
                     </label>
+                    {selectedNode.nodeType === 'REFERENCE' && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        Enter each reference item on a separate line. The node will display them as a list.
+                      </p>
+                    )}
                     <textarea
                       id="node-body"
                       value={editingBody}
                       onChange={(e) => setEditingBody(e.target.value)}
                       rows={6}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={selectedNode.nodeType === 'REFERENCE' ? 'Diabetic Eye Screening\nCervical Screening\n...' : undefined}
                     />
                   </div>
+                  
+                  {/* Badges section */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <label htmlFor="node-badges" className="block text-sm font-medium text-gray-700 mb-2">
+                      Badges
+                    </label>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {['STAMP'].map((badge) => (
+                          <label key={badge} className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editingBadges.includes(badge)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setEditingBadges([...editingBadges, badge])
+                                } else {
+                                  setEditingBadges(editingBadges.filter(b => b !== badge))
+                                }
+                              }}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{badge}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Style section */}
+                  <div className="pt-4 border-t border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                      Node Styling
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label htmlFor="node-theme" className="block text-sm font-medium text-gray-700 mb-1">
+                          Theme
+                        </label>
+                        <select
+                          id="node-theme"
+                          value={editingStyle?.theme || 'default'}
+                          onChange={(e) => {
+                            const theme = e.target.value as 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel' | 'default'
+                            setEditingStyle({
+                              ...editingStyle,
+                              theme: theme === 'default' ? undefined : theme,
+                            })
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="default">Default</option>
+                          <option value="info">Info (Blue)</option>
+                          <option value="warning">Warning (Amber)</option>
+                          <option value="success">Success (Green)</option>
+                          <option value="muted">Muted (Gray)</option>
+                          <option value="panel">Panel (Background)</option>
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="node-bg-color" className="block text-xs font-medium text-gray-600 mb-1">
+                            Background
+                          </label>
+                          <input
+                            id="node-bg-color"
+                            type="color"
+                            value={editingStyle?.bgColor || '#ffffff'}
+                            onChange={(e) => {
+                              setEditingStyle({
+                                ...editingStyle,
+                                bgColor: e.target.value,
+                              })
+                            }}
+                            className="w-full h-8 border border-gray-300 rounded cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="node-text-color" className="block text-xs font-medium text-gray-600 mb-1">
+                            Text
+                          </label>
+                          <input
+                            id="node-text-color"
+                            type="color"
+                            value={editingStyle?.textColor || '#111827'}
+                            onChange={(e) => {
+                              setEditingStyle({
+                                ...editingStyle,
+                                textColor: e.target.value,
+                              })
+                            }}
+                            className="w-full h-8 border border-gray-300 rounded cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label htmlFor="node-border-color" className="block text-xs font-medium text-gray-600 mb-1">
+                          Border
+                        </label>
+                        <input
+                          id="node-border-color"
+                          type="color"
+                          value={editingStyle?.borderColor || '#e5e7eb'}
+                          onChange={(e) => {
+                            setEditingStyle({
+                              ...editingStyle,
+                              borderColor: e.target.value,
+                            })
+                          }}
+                          className="w-full h-8 border border-gray-300 rounded cursor-pointer"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingStyle(null)
+                        }}
+                        className="w-full px-3 py-1.5 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        Reset to defaults
+                      </button>
+                    </div>
+                  </div>
+
                   {(selectedNode.nodeType === 'END' || selectedNode.actionKey) && (
                     <div>
                       <label htmlFor="node-actionKey" className="block text-sm font-medium text-gray-700 mb-1">
@@ -1378,8 +2614,11 @@ export default function WorkflowDiagramClient({
                     setEditingBody('')
                     setEditingActionKey(null)
                     setEditingLinkedWorkflows([])
+                    setEditingBadges([])
+                    setEditingStyle(null)
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  type="button"
                 >
                   Cancel
                 </button>

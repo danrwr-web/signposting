@@ -546,6 +546,13 @@ model WorkflowNodeTemplate {
   // For simple "end" nodes, you can attach an action directly.
   actionKey WorkflowActionKey?
 
+  // Node badges (e.g. "STAMP") - stored as JSON array
+  badges Json @default("[]")
+
+  // Node visual styling - stored as JSON object
+  // { bgColor?: string, textColor?: string, borderColor?: string, borderWidth?: number, radius?: number, fontWeight?: "normal"|"medium"|"bold", theme?: "default"|"info"|"warning"|"success"|"muted"|"panel" }
+  style Json?
+
   // Linked workflow navigation (Lucid-style) - supports multiple links per node
   workflowLinks WorkflowNodeLink[]
 
@@ -640,6 +647,8 @@ enum WorkflowNodeType {
   INSTRUCTION // info block / "check this list…"
   QUESTION // yes/no or multi-choice
   END // pure end node with actionKey
+  PANEL // background container/group node
+  REFERENCE // informational reference card (non-connectable)
 }
 
 enum WorkflowInstanceStatus {
