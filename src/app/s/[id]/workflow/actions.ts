@@ -1008,6 +1008,10 @@ export async function updateWorkflowNodeForDiagram(
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
     width?: number
     height?: number
+    reference?: {
+      title?: string
+      items?: Array<{ text: string; info?: string }>
+    }
   } | null
 ): Promise<ActionResult> {
   try {
@@ -1096,12 +1100,30 @@ export async function updateWorkflowNodeForDiagram(
           theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
           width?: number
           height?: number
+          reference?: {
+            title?: string
+            items?: Array<{ text: string; info?: string }>
+          }
         } | null) ?? null
         
         // Merge: existing style first, then incoming style (incoming overrides existing)
+        // For reference field, do a deep merge to preserve items.info if text matches
         const mergedStyle = {
           ...(existingStyle ?? {}),
           ...(style ?? {}),
+        }
+        
+        // Deep merge reference field if both exist
+        if (existingStyle?.reference && style?.reference) {
+          mergedStyle.reference = {
+            ...existingStyle.reference,
+            ...style.reference,
+            // Merge items array, preserving info for matching text
+            items: (style.reference.items || []).map(newItem => {
+              const existingItem = existingStyle.reference?.items?.find(item => item.text === newItem.text)
+              return existingItem ? { ...newItem, info: existingItem.info || newItem.info } : newItem
+            }),
+          }
         }
         
         // Process width/height: coerce to numbers, clamp to minimums, remove if NaN

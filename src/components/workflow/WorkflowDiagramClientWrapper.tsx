@@ -80,6 +80,10 @@ interface Props {
       theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
       width?: number
       height?: number
+      reference?: {
+        title?: string
+        items?: Array<{ text: string; info?: string }>
+      }
     } | null
   ) => Promise<{ success: boolean; error?: string }>
 }

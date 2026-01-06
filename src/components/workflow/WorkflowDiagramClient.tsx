@@ -460,6 +460,10 @@ interface WorkflowDiagramClientProps {
       radius?: number
       fontWeight?: 'normal' | 'medium' | 'bold'
       theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      reference?: {
+        title?: string
+        items?: Array<{ text: string; info?: string }>
+      }
     } | null
   ) => Promise<{ success: boolean; error?: string }>
 }
@@ -683,8 +687,17 @@ export default function WorkflowDiagramClient({
   // Initialize editing state when node is selected
   useEffect(() => {
     if (selectedNode && effectiveAdmin) {
-      setEditingTitle(selectedNode.title)
-      setEditingBody(selectedNode.body || '')
+      // For REFERENCE nodes, use style.reference data
+      if (selectedNode.nodeType === 'REFERENCE') {
+        const referenceData = (selectedNode.style as { reference?: { title?: string; items?: Array<{ text: string; info?: string }> } } | null)?.reference
+        setEditingTitle(referenceData?.title || selectedNode.title || '')
+        // Convert items array to newline-separated text
+        const itemsText = (referenceData?.items || []).map(item => item.text).join('\n')
+        setEditingBody(itemsText)
+      } else {
+        setEditingTitle(selectedNode.title)
+        setEditingBody(selectedNode.body || '')
+      }
       setEditingActionKey(selectedNode.actionKey)
       setEditingBadges(selectedNode.badges || [])
       setEditingStyle(selectedNode.style)
@@ -1748,16 +1761,77 @@ export default function WorkflowDiagramClient({
         sortOrder: index,
       }))
       
+      // For REFERENCE nodes, convert body text to items array and update style.reference
+      let finalStyle = editingStyle
+      let finalBody = editingBody || null
+      
+      if (selectedNode.nodeType === 'REFERENCE') {
+        // Convert newline-separated text to items array
+        const items = editingBody
+          .split('\n')
+          .map(s => s.trim())
+          .filter(Boolean)
+          .map(text => {
+            // Try to preserve existing info by matching text
+            const existingItem = (selectedNode.style as { reference?: { items?: Array<{ text: string; info?: string }> } } | null)?.reference?.items?.find(item => item.text === text)
+            return existingItem ? { text, info: existingItem.info } : { text }
+          })
+        
+        // Merge reference data into style
+        const existingStyle = (editingStyle || {}) as {
+          bgColor?: string
+          textColor?: string
+          borderColor?: string
+          borderWidth?: number
+          radius?: number
+          fontWeight?: 'normal' | 'medium' | 'bold'
+          theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+          reference?: {
+            title?: string
+            items?: Array<{ text: string; info?: string }>
+          }
+        }
+        
+        finalStyle = {
+          ...existingStyle,
+          reference: {
+            title: editingTitle,
+            items,
+          },
+        }
+        // REFERENCE nodes don't use body field
+        finalBody = null
+      }
+      
       const result = await updateNodeAction(
         selectedNode.id, 
         editingTitle, 
-        editingBody || null, 
+        finalBody, 
         editingActionKey,
         linkedWorkflows,
         editingBadges,
-        editingStyle
+        finalStyle
       )
       if (result.success) {
+        // Update local state immediately for REFERENCE nodes to show changes without waiting for refresh
+        if (selectedNode.nodeType === 'REFERENCE') {
+          setNodes((nds) =>
+            nds.map((n) =>
+              n.id === selectedNode.id
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      title: editingTitle,
+                      style: finalStyle,
+                    },
+                  }
+                : n
+            )
+          )
+          // Also update selectedNode state by updating editingStyle
+          setEditingStyle(finalStyle)
+        }
         router.refresh()
       } else {
         alert(`Failed to save: ${result.error || 'Unknown error'}`)
@@ -1766,7 +1840,7 @@ export default function WorkflowDiagramClient({
       console.error('Error saving node:', error)
       alert('Failed to save changes')
     }
-  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, editingBadges, editingStyle, router])
+  }, [selectedNode, updateNodeAction, editingTitle, editingBody, editingActionKey, editingLinkedWorkflows, editingBadges, editingStyle, router, setNodes])
 
   // Handle quick create of a new node connected from the selected node
   const handleQuickCreateConnectedNode = useCallback(async (nodeType: WorkflowNodeType) => {
@@ -2208,14 +2282,20 @@ export default function WorkflowDiagramClient({
                   </div>
                   <div>
                     <label htmlFor="node-body" className="block text-sm font-medium text-gray-700 mb-1">
-                      Body
+                      {selectedNode.nodeType === 'REFERENCE' ? 'Items (one per line)' : 'Body'}
                     </label>
+                    {selectedNode.nodeType === 'REFERENCE' && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        Enter each reference item on a separate line. The node will display them as a list.
+                      </p>
+                    )}
                     <textarea
                       id="node-body"
                       value={editingBody}
                       onChange={(e) => setEditingBody(e.target.value)}
                       rows={6}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={selectedNode.nodeType === 'REFERENCE' ? 'Diabetic Eye Screening\nCervical Screening\n...' : undefined}
                     />
                   </div>
                   
@@ -2538,6 +2618,7 @@ export default function WorkflowDiagramClient({
                     setEditingStyle(null)
                   }}
                   className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  type="button"
                 >
                   Cancel
                 </button>
