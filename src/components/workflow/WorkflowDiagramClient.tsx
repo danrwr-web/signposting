@@ -925,7 +925,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => openDetailsForNode(node.id),
+          onInfoClick: openDetailsForNode,
         } : node.nodeType === 'INSTRUCTION' ? {
           // For INSTRUCTION nodes, pass data to custom component
           nodeType: node.nodeType,
@@ -937,7 +937,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => openDetailsForNode(node.id),
+          onInfoClick: openDetailsForNode,
         } : node.nodeType === 'END' ? {
           // For END nodes, pass data to custom component (includes outcome footer logic)
           nodeType: node.nodeType,
@@ -951,7 +951,7 @@ export default function WorkflowDiagramClient({
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
-          onInfoClick: () => openDetailsForNode(node.id),
+          onInfoClick: openDetailsForNode,
           getActionKeyDescription,
         } : node.nodeType === 'PANEL' ? {
           // For PANEL nodes, pass data to custom component
@@ -1768,7 +1768,7 @@ export default function WorkflowDiagramClient({
             isSelected: false,
             isAdmin,
             onNodeClick: () => {},
-            onInfoClick: () => {},
+            onInfoClick: openDetailsForNode,
           } : nodeType === 'INSTRUCTION' ? {
             nodeType: result.node.nodeType,
             title: result.node.title,
@@ -1779,7 +1779,7 @@ export default function WorkflowDiagramClient({
             isSelected: false,
             isAdmin,
             onNodeClick: () => {},
-            onInfoClick: () => {},
+            onInfoClick: openDetailsForNode,
           } : nodeType === 'END' ? {
             nodeType: result.node.nodeType,
             title: result.node.title,
@@ -1792,7 +1792,7 @@ export default function WorkflowDiagramClient({
             isSelected: false,
             isAdmin,
             onNodeClick: () => {},
-            onInfoClick: () => {},
+            onInfoClick: openDetailsForNode,
             getActionKeyDescription,
           } : nodeType === 'PANEL' ? {
             nodeType: result.node.nodeType,
@@ -1991,7 +1991,7 @@ export default function WorkflowDiagramClient({
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
-          onInfoClick: () => {},
+          onInfoClick: openDetailsForNode,
         } : nodeType === 'INSTRUCTION' ? {
           nodeType: result.node.nodeType,
           title: result.node.title,
@@ -2002,7 +2002,7 @@ export default function WorkflowDiagramClient({
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
-          onInfoClick: () => {},
+          onInfoClick: openDetailsForNode,
         } : nodeType === 'END' ? {
           nodeType: result.node.nodeType,
           title: result.node.title,
@@ -2015,7 +2015,7 @@ export default function WorkflowDiagramClient({
           isSelected: false,
           isAdmin,
           onNodeClick: () => {},
-          onInfoClick: () => {},
+          onInfoClick: openDetailsForNode,
           getActionKeyDescription,
         } : nodeType === 'PANEL' ? {
           nodeType: result.node.nodeType,
@@ -2223,9 +2223,9 @@ export default function WorkflowDiagramClient({
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 w-full items-stretch">
+      <div className="flex h-full w-full items-stretch">
         {/* Left column: diagram */}
-        <div className="flex-1 min-w-0 flex flex-col gap-2">
+        <div className="flex-1 min-w-0 relative overflow-hidden flex flex-col gap-2">
           {/* Subtle editing mode banner */}
           {editingMode && isAdmin && (
             <div className="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md">
@@ -2239,45 +2239,47 @@ export default function WorkflowDiagramClient({
               ? 'border-blue-200' 
               : 'border-gray-200'
           }`}>
-          {process.env.NODE_ENV !== 'production' && (
-            <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
-              Nodes {nodes.length} · Edges {edges.length}
+            <div className="h-full w-full">
+              {process.env.NODE_ENV !== 'production' && (
+                <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
+                  Nodes {nodes.length} · Edges {edges.length}
+                </div>
+              )}
+              <ReactFlow
+                onInit={(instance) => {
+                  reactFlowInstanceRef.current = instance
+                }}
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                onNodeClick={onNodeClick}
+                onEdgeClick={onEdgeClick}
+                onConnect={effectiveAdmin ? onConnect : undefined}
+                onNodeDragStart={handleNodeDragStart}
+                onNodeDrag={handleNodeDrag}
+                onNodeDragStop={handleNodeDragStop}
+                nodesDraggable={effectiveAdmin}
+                edgesFocusable
+                snapToGrid={false}
+                edgesUpdatable={false}
+                selectNodesOnDrag={false}
+                connectionMode={ConnectionMode.Strict}
+                connectionLineType={ConnectionLineType.Step}
+                isValidConnection={isValidConnection}
+                fitView
+                fitViewOptions={{ padding: 0.2 }}
+                minZoom={0.3}
+                maxZoom={1.5}
+                defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+                proOptions={{ hideAttribution: true }}
+                className="react-flow-panels-below h-full w-full"
+              >
+                <Controls showInteractive={false} />
+                <DebugFlowAccessor template={template} flowNodes={flowNodes} />
+              </ReactFlow>
             </div>
-          )}
-          <ReactFlow
-            onInit={(instance) => {
-              reactFlowInstanceRef.current = instance
-            }}
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={onNodeClick}
-            onEdgeClick={onEdgeClick}
-            onConnect={effectiveAdmin ? onConnect : undefined}
-            onNodeDragStart={handleNodeDragStart}
-            onNodeDrag={handleNodeDrag}
-            onNodeDragStop={handleNodeDragStop}
-            nodesDraggable={effectiveAdmin}
-            edgesFocusable
-            snapToGrid={false}
-            edgesUpdatable={false}
-            selectNodesOnDrag={false}
-            connectionMode={ConnectionMode.Strict}
-            connectionLineType={ConnectionLineType.Step}
-            isValidConnection={isValidConnection}
-            fitView
-            fitViewOptions={{ padding: 0.2 }}
-            minZoom={0.3}
-            maxZoom={1.5}
-            defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-            proOptions={{ hideAttribution: true }}
-            className="react-flow-panels-below h-full w-full"
-          >
-            <Controls showInteractive={false} />
-            <DebugFlowAccessor template={template} flowNodes={flowNodes} />
-          </ReactFlow>
           </div>
         </div>
 

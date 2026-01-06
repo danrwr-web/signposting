@@ -1,34 +1,31 @@
 'use client'
 
-import { Handle, Position } from 'reactflow'
+import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 
-interface WorkflowOutcomeNodeProps {
-  data: {
-    nodeType: WorkflowNodeType
-    title: string
-    body: string | null
-    hasBody: boolean
-    actionKey: WorkflowActionKey | null
-    hasOutgoingEdges: boolean
-    badges?: string[]
-    style?: {
-      bgColor?: string
-      textColor?: string
-      borderColor?: string
-      borderWidth?: number
-      radius?: number
-      fontWeight?: 'normal' | 'medium' | 'bold'
-      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
-    } | null
-    isSelected: boolean
-    isAdmin?: boolean
-    onNodeClick?: () => void
-    onInfoClick?: () => void
-    getActionKeyDescription?: (actionKey: WorkflowActionKey) => string
-  }
-  selected?: boolean
+type WorkflowOutcomeNodeData = {
+  nodeType: WorkflowNodeType
+  title: string
+  body: string | null
+  hasBody: boolean
+  actionKey: WorkflowActionKey | null
+  hasOutgoingEdges: boolean
+  badges?: string[]
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  } | null
+  isSelected: boolean
+  isAdmin?: boolean
+  onNodeClick?: () => void
+  onInfoClick?: (nodeId: string) => void
+  getActionKeyDescription?: (actionKey: WorkflowActionKey) => string
 }
 
 function getNodeTypeColor(nodeType: WorkflowNodeType): string {
@@ -72,7 +69,7 @@ function InfoIcon() {
   )
 }
 
-export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeNodeProps) {
+export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<WorkflowOutcomeNodeData>) {
   const { nodeType, title, hasBody, actionKey, hasOutgoingEdges, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick, getActionKeyDescription: customGetActionKeyDescription } = data
   
   const isOutcomeNode = actionKey !== null && !hasOutgoingEdges
@@ -126,10 +123,11 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
             {hasBody && (
               <button
                 onClick={(e) => {
+                  e.preventDefault()
                   e.stopPropagation()
-                  onInfoClick?.()
+                  onInfoClick?.(id)
                 }}
-                className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
+                className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors pointer-events-auto"
                 title="Click for reference details"
                 aria-label="View details"
               >

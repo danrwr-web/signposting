@@ -1,31 +1,28 @@
 'use client'
 
-import { Handle, Position } from 'reactflow'
+import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 
-interface WorkflowInstructionNodeProps {
-  data: {
-    nodeType: WorkflowNodeType
-    title: string
-    body: string | null
-    hasBody: boolean
-    badges?: string[]
-    style?: {
-      bgColor?: string
-      textColor?: string
-      borderColor?: string
-      borderWidth?: number
-      radius?: number
-      fontWeight?: 'normal' | 'medium' | 'bold'
-      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
-    } | null
-    isSelected: boolean
-    isAdmin?: boolean
-    onNodeClick?: () => void
-    onInfoClick?: () => void
-  }
-  selected?: boolean
+type WorkflowInstructionNodeData = {
+  nodeType: WorkflowNodeType
+  title: string
+  body: string | null
+  hasBody: boolean
+  badges?: string[]
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  } | null
+  isSelected: boolean
+  isAdmin?: boolean
+  onNodeClick?: () => void
+  onInfoClick?: (nodeId: string) => void
 }
 
 function getNodeTypeColor(nodeType: WorkflowNodeType): string {
@@ -55,7 +52,7 @@ function InfoIcon() {
   )
 }
 
-export default function WorkflowInstructionNode({ data, selected }: WorkflowInstructionNodeProps) {
+export default function WorkflowInstructionNode({ id, data, selected }: NodeProps<WorkflowInstructionNodeData>) {
   const { nodeType, title, hasBody, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
   const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
@@ -104,10 +101,11 @@ export default function WorkflowInstructionNode({ data, selected }: WorkflowInst
           {hasBody && (
             <button
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
-                onInfoClick?.()
+                onInfoClick?.(id)
               }}
-              className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
+              className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors pointer-events-auto"
               title="Click for reference details"
               aria-label="View details"
             >
