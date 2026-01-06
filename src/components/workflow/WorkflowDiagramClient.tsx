@@ -27,6 +27,7 @@ import WorkflowDecisionNode from './WorkflowDecisionNode'
 import WorkflowInstructionNode from './WorkflowInstructionNode'
 import WorkflowOutcomeNode from './WorkflowOutcomeNode'
 import WorkflowPanelNode from './WorkflowPanelNode'
+import WorkflowReferenceNode from './WorkflowReferenceNode'
 import { renderBulletText } from './renderBulletText'
 
 // Debug component to access ReactFlow instance and expose debug function
@@ -775,6 +776,8 @@ export default function WorkflowDiagramClient({
         nodeType = 'outcomeNode'
       } else if (node.nodeType === 'PANEL') {
         nodeType = 'panelNode'
+      } else if (node.nodeType === 'REFERENCE') {
+        nodeType = 'referenceNode'
       } else {
         nodeType = 'default'
       }
@@ -861,6 +864,14 @@ export default function WorkflowDiagramClient({
           title: node.title,
           badges: node.badges || [],
           style: panelStyle, // Use panelStyle which includes width/height
+          isSelected,
+          isAdmin: effectiveAdmin,
+          onNodeClick: () => toggleNodeSelection(node.id),
+        } : node.nodeType === 'REFERENCE' ? {
+          // For REFERENCE nodes, pass data to custom component
+          nodeType: node.nodeType,
+          title: node.title,
+          style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
           onNodeClick: () => toggleNodeSelection(node.id),
@@ -1626,6 +1637,8 @@ export default function WorkflowDiagramClient({
           newNodeType = 'outcomeNode'
         } else if (nodeType === 'PANEL') {
           newNodeType = 'panelNode'
+        } else if (nodeType === 'REFERENCE') {
+          newNodeType = 'referenceNode'
         } else {
           newNodeType = 'default'
         }
@@ -1687,6 +1700,13 @@ export default function WorkflowDiagramClient({
             nodeType: result.node.nodeType,
             title: result.node.title,
             badges: result.node.badges || [],
+            style: result.node.style,
+            isSelected: false,
+            isAdmin,
+            onNodeClick: () => {},
+          } : nodeType === 'REFERENCE' ? {
+            nodeType: result.node.nodeType,
+            title: result.node.title,
             style: result.node.style,
             isSelected: false,
             isAdmin,
@@ -1779,6 +1799,8 @@ export default function WorkflowDiagramClient({
         newNodeType = 'outcomeNode'
       } else if (nodeType === 'PANEL') {
         newNodeType = 'panelNode'
+      } else if (nodeType === 'REFERENCE') {
+        newNodeType = 'referenceNode'
       } else {
         newNodeType = 'default'
       }
@@ -1840,6 +1862,13 @@ export default function WorkflowDiagramClient({
           nodeType: result.node.nodeType,
           title: result.node.title,
           badges: result.node.badges || [],
+          style: result.node.style,
+          isSelected: false,
+          isAdmin,
+          onNodeClick: () => {},
+        } : nodeType === 'REFERENCE' ? {
+          nodeType: result.node.nodeType,
+          title: result.node.title,
           style: result.node.style,
           isSelected: false,
           isAdmin,
@@ -1977,6 +2006,7 @@ export default function WorkflowDiagramClient({
     instructionNode: WorkflowInstructionNode,
     outcomeNode: WorkflowOutcomeNode,
     panelNode: WorkflowPanelNode,
+    referenceNode: WorkflowReferenceNode,
   }), [])
 
 
@@ -2019,6 +2049,12 @@ export default function WorkflowDiagramClient({
               className="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
             >
               Add panel
+            </button>
+            <button
+              onClick={() => handleCreateNode('REFERENCE')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+            >
+              Add reference
             </button>
           </div>
           <p className="text-xs text-gray-500">

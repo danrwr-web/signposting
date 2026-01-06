@@ -549,6 +549,10 @@ export interface CreateNodeResult {
       radius?: number
       fontWeight?: 'normal' | 'medium' | 'bold'
       theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      reference?: {
+        title?: string
+        items?: Array<{ text: string; info?: string }>
+      }
     } | null
   }
 }
@@ -607,8 +611,17 @@ export async function createWorkflowNodeForTemplate(
       nodeType === 'INSTRUCTION' ? 'New instruction' :
       nodeType === 'QUESTION' ? 'New question' :
       nodeType === 'PANEL' ? 'New panel' :
+      nodeType === 'REFERENCE' ? 'Reference' :
       'New outcome'
     )
+
+    // For REFERENCE nodes, create default reference data structure
+    const defaultStyle = nodeType === 'REFERENCE' ? {
+      reference: {
+        title: defaultTitle,
+        items: [{ text: 'New item' }],
+      },
+    } : null
 
     const node = await prisma.workflowNodeTemplate.create({
       data: {
@@ -620,7 +633,7 @@ export async function createWorkflowNodeForTemplate(
         isStart: false,
         actionKey: null,
         badges: [],
-        style: null,
+        style: defaultStyle,
         positionX: positionX !== undefined ? Math.round(positionX) : null,
         positionY: positionY !== undefined ? Math.round(positionY) : null,
       },
@@ -651,6 +664,10 @@ export async function createWorkflowNodeForTemplate(
           radius?: number
           fontWeight?: 'normal' | 'medium' | 'bold'
           theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+          reference?: {
+            title?: string
+            items?: Array<{ text: string; info?: string }>
+          }
         } | null,
       },
     }

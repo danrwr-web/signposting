@@ -648,6 +648,7 @@ enum WorkflowNodeType {
   QUESTION // yes/no or multi-choice
   END // pure end node with actionKey
   PANEL // background container/group node
+  REFERENCE // informational reference card (non-connectable)
 }
 
 enum WorkflowInstanceStatus {
