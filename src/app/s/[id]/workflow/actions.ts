@@ -577,7 +577,9 @@ export async function createWorkflowNodeForTemplate(
   surgeryId: string,
   templateId: string,
   nodeType: WorkflowNodeType,
-  title?: string
+  title?: string,
+  positionX?: number,
+  positionY?: number
 ): Promise<CreateNodeResult> {
   try {
     await requireSurgeryAdmin(surgeryId)
@@ -619,8 +621,8 @@ export async function createWorkflowNodeForTemplate(
         actionKey: null,
         badges: [],
         style: null,
-        positionX: null,
-        positionY: null,
+        positionX: positionX !== undefined ? Math.round(positionX) : null,
+        positionY: positionY !== undefined ? Math.round(positionY) : null,
       },
     })
 

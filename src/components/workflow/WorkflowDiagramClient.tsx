@@ -433,7 +433,7 @@ interface WorkflowDiagramClientProps {
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
-  createNodeAction?: (nodeType: WorkflowNodeType, title?: string) => Promise<{ success: boolean; error?: string; node?: any }>
+  createNodeAction?: (nodeType: WorkflowNodeType, title?: string, positionX?: number, positionY?: number) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (
     fromNodeId: string,
     toNodeId: string,
@@ -1610,10 +1610,11 @@ export default function WorkflowDiagramClient({
     if (!createNodeAction) return
 
     try {
-      const result = await createNodeAction(nodeType)
+      // Calculate initial position (center of viewport or near selected node)
+      const spawnPos = getSpawnPosition()
+      
+      const result = await createNodeAction(nodeType, undefined, spawnPos.x, spawnPos.y)
       if (result.success && result.node) {
-        // Calculate initial position (center of viewport or near selected node)
-        const spawnPos = getSpawnPosition()
 
         // Map node types to custom components
         let newNodeType: string
@@ -1634,10 +1635,15 @@ export default function WorkflowDiagramClient({
           ? { width: 500, height: 400 } 
           : {}
         
+        // Use position from server response if available, otherwise use spawnPos
+        const nodePosition = (result.node.positionX !== null && result.node.positionY !== null)
+          ? { x: result.node.positionX, y: result.node.positionY }
+          : spawnPos
+        
         const newNode: Node = {
           id: result.node.id,
           type: newNodeType,
-          position: spawnPos,
+          position: nodePosition,
           ...newNodeDimensions,
           className: nodeType === 'PANEL' ? 'panel' : undefined,
           selected: false,
@@ -1747,14 +1753,7 @@ export default function WorkflowDiagramClient({
     if (!effectiveAdmin || !createNodeAction || !createAnswerOptionAction || !selectedNode) return
 
     try {
-      // 1) Create the new node on the server
-      const result = await createNodeAction(nodeType)
-      if (!result.success || !result.node) {
-        alert(`Failed to create node: ${result.error || 'Unknown error'}`)
-        return
-      }
-
-      // 2) Calculate position for new node (near selected node with small offset)
+      // 1) Calculate position for new node (near selected node with small offset)
       const baseNode = nodes.find((n) => n.id === selectedNode.id)
       const baseX = baseNode?.position.x || 0
       const baseY = baseNode?.position.y || 0
@@ -1762,7 +1761,14 @@ export default function WorkflowDiagramClient({
       const newX = baseX + 80
       const newY = baseY + 20
 
-      // 3) Add the node locally
+      // 3) Create the new node on the server with position
+      const result = await createNodeAction(nodeType, undefined, newX, newY)
+      if (!result.success || !result.node) {
+        alert(`Failed to create node: ${result.error || 'Unknown error'}`)
+        return
+      }
+
+      // 4) Add the node locally
       // Map node types to custom components
       let newNodeType: string
       if (nodeType === 'QUESTION') {
@@ -1782,10 +1788,15 @@ export default function WorkflowDiagramClient({
         ? { width: 500, height: 400 } 
         : {}
       
+      // Use position from server response if available, otherwise use calculated position
+      const nodePosition = (result.node.positionX !== null && result.node.positionY !== null)
+        ? { x: result.node.positionX, y: result.node.positionY }
+        : { x: newX, y: newY }
+      
       const newNode: Node = {
         id: result.node.id,
         type: newNodeType,
-        position: { x: newX, y: newY },
+        position: nodePosition,
         ...newNodeDimensions,
         className: nodeType === 'PANEL' ? 'panel' : undefined,
         selected: false,
