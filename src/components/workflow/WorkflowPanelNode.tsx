@@ -1,36 +1,34 @@
 'use client'
 
-import { Handle, Position } from 'reactflow'
+import { Handle, Position, type NodeProps } from 'reactflow'
 import { NodeResizer } from '@reactflow/node-resizer'
 import '@reactflow/node-resizer/dist/style.css'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
+import InfoBadgeButton from './InfoBadgeButton'
 
-interface WorkflowPanelNodeProps {
-  data: {
-    nodeType: WorkflowNodeType
-    title: string
-    badges?: string[]
-    style?: {
-      bgColor?: string
-      textColor?: string
-      borderColor?: string
-      borderWidth?: number
-      radius?: number
-      fontWeight?: 'normal' | 'medium' | 'bold'
-      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
-      width?: number
-      height?: number
-    } | null
-    isSelected: boolean
-    isAdmin?: boolean
-    onNodeClick?: () => void
-  }
-  selected?: boolean
+type WorkflowPanelNodeData = {
+  nodeType: WorkflowNodeType
+  title: string
+  badges?: string[]
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    width?: number
+    height?: number
+  } | null
+  isSelected: boolean
+  isAdmin?: boolean
+  onInfoClick?: (nodeId: string) => void
 }
 
-export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeProps) {
-  const { nodeType, title, badges = [], style, isSelected, isAdmin = false, onNodeClick } = data
+export default function WorkflowPanelNode({ id, data, selected }: NodeProps<WorkflowPanelNodeData>) {
+  const { nodeType, title, badges = [], style, isSelected, isAdmin = false, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
   const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
   
@@ -96,6 +94,13 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
                 {renderBadges(badges)}
               </div>
             )}
+          </div>
+          <div className="flex-shrink-0 ml-3">
+            <InfoBadgeButton
+              onClick={() => onInfoClick?.(id)}
+              title="View details"
+              ariaLabel="View details"
+            />
           </div>
         </div>
         

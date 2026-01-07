@@ -1,33 +1,32 @@
 'use client'
 
+import type { NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
+import InfoBadgeButton from './InfoBadgeButton'
 
-interface WorkflowReferenceNodeProps {
-  data: {
-    nodeType: WorkflowNodeType
-    title: string
+type WorkflowReferenceNodeData = {
+  nodeType: WorkflowNodeType
+  title: string
+  reference?: {
+    title?: string
+    items?: Array<{ text: string; info?: string }>
+  } | null
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
     reference?: {
       title?: string
       items?: Array<{ text: string; info?: string }>
-    } | null
-    style?: {
-      bgColor?: string
-      textColor?: string
-      borderColor?: string
-      borderWidth?: number
-      radius?: number
-      fontWeight?: 'normal' | 'medium' | 'bold'
-      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
-      reference?: {
-        title?: string
-        items?: Array<{ text: string; info?: string }>
-      }
-    } | null
-    isSelected: boolean
-    isAdmin?: boolean
-    onNodeClick?: () => void
-  }
-  selected?: boolean
+    }
+  } | null
+  isSelected: boolean
+  isAdmin?: boolean
+  onInfoClick?: (nodeId: string) => void
 }
 
 // Simple info icon SVG
@@ -48,8 +47,8 @@ function InfoIcon() {
   )
 }
 
-export default function WorkflowReferenceNode({ data, selected }: WorkflowReferenceNodeProps) {
-  const { nodeType, title, style, isSelected, isAdmin = false, onNodeClick } = data
+export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<WorkflowReferenceNodeData>) {
+  const { nodeType, title, style, isSelected, isAdmin = false, onInfoClick } = data
   
   // Extract reference data from style.reference (stored in DB)
   const referenceData = style?.reference || null
@@ -89,6 +88,9 @@ export default function WorkflowReferenceNode({ data, selected }: WorkflowRefere
             <div className="text-xs font-medium px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200">
               REFERENCE
             </div>
+          </div>
+          <div className="flex-shrink-0 ml-3">
+            <InfoBadgeButton onClick={() => onInfoClick?.(id)} />
           </div>
         </div>
         

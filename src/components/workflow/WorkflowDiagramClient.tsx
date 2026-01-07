@@ -1120,7 +1120,7 @@ export default function WorkflowDiagramClient({
           style: panelStyle, // Use panelStyle which includes width/height
           isSelected,
           isAdmin: effectiveAdmin,
-          onNodeClick: () => toggleNodeSelection(node.id),
+          onInfoClick: openDetailsForNode,
         } : node.nodeType === 'REFERENCE' ? {
           // For REFERENCE nodes, pass data to custom component
           nodeType: node.nodeType,
@@ -1128,7 +1128,7 @@ export default function WorkflowDiagramClient({
           style: node.style,
           isSelected,
           isAdmin: effectiveAdmin,
-          onNodeClick: () => toggleNodeSelection(node.id),
+          onInfoClick: openDetailsForNode,
         } : {
           // Fallback for any other node types (shouldn't happen)
           label: (
@@ -1971,14 +1971,14 @@ export default function WorkflowDiagramClient({
             style: result.node.style,
             isSelected: false,
             isAdmin,
-            onNodeClick: () => {},
+            onInfoClick: openDetailsForNode,
           } : nodeType === 'REFERENCE' ? {
             nodeType: result.node.nodeType,
             title: result.node.title,
             style: result.node.style,
             isSelected: false,
             isAdmin,
-            onNodeClick: () => {},
+            onInfoClick: openDetailsForNode,
           } : {
             nodeType: result.node.nodeType,
             title: result.node.title,
