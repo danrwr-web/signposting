@@ -6,6 +6,7 @@ import '@reactflow/node-resizer/dist/style.css'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
+import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
 type WorkflowPanelNodeData = {
   nodeType: WorkflowNodeType
@@ -31,6 +32,7 @@ export default function WorkflowPanelNode({ id, data, selected }: NodeProps<Work
   const { nodeType, title, badges = [], style, isSelected, isAdmin = false, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
   const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const showInfo = shouldShowInfoBadge({ data, style })
   
   // Panel nodes should have a lower z-index and be resizable
   // Default to panel theme if no style specified
@@ -95,13 +97,11 @@ export default function WorkflowPanelNode({ id, data, selected }: NodeProps<Work
               </div>
             )}
           </div>
-          <div className="flex-shrink-0 ml-3">
-            <InfoBadgeButton
-              onClick={() => onInfoClick?.(id)}
-              title="View details"
-              ariaLabel="View details"
-            />
-          </div>
+          {showInfo && (
+            <div className="flex-shrink-0 ml-3">
+              <InfoBadgeButton onClick={() => onInfoClick?.(id)} title="View details" ariaLabel="View details" />
+            </div>
+          )}
         </div>
         
         {/* Panel content area - flex-grow to fill remaining space */}

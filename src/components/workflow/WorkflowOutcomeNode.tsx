@@ -4,6 +4,7 @@ import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
+import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
 type WorkflowOutcomeNodeData = {
   nodeType: WorkflowNodeType
@@ -60,6 +61,7 @@ export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<Wo
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
   const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
   const nodeStyles = getNodeTypeColor(nodeType)
+  const showInfo = shouldShowInfoBadge({ data, style })
 
   return (
     <div className="relative" style={{ width: 300 }}>
@@ -99,13 +101,11 @@ export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<Wo
               )}
             </div>
             {/* Info indicator - only if has body */}
-            <div className="flex-shrink-0 ml-2">
-              <InfoBadgeButton
-                onClick={() => onInfoClick?.(id)}
-                title="View details"
-                ariaLabel="View details"
-              />
-            </div>
+            {showInfo && (
+              <div className="flex-shrink-0 ml-2">
+                <InfoBadgeButton onClick={() => onInfoClick?.(id)} title="View details" ariaLabel="View details" />
+              </div>
+            )}
           </div>
           
           {/* Title - constrained with overflow protection */}

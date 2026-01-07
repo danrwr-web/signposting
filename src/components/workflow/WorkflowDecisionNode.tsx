@@ -4,6 +4,7 @@ import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
+import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
 type WorkflowDecisionNodeData = {
   nodeType: WorkflowNodeType
@@ -40,6 +41,7 @@ export default function WorkflowDecisionNode({ id, data, selected }: NodeProps<W
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
   const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
   const nodeStyles = getNodeTypeColor(nodeType)
+  const showInfo = shouldShowInfoBadge({ data, style })
   
   // For diamond shape, we need to apply styles to the background div
   // Use explicit style colors if provided, otherwise use original default amber colors
@@ -103,11 +105,9 @@ export default function WorkflowDecisionNode({ id, data, selected }: NodeProps<W
               )}
             </div>
             {/* Info indicator - only if has body */}
-            <InfoBadgeButton
-              onClick={() => onInfoClick?.(id)}
-              title="View details"
-              ariaLabel="View details"
-            />
+            {showInfo && (
+              <InfoBadgeButton onClick={() => onInfoClick?.(id)} title="View details" ariaLabel="View details" />
+            )}
           </div>
 
           {/* Title row - centered */}

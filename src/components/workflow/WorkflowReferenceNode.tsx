@@ -3,6 +3,7 @@
 import type { NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
 import InfoBadgeButton from './InfoBadgeButton'
+import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
 type WorkflowReferenceNodeData = {
   nodeType: WorkflowNodeType
@@ -49,6 +50,7 @@ function InfoIcon() {
 
 export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<WorkflowReferenceNodeData>) {
   const { nodeType, title, style, isSelected, isAdmin = false, onInfoClick } = data
+  const showInfo = shouldShowInfoBadge({ data, style })
   
   // Extract reference data from style.reference (stored in DB)
   const referenceData = style?.reference || null
@@ -89,9 +91,11 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
               REFERENCE
             </div>
           </div>
-          <div className="flex-shrink-0 ml-3">
-            <InfoBadgeButton onClick={() => onInfoClick?.(id)} />
-          </div>
+          {showInfo && (
+            <div className="flex-shrink-0 ml-3">
+              <InfoBadgeButton onClick={() => onInfoClick?.(id)} />
+            </div>
+          )}
         </div>
         
         {/* Items list */}
