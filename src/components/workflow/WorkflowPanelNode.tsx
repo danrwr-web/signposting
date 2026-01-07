@@ -1,38 +1,38 @@
 'use client'
 
-import { Handle, Position } from 'reactflow'
+import { Handle, Position, type NodeProps } from 'reactflow'
 import { NodeResizer } from '@reactflow/node-resizer'
 import '@reactflow/node-resizer/dist/style.css'
 import { WorkflowNodeType } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
+import InfoBadgeButton from './InfoBadgeButton'
+import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
-interface WorkflowPanelNodeProps {
-  data: {
-    nodeType: WorkflowNodeType
-    title: string
-    badges?: string[]
-    style?: {
-      bgColor?: string
-      textColor?: string
-      borderColor?: string
-      borderWidth?: number
-      radius?: number
-      fontWeight?: 'normal' | 'medium' | 'bold'
-      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
-      width?: number
-      height?: number
-    } | null
-    isSelected: boolean
-    isAdmin?: boolean
-    onNodeClick?: () => void
-  }
-  selected?: boolean
+type WorkflowPanelNodeData = {
+  nodeType: WorkflowNodeType
+  title: string
+  badges?: string[]
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+    width?: number
+    height?: number
+  } | null
+  isSelected: boolean
+  isAdmin?: boolean
+  onInfoClick?: (nodeId: string) => void
 }
 
-export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeProps) {
-  const { nodeType, title, badges = [], style, isSelected, isAdmin = false, onNodeClick } = data
+export default function WorkflowPanelNode({ id, data, selected }: NodeProps<WorkflowPanelNodeData>) {
+  const { nodeType, title, badges = [], style, isSelected, isAdmin = false, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
   const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const showInfo = shouldShowInfoBadge({ data, style })
   
   // Panel nodes should have a lower z-index and be resizable
   // Default to panel theme if no style specified
@@ -84,10 +84,6 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
         <div 
           className="px-4 py-3 border-b border-gray-300 flex items-center justify-between flex-shrink-0"
           style={{ pointerEvents: 'auto' }}
-          onClick={(e) => {
-            e.stopPropagation()
-            onNodeClick?.()
-          }}
         >
           <div className="flex items-center gap-2 flex-wrap">
             {/* Panel title as primary header */}
@@ -101,6 +97,11 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
               </div>
             )}
           </div>
+          {showInfo && (
+            <div className="flex-shrink-0 ml-3">
+              <InfoBadgeButton onClick={() => onInfoClick?.(id)} title="View details" ariaLabel="View details" />
+            </div>
+          )}
         </div>
         
         {/* Panel content area - flex-grow to fill remaining space */}

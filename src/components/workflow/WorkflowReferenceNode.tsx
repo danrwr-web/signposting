@@ -1,33 +1,33 @@
 'use client'
 
+import type { NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
+import InfoBadgeButton from './InfoBadgeButton'
+import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
-interface WorkflowReferenceNodeProps {
-  data: {
-    nodeType: WorkflowNodeType
-    title: string
+type WorkflowReferenceNodeData = {
+  nodeType: WorkflowNodeType
+  title: string
+  reference?: {
+    title?: string
+    items?: Array<{ text: string; info?: string }>
+  } | null
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
     reference?: {
       title?: string
       items?: Array<{ text: string; info?: string }>
-    } | null
-    style?: {
-      bgColor?: string
-      textColor?: string
-      borderColor?: string
-      borderWidth?: number
-      radius?: number
-      fontWeight?: 'normal' | 'medium' | 'bold'
-      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
-      reference?: {
-        title?: string
-        items?: Array<{ text: string; info?: string }>
-      }
-    } | null
-    isSelected: boolean
-    isAdmin?: boolean
-    onNodeClick?: () => void
-  }
-  selected?: boolean
+    }
+  } | null
+  isSelected: boolean
+  isAdmin?: boolean
+  onInfoClick?: (nodeId: string) => void
 }
 
 // Simple info icon SVG
@@ -48,8 +48,9 @@ function InfoIcon() {
   )
 }
 
-export default function WorkflowReferenceNode({ data, selected }: WorkflowReferenceNodeProps) {
-  const { nodeType, title, style, isSelected, isAdmin = false, onNodeClick } = data
+export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<WorkflowReferenceNodeData>) {
+  const { nodeType, title, style, isSelected, isAdmin = false, onInfoClick } = data
+  const showInfo = shouldShowInfoBadge({ data, style })
   
   // Extract reference data from style.reference (stored in DB)
   const referenceData = style?.reference || null
@@ -79,10 +80,6 @@ export default function WorkflowReferenceNode({ data, selected }: WorkflowRefere
           borderRadius: style?.radius !== undefined ? `${style.radius}px` : '8px',
           boxSizing: 'border-box',
         }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onNodeClick?.()
-        }}
       >
         {/* Header row */}
         <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: borderColor }}>
@@ -94,6 +91,11 @@ export default function WorkflowReferenceNode({ data, selected }: WorkflowRefere
               REFERENCE
             </div>
           </div>
+          {showInfo && (
+            <div className="flex-shrink-0 ml-3">
+              <InfoBadgeButton onClick={() => onInfoClick?.(id)} />
+            </div>
+          )}
         </div>
         
         {/* Items list */}
@@ -109,6 +111,7 @@ export default function WorkflowReferenceNode({ data, selected }: WorkflowRefere
               </div>
               {item.info && (
                 <div 
+                  data-rf-no-details
                   className="flex-shrink-0 cursor-help"
                   title={item.info}
                   style={{ color: textColor, opacity: 0.7 }}

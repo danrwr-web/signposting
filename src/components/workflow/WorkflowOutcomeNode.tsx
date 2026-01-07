@@ -1,34 +1,33 @@
 'use client'
 
-import { Handle, Position } from 'reactflow'
+import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import { getNodeStyles, renderBadges } from './nodeStyleUtils'
+import InfoBadgeButton from './InfoBadgeButton'
+import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
-interface WorkflowOutcomeNodeProps {
-  data: {
-    nodeType: WorkflowNodeType
-    title: string
-    body: string | null
-    hasBody: boolean
-    actionKey: WorkflowActionKey | null
-    hasOutgoingEdges: boolean
-    badges?: string[]
-    style?: {
-      bgColor?: string
-      textColor?: string
-      borderColor?: string
-      borderWidth?: number
-      radius?: number
-      fontWeight?: 'normal' | 'medium' | 'bold'
-      theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
-    } | null
-    isSelected: boolean
-    isAdmin?: boolean
-    onNodeClick?: () => void
-    onInfoClick?: () => void
-    getActionKeyDescription?: (actionKey: WorkflowActionKey) => string
-  }
-  selected?: boolean
+type WorkflowOutcomeNodeData = {
+  nodeType: WorkflowNodeType
+  title: string
+  body: string | null
+  hasBody: boolean
+  actionKey: WorkflowActionKey | null
+  hasOutgoingEdges: boolean
+  badges?: string[]
+  style?: {
+    bgColor?: string
+    textColor?: string
+    borderColor?: string
+    borderWidth?: number
+    radius?: number
+    fontWeight?: 'normal' | 'medium' | 'bold'
+    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+  } | null
+  isSelected: boolean
+  isAdmin?: boolean
+  onNodeClick?: () => void
+  onInfoClick?: (nodeId: string) => void
+  getActionKeyDescription?: (actionKey: WorkflowActionKey) => string
 }
 
 function getNodeTypeColor(nodeType: WorkflowNodeType): string {
@@ -54,25 +53,7 @@ function getActionKeyDescription(actionKey: WorkflowActionKey): string {
   return descriptions[actionKey] || actionKey
 }
 
-// Simple info icon SVG
-function InfoIcon() {
-  return (
-    <svg
-      className="w-4 h-4"
-      fill="currentColor"
-      viewBox="0 0 20 20"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        fillRule="evenodd"
-        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
-
-export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeNodeProps) {
+export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<WorkflowOutcomeNodeData>) {
   const { nodeType, title, hasBody, actionKey, hasOutgoingEdges, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick, getActionKeyDescription: customGetActionKeyDescription } = data
   
   const isOutcomeNode = actionKey !== null && !hasOutgoingEdges
@@ -80,6 +61,7 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
   const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
   const nodeStyles = getNodeTypeColor(nodeType)
+  const showInfo = shouldShowInfoBadge({ data, style })
 
   return (
     <div className="relative" style={{ width: 300 }}>
@@ -102,10 +84,6 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
           ...(Object.keys(inlineStyles).length > 0 ? inlineStyles : {}),
           boxSizing: 'border-box',
         }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onNodeClick?.()
-        }}
       >
         {/* Content wrapper - vertically centered */}
         <div className="flex-1 flex flex-col justify-center px-4 py-3">
@@ -123,18 +101,10 @@ export default function WorkflowOutcomeNode({ data, selected }: WorkflowOutcomeN
               )}
             </div>
             {/* Info indicator - only if has body */}
-            {hasBody && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onInfoClick?.()
-                }}
-                className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors"
-                title="Click for reference details"
-                aria-label="View details"
-              >
-                <InfoIcon />
-              </button>
+            {showInfo && (
+              <div className="flex-shrink-0 ml-2">
+                <InfoBadgeButton onClick={() => onInfoClick?.(id)} title="View details" ariaLabel="View details" />
+              </div>
             )}
           </div>
           
