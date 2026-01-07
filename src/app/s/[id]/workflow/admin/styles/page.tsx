@@ -5,8 +5,10 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import TemplateStyleDefaultsEditor from '@/components/workflow/TemplateStyleDefaultsEditor'
+import SurgeryStyleDefaultsEditor from '@/components/workflow/SurgeryStyleDefaultsEditor'
 import TemplateSelector from '@/components/workflow/TemplateSelector'
-import { WorkflowNodeStyleDefault } from '@prisma/client'
+import { WorkflowNodeStyleDefault, WorkflowNodeStyleDefaultSurgery } from '@prisma/client'
+import CopyDefaultsSection from '@/components/workflow/CopyDefaultsSection'
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
@@ -58,6 +60,17 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
       orderBy: {
         name: 'asc',
       }
+    })
+
+    // Get surgery-level style defaults
+    const surgeryDefaults = await prisma.workflowNodeStyleDefaultSurgery.findMany({
+      where: { surgeryId },
+      select: {
+        nodeType: true,
+        bgColor: true,
+        textColor: true,
+        borderColor: true,
+      },
     })
 
     // If templateId is provided, fetch template with style defaults
@@ -117,6 +130,13 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
             </p>
           </div>
 
+          {/* Surgery Defaults Editor */}
+          <SurgeryStyleDefaultsEditor
+            surgeryId={surgeryId}
+            styleDefaults={surgeryDefaults || []}
+            isSuperuser={true}
+          />
+
           {/* Template Selector */}
           <TemplateSelector
             surgeryId={surgeryId}
@@ -144,12 +164,22 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
 
           {/* Template Style Defaults Editor */}
           {selectedTemplate ? (
-            <TemplateStyleDefaultsEditor
-              surgeryId={surgeryId}
-              templateId={selectedTemplate.id}
-              styleDefaults={selectedTemplate.styleDefaults || []}
-              isSuperuser={true}
-            />
+            <>
+              <TemplateStyleDefaultsEditor
+                surgeryId={surgeryId}
+                templateId={selectedTemplate.id}
+                styleDefaults={selectedTemplate.styleDefaults || []}
+                isSuperuser={true}
+              />
+              
+              {/* Copy Defaults Section */}
+              <CopyDefaultsSection
+                surgeryId={surgeryId}
+                targetTemplateId={selectedTemplate.id}
+                allTemplates={templates}
+                isSuperuser={true}
+              />
+            </>
           ) : (
             <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
               <p className="text-gray-500">

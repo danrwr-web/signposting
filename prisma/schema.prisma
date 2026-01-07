@@ -101,6 +101,7 @@ model Surgery {
   onboardingProfile       SurgeryOnboardingProfile?
   workflowTemplates       WorkflowTemplate[]
   workflowInstances       WorkflowInstance[]
+  workflowNodeStyleDefaultsSurgery WorkflowNodeStyleDefaultSurgery[]
 }
 
 model BaseSymptom {
@@ -660,6 +661,23 @@ model WorkflowNodeStyleDefault {
 
   @@unique([templateId, nodeType])
   @@index([templateId])
+}
+
+model WorkflowNodeStyleDefaultSurgery {
+  id          String           @id @default(cuid())
+  surgeryId   String
+  nodeType    WorkflowNodeType
+  bgColor     String?
+  textColor   String?
+  borderColor String?
+
+  surgery     Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([surgeryId, nodeType])
+  @@index([surgeryId])
 }
 
 enum WorkflowNodeType {

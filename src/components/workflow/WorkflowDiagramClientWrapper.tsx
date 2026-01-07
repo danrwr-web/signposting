@@ -59,6 +59,12 @@ interface Props {
   allTemplates: Array<{ id: string; name: string }>
   surgeryId: string
   templateId: string
+  surgeryDefaults?: Array<{
+    nodeType: WorkflowNodeType
+    bgColor: string | null
+    textColor: string | null
+    borderColor: string | null
+  }>
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
   createNodeAction?: (nodeType: WorkflowNodeType, title?: string, positionX?: number, positionY?: number) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (

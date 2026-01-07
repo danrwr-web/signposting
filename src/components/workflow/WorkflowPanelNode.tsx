@@ -24,15 +24,16 @@ type WorkflowPanelNodeData = {
     height?: number
   } | null
   templateDefault?: TemplateStyleDefault | null
+  surgeryDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onInfoClick?: (nodeId: string) => void
 }
 
 export default function WorkflowPanelNode({ id, data, selected }: NodeProps<WorkflowPanelNodeData>) {
-  const { nodeType, title, badges = [], style, templateDefault, isSelected, isAdmin = false, onInfoClick } = data
+  const { nodeType, title, badges = [], style, templateDefault, surgeryDefault, isSelected, isAdmin = false, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
-  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault, surgeryDefault)
   const showInfo = shouldShowInfoBadge({ data, style })
   
   // Panel nodes should have a lower z-index and be resizable

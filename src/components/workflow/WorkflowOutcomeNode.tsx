@@ -24,6 +24,7 @@ type WorkflowOutcomeNodeData = {
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
   } | null
   templateDefault?: TemplateStyleDefault | null
+  surgeryDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onNodeClick?: () => void
@@ -60,7 +61,7 @@ export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<Wo
   const isOutcomeNode = actionKey !== null && !hasOutgoingEdges
   const getDescription = customGetActionKeyDescription || getActionKeyDescription
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
-  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, data.templateDefault)
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, data.templateDefault, data.surgeryDefault)
   const nodeStyles = getNodeTypeColor(nodeType)
   const showInfo = shouldShowInfoBadge({ data, style })
 

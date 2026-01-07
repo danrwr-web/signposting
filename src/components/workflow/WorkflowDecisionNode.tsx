@@ -22,6 +22,7 @@ type WorkflowDecisionNodeData = {
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
   } | null
   templateDefault?: TemplateStyleDefault | null
+  surgeryDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onNodeClick?: () => void
@@ -38,9 +39,9 @@ function getNodeTypeColor(nodeType: WorkflowNodeType): string {
 }
 
 export default function WorkflowDecisionNode({ id, data, selected }: NodeProps<WorkflowDecisionNodeData>) {
-  const { nodeType, title, hasBody, badges = [], style, templateDefault, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
+  const { nodeType, title, hasBody, badges = [], style, templateDefault, surgeryDefault, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
-  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault, surgeryDefault)
   const nodeStyles = getNodeTypeColor(nodeType)
   const showInfo = shouldShowInfoBadge({ data, style })
   

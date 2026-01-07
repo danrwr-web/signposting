@@ -27,6 +27,7 @@ type WorkflowReferenceNodeData = {
     }
   } | null
   templateDefault?: TemplateStyleDefault | null
+  surgeryDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onInfoClick?: (nodeId: string) => void
@@ -60,7 +61,7 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
   const referenceItems = referenceData?.items || [{ text: 'New item' }]
 
   // Use effective palette from getNodeStyles
-  const { style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
+  const { style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault, surgeryDefault)
   const bgColor = inlineStyles.backgroundColor || '#f0fdf4'
   const borderColor = inlineStyles.borderColor || '#86efac'
 

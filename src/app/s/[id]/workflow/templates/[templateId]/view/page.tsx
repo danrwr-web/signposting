@@ -172,6 +172,17 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       },
     })
 
+    // Get surgery-level style defaults
+    const surgeryDefaults = await prisma.workflowNodeStyleDefaultSurgery.findMany({
+      where: { surgeryId: templateOwnerSurgeryId },
+      select: {
+        nodeType: true,
+        bgColor: true,
+        textColor: true,
+        borderColor: true,
+      },
+    })
+
     if (!template) {
       redirect('/unauthorized')
     }
@@ -304,6 +315,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
               allTemplates={allTemplates}
               surgeryId={surgeryId}
               templateId={templateId}
+              surgeryDefaults={surgeryDefaults}
               updatePositionAction={updatePositionAction}
               createNodeAction={createNodeAction}
               createAnswerOptionAction={createAnswerOptionAction}

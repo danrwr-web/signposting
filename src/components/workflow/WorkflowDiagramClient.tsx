@@ -443,6 +443,12 @@ interface WorkflowDiagramClientProps {
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
   templateId: string
+  surgeryDefaults?: Array<{
+    nodeType: WorkflowNodeType
+    bgColor: string | null
+    textColor: string | null
+    borderColor: string | null
+  }>
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
   createNodeAction?: (nodeType: WorkflowNodeType, title?: string, positionX?: number, positionY?: number) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (
@@ -1004,7 +1010,7 @@ export default function WorkflowDiagramClient({
     return node.answerOptions.some((option) => option.nextNodeId !== null)
   }, [template.nodes])
 
-  // Create map of style defaults by node type
+  // Create map of style defaults by node type (template-level)
   const styleDefaultsByType = useMemo(() => {
     const map = new Map<WorkflowNodeType, { bgColor: string | null; textColor: string | null; borderColor: string | null }>()
     if (template.styleDefaults) {
@@ -1018,6 +1024,21 @@ export default function WorkflowDiagramClient({
     }
     return map
   }, [template.styleDefaults])
+
+  // Create map of surgery defaults by node type
+  const surgeryDefaultsByType = useMemo(() => {
+    const map = new Map<WorkflowNodeType, { bgColor: string | null; textColor: string | null; borderColor: string | null }>()
+    if (surgeryDefaults) {
+      for (const defaultStyle of surgeryDefaults) {
+        map.set(defaultStyle.nodeType, {
+          bgColor: defaultStyle.bgColor,
+          textColor: defaultStyle.textColor,
+          borderColor: defaultStyle.borderColor,
+        })
+      }
+    }
+    return map
+  }, [surgeryDefaults])
 
   // Compute styling status for current node (if selected)
   const nodeStylingStatus = useMemo(() => {
@@ -1033,6 +1054,7 @@ export default function WorkflowDiagramClient({
   const flowNodes = useMemo<Node[]>(() => {
     return template.nodes.map((node) => {
       const templateDefault = styleDefaultsByType.get(node.nodeType) || null
+      const surgeryDefault = surgeryDefaultsByType.get(node.nodeType) || null
       // Calculate position
       let x = 0
       let y = 0
@@ -1119,6 +1141,7 @@ export default function WorkflowDiagramClient({
           badges: node.badges || [],
           style: node.style,
           templateDefault,
+          surgeryDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1133,6 +1156,7 @@ export default function WorkflowDiagramClient({
           badges: node.badges || [],
           style: node.style,
           templateDefault,
+          surgeryDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1149,6 +1173,7 @@ export default function WorkflowDiagramClient({
           badges: node.badges || [],
           style: node.style,
           templateDefault,
+          surgeryDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1162,6 +1187,7 @@ export default function WorkflowDiagramClient({
           badges: node.badges || [],
           style: panelStyle, // Use panelStyle which includes width/height
           templateDefault,
+          surgeryDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1172,6 +1198,7 @@ export default function WorkflowDiagramClient({
           title: node.title,
           style: node.style,
           templateDefault,
+          surgeryDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,

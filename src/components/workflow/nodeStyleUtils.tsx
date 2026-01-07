@@ -123,7 +123,8 @@ export const hasExplicitStyle = hasExplicitColorOverrides
 function getEffectivePalette(
   nodeStyle: NodeStyle | null | undefined,
   nodeType: WorkflowNodeType,
-  templateDefault: TemplateStyleDefault | null | undefined
+  templateDefault: TemplateStyleDefault | null | undefined,
+  surgeryDefault: TemplateStyleDefault | null | undefined
 ): { bgColor?: string; textColor?: string; borderColor?: string } | null {
   // Rule 1: Explicit overrides take precedence
   if (hasExplicitColorOverrides(nodeStyle)) {
@@ -154,7 +155,19 @@ function getEffectivePalette(
     }
   }
 
-  // Rule 4: Hard-coded node type defaults
+  // Rule 4: Surgery defaults
+  if (surgeryDefault) {
+    const hasSurgeryDefault = surgeryDefault.bgColor || surgeryDefault.textColor || surgeryDefault.borderColor
+    if (hasSurgeryDefault) {
+      return {
+        bgColor: surgeryDefault.bgColor || undefined,
+        textColor: surgeryDefault.textColor || undefined,
+        borderColor: surgeryDefault.borderColor || undefined,
+      }
+    }
+  }
+
+  // Rule 5: Hard-coded node type defaults
   return NODE_TYPE_DEFAULTS[nodeType]
 }
 
@@ -165,7 +178,8 @@ function getEffectivePalette(
 export function getNodeStyles(
   style: NodeStyle | null | undefined,
   nodeType: WorkflowNodeType,
-  templateDefault?: TemplateStyleDefault | null
+  templateDefault?: TemplateStyleDefault | null,
+  surgeryDefault?: TemplateStyleDefault | null
 ): {
   className: string
   style: React.CSSProperties
@@ -174,7 +188,7 @@ export function getNodeStyles(
   const inlineStyles: React.CSSProperties = {}
 
   // Get effective palette
-  const effectivePalette = getEffectivePalette(style, nodeType, templateDefault)
+  const effectivePalette = getEffectivePalette(style, nodeType, templateDefault, surgeryDefault)
 
   // Apply effective palette colors
   if (effectivePalette) {
