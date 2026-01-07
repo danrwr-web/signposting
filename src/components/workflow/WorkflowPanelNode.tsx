@@ -4,7 +4,7 @@ import { Handle, Position, type NodeProps } from 'reactflow'
 import { NodeResizer } from '@reactflow/node-resizer'
 import '@reactflow/node-resizer/dist/style.css'
 import { WorkflowNodeType } from '@prisma/client'
-import { getNodeStyles, renderBadges } from './nodeStyleUtils'
+import { getNodeStyles, renderBadges, type TemplateStyleDefault } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
 import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
@@ -23,21 +23,22 @@ type WorkflowPanelNodeData = {
     width?: number
     height?: number
   } | null
+  templateDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onInfoClick?: (nodeId: string) => void
 }
 
 export default function WorkflowPanelNode({ id, data, selected }: NodeProps<WorkflowPanelNodeData>) {
-  const { nodeType, title, badges = [], style, isSelected, isAdmin = false, onInfoClick } = data
+  const { nodeType, title, badges = [], style, templateDefault, isSelected, isAdmin = false, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
-  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
   const showInfo = shouldShowInfoBadge({ data, style })
   
   // Panel nodes should have a lower z-index and be resizable
-  // Default to panel theme if no style specified
-  const defaultBg = style?.bgColor || (style?.theme === 'panel' ? '#f3f4f6' : '#f9fafb')
-  const defaultBorder = style?.borderColor || '#d1d5db'
+  // Use effective palette from getNodeStyles
+  const defaultBg = inlineStyles.backgroundColor || '#f9fafb'
+  const defaultBorder = inlineStyles.borderColor || '#d1d5db'
   const defaultRadius = style?.radius !== undefined ? style.radius : 12
   
   // Display title or placeholder

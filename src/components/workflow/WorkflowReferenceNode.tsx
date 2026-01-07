@@ -2,6 +2,7 @@
 
 import type { NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
+import { getNodeStyles, type TemplateStyleDefault } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
 import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
@@ -25,6 +26,7 @@ type WorkflowReferenceNodeData = {
       items?: Array<{ text: string; info?: string }>
     }
   } | null
+  templateDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onInfoClick?: (nodeId: string) => void
@@ -49,7 +51,7 @@ function InfoIcon() {
 }
 
 export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<WorkflowReferenceNodeData>) {
-  const { nodeType, title, style, isSelected, isAdmin = false, onInfoClick } = data
+  const { nodeType, title, style, templateDefault, isSelected, isAdmin = false, onInfoClick } = data
   const showInfo = shouldShowInfoBadge({ data, style })
   
   // Extract reference data from style.reference (stored in DB)
@@ -57,10 +59,11 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
   const referenceTitle = referenceData?.title || title || 'Reference'
   const referenceItems = referenceData?.items || [{ text: 'New item' }]
 
-  // Light green background (NHS-like)
-  const bgColor = style?.bgColor || '#f0fdf4'
-  const borderColor = style?.borderColor || '#86efac'
-  const textColor = style?.textColor || '#166534'
+  // Use effective palette from getNodeStyles
+  const { style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
+  const bgColor = inlineStyles.backgroundColor || '#f0fdf4'
+  const borderColor = inlineStyles.borderColor || '#86efac'
+  const textColor = inlineStyles.color || '#166534'
 
   return (
     <div className="relative" style={{ minWidth: 320 }}>

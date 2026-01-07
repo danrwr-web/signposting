@@ -30,6 +30,8 @@ import WorkflowOutcomeNode from './WorkflowOutcomeNode'
 import WorkflowPanelNode from './WorkflowPanelNode'
 import WorkflowReferenceNode from './WorkflowReferenceNode'
 import { renderBulletText } from './renderBulletText'
+import { getStylingStatus, getThemeDisplayName } from './nodeStyleUtils'
+import TemplateStyleDefaultsEditor from './TemplateStyleDefaultsEditor'
 
 // Debug component to access ReactFlow instance and expose debug function
 // Only enabled when URL contains debugRF=1 query parameter
@@ -426,14 +428,22 @@ interface WorkflowTemplate {
   id: string
   name: string
   description: string | null
+  styleDefaults?: Array<{
+    nodeType: WorkflowNodeType
+    bgColor: string | null
+    textColor: string | null
+    borderColor: string | null
+  }>
   nodes: WorkflowNode[]
 }
 
 interface WorkflowDiagramClientProps {
   template: WorkflowTemplate
   isAdmin?: boolean
+  isSuperuser?: boolean
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
+  templateId: string
   updatePositionAction?: (nodeId: string, positionX: number, positionY: number) => Promise<{ success: boolean; error?: string }>
   createNodeAction?: (nodeType: WorkflowNodeType, title?: string, positionX?: number, positionY?: number) => Promise<{ success: boolean; error?: string; node?: any }>
   createAnswerOptionAction?: (
@@ -521,8 +531,10 @@ function InfoIcon() {
 export default function WorkflowDiagramClient({
   template,
   isAdmin = false,
+  isSuperuser = false,
   allTemplates = [],
   surgeryId,
+  templateId,
   updatePositionAction,
   createNodeAction,
   createAnswerOptionAction,
@@ -993,9 +1005,25 @@ export default function WorkflowDiagramClient({
     return node.answerOptions.some((option) => option.nextNodeId !== null)
   }, [template.nodes])
 
+  // Create map of style defaults by node type
+  const styleDefaultsByType = useMemo(() => {
+    const map = new Map<WorkflowNodeType, { bgColor: string | null; textColor: string | null; borderColor: string | null }>()
+    if (template.styleDefaults) {
+      for (const defaultStyle of template.styleDefaults) {
+        map.set(defaultStyle.nodeType, {
+          bgColor: defaultStyle.bgColor,
+          textColor: defaultStyle.textColor,
+          borderColor: defaultStyle.borderColor,
+        })
+      }
+    }
+    return map
+  }, [template.styleDefaults])
+
   // Convert template nodes to React Flow nodes
   const flowNodes = useMemo<Node[]>(() => {
     return template.nodes.map((node) => {
+      const templateDefault = styleDefaultsByType.get(node.nodeType) || null
       // Calculate position
       let x = 0
       let y = 0
@@ -1081,6 +1109,7 @@ export default function WorkflowDiagramClient({
           hasBody,
           badges: node.badges || [],
           style: node.style,
+          templateDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1094,6 +1123,7 @@ export default function WorkflowDiagramClient({
           hasBody,
           badges: node.badges || [],
           style: node.style,
+          templateDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1109,6 +1139,7 @@ export default function WorkflowDiagramClient({
           hasOutgoingEdges,
           badges: node.badges || [],
           style: node.style,
+          templateDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1121,6 +1152,7 @@ export default function WorkflowDiagramClient({
           title: node.title,
           badges: node.badges || [],
           style: panelStyle, // Use panelStyle which includes width/height
+          templateDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -1130,6 +1162,7 @@ export default function WorkflowDiagramClient({
           nodeType: node.nodeType,
           title: node.title,
           style: node.style,
+          templateDefault,
           linkedWorkflowsCount: node.workflowLinks?.length || 0,
           isSelected,
           isAdmin: effectiveAdmin,
@@ -2353,8 +2386,40 @@ export default function WorkflowDiagramClient({
     )
   }
 
+  const [showStyleDefaults, setShowStyleDefaults] = useState(false)
+
   return (
       <div className="flex flex-col gap-4 h-full w-full">
+
+      {/* Superuser: Template Style Defaults */}
+      {isSuperuser && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <button
+            onClick={() => setShowStyleDefaults(!showStyleDefaults)}
+            className="flex items-center justify-between w-full text-left"
+          >
+            <h3 className="text-sm font-semibold text-gray-900">Template Node Style Defaults (Superuser)</h3>
+            <svg
+              className={`w-5 h-5 text-gray-500 transition-transform ${showStyleDefaults ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showStyleDefaults && (
+            <div className="mt-4">
+              <TemplateStyleDefaultsEditor
+                surgeryId={surgeryId}
+                templateId={templateId}
+                styleDefaults={template.styleDefaults || []}
+                onUpdate={() => router.refresh()}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Admin toolbar */}
       {effectiveAdmin && (
@@ -2620,31 +2685,60 @@ export default function WorkflowDiagramClient({
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">
                       Node Styling
                     </h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label htmlFor="node-theme" className="block text-sm font-medium text-gray-700 mb-1">
-                          Theme
-                        </label>
-                        <select
-                          id="node-theme"
-                          value={editingStyle?.theme || 'default'}
-                          onChange={(e) => {
-                            const theme = e.target.value as 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel' | 'default'
-                            setEditingStyle({
-                              ...editingStyle,
-                              theme: theme === 'default' ? undefined : theme,
-                            })
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="default">Default</option>
-                          <option value="info">Info (Blue)</option>
-                          <option value="warning">Warning (Amber)</option>
-                          <option value="success">Success (Green)</option>
-                          <option value="muted">Muted (Gray)</option>
-                          <option value="panel">Panel (Background)</option>
-                        </select>
-                      </div>
+                    {(() => {
+                      // Get template default for this node type
+                      const nodeTemplateDefault = styleDefaultsByType.get(detailsNode.nodeType) || null
+                      const status = getStylingStatus(editingStyle, nodeTemplateDefault)
+                      
+                      return (
+                        <div className="space-y-3">
+                          {/* Status label */}
+                          <div className="text-xs text-gray-600 mb-2">
+                            {status === 'customised' && (
+                              <span className="inline-flex items-center px-2 py-1 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                                Customised
+                              </span>
+                            )}
+                            {status === 'theme' && (
+                              <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                                Using theme: {getThemeDisplayName(editingStyle?.theme)}
+                              </span>
+                            )}
+                            {status === 'defaults' && (
+                              <span className="inline-flex items-center px-2 py-1 rounded bg-gray-50 text-gray-800 border border-gray-200">
+                                Using template defaults
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div>
+                            <label htmlFor="node-theme" className="block text-sm font-medium text-gray-700 mb-1">
+                              Theme
+                            </label>
+                            <select
+                              id="node-theme"
+                              value={editingStyle?.theme || 'default'}
+                              onChange={(e) => {
+                                const theme = e.target.value as 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel' | 'default'
+                                setEditingStyle({
+                                  ...editingStyle,
+                                  theme: theme === 'default' ? undefined : theme,
+                                })
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="default">Default</option>
+                              <option value="info">Info (Blue)</option>
+                              <option value="warning">Warning (Amber)</option>
+                              <option value="success">Success (Green)</option>
+                              <option value="muted">Muted (Gray)</option>
+                              <option value="panel">Panel (Background)</option>
+                            </select>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                    <div className="space-y-3 mt-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label htmlFor="node-bg-color" className="block text-xs font-medium text-gray-600 mb-1">
@@ -2698,15 +2792,36 @@ export default function WorkflowDiagramClient({
                           className="w-full h-8 border border-gray-300 rounded cursor-pointer"
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingStyle(null)
-                        }}
-                        className="w-full px-3 py-1.5 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        Reset to defaults
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Clear explicit color overrides but keep theme
+                            const newStyle = { ...editingStyle }
+                            delete newStyle.bgColor
+                            delete newStyle.textColor
+                            delete newStyle.borderColor
+                            // If no other style properties, set to null
+                            if (Object.keys(newStyle).length === 0 || (Object.keys(newStyle).length === 1 && newStyle.theme === undefined)) {
+                              setEditingStyle(null)
+                            } else {
+                              setEditingStyle(newStyle)
+                            }
+                          }}
+                          className="flex-1 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          Revert to defaults
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingStyle(null)
+                          }}
+                          className="flex-1 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          Clear all
+                        </button>
+                      </div>
                     </div>
                   </div>
 

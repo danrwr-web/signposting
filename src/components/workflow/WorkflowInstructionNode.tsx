@@ -2,7 +2,7 @@
 
 import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
-import { getNodeStyles, renderBadges } from './nodeStyleUtils'
+import { getNodeStyles, renderBadges, type TemplateStyleDefault } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
 import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
@@ -21,6 +21,7 @@ type WorkflowInstructionNodeData = {
     fontWeight?: 'normal' | 'medium' | 'bold'
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
   } | null
+  templateDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onNodeClick?: () => void
@@ -37,9 +38,9 @@ function getNodeTypeColor(nodeType: WorkflowNodeType): string {
 }
 
 export default function WorkflowInstructionNode({ id, data, selected }: NodeProps<WorkflowInstructionNodeData>) {
-  const { nodeType, title, hasBody, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
+  const { nodeType, title, hasBody, badges = [], style, templateDefault, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
-  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
   const nodeStyles = getNodeTypeColor(nodeType)
   const showInfo = shouldShowInfoBadge({ data, style })
 

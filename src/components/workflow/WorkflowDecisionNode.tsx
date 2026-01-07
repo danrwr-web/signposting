@@ -2,7 +2,7 @@
 
 import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
-import { getNodeStyles, renderBadges } from './nodeStyleUtils'
+import { getNodeStyles, renderBadges, type TemplateStyleDefault } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
 import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
@@ -21,6 +21,7 @@ type WorkflowDecisionNodeData = {
     fontWeight?: 'normal' | 'medium' | 'bold'
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
   } | null
+  templateDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onNodeClick?: () => void
@@ -37,18 +38,16 @@ function getNodeTypeColor(nodeType: WorkflowNodeType): string {
 }
 
 export default function WorkflowDecisionNode({ id, data, selected }: NodeProps<WorkflowDecisionNodeData>) {
-  const { nodeType, title, hasBody, badges = [], style, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
+  const { nodeType, title, hasBody, badges = [], style, templateDefault, isSelected, isAdmin = false, onNodeClick, onInfoClick } = data
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
-  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
   const nodeStyles = getNodeTypeColor(nodeType)
   const showInfo = shouldShowInfoBadge({ data, style })
   
   // For diamond shape, we need to apply styles to the background div
-  // Use explicit style colors if provided, otherwise use original default amber colors
-  const hasExplicitBg = style?.bgColor !== undefined || style?.backgroundColor !== undefined
-  const hasExplicitBorder = style?.borderColor !== undefined
-  const bgColor = hasExplicitBg ? (style?.bgColor || style?.backgroundColor) : 'rgba(251, 191, 36, 0.7)'
-  const borderColor = hasExplicitBorder ? (style?.borderColor || '') : '#fbbf24'
+  // Use effective palette colors from getNodeStyles
+  const bgColor = inlineStyles.backgroundColor || 'rgba(251, 191, 36, 0.7)'
+  const borderColor = inlineStyles.borderColor || '#fbbf24'
 
   return (
     <div className="relative cursor-pointer transition-all" style={{ width: 240, height: 160 }}>

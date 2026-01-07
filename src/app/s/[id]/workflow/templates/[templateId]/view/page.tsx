@@ -161,6 +161,14 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             },
           },
         },
+        styleDefaults: {
+          select: {
+            nodeType: true,
+            bgColor: true,
+            textColor: true,
+            borderColor: true,
+          },
+        },
       },
     })
 
@@ -197,6 +205,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
 
     // Check if user can admin *this template* (global templates should only be editable by superusers).
     const isAdmin = can(user).isAdminOfSurgery(templateOwnerSurgeryId)
+    const isSuperuser = user.globalRole === 'SUPERUSER'
 
     // Staff (and non-global admins) must not see draft templates.
     if (!isAdmin && templateForRender.approvalStatus !== 'APPROVED') {
@@ -291,8 +300,10 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             <WorkflowDiagramClientWrapper
               template={templateForRender}
               isAdmin={isAdmin}
+              isSuperuser={isSuperuser}
               allTemplates={allTemplates}
               surgeryId={surgeryId}
+              templateId={templateId}
               updatePositionAction={updatePositionAction}
               createNodeAction={createNodeAction}
               createAnswerOptionAction={createAnswerOptionAction}

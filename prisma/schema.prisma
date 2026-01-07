@@ -522,6 +522,7 @@ model WorkflowTemplate {
   nodes           WorkflowNodeTemplate[]
   linkedFromNodes WorkflowNodeLink[]     @relation("LinkedWorkflow")
   instances       WorkflowInstance[]
+  styleDefaults   WorkflowNodeStyleDefault[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -641,6 +642,24 @@ model WorkflowAnswerRecord {
   freeTextNote   String? // optional comment / note
 
   createdAt DateTime @default(now())
+}
+
+/// Template-level default styling per node type
+model WorkflowNodeStyleDefault {
+  id         String           @id @default(cuid())
+  templateId String
+  template   WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  nodeType   WorkflowNodeType
+  bgColor    String?
+  textColor  String?
+  borderColor String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([templateId, nodeType])
+  @@index([templateId])
 }
 
 enum WorkflowNodeType {

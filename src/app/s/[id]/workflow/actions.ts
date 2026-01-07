@@ -2112,3 +2112,112 @@ export async function answerQuestionNode(
   }
 }
 
+// Template Style Defaults Actions (Superuser only)
+
+export async function upsertTemplateStyleDefault(
+  surgeryId: string,
+  templateId: string,
+  nodeType: WorkflowNodeType,
+  bgColor: string | null,
+  textColor: string | null,
+  borderColor: string | null
+): Promise<ActionResult> {
+  try {
+    const user = await getSessionUser()
+    if (!user || user.globalRole !== 'SUPERUSER') {
+      return { success: false, error: 'Unauthorized: Superuser access required' }
+    }
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return { success: false, error: 'Template not found' }
+    }
+
+    await prisma.workflowNodeStyleDefault.upsert({
+      where: {
+        templateId_nodeType: {
+          templateId,
+          nodeType,
+        },
+      },
+      update: {
+        bgColor,
+        textColor,
+        borderColor,
+      },
+      create: {
+        templateId,
+        nodeType,
+        bgColor,
+        textColor,
+        borderColor,
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error upserting template style default:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update style default',
+    }
+  }
+}
+
+export async function resetTemplateStyleDefaults(
+  surgeryId: string,
+  templateId: string,
+  nodeType?: WorkflowNodeType
+): Promise<ActionResult> {
+  try {
+    const user = await getSessionUser()
+    if (!user || user.globalRole !== 'SUPERUSER') {
+      return { success: false, error: 'Unauthorized: Superuser access required' }
+    }
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return { success: false, error: 'Template not found' }
+    }
+
+    if (nodeType) {
+      // Reset single node type
+      await prisma.workflowNodeStyleDefault.deleteMany({
+        where: {
+          templateId,
+          nodeType,
+        },
+      })
+    } else {
+      // Reset all node types
+      await prisma.workflowNodeStyleDefault.deleteMany({
+        where: {
+          templateId,
+        },
+      })
+    }
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error resetting template style defaults:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reset style defaults',
+    }
+  }
+}
+
