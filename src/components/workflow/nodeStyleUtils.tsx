@@ -193,6 +193,11 @@ export function getNodeStyles(
   if (style?.bgColor) {
     inlineStyles.backgroundColor = style.bgColor
   }
+  
+  // Also apply explicit textColor from style if present (maps to CSS color property)
+  if (style?.textColor) {
+    inlineStyles.color = style.textColor
+  }
 
   // Apply explicit overrides for other style properties (always from node style, not palette)
   if (style) {

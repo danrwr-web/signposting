@@ -63,7 +63,6 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
   const { style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault)
   const bgColor = inlineStyles.backgroundColor || '#f0fdf4'
   const borderColor = inlineStyles.borderColor || '#86efac'
-  const textColor = inlineStyles.color || '#166534'
 
   return (
     <div className="relative" style={{ minWidth: 320 }}>
@@ -82,12 +81,13 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
           borderWidth: style?.borderWidth !== undefined ? style.borderWidth : 1,
           borderRadius: style?.radius !== undefined ? `${style.radius}px` : '8px',
           boxSizing: 'border-box',
+          ...(inlineStyles.color ? { color: inlineStyles.color } : {}),
         }}
       >
         {/* Header row */}
         <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: borderColor }}>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="font-semibold text-sm break-words" style={{ color: textColor }}>
+            <div className="font-semibold text-sm break-words text-inherit">
               {referenceTitle}
             </div>
             <div className="text-xs font-medium px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200">
@@ -106,8 +106,7 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
           {referenceItems.map((item, index) => (
             <div 
               key={index} 
-              className="flex items-start gap-2 text-sm"
-              style={{ color: textColor }}
+              className="flex items-start gap-2 text-sm text-inherit"
             >
               <div className="flex-1 break-words">
                 {item.text}
@@ -115,9 +114,8 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
               {item.info && (
                 <div 
                   data-rf-no-details
-                  className="flex-shrink-0 cursor-help"
+                  className="flex-shrink-0 cursor-help opacity-70"
                   title={item.info}
-                  style={{ color: textColor, opacity: 0.7 }}
                 >
                   <InfoIcon />
                 </div>

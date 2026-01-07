@@ -110,8 +110,8 @@ export default function WorkflowDecisionNode({ id, data, selected }: NodeProps<W
           </div>
 
           {/* Title row - centered */}
-          <div className="flex items-center justify-center w-full -mt-1 pointer-events-auto">
-            <div className={`font-medium break-words text-sm leading-snug text-center max-w-[70%] overflow-hidden text-gray-900`} style={style?.textColor ? { color: style.textColor } : undefined}>
+          <div className="flex items-center justify-center w-full -mt-1 pointer-events-auto" style={inlineStyles.color ? { color: inlineStyles.color } : undefined}>
+            <div className="font-medium break-words text-sm leading-snug text-center max-w-[70%] overflow-hidden text-inherit">
               {title}
             </div>
           </div>

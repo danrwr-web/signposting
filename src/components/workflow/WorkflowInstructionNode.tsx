@@ -89,7 +89,7 @@ export default function WorkflowInstructionNode({ id, data, selected }: NodeProp
         
         {/* Title - constrained with overflow protection */}
         <div className="px-4 pb-3 min-h-[2.5rem] overflow-hidden">
-          <div className={`font-medium break-words text-sm leading-snug text-gray-900`} style={style?.textColor ? { color: style.textColor } : undefined}>
+          <div className="font-medium break-words text-sm leading-snug text-inherit">
             {title}
           </div>
         </div>

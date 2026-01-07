@@ -88,7 +88,7 @@ export default function WorkflowPanelNode({ id, data, selected }: NodeProps<Work
         >
           <div className="flex items-center gap-2 flex-wrap">
             {/* Panel title as primary header */}
-            <div className={`font-semibold break-words text-sm ${style?.textColor ? '' : 'text-gray-800'}`} style={style?.textColor ? { color: style.textColor } : {}}>
+            <div className="font-semibold break-words text-sm text-inherit">
               {displayTitle}
             </div>
             {/* Panel badges */}
