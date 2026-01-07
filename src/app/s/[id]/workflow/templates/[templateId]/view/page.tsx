@@ -249,8 +249,8 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
     const updateNodeAction = isAdmin ? updateWorkflowNodeForDiagram.bind(null, surgeryId, templateId) : undefined
 
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="min-h-screen bg-gray-50 w-full">
+        <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-8">
           {/* Header - Visually grouped */}
           <div className="mb-8">
             {/* Quiet context */}
@@ -287,19 +287,21 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             )}
           </div>
 
-          <WorkflowDiagramClientWrapper
-            template={templateForRender}
-            isAdmin={isAdmin}
-            allTemplates={allTemplates}
-            surgeryId={surgeryId}
-            updatePositionAction={updatePositionAction}
-            createNodeAction={createNodeAction}
-            createAnswerOptionAction={createAnswerOptionAction}
-            updateAnswerOptionLabelAction={updateAnswerOptionLabelAction}
-            deleteAnswerOptionAction={deleteAnswerOptionAction}
-            deleteNodeAction={deleteNodeAction}
-            updateNodeAction={updateNodeAction}
-          />
+          <div className="w-full min-w-0">
+            <WorkflowDiagramClientWrapper
+              template={templateForRender}
+              isAdmin={isAdmin}
+              allTemplates={allTemplates}
+              surgeryId={surgeryId}
+              updatePositionAction={updatePositionAction}
+              createNodeAction={createNodeAction}
+              createAnswerOptionAction={createAnswerOptionAction}
+              updateAnswerOptionLabelAction={updateAnswerOptionLabelAction}
+              deleteAnswerOptionAction={deleteAnswerOptionAction}
+              deleteNodeAction={deleteNodeAction}
+              updateNodeAction={updateNodeAction}
+            />
+          </div>
         </div>
       </div>
     )
