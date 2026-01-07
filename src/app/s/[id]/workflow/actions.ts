@@ -1031,6 +1031,10 @@ export async function updateWorkflowNodeForDiagram(
 
     const node = await prisma.workflowNodeTemplate.findFirst({
       where: { id: nodeId, templateId },
+      select: {
+        id: true,
+        nodeType: true,
+      },
     })
 
     if (!node) {

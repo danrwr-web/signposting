@@ -48,6 +48,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     // Check if workflow guidance feature is enabled for this surgery
     const workflowsEnabled = await isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
     const isAdmin = can(user).isAdminOfSurgery(surgeryId)
+    const isSuperuser = user.globalRole === 'SUPERUSER'
     const isGlobalSurgery = surgeryId === GLOBAL_SURGERY_ID
     
     // Allow admins to access even if workflows aren't enabled (so they can enable them)
@@ -380,6 +381,14 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
                 >
                   Manage Templates
                 </Link>
+                {isSuperuser && (
+                  <Link
+                    href={`/s/${surgeryId}/workflow/admin/styles`}
+                    className="text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-3 py-1.5 transition-colors"
+                  >
+                    Node styling defaults
+                  </Link>
+                )}
               </div>
             </section>
           )}
