@@ -565,6 +565,9 @@ export default function WorkflowDiagramClient({
             position: cs.position,
             width: cs.width,
             height: cs.height,
+            zIndex: cs.zIndex,
+            transform: cs.transform,
+            pointerEvents: cs.pointerEvents,
           },
         })
 
@@ -581,16 +584,60 @@ export default function WorkflowDiagramClient({
       }
 
       const leftRect = logEl('leftCol', leftCol)
-      logEl('detailsPanel', panel)
+      const panelRect = logEl('detailsPanel', panel)
       const rfRect = logEl('reactFlow(.react-flow)', rf)
-      logEl('reactFlowWrapper', rfWrap)
+      const rfWrapRect = logEl('reactFlowWrapper', rfWrap)
 
       if (leftRect && rfRect) {
-        const overlapPx = rfRect.right - leftRect.right
-        console.log('[layoutDiag]', { overlapPx })
-        if (overlapPx > 1) {
-          console.warn('OVERLAP DETECTED', overlapPx)
+        const overlapWithLeftColPx = rfRect.right - leftRect.right
+        const overlapWithPanelPx = panelRect ? rfRect.right - panelRect.left : null
+        const panelCoversCanvasPx = panelRect && rfWrapRect ? rfWrapRect.right - panelRect.left : null
+
+        console.log('[layoutDiag]', {
+          leftColRect: leftRect,
+          panelRect,
+          rfRect,
+          rfWrapRect,
+          overlapWithLeftColPx,
+          overlapWithPanelPx,
+          panelCoversCanvasPx,
+        })
+
+        if (typeof overlapWithPanelPx === 'number' && overlapWithPanelPx > 1) {
+          console.warn('PANEL OVERLAPS REACTFLOW', overlapWithPanelPx)
         }
+      }
+
+      if (panel) {
+        const panelCs = window.getComputedStyle(panel)
+        if (panelCs.position === 'fixed' || panelCs.position === 'absolute') {
+          console.warn('PANEL IS OUT OF FLOW', panelCs.position)
+        }
+        if (panelCs.transform !== 'none') {
+          console.warn('PANEL TRANSFORM ACTIVE', panelCs.transform)
+        }
+      }
+
+      if (rfWrap) {
+        const rfWrapCs = window.getComputedStyle(rfWrap)
+        console.log('[layoutDiag]', 'panel+rfWrap computed', {
+          panel: panel
+            ? {
+                position: window.getComputedStyle(panel).position,
+                zIndex: window.getComputedStyle(panel).zIndex,
+                transform: window.getComputedStyle(panel).transform,
+                pointerEvents: window.getComputedStyle(panel).pointerEvents,
+                width: window.getComputedStyle(panel).width,
+              }
+            : null,
+          rfWrap: {
+            position: rfWrapCs.position,
+            zIndex: rfWrapCs.zIndex,
+            transform: rfWrapCs.transform,
+            pointerEvents: rfWrapCs.pointerEvents,
+            width: rfWrapCs.width,
+          },
+        })
       }
     }
   }
