@@ -1126,23 +1126,30 @@ export async function updateWorkflowNodeForDiagram(
           }
         }
         
-        // Process width/height: coerce to numbers, clamp to minimums, remove if NaN
-        if (mergedStyle.width !== undefined) {
-          const widthValue = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
-          if (isNaN(widthValue)) {
-            delete mergedStyle.width
-          } else {
-            // Clamp width to minimum 300
-            mergedStyle.width = Math.max(widthValue, 300)
+        // Process width/height: Only allow for PANEL nodes
+        // For non-PANEL nodes, strip width/height to prevent persistence
+        if (node.nodeType !== 'PANEL') {
+          delete mergedStyle.width
+          delete mergedStyle.height
+        } else {
+          // For PANEL nodes: coerce to numbers, clamp to minimums, remove if NaN
+          if (mergedStyle.width !== undefined) {
+            const widthValue = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
+            if (isNaN(widthValue)) {
+              delete mergedStyle.width
+            } else {
+              // Clamp width to minimum 300
+              mergedStyle.width = Math.max(widthValue, 300)
+            }
           }
-        }
-        if (mergedStyle.height !== undefined) {
-          const heightValue = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
-          if (isNaN(heightValue)) {
-            delete mergedStyle.height
-          } else {
-            // Clamp height to minimum 200
-            mergedStyle.height = Math.max(heightValue, 200)
+          if (mergedStyle.height !== undefined) {
+            const heightValue = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
+            if (isNaN(heightValue)) {
+              delete mergedStyle.height
+            } else {
+              // Clamp height to minimum 200
+              mergedStyle.height = Math.max(heightValue, 200)
+            }
           }
         }
         

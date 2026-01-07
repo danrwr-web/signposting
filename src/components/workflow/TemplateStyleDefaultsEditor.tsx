@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { WorkflowNodeType } from '@prisma/client'
-import { upsertTemplateStyleDefault, resetTemplateStyleDefaults } from '@/app/s/[id]/workflow/actions'
+import { useRouter } from 'next/navigation'
 
 interface TemplateStyleDefault {
   nodeType: WorkflowNodeType
@@ -15,7 +15,7 @@ interface Props {
   surgeryId: string
   templateId: string
   styleDefaults: TemplateStyleDefault[]
-  onUpdate: () => void
+  isSuperuser: boolean
 }
 
 const NODE_TYPE_LABELS: Record<WorkflowNodeType, string> = {
@@ -26,7 +26,8 @@ const NODE_TYPE_LABELS: Record<WorkflowNodeType, string> = {
   REFERENCE: 'Reference',
 }
 
-export default function TemplateStyleDefaultsEditor({ surgeryId, templateId, styleDefaults, onUpdate }: Props) {
+export default function TemplateStyleDefaultsEditor({ surgeryId, templateId, styleDefaults, isSuperuser }: Props) {
+  const router = useRouter()
   const [editingDefaults, setEditingDefaults] = useState<Map<WorkflowNodeType, TemplateStyleDefault>>(() => {
     const map = new Map<WorkflowNodeType, TemplateStyleDefault>()
     const nodeTypes: WorkflowNodeType[] = ['INSTRUCTION', 'QUESTION', 'END', 'PANEL', 'REFERENCE']
@@ -39,24 +40,41 @@ export default function TemplateStyleDefaultsEditor({ surgeryId, templateId, sty
   const [saving, setSaving] = useState<WorkflowNodeType | null>(null)
   const [resetting, setResetting] = useState<WorkflowNodeType | null>(null)
 
+  // Update local state when styleDefaults prop changes
+  useEffect(() => {
+    const map = new Map<WorkflowNodeType, TemplateStyleDefault>()
+    const nodeTypes: WorkflowNodeType[] = ['INSTRUCTION', 'QUESTION', 'END', 'PANEL', 'REFERENCE']
+    for (const nodeType of nodeTypes) {
+      const existing = styleDefaults.find(d => d.nodeType === nodeType)
+      map.set(nodeType, existing || { nodeType, bgColor: null, textColor: null, borderColor: null })
+    }
+    setEditingDefaults(map)
+  }, [styleDefaults])
+
   const handleSave = async (nodeType: WorkflowNodeType) => {
     const defaultStyle = editingDefaults.get(nodeType)
     if (!defaultStyle) return
 
     setSaving(nodeType)
     try {
-      const result = await upsertTemplateStyleDefault(
-        surgeryId,
-        templateId,
-        nodeType,
-        defaultStyle.bgColor || null,
-        defaultStyle.textColor || null,
-        defaultStyle.borderColor || null
-      )
+      const response = await fetch(`/s/${surgeryId}/workflow/templates/${templateId}/style-defaults`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nodeType,
+          bgColor: defaultStyle.bgColor || null,
+          textColor: defaultStyle.textColor || null,
+          borderColor: defaultStyle.borderColor || null,
+        }),
+      })
+
+      const result = await response.json()
       if (result.success) {
-        onUpdate()
+        router.refresh()
       } else {
-        alert(`Failed to save: ${result.error}`)
+        alert(`Failed to save: ${result.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error saving style default:', error)
@@ -69,7 +87,14 @@ export default function TemplateStyleDefaultsEditor({ surgeryId, templateId, sty
   const handleReset = async (nodeType: WorkflowNodeType) => {
     setResetting(nodeType)
     try {
-      const result = await resetTemplateStyleDefaults(surgeryId, templateId, nodeType)
+      const response = await fetch(
+        `/s/${surgeryId}/workflow/templates/${templateId}/style-defaults?nodeType=${nodeType}`,
+        {
+          method: 'DELETE',
+        }
+      )
+
+      const result = await response.json()
       if (result.success) {
         // Update local state
         setEditingDefaults(prev => {
@@ -77,13 +102,47 @@ export default function TemplateStyleDefaultsEditor({ surgeryId, templateId, sty
           next.set(nodeType, { nodeType, bgColor: null, textColor: null, borderColor: null })
           return next
         })
-        onUpdate()
+        router.refresh()
       } else {
-        alert(`Failed to reset: ${result.error}`)
+        alert(`Failed to reset: ${result.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error resetting style default:', error)
       alert('Failed to reset style default')
+    } finally {
+      setResetting(null)
+    }
+  }
+
+  const handleResetAll = async () => {
+    if (!confirm('Are you sure you want to reset ALL template style defaults? This cannot be undone.')) {
+      return
+    }
+    setResetting('INSTRUCTION' as WorkflowNodeType) // Use a placeholder for "all"
+    try {
+      const response = await fetch(
+        `/s/${surgeryId}/workflow/templates/${templateId}/style-defaults`,
+        {
+          method: 'DELETE',
+        }
+      )
+
+      const result = await response.json()
+      if (result.success) {
+        // Reset all local state
+        const map = new Map<WorkflowNodeType, TemplateStyleDefault>()
+        const nodeTypes: WorkflowNodeType[] = ['INSTRUCTION', 'QUESTION', 'END', 'PANEL', 'REFERENCE']
+        for (const nodeType of nodeTypes) {
+          map.set(nodeType, { nodeType, bgColor: null, textColor: null, borderColor: null })
+        }
+        setEditingDefaults(map)
+        router.refresh()
+      } else {
+        alert(`Failed to reset all: ${result.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      console.error('Error resetting all style defaults:', error)
+      alert('Failed to reset all style defaults')
     } finally {
       setResetting(null)
     }
@@ -98,9 +157,13 @@ export default function TemplateStyleDefaultsEditor({ surgeryId, templateId, sty
     })
   }
 
+  if (!isSuperuser) {
+    return null
+  }
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Node Style Defaults</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Template Node Style Defaults</h3>
       <p className="text-sm text-gray-600 mb-6">
         Set default colours for each node type. These apply to all nodes unless individually customised.
       </p>
@@ -180,6 +243,16 @@ export default function TemplateStyleDefaultsEditor({ surgeryId, templateId, sty
             </div>
           )
         })}
+      </div>
+      
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <button
+          onClick={handleResetAll}
+          disabled={saving !== null || resetting !== null}
+          className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {resetting !== null ? 'Resetting...' : 'Reset All Defaults'}
+        </button>
       </div>
     </div>
   )

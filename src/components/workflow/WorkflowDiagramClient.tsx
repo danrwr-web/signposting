@@ -31,7 +31,6 @@ import WorkflowPanelNode from './WorkflowPanelNode'
 import WorkflowReferenceNode from './WorkflowReferenceNode'
 import { renderBulletText } from './renderBulletText'
 import { getStylingStatus, getThemeDisplayName } from './nodeStyleUtils'
-import TemplateStyleDefaultsEditor from './TemplateStyleDefaultsEditor'
 
 // Debug component to access ReactFlow instance and expose debug function
 // Only enabled when URL contains debugRF=1 query parameter
@@ -795,7 +794,6 @@ export default function WorkflowDiagramClient({
   } | null>(null)
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   const [legendExpanded, setLegendExpanded] = useState(false)
-  const [showStyleDefaults, setShowStyleDefaults] = useState(false)
   
   // Persist editingMode in localStorage so it survives page refreshes
   const [editingMode, setEditingMode] = useState(() => {
@@ -2400,36 +2398,6 @@ export default function WorkflowDiagramClient({
   return (
       <div className="flex flex-col gap-4 h-full w-full">
 
-      {/* Superuser: Template Style Defaults */}
-      {isSuperuser && (
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <button
-            onClick={() => setShowStyleDefaults(!showStyleDefaults)}
-            className="flex items-center justify-between w-full text-left"
-          >
-            <h3 className="text-sm font-semibold text-gray-900">Template Node Style Defaults (Superuser)</h3>
-            <svg
-              className={`w-5 h-5 text-gray-500 transition-transform ${showStyleDefaults ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {showStyleDefaults && (
-            <div className="mt-4">
-              <TemplateStyleDefaultsEditor
-                surgeryId={surgeryId}
-                templateId={templateId}
-                styleDefaults={template.styleDefaults || []}
-                onUpdate={() => router.refresh()}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Admin toolbar */}
       {effectiveAdmin && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -2797,12 +2765,12 @@ export default function WorkflowDiagramClient({
                         <button
                           type="button"
                           onClick={() => {
-                            // Clear explicit color overrides but keep theme
+                            // Revert: clears bgColor/textColor/borderColor ONLY, keeps theme and other properties
                             const newStyle = { ...editingStyle }
                             delete newStyle.bgColor
                             delete newStyle.textColor
                             delete newStyle.borderColor
-                            // If no other style properties, set to null
+                            // If no other style properties remain, set to null
                             if (Object.keys(newStyle).length === 0 || (Object.keys(newStyle).length === 1 && newStyle.theme === undefined)) {
                               setEditingStyle(null)
                             } else {
@@ -2816,7 +2784,23 @@ export default function WorkflowDiagramClient({
                         <button
                           type="button"
                           onClick={() => {
-                            setEditingStyle(null)
+                            // Clear all: clears all style properties EXCEPT width/height for PANEL nodes
+                            if (detailsNode.nodeType === 'PANEL' && editingStyle) {
+                              // Preserve width/height for PANEL nodes
+                              const preservedStyle: typeof editingStyle = {
+                                width: editingStyle.width,
+                                height: editingStyle.height,
+                              }
+                              // Only set preservedStyle if width or height exists
+                              if (preservedStyle.width !== undefined || preservedStyle.height !== undefined) {
+                                setEditingStyle(preservedStyle)
+                              } else {
+                                setEditingStyle(null)
+                              }
+                            } else {
+                              // For non-PANEL nodes, clear everything
+                              setEditingStyle(null)
+                            }
                           }}
                           className="flex-1 px-3 py-1.5 text-sm text-gray-600 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >

@@ -296,6 +296,18 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             )}
           </div>
 
+          {/* Superuser: Template Style Defaults Editor */}
+          {isSuperuser && (
+            <div className="mb-6">
+              <TemplateStyleDefaultsEditor
+                surgeryId={surgeryId}
+                templateId={templateId}
+                styleDefaults={template.styleDefaults || []}
+                isSuperuser={isSuperuser}
+              />
+            </div>
+          )}
+
           <div className="w-full min-w-0">
             <WorkflowDiagramClientWrapper
               template={templateForRender}
