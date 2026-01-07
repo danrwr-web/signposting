@@ -540,6 +540,7 @@ export default function WorkflowDiagramClient({
   allTemplates = [],
   surgeryId,
   templateId,
+  surgeryDefaults = [],
   updatePositionAction,
   createNodeAction,
   createAnswerOptionAction,
