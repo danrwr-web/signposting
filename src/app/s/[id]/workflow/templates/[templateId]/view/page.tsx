@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import WorkflowDiagramClientWrapper from '@/components/workflow/WorkflowDiagramClientWrapper'
+import TemplateStyleDefaultsEditor from '@/components/workflow/TemplateStyleDefaultsEditor'
 import {
   updateWorkflowNodePosition,
   createWorkflowNodeForTemplate,
