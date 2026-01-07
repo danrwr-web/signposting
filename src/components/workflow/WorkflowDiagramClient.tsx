@@ -19,6 +19,7 @@ import ReactFlow, {
   NodeChange,
   applyNodeChanges,
   useReactFlow,
+  ReactFlowInstance,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 import './panel-styles.css'
@@ -654,7 +655,42 @@ export default function WorkflowDiagramClient({
   const PANEL_MIN_H = 200
 
   // React Flow instance for coordinate conversion
-  const reactFlowInstanceRef = useRef<any>(null)
+  const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
+  const reactFlowWrapperRef = useRef<HTMLDivElement | null>(null)
+  const pendingCentreFlowPointRef = useRef<{ x: number; y: number } | null>(null)
+
+  const getLeftCanvasCentreInFlow = useCallback(() => {
+    const inst = reactFlowInstanceRef.current
+    const el = reactFlowWrapperRef.current
+    if (!inst || !el) return null
+
+    const rect = el.getBoundingClientRect()
+    const { x, y, zoom } = inst.getViewport()
+    const cx = rect.width / 2
+    const cy = rect.height / 2
+
+    return { x: (cx - x) / zoom, y: (cy - y) / zoom }
+  }, [])
+
+  const centreFlowPointInLeftCanvas = useCallback((flowPt: { x: number; y: number } | null) => {
+    const inst = reactFlowInstanceRef.current
+    const el = reactFlowWrapperRef.current
+    if (!inst || !el || !flowPt) return
+
+    const rect = el.getBoundingClientRect()
+    const { zoom } = inst.getViewport()
+    const cx = rect.width / 2
+    const cy = rect.height / 2
+
+    const newX = cx - flowPt.x * zoom
+    const newY = cy - flowPt.y * zoom
+    inst.setViewport({ x: newX, y: newY, zoom }, { duration: 0 })
+  }, [])
+
+  const setDetailsOpenPreservingCentre = useCallback((nextOpen: boolean) => {
+    pendingCentreFlowPointRef.current = getLeftCanvasCentreInFlow()
+    setIsDetailsOpen(nextOpen)
+  }, [getLeftCanvasCentreInFlow])
 
   // Helper to get spawn position at viewport center or near selected node
   const getSpawnPosition = useCallback((staggerOffset = { x: 20, y: 20 }): { x: number; y: number } => {
@@ -791,14 +827,14 @@ export default function WorkflowDiagramClient({
     if (editingMode) {
       const saved = localStorage.getItem(DETAILS_PANEL_STORAGE_KEY)
       if (saved === 'true' || saved === 'false') {
-        setIsDetailsOpen(saved === 'true')
+        setDetailsOpenPreservingCentre(saved === 'true')
       } else {
-        setIsDetailsOpen(true)
+        setDetailsOpenPreservingCentre(true)
       }
     } else {
-      setIsDetailsOpen(false)
+      setDetailsOpenPreservingCentre(false)
     }
-  }, [DETAILS_PANEL_STORAGE_KEY, editingMode])
+  }, [DETAILS_PANEL_STORAGE_KEY, editingMode, setDetailsOpenPreservingCentre])
 
   useEffect(() => {
     setMounted(true)
@@ -809,12 +845,12 @@ export default function WorkflowDiagramClient({
     if (!isDetailsOpen) return
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setIsDetailsOpen(false)
+        setDetailsOpenPreservingCentre(false)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [isDetailsOpen])
+  }, [isDetailsOpen, setDetailsOpenPreservingCentre])
 
   // Run layout diagnostics after open/close toggles (captures both states).
   useEffect(() => {
@@ -832,20 +868,23 @@ export default function WorkflowDiagramClient({
     const dispatchResize = () => window.dispatchEvent(new Event('resize'))
     dispatchResize()
 
-    let timeoutId: number | null = null
-    const rafId = window.requestAnimationFrame(() => {
-      timeoutId = window.setTimeout(() => {
-        dispatchResize()
-      }, 220)
-    })
+    const captured = pendingCentreFlowPointRef.current ?? getLeftCanvasCentreInFlow()
+    pendingCentreFlowPointRef.current = null
+
+    const t1 = window.setTimeout(() => {
+      dispatchResize()
+      centreFlowPointInLeftCanvas(captured)
+    }, 220)
+
+    const t2 = window.setTimeout(() => {
+      centreFlowPointInLeftCanvas(captured)
+    }, 320)
 
     return () => {
-      window.cancelAnimationFrame(rafId)
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
-      }
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
     }
-  }, [isDetailsOpen, mounted])
+  }, [isDetailsOpen, mounted, getLeftCanvasCentreInFlow, centreFlowPointInLeftCanvas])
   
   // Axis locking state for Shift-drag
   const dragStartPositionRef = useRef<Map<string, { x: number; y: number }>>(new Map())
@@ -944,8 +983,8 @@ export default function WorkflowDiagramClient({
     setSelectedEdgeId(null)
     setSelectedNodeId(nodeId) // keep existing selection/highlight behaviour
     setDetailsNodeId(nodeId)  // panel content source of truth
-    setIsDetailsOpen(true)
-  }, [])
+    setDetailsOpenPreservingCentre(true)
+  }, [setDetailsOpenPreservingCentre])
 
   // Check if node has outgoing edges
   const nodeHasOutgoingEdges = useCallback((nodeId: string) => {
@@ -1751,8 +1790,8 @@ export default function WorkflowDiagramClient({
     setSelectedEdgeId(null)
     setSelectedNodeId(node.id)
     setDetailsNodeId(node.id)
-    setIsDetailsOpen(true)
-  }, [])
+    setDetailsOpenPreservingCentre(true)
+  }, [setDetailsOpenPreservingCentre])
 
   // Handle edge click
   const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {
@@ -2360,7 +2399,11 @@ export default function WorkflowDiagramClient({
               ? 'border-blue-200' 
               : 'border-gray-200'
           }`}>
-            <div data-testid="workflow-reactflow-wrapper" className="h-full w-full">
+            <div
+              ref={reactFlowWrapperRef}
+              data-testid="workflow-reactflow-wrapper"
+              className="h-full w-full"
+            >
               {process.env.NODE_ENV !== 'production' && (
                 <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
                   Nodes {nodes.length} · Edges {edges.length}
@@ -2418,7 +2461,7 @@ export default function WorkflowDiagramClient({
                 <h2 className="text-sm font-semibold text-gray-900">Details</h2>
                 <button
                   type="button"
-                  onClick={() => setIsDetailsOpen(false)}
+                  onClick={() => setDetailsOpenPreservingCentre(false)}
                   className="p-2 text-gray-600 hover:text-gray-900 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                   aria-label="Close details panel"
                   title="Close"
@@ -3178,7 +3221,7 @@ export default function WorkflowDiagramClient({
           <div className="shrink-0 flex items-start pt-4 pl-3">
             <button
               type="button"
-              onClick={() => setIsDetailsOpen(true)}
+              onClick={() => setDetailsOpenPreservingCentre(true)}
               className="px-3 py-2 text-sm font-medium bg-white border border-gray-200 rounded-l-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               aria-label="Open details panel"
             >
