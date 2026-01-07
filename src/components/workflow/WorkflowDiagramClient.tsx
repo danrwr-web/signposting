@@ -1020,6 +1020,16 @@ export default function WorkflowDiagramClient({
     return map
   }, [template.styleDefaults])
 
+  // Compute styling status for current node (if selected)
+  const nodeStylingStatus = useMemo(() => {
+    if (!detailsNode) return null
+    const nodeTemplateDefault = styleDefaultsByType.get(detailsNode.nodeType) || null
+    return {
+      status: getStylingStatus(editingStyle, nodeTemplateDefault),
+      nodeTemplateDefault,
+    }
+  }, [detailsNode, editingStyle, styleDefaultsByType])
+
   // Convert template nodes to React Flow nodes
   const flowNodes = useMemo<Node[]>(() => {
     return template.nodes.map((node) => {
@@ -2685,60 +2695,52 @@ export default function WorkflowDiagramClient({
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">
                       Node Styling
                     </h3>
-                    {(() => {
-                      // Get template default for this node type
-                      const nodeTemplateDefault = styleDefaultsByType.get(detailsNode.nodeType) || null
-                      const status = getStylingStatus(editingStyle, nodeTemplateDefault)
-                      
-                      return (
-                        <div className="space-y-3">
-                          {/* Status label */}
-                          <div className="text-xs text-gray-600 mb-2">
-                            {status === 'customised' && (
-                              <span className="inline-flex items-center px-2 py-1 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                                Customised
-                              </span>
-                            )}
-                            {status === 'theme' && (
-                              <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-800 border border-blue-200">
-                                Using theme: {getThemeDisplayName(editingStyle?.theme)}
-                              </span>
-                            )}
-                            {status === 'defaults' && (
-                              <span className="inline-flex items-center px-2 py-1 rounded bg-gray-50 text-gray-800 border border-gray-200">
-                                Using template defaults
-                              </span>
-                            )}
-                          </div>
-                          
-                          <div>
-                            <label htmlFor="node-theme" className="block text-sm font-medium text-gray-700 mb-1">
-                              Theme
-                            </label>
-                            <select
-                              id="node-theme"
-                              value={editingStyle?.theme || 'default'}
-                              onChange={(e) => {
-                                const theme = e.target.value as 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel' | 'default'
-                                setEditingStyle({
-                                  ...editingStyle,
-                                  theme: theme === 'default' ? undefined : theme,
-                                })
-                              }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="default">Default</option>
-                              <option value="info">Info (Blue)</option>
-                              <option value="warning">Warning (Amber)</option>
-                              <option value="success">Success (Green)</option>
-                              <option value="muted">Muted (Gray)</option>
-                              <option value="panel">Panel (Background)</option>
-                            </select>
-                          </div>
+                    <div className="space-y-3">
+                      {/* Status label */}
+                      {nodeStylingStatus && (
+                        <div className="text-xs text-gray-600 mb-2">
+                          {nodeStylingStatus.status === 'customised' && (
+                            <span className="inline-flex items-center px-2 py-1 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                              Customised
+                            </span>
+                          )}
+                          {nodeStylingStatus.status === 'theme' && (
+                            <span className="inline-flex items-center px-2 py-1 rounded bg-blue-50 text-blue-800 border border-blue-200">
+                              Using theme: {getThemeDisplayName(editingStyle?.theme)}
+                            </span>
+                          )}
+                          {nodeStylingStatus.status === 'defaults' && (
+                            <span className="inline-flex items-center px-2 py-1 rounded bg-gray-50 text-gray-800 border border-gray-200">
+                              Using template defaults
+                            </span>
+                          )}
                         </div>
-                      )
-                    })()}
-                    <div className="space-y-3 mt-3">
+                      )}
+                      
+                      <div>
+                        <label htmlFor="node-theme" className="block text-sm font-medium text-gray-700 mb-1">
+                          Theme
+                        </label>
+                        <select
+                          id="node-theme"
+                          value={editingStyle?.theme || 'default'}
+                          onChange={(e) => {
+                            const theme = e.target.value as 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel' | 'default'
+                            setEditingStyle({
+                              ...editingStyle,
+                              theme: theme === 'default' ? undefined : theme,
+                            })
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="default">Default</option>
+                          <option value="info">Info (Blue)</option>
+                          <option value="warning">Warning (Amber)</option>
+                          <option value="success">Success (Green)</option>
+                          <option value="muted">Muted (Gray)</option>
+                          <option value="panel">Panel (Background)</option>
+                        </select>
+                      </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label htmlFor="node-bg-color" className="block text-xs font-medium text-gray-600 mb-1">
