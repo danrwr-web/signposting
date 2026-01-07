@@ -536,6 +536,65 @@ export default function WorkflowDiagramClient({
     }
   }
 
+  // Temporary global diagnostics (enabled in production preview too).
+  // Safe to remove once overlap root cause is fixed.
+  if (typeof window !== 'undefined') {
+    window.__layoutDiag = () => {
+      const leftCol = document.querySelector('[data-testid="workflow-left-col"]') as HTMLElement | null
+      const panel = document.querySelector('[data-testid="workflow-details-panel"]') as HTMLElement | null
+      const rf = document.querySelector('.react-flow') as HTMLElement | null
+      const rfWrap = document.querySelector('[data-testid="workflow-reactflow-wrapper"]') as HTMLElement | null
+
+      const logEl = (label: string, el: HTMLElement | null) => {
+        if (!el) {
+          console.log('[layoutDiag]', label, 'MISSING')
+          return null
+        }
+        const rect = el.getBoundingClientRect()
+        const cs = window.getComputedStyle(el)
+        console.log('[layoutDiag]', label, {
+          rect: {
+            left: rect.left,
+            top: rect.top,
+            right: rect.right,
+            bottom: rect.bottom,
+            width: rect.width,
+            height: rect.height,
+          },
+          computed: {
+            position: cs.position,
+            width: cs.width,
+            height: cs.height,
+          },
+        })
+
+        const chain: Array<{ tag: string; className: string | null }> = []
+        let current: HTMLElement | null = el
+        let guard = 0
+        while (current && guard < 20) {
+          chain.push({ tag: current.tagName.toLowerCase(), className: current.getAttribute('class') })
+          current = current.offsetParent as HTMLElement | null
+          guard += 1
+        }
+        console.log('[layoutDiag]', label, 'offsetParent chain', chain)
+        return rect
+      }
+
+      const leftRect = logEl('leftCol', leftCol)
+      logEl('detailsPanel', panel)
+      const rfRect = logEl('reactFlow(.react-flow)', rf)
+      logEl('reactFlowWrapper', rfWrap)
+
+      if (leftRect && rfRect) {
+        const overlapPx = rfRect.right - leftRect.right
+        console.log('[layoutDiag]', { overlapPx })
+        if (overlapPx > 1) {
+          console.warn('OVERLAP DETECTED', overlapPx)
+        }
+      }
+    }
+  }
+
   const router = useRouter()
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
@@ -710,6 +769,14 @@ export default function WorkflowDiagramClient({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isDetailsOpen])
 
+  // Run layout diagnostics after open/close toggles (captures both states).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (typeof window.__layoutDiag !== 'function') return
+    window.setTimeout(() => window.__layoutDiag?.(), 0)
+    window.setTimeout(() => window.__layoutDiag?.(), 250)
+  }, [isDetailsOpen])
+
   // React Flow needs a resize signal after layout width changes.
   // Trigger once immediately and once after the panel transition.
   useEffect(() => {
@@ -730,160 +797,6 @@ export default function WorkflowDiagramClient({
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId)
       }
-    }
-  }, [isDetailsOpen, mounted])
-
-  // Dev-only layout diagnostics to prove the overlap root cause.
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'production') return
-    if (typeof window === 'undefined') return
-
-    const describeOffsetParentChain = (el: HTMLElement | null) => {
-      const chain: Array<{ tag: string; testid?: string | null; className?: string | null }> = []
-      let current: HTMLElement | null = el
-      let guard = 0
-      while (current && guard < 20) {
-        chain.push({
-          tag: current.tagName.toLowerCase(),
-          testid: current.getAttribute('data-testid'),
-          className: current.getAttribute('class'),
-        })
-        current = current.offsetParent as HTMLElement | null
-        guard += 1
-      }
-      return chain
-    }
-
-    const describeElement = (label: string, el: Element | null) => {
-      if (!el) {
-        console.warn(`[layoutDiag] Missing element: ${label}`)
-        return null
-      }
-      const htmlEl = el as HTMLElement
-      const rect = htmlEl.getBoundingClientRect()
-      const cs = window.getComputedStyle(htmlEl)
-
-      const snapshot = {
-        label,
-        selectorHint: htmlEl.getAttribute('data-testid') ? `[data-testid="${htmlEl.getAttribute('data-testid')}"]` : htmlEl.className,
-        rect: {
-          left: rect.left,
-          top: rect.top,
-          right: rect.right,
-          bottom: rect.bottom,
-          width: rect.width,
-          height: rect.height,
-        },
-        computed: {
-          position: cs.position,
-          display: cs.display,
-          width: cs.width,
-          height: cs.height,
-          left: cs.left,
-          right: cs.right,
-          top: cs.top,
-          bottom: cs.bottom,
-          overflow: cs.overflow,
-          overflowX: cs.overflowX,
-          overflowY: cs.overflowY,
-          flex: cs.flex,
-          flexBasis: cs.flexBasis,
-          flexGrow: cs.flexGrow,
-          flexShrink: cs.flexShrink,
-          transform: cs.transform,
-          zIndex: cs.zIndex,
-          minWidth: cs.minWidth,
-          maxWidth: cs.maxWidth,
-        },
-        offsetParentChain: describeOffsetParentChain(htmlEl),
-      }
-
-      console.log('[layoutDiag]', snapshot)
-      return snapshot
-    }
-
-    const layoutDiag = () => {
-      try {
-        console.log('[layoutDiag] --- start ---', {
-          isDetailsOpen,
-          innerWidth: window.innerWidth,
-          innerHeight: window.innerHeight,
-        })
-
-        const leftCol = document.querySelector('[data-testid="workflow-left-col"]')
-        const panel = document.querySelector('[data-testid="workflow-details-panel"]')
-
-        const rf = document.querySelector('.react-flow')
-        const viewport = document.querySelector('.react-flow__viewport')
-        const nodesEl = document.querySelector('.react-flow__nodes')
-        const edgesEl = document.querySelector('.react-flow__edges')
-
-        const sLeft = describeElement('leftCol', leftCol)
-        const sPanel = describeElement('detailsPanel', panel)
-        const sRf = describeElement('reactFlow(.react-flow)', rf)
-        describeElement('reactFlowViewport(.react-flow__viewport)', viewport)
-        describeElement('reactFlowNodes(.react-flow__nodes)', nodesEl)
-        describeElement('reactFlowEdges(.react-flow__edges)', edgesEl)
-
-        // Case detection / warnings
-        if (sRf && sLeft) {
-          const rfEl = rf as HTMLElement
-          const leftEl = leftCol as HTMLElement | null
-          const rfCs = window.getComputedStyle(rfEl)
-
-          const rfOffsetParent = rfEl.offsetParent as HTMLElement | null
-          const rfOffsetParentIsLeft = !!(leftEl && (rfOffsetParent === leftEl || leftEl.contains(rfOffsetParent)))
-          const looksInset0 =
-            (rfCs.top === '0px' || rfCs.top === 'auto') &&
-            (rfCs.left === '0px' || rfCs.left === 'auto') &&
-            (rfCs.right === '0px' || rfCs.right === 'auto') &&
-            (rfCs.bottom === '0px' || rfCs.bottom === 'auto')
-
-          if (rfCs.position === 'absolute' && looksInset0 && !rfOffsetParentIsLeft) {
-            console.warn('[layoutDiag] Case 1: .react-flow looks absolute+inset0 but is not anchored to left column (will span under panel).', {
-              rfOffsetParent: rfOffsetParent?.getAttribute('data-testid') || rfOffsetParent?.className || rfOffsetParent?.tagName,
-            })
-          }
-
-          if (sPanel && (sPanel.computed.position === 'fixed' || sPanel.computed.position === 'absolute')) {
-            console.warn('[layoutDiag] Case 2: Details panel is positioned fixed/absolute (overlay by design).', {
-              position: sPanel.computed.position,
-            })
-          }
-
-          if (leftEl && sPanel) {
-            const rfRect = (rfEl as HTMLElement).getBoundingClientRect()
-            const leftRect = leftEl.getBoundingClientRect()
-            const panelRect = (panel as HTMLElement | null)?.getBoundingClientRect()
-            const overlapsPanel = !!(panelRect && rfRect.right > panelRect.left + 1)
-
-            if (overlapsPanel) {
-              console.warn('[layoutDiag] Overlap detected: .react-flow extends under the details panel.', {
-                rfRight: rfRect.right,
-                panelLeft: panelRect?.left,
-              })
-            }
-
-            if (rfRect.width > leftRect.width + 2) {
-              console.warn('[layoutDiag] Case 3/4: .react-flow width is larger than left column width (likely anchored outside or forced width/min-width).', {
-                rfWidth: rfRect.width,
-                leftWidth: leftRect.width,
-              })
-            }
-          }
-        }
-
-        console.log('[layoutDiag] --- end ---')
-      } catch (err) {
-        console.error('[layoutDiag] error', err)
-      }
-    }
-
-    window.__layoutDiag = layoutDiag
-    // Call once on mount (dev-only) and on open/close changes (dev-only).
-    layoutDiag()
-    return () => {
-      delete window.__layoutDiag
     }
   }, [isDetailsOpen, mounted])
   
@@ -2400,7 +2313,7 @@ export default function WorkflowDiagramClient({
               ? 'border-blue-200' 
               : 'border-gray-200'
           }`}>
-            <div className="h-full w-full">
+            <div data-testid="workflow-reactflow-wrapper" className="h-full w-full">
               {process.env.NODE_ENV !== 'production' && (
                 <div className="absolute top-2 left-2 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-700 border border-gray-200 shadow-sm">
                   Nodes {nodes.length} · Edges {edges.length}
