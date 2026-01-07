@@ -7,7 +7,6 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import WorkflowDiagramClientWrapper from '@/components/workflow/WorkflowDiagramClientWrapper'
-import TemplateStyleDefaultsEditor from '@/components/workflow/TemplateStyleDefaultsEditor'
 import {
   updateWorkflowNodePosition,
   createWorkflowNodeForTemplate,
@@ -296,18 +295,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
               </p>
             )}
           </div>
-
-          {/* Superuser: Template Style Defaults Editor */}
-          {isSuperuser && (
-            <div className="mb-6">
-              <TemplateStyleDefaultsEditor
-                surgeryId={surgeryId}
-                templateId={templateId}
-                styleDefaults={template.styleDefaults || []}
-                isSuperuser={isSuperuser}
-              />
-            </div>
-          )}
 
           <div className="w-full min-w-0">
             <WorkflowDiagramClientWrapper

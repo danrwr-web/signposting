@@ -110,10 +110,10 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-semibold text-gray-900 mb-2 tracking-tight">
-              Node Styling Defaults
+              Node styling defaults
             </h1>
             <p className="text-base text-gray-600 leading-relaxed">
-              Set default styling for workflow nodes by template. These defaults apply to all nodes of each type unless individually customised.
+              Sets default colours per node type for this template. Individual nodes with custom colours won't change.
             </p>
           </div>
 
@@ -123,6 +123,24 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
             templates={templates}
             selectedTemplateId={templateId}
           />
+
+          {/* Selected Template Info */}
+          {selectedTemplate && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Template:</p>
+                  <p className="text-lg font-semibold text-gray-900">{selectedTemplate.name}</p>
+                </div>
+                <Link
+                  href={`/s/${surgeryId}/workflow/templates/${selectedTemplate.id}/view`}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-3 py-1.5 transition-colors"
+                >
+                  View this template →
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* Template Style Defaults Editor */}
           {selectedTemplate ? (
