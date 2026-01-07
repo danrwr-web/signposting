@@ -99,10 +99,6 @@ export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<Wo
           ...(Object.keys(inlineStyles).length > 0 ? inlineStyles : {}),
           boxSizing: 'border-box',
         }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onNodeClick?.()
-        }}
       >
         {/* Content wrapper - vertically centered */}
         <div className="flex-1 flex flex-col justify-center px-4 py-3">
@@ -122,11 +118,13 @@ export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<Wo
             {/* Info indicator - only if has body */}
             {hasBody && (
               <button
+                data-rf-no-details
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
                   onInfoClick?.(id)
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors pointer-events-auto"
                 title="Click for reference details"
                 aria-label="View details"

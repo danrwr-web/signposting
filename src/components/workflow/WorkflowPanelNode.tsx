@@ -84,10 +84,6 @@ export default function WorkflowPanelNode({ data, selected }: WorkflowPanelNodeP
         <div 
           className="px-4 py-3 border-b border-gray-300 flex items-center justify-between flex-shrink-0"
           style={{ pointerEvents: 'auto' }}
-          onClick={(e) => {
-            e.stopPropagation()
-            onNodeClick?.()
-          }}
         >
           <div className="flex items-center gap-2 flex-wrap">
             {/* Panel title as primary header */}

@@ -79,10 +79,6 @@ export default function WorkflowInstructionNode({ id, data, selected }: NodeProp
           ...(Object.keys(inlineStyles).length > 0 ? inlineStyles : {}),
           boxSizing: 'border-box',
         }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onNodeClick?.()
-        }}
       >
         {/* Badge in top-left */}
         <div className="flex items-start justify-between px-4 pt-3 pb-2">
@@ -100,11 +96,13 @@ export default function WorkflowInstructionNode({ id, data, selected }: NodeProp
           {/* Info indicator - only if has body */}
           {hasBody && (
             <button
+              data-rf-no-details
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
                 onInfoClick?.(id)
               }}
+              onMouseDown={(e) => e.stopPropagation()}
               className="flex-shrink-0 ml-2 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors pointer-events-auto"
               title="Click for reference details"
               aria-label="View details"

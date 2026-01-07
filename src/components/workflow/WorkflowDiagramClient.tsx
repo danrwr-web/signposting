@@ -1785,13 +1785,23 @@ export default function WorkflowDiagramClient({
     }
   }, [onNodesChangeInternal, effectiveAdmin, updateNodeAction, template.nodes])
 
-  // Handle node click: always open details for that node.
-  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
-    setSelectedEdgeId(null)
-    setSelectedNodeId(node.id)
-    setDetailsNodeId(node.id)
-    setDetailsOpenPreservingCentre(true)
-  }, [setDetailsOpenPreservingCentre])
+  // Handle node click: open details unless user clicked an interactive sub-element.
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    const target = event.target as HTMLElement | null
+    if (!target) return
+
+    if (
+      target.closest('.react-flow__handle') ||
+      target.closest('.react-flow__resize-control') ||
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('[data-rf-no-details]')
+    ) {
+      return
+    }
+
+    openDetailsForNode(node.id)
+  }, [openDetailsForNode])
 
   // Handle edge click
   const onEdgeClick = useCallback((_event: React.MouseEvent, edge: Edge) => {

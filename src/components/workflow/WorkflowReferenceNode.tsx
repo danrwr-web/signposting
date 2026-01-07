@@ -79,10 +79,6 @@ export default function WorkflowReferenceNode({ data, selected }: WorkflowRefere
           borderRadius: style?.radius !== undefined ? `${style.radius}px` : '8px',
           boxSizing: 'border-box',
         }}
-        onClick={(e) => {
-          e.stopPropagation()
-          onNodeClick?.()
-        }}
       >
         {/* Header row */}
         <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: borderColor }}>
@@ -109,6 +105,7 @@ export default function WorkflowReferenceNode({ data, selected }: WorkflowRefere
               </div>
               {item.info && (
                 <div 
+                  data-rf-no-details
                   className="flex-shrink-0 cursor-help"
                   title={item.info}
                   style={{ color: textColor, opacity: 0.7 }}

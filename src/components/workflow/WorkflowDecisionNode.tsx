@@ -86,10 +86,6 @@ export default function WorkflowDecisionNode({ id, data, selected }: NodeProps<W
             ? 'ring-2 ring-blue-500 shadow-lg'
             : 'shadow-md'
         }`}
-        onClick={(e) => {
-          e.stopPropagation()
-          onNodeClick?.()
-        }}
       >
         {/* Diamond background - SVG that fills the container */}
         <svg
@@ -126,11 +122,13 @@ export default function WorkflowDecisionNode({ id, data, selected }: NodeProps<W
             {/* Info indicator - only if has body */}
             {hasBody && (
               <button
+                data-rf-no-details
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
                   onInfoClick?.(id)
                 }}
+                onMouseDown={(e) => e.stopPropagation()}
                 className="flex-shrink-0 text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded transition-colors pointer-events-auto"
                 title="Click for reference details"
                 aria-label="View details"
