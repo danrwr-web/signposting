@@ -795,6 +795,7 @@ export default function WorkflowDiagramClient({
   } | null>(null)
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied'>('idle')
   const [legendExpanded, setLegendExpanded] = useState(false)
+  const [showStyleDefaults, setShowStyleDefaults] = useState(false)
   
   // Persist editingMode in localStorage so it survives page refreshes
   const [editingMode, setEditingMode] = useState(() => {
@@ -2395,8 +2396,6 @@ export default function WorkflowDiagramClient({
       </div>
     )
   }
-
-  const [showStyleDefaults, setShowStyleDefaults] = useState(false)
 
   return (
       <div className="flex flex-col gap-4 h-full w-full">
