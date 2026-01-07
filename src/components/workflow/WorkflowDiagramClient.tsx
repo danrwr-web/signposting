@@ -80,7 +80,7 @@ function DebugFlowAccessor({
       }
       
       // B) FlowNodes mapped positions (what we pass to setNodes/ReactFlow)
-      const flowNodesPositions = flowNodes.map((n) => ({
+      const flowNodesPositions = flowNodes.map((n: Node) => ({
         id: n.id,
         type: n.type,
         x: n.position.x,
@@ -91,7 +91,7 @@ function DebugFlowAccessor({
       console.log('B) FlowNodes mapped positions (passed to ReactFlow):', flowNodesPositions)
       
       // Check for duplicate IDs in flowNodes
-      const flowNodeIds = flowNodes.map((n) => n.id)
+      const flowNodeIds = flowNodes.map((n: Node) => n.id)
       const flowNodeDuplicates = flowNodeIds.filter((id, idx) => flowNodeIds.indexOf(id) !== idx)
       if (flowNodeDuplicates.length > 0) {
         console.error('❌ Duplicate IDs in flowNodes:', [...new Set(flowNodeDuplicates)])
@@ -259,8 +259,8 @@ function DebugFlowAccessor({
               const flowY = (screenY - wrapperRect.top - viewport.y) / viewport.zoom
               
               handleCoords[handleId] = {
-                screen: { x: screenX.toFixed(2), y: screenY.toFixed(2) },
-                flow: { x: flowX.toFixed(2), y: flowY.toFixed(2) },
+                screen: { x: screenX, y: screenY },
+                flow: { x: flowX, y: flowY },
               }
             }
           })
@@ -334,9 +334,9 @@ function DebugFlowAccessor({
       
       // Edge endpoint expectation
       console.group('Edge Endpoint Analysis')
-      rfEdges.forEach((edge) => {
-        const sourceNode = rfNodes.find((n) => n.id === edge.source)
-        const targetNode = rfNodes.find((n) => n.id === edge.target)
+      rfEdges.forEach((edge: Edge) => {
+        const sourceNode = rfNodes.find((n: Node) => n.id === edge.source)
+        const targetNode = rfNodes.find((n: Node) => n.id === edge.target)
         
         if (sourceNode && targetNode) {
           const sourceElement = document.querySelector(`[data-id="${edge.source}"]`) as HTMLElement
@@ -476,6 +476,8 @@ interface WorkflowDiagramClientProps {
       radius?: number
       fontWeight?: 'normal' | 'medium' | 'bold'
       theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+      width?: number
+      height?: number
       reference?: {
         title?: string
         items?: Array<{ text: string; info?: string }>
@@ -549,12 +551,6 @@ export default function WorkflowDiagramClient({
   deleteNodeAction,
   updateNodeAction,
 }: WorkflowDiagramClientProps) {
-  declare global {
-    interface Window {
-      __layoutDiag?: () => void
-    }
-  }
-
   // Temporary global diagnostics (enabled in production preview too).
   // Safe to remove once overlap root cause is fixed.
   // DISABLED: Debug logging removed per user request
@@ -715,7 +711,7 @@ export default function WorkflowDiagramClient({
   const getSpawnPosition = useCallback((staggerOffset = { x: 20, y: 20 }): { x: number; y: number } => {
     // If a node is selected, spawn near it
     if (selectedNodeId) {
-      const selectedNode = nodes.find((n) => n.id === selectedNodeId)
+      const selectedNode = nodes.find((n: Node) => n.id === selectedNodeId)
       if (selectedNode) {
         return {
           x: selectedNode.position.x + 80,
@@ -974,12 +970,12 @@ export default function WorkflowDiagramClient({
   // Find selected edge data
   const selectedEdge = useMemo(() => {
     if (!selectedEdgeId) return null
-    const edge = edges.find((e) => e.id === selectedEdgeId)
+    const edge = edges.find((e: Edge) => e.id === selectedEdgeId)
     if (!edge) return null
     
     // Find the answer option that corresponds to this edge
     for (const node of template.nodes) {
-      const option = node.answerOptions.find((opt) => opt.id === edge.id)
+      const option = node.answerOptions.find((opt: { id: string }) => opt.id === edge.id)
       if (option) {
         return { edge, option, node }
       }
@@ -1121,7 +1117,7 @@ export default function WorkflowDiagramClient({
           ...(node.style || {}),
           width,
           height,
-        }
+        } as typeof node.style
         // Set style on node object for React Flow explicit sizing
         nodeDimensions.style = { width, height }
       }
@@ -1364,7 +1360,7 @@ export default function WorkflowDiagramClient({
 
   const initialEdges = useMemo<Edge[]>(() => {
     const edgesFromTemplate: Edge[] = []
-    const nodeIds = new Set(template.nodes.map((n) => n.id))
+    const nodeIds = new Set(template.nodes.map((n: { id: string }) => n.id))
 
     template.nodes.forEach((node) => {
       node.answerOptions.forEach((option) => {
@@ -1556,7 +1552,7 @@ export default function WorkflowDiagramClient({
     previousFlowNodesRef.current = flowNodes
     
     // After initial load, merge incoming nodes with current nodes (preserves PANEL dimensions)
-    setNodes((currentNodes) => {
+    setNodes((currentNodes: Node[]) => {
       const merged = mergeFlowNodes(currentNodes, flowNodes)
       nodesRef.current = merged
       return merged
@@ -1579,8 +1575,8 @@ export default function WorkflowDiagramClient({
 
   // Update edge selection state when selectedEdgeId changes (without resetting all edges)
   useEffect(() => {
-    setEdges((currentEdges) =>
-      currentEdges.map((edge) => ({
+    setEdges((currentEdges: Edge[]) =>
+      currentEdges.map((edge: Edge) => ({
         ...edge,
         selected: edge.id === selectedEdgeId,
         style: {
@@ -1630,15 +1626,15 @@ export default function WorkflowDiagramClient({
     // Apply axis constraint if locked
     if (lockedAxis === 'x') {
       // Lock to X - fix Y at start position
-      setNodes((nds) =>
-        nds.map((n) =>
+      setNodes((nds: Node[]) =>
+        nds.map((n: Node) =>
           n.id === node.id ? { ...n, position: { x: node.position.x, y: startPos.y } } : n
         )
       )
     } else if (lockedAxis === 'y') {
       // Lock to Y - fix X at start position
-      setNodes((nds) =>
-        nds.map((n) =>
+      setNodes((nds: Node[]) =>
+        nds.map((n: Node) =>
           n.id === node.id ? { ...n, position: { x: startPos.x, y: node.position.y } } : n
         )
       )
@@ -1948,7 +1944,7 @@ export default function WorkflowDiagramClient({
           animated: false,
         }
         
-        setEdges((eds) => {
+        setEdges((eds: Edge[]) => {
           return [...eds, newEdge]
         })
       } else {
@@ -2066,7 +2062,7 @@ export default function WorkflowDiagramClient({
             style: result.node.style,
           },
         }
-        setNodes((nds) => [...nds, newNode])
+        setNodes((nds: Node[]) => [...nds, newNode])
         setSelectedNodeId(result.node.id)
         
         // Refresh server data to get full node details, but preserve client state
@@ -2130,7 +2126,7 @@ export default function WorkflowDiagramClient({
             title: editingTitle,
             items,
           },
-        }
+        } as typeof editingStyle
         // REFERENCE nodes don't use body field
         finalBody = null
       }
@@ -2147,8 +2143,8 @@ export default function WorkflowDiagramClient({
       if (result.success) {
         // Update local state immediately for REFERENCE nodes to show changes without waiting for refresh
         if (detailsNode.nodeType === 'REFERENCE') {
-          setNodes((nds) =>
-            nds.map((n) =>
+          setNodes((nds: Node[]) =>
+            nds.map((n: Node) =>
               n.id === detailsNode.id
                 ? {
                     ...n,
@@ -2180,7 +2176,7 @@ export default function WorkflowDiagramClient({
 
     try {
       // 1) Calculate position for new node (near selected node with small offset)
-      const baseNode = nodes.find((n) => n.id === detailsNode.id)
+      const baseNode = nodes.find((n: Node) => n.id === detailsNode.id)
       const baseX = baseNode?.position.x || 0
       const baseY = baseNode?.position.y || 0
       // Spawn to the right of selected node with small vertical offset
@@ -2320,7 +2316,7 @@ export default function WorkflowDiagramClient({
         animated: false,
       }
 
-      setEdges((eds) => [...eds, newEdge])
+      setEdges((eds: Edge[]) => [...eds, newEdge])
 
       // 5) Select the new node for immediate editing
       setSelectedNodeId(result.node.id)
@@ -2340,8 +2336,8 @@ export default function WorkflowDiagramClient({
       const result = await deleteNodeAction(detailsNode.id)
       if (result.success) {
         // Remove node and its edges from state
-        setNodes((nds) => nds.filter((n) => n.id !== detailsNode.id))
-        setEdges((eds) => eds.filter((e) => e.source !== detailsNode.id && e.target !== detailsNode.id))
+        setNodes((nds: Node[]) => nds.filter((n: Node) => n.id !== detailsNode.id))
+        setEdges((eds: Edge[]) => eds.filter((e: Edge) => e.source !== detailsNode.id && e.target !== detailsNode.id))
         setSelectedNodeId(null)
         setSelectedEdgeId(null)
         setDetailsNodeId(null)
@@ -2364,8 +2360,8 @@ export default function WorkflowDiagramClient({
       const result = await updateAnswerOptionLabelAction(selectedEdge.option.id, trimmedLabel)
       if (result.success) {
         // Update edge label in state (hide if empty)
-        setEdges((eds) =>
-          eds.map((e) =>
+        setEdges((eds: Edge[]) =>
+          eds.map((e: Edge) =>
             e.id === selectedEdge.edge.id
               ? {
                   ...e,
@@ -2396,7 +2392,7 @@ export default function WorkflowDiagramClient({
     try {
       const result = await deleteAnswerOptionAction(selectedEdge.option.id)
       if (result.success) {
-        setEdges((eds) => eds.filter((e) => e.id !== selectedEdge.edge.id))
+        setEdges((eds: Edge[]) => eds.filter((e: Edge) => e.id !== selectedEdge.edge.id))
         setSelectedEdgeId(null)
       } else {
         alert(`Failed to delete: ${result.error || 'Unknown error'}`)
@@ -2497,7 +2493,7 @@ export default function WorkflowDiagramClient({
                 </div>
               )}
               <ReactFlow
-                onInit={(instance) => {
+                onInit={(instance: ReactFlowInstance) => {
                   reactFlowInstanceRef.current = instance
                 }}
                 nodes={nodes}

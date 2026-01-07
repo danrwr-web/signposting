@@ -98,10 +98,9 @@ export function hasExplicitColorOverrides(styleJson: NodeStyle | null | undefine
     return false
   }
   
-  // Check for explicit color properties (support both backgroundColor and bgColor)
+  // Check for explicit color properties (use bgColor only - backgroundColor is legacy)
   // Must be non-empty strings to count as explicit
-  const hasBg = (styleJson.backgroundColor !== undefined && styleJson.backgroundColor !== '') ||
-                (styleJson.bgColor !== undefined && styleJson.bgColor !== '')
+  const hasBg = styleJson.bgColor !== undefined && styleJson.bgColor !== ''
   const hasText = styleJson.textColor !== undefined && styleJson.textColor !== ''
   const hasBorder = styleJson.borderColor !== undefined && styleJson.borderColor !== ''
   
@@ -129,7 +128,7 @@ function getEffectivePalette(
   // Rule 1: Explicit overrides take precedence
   if (hasExplicitColorOverrides(nodeStyle)) {
     return {
-      bgColor: nodeStyle?.bgColor || nodeStyle?.backgroundColor,
+      bgColor: nodeStyle?.bgColor,
       textColor: nodeStyle?.textColor,
       borderColor: nodeStyle?.borderColor,
     }

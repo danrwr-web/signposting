@@ -104,7 +104,7 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
         
         {/* Items list */}
         <div className="px-4 py-3 space-y-2">
-          {referenceItems.map((item, index) => (
+          {referenceItems.map((item: { text: string; info?: string }, index: number) => (
             <div 
               key={index} 
               className="flex items-start gap-2 text-sm text-inherit"
