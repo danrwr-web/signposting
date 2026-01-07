@@ -52,7 +52,7 @@ function InfoIcon() {
 }
 
 export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<WorkflowReferenceNodeData>) {
-  const { nodeType, title, style, templateDefault, isSelected, isAdmin = false, onInfoClick } = data
+  const { nodeType, title, style, templateDefault, surgeryDefault, isSelected, isAdmin = false, onInfoClick } = data
   const showInfo = shouldShowInfoBadge({ data, style })
   
   // Extract reference data from style.reference (stored in DB)

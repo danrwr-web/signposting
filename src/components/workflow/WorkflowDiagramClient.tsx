@@ -557,7 +557,8 @@ export default function WorkflowDiagramClient({
 
   // Temporary global diagnostics (enabled in production preview too).
   // Safe to remove once overlap root cause is fixed.
-  if (typeof window !== 'undefined') {
+  // DISABLED: Debug logging removed per user request
+  if (false && typeof window !== 'undefined') {
     window.__layoutDiag = () => {
       const leftCol = document.querySelector('[data-testid="workflow-left-col"]') as HTMLElement | null
       const panel = document.querySelector('[data-testid="workflow-details-panel"]') as HTMLElement | null
@@ -873,9 +874,10 @@ export default function WorkflowDiagramClient({
   // Run layout diagnostics after open/close toggles (captures both states).
   useEffect(() => {
     if (typeof window === 'undefined') return
-    if (typeof window.__layoutDiag !== 'function') return
-    window.setTimeout(() => window.__layoutDiag?.(), 0)
-    window.setTimeout(() => window.__layoutDiag?.(), 250)
+    // DISABLED: Debug logging removed per user request
+    // if (typeof window.__layoutDiag !== 'function') return
+    // window.setTimeout(() => window.__layoutDiag?.(), 0)
+    // window.setTimeout(() => window.__layoutDiag?.(), 250)
   }, [isDetailsOpen])
 
   // React Flow needs a resize signal after layout width changes.
