@@ -98,6 +98,16 @@ describe('POST /api/symptoms/create', () => {
         }),
       })
     )
+    expect(prisma.surgerySymptomStatus.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          surgeryId_customSymptomId: {
+            surgeryId: 'cmk5p08xt0000ju04k9s0udri',
+            customSymptomId: 'custom-1',
+          },
+        },
+      })
+    )
   })
 
   it('creates a SURGERY symptom for a surgery admin (non-superuser) when surgeryId matches membership', async () => {
