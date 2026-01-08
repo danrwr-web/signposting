@@ -257,7 +257,10 @@ export default function LandingPageClient() {
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 sm:p-10">
               <p className="text-sm font-semibold text-blue-700">Early adopter offer</p>
               <p className="mt-3 text-4xl sm:text-5xl font-bold text-gray-900">£0.07 per patient per year</p>
-              <p className="mt-3 text-base text-gray-700">Available to the next 10 practices to onboard.</p>
+              <p className="mt-3 text-base text-gray-700">Available to the first 10 practices to onboard.</p>
+              <p className="mt-2 text-base text-gray-700">
+                Early adopters will also have the opportunity to share feedback and help shape future development.
+              </p>
 
               <div className="mt-8 pt-6 border-t border-slate-200">
                 <h3 className="text-base font-semibold text-gray-900">What’s included</h3>
