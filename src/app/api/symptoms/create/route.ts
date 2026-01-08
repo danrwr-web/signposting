@@ -4,6 +4,8 @@ import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 const CreateSchema = z.object({
   target: z.enum(['BASE', 'SURGERY']),
@@ -85,6 +87,8 @@ export async function POST(req: NextRequest) {
           instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
         }
       })
+      // Base symptoms can affect effective symptom lists for all surgeries.
+      revalidateTag('symptoms')
       // TODO: Improve duplicate check with fuzzy matching (Levenshtein/trigram) later
       // TODO: Add audit logging for create/promote actions (SymptomHistory)
       return NextResponse.json({ baseSymptomId: created.id }, { status: 201 })
@@ -158,6 +162,10 @@ export async function POST(req: NextRequest) {
       // Update requiresClinicalReview flag (will be true since symptom is disabled but pending)
       await updateRequiresClinicalReview(sid)
     }
+
+    // Creating a surgery custom symptom can change the effective symptom list for this surgery immediately.
+    revalidateTag(getCachedSymptomsTag(sid, false))
+    revalidateTag('symptoms')
 
     // TODO: Improve duplicate check with fuzzy matching (Levenshtein/trigram) later
     // TODO: Add audit logging for create/promote actions (SymptomHistory)

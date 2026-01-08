@@ -3,6 +3,8 @@ import { POST } from '../route'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 jest.mock('@/lib/rbac', () => ({
   getSessionUser: jest.fn(),
@@ -25,8 +27,18 @@ jest.mock('@/server/updateRequiresClinicalReview', () => ({
   updateRequiresClinicalReview: jest.fn(),
 }))
 
+jest.mock('next/cache', () => ({
+  revalidateTag: jest.fn(),
+}))
+
+jest.mock('@/server/effectiveSymptoms', () => ({
+  getCachedSymptomsTag: jest.fn((_surgeryId: string) => 'symptoms:surgery:enabled'),
+}))
+
 const mockedGetSessionUser = getSessionUser as jest.MockedFunction<typeof getSessionUser>
 const mockedGenerateUniqueSymptomSlug = generateUniqueSymptomSlug as jest.MockedFunction<typeof generateUniqueSymptomSlug>
+const mockedGetCachedSymptomsTag = getCachedSymptomsTag as jest.MockedFunction<typeof getCachedSymptomsTag>
+const mockedRevalidateTag = revalidateTag as jest.MockedFunction<typeof revalidateTag>
 
 const createRequest = (body: any) =>
   ({
@@ -62,6 +74,7 @@ describe('POST /api/symptoms/create', () => {
     const res = await POST(req)
     expect(res.status).toBe(201)
     expect(prisma.baseSymptom.create).toHaveBeenCalled()
+    expect(mockedRevalidateTag).toHaveBeenCalledWith('symptoms')
   })
 
   it('creates a SURGERY symptom for superuser with a CUID surgeryId', async () => {
@@ -108,6 +121,9 @@ describe('POST /api/symptoms/create', () => {
         },
       })
     )
+    expect(mockedGetCachedSymptomsTag).toHaveBeenCalledWith('cmk5p08xt0000ju04k9s0udri', false)
+    expect(mockedRevalidateTag).toHaveBeenCalledWith('symptoms:surgery:enabled')
+    expect(mockedRevalidateTag).toHaveBeenCalledWith('symptoms')
   })
 
   it('creates a SURGERY symptom for a surgery admin (non-superuser) when surgeryId matches membership', async () => {

@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 export const runtime = 'nodejs'
 
@@ -379,6 +381,8 @@ export async function PATCH(request: NextRequest) {
           })
         }
 
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -440,6 +444,10 @@ export async function PATCH(request: NextRequest) {
           await updateRequiresClinicalReview(resolvedSurgeryId)
         }
 
+        if (resolvedSurgeryId) {
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        }
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -503,6 +511,10 @@ export async function PATCH(request: NextRequest) {
           await updateRequiresClinicalReview(resolvedSurgeryId)
         }
 
+        if (resolvedSurgeryId) {
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        }
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -641,6 +653,8 @@ export async function PATCH(request: NextRequest) {
           })
         }
 
+        revalidateTag(getCachedSymptomsTag(targetSurgeryId, false))
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -700,6 +714,8 @@ export async function PATCH(request: NextRequest) {
           }
         })
 
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
