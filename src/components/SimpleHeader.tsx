@@ -1,6 +1,7 @@
 "use client"
 
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
@@ -22,10 +23,19 @@ export default function SimpleHeader({
   currentSurgeryId,
   directoryLinkOverride
 }: SimpleHeaderProps) {
+  const params = useParams()
   const { data: session } = useSession()
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
   const isAdmin = session?.user && (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
   const canSeeDocsLink = Boolean(isSuperuser || isAdmin)
+
+  // Keep logo navigation inside the current surgery context when possible.
+  // Going via `/` can lose `/s/[id]` context and (depending on host/middleware) intermittently bounce users to `/login`.
+  const routeSurgeryIdRaw = (params as Record<string, string | string[] | undefined>)?.id
+  const routeSurgeryId = Array.isArray(routeSurgeryIdRaw) ? routeSurgeryIdRaw[0] : routeSurgeryIdRaw
+  const surgeryIdForHome = routeSurgeryId ?? currentSurgeryId
+  const logoHref = surgeryIdForHome ? `/s/${surgeryIdForHome}` : '/s'
+
   const appointmentLinkHref =
     directoryLinkOverride?.href ??
     (currentSurgeryId ? `/s/${currentSurgeryId}/appointments` : '/')
@@ -37,7 +47,7 @@ export default function SimpleHeader({
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center">
+            <Link href={logoHref} className="flex items-center">
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"

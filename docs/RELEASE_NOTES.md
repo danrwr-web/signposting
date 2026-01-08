@@ -15,6 +15,7 @@ _Changes in development or planned for the next release._
 
 ### 🧹 Updated
 - AI questions panel now titled "Suggested wording for questions to ask" with supporting text to encourage safe, consistent phrasing.
+- Clicking the Signposting Toolkit logo now keeps you within your current surgery (avoids losing context and unexpected login redirects).
 - Marketing and app domains separated: www.signpostingtool.co.uk shows the public site while app.signpostingtool.co.uk routes straight into the toolkit entry screen.
 - Marketing site hero updated with new headline: "The GP Signposting Toolkit for safer, faster care navigation".
 - "Why practices choose" section condensed and moved higher on the landing page.

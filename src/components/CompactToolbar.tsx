@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import SurgeryFiltersHeader from './SurgeryFiltersHeader'
@@ -44,6 +45,7 @@ export default function CompactToolbar({
   onShowSurgerySelector
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const params = useParams()
   const { data: session } = useSession()
   const { surgery } = useSurgery()
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
@@ -87,6 +89,13 @@ export default function CompactToolbar({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onSearchChange, onLetterChange, onAgeChange])
 
+  // Keep logo navigation inside the current surgery context when possible.
+  // Going via `/` can lose `/s/[id]` context and (depending on host/middleware) intermittently bounce users to `/login`.
+  const routeSurgeryIdRaw = (params as Record<string, string | string[] | undefined>)?.id
+  const routeSurgeryId = Array.isArray(routeSurgeryIdRaw) ? routeSurgeryIdRaw[0] : routeSurgeryIdRaw
+  const surgeryIdForHome = routeSurgeryId ?? currentSurgeryId ?? surgery?.id
+  const logoHref = surgeryIdForHome ? `/s/${surgeryIdForHome}` : '/s'
+
   return (
     <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
       {/* Row 1: Logo, Surgery Selector, Admin Link */}
@@ -94,7 +103,7 @@ export default function CompactToolbar({
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center">
+            <Link href={logoHref} className="flex items-center">
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"
