@@ -3,25 +3,44 @@
  * Sanitizes HTML content to prevent XSS attacks while preserving formatting
  */
 
-import DOMPurify from 'isomorphic-dompurify'
+import sanitizeHtmlLib from 'sanitize-html'
 
-// Configure DOMPurify to allow safe formatting tags and styles
-const sanitizeConfig = {
-  ALLOWED_TAGS: [
+const allowedTags = [
     'p', 'br', 'strong', 'em', 'u', 'mark', 'span', 'div',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'ul', 'ol', 'li',
     'blockquote', 'code', 'pre',
     'a'
-  ],
-  ALLOWED_ATTR: [
-    'style', 'href', 'target', 'rel', 'class'
-  ],
-  ALLOWED_SCHEMES: ['http', 'https', 'mailto'],
-  ALLOW_DATA_ATTR: false,
-  FORBID_TAGS: ['script', 'object', 'embed', 'iframe', 'form', 'input'],
-  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover'],
-  ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+]
+
+// Server-safe sanitiser (no DOM/JSDOM). This avoids production crashes from DOMPurify/jsdom bundling.
+const sanitizeConfig: sanitizeHtmlLib.IOptions = {
+  allowedTags,
+  allowedAttributes: {
+    a: ['href', 'target', 'rel', 'class', 'style'],
+    span: ['class', 'style'],
+    div: ['class', 'style'],
+    p: ['class', 'style'],
+    code: ['class'],
+    pre: ['class'],
+    // Default for all tags:
+    '*': ['class', 'style'],
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  allowProtocolRelative: false,
+  // Only allow a small set of CSS properties we actually use.
+  allowedStyles: {
+    '*': {
+      color: [/^#[0-9a-fA-F]{3,8}$/, /^rgba?\([0-9,\s.]+\)$/, /^[a-zA-Z]+$/],
+      'background-color': [/^#[0-9a-fA-F]{3,8}$/, /^rgba?\([0-9,\s.]+\)$/, /^[a-zA-Z]+$/],
+      'font-weight': [/^(normal|bold|[1-9]00)$/],
+      'text-decoration': [/^(none|underline|line-through)$/],
+      'text-align': [/^(left|right|center|justify)$/],
+    },
+  },
+  // Always strip dangerous tags/attrs.
+  disallowedTagsMode: 'discard',
+  allowedIframeHostnames: [],
 }
 
 /**
@@ -34,7 +53,7 @@ export function sanitizeHtml(html: string): string {
     return ''
   }
   
-  return DOMPurify.sanitize(html, sanitizeConfig)
+  return sanitizeHtmlLib(html, sanitizeConfig)
 }
 
 /**
@@ -47,13 +66,8 @@ export function sanitizeHtmlWithLinks(html: string): string {
     return ''
   }
   
-  const configWithLinks = {
-    ...sanitizeConfig,
-    ADD_ATTR: ['target', 'rel'],
-    ADD_TAGS: ['a'],
-  }
-  
-  return DOMPurify.sanitize(html, configWithLinks)
+  // Links are already allowed in our base config; keep this function for clarity/compatibility.
+  return sanitizeHtmlLib(html, sanitizeConfig)
 }
 
 /**
