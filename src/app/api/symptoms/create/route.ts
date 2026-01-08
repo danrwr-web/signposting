@@ -7,7 +7,8 @@ import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
 
 const CreateSchema = z.object({
   target: z.enum(['BASE', 'SURGERY']),
-  surgeryId: z.string().uuid().optional(),
+  // Surgery IDs are Prisma CUIDs (not UUIDs).
+  surgeryId: z.string().cuid().optional(),
   name: z.string().min(1).max(120),
   ageGroup: z.enum(['U5', 'O5', 'Adult']).default('Adult'),
   briefInstruction: z.string().max(500).optional().nullable(),

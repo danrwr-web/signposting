@@ -3,7 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 
-const Schema = z.object({ customSymptomId: z.string().uuid() })
+// Symptom IDs are Prisma CUIDs (not UUIDs).
+const Schema = z.object({ customSymptomId: z.string().cuid() })
 
 export async function POST(req: NextRequest) {
   try {
