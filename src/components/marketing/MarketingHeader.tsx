@@ -13,11 +13,10 @@ export default function MarketingHeader({ appEntryUrl }: MarketingHeaderProps) {
         <div className="flex flex-col gap-4 py-6 sm:flex-row sm:items-center sm:justify-between">
           <Link href="/" className="flex items-center space-x-4">
             <img
-              src="/images/logo.png"
-              alt="Signposting Toolkit Logo"
-              className="h-14 w-auto"
+              src="/images/signposting_logo_head.png"
+              alt="Signposting Toolkit logo"
+              className="h-12 w-auto sm:h-14"
             />
-            <p className="text-2xl font-bold text-gray-900">Signposting Toolkit</p>
           </Link>
 
           <nav aria-label="Primary" className="flex items-center gap-x-6 gap-y-2 flex-wrap">

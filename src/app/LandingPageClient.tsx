@@ -734,6 +734,13 @@ export default function LandingPageClient() {
                 Designed so each surgery keeps full local clinical sign-off
               </p>
             </div>
+            <div className="mt-6 flex justify-center">
+              <img
+                src="/images/logo.png"
+                alt="Ide Lane Surgery logo"
+                className="h-10 w-auto opacity-90"
+              />
+            </div>
           </div>
         </div>
       </section>
