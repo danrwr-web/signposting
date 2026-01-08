@@ -71,7 +71,17 @@ export default function Accordion({ items, allowMultipleOpen = true }: Accordion
               hidden={!isOpen}
               className="px-5 pb-5"
             >
-              <p className="text-gray-700 leading-relaxed max-w-prose">{item.answer}</p>
+              <div className="space-y-3">
+                {item.answer
+                  .split(/\n\s*\n/g)
+                  .map((p) => p.trim())
+                  .filter(Boolean)
+                  .map((paragraph, idx) => (
+                    <p key={`${item.id}-${idx}`} className="text-gray-700 leading-relaxed max-w-prose">
+                      {paragraph}
+                    </p>
+                  ))}
+              </div>
             </div>
           </div>
         )

@@ -26,7 +26,7 @@ const sections: Array<{
         id: 'setup-time',
         question: 'How long does it take to get set up?',
         answer:
-          "Most practices can be up and running in a short onboarding session. We’ll help you import or configure your appointment types, review key settings, and ensure your team is comfortable using the toolkit.",
+          'Most practices can be technically set up very quickly. For clinical governance, we estimate that reviewing the full symptom library (currently 217 symptoms) and harmonising it with how your practice works will take two clinicians approximately one session each.\n\nWe recommend doing this side by side, so queries and local decisions can be discussed and agreed as you go. This approach tends to be faster, more consistent, and reduces the need for later rework.\n\nOnce this review is complete, the toolkit is ready for day-to-day use by the wider team.',
       },
       {
         id: 'it-support',
