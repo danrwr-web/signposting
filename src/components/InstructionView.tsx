@@ -56,7 +56,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [aiModel, setAiModel] = useState<string | null>(null)
-  const [hasChangeToUndo, setHasChangeToUndo] = useState(false)
   // AI explanation state (kept for API but UI hidden)
   const [showExplanationModal, setShowExplanationModal] = useState(false)
   const [loadingExplanation, setLoadingExplanation] = useState(false)
@@ -95,6 +94,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   
   // Can edit if superuser or practice admin
   const canEditInstructions = isSuperuser || isPracticeAdmin
+  const canApplyAiChanges = canEditInstructions
 
   // Parse variant data and determine active variant
   const variants = symptom.variants as any
@@ -163,42 +163,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     loadFeatures()
   }, [])
 
-  // Check if there's a change to undo
-  useEffect(() => {
-    const checkUndoAvailability = async () => {
-      if (!canUseAiInstructions) {
-        setHasChangeToUndo(false)
-        return
-      }
-
-      try {
-        // For overrides, map to the base symptom for superuser editing
-        const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
-        const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
-        
-        if (!effectiveSymptomId) {
-          setHasChangeToUndo(false)
-          return
-        }
-
-        const response = await fetch(
-          `/api/revertInstruction?symptomId=${encodeURIComponent(effectiveSymptomId)}&source=${encodeURIComponent(effectiveSource)}`
-        )
-        
-        if (response.ok) {
-          const data = await response.json()
-          setHasChangeToUndo(data.hasHistory === true)
-        } else {
-          setHasChangeToUndo(false)
-        }
-      } catch (error) {
-        console.error('Error checking undo availability:', error)
-        setHasChangeToUndo(false)
-      }
-    }
-    
-    checkUndoAvailability()
-  }, [canUseAiInstructions, symptom.id, symptom.source, symptom.baseSymptomId])
+  // Note: do not call `/api/revertInstruction` on page load/prefetch.
+  // Any revert check/update must only happen on explicit user action, and only for permitted users.
 
   const getSourceColor = (source: string) => {
     switch (source) {
@@ -317,6 +283,10 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
   const handleAcceptBriefOnly = async () => {
     if (!aiBrief) return
+    if (!canApplyAiChanges) {
+      toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
+      return
+    }
 
     try {
       // For overrides, map to the base symptom for superuser editing
@@ -335,6 +305,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         body: JSON.stringify({
           symptomId: effectiveSymptomId,
           source: effectiveSource,
+          surgeryId: surgeryId || undefined,
           modelUsed: aiModel,
           newBriefInstruction: aiBrief,
         }),
@@ -342,7 +313,10 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('Update instruction API error:', response.status, errorData)
+        if (response.status === 403) {
+          toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
+          return
+        }
         throw new Error(`Failed to update instructions: ${errorData.error || response.statusText}`)
       }
 
@@ -361,13 +335,17 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       // Refresh the page to show updated content
       router.refresh()
     } catch (error) {
-      console.error('Error accepting AI brief suggestion:', error)
+      // Avoid noisy stack traces for expected permission failures
       toast.error('Failed to update brief instruction')
     }
   }
 
   const handleAcceptFullOnly = async () => {
     if (!aiSuggestion) return
+    if (!canApplyAiChanges) {
+      toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
+      return
+    }
 
     try {
       // For overrides, map to the base symptom for superuser editing
@@ -395,6 +373,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         body: JSON.stringify({
           symptomId: effectiveSymptomId,
           source: effectiveSource,
+          surgeryId: surgeryId || undefined,
           modelUsed: aiModel,
           newInstructionsHtml: aiSuggestion,
           newInstructionsJson: instructionsJson,
@@ -403,7 +382,10 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('Update instruction API error:', response.status, errorData)
+        if (response.status === 403) {
+          toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
+          return
+        }
         throw new Error(`Failed to update instructions: ${errorData.error || response.statusText}`)
       }
 
@@ -422,13 +404,17 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       // Refresh the page to show updated content
       router.refresh()
     } catch (error) {
-      console.error('Error accepting AI full suggestion:', error)
+      // Avoid noisy stack traces for expected permission failures
       toast.error('Failed to update full instruction')
     }
   }
 
   const handleAcceptBoth = async () => {
     if (!aiSuggestion || !aiBrief) return
+    if (!canApplyAiChanges) {
+      toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
+      return
+    }
 
     try {
       // For overrides, map to the base symptom for superuser editing
@@ -456,6 +442,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         body: JSON.stringify({
           symptomId: effectiveSymptomId,
           source: effectiveSource,
+          surgeryId: surgeryId || undefined,
           modelUsed: aiModel,
           newBriefInstruction: aiBrief,
           newInstructionsHtml: aiSuggestion,
@@ -465,7 +452,10 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error('Update instruction API error:', response.status, errorData)
+        if (response.status === 403) {
+          toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
+          return
+        }
         throw new Error(`Failed to update instructions: ${errorData.error || response.statusText}`)
       }
 
@@ -485,7 +475,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       // Refresh the page to show updated content
       router.refresh()
     } catch (error) {
-      console.error('Error accepting AI suggestion:', error)
+      // Avoid noisy stack traces for expected permission failures
       toast.error('Failed to update instructions')
     }
   }
@@ -681,47 +671,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     } catch (error) {
       console.error('Failed to copy explanation:', error)
       toast.error('Failed to copy explanation')
-    }
-  }
-
-  const handleRevertLastChange = async () => {
-    try {
-      // For overrides, map to the base symptom for superuser editing
-      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
-      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
-      
-      if (!effectiveSymptomId) {
-        throw new Error('Invalid symptom configuration')
-      }
-
-      const response = await fetch('/api/revertInstruction', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symptomId: effectiveSymptomId,
-          source: effectiveSource,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Revert instruction API error:', response.status, errorData)
-        throw new Error(errorData.error || 'Failed to revert instruction')
-      }
-
-      // Show success toast
-      toast.success('Reverted to previous version')
-
-      // Update undo availability state
-      setHasChangeToUndo(false)
-
-      // Refresh the page to show restored content
-      router.refresh()
-    } catch (error) {
-      console.error('Error reverting instruction:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to revert instruction')
     }
   }
 
@@ -1769,23 +1718,28 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               >
                 Cancel
               </button>
+              {!canApplyAiChanges && (
+                <p className="self-center text-sm text-nhs-grey">
+                  Admin only — ask a surgery admin to apply changes.
+                </p>
+              )}
               <button
                 onClick={handleAcceptBriefOnly}
-                disabled={!aiBrief}
+                disabled={!aiBrief || !canApplyAiChanges}
                 className="px-6 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Replace Brief only
               </button>
               <button
                 onClick={handleAcceptFullOnly}
-                disabled={!aiSuggestion}
+                disabled={!aiSuggestion || !canApplyAiChanges}
                 className="px-6 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Replace Full only
               </button>
               <button
                 onClick={handleAcceptBoth}
-                disabled={!aiSuggestion || !aiBrief}
+                disabled={!aiSuggestion || !aiBrief || !canApplyAiChanges}
                 className="px-6 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Replace Both
