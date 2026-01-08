@@ -9,9 +9,6 @@ datasource db {
   // CRITICAL: Always keep provider as "postgresql" - changing to "sqlite" breaks Vercel deployments
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  // For Neon/pooled Postgres: use a direct (non-pooler) connection for migrations.
-  // Set DIRECT_URL to the non-pooler endpoint in Vercel env vars.
-  directUrl = env("DIRECT_URL")
 }
 
 // RBAC Models (using String fields instead of enums for SQLite compatibility)
