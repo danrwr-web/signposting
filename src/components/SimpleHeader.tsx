@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
@@ -23,6 +23,7 @@ export default function SimpleHeader({
   currentSurgeryId,
   directoryLinkOverride
 }: SimpleHeaderProps) {
+  const pathname = usePathname()
   const params = useParams()
   const searchParams = useSearchParams()
   const { data: session } = useSession()
@@ -30,13 +31,16 @@ export default function SimpleHeader({
   const isAdmin = session?.user && (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
   const canSeeDocsLink = Boolean(isSuperuser || isAdmin)
 
-  // Keep logo navigation inside the current surgery context when possible.
-  // Going via `/` can lose `/s/[id]` context and (depending on host/middleware) intermittently bounce users to `/login`.
-  const routeSurgeryIdRaw = (params as Record<string, string | string[] | undefined>)?.id
-  const routeSurgeryId = Array.isArray(routeSurgeryIdRaw) ? routeSurgeryIdRaw[0] : routeSurgeryIdRaw
-  const symptomQuerySurgeryId = searchParams.get('surgery') || undefined
-  const surgeryIdForHome = routeSurgeryId ?? symptomQuerySurgeryId ?? currentSurgeryId
-  const logoHref = surgeryIdForHome ? `/s/${surgeryIdForHome}` : '/s'
+  // `params.id` is ambiguous: it is the surgery id on `/s/[id]/...`, but it is the symptom id on `/symptom/[id]`.
+  // Use the pathname to decide which value is safe to treat as a surgery id.
+  const surgeryId =
+    pathname.startsWith('/s/')
+      ? ((params as Record<string, string | string[] | undefined>)?.id as string | undefined)
+      : pathname.startsWith('/symptom/')
+        ? (searchParams.get('surgery') || undefined)
+        : undefined
+
+  const logoHref = surgeryId ? `/s/${surgeryId}` : '/s'
 
   const appointmentLinkHref =
     directoryLinkOverride?.href ??
