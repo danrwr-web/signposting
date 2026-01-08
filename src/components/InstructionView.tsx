@@ -56,7 +56,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [aiModel, setAiModel] = useState<string | null>(null)
-  const [hasChangeToUndo, setHasChangeToUndo] = useState(false)
   // AI explanation state (kept for API but UI hidden)
   const [showExplanationModal, setShowExplanationModal] = useState(false)
   const [loadingExplanation, setLoadingExplanation] = useState(false)
@@ -163,42 +162,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     loadFeatures()
   }, [])
 
-  // Check if there's a change to undo
-  useEffect(() => {
-    const checkUndoAvailability = async () => {
-      if (!canUseAiInstructions) {
-        setHasChangeToUndo(false)
-        return
-      }
-
-      try {
-        // For overrides, map to the base symptom for superuser editing
-        const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
-        const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
-        
-        if (!effectiveSymptomId) {
-          setHasChangeToUndo(false)
-          return
-        }
-
-        const response = await fetch(
-          `/api/revertInstruction?symptomId=${encodeURIComponent(effectiveSymptomId)}&source=${encodeURIComponent(effectiveSource)}`
-        )
-        
-        if (response.ok) {
-          const data = await response.json()
-          setHasChangeToUndo(data.hasHistory === true)
-        } else {
-          setHasChangeToUndo(false)
-        }
-      } catch (error) {
-        console.error('Error checking undo availability:', error)
-        setHasChangeToUndo(false)
-      }
-    }
-    
-    checkUndoAvailability()
-  }, [canUseAiInstructions, symptom.id, symptom.source, symptom.baseSymptomId])
+  // Note: do not call `/api/revertInstruction` on page load/prefetch.
+  // Any revert check/update must only happen on explicit user action, and only for permitted users.
 
   const getSourceColor = (source: string) => {
     switch (source) {
@@ -681,47 +646,6 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     } catch (error) {
       console.error('Failed to copy explanation:', error)
       toast.error('Failed to copy explanation')
-    }
-  }
-
-  const handleRevertLastChange = async () => {
-    try {
-      // For overrides, map to the base symptom for superuser editing
-      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
-      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
-      
-      if (!effectiveSymptomId) {
-        throw new Error('Invalid symptom configuration')
-      }
-
-      const response = await fetch('/api/revertInstruction', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          symptomId: effectiveSymptomId,
-          source: effectiveSource,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        console.error('Revert instruction API error:', response.status, errorData)
-        throw new Error(errorData.error || 'Failed to revert instruction')
-      }
-
-      // Show success toast
-      toast.success('Reverted to previous version')
-
-      // Update undo availability state
-      setHasChangeToUndo(false)
-
-      // Refresh the page to show restored content
-      router.refresh()
-    } catch (error) {
-      console.error('Error reverting instruction:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to revert instruction')
     }
   }
 
