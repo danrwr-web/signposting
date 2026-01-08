@@ -4,9 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
-    "postinstall": "prisma generate",
-    "vercel-build": "prisma migrate deploy && npm run build",
+    "build": "node scripts/prisma-generate.js && next build",
+    "postinstall": "node scripts/prisma-generate.js",
+    "vercel-build": "node scripts/prisma-migrate-deploy.js && npm run build",
     "build:dev": "prisma generate && prisma db push && next build",
     "start": "next start",
     "lint": "next lint",
