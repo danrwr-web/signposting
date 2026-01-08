@@ -261,17 +261,51 @@ export default function LandingPageClient() {
 
               <div className="mt-8 pt-6 border-t border-slate-200">
                 <h3 className="text-base font-semibold text-gray-900">What’s included</h3>
-                <ul className="mt-4 space-y-2 text-gray-700">
+                <ul className="mt-4 space-y-4 text-gray-700">
                   {[
-                    'Unlimited users',
-                    'Full symptom library',
-                    'Local customisation',
-                    'Clinical review & governance workflow',
-                    'Appointment directory',
-                    'Onboarding & support',
-                    'Ongoing updates and improvements',
+                    {
+                      title: 'Clear symptom guidance',
+                      description:
+                        'Over 200 clinically structured symptoms, written in clear, plain English and designed for reception and care navigation teams.',
+                    },
+                    {
+                      title: 'Clinical governance built in',
+                      description: (
+                        <>
+                          Every practice reviews and signs off its own guidance. A built-in clinical review
+                          workflow supports local approval, re-review cycles, and a clear audit trail.{' '}
+                          <Link href="/faqs" className="text-blue-700 underline underline-offset-2">
+                            See FAQs
+                          </Link>
+                          .
+                        </>
+                      ),
+                    },
+                    {
+                      title: 'Local customisation',
+                      description:
+                        'Tailor wording, appointment types, and local pathways so the guidance reflects how your practice works.',
+                    },
+                    {
+                      title: 'Onboarding & ongoing support',
+                      description: (
+                        <>
+                          Guided setup and practical support from a team who run the toolkit in a live NHS
+                          practice — helping you get up and running quickly and confidently.{' '}
+                          <Link href="/faqs" className="text-blue-700 underline underline-offset-2">
+                            Support FAQs
+                          </Link>
+                          .
+                        </>
+                      ),
+                    },
+                    {
+                      title: 'Optional clarity tools',
+                      description:
+                        'Optional tools are available to help administrators improve clarity or generate suggested questions. These features can be switched off, and any generated content must be reviewed locally before use.',
+                    },
                   ].map((item) => (
-                    <li key={item} className="flex items-start gap-3">
+                    <li key={item.title} className="flex items-start gap-3">
                       <svg
                         className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600"
                         viewBox="0 0 20 20"
@@ -284,7 +318,10 @@ export default function LandingPageClient() {
                           clipRule="evenodd"
                         />
                       </svg>
-                      <span>{item}</span>
+                      <div>
+                        <p className="font-semibold text-gray-900">{item.title}</p>
+                        <p className="mt-1 text-sm text-gray-700 max-w-prose">{item.description}</p>
+                      </div>
                     </li>
                   ))}
                 </ul>
