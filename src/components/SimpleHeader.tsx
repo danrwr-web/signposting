@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
@@ -24,6 +24,7 @@ export default function SimpleHeader({
   directoryLinkOverride
 }: SimpleHeaderProps) {
   const params = useParams()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
   const isAdmin = session?.user && (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
@@ -33,7 +34,8 @@ export default function SimpleHeader({
   // Going via `/` can lose `/s/[id]` context and (depending on host/middleware) intermittently bounce users to `/login`.
   const routeSurgeryIdRaw = (params as Record<string, string | string[] | undefined>)?.id
   const routeSurgeryId = Array.isArray(routeSurgeryIdRaw) ? routeSurgeryIdRaw[0] : routeSurgeryIdRaw
-  const surgeryIdForHome = routeSurgeryId ?? currentSurgeryId
+  const symptomQuerySurgeryId = searchParams.get('surgery') || undefined
+  const surgeryIdForHome = routeSurgeryId ?? symptomQuerySurgeryId ?? currentSurgeryId
   const logoHref = surgeryIdForHome ? `/s/${surgeryIdForHome}` : '/s'
 
   const appointmentLinkHref =

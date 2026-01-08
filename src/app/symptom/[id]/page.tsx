@@ -28,20 +28,16 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const surgeryParam = resolvedSearchParams.surgery
   const refParam = resolvedSearchParams.ref
 
-  // Debug logging
-  console.log('SymptomPage: id =', id, 'surgeryParam =', surgeryParam)
-
-  // Get surgery ID from param (ID or slug for backward compatibility)
+  // Get surgery ID from param (canonical id, with slug compatibility)
   let surgeryId: string | undefined
   if (surgeryParam) {
-    // First try as ID
+    // First try as canonical id (matches `/s/[id]` route segment)
     const surgeryById = await prisma.surgery.findUnique({
       where: { id: surgeryParam },
       select: { id: true }
     })
     if (surgeryById) {
       surgeryId = surgeryById.id
-      console.log('SymptomPage: Found surgery by ID:', surgeryId)
     } else {
       // Fallback to slug for backward compatibility
       const surgeryBySlug = await prisma.surgery.findUnique({
@@ -49,13 +45,18 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         select: { id: true }
       })
       surgeryId = surgeryBySlug?.id
-      console.log('SymptomPage: Found surgery by slug:', surgeryId)
+
+      // If we resolved via slug, redirect to the canonical `?surgery=<id>` URL
+      // so navigation (e.g. logo link back to `/s/[id]`) stays consistent.
+      if (surgeryId && surgeryParam !== surgeryId) {
+        const next = new URLSearchParams()
+        next.set('surgery', surgeryId)
+        if (refParam) next.set('ref', refParam)
+        redirect(`/symptom/${id}?${next.toString()}`)
+      }
     }
   } else {
-    console.log('SymptomPage: No surgery parameter provided')
   }
-
-  console.log('SymptomPage: Final surgeryId =', surgeryId)
 
   // Get effective symptom data - try by ID first, then by slug
   let symptom = await getEffectiveSymptomById(id, surgeryId)
@@ -64,8 +65,6 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
     // Try to find by slug if ID lookup failed
     symptom = await getEffectiveSymptomBySlug(id, surgeryId)
   }
-  
-  console.log('SymptomPage: Found symptom:', symptom?.name, 'source:', symptom?.source)
   
   if (!symptom) {
     notFound()
