@@ -96,6 +96,7 @@ export default function PrivacyPage() {
         </p>
         <p>
           <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
+          · <a href="/faqs" className="text-blue-600 hover:text-blue-700 underline">FAQs</a>{' '}
           · Contact{' '}
           <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 underline">contact@signpostingtool.co.uk</a>
         </p>

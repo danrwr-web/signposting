@@ -48,6 +48,7 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 - **Unreleased**
   - Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section
   - User Guide link restored in marketing site navigation alongside Docs link
+  - Public FAQs page added (setup, governance, and optional AI), linked from the marketing navigation
   - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
 

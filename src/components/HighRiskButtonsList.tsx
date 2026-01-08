@@ -70,7 +70,7 @@ export default function HighRiskButtonsList({
           No custom buttons configured
         </p>
         <p className="text-sm text-nhs-grey">
-          Click "Add Custom Button" to create your first custom high-risk button.
+          Click “Add Custom Button” to create your first custom high-risk button.
         </p>
       </div>
     )

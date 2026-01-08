@@ -1,6 +1,8 @@
 'use client'
 
 import Link from 'next/link'
+import MarketingHeader from '@/components/marketing/MarketingHeader'
+import MarketingFooter from '@/components/marketing/MarketingFooter'
 
 export default function WhySignpostingToolkitClient() {
   const appBaseUrl =
@@ -10,60 +12,7 @@ export default function WhySignpostingToolkitClient() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <Link href="/" className="flex items-center space-x-4">
-              {/* Logo */}
-              <img 
-                src="/images/logo.png" 
-                alt="Signposting Toolkit Logo" 
-                className="h-16 w-auto"
-              />
-              <p className="text-2xl font-bold text-gray-900">
-                Signposting Toolkit
-              </p>
-            </Link>
-            <div className="flex items-center space-x-6">
-              <Link
-                href="/why-signposting-toolkit"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Why Choose Us
-              </Link>
-              <a
-                href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                User Guide
-              </a>
-              <a
-                href="https://docs.signpostingtool.co.uk/"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Docs
-              </a>
-              <Link
-                href="/demo-request"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Request a Demo
-              </Link>
-              <Link
-                href={appEntryUrl}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Launch Toolkit
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader appEntryUrl={appEntryUrl} />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-slate-50 to-white py-16">
@@ -73,7 +22,7 @@ export default function WhySignpostingToolkitClient() {
               Why choose the Signposting Toolkit?
             </h1>
             <p className="text-xl text-gray-700 mt-6 max-w-3xl mx-auto leading-relaxed">
-              The Signposting Toolkit is built by practising GPs to support safer, clearer care navigation for reception and care navigation teams. Here's how it's different from generic symptom lists and basic signposting tools.
+              The Signposting Toolkit is built by practising GPs to support safer, clearer care navigation for reception and care navigation teams. Here’s how it’s different from generic symptom lists and basic signposting tools.
             </p>
             <div className="mt-8">
               <Link
@@ -110,7 +59,7 @@ export default function WhySignpostingToolkitClient() {
               <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              <span>Focused on safe delegation and continuity, not just "deflection"</span>
+              <span>Focused on safe delegation and continuity, not just “deflection”</span>
             </li>
           </ul>
         </div>
@@ -165,19 +114,19 @@ export default function WhySignpostingToolkitClient() {
                 <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span>Clear "stop and check" points built into the workflow</span>
+                <span>Clear “stop and check” points built into the workflow</span>
               </li>
               <li className="flex items-start">
                 <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span>The toolkit supports reception teams; it doesn't make clinical decisions</span>
+                <span>The toolkit supports reception teams; it doesn’t make clinical decisions</span>
               </li>
               <li className="flex items-start">
                 <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
-                <span>AI is used to improve clarity of wording, not to choose where patients go</span>
+                <span>Optional AI tools can help improve clarity of wording — any draft content must be reviewed locally before use</span>
               </li>
             </ul>
           </div>
@@ -266,14 +215,14 @@ export default function WhySignpostingToolkitClient() {
           </h2>
           <div className="space-y-4 text-lg text-gray-700">
             <p>
-              The toolkit provides visibility into how it's being used, helping practices improve their care navigation over time.
+              The toolkit provides visibility into how it’s being used, helping practices improve their care navigation over time.
             </p>
             <ul className="space-y-3">
               <li className="flex items-start">
                 <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                <span>Activity is logged (what's viewed/clicked)</span>
+                <span>Activity is logged (what’s viewed/clicked)</span>
               </li>
               <li className="flex items-start">
                 <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,24 +270,7 @@ export default function WhySignpostingToolkitClient() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 bg-white border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-sm text-gray-500 space-y-2">
-            <p>
-              © {new Date().getFullYear()} The Signposting Toolkit · Built by GPs for GPs and their care navigators
-            </p>
-            <p>
-              <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
-              · <Link href="/demo-request" className="text-blue-600 hover:text-blue-700 underline">Request a demo</Link>{' '}
-              · Contact:{' '}
-              <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 underline">contact@signpostingtool.co.uk</a>
-              {' '}·{' '}
-              <span className="text-gray-400">Support development</span>
-            </p>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   )
 }

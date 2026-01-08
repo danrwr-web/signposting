@@ -382,7 +382,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     placeholder="user@example.com"
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    If the user doesn't exist, a new account will be created.
+                    If the user doesn’t exist, a new account will be created.
                   </p>
                 </div>
                 <div className="mb-4">

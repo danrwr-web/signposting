@@ -790,7 +790,7 @@ export default function ClinicalReviewPanel({
               <>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Request re-review</h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  This will set all clinically reviewed symptoms for this surgery back to 'Pending', so they can be reviewed again. Continue?
+                  This will set all clinically reviewed symptoms for this surgery back to “Pending”, so they can be reviewed again. Continue?
                 </p>
                 <div className="flex gap-3 justify-end">
                   <button
@@ -1232,7 +1232,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
         <div className="px-6 py-4 border-t border-gray-200 bg-white flex-shrink-0">
           <div className="pointer-events-none h-3 -mt-3 bg-gradient-to-t from-white to-transparent" />
           {reviewStatus === 'CHANGES_REQUIRED' && (
-            <p className="text-sm text-gray-600 mb-3">Make the change on the symptom page, then come back here and click 'Approve'.</p>
+            <p className="text-sm text-gray-600 mb-3">Make the change on the symptom page, then come back here and click “Approve”.</p>
           )}
           <div className="flex justify-end gap-2">
             {reviewStatus === 'CHANGES_REQUIRED' && (baseSymptomId || customSymptomId) && (
