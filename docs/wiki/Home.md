@@ -50,6 +50,7 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
   - User Guide link restored in marketing site navigation alongside Docs link
   - Public FAQs page added (setup, governance, and optional AI), linked from the marketing navigation
   - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
+  - Admin forms no longer ask for symptom slugs — slugs are generated automatically, and high-risk buttons now link to symptoms via a searchable list
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
 
 - **v1.1 – December 2025**

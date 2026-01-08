@@ -45,7 +45,7 @@ export default function CompactToolbar({
   onShowSurgerySelector
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const pathname = usePathname()
+  const pathname = usePathname() || ''
   const params = useParams()
   const searchParams = useSearchParams()
   const { data: session } = useSession()

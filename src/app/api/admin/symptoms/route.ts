@@ -106,20 +106,12 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { name, slug, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, variants } = CreateSymptomReqZ.parse(body)
+    const { name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, variants } = CreateSymptomReqZ.parse(body)
+    const { generateUniqueSymptomSlug } = await import('@/server/symptomSlug')
 
     if (user.globalRole === 'SUPERUSER') {
       // Superusers create base symptoms visible to all surgeries
-      const existingSymptom = await prisma.baseSymptom.findUnique({
-        where: { slug }
-      })
-
-      if (existingSymptom) {
-        return NextResponse.json(
-          { error: 'A symptom with this slug already exists' },
-          { status: 409 }
-        )
-      }
+      const slug = await generateUniqueSymptomSlug(name, { scope: 'BASE' })
 
       const symptom = await prisma.baseSymptom.create({
         data: ({
@@ -162,21 +154,7 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      const existingSymptom = await prisma.surgeryCustomSymptom.findUnique({
-        where: {
-          surgeryId_slug: {
-            surgeryId: surgeryId,
-            slug: slug
-          }
-        }
-      })
-
-      if (existingSymptom) {
-        return NextResponse.json(
-          { error: 'A symptom with this slug already exists for this surgery' },
-          { status: 409 }
-        )
-      }
+      const slug = await generateUniqueSymptomSlug(name, { scope: 'SURGERY', surgeryId })
 
       const symptom = await prisma.surgeryCustomSymptom.create({
         data: {

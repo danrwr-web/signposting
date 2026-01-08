@@ -16,7 +16,6 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   const [target, setTarget] = useState<'BASE' | 'SURGERY'>(isSuperuser ? 'SURGERY' : 'SURGERY')
   const [targetSurgeryId, setTargetSurgeryId] = useState<string | ''>(currentSurgeryId || '')
   const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
   const [ageGroup, setAgeGroup] = useState<'U5' | 'O5' | 'Adult'>('Adult')
   const [briefInstruction, setBriefInstruction] = useState('')
   const [highlightedText, setHighlightedText] = useState('')
@@ -36,21 +35,10 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
     if (currentSurgeryId) setTargetSurgeryId(currentSurgeryId)
   }, [currentSurgeryId])
 
-  // Auto-generate slug from name if empty or matching previous auto value
-  useEffect(() => {
-    const auto = name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-')
-    setSlug(prev => (prev === '' || prev === auto ? auto : prev))
-  }, [name])
-
   if (!isOpen) return null
 
   const canSubmit = () => {
     if (!name.trim() || name.trim().length > 120) return false
-    if (!slug.trim()) return false
     if (!instructionsHtml.trim()) return false
     if (isSuperuser && target === 'SURGERY' && !targetSurgeryId) return false
     if (!isSuperuser && !currentSurgeryId) return false
@@ -63,27 +51,23 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
     setError(null)
     try {
       const body: any = {
+        target,
+        ...(target === 'SURGERY' ? { surgeryId: (isSuperuser ? targetSurgeryId : currentSurgeryId) } : {}),
         name: name.trim(),
-        slug: slug.trim(),
         ageGroup,
         briefInstruction: briefInstruction.trim() || undefined,
         highlightedText: highlightedText.trim() || undefined,
         linkToPage: linkToPage.trim() || undefined,
-        instructions: instructionsHtml, // keep legacy mirroring
         instructionsHtml,
         instructionsJson: instructionsJson || undefined,
         variants: undefined,
       }
-      const res = await fetch('/api/admin/symptoms', {
+      const res = await fetch('/api/symptoms/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       })
       const data = await res.json().catch(() => ({}))
-      if (res.status === 409 && data?.error === 'DUPLICATE') {
-        setError('A symptom with this name already exists in the target scope.')
-        return
-      }
       if (!res.ok) {
         setError(data?.error || 'Failed to create symptom')
         return
@@ -159,16 +143,6 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         </div>
 
         <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              placeholder="e.g., chest-pain"
-            />
-          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Age group</label>
             <select

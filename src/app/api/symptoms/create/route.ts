@@ -3,11 +3,13 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
 
 const CreateSchema = z.object({
   target: z.enum(['BASE', 'SURGERY']),
   surgeryId: z.string().uuid().optional(),
   name: z.string().min(1).max(120),
+  ageGroup: z.enum(['U5', 'O5', 'Adult']).default('Adult'),
   briefInstruction: z.string().max(500).optional().nullable(),
   highlightedText: z.string().max(2000).optional(),
   linkToPage: z.string().max(200).optional(),
@@ -46,20 +48,21 @@ export async function POST(req: NextRequest) {
     }
 
     const nameCi = parsed.data.name.trim()
+    const ageGroup = parsed.data.ageGroup
 
     if (target === 'BASE') {
-      // Exact duplicate check in Base
-      const dupe = await prisma.baseSymptom.findFirst({ where: { name: nameCi } })
-      if (dupe) {
-        return NextResponse.json({ error: 'DUPLICATE', matches: [{ id: dupe.id, name: dupe.name }] }, { status: 409 })
-      }
+      const slug = await generateUniqueSymptomSlug(nameCi, { scope: 'BASE' })
 
       const created = await prisma.baseSymptom.create({
         data: {
+          slug,
           name: nameCi,
+          ageGroup,
           briefInstruction: parsed.data.briefInstruction ?? null,
           highlightedText: parsed.data.highlightedText ?? null,
           linkToPage: parsed.data.linkToPage ?? null,
+          // Keep legacy mirroring for back-compat.
+          instructions: parsed.data.instructionsHtml,
           instructionsHtml: parsed.data.instructionsHtml,
           instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
         }
@@ -71,27 +74,19 @@ export async function POST(req: NextRequest) {
 
     // target === 'SURGERY'
     const sid = surgeryId as string
-    // Exact duplicate in Base
-    const baseDupe = await prisma.baseSymptom.findFirst({ where: { name: nameCi } })
-    // Exact duplicate in Surgery custom
-    const customDupe = await prisma.surgeryCustomSymptom.findFirst({ where: { surgeryId: sid, name: nameCi } })
-    if (baseDupe || customDupe) {
-      return NextResponse.json({ error: 'DUPLICATE', matches: [
-        ...(baseDupe ? [{ id: baseDupe.id, name: baseDupe.name, scope: 'BASE' as const }] : []),
-        ...(customDupe ? [{ id: customDupe.id, name: customDupe.name, scope: 'SURGERY' as const }] : []),
-      ] }, { status: 409 })
-    }
+    const slug = await generateUniqueSymptomSlug(nameCi, { scope: 'SURGERY', surgeryId: sid })
 
     const created = await prisma.surgeryCustomSymptom.create({
       data: {
         surgeryId: sid,
-        slug: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`,
+        slug,
         name: nameCi,
-        ageGroup: 'Adult',
+        ageGroup,
         briefInstruction: parsed.data.briefInstruction ?? null,
         highlightedText: parsed.data.highlightedText ?? null,
         linkToPage: parsed.data.linkToPage ?? null,
-        instructions: null,
+        // Keep legacy mirroring for back-compat.
+        instructions: parsed.data.instructionsHtml,
         instructionsHtml: parsed.data.instructionsHtml,
         instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
       }

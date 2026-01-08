@@ -58,7 +58,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   }>>([])
   const [newSymptom, setNewSymptom] = useState({
     name: '',
-    slug: '',
     ageGroup: 'Adult',
     briefInstruction: '',
     instructions: '',
@@ -368,7 +367,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     
     setNewSymptom({
       name: symptom.name,
-      slug: symptom.slug,
       ageGroup: symptom.ageGroup,
       briefInstruction: symptom.briefInstruction || '',
       instructions: symptom.instructions || '',
@@ -406,7 +404,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         body: JSON.stringify({
           source: 'base',
           name: newSymptom.name,
-          slug: newSymptom.slug,
           ageGroup: newSymptom.ageGroup,
           briefInstruction: newSymptom.briefInstruction,
           instructions: newSymptom.instructions,
@@ -625,8 +622,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   }
 
   const handleAddSymptom = async () => {
-    if (!newSymptom.name || !newSymptom.slug) {
-      toast.error('Please fill in name and slug fields')
+    if (!newSymptom.name) {
+      toast.error('Please enter a symptom name')
       return
     }
 
@@ -648,7 +645,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         toast.success('Symptom added successfully')
         setNewSymptom({
           name: '',
-          slug: '',
           ageGroup: 'Adult',
           briefInstruction: '',
           instructions: '',
@@ -1002,7 +998,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <HighRiskConfig 
                   surgeryId={selectedSurgery} 
                   surgeries={surgeries.filter(s => s.slug !== null).map(s => ({ id: s.id, slug: s.slug!, name: s.name }))}
-                  symptoms={effectiveSymptoms.map(s => ({ slug: s.slug, name: s.name }))}
+                  symptoms={effectiveSymptoms
+                    .filter(s => !!s.id && !!s.slug)
+                    .map(s => ({ id: s.id, slug: s.slug as string, name: s.name }))
+                    .sort((a, b) => a.name.localeCompare(b.name))}
                   session={session} 
                 />
               </div>
@@ -1377,7 +1376,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">Add New Symptom</h3>
             
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-nhs-grey mb-1">
                     Symptom Name *
@@ -1388,19 +1387,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     onChange={(e) => setNewSymptom({ ...newSymptom, name: e.target.value })}
                     className="w-full nhs-input"
                     placeholder="e.g., Chest Pain"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-nhs-grey mb-1">
-                    Slug *
-                  </label>
-                  <input
-                    type="text"
-                    value={newSymptom.slug}
-                    onChange={(e) => setNewSymptom({ ...newSymptom, slug: e.target.value })}
-                    className="w-full nhs-input"
-                    placeholder="e.g., chest-pain"
                   />
                 </div>
               </div>
@@ -1811,7 +1797,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Base Symptom</h3>
               <form onSubmit={handleUpdateSymptom}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div className="grid grid-cols-1 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Name *
@@ -1821,18 +1807,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                       required
                       value={newSymptom.name}
                       onChange={(e) => setNewSymptom(prev => ({ ...prev, name: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Slug *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={newSymptom.slug}
-                      onChange={(e) => setNewSymptom(prev => ({ ...prev, slug: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
                     />
                   </div>
