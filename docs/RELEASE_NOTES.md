@@ -12,6 +12,7 @@ _Changes in development or planned for the next release._
 - Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section.
 - Added trust section highlighting GP-built origins and local clinical control.
 - User Guide link restored in marketing site navigation alongside Docs link.
+- Added a public FAQs page covering setup, governance, and optional AI tools (linked from the marketing navigation).
 
 ### 🧹 Updated
 - AI questions panel now titled "Suggested wording for questions to ask" with supporting text to encourage safe, consistent phrasing.
@@ -23,6 +24,7 @@ _Changes in development or planned for the next release._
 - "Why practices choose" section condensed and moved higher on the landing page.
 - Docs site logo now links to www.signpostingtool.co.uk (marketing homepage).
 - All marketing site CTAs verified to use app.signpostingtool.co.uk.
+- Landing page now frames AI as optional tools, adds onboarding and support copy, and links to the FAQs for common governance questions.
 
 ---
 

@@ -87,7 +87,7 @@ export default function SurgeryDashboardClient({ surgery, user }: SurgeryDashboa
             Surgery Overview
           </h2>
           <p className="text-gray-600">
-            Manage your practice's signposting toolkit and user access.
+            Manage your practice’s signposting toolkit and user access.
           </p>
         </div>
 

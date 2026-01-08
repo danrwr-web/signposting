@@ -70,7 +70,7 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
   return (
     <div className="flex items-center space-x-2">
       <label htmlFor="surgery-select" className="text-sm font-medium text-nhs-grey">
-        You're viewing:
+        You’re viewing:
       </label>
       <select
         ref={selectRef}

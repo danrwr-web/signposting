@@ -975,7 +975,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               {isPracticeAdmin && symptom.source === 'base' && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-700 text-sm">
-                    <strong>Customising for your practice:</strong> You're creating a custom version of this symptom for your surgery. The original base symptom will remain unchanged for other practices.
+                    <strong>Customising for your practice:</strong> You’re creating a custom version of this symptom for your surgery. The original base symptom will remain unchanged for other practices.
                   </p>
                 </div>
               )}
@@ -1161,7 +1161,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               {isEditingInstructions && isPracticeAdmin && symptom.source === 'base' && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-700 text-sm">
-                    <strong>Customising for your practice:</strong> You're creating a custom version of these instructions for your surgery. The original base instructions will remain unchanged for other practices.
+                    <strong>Customising for your practice:</strong> You’re creating a custom version of these instructions for your surgery. The original base instructions will remain unchanged for other practices.
                   </p>
                 </div>
               )}
@@ -1486,7 +1486,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 placeholder="Enter name of related symptom..."
               />
               <p className="text-sm text-gray-500 mt-1">
-                Enter the exact name of another symptom to link to. Users will be able to click to navigate to that symptom's instructions.
+                Enter the exact name of another symptom to link to. Users will be able to click to navigate to that symptom’s instructions.
               </p>
             </div>
           </div>
@@ -1594,7 +1594,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               Delete Symptom
             </h3>
             <p className="text-nhs-grey mb-6">
-              Are you sure you want to delete "{symptom.name}"? This action cannot be undone and will permanently remove this symptom from your practice.
+              Are you sure you want to delete “{symptom.name}”? This action cannot be undone and will permanently remove this symptom from your practice.
             </p>
             <div className="flex gap-3 justify-end">
               <button

@@ -1170,7 +1170,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   Symptom Library
                 </h2>
                 <p className="text-nhs-grey mb-6">
-                  Manage which symptoms are available and how they're configured for each surgery.
+                  Manage which symptoms are available and how they’re configured for each surgery.
                 </p>
                 {(() => {
                   const isSuper = session?.type === 'superuser'
