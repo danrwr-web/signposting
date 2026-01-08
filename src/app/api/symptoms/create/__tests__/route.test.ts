@@ -100,6 +100,58 @@ describe('POST /api/symptoms/create', () => {
     )
   })
 
+  it('creates a SURGERY symptom for a surgery admin (non-superuser) when surgeryId matches membership', async () => {
+    mockedGetSessionUser.mockResolvedValueOnce({
+      globalRole: 'USER',
+      email: 'admin@example.com',
+      name: 'Admin',
+      surgeryId: null,
+      defaultSurgeryId: 'cmk5p08xt0000ju04k9s0udri',
+      memberships: [{ surgeryId: 'cmk5p08xt0000ju04k9s0udri', role: 'ADMIN' }],
+    } as any)
+
+    mockedGenerateUniqueSymptomSlug.mockResolvedValueOnce('chest-pain')
+
+    ;(prisma.surgeryCustomSymptom.create as jest.Mock).mockResolvedValueOnce({ id: 'custom-1' })
+    ;(prisma.surgerySymptomStatus.upsert as jest.Mock).mockResolvedValueOnce({})
+
+    const req = createRequest({
+      target: 'SURGERY',
+      surgeryId: 'cmk5p08xt0000ju04k9s0udri',
+      name: 'Chest Pain',
+      ageGroup: 'Adult',
+      instructionsHtml: '<p>Test</p>',
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(201)
+  })
+
+  it('returns 403 for SURGERY create when user is not admin for the target surgeryId', async () => {
+    mockedGetSessionUser.mockResolvedValueOnce({
+      globalRole: 'USER',
+      email: 'user@example.com',
+      name: 'User',
+      surgeryId: null,
+      defaultSurgeryId: 'cmk5p08xt0000ju04k9s0udri',
+      memberships: [{ surgeryId: 'cmk5p08xt0000ju04k9s0udri', role: 'STANDARD' }],
+    } as any)
+
+    const req = createRequest({
+      target: 'SURGERY',
+      surgeryId: 'cmk5p08xt0000ju04k9s0udri',
+      name: 'Chest Pain',
+      ageGroup: 'Adult',
+      instructionsHtml: '<p>Test</p>',
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(403)
+    const json = await res.json()
+    expect(json.error).toBe('Forbidden')
+    expect(json.reason).toBe('User lacks admin access to surgeryId')
+  })
+
   it('rejects SURGERY create if surgeryId is not a CUID', async () => {
     mockedGetSessionUser.mockResolvedValueOnce({
       globalRole: 'SUPERUSER',

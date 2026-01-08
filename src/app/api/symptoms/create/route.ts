@@ -30,22 +30,39 @@ export async function POST(req: NextRequest) {
     }
     const { target } = parsed.data
 
-    // Authorisation
-    if (user.globalRole === 'PRACTICE_ADMIN') {
-      if (target !== 'SURGERY') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    } else if (user.globalRole !== 'SUPERUSER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const isSuperuser = user.globalRole === 'SUPERUSER'
+    const isAdminFor = (surgeryId: string) =>
+      Array.isArray((user as any).memberships) &&
+      (user as any).memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN')
+
+    if (target === 'BASE') {
+      if (!isSuperuser) {
+        return NextResponse.json(
+          { error: 'Forbidden', reason: 'Base symptom creation is restricted to superusers' },
+          { status: 403 }
+        )
+      }
     }
 
-    // Resolve surgeryId
-    const surgeryId = target === 'SURGERY'
-      ? (user.globalRole === 'PRACTICE_ADMIN' ? user.surgeryId : parsed.data.surgeryId)
-      : undefined
-    if (target === 'SURGERY' && !surgeryId) {
+    // Resolve surgeryId for SURGERY target:
+    // - Prefer payload surgeryId
+    // - Fall back to user's default/current surgery only if payload surgeryId is missing
+    const resolvedSurgeryId =
+      target === 'SURGERY'
+        ? (parsed.data.surgeryId || (user as any).defaultSurgeryId || (user as any).surgeryId || undefined)
+        : undefined
+
+    if (target === 'SURGERY' && !resolvedSurgeryId) {
       return NextResponse.json({ error: 'surgeryId required for SURGERY target' }, { status: 400 })
     }
-    if (user.globalRole === 'PRACTICE_ADMIN' && surgeryId !== user.surgeryId) {
-      return NextResponse.json({ error: 'Forbidden: surgery mismatch' }, { status: 403 })
+
+    if (target === 'SURGERY' && !isSuperuser) {
+      if (!isAdminFor(resolvedSurgeryId!)) {
+        return NextResponse.json(
+          { error: 'Forbidden', reason: 'User lacks admin access to surgeryId' },
+          { status: 403 }
+        )
+      }
     }
 
     const nameCi = parsed.data.name.trim()
@@ -74,7 +91,7 @@ export async function POST(req: NextRequest) {
     }
 
     // target === 'SURGERY'
-    const sid = surgeryId as string
+    const sid = resolvedSurgeryId as string
     const slug = await generateUniqueSymptomSlug(nameCi, { scope: 'SURGERY', surgeryId: sid })
 
     const created = await prisma.surgeryCustomSymptom.create({
