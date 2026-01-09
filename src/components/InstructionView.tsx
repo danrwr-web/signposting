@@ -114,8 +114,8 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           url += `?surgeryId=${encodeURIComponent(surgeryId)}`
         }
         
-        // Use cached response - API sets appropriate cache headers
-        const response = await fetch(url)
+        // Always fetch fresh rules (mutations revalidate server caches too).
+        const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
           const { highlights, enableImageIcons: imageIconsEnabled } = json

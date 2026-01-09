@@ -7,7 +7,15 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { unstable_noStore as noStore } from 'next/cache'
 import { z } from 'zod'
-import { getAllHighlightRules, createHighlightRule, getSurgeryBuiltInHighlightsSetting, getSurgeryImageIconsSetting } from '@/server/highlights'
+import { revalidateTag } from 'next/cache'
+import {
+  getAllHighlightRules,
+  createHighlightRule,
+  getSurgeryBuiltInHighlightsSetting,
+  getSurgeryImageIconsSetting,
+  HIGHLIGHTS_TAG,
+  getCachedHighlightsTag,
+} from '@/server/highlights'
 import { getSession } from '@/server/auth'
 import { GetHighlightsResZ, CreateHighlightReqZ } from '@/lib/api-contracts'
 import { prisma } from '@/lib/prisma'
@@ -125,6 +133,10 @@ export async function POST(request: NextRequest) {
       isEnabled: isEnabled ?? true,
       surgeryId: targetSurgeryId
     })
+
+    // Invalidate highlight caches (main UI + admin UI).
+    revalidateTag(HIGHLIGHTS_TAG)
+    revalidateTag(getCachedHighlightsTag(targetSurgeryId))
 
     return NextResponse.json({ rule }, { status: 201 })
   } catch (error) {

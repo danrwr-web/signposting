@@ -6,7 +6,13 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { updateHighlightRule, deleteHighlightRule, getAllHighlightRules } from '@/server/highlights'
+import { revalidateTag } from 'next/cache'
+import {
+  updateHighlightRule,
+  deleteHighlightRule,
+  HIGHLIGHTS_TAG,
+  getCachedHighlightsTag,
+} from '@/server/highlights'
 import { getSession } from '@/server/auth'
 import { UpdateHighlightReqZ } from '@/lib/api-contracts'
 import { prisma } from '@/lib/prisma'
@@ -74,6 +80,9 @@ export async function PATCH(
       isEnabled
     })
 
+    revalidateTag(HIGHLIGHTS_TAG)
+    revalidateTag(getCachedHighlightsTag(currentRule.surgeryId))
+
     return NextResponse.json(rule)
   } catch (error) {
     if (error instanceof Error && error.name === 'ZodError') {
@@ -105,17 +114,23 @@ export async function DELETE(
 ) {
   try {
     const session = await getSession()
-    const { id } = await params
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    // Check if the rule exists and get its details
-    // Get all rules (both global and surgery-specific) to find the rule
-    const globalRules = await getAllHighlightRules(null)
-    const surgeryRules = session?.type === 'surgery' ? await getAllHighlightRules(session.surgeryId) : []
-    const allRules = [...globalRules, ...surgeryRules]
-    const ruleToDelete = allRules.find(rule => rule.id === id)
+    const rawParams = await params
+    const { id } = IdParamsZ.parse(rawParams)
+
+    const ruleToDelete = await prisma.highlightRule.findUnique({
+      where: { id },
+      select: { surgeryId: true },
+    })
+    if (!ruleToDelete) {
+      return NextResponse.json({ error: 'Highlight rule not found' }, { status: 404 })
+    }
     
     // If rule is global (surgeryId is null) and user is not a superuser, prevent deletion
-    if (ruleToDelete && ruleToDelete.surgeryId === null && session?.type !== 'superuser') {
+    if (ruleToDelete.surgeryId === null && session.type !== 'superuser') {
       return NextResponse.json(
         { error: 'Cannot delete global rules - only disable/enable is allowed' },
         { status: 403 }
@@ -123,7 +138,7 @@ export async function DELETE(
     }
 
     // If rule belongs to a surgery and user is not the admin of that surgery or superuser, prevent deletion
-    if (ruleToDelete && ruleToDelete.surgeryId && session?.type === 'surgery' && session.surgeryId !== ruleToDelete.surgeryId) {
+    if (ruleToDelete.surgeryId && session.type === 'surgery' && session.surgeryId !== ruleToDelete.surgeryId) {
       return NextResponse.json(
         { error: 'Cannot delete rules from other surgeries' },
         { status: 403 }
@@ -131,6 +146,9 @@ export async function DELETE(
     }
 
     await deleteHighlightRule(id)
+
+    revalidateTag(HIGHLIGHTS_TAG)
+    revalidateTag(getCachedHighlightsTag(ruleToDelete.surgeryId))
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -4,6 +4,14 @@ import type { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/server/auth'
 
+jest.mock('next/cache', () => ({
+  // Used by highlight mutations for cache invalidation.
+  revalidateTag: jest.fn(),
+  // Used by server caching helpers in some modules.
+  unstable_cache: (fn: any) => fn,
+  unstable_noStore: jest.fn(),
+}))
+
 jest.mock('@/server/auth', () => ({
   getSession: jest.fn(),
 }))
