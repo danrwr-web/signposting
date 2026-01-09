@@ -371,7 +371,6 @@ export default function ClinicalReviewPanel({
   const handleBulkApprove = () => {
     const pendingCount = counts.pending || 0
     if (pendingCount === 0) {
-      toast.error('No pending symptoms to approve.')
       return
     }
     setConfirmDialog({ type: 'bulk-approve' })
@@ -669,7 +668,7 @@ export default function ClinicalReviewPanel({
             {effectiveSurgeryId && (
               <button
                 onClick={handleBulkApprove}
-                disabled={bulkApproving || !effectiveSurgeryId}
+                disabled={bulkApproving || !effectiveSurgeryId || (counts.pending || 0) === 0}
                 className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium leading-none bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {bulkApproving ? 'Approving...' : 'Bulk approve pending'}
@@ -728,8 +727,8 @@ export default function ClinicalReviewPanel({
               {!loading && filteredRows.length === 0 && (
                 <tr>
                   <td className="px-4 py-6 text-center text-sm text-gray-600" colSpan={isSuperuser ? 5 : 4}>
-                    {activeFilter === 'pending' && !search.trim()
-                      ? 'All symptoms are approved.'
+                    {activeFilter === 'pending' && (counts.pending || 0) === 0 && !search.trim()
+                      ? 'All symptoms are approved ✅'
                       : 'No results found.'}
                   </td>
                 </tr>
