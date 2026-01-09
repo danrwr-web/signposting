@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { GetHighRiskResZ, CreateHighRiskReqZ } from '@/lib/api-contracts'
+import { revalidateTag } from 'next/cache'
+import { HIGH_RISK_TAG, getHighRiskSurgeryTag } from '@/server/highRiskTags'
 
 export const runtime = 'nodejs'
 
@@ -307,6 +309,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    revalidateTag(HIGH_RISK_TAG)
+    revalidateTag(getHighRiskSurgeryTag(surgeryId))
     return NextResponse.json({ link }, { status: 201 })
   } catch (error) {
     console.error('Error creating high-risk link:', error)
@@ -389,6 +393,8 @@ export async function PATCH(request: NextRequest) {
       data: { enableDefaultHighRisk }
     })
 
+    revalidateTag(HIGH_RISK_TAG)
+    revalidateTag(getHighRiskSurgeryTag(surgeryId))
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error updating default high-risk setting:', error)

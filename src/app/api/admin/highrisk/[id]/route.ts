@@ -7,6 +7,8 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { revalidateTag } from 'next/cache'
+import { HIGH_RISK_TAG, getHighRiskSurgeryTag } from '@/server/highRiskTags'
 
 export const runtime = 'nodejs'
 
@@ -57,6 +59,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: { orderIndex }
     })
 
+    revalidateTag(HIGH_RISK_TAG)
+    revalidateTag(getHighRiskSurgeryTag(surgeryId))
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error updating high-risk link order:', error)
@@ -104,6 +108,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       where: { id }
     })
 
+    revalidateTag(HIGH_RISK_TAG)
+    revalidateTag(getHighRiskSurgeryTag(surgeryId))
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting high-risk link:', error)

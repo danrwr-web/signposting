@@ -31,8 +31,7 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
     try {
       setIsLoading(true)
       const url = surgeryId ? `/api/highrisk?surgery=${surgeryId}` : '/api/highrisk'
-      // Use cached response - API sets appropriate cache headers
-      const res = await fetch(url)
+      const res = await fetch(url, { cache: 'no-store' })
       
       if (!res.ok) {
         throw new Error(`HighRisk fetch failed: ${res.status}`)
