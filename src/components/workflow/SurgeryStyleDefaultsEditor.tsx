@@ -164,7 +164,7 @@ export default function SurgeryStyleDefaultsEditor({ surgeryId, styleDefaults, i
     <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-2">Surgery defaults (used for new nodes & templates without explicit defaults)</h3>
       <p className="text-sm text-gray-600 mb-6">
-        These defaults apply to all templates that don't have their own template-level defaults. They also affect the starting appearance of newly created nodes.
+        These defaults apply to all templates that don&apos;t have their own template-level defaults. They also affect the starting appearance of newly created nodes.
       </p>
       
       <div className="space-y-4">

@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 import ReactFlow, {
   Node,
   Edge,
@@ -31,6 +32,7 @@ import WorkflowPanelNode from './WorkflowPanelNode'
 import WorkflowReferenceNode from './WorkflowReferenceNode'
 import { renderBulletText } from './renderBulletText'
 import { getStylingStatus, getThemeDisplayName } from './nodeStyleUtils'
+import Modal from '@/components/appointments/Modal'
 
 // Debug component to access ReactFlow instance and expose debug function
 // Only enabled when URL contains debugRF=1 query parameter
@@ -427,6 +429,11 @@ interface WorkflowTemplate {
   id: string
   name: string
   description: string | null
+  // Draft vs Published is controlled via WorkflowTemplate.approvalStatus:
+  // - DRAFT: not visible to staff
+  // - APPROVED: visible to staff
+  approvalStatus?: 'DRAFT' | 'APPROVED' | 'SUPERSEDED' | string
+  approvedAt?: Date | string | null
   styleDefaults?: Array<{
     nodeType: WorkflowNodeType
     bgColor: string | null
@@ -443,6 +450,7 @@ interface WorkflowDiagramClientProps {
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
   templateId: string
+  publishWorkflowAction?: () => Promise<{ success: boolean; error?: string }>
   surgeryDefaults?: Array<{
     nodeType: WorkflowNodeType
     bgColor: string | null
@@ -542,6 +550,7 @@ export default function WorkflowDiagramClient({
   allTemplates = [],
   surgeryId,
   templateId,
+  publishWorkflowAction,
   surgeryDefaults = [],
   updatePositionAction,
   createNodeAction,
@@ -659,11 +668,20 @@ export default function WorkflowDiagramClient({
   }
 
   const router = useRouter()
+
+  // Local view state for governance status so publishing can update the UI without a refresh.
+  const [approvalStatus, setApprovalStatus] = useState<string>(template.approvalStatus ?? 'APPROVED')
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [nodes, setNodes, onNodesChangeInternal] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
+
+  useEffect(() => {
+    setApprovalStatus(template.approvalStatus ?? 'APPROVED')
+  }, [template.approvalStatus])
   
   // PANEL dimension constants
   const PANEL_MIN_W = 300
@@ -922,6 +940,19 @@ export default function WorkflowDiagramClient({
 
   // Effective admin mode (enabled only when editing mode is on)
   const effectiveAdmin = isAdmin && editingMode
+
+  // Publishing guard: at least one END node must exist.
+  const hasEndNode = useMemo(() => {
+    if (nodes.length > 0) {
+      return nodes.some((n) => (n.data as { nodeType?: string } | undefined)?.nodeType === 'END')
+    }
+    return template.nodes.some((n) => n.nodeType === 'END')
+  }, [nodes, template.nodes])
+
+  const canShowPublish =
+    effectiveAdmin && approvalStatus === 'DRAFT' && typeof publishWorkflowAction === 'function'
+  const publishDisabled = !hasEndNode || isPublishing
+  const publishDisabledReason = !hasEndNode ? 'Add at least one END node before publishing.' : undefined
 
   // Find selected node data
   const selectedNode = useMemo(() => {
@@ -2427,43 +2458,127 @@ export default function WorkflowDiagramClient({
       {/* Admin toolbar */}
       {effectiveAdmin && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-sm font-medium text-gray-700">Add step:</span>
-            <button
-              onClick={() => handleCreateNode('INSTRUCTION')}
-              className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-            >
-              Add instruction
-            </button>
-            <button
-              onClick={() => handleCreateNode('QUESTION')}
-              className="px-3 py-1.5 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
-            >
-              Add question
-            </button>
-            <button
-              onClick={() => handleCreateNode('END')}
-              className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-            >
-              Add outcome
-            </button>
-            <button
-              onClick={() => handleCreateNode('PANEL')}
-              className="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
-            >
-              Add panel
-            </button>
-            <button
-              onClick={() => handleCreateNode('REFERENCE')}
-              className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
-            >
-              Add reference
-            </button>
+          <div className="flex items-start justify-between gap-4 mb-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium text-gray-700">Add step:</span>
+              <button
+                onClick={() => handleCreateNode('INSTRUCTION')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              >
+                Add instruction
+              </button>
+              <button
+                onClick={() => handleCreateNode('QUESTION')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-amber-600 text-white hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-colors"
+              >
+                Add question
+              </button>
+              <button
+                onClick={() => handleCreateNode('END')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+              >
+                Add outcome
+              </button>
+              <button
+                onClick={() => handleCreateNode('PANEL')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-gray-600 text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+              >
+                Add panel
+              </button>
+              <button
+                onClick={() => handleCreateNode('REFERENCE')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-green-600 text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+              >
+                Add reference
+              </button>
+            </div>
+
+            {canShowPublish && (
+              <div className="flex flex-col items-end gap-1">
+                <button
+                  type="button"
+                  onClick={() => setIsPublishDialogOpen(true)}
+                  disabled={publishDisabled}
+                  title={publishDisabledReason}
+                  aria-describedby={publishDisabledReason ? 'publish-disabled-hint' : undefined}
+                  className="px-4 py-2 rounded-md bg-nhs-blue text-white text-sm font-semibold hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="block leading-tight">Publish workflow</span>
+                  <span className="block text-xs font-medium text-white/90">
+                    Makes this workflow visible to staff
+                  </span>
+                </button>
+                {publishDisabledReason && (
+                  <p id="publish-disabled-hint" className="text-xs text-nhs-dark-grey">
+                    {publishDisabledReason}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <p className="text-xs text-gray-500">
             Drag nodes to reposition. Connect nodes by dragging from handle to handle. Positions are saved automatically. Tip: hold Shift while dragging to keep steps aligned.
           </p>
         </div>
+      )}
+
+      {isPublishDialogOpen && canShowPublish && (
+        <Modal
+          title="Publish this workflow?"
+          description="This will make the workflow visible to staff. You can still edit it later."
+          onClose={() => {
+            if (!isPublishing) setIsPublishDialogOpen(false)
+          }}
+          widthClassName="max-w-lg"
+        >
+          <div className="space-y-4">
+            {!hasEndNode && (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-nhs-dark-grey">
+                Add at least one END node before publishing.
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsPublishDialogOpen(false)}
+                disabled={isPublishing}
+                className="px-4 py-2 rounded-md bg-gray-100 text-gray-900 text-sm font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-nhs-blue disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!publishWorkflowAction) return
+                  if (!hasEndNode) return
+                  if (isPublishing) return
+                  setIsPublishing(true)
+                  try {
+                    const result = await publishWorkflowAction()
+                    if (!result.success) {
+                      toast.error(result.error || 'Could not publish workflow')
+                      return
+                    }
+                    toast.success('Workflow published')
+                    setApprovalStatus('APPROVED')
+                    setIsPublishDialogOpen(false)
+                    // No full refresh needed — local state hides the draft-only controls immediately.
+                  } catch (error) {
+                    console.error('Error publishing workflow:', error)
+                    toast.error('Could not publish workflow')
+                  } finally {
+                    setIsPublishing(false)
+                  }
+                }}
+                disabled={isPublishing || !hasEndNode}
+                className="px-4 py-2 rounded-md bg-nhs-blue text-white text-sm font-semibold hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPublishing ? 'Publishing…' : 'Publish'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       <div className="flex h-full w-full items-stretch">

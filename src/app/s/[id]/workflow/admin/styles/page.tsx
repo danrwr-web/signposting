@@ -126,7 +126,7 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
               Node styling defaults
             </h1>
             <p className="text-base text-gray-600 leading-relaxed">
-              Sets default colours per node type for this template. Individual nodes with custom colours won't change.
+              Sets default colours per node type for this template. Individual nodes with custom colours won&apos;t change.
             </p>
           </div>
 
