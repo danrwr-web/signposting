@@ -16,9 +16,13 @@
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Workflow Guidance](Workflow-Guidance)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
 
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
+- [Admin Guide](Admin-Guide)
 
 - [Developer Guide](Developer-Guide)
 

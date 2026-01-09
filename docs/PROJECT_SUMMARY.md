@@ -56,6 +56,20 @@ Each GP surgery has a fully independent configuration, symptom library, governan
 - CSV import for rapid updates.
 - Built for reception staff: plain language, simple filtering, clear rules.
 
+### 🔹 Workflow Guidance
+
+The Workflow Guidance module provides structured, visual guidance for handling common administrative and clinical document workflows (e.g. discharge summaries, test requests, GP review).
+
+Unlike signposting, which focuses on directing patients to the correct service, Workflow Guidance supports internal staff workflows by presenting step-by-step logic, decision points, and outcomes in a visual flow-diagram format.
+
+Workflows are:
+- Clinically governed
+- Versioned
+- Auditable
+- Customisable per surgery
+
+A Global Default set of workflows can be maintained centrally, with individual surgeries able to override and adapt workflows locally where required.
+
 ### 🔹 Preferences System (per browser)
 - **Appearance:** Modern white or Classic blue cards.
 - **Header layout:** Classic toolbar vs Split layout.

@@ -19,6 +19,7 @@ interface HomePageClientProps {
   surgeryId?: string
   requiresClinicalReview?: boolean
   surgeryName?: string
+  workflowGuidanceEnabled?: boolean
 }
 
 function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId }: HomePageClientProps) {
@@ -126,7 +127,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 
       return () => controller.abort()
     }
-  }, [surgeryId])
+  }, [surgeryId, getCacheKey])
 
   // Manual refresh function - symptoms are refreshed when surgery changes or user explicitly refreshes
   // Removed automatic polling to reduce server load and improve performance
@@ -205,6 +206,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         totalCount={initialSymptoms.length}
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
+        workflowGuidanceEnabled={workflowGuidanceEnabled}
       />
 
       {/* Clinical Review Warning Banner */}

@@ -73,3 +73,4 @@ jobs:
           SOURCE_SURGERY_NAME: ${{ inputs.source_surgery_name }}
           TARGET_GLOBAL_KEY: ${{ inputs.target_global_key }}
         run: npx tsx scripts/migrateWorkflowsToGlobalDefault.ts
+

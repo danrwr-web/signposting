@@ -1,7 +1,7 @@
 # Signposting Toolkit
 
 <p align="center">
-  <a href="https://www.signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
+  <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
     <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
   </a>
 </p>
@@ -25,9 +25,13 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Workflow Guidance](Workflow-Guidance)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
 
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
+- [Admin Guide](Admin-Guide)
 
 - [Developer Guide](Developer-Guide)
 
@@ -53,6 +57,9 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
   - Admin forms no longer ask for symptom slugs — slugs are generated automatically, and high-risk buttons now link to symptoms via a searchable list
   - Highlight rules can now be edited in the Admin Dashboard, with clearer guidance when a phrase already exists
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
+  - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
+  - Workflow diagram details panel can be collapsed to give more space for the diagram
+  - Workflow Guidance module added behind feature flags, with Global Default workflows and per-surgery customisation
 
 - **v1.1 – December 2025**
   - AI Suggested Questions panel helps staff gather information consistently
@@ -104,6 +111,12 @@ Automatic colour-coding highlights urgent phrases and high-risk symptoms, helpin
 
 ### [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
 Full multi-tenancy with role-based access control. Each surgery operates independently with Superuser, Admin, and Standard user roles.
+
+### Workflow Guidance
+
+Visual, clinically governed workflows to guide staff through common document and administrative processes.
+
+See: [Workflow Guidance →](Workflow-Guidance)
 
 ---
 
