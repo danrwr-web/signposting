@@ -10,19 +10,20 @@ import { useCardStyle } from '@/context/CardStyleContext'
 
 interface SymptomCardProps {
   symptom: EffectiveSymptom
-  surgerySlug?: string
+  surgeryId?: string
 }
 
-function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
-  const { currentSurgerySlug } = useSurgery()
+function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
+  const { currentSurgeryId } = useSurgery()
   const { cardStyle, isSimplified } = useCardStyle()
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
   const [imageIcon, setImageIcon] = useState<{ imageUrl: string; cardSize: string } | null>(null)
 
-  // Use provided surgerySlug or fall back to context
-  const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
+  // Use the canonical surgery identifier used in `/s/[id]` routes.
+  // Avoid using the human-readable `surgery.slug` here, otherwise `/symptom/...` links won't round-trip back to `/s/[id]`.
+  const effectiveSurgeryId = surgeryId || currentSurgeryId
 
 
   // Load highlight rules and image icon from combined API endpoint
@@ -32,8 +33,8 @@ function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
         // Build URL with surgeryId and phrase for combined data fetch
         let url = '/api/symptom-card-data'
         const params = new URLSearchParams()
-        if (effectiveSurgerySlug) {
-          params.append('surgeryId', effectiveSurgerySlug)
+        if (effectiveSurgeryId) {
+          params.append('surgeryId', effectiveSurgeryId)
         }
         if (symptom.briefInstruction) {
           params.append('phrase', symptom.briefInstruction)
@@ -43,7 +44,7 @@ function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
         }
         
         // Single API call for all card data - uses caching
-        const response = await fetch(url)
+        const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
           const { 
@@ -74,7 +75,7 @@ function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
       }
     }
     loadCardData()
-  }, [effectiveSurgerySlug, symptom.briefInstruction])
+  }, [effectiveSurgeryId, symptom.briefInstruction])
 
   const getSourceColor = (source: string) => {
     if (cardStyle === 'powerappsBlue') {
@@ -157,7 +158,7 @@ function SymptomCard({ symptom, surgerySlug }: SymptomCardProps) {
     return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
   }
 
-  const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgerySlug ? `?surgery=${effectiveSurgerySlug}` : ''}`
+  const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgeryId ? `?surgery=${effectiveSurgeryId}` : ''}`
 
   const linkFocusClasses = cardStyle === 'powerappsBlue'
     ? 'focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#264c96]'

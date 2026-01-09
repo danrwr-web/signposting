@@ -13,10 +13,10 @@ jest.mock('@/context/SurgeryContext', () => ({
   useSurgery: () => mockUseSurgery()
 }))
 
-jest.mock('@/components/SurgerySelector', () => () => <div data-testid="surgery-selector" />)
-jest.mock('@/components/SurgeryFiltersHeader', () => () => <div data-testid="filters-header" />)
-jest.mock('@/components/UserPreferencesModal', () => () => <div data-testid="preferences-modal" />)
-jest.mock('@/components/LogoSizeControl', () => () => <div data-testid="logo-size-control" />)
+jest.mock('@/components/SurgerySelector', () => function MockSurgerySelector() { return <div data-testid="surgery-selector" /> })
+jest.mock('@/components/SurgeryFiltersHeader', () => function MockSurgeryFiltersHeader() { return <div data-testid="filters-header" /> })
+jest.mock('@/components/UserPreferencesModal', () => function MockUserPreferencesModal() { return <div data-testid="preferences-modal" /> })
+jest.mock('@/components/LogoSizeControl', () => function MockLogoSizeControl() { return <div data-testid="logo-size-control" /> })
 
 const baseProps = {
   surgeries: [],

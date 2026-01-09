@@ -59,6 +59,13 @@ const authMiddleware = withAuth(
     }
 
     // Surgery routes - accessible by surgery members or superusers
+    //
+    // Note: `/s/select` is a special authenticated entry route (not a surgery ID),
+    // so it must bypass the surgeryId membership check.
+    if (pathname === '/s/select') {
+      return NextResponse.next()
+    }
+
     if (pathname.match(/^\/s\/[^\/]+/)) {
       const surgeryIdMatch = pathname.match(/^\/s\/([^\/]+)/)
       if (surgeryIdMatch) {

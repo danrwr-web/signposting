@@ -6,23 +6,33 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 import { checkTestUserUsageLimit } from '@/lib/test-user-limits'
+import { unstable_noStore as noStore } from 'next/cache'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 async function getSurgeryIdFromContext(req: NextRequest): Promise<string | null> {
   // Try to get surgery from URL search params
   const url = new URL(req.url)
-  const surgerySlug = url.searchParams.get('surgery')
+  const surgeryParam = url.searchParams.get('surgery')
   
-  if (surgerySlug) {
-    const surgery = await prisma.surgery.findUnique({
-      where: { slug: surgerySlug },
-      select: { id: true }
+  if (surgeryParam) {
+    // Accept both the canonical surgery route id and the legacy human-readable slug.
+    const surgeryById = await prisma.surgery.findUnique({
+      where: { id: surgeryParam },
+      select: { id: true },
     })
-    return surgery?.id || null
+    if (surgeryById) return surgeryById.id
+
+    const surgeryBySlug = await prisma.surgery.findUnique({
+      where: { slug: surgeryParam },
+      select: { id: true },
+    })
+    return surgeryBySlug?.id || null
   }
   
   // Fallback to default surgery
@@ -36,6 +46,9 @@ async function getSurgeryIdFromContext(req: NextRequest): Promise<string | null>
 
 export async function GET(req: NextRequest) {
   try {
+    // Ensure this route is always fresh (no Next/Vercel caching).
+    noStore()
+
     // Check test user usage limits
     await checkTestUserUsageLimit()
     
@@ -48,7 +61,8 @@ export async function GET(req: NextRequest) {
     let symptoms
     
     if (surgeryId) {
-      symptoms = await getCachedEffectiveSymptoms(surgeryId)
+      // Always return fresh effective symptoms so changes (create/enable/delete) are visible immediately.
+      symptoms = await getEffectiveSymptoms(surgeryId, false)
     } else {
       // Fallback to base symptoms if no surgery context
       symptoms = await prisma.baseSymptom.findMany({
@@ -87,14 +101,12 @@ export async function GET(req: NextRequest) {
     }
     
     const response = NextResponse.json({ symptoms: filteredSymptoms })
-    // Cache symptoms for 5 minutes with stale-while-revalidate
-    response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+    response.headers.set('Cache-Control', 'no-store')
     return response
   } catch (error) {
     console.error('Error fetching symptoms:', error)
     const response = NextResponse.json({ symptoms: [] })
-    // Shorter cache on error
-    response.headers.set('Cache-Control', 'public, s-maxage=5')
+    response.headers.set('Cache-Control', 'no-store')
     return response
   }
 }

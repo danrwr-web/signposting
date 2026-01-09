@@ -3,11 +3,16 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 const CreateSchema = z.object({
   target: z.enum(['BASE', 'SURGERY']),
-  surgeryId: z.string().uuid().optional(),
+  // Surgery IDs are Prisma CUIDs (not UUIDs).
+  surgeryId: z.string().cuid().optional(),
   name: z.string().min(1).max(120),
+  ageGroup: z.enum(['U5', 'O5', 'Adult']).default('Adult'),
   briefInstruction: z.string().max(500).optional().nullable(),
   highlightedText: z.string().max(2000).optional(),
   linkToPage: z.string().max(200).optional(),
@@ -27,71 +32,83 @@ export async function POST(req: NextRequest) {
     }
     const { target } = parsed.data
 
-    // Authorisation
-    if (user.globalRole === 'PRACTICE_ADMIN') {
-      if (target !== 'SURGERY') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    } else if (user.globalRole !== 'SUPERUSER') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const isSuperuser = user.globalRole === 'SUPERUSER'
+    const isAdminFor = (surgeryId: string) =>
+      Array.isArray((user as any).memberships) &&
+      (user as any).memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN')
+
+    if (target === 'BASE') {
+      if (!isSuperuser) {
+        return NextResponse.json(
+          { error: 'Forbidden', reason: 'Base symptom creation is restricted to superusers' },
+          { status: 403 }
+        )
+      }
     }
 
-    // Resolve surgeryId
-    const surgeryId = target === 'SURGERY'
-      ? (user.globalRole === 'PRACTICE_ADMIN' ? user.surgeryId : parsed.data.surgeryId)
-      : undefined
-    if (target === 'SURGERY' && !surgeryId) {
+    // Resolve surgeryId for SURGERY target:
+    // - Prefer payload surgeryId
+    // - Fall back to user's default/current surgery only if payload surgeryId is missing
+    const resolvedSurgeryId =
+      target === 'SURGERY'
+        ? (parsed.data.surgeryId || (user as any).defaultSurgeryId || (user as any).surgeryId || undefined)
+        : undefined
+
+    if (target === 'SURGERY' && !resolvedSurgeryId) {
       return NextResponse.json({ error: 'surgeryId required for SURGERY target' }, { status: 400 })
     }
-    if (user.globalRole === 'PRACTICE_ADMIN' && surgeryId !== user.surgeryId) {
-      return NextResponse.json({ error: 'Forbidden: surgery mismatch' }, { status: 403 })
+
+    if (target === 'SURGERY' && !isSuperuser) {
+      if (!isAdminFor(resolvedSurgeryId!)) {
+        return NextResponse.json(
+          { error: 'Forbidden', reason: 'User lacks admin access to surgeryId' },
+          { status: 403 }
+        )
+      }
     }
 
     const nameCi = parsed.data.name.trim()
+    const ageGroup = parsed.data.ageGroup
 
     if (target === 'BASE') {
-      // Exact duplicate check in Base
-      const dupe = await prisma.baseSymptom.findFirst({ where: { name: nameCi } })
-      if (dupe) {
-        return NextResponse.json({ error: 'DUPLICATE', matches: [{ id: dupe.id, name: dupe.name }] }, { status: 409 })
-      }
+      const slug = await generateUniqueSymptomSlug(nameCi, { scope: 'BASE' })
 
       const created = await prisma.baseSymptom.create({
         data: {
+          slug,
           name: nameCi,
+          ageGroup,
           briefInstruction: parsed.data.briefInstruction ?? null,
           highlightedText: parsed.data.highlightedText ?? null,
           linkToPage: parsed.data.linkToPage ?? null,
+          // Keep legacy mirroring for back-compat.
+          instructions: parsed.data.instructionsHtml,
           instructionsHtml: parsed.data.instructionsHtml,
           instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
         }
       })
+      // Base symptoms can affect effective symptom lists for all surgeries.
+      revalidateTag('symptoms')
       // TODO: Improve duplicate check with fuzzy matching (Levenshtein/trigram) later
       // TODO: Add audit logging for create/promote actions (SymptomHistory)
       return NextResponse.json({ baseSymptomId: created.id }, { status: 201 })
     }
 
     // target === 'SURGERY'
-    const sid = surgeryId as string
-    // Exact duplicate in Base
-    const baseDupe = await prisma.baseSymptom.findFirst({ where: { name: nameCi } })
-    // Exact duplicate in Surgery custom
-    const customDupe = await prisma.surgeryCustomSymptom.findFirst({ where: { surgeryId: sid, name: nameCi } })
-    if (baseDupe || customDupe) {
-      return NextResponse.json({ error: 'DUPLICATE', matches: [
-        ...(baseDupe ? [{ id: baseDupe.id, name: baseDupe.name, scope: 'BASE' as const }] : []),
-        ...(customDupe ? [{ id: customDupe.id, name: customDupe.name, scope: 'SURGERY' as const }] : []),
-      ] }, { status: 409 })
-    }
+    const sid = resolvedSurgeryId as string
+    const slug = await generateUniqueSymptomSlug(nameCi, { scope: 'SURGERY', surgeryId: sid })
 
     const created = await prisma.surgeryCustomSymptom.create({
       data: {
         surgeryId: sid,
-        slug: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`,
+        slug,
         name: nameCi,
-        ageGroup: 'Adult',
+        ageGroup,
         briefInstruction: parsed.data.briefInstruction ?? null,
         highlightedText: parsed.data.highlightedText ?? null,
         linkToPage: parsed.data.linkToPage ?? null,
-        instructions: null,
+        // Keep legacy mirroring for back-compat.
+        instructions: parsed.data.instructionsHtml,
         instructionsHtml: parsed.data.instructionsHtml,
         instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
       }
@@ -145,6 +162,11 @@ export async function POST(req: NextRequest) {
       // Update requiresClinicalReview flag (will be true since symptom is disabled but pending)
       await updateRequiresClinicalReview(sid)
     }
+
+    // Creating a surgery custom symptom can change the effective symptom list for this surgery immediately.
+    revalidateTag(getCachedSymptomsTag(sid, false))
+    revalidateTag(getCachedSymptomsTag(sid, true))
+    revalidateTag('symptoms')
 
     // TODO: Improve duplicate check with fuzzy matching (Levenshtein/trigram) later
     // TODO: Add audit logging for create/promote actions (SymptomHistory)

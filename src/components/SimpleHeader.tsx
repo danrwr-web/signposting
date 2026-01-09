@@ -1,6 +1,7 @@
 "use client"
 
 import Link from 'next/link'
+import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
@@ -22,10 +23,25 @@ export default function SimpleHeader({
   currentSurgeryId,
   directoryLinkOverride
 }: SimpleHeaderProps) {
+  const pathname = usePathname()
+  const params = useParams()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
   const isAdmin = session?.user && (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
   const canSeeDocsLink = Boolean(isSuperuser || isAdmin)
+
+  // `params.id` is ambiguous: it is the surgery id on `/s/[id]/...`, but it is the symptom id on `/symptom/[id]`.
+  // Use the pathname to decide which value is safe to treat as a surgery id.
+  const surgeryId =
+    pathname.startsWith('/s/')
+      ? ((params as Record<string, string | string[] | undefined>)?.id as string | undefined)
+      : pathname.startsWith('/symptom/')
+        ? (searchParams.get('surgery') || undefined)
+        : undefined
+
+  const logoHref = surgeryId ? `/s/${surgeryId}` : '/s'
+
   const appointmentLinkHref =
     directoryLinkOverride?.href ??
     (currentSurgeryId ? `/s/${currentSurgeryId}/appointments` : '/')
@@ -37,7 +53,7 @@ export default function SimpleHeader({
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center">
+            <Link href={logoHref} className="flex items-center">
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"

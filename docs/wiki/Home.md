@@ -52,7 +52,10 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 - **Unreleased**
   - Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section
   - User Guide link restored in marketing site navigation alongside Docs link
+  - Public FAQs page added (setup, governance, and optional AI), linked from the marketing navigation
   - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
+  - Admin forms no longer ask for symptom slugs — slugs are generated automatically, and high-risk buttons now link to symptoms via a searchable list
+  - Highlight rules can now be edited in the Admin Dashboard, with clearer guidance when a phrase already exists
   - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
   - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
   - Workflow diagram details panel can be collapsed to give more space for the diagram

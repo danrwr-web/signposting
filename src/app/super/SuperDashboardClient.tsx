@@ -27,7 +27,6 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.get('name'),
-          slug: formData.get('slug'),
           adminEmail: formData.get('adminEmail'),
           adminPassword: formData.get('adminPassword'),
         }),
@@ -139,9 +138,6 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
                     Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Slug
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Admin Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -157,9 +153,6 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
                   <tr key={surgery.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {surgery.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {surgery.slug}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {surgery.adminEmail || 'Not set'}
@@ -201,16 +194,6 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
                     </label>
                     <input
                       name="name"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Slug
-                    </label>
-                    <input
-                      name="slug"
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
                     />

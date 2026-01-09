@@ -393,6 +393,10 @@ model SurgerySymptomStatus {
 
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
+  // Ensure we have at most one status row per (surgery, symptom) reference.
+  // This enables Prisma upserts like `where: { surgeryId_customSymptomId: { ... } }`.
+  @@unique([surgeryId, customSymptomId], name: "surgeryId_customSymptomId")
+
   @@index([surgeryId])
   @@index([baseSymptomId])
   @@index([customSymptomId])

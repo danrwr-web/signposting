@@ -7,6 +7,8 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 export const runtime = 'nodejs'
 
@@ -190,6 +192,11 @@ export async function POST(
         }
       })
 
+      // Invalidate cached effective symptoms for this surgery
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
+
       return NextResponse.json({ success: true })
     }
 
@@ -228,10 +235,15 @@ export async function DELETE(
       
       console.log(`Superuser deleting base symptom with id: ${id}`)
       
-      await prisma.baseSymptom.delete({
-        where: { id }
-      })
+      // Clean up related rows (status rows, overrides) and delete base symptom
+      await prisma.$transaction([
+        prisma.surgerySymptomOverride.deleteMany({ where: { baseSymptomId: id } }),
+        prisma.surgerySymptomStatus.deleteMany({ where: { baseSymptomId: id } }),
+        prisma.baseSymptom.delete({ where: { id } }),
+      ])
 
+      // Base symptom changes can affect all surgeries.
+      revalidateTag('symptoms')
       console.log(`Successfully deleted base symptom with id: ${id}`)
       return NextResponse.json({ success: true })
     } else if (source === 'base' && action === 'hide' && surgeryId) {
@@ -256,6 +268,9 @@ export async function DELETE(
         }
       })
 
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
       console.log(`Successfully hidden base symptom ${id} for surgery ${surgeryId}`)
       return NextResponse.json({ success: true })
     } else if (source === 'custom' && surgeryId) {
@@ -272,12 +287,15 @@ export async function DELETE(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
       
-      await prisma.surgeryCustomSymptom.delete({
-        where: {
-          id,
-          surgeryId: surgeryId
-        }
-      })
+      // Soft delete + remove status rows so effective symptom list can't reference it.
+      await prisma.$transaction([
+        prisma.surgerySymptomStatus.deleteMany({ where: { surgeryId, customSymptomId: id } }),
+        prisma.surgeryCustomSymptom.update({ where: { id, surgeryId }, data: { isDeleted: true } }),
+      ])
+
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
 
       return NextResponse.json({ success: true })
     } else if (source === 'override' && surgeryId) {
@@ -293,6 +311,9 @@ export async function DELETE(
         }
       })
 
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
       return NextResponse.json({ success: true })
     }
 

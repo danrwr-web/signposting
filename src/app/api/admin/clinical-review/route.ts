@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireSurgeryAdmin, requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { revalidateTag } from 'next/cache'
 
 export const runtime = 'nodejs'
 
@@ -56,6 +57,11 @@ export async function POST(request: NextRequest) {
       
       // Update requiresClinicalReview flag
       await updateRequiresClinicalReview(surgeryId)
+
+      // Resetting review state can change what appears/flags in the UI.
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
       
       return NextResponse.json({ 
         ok: true, 

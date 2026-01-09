@@ -41,8 +41,8 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       orderBy: { name: 'asc' }
     })
 
-  // Get effective symptoms for this surgery (with overrides applied)
-  const symptoms = await getCachedEffectiveSymptoms(surgeryId)
+    // Get effective symptoms for this surgery (base + overrides + enabled custom)
+    const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
     const workflowGuidanceEnabled = await isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
 
@@ -53,6 +53,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
         requiresClinicalReview={surgery.requiresClinicalReview}
         surgeryName={surgery.name}
         workflowGuidanceEnabled={workflowGuidanceEnabled}
+        surgeryId={surgeryId}
       />
     )
   } catch (error) {

@@ -40,26 +40,24 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   
-  // Sort surgeries alphabetically by name (fallback to slug)
+  // Sort surgeries alphabetically by name
   const sortedSurgeries = [...surgeries].sort((a, b) => {
-    const nameA = (a.name || a.slug || '').toLowerCase()
-    const nameB = (b.name || b.slug || '').toLowerCase()
+    const nameA = (a.name || '').toLowerCase()
+    const nameB = (b.name || '').toLowerCase()
     return nameA.localeCompare(nameB)
   })
   
   const [surgeriesList, setSurgeriesList] = useState(sortedSurgeries)
   
-  // Filter surgeries by search query (name or slug, case-insensitive)
+  // Filter surgeries by search query (name, case-insensitive)
   const filteredSurgeries = sortedSurgeries.filter((surgery) => {
     if (!searchQuery.trim()) return true
     const query = searchQuery.toLowerCase()
     const nameMatch = surgery.name?.toLowerCase().includes(query) ?? false
-    const slugMatch = surgery.slug?.toLowerCase().includes(query) ?? false
-    return nameMatch || slugMatch
+    return nameMatch
   })
   const [newSurgery, setNewSurgery] = useState({
-    name: '',
-    slug: ''
+    name: ''
   })
 
   const handleCreateSurgery = async (e: React.FormEvent) => {
@@ -72,7 +70,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newSurgery),
+        body: JSON.stringify({ name: newSurgery.name }),
       })
 
       if (response.ok) {
@@ -88,7 +86,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
     } finally {
       setIsLoading(false)
       setShowCreateModal(false)
-      setNewSurgery({ name: '', slug: '' })
+      setNewSurgery({ name: '' })
     }
   }
 
@@ -191,15 +189,6 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                 ),
               },
               {
-                header: 'Slug',
-                key: 'slug',
-                render: (surgery) => (
-                  <div className="text-sm text-gray-500">
-                    {surgery.slug || <span className="text-gray-400 italic">No slug set</span>}
-                  </div>
-                ),
-              },
-              {
                 header: 'User Count',
                 key: 'userCount',
                 render: (surgery) => (
@@ -295,22 +284,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                     placeholder="Ide Lane Surgery"
                   />
                 </div>
-                <div className="mb-6">
-                  <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-1">
-                    Slug (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    id="slug"
-                    value={newSurgery.slug}
-                    onChange={(e) => setNewSurgery({ ...newSurgery, slug: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="ide-lane"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Used for backward compatibility. Leave empty if not needed.
-                  </p>
-                </div>
+                <div className="mb-6" />
                 <div className="flex justify-end space-x-3">
                   <button
                     type="button"
