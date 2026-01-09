@@ -629,27 +629,36 @@ export default function ClinicalReviewPanel({
       {/* Right pane */}
       <div className="flex-1 min-w-0">
         {/* Top bar */}
-        <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          {/* Left group: surgery filter + actions */}
+          <div className="flex flex-wrap items-center gap-3 min-w-0">
             {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && (
-              <select
-                value={effectiveSurgeryId || ''}
-                onChange={(e) => {
-                  setSelectedSurgeryId(e.target.value || null)
-                }}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 max-w-full"
-                aria-label="Select surgery"
-              >
-                {surgeries.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+                <label className="text-sm text-gray-700 whitespace-nowrap" htmlFor="clinical-review-surgery">
+                  Surgery
+                </label>
+                <select
+                  id="clinical-review-surgery"
+                  value={effectiveSurgeryId || ''}
+                  onChange={(e) => {
+                    setSelectedSurgeryId(e.target.value || null)
+                  }}
+                  className="h-10 px-3 border border-gray-300 rounded-md text-sm w-full sm:w-72 max-w-full"
+                  aria-label="Filter by surgery"
+                >
+                  {surgeries.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
             {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && effectiveSurgeryId && (
               <button
                 onClick={handleResetAll}
                 disabled={resettingAll || !effectiveSurgeryId}
-                className="px-3 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {resettingAll ? 'Resetting...' : 'Request re-review'}
               </button>
@@ -658,24 +667,26 @@ export default function ClinicalReviewPanel({
               <button
                 onClick={handleBulkApprove}
                 disabled={bulkApproving || !effectiveSurgeryId}
-                className="px-3 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {bulkApproving ? 'Approving...' : 'Bulk approve pending'}
               </button>
             )}
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:ml-auto sm:min-w-0">
+
+          {/* Right group: search + sort */}
+          <div className="flex flex-wrap items-center gap-3 min-w-0 w-full sm:w-auto sm:justify-end">
             <input
               type="text"
               placeholder="Search symptoms..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 max-w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-full min-w-[240px] sm:w-auto sm:flex-1 max-w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <select
               value={sort}
               onChange={e => setSort(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-56 max-w-full"
+              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-full sm:w-auto max-w-full"
               aria-label="Sort"
             >
               <option value="name-asc">Name A–Z</option>
