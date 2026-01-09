@@ -629,15 +629,15 @@ export default function ClinicalReviewPanel({
       {/* Right pane */}
       <div className="flex-1 min-w-0">
         {/* Top bar */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-3">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="flex flex-col gap-3 mb-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:min-w-0">
             {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && (
               <select
                 value={effectiveSurgeryId || ''}
                 onChange={(e) => {
                   setSelectedSurgeryId(e.target.value || null)
                 }}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
+                className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 max-w-full"
                 aria-label="Select surgery"
               >
                 {surgeries.map(s => (
@@ -664,18 +664,18 @@ export default function ClinicalReviewPanel({
               </button>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:ml-auto sm:min-w-0">
             <input
               type="text"
               placeholder="Search symptoms..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 max-w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <select
               value={sort}
               onChange={e => setSort(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-56"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-56 max-w-full"
               aria-label="Sort"
             >
               <option value="name-asc">Name A–Z</option>
