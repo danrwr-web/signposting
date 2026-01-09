@@ -47,6 +47,7 @@ export default function ClinicalReviewPanel({
   onPendingCountChange 
 }: ClinicalReviewPanelProps) {
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
+  const [enabledSymptoms, setEnabledSymptoms] = useState<EffectiveSymptom[]>([])
   const [enabledSymptomKeys, setEnabledSymptomKeys] = useState<Set<string>>(new Set())
   const [reviewStatuses, setReviewStatuses] = useState<Map<string, SymptomReviewStatus>>(new Map())
   const [surgeryData, setSurgeryData] = useState<Surgery | null>(null)
@@ -151,6 +152,7 @@ export default function ClinicalReviewPanel({
       const reviewData = await reviewRes.json()
 
       setSymptoms(symptomsData.symptoms || [])
+      setEnabledSymptoms(enabledSymptomsData.symptoms || [])
       
       // Build set of enabled symptom keys for quick lookup
       const enabledKeys = new Set(
@@ -523,6 +525,19 @@ export default function ClinicalReviewPanel({
     return rows
   }, [symptoms, reviewStatuses, activeFilter, search, sort])
 
+  const debugMismatch = useMemo(() => {
+    const isDev = process.env.NODE_ENV !== 'production'
+    if (!isDev) return null
+    if (enabledSymptoms.length === 0 || symptoms.length === 0) return null
+    if (symptoms.length === enabledSymptoms.length) return null
+    const extras = symptoms.filter((s) => !enabledSymptomKeys.has(`${s.id}-${s.ageGroup || ''}`))
+    return {
+      enabledCount: enabledSymptoms.length,
+      allCount: symptoms.length,
+      extras,
+    }
+  }, [enabledSymptoms.length, symptoms, enabledSymptomKeys])
+
   const openDrawer = (symptom: EffectiveSymptom) => {
     // Determine if it's a base or custom symptom
     const key = `${symptom.id}-${symptom.ageGroup || ''}`
@@ -569,12 +584,13 @@ export default function ClinicalReviewPanel({
             { key: 'pending' as FilterKey, label: 'Pending' },
             { key: 'changes-requested' as FilterKey, label: 'Changes requested' },
             { key: 'approved' as FilterKey, label: 'Approved' },
-            { key: 'all' as FilterKey, label: 'All' },
+            { key: 'all' as FilterKey, label: 'All (including disabled)', title: 'Includes disabled symptoms. Your Symptom Library “In use” total shows enabled symptoms only.' },
           ]).map(item => (
             <button
               key={item.key}
               onClick={() => setActiveFilter(item.key)}
               aria-current={activeFilter === item.key ? 'page' : undefined}
+              title={(item as any).title}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm mb-1 text-left ${
                 activeFilter === item.key ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'hover:bg-gray-50'
               }`}
@@ -585,6 +601,28 @@ export default function ClinicalReviewPanel({
               </span>
             </button>
           ))}
+          {debugMismatch && (
+            <div className="mt-3 p-2 rounded-md border border-amber-200 bg-amber-50 text-xs text-amber-900">
+              <div className="font-semibold">Debug (dev-only): count mismatch</div>
+              <div className="mt-1">
+                Clinical Review All: <span className="font-medium">{debugMismatch.allCount}</span> •
+                Enabled (Symptom Library “In use”): <span className="font-medium">{debugMismatch.enabledCount}</span>
+              </div>
+              {debugMismatch.extras.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer underline">Show extra symptom(s)</summary>
+                  <ul className="mt-2 space-y-1">
+                    {debugMismatch.extras.map((s) => (
+                      <li key={`${s.id}-${s.ageGroup || ''}`}>
+                        <span className="font-medium">{s.name}</span> — <span className="font-mono">{s.id}</span>{' '}
+                        <span className="text-amber-800">({s.source})</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
         </div>
       </nav>
 
