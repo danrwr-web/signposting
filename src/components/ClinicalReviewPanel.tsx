@@ -634,14 +634,9 @@ export default function ClinicalReviewPanel({
       {/* Right pane */}
       <div className="flex-1 min-w-0">
         {/* Top bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           {/* Left group: surgery filter + actions */}
-          <div className="flex items-center gap-3 flex-wrap min-w-0">
-            {roleLabelDevOnly && (
-              <div className="text-xs text-gray-500 whitespace-nowrap">
-                Debug: role = <span className="font-mono">{roleLabelDevOnly}</span>
-              </div>
-            )}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             {isSuperuser && (
               <div className="flex items-center gap-2 min-w-0">
                 <label className="text-sm text-gray-700 whitespace-nowrap" htmlFor="clinical-review-surgery">
@@ -666,7 +661,7 @@ export default function ClinicalReviewPanel({
               <button
                 onClick={handleResetAll}
                 disabled={resettingAll || !effectiveSurgeryId}
-                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium leading-none border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {resettingAll ? 'Resetting...' : 'Request re-review'}
               </button>
@@ -675,7 +670,7 @@ export default function ClinicalReviewPanel({
               <button
                 onClick={handleBulkApprove}
                 disabled={bulkApproving || !effectiveSurgeryId}
-                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium leading-none bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {bulkApproving ? 'Approving...' : 'Bulk approve pending'}
               </button>
@@ -683,7 +678,7 @@ export default function ClinicalReviewPanel({
           </div>
 
           {/* Right group: search + sort */}
-          <div className="flex items-center gap-3 min-w-0 justify-end flex-nowrap max-[900px]:flex-wrap max-[900px]:w-full">
+          <div className="flex items-center gap-2 min-w-0 justify-end flex-nowrap max-[900px]:flex-wrap max-[900px]:w-full">
             <input
               type="text"
               placeholder="Search symptoms..."
@@ -704,6 +699,11 @@ export default function ClinicalReviewPanel({
             </select>
           </div>
         </div>
+        {roleLabelDevOnly && (
+          <div className="mb-2 text-xs text-gray-500">
+            Debug: role = <span className="font-mono">{roleLabelDevOnly}</span>
+          </div>
+        )}
 
         {/* Table */}
         <div className="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
@@ -727,7 +727,11 @@ export default function ClinicalReviewPanel({
               )}
               {!loading && filteredRows.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={isSuperuser ? 5 : 4}>No results</td>
+                  <td className="px-4 py-6 text-center text-sm text-gray-600" colSpan={isSuperuser ? 5 : 4}>
+                    {activeFilter === 'pending' && !search.trim()
+                      ? 'All symptoms are approved.'
+                      : 'No results found.'}
+                  </td>
                 </tr>
               )}
               {filteredRows.map(row => {
