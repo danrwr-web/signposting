@@ -160,7 +160,7 @@ export default function CopyDefaultsSection({ surgeryId, targetTemplateId, allTe
           {isSettingSurgeryDefaults ? 'Setting...' : 'Set surgery defaults from this template'}
         </button>
         <p className="text-xs text-gray-500 mt-2">
-          This copies this template's defaults to the surgery-level defaults, which are used for new nodes and templates without explicit defaults.
+          This copies this template&apos;s defaults to the surgery-level defaults, which are used for new nodes and templates without explicit defaults.
         </p>
       </div>
     </div>

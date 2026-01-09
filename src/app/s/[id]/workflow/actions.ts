@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSurgeryAdmin, requireSurgeryAccess, getSessionUser } from '@/lib/rbac'
+import { requireSurgeryAdmin, requireSurgeryAccess, getSessionUser, can } from '@/lib/rbac'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 
 export interface ActionResult {
@@ -1639,6 +1639,11 @@ export async function approveWorkflowTemplate(
       }
     }
 
+    // Idempotent: approving an already-approved template is a no-op.
+    if (existing.approvalStatus === 'APPROVED') {
+      return { success: true }
+    }
+
     await prisma.workflowTemplate.update({
       where: { id: templateId },
       data: {
@@ -1832,6 +1837,7 @@ export async function startWorkflowInstance(
 ): Promise<ActionResult & { instanceId?: string }> {
   try {
     const user = await requireSurgeryAccess(surgeryId)
+    const includeDrafts = can(user).isAdminOfSurgery(surgeryId)
 
     const templateId = formData.get('templateId') as string
     const reference = (formData.get('reference') as string) || null
@@ -1850,6 +1856,7 @@ export async function startWorkflowInstance(
         id: templateId,
         surgeryId,
         isActive: true,
+        ...(includeDrafts ? {} : { approvalStatus: 'APPROVED' }),
       },
       include: {
         nodes: {

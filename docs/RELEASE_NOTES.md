@@ -49,7 +49,7 @@ A high-level history of major changes.
 
 _Changes in development or planned for the next release._
 
-- (none)
+- Added a **Publish workflow** button on the workflow diagram page so admins can make draft workflows visible to staff.
 
 ---
 

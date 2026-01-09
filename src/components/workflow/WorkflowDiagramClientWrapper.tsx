@@ -7,6 +7,11 @@ type WorkflowTemplate = {
   id: string
   name: string
   description: string | null
+  // Draft vs Published is controlled via WorkflowTemplate.approvalStatus:
+  // - DRAFT: not visible to staff
+  // - APPROVED: visible to staff
+  approvalStatus: 'DRAFT' | 'APPROVED' | 'SUPERSEDED' | string
+  approvedAt?: Date | string | null
   styleDefaults?: Array<{
     nodeType: WorkflowNodeType
     bgColor: string | null
@@ -59,6 +64,7 @@ interface Props {
   allTemplates: Array<{ id: string; name: string }>
   surgeryId: string
   templateId: string
+  publishWorkflowAction?: () => Promise<{ success: boolean; error?: string }>
   surgeryDefaults?: Array<{
     nodeType: WorkflowNodeType
     bgColor: string | null

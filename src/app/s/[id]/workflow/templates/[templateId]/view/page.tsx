@@ -19,6 +19,7 @@ import {
   createWorkflowNodeLink,
   deleteWorkflowNodeLink,
   bulkUpdateWorkflowNodePositions,
+  approveWorkflowTemplate,
 } from '../../../actions'
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
@@ -299,6 +300,9 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
     const deleteAnswerOptionAction = isAdmin ? deleteWorkflowAnswerOptionById.bind(null, surgeryId, templateId) : undefined
     const deleteNodeAction = isAdmin ? deleteWorkflowNodeById.bind(null, surgeryId, templateId) : undefined
     const updateNodeAction = isAdmin ? updateWorkflowNodeForDiagram.bind(null, surgeryId, templateId) : undefined
+    const publishWorkflowAction = isAdmin
+      ? approveWorkflowTemplate.bind(null, templateOwnerSurgeryId, templateId)
+      : undefined
 
     return (
       <div className="min-h-screen bg-gray-50 w-full">
@@ -398,6 +402,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
               allTemplates={allTemplates}
               surgeryId={surgeryId}
               templateId={templateId}
+              publishWorkflowAction={publishWorkflowAction}
               surgeryDefaults={surgeryDefaults}
               updatePositionAction={updatePositionAction}
               createNodeAction={createNodeAction}
