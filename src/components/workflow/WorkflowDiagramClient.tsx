@@ -951,8 +951,7 @@ export default function WorkflowDiagramClient({
 
   const canShowPublish =
     effectiveAdmin && approvalStatus === 'DRAFT' && typeof publishWorkflowAction === 'function'
-  const publishDisabled = !hasEndNode || isPublishing
-  const publishDisabledReason = !hasEndNode ? 'Add at least one END node before publishing.' : undefined
+  const publishDisabled = isPublishing
 
   // Find selected node data
   const selectedNode = useMemo(() => {
@@ -2499,8 +2498,6 @@ export default function WorkflowDiagramClient({
                   type="button"
                   onClick={() => setIsPublishDialogOpen(true)}
                   disabled={publishDisabled}
-                  title={publishDisabledReason}
-                  aria-describedby={publishDisabledReason ? 'publish-disabled-hint' : undefined}
                   className="px-4 py-2 rounded-md bg-nhs-blue text-white text-sm font-semibold hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="block leading-tight">Publish workflow</span>
@@ -2508,11 +2505,6 @@ export default function WorkflowDiagramClient({
                     Makes this workflow visible to staff
                   </span>
                 </button>
-                {publishDisabledReason && (
-                  <p id="publish-disabled-hint" className="text-xs text-nhs-dark-grey">
-                    {publishDisabledReason}
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -2524,20 +2516,18 @@ export default function WorkflowDiagramClient({
 
       {isPublishDialogOpen && canShowPublish && (
         <Modal
-          title="Publish this workflow?"
-          description="This will make the workflow visible to staff. You can still edit it later."
+          title={hasEndNode ? 'Publish this workflow?' : 'Publish without an END node?'}
+          description={
+            hasEndNode
+              ? 'This will make the workflow visible to staff. You can still edit it later.'
+              : "This workflow currently has no END node. That usually means it can't conclude cleanly. Are you sure you want to publish anyway?"
+          }
           onClose={() => {
             if (!isPublishing) setIsPublishDialogOpen(false)
           }}
           widthClassName="max-w-lg"
         >
           <div className="space-y-4">
-            {!hasEndNode && (
-              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-nhs-dark-grey">
-                Add at least one END node before publishing.
-              </div>
-            )}
-
             <div className="flex items-center justify-end gap-3">
               <button
                 type="button"
@@ -2551,7 +2541,6 @@ export default function WorkflowDiagramClient({
                 type="button"
                 onClick={async () => {
                   if (!publishWorkflowAction) return
-                  if (!hasEndNode) return
                   if (isPublishing) return
                   setIsPublishing(true)
                   try {
@@ -2571,10 +2560,10 @@ export default function WorkflowDiagramClient({
                     setIsPublishing(false)
                   }
                 }}
-                disabled={isPublishing || !hasEndNode}
+                disabled={isPublishing}
                 className="px-4 py-2 rounded-md bg-nhs-blue text-white text-sm font-semibold hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isPublishing ? 'Publishing…' : 'Publish'}
+                {isPublishing ? 'Publishing…' : hasEndNode ? 'Publish' : 'Publish anyway'}
               </button>
             </div>
           </div>

@@ -1639,22 +1639,6 @@ export async function approveWorkflowTemplate(
       }
     }
 
-    // Guard: prevent publishing incomplete workflows.
-    // Publishing is what makes a workflow visible to staff (approvalStatus: DRAFT -> APPROVED).
-    const endNodeCount = await prisma.workflowNodeTemplate.count({
-      where: {
-        templateId,
-        nodeType: 'END',
-      },
-    })
-
-    if (endNodeCount < 1) {
-      return {
-        success: false,
-        error: 'Add at least one END node before publishing.',
-      }
-    }
-
     // Idempotent: approving an already-approved template is a no-op.
     if (existing.approvalStatus === 'APPROVED') {
       return { success: true }
