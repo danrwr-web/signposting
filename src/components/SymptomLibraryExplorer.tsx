@@ -67,6 +67,8 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     return surgeryId || sessionUser?.surgeryId || null
   }, [surgeryId, sessionUser, isSuperuser, selectedSurgeryId])
 
+  const isDev = process.env.NODE_ENV !== 'production'
+
   const loadRole = async () => {
     try {
       const me = await fetch('/api/user/profile', { cache: 'no-store' })
@@ -312,6 +314,11 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       {/* Sidebar */}
       <nav role="navigation" aria-label="Symptom folders" className="w-[270px] shrink-0 sticky top-0 self-start">
         <div className="bg-white rounded-lg border border-gray-200 p-3">
+          {isDev && effectiveSurgeryId && (
+            <div className="mb-2 text-xs text-gray-500">
+              Debug: surgeryId = <span className="font-mono">{effectiveSurgeryId}</span>
+            </div>
+          )}
           {([
             { key: 'inuse', label: 'In use' },
             { key: 'available', label: 'Available' },
