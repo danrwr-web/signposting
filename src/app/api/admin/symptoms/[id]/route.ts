@@ -194,6 +194,7 @@ export async function POST(
 
       // Invalidate cached effective symptoms for this surgery
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
       revalidateTag('symptoms')
 
       return NextResponse.json({ success: true })
@@ -268,6 +269,7 @@ export async function DELETE(
       })
 
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
       revalidateTag('symptoms')
       console.log(`Successfully hidden base symptom ${id} for surgery ${surgeryId}`)
       return NextResponse.json({ success: true })
@@ -292,6 +294,7 @@ export async function DELETE(
       ])
 
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
       revalidateTag('symptoms')
 
       return NextResponse.json({ success: true })
@@ -309,6 +312,7 @@ export async function DELETE(
       })
 
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
       revalidateTag('symptoms')
       return NextResponse.json({ success: true })
     }

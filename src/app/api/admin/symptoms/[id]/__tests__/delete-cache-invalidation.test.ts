@@ -54,6 +54,8 @@ describe('DELETE /api/admin/symptoms/[id] cache invalidation', () => {
     expect(prisma.$transaction).toHaveBeenCalled()
     expect(getCachedSymptomsTag).toHaveBeenCalledWith('s1', false)
     expect(revalidateTag).toHaveBeenCalledWith('symptoms:s1:enabled')
+    expect(getCachedSymptomsTag).toHaveBeenCalledWith('s1', true)
+    expect(revalidateTag).toHaveBeenCalledWith('symptoms:s1:with-disabled')
     expect(revalidateTag).toHaveBeenCalledWith('symptoms')
   })
 })

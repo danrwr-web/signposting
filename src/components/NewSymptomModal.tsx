@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
+import { toast } from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   isOpen: boolean
@@ -13,6 +15,7 @@ interface Props {
 }
 
 export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentSurgeryId, surgeries, onCreated }: Props) {
+  const router = useRouter()
   const [target, setTarget] = useState<'BASE' | 'SURGERY'>(isSuperuser ? 'SURGERY' : 'SURGERY')
   const [targetSurgeryId, setTargetSurgeryId] = useState<string | ''>(currentSurgeryId || '')
   const [name, setName] = useState('')
@@ -50,9 +53,12 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
     setSubmitting(true)
     setError(null)
     try {
+      const resolvedSurgeryId =
+        target === 'SURGERY' ? (isSuperuser ? targetSurgeryId : currentSurgeryId) : null
+
       const body: any = {
         target,
-        ...(target === 'SURGERY' ? { surgeryId: (isSuperuser ? targetSurgeryId : currentSurgeryId) } : {}),
+        ...(target === 'SURGERY' ? { surgeryId: resolvedSurgeryId } : {}),
         name: name.trim(),
         ageGroup,
         briefInstruction: briefInstruction.trim() || undefined,
@@ -71,6 +77,42 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
       if (!res.ok) {
         setError(data?.error || 'Failed to create symptom')
         return
+      }
+      try {
+        window.dispatchEvent(new CustomEvent('signposting:admin-metrics-changed'))
+      } catch {}
+      if (target === 'SURGERY' && !isSuperuser && resolvedSurgeryId) {
+        toast.custom((t) => (
+          <div className="bg-white border border-gray-200 shadow-lg rounded-lg p-4 max-w-md">
+            <p className="text-sm text-gray-900 font-medium">
+              Added to Clinical Review.
+            </p>
+            <p className="text-sm text-gray-700 mt-1">
+              Approve and enable before it appears for reception.
+            </p>
+            <div className="mt-3 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  toast.dismiss(t.id)
+                  router.push('/admin?tab=clinical-review')
+                }}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-nhs-blue text-white hover:bg-nhs-dark-blue"
+              >
+                Open Clinical Review
+              </button>
+              <button
+                type="button"
+                onClick={() => toast.dismiss(t.id)}
+                className="px-3 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ), { duration: 8000 })
+      } else {
+        toast.success('Symptom added')
       }
       onCreated(target)
       onClose()

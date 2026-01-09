@@ -165,6 +165,7 @@ export async function POST(req: NextRequest) {
 
     // Creating a surgery custom symptom can change the effective symptom list for this surgery immediately.
     revalidateTag(getCachedSymptomsTag(sid, false))
+    revalidateTag(getCachedSymptomsTag(sid, true))
     revalidateTag('symptoms')
 
     // TODO: Improve duplicate check with fuzzy matching (Levenshtein/trigram) later

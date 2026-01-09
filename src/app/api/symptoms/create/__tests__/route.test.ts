@@ -32,7 +32,9 @@ jest.mock('next/cache', () => ({
 }))
 
 jest.mock('@/server/effectiveSymptoms', () => ({
-  getCachedSymptomsTag: jest.fn((_surgeryId: string) => 'symptoms:surgery:enabled'),
+  getCachedSymptomsTag: jest.fn((surgeryId: string, includeDisabled: boolean) =>
+    `symptoms:${surgeryId}:${includeDisabled ? 'with-disabled' : 'enabled'}`
+  ),
 }))
 
 const mockedGetSessionUser = getSessionUser as jest.MockedFunction<typeof getSessionUser>
@@ -122,7 +124,9 @@ describe('POST /api/symptoms/create', () => {
       })
     )
     expect(mockedGetCachedSymptomsTag).toHaveBeenCalledWith('cmk5p08xt0000ju04k9s0udri', false)
-    expect(mockedRevalidateTag).toHaveBeenCalledWith('symptoms:surgery:enabled')
+    expect(mockedGetCachedSymptomsTag).toHaveBeenCalledWith('cmk5p08xt0000ju04k9s0udri', true)
+    expect(mockedRevalidateTag).toHaveBeenCalledWith('symptoms:cmk5p08xt0000ju04k9s0udri:enabled')
+    expect(mockedRevalidateTag).toHaveBeenCalledWith('symptoms:cmk5p08xt0000ju04k9s0udri:with-disabled')
     expect(mockedRevalidateTag).toHaveBeenCalledWith('symptoms')
   })
 

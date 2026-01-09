@@ -2,12 +2,17 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { unstable_noStore as noStore } from 'next/cache'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 // GET /api/admin/clinical-review-data?surgeryId=xxx
 export async function GET(request: NextRequest) {
   try {
+    noStore()
+
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
 
@@ -61,7 +66,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       surgery: {
         id: surgery.id,
         name: surgery.name,
@@ -71,15 +76,19 @@ export async function GET(request: NextRequest) {
       },
       reviewStatuses: surgery.symptomReviews
     })
+    res.headers.set('Cache-Control', 'no-store')
+    return res
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     console.error('Error fetching clinical review data:', error)
-    return NextResponse.json(
+    const res = NextResponse.json(
       { error: 'Failed to fetch clinical review data' },
       { status: 500 }
     )
+    res.headers.set('Cache-Control', 'no-store')
+    return res
   }
 }
 

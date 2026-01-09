@@ -537,6 +537,9 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                 return
               }
               toast.success('Deleted')
+              try {
+                window.dispatchEvent(new CustomEvent('signposting:admin-metrics-changed'))
+              } catch {}
               loadLibraryData(effectiveSurgeryId)
               closeDrawer()
             } catch (e) {

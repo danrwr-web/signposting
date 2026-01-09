@@ -277,6 +277,9 @@ export default function ClinicalReviewPanel({
       
       // Refresh data to reflect disable status
       await loadData()
+      try {
+        window.dispatchEvent(new CustomEvent('signposting:admin-metrics-changed'))
+      } catch {}
     } catch (error) {
       console.error('Error updating review status:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update review status')

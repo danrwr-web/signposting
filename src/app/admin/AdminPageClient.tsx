@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { signOut } from 'next-auth/react'
@@ -102,6 +102,28 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     pendingCount: number
   } | null>(null)
   const [setupChecklistLoading, setSetupChecklistLoading] = useState(false)
+
+  const refreshMetrics = useCallback(async () => {
+    if (!selectedSurgery) return
+
+    setMetricsLoading(true)
+
+    try {
+      const res = await fetch(`/api/admin/metrics?surgeryId=${selectedSurgery}`, { cache: 'no-store' })
+      if (!res.ok) throw new Error('Failed to load metrics')
+      const data = await res.json()
+      setMetrics({
+        pendingReviewCount: data.pendingReviewCount ?? 0,
+        suggestionsPendingCount: data.suggestionsPendingCount ?? 0,
+        setupChecklistOutstandingCount: data.setupChecklistOutstandingCount ?? 0,
+      })
+    } catch (error) {
+      console.error('Error loading admin metrics:', error)
+      setMetrics(null)
+    } finally {
+      setMetricsLoading(false)
+    }
+  }, [selectedSurgery])
 
   // Load AI usage data when tab is active
   useEffect(() => {
@@ -217,38 +239,17 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   // Load admin metrics (pending review, suggestions, setup checklist) when surgery selection changes
   useEffect(() => {
-    if (!selectedSurgery) return
+    refreshMetrics()
+  }, [refreshMetrics])
 
-    let cancelled = false
-    setMetricsLoading(true)
-
-    fetch(`/api/admin/metrics?surgeryId=${selectedSurgery}`)
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error('Failed to load metrics')
-        }
-        const data = await res.json()
-        if (cancelled) return
-        setMetrics({
-          pendingReviewCount: data.pendingReviewCount ?? 0,
-          suggestionsPendingCount: data.suggestionsPendingCount ?? 0,
-          setupChecklistOutstandingCount: data.setupChecklistOutstandingCount ?? 0,
-        })
-      })
-      .catch((error) => {
-        if (cancelled) return
-        console.error('Error loading admin metrics:', error)
-        setMetrics(null)
-      })
-      .finally(() => {
-        if (cancelled) return
-        setMetricsLoading(false)
-      })
-
-    return () => {
-      cancelled = true
+  // Refresh tab badges after create/approve/delete.
+  useEffect(() => {
+    const handler = () => {
+      refreshMetrics()
     }
-  }, [selectedSurgery])
+    window.addEventListener('signposting:admin-metrics-changed', handler)
+    return () => window.removeEventListener('signposting:admin-metrics-changed', handler)
+  }, [refreshMetrics])
 
   // Load base symptoms for Current Base Symptoms section
   const loadBaseSymptoms = async () => {

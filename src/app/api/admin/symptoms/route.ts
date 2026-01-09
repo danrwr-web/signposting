@@ -184,6 +184,7 @@ export async function POST(request: NextRequest) {
       })
 
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
       revalidateTag('symptoms')
 
       // Practice-admin created symptoms start as pending and disabled
@@ -308,6 +309,7 @@ export async function DELETE(request: NextRequest) {
       prisma.surgerySymptomStatus.deleteMany({ where: { surgeryId: surgeryId!, customSymptomId: customSymptomId! } }),
     ])
     revalidateTag(getCachedSymptomsTag(surgeryId!, false))
+    revalidateTag(getCachedSymptomsTag(surgeryId!, true))
     revalidateTag('symptoms')
     return NextResponse.json({ ok: true })
   } catch (error) {

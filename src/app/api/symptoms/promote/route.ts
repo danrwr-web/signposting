@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
 
     // Promoting a custom symptom affects base + surgery effective symptom lists.
     revalidateTag(getCachedSymptomsTag(custom.surgeryId, false))
+    revalidateTag(getCachedSymptomsTag(custom.surgeryId, true))
     revalidateTag('symptoms')
 
     // TODO: Add audit logging for create/promote actions (SymptomHistory)

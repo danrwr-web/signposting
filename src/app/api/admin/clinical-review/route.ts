@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
 
       // Resetting review state can change what appears/flags in the UI.
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
       revalidateTag('symptoms')
       
       return NextResponse.json({ 

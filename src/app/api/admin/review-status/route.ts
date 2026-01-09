@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
 
     // Review status can affect what is shown/flagged in surgery symptom lists.
     revalidateTag(getCachedSymptomsTag(surgeryId, false))
+    revalidateTag(getCachedSymptomsTag(surgeryId, true))
     revalidateTag('symptoms')
 
     return NextResponse.json(reviewStatus)

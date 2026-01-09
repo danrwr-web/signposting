@@ -382,6 +382,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
         revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
@@ -446,6 +447,7 @@ export async function PATCH(request: NextRequest) {
 
         if (resolvedSurgeryId) {
           revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
         }
         revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
@@ -513,6 +515,7 @@ export async function PATCH(request: NextRequest) {
 
         if (resolvedSurgeryId) {
           revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
         }
         revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
@@ -654,6 +657,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         revalidateTag(getCachedSymptomsTag(targetSurgeryId, false))
+        revalidateTag(getCachedSymptomsTag(targetSurgeryId, true))
         revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
@@ -715,6 +719,7 @@ export async function PATCH(request: NextRequest) {
         })
 
         revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
         revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }

@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
     
     // Bulk approval can affect the surgery's effective symptom state.
     revalidateTag(getCachedSymptomsTag(surgeryId, false))
+    revalidateTag(getCachedSymptomsTag(surgeryId, true))
     revalidateTag('symptoms')
 
     return NextResponse.json({ 
