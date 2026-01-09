@@ -22,7 +22,7 @@ interface HomePageClientProps {
   workflowGuidanceEnabled?: boolean
 }
 
-function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId }: HomePageClientProps) {
+function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId, workflowGuidanceEnabled }: HomePageClientProps) {
   const { surgery, currentSurgeryId, setSurgery } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
