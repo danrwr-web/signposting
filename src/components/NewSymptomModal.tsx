@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
+import { toast } from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   isOpen: boolean
@@ -13,10 +15,10 @@ interface Props {
 }
 
 export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentSurgeryId, surgeries, onCreated }: Props) {
+  const router = useRouter()
   const [target, setTarget] = useState<'BASE' | 'SURGERY'>(isSuperuser ? 'SURGERY' : 'SURGERY')
   const [targetSurgeryId, setTargetSurgeryId] = useState<string | ''>(currentSurgeryId || '')
   const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
   const [ageGroup, setAgeGroup] = useState<'U5' | 'O5' | 'Adult'>('Adult')
   const [briefInstruction, setBriefInstruction] = useState('')
   const [highlightedText, setHighlightedText] = useState('')
@@ -36,21 +38,10 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
     if (currentSurgeryId) setTargetSurgeryId(currentSurgeryId)
   }, [currentSurgeryId])
 
-  // Auto-generate slug from name if empty or matching previous auto value
-  useEffect(() => {
-    const auto = name
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .trim()
-      .replace(/\s+/g, '-')
-    setSlug(prev => (prev === '' || prev === auto ? auto : prev))
-  }, [name])
-
   if (!isOpen) return null
 
   const canSubmit = () => {
     if (!name.trim() || name.trim().length > 120) return false
-    if (!slug.trim()) return false
     if (!instructionsHtml.trim()) return false
     if (isSuperuser && target === 'SURGERY' && !targetSurgeryId) return false
     if (!isSuperuser && !currentSurgeryId) return false
@@ -62,31 +53,66 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
     setSubmitting(true)
     setError(null)
     try {
+      const resolvedSurgeryId =
+        target === 'SURGERY' ? (isSuperuser ? targetSurgeryId : currentSurgeryId) : null
+
       const body: any = {
+        target,
+        ...(target === 'SURGERY' ? { surgeryId: resolvedSurgeryId } : {}),
         name: name.trim(),
-        slug: slug.trim(),
         ageGroup,
         briefInstruction: briefInstruction.trim() || undefined,
         highlightedText: highlightedText.trim() || undefined,
         linkToPage: linkToPage.trim() || undefined,
-        instructions: instructionsHtml, // keep legacy mirroring
         instructionsHtml,
         instructionsJson: instructionsJson || undefined,
         variants: undefined,
       }
-      const res = await fetch('/api/admin/symptoms', {
+      const res = await fetch('/api/symptoms/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       })
       const data = await res.json().catch(() => ({}))
-      if (res.status === 409 && data?.error === 'DUPLICATE') {
-        setError('A symptom with this name already exists in the target scope.')
-        return
-      }
       if (!res.ok) {
         setError(data?.error || 'Failed to create symptom')
         return
+      }
+      try {
+        window.dispatchEvent(new CustomEvent('signposting:admin-metrics-changed'))
+      } catch {}
+      if (target === 'SURGERY' && !isSuperuser && resolvedSurgeryId) {
+        toast.custom((t) => (
+          <div className="bg-white border border-gray-200 shadow-lg rounded-lg p-4 max-w-md">
+            <p className="text-sm text-gray-900 font-medium">
+              Added to Clinical Review.
+            </p>
+            <p className="text-sm text-gray-700 mt-1">
+              Approve and enable before it appears for reception.
+            </p>
+            <div className="mt-3 flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  toast.dismiss(t.id)
+                  router.push('/admin?tab=clinical-review')
+                }}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-nhs-blue text-white hover:bg-nhs-dark-blue"
+              >
+                Open Clinical Review
+              </button>
+              <button
+                type="button"
+                onClick={() => toast.dismiss(t.id)}
+                className="px-3 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        ), { duration: 8000 })
+      } else {
+        toast.success('Symptom added')
       }
       onCreated(target)
       onClose()
@@ -159,16 +185,6 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         </div>
 
         <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Slug</label>
-            <input
-              type="text"
-              value={slug}
-              onChange={(e) => setSlug(e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-              placeholder="e.g., chest-pain"
-            />
-          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Age group</label>
             <select

@@ -19,6 +19,8 @@ _Changes in development or planned for the next release._
 - Clicking the Signposting Toolkit logo now keeps you within your current surgery, with `/s` as a safer signed-in entry route (avoids losing context and unexpected login redirects).
 - Symptom page links now use the same surgery identifier as the main `/s/[id]` routes, with older links automatically redirected to the canonical format.
 - Surgery admins can now apply AI wording suggestions within their own surgery (superusers remain supported).
+- Admin forms no longer ask for symptom slugs — slugs are generated automatically, and high-risk buttons now link to symptoms via a searchable list.
+- Symptom search and clinical review counts now refresh immediately after creating, approving, enabling, or deleting symptoms (no 5‑minute delay).
 - Marketing and app domains separated: www.signpostingtool.co.uk shows the public site while app.signpostingtool.co.uk routes straight into the toolkit entry screen.
 - Marketing site hero updated with new headline: "The GP Signposting Toolkit for safer, faster care navigation".
 - "Why practices choose" section condensed and moved higher on the landing page.

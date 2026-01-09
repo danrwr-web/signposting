@@ -52,8 +52,27 @@ export function sanitizeHtml(html: string): string {
   if (!html || typeof html !== 'string') {
     return ''
   }
-  
-  return sanitizeHtmlLib(html, sanitizeConfig)
+
+  const sanitized = sanitizeHtmlLib(html, sanitizeConfig)
+
+  // Normalise inline style formatting to be stable and readable.
+  // sanitize-html may output compact styles like `color:rgb(255, 0, 0)` (no spaces / no trailing semicolons),
+  // which makes string-based tests brittle. We reformat as `color: rgb(...);` consistently.
+  return sanitized.replace(/style="([^"]*)"/g, (_match, styleValue: string) => {
+    const declarations = styleValue
+      .split(';')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((decl) => {
+        const idx = decl.indexOf(':')
+        if (idx === -1) return decl
+        const prop = decl.slice(0, idx).trim()
+        const value = decl.slice(idx + 1).trim()
+        return `${prop}: ${value};`
+      })
+
+    return `style="${declarations.join(' ')}"`
+  })
 }
 
 /**

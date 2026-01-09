@@ -37,6 +37,7 @@ export default function DefaultButtonsConfig({
   const [newButton, setNewButton] = useState({ label: '', symptomSlug: '' })
   const [symptomSearch, setSymptomSearch] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const editDropdownRef = useRef<HTMLDivElement>(null)
 
   const handleUpdateButton = async () => {
     if (!editingButton) return
@@ -102,14 +103,16 @@ export default function DefaultButtonsConfig({
 
   // Filter symptoms based on search
   const filteredSymptoms = symptoms.filter(s => 
-    s.name.toLowerCase().includes(symptomSearch.toLowerCase()) ||
-    s.slug.toLowerCase().includes(symptomSearch.toLowerCase())
+    s.name.toLowerCase().includes(symptomSearch.toLowerCase())
   )
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const t = event.target as Node
+      const clickedOutsideAdd = dropdownRef.current ? !dropdownRef.current.contains(t) : true
+      const clickedOutsideEdit = editDropdownRef.current ? !editDropdownRef.current.contains(t) : true
+      if (clickedOutsideAdd && clickedOutsideEdit) {
         setSymptomSearch('')
       }
     }
@@ -207,7 +210,6 @@ export default function DefaultButtonsConfig({
                       className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
                     >
                       <div className="font-medium">{symptom.name}</div>
-                      <div className="text-xs text-gray-500">{symptom.slug}</div>
                     </button>
                   ))}
                 </div>
@@ -268,15 +270,41 @@ export default function DefaultButtonsConfig({
                       className="block text-xs font-medium text-gray-700 mb-1"
                       htmlFor={`edit-slug-${button.buttonKey}`}
                     >
-                      Symptom Slug
+                      Symptom
                     </label>
-                    <input
-                      id={`edit-slug-${button.buttonKey}`}
-                      type="text"
-                      value={editingButton.symptomSlug}
-                      onChange={(e) => setEditingButton({ ...editingButton, symptomSlug: e.target.value })}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
-                    />
+                    <div className="relative" ref={editDropdownRef}>
+                      <input
+                        id={`edit-slug-${button.buttonKey}`}
+                        type="text"
+                        value={symptomSearch}
+                        onChange={(e) => setSymptomSearch(e.target.value)}
+                        placeholder="Search symptoms…"
+                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+                      />
+                      {symptomSearch && filteredSymptoms.length > 0 && (
+                        <div
+                          className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded shadow-lg max-h-48 overflow-y-auto"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {filteredSymptoms.map((symptom) => (
+                            <button
+                              key={symptom.slug}
+                              type="button"
+                              onClick={() => {
+                                setEditingButton({ ...editingButton, symptomSlug: symptom.slug })
+                                setSymptomSearch('')
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-gray-100 text-sm"
+                            >
+                              <div className="font-medium">{symptom.name}</div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Currently linked to: <span className="font-medium text-gray-700">{symptoms.find(s => s.slug === editingButton.symptomSlug)?.name || 'Unknown symptom'}</span>
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">

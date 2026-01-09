@@ -40,10 +40,18 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       orderBy: { name: 'asc' }
     })
 
-  // Get effective symptoms for this surgery (with overrides applied)
-  const symptoms = await getCachedEffectiveSymptoms(surgeryId)
+    // Get effective symptoms for this surgery (base + overrides + enabled custom)
+    const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
-    return <HomePageClient surgeries={surgeries} symptoms={symptoms} requiresClinicalReview={surgery.requiresClinicalReview} surgeryName={surgery.name} />
+    return (
+      <HomePageClient
+        surgeries={surgeries}
+        symptoms={symptoms}
+        requiresClinicalReview={surgery.requiresClinicalReview}
+        surgeryName={surgery.name}
+        surgeryId={surgeryId}
+      />
+    )
   } catch (error) {
     redirect('/unauthorized')
   }

@@ -11,6 +11,7 @@ jest.mock('@/lib/rbac', () => ({
 
 jest.mock('@/lib/prisma', () => ({
   prisma: {
+    $transaction: jest.fn(async (fn: any) => fn((require('@/lib/prisma') as any).prisma)),
     surgery: {
       findUnique: jest.fn(),
     },

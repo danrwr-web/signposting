@@ -4,6 +4,8 @@ import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 export const runtime = 'nodejs'
 
@@ -74,6 +76,11 @@ export async function POST(request: NextRequest) {
 
     // Update requiresClinicalReview flag
     await updateRequiresClinicalReview(surgeryId)
+
+    // Review status can affect what is shown/flagged in surgery symptom lists.
+    revalidateTag(getCachedSymptomsTag(surgeryId, false))
+    revalidateTag(getCachedSymptomsTag(surgeryId, true))
+    revalidateTag('symptoms')
 
     return NextResponse.json(reviewStatus)
   } catch (error) {

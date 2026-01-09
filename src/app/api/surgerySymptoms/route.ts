@@ -8,6 +8,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
+import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 
 export const runtime = 'nodejs'
 
@@ -115,130 +118,54 @@ export async function GET(request: NextRequest) {
       where: { surgeryId }
     })
 
-    // Build a map of status rows by symptom ID
-    const statusByBaseId = new Map<string, typeof statusRows[0]>()
-    const statusByCustomId = new Map<string, typeof statusRows[0]>()
+    // Canonical effective symptom set is derived from getEffectiveSymptoms, so Symptom Library
+    // and Clinical Review (which uses /api/effectiveSymptoms) stay consistent.
+    const [allEffective, enabledEffective] = await Promise.all([
+      getEffectiveSymptoms(surgeryId, true),
+      getEffectiveSymptoms(surgeryId, false),
+    ])
 
+    const enabledIds = new Set(enabledEffective.map((s) => s.id))
+
+    // Build a map of status rows by symptomId (prefer most recently edited due to ordering).
+    const statusBySymptomId = new Map<string, typeof statusRows[0]>()
     for (const status of statusRows) {
-      if (status.baseSymptomId) {
-        statusByBaseId.set(status.baseSymptomId, status)
-      }
-      if (status.customSymptomId) {
-        statusByCustomId.set(status.customSymptomId, status)
-      }
+      const sid = status.customSymptomId || status.baseSymptomId
+      if (!sid) continue
+      if (!statusBySymptomId.has(sid)) statusBySymptomId.set(sid, status)
     }
 
-    // Build a set of base symptom IDs that have overrides (modified wording)
-    const overriddenBaseIds = new Set(overrides.map(o => o.baseSymptomId))
+    const inUse: InUseSymptom[] = allEffective.map((s) => {
+      const isEnabled = enabledIds.has(s.id)
+      const statusRow = statusBySymptomId.get(s.id)
+      let status: SymptomStatus
+      if (!isEnabled) status = 'DISABLED'
+      else if (s.source === 'custom') status = 'LOCAL_ONLY'
+      else if (s.source === 'override') status = 'MODIFIED'
+      else status = 'BASE'
 
-    // Build a set of hidden symptom IDs (from old system)
-    const hiddenBaseIds = new Set(
-      overrides
-        .filter(o => o.isHidden === true)
-        .map(o => o.baseSymptomId)
-    )
-
-    // Build "inUse" array - anything with a status row
-    const inUse: InUseSymptom[] = []
-
-    // Add base-linked symptoms
-    for (const baseSymptom of baseSymptoms) {
-      const status = statusByBaseId.get(baseSymptom.id)
-      
-      // In the NEW system: if there's a status row, use it
-      if (status) {
-        let symptomStatus: SymptomStatus
-        if (!status.isEnabled) {
-          symptomStatus = 'DISABLED'
-        } else if (overriddenBaseIds.has(baseSymptom.id)) {
-          symptomStatus = 'MODIFIED'
-        } else {
-          symptomStatus = 'BASE'
-        }
-
-        inUse.push({
-          symptomId: baseSymptom.id,
-          name: baseSymptom.name,
-          status: symptomStatus,
-          isEnabled: status.isEnabled,
-          canRevertToBase: symptomStatus === 'MODIFIED',
-          statusRowId: status.id,
-          lastEditedAt: status.lastEditedAt,
-          lastEditedBy: status.lastEditedBy
-        })
+      return {
+        symptomId: s.id,
+        name: s.name,
+        status,
+        isEnabled,
+        canRevertToBase: status === 'MODIFIED',
+        statusRowId: statusRow?.id,
+        lastEditedAt: statusRow?.lastEditedAt ?? null,
+        lastEditedBy: statusRow?.lastEditedBy ?? null,
       }
-      // In the OLD system: if no status row exists but symptom is not hidden via override, it's in use
-      else if (!hiddenBaseIds.has(baseSymptom.id) && !statusByBaseId.has(baseSymptom.id)) {
-        // Symptom is effectively in use via old system but no status row yet
-        // We'll treat this as enabled by default and show it as BASE or MODIFIED
-        let symptomStatus: SymptomStatus = 'BASE'
-        if (overriddenBaseIds.has(baseSymptom.id)) {
-          symptomStatus = 'MODIFIED'
-        }
+    })
 
-        inUse.push({
-          symptomId: baseSymptom.id,
-          name: baseSymptom.name,
-          status: symptomStatus,
-          isEnabled: true, // Default to enabled
-          canRevertToBase: symptomStatus === 'MODIFIED',
-          lastEditedAt: null,
-          lastEditedBy: null
-        })
-      }
-    }
+    // Hidden base symptoms (old system) are not part of effectiveSymptoms; keep them accessible
+    // as "Available" so admins can restore them.
+    const hiddenBaseIds = new Set(overrides.filter((o) => o.isHidden === true).map((o) => o.baseSymptomId))
+    const hiddenBaseList = baseSymptoms.filter((b) => hiddenBaseIds.has(b.id))
+    const available: AvailableSymptom[] = hiddenBaseList.map((b) => ({ baseSymptomId: b.id, name: b.name }))
 
-    // Add custom-only symptoms
-    for (const customSymptom of customSymptoms) {
-      const status = statusByCustomId.get(customSymptom.id)
-      if (status) {
-        inUse.push({
-          symptomId: customSymptom.id,
-          name: customSymptom.name,
-          status: 'LOCAL_ONLY',
-          isEnabled: status.isEnabled,
-          canRevertToBase: false,
-          statusRowId: status.id,
-          lastEditedAt: status.lastEditedAt,
-          lastEditedBy: status.lastEditedBy
-        })
-      } else {
-        // Custom symptom without status row - assume it's enabled
-        inUse.push({
-          symptomId: customSymptom.id,
-          name: customSymptom.name,
-          status: 'LOCAL_ONLY',
-          isEnabled: true,
-          canRevertToBase: false,
-          lastEditedAt: null,
-          lastEditedBy: null
-        })
-      }
-    }
-
-    // Build "available" array - base symptoms without a status row AND hidden via old system
-    const available: AvailableSymptom[] = []
-    for (const baseSymptom of baseSymptoms) {
-      if (!statusByBaseId.has(baseSymptom.id) && hiddenBaseIds.has(baseSymptom.id)) {
-        available.push({
-          baseSymptomId: baseSymptom.id,
-          name: baseSymptom.name
-        })
-      }
-    }
-
-    // Build "customOnly" array - custom symptoms without status rows
-    // (Technically these should appear in inUse too, so this may be empty)
-    const customOnly: CustomOnlySymptom[] = []
-    for (const customSymptom of customSymptoms) {
-      if (!statusByCustomId.has(customSymptom.id)) {
-        customOnly.push({
-          customSymptomId: customSymptom.id,
-          name: customSymptom.name,
-          isEnabled: true // Assume enabled if no status row exists
-        })
-      }
-    }
+    // Custom-only symptoms without status rows (legacy field; UI does not rely on it).
+    const customOnly: CustomOnlySymptom[] = customSymptoms
+      .filter((c) => !statusBySymptomId.has(c.id))
+      .map((c) => ({ customSymptomId: c.id, name: c.name, isEnabled: true }))
 
     const response: SurgerySymptomsResponse = {
       inUse,
@@ -379,6 +306,9 @@ export async function PATCH(request: NextRequest) {
           })
         }
 
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -440,6 +370,11 @@ export async function PATCH(request: NextRequest) {
           await updateRequiresClinicalReview(resolvedSurgeryId)
         }
 
+        if (resolvedSurgeryId) {
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
+        }
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -503,6 +438,11 @@ export async function PATCH(request: NextRequest) {
           await updateRequiresClinicalReview(resolvedSurgeryId)
         }
 
+        if (resolvedSurgeryId) {
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+          revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
+        }
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -641,6 +581,9 @@ export async function PATCH(request: NextRequest) {
           })
         }
 
+        revalidateTag(getCachedSymptomsTag(targetSurgeryId, false))
+        revalidateTag(getCachedSymptomsTag(targetSurgeryId, true))
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 
@@ -700,6 +643,9 @@ export async function PATCH(request: NextRequest) {
           }
         })
 
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
+        revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
+        revalidateTag('symptoms')
         return NextResponse.json({ ok: true })
       }
 

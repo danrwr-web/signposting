@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
 
 interface Surgery {
   id: string
@@ -46,6 +47,7 @@ export default function ClinicalReviewPanel({
   onPendingCountChange 
 }: ClinicalReviewPanelProps) {
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
+  const [enabledSymptoms, setEnabledSymptoms] = useState<EffectiveSymptom[]>([])
   const [enabledSymptomKeys, setEnabledSymptomKeys] = useState<Set<string>>(new Set())
   const [reviewStatuses, setReviewStatuses] = useState<Map<string, SymptomReviewStatus>>(new Map())
   const [surgeryData, setSurgeryData] = useState<Surgery | null>(null)
@@ -85,6 +87,11 @@ export default function ClinicalReviewPanel({
     }
     return selectedSurgery || null
   }, [selectedSurgery, selectedSurgeryId, isSuperuser])
+
+  const roleLabelDevOnly = useMemo(() => {
+    if (process.env.NODE_ENV === 'production') return null
+    return isSuperuser ? 'SUPERUSER' : 'SURGERY_ADMIN'
+  }, [isSuperuser])
 
   // Load surgeries list for superusers
   const ensureSurgeries = async () => {
@@ -150,6 +157,7 @@ export default function ClinicalReviewPanel({
       const reviewData = await reviewRes.json()
 
       setSymptoms(symptomsData.symptoms || [])
+      setEnabledSymptoms(enabledSymptomsData.symptoms || [])
       
       // Build set of enabled symptom keys for quick lookup
       const enabledKeys = new Set(
@@ -168,16 +176,8 @@ export default function ClinicalReviewPanel({
       setReviewStatuses(statusMap)
       setSurgeryData(reviewData.surgery || null)
 
-      // Calculate pending count
-      const reviewedSymptomKeys = new Set(statusMap.keys())
-      const unreviewedCount = symptomsData.symptoms.filter((s: EffectiveSymptom) => {
-        const key = `${s.id}-${s.ageGroup || ''}`
-        return !reviewedSymptomKeys.has(key)
-      }).length
-      const explicitPendingCount = Array.from(statusMap.values()).filter(rs => rs.status === 'PENDING').length
-      const pendingCount = unreviewedCount + explicitPendingCount
-
-      onPendingCountChange?.(pendingCount)
+      const counts = computeClinicalReviewCounts(symptomsData.symptoms || [], statusMap as any)
+      onPendingCountChange?.(counts.pending)
     } catch (error) {
       console.error('Error loading clinical review data:', error)
       toast.error('Failed to load clinical review data')
@@ -277,6 +277,9 @@ export default function ClinicalReviewPanel({
       
       // Refresh data to reflect disable status
       await loadData()
+      try {
+        window.dispatchEvent(new CustomEvent('signposting:admin-metrics-changed'))
+      } catch {}
     } catch (error) {
       console.error('Error updating review status:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to update review status')
@@ -368,7 +371,6 @@ export default function ClinicalReviewPanel({
   const handleBulkApprove = () => {
     const pendingCount = counts.pending || 0
     if (pendingCount === 0) {
-      toast.error('No pending symptoms to approve.')
       return
     }
     setConfirmDialog({ type: 'bulk-approve' })
@@ -468,36 +470,14 @@ export default function ClinicalReviewPanel({
 
   // Calculate counts
   const counts = useMemo(() => {
-    const reviewedSymptomKeys = new Set(reviewStatuses.keys())
-    const unreviewed = symptoms.filter(s => {
-      const key = `${s.id}-${s.ageGroup || ''}`
-      return !reviewedSymptomKeys.has(key)
-    }).length
-    const explicitPending = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'PENDING').length
-    const pending = unreviewed + explicitPending
-    
-    // Only count approved/changes-requested for ENABLED symptoms
-    const approved = Array.from(reviewStatuses.values()).filter(rs => {
-      if (rs.status !== 'APPROVED') return false
-      const key = `${rs.symptomId}-${rs.ageGroup || ''}`
-      return enabledSymptomKeys.has(key)
-    }).length
-    
-    const changesRequested = Array.from(reviewStatuses.values()).filter(rs => {
-      if (rs.status !== 'CHANGES_REQUIRED') return false
-      const key = `${rs.symptomId}-${rs.ageGroup || ''}`
-      return enabledSymptomKeys.has(key)
-    }).length
-    
-    const all = symptoms.length
-
+    const c = computeClinicalReviewCounts(symptoms, reviewStatuses as any)
     return {
-      pending,
-      'changes-requested': changesRequested,
-      approved,
-      all
+      pending: c.pending,
+      'changes-requested': c.changesRequested,
+      approved: c.approved,
+      all: c.all,
     }
-  }, [symptoms, reviewStatuses, enabledSymptomKeys])
+  }, [symptoms, reviewStatuses])
 
   // Filter and sort rows
   type Row = {
@@ -508,8 +488,7 @@ export default function ClinicalReviewPanel({
 
   const filteredRows: Row[] = useMemo(() => {
     let rows: Row[] = symptoms.map(symptom => {
-      const key = `${symptom.id}-${symptom.ageGroup || ''}`
-      const reviewStatus = reviewStatuses.get(key) || null
+      const reviewStatus = getReviewStatusForSymptom(symptom as any, reviewStatuses as any) as any
       const status = reviewStatus?.status || 'PENDING'
       return { symptom, status, reviewStatus }
     })
@@ -549,6 +528,19 @@ export default function ClinicalReviewPanel({
 
     return rows
   }, [symptoms, reviewStatuses, activeFilter, search, sort])
+
+  const debugMismatch = useMemo(() => {
+    const isDev = process.env.NODE_ENV !== 'production'
+    if (!isDev) return null
+    if (enabledSymptoms.length === 0 || symptoms.length === 0) return null
+    if (symptoms.length === enabledSymptoms.length) return null
+    const extras = symptoms.filter((s) => !enabledSymptomKeys.has(`${s.id}-${s.ageGroup || ''}`))
+    return {
+      enabledCount: enabledSymptoms.length,
+      allCount: symptoms.length,
+      extras,
+    }
+  }, [enabledSymptoms.length, symptoms, enabledSymptomKeys])
 
   const openDrawer = (symptom: EffectiveSymptom) => {
     // Determine if it's a base or custom symptom
@@ -596,12 +588,13 @@ export default function ClinicalReviewPanel({
             { key: 'pending' as FilterKey, label: 'Pending' },
             { key: 'changes-requested' as FilterKey, label: 'Changes requested' },
             { key: 'approved' as FilterKey, label: 'Approved' },
-            { key: 'all' as FilterKey, label: 'All' },
+            { key: 'all' as FilterKey, label: 'All (including disabled)', title: 'Includes disabled symptoms. Your Symptom Library “In use” total shows enabled symptoms only.' },
           ]).map(item => (
             <button
               key={item.key}
               onClick={() => setActiveFilter(item.key)}
               aria-current={activeFilter === item.key ? 'page' : undefined}
+              title={(item as any).title}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm mb-1 text-left ${
                 activeFilter === item.key ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'hover:bg-gray-50'
               }`}
@@ -612,59 +605,90 @@ export default function ClinicalReviewPanel({
               </span>
             </button>
           ))}
+          {debugMismatch && (
+            <div className="mt-3 p-2 rounded-md border border-amber-200 bg-amber-50 text-xs text-amber-900">
+              <div className="font-semibold">Debug (dev-only): count mismatch</div>
+              <div className="mt-1">
+                Clinical Review All: <span className="font-medium">{debugMismatch.allCount}</span> •
+                Enabled (Symptom Library “In use”): <span className="font-medium">{debugMismatch.enabledCount}</span>
+              </div>
+              {debugMismatch.extras.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer underline">Show extra symptom(s)</summary>
+                  <ul className="mt-2 space-y-1">
+                    {debugMismatch.extras.map((s) => (
+                      <li key={`${s.id}-${s.ageGroup || ''}`}>
+                        <span className="font-medium">{s.name}</span> — <span className="font-mono">{s.id}</span>{' '}
+                        <span className="text-amber-800">({s.source})</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
         </div>
       </nav>
 
       {/* Right pane */}
       <div className="flex-1 min-w-0">
         {/* Top bar */}
-        <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between mb-3">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && (
-              <select
-                value={effectiveSurgeryId || ''}
-                onChange={(e) => {
-                  setSelectedSurgeryId(e.target.value || null)
-                }}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
-                aria-label="Select surgery"
-              >
-                {surgeries.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          {/* Left group: surgery filter + actions */}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            {isSuperuser && (
+              <div className="flex items-center gap-2 min-w-0">
+                <label className="text-sm text-gray-700 whitespace-nowrap" htmlFor="clinical-review-surgery">
+                  Surgery
+                </label>
+                <select
+                  id="clinical-review-surgery"
+                  value={effectiveSurgeryId || ''}
+                  onChange={(e) => setSelectedSurgeryId(e.target.value || null)}
+                  className="h-10 px-3 border border-gray-300 rounded-md text-sm w-72 max-w-full"
+                  aria-label="Filter by surgery"
+                >
+                  {surgeries.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             )}
-            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && effectiveSurgeryId && (
+            {effectiveSurgeryId && (
               <button
                 onClick={handleResetAll}
                 disabled={resettingAll || !effectiveSurgeryId}
-                className="px-3 py-2 rounded-md text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium leading-none border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {resettingAll ? 'Resetting...' : 'Request re-review'}
               </button>
             )}
-            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && effectiveSurgeryId && (
+            {effectiveSurgeryId && (
               <button
                 onClick={handleBulkApprove}
-                disabled={bulkApproving || !effectiveSurgeryId}
-                className="px-3 py-2 rounded-md text-sm font-medium bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={bulkApproving || !effectiveSurgeryId || (counts.pending || 0) === 0}
+                className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium leading-none bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {bulkApproving ? 'Approving...' : 'Bulk approve pending'}
               </button>
             )}
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+
+          {/* Right group: search + sort */}
+          <div className="flex items-center gap-2 min-w-0 justify-end flex-nowrap max-[900px]:flex-wrap max-[900px]:w-full">
             <input
               type="text"
               placeholder="Search symptoms..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-10 px-3 border border-gray-300 rounded-md text-sm min-w-[240px] w-[320px] max-w-full focus:outline-none focus:ring-2 focus:ring-blue-500 max-[900px]:w-full"
             />
             <select
               value={sort}
               onChange={e => setSort(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-56"
+              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-[220px] max-w-full max-[900px]:w-full"
               aria-label="Sort"
             >
               <option value="name-asc">Name A–Z</option>
@@ -674,6 +698,11 @@ export default function ClinicalReviewPanel({
             </select>
           </div>
         </div>
+        {roleLabelDevOnly && (
+          <div className="mb-2 text-xs text-gray-500">
+            Debug: role = <span className="font-mono">{roleLabelDevOnly}</span>
+          </div>
+        )}
 
         {/* Table */}
         <div className="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
@@ -697,7 +726,11 @@ export default function ClinicalReviewPanel({
               )}
               {!loading && filteredRows.length === 0 && (
                 <tr>
-                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={isSuperuser ? 5 : 4}>No results</td>
+                  <td className="px-4 py-6 text-center text-sm text-gray-600" colSpan={isSuperuser ? 5 : 4}>
+                    {activeFilter === 'pending' && (counts.pending || 0) === 0 && !search.trim()
+                      ? 'All symptoms are approved ✅'
+                      : 'No results found.'}
+                  </td>
                 </tr>
               )}
               {filteredRows.map(row => {

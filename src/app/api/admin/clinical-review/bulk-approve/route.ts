@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { revalidateTag } from 'next/cache'
 
 export const runtime = 'nodejs'
 
@@ -112,6 +113,11 @@ export async function POST(request: NextRequest) {
     // Update requiresClinicalReview flag on surgery
     await updateRequiresClinicalReview(surgeryId, user.id)
     
+    // Bulk approval can affect the surgery's effective symptom state.
+    revalidateTag(getCachedSymptomsTag(surgeryId, false))
+    revalidateTag(getCachedSymptomsTag(surgeryId, true))
+    revalidateTag('symptoms')
+
     return NextResponse.json({ 
       ok: true, 
       approvedCount 

@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { CustomiseInstructionsReqZ } from '@/lib/api-contracts'
 import { customiseInstructions } from '@/server/aiCustomiseInstructions'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
 
@@ -400,6 +401,15 @@ export async function POST(
       skippedDetails,
     })
   } catch (error) {
+    // Zod validation errors should be treated as bad requests.
+    if (error instanceof z.ZodError) {
+      const first = error.issues?.[0]?.message
+      return NextResponse.json(
+        { error: first || 'Invalid request format', details: error.issues },
+        { status: 400 }
+      )
+    }
+    // RBAC helpers currently throw errors containing "required" on auth failures.
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

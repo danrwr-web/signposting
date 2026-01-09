@@ -53,10 +53,12 @@ export const GetHighRiskResZ = z.object({
 });
 
 export const CreateHighRiskReqZ = z.object({
-  label: z.string().min(1),
+  label: z.string().optional(),
   symptomSlug: z.string().optional(),
   symptomId: z.string().optional(),
   orderIndex: z.number().default(0),
+}).refine((v) => !!(v.symptomId || v.symptomSlug), {
+  message: 'A symptom must be selected',
 });
 
 export const UpdateHighRiskReqZ = z.object({
@@ -111,7 +113,6 @@ export const GetEffectiveSymptomsResZ = z.object({
 
 export const CreateSymptomReqZ = z.object({
   name: z.string().min(1),
-  slug: z.string().min(1),
   ageGroup: z.enum(['U5', 'O5', 'Adult']),
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
@@ -150,7 +151,7 @@ export const GetSurgeriesResZ = z.object({
 
 export const CreateSurgeryReqZ = z.object({
   name: z.string().min(1),
-  slug: z.string().min(1),
+  slug: z.string().min(1).optional(),
   adminEmail: z.string().email().optional(),
   adminPassword: z.string().min(6).optional(),
 });
