@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
 
 interface Surgery {
   id: string
@@ -168,16 +169,8 @@ export default function ClinicalReviewPanel({
       setReviewStatuses(statusMap)
       setSurgeryData(reviewData.surgery || null)
 
-      // Calculate pending count
-      const reviewedSymptomKeys = new Set(statusMap.keys())
-      const unreviewedCount = symptomsData.symptoms.filter((s: EffectiveSymptom) => {
-        const key = `${s.id}-${s.ageGroup || ''}`
-        return !reviewedSymptomKeys.has(key)
-      }).length
-      const explicitPendingCount = Array.from(statusMap.values()).filter(rs => rs.status === 'PENDING').length
-      const pendingCount = unreviewedCount + explicitPendingCount
-
-      onPendingCountChange?.(pendingCount)
+      const counts = computeClinicalReviewCounts(symptomsData.symptoms || [], statusMap as any)
+      onPendingCountChange?.(counts.pending)
     } catch (error) {
       console.error('Error loading clinical review data:', error)
       toast.error('Failed to load clinical review data')
@@ -471,36 +464,14 @@ export default function ClinicalReviewPanel({
 
   // Calculate counts
   const counts = useMemo(() => {
-    const reviewedSymptomKeys = new Set(reviewStatuses.keys())
-    const unreviewed = symptoms.filter(s => {
-      const key = `${s.id}-${s.ageGroup || ''}`
-      return !reviewedSymptomKeys.has(key)
-    }).length
-    const explicitPending = Array.from(reviewStatuses.values()).filter(rs => rs.status === 'PENDING').length
-    const pending = unreviewed + explicitPending
-    
-    // Only count approved/changes-requested for ENABLED symptoms
-    const approved = Array.from(reviewStatuses.values()).filter(rs => {
-      if (rs.status !== 'APPROVED') return false
-      const key = `${rs.symptomId}-${rs.ageGroup || ''}`
-      return enabledSymptomKeys.has(key)
-    }).length
-    
-    const changesRequested = Array.from(reviewStatuses.values()).filter(rs => {
-      if (rs.status !== 'CHANGES_REQUIRED') return false
-      const key = `${rs.symptomId}-${rs.ageGroup || ''}`
-      return enabledSymptomKeys.has(key)
-    }).length
-    
-    const all = symptoms.length
-
+    const c = computeClinicalReviewCounts(symptoms, reviewStatuses as any)
     return {
-      pending,
-      'changes-requested': changesRequested,
-      approved,
-      all
+      pending: c.pending,
+      'changes-requested': c.changesRequested,
+      approved: c.approved,
+      all: c.all,
     }
-  }, [symptoms, reviewStatuses, enabledSymptomKeys])
+  }, [symptoms, reviewStatuses])
 
   // Filter and sort rows
   type Row = {
@@ -511,8 +482,7 @@ export default function ClinicalReviewPanel({
 
   const filteredRows: Row[] = useMemo(() => {
     let rows: Row[] = symptoms.map(symptom => {
-      const key = `${symptom.id}-${symptom.ageGroup || ''}`
-      const reviewStatus = reviewStatuses.get(key) || null
+      const reviewStatus = getReviewStatusForSymptom(symptom as any, reviewStatuses as any) as any
       const status = reviewStatus?.status || 'PENDING'
       return { symptom, status, reviewStatus }
     })
