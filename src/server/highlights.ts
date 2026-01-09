@@ -5,6 +5,7 @@
 
 import 'server-only'
 import { prisma } from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
 
 export interface HighlightRule {
   id: string
@@ -16,6 +17,11 @@ export interface HighlightRule {
   createdAt: Date
   updatedAt: Date
 }
+
+export const HIGHLIGHTS_TAG = 'highlights'
+
+export const getCachedHighlightsTag = (surgeryId: string | null) =>
+  `highlights:${surgeryId ?? 'global'}`
 
 /**
  * Get all active highlight rules for a surgery (global + surgery-specific)
@@ -90,6 +96,31 @@ export async function getAllHighlightRules(surgeryId?: string | null): Promise<H
     where: whereClause,
     orderBy: { createdAt: 'asc' }
   })
+}
+
+/**
+ * Cached highlight rules by scope (global or a specific surgery).
+ *
+ * Used to keep highlight application fast in the main UI while still allowing
+ * instant updates via `revalidateTag(...)` on mutations.
+ */
+export async function getCachedHighlightRules(surgeryId: string | null): Promise<HighlightRule[]> {
+  const cached = unstable_cache(
+    async () => {
+      return prisma.highlightRule.findMany({
+        where: { surgeryId },
+        orderBy: { createdAt: 'asc' },
+      })
+    },
+    ['highlight-rules', surgeryId ?? 'global'],
+    {
+      // Match the symptoms cache window, but allow instant invalidation.
+      revalidate: 300,
+      tags: [HIGHLIGHTS_TAG, getCachedHighlightsTag(surgeryId)],
+    }
+  )
+
+  return cached()
 }
 
 /**

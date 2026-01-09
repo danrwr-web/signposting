@@ -15,6 +15,8 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [editingRuleId, setEditingRuleId] = useState<string | null>(null)
+  const [formMessage, setFormMessage] = useState<{ type: 'error' | 'info'; message: string } | null>(null)
   const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
   const [newHighlight, setNewHighlight] = useState({
@@ -26,10 +28,15 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
 
   // Load existing highlights
   useEffect(() => {
+    // If surgery context changes, clear any in-progress edit to avoid cross-surgery edits.
+    setEditingRuleId(null)
+    setFormMessage(null)
+    setShowAddForm(false)
+    setNewHighlight({ phrase: '', textColor: '#ffffff', bgColor: '#6A0DAD', isGlobal: false })
     loadHighlights()
   }, [surgeryId])
 
-  const loadHighlights = async () => {
+  const loadHighlights = async (): Promise<HighlightRule[]> => {
     try {
       setIsLoading(true)
       setError(null)
@@ -43,37 +50,88 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       const response = await fetch(url, { cache: 'no-store' })
       if (response.ok) {
         const json = await response.json()
-        const { highlights, enableBuiltInHighlights: builtInEnabled, enableImageIcons: imageIconsEnabled } = { ...GetHighlightsResZ.parse(json), enableImageIcons: json.enableImageIcons }
-        setHighlights(Array.isArray(highlights) ? highlights.filter(h => h.createdAt !== undefined) as any : [])
+        const { highlights, enableBuiltInHighlights: builtInEnabled, enableImageIcons: imageIconsEnabled } = GetHighlightsResZ.parse(json)
+        const safeHighlights = Array.isArray(highlights) ? (highlights as any) : []
+        setHighlights(safeHighlights)
         setEnableBuiltInHighlights(builtInEnabled ?? true)
         setEnableImageIcons(imageIconsEnabled ?? true)
+        return safeHighlights
       } else {
         const errorMessage = `Failed to load highlight rules (${response.status})`
         setError(errorMessage)
         toast.error(errorMessage)
+        return []
       }
     } catch (error) {
       console.error('Error loading highlights:', error)
       const errorMessage = 'Failed to load highlight rules'
       setError(errorMessage)
       toast.error(errorMessage)
+      return []
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleAddHighlight = async () => {
-    if (!newHighlight.phrase.trim()) {
+  const resetForm = () => {
+    setEditingRuleId(null)
+    setFormMessage(null)
+    setNewHighlight({ phrase: '', textColor: '#ffffff', bgColor: '#6A0DAD', isGlobal: false })
+  }
+
+  const startEdit = (rule: HighlightRule & { surgeryId?: string | null }) => {
+    setShowAddForm(true)
+    setEditingRuleId(rule.id)
+    setNewHighlight({
+      phrase: rule.phrase,
+      textColor: rule.textColor,
+      bgColor: rule.bgColor,
+      isGlobal: isSuperuser ? (rule.surgeryId === null) : false
+    })
+  }
+
+  const handleSubmit = async () => {
+    const phraseNormalized = newHighlight.phrase.trim().toLowerCase()
+    if (!phraseNormalized) {
+      setFormMessage({ type: 'error', message: 'Please enter a phrase.' })
       toast.error('Please enter a phrase')
       return
     }
 
     try {
+      setFormMessage(null)
+
+      if (editingRuleId) {
+        const response = await fetch(`/api/highlights/${editingRuleId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phrase: phraseNormalized,
+            textColor: newHighlight.textColor,
+            bgColor: newHighlight.bgColor,
+          })
+        })
+
+        if (response.ok) {
+          toast.success('Highlight rule updated')
+          resetForm()
+          setShowAddForm(false)
+          await loadHighlights()
+        } else {
+          const errorData = await response.json().catch(() => ({}))
+          const message = errorData?.error || 'Failed to update highlight rule'
+          setFormMessage({ type: 'error', message })
+          toast.error(message)
+        }
+
+        return
+      }
+
       const response = await fetch('/api/highlights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phrase: newHighlight.phrase.trim(),
+          phrase: phraseNormalized,
           textColor: newHighlight.textColor,
           bgColor: newHighlight.bgColor,
           isEnabled: true,
@@ -84,15 +142,47 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
 
       if (response.ok) {
         toast.success('Highlight rule added successfully')
-        setNewHighlight({ phrase: '', textColor: '#ffffff', bgColor: '#6A0DAD', isGlobal: false })
+        resetForm()
         setShowAddForm(false)
-        loadHighlights()
-      } else {
-        const errorData = await response.json()
-        toast.error(errorData.error || 'Failed to add highlight rule')
+        await loadHighlights()
+        return
       }
+
+      if (response.status === 409) {
+        // Friendly recovery path: switch into edit mode for the existing rule.
+        const targetPhrase = phraseNormalized
+        const updated = await loadHighlights()
+
+        const targetScope =
+          isSuperuser && newHighlight.isGlobal
+            ? null
+            : (surgeryId ?? null)
+
+        const existing = updated.find((h: any) => {
+          const samePhrase = (h?.phrase ?? '').toString().trim().toLowerCase() === targetPhrase
+          const sameScope = (h?.surgeryId ?? null) === targetScope
+          return samePhrase && sameScope
+        })
+
+        if (existing) {
+          setFormMessage({ type: 'info', message: 'Rule already exists — you can edit it below.' })
+          startEdit(existing as any)
+          return
+        }
+
+        const fallbackMsg = 'Rule already exists — use Edit on the existing rule.'
+        setFormMessage({ type: 'error', message: fallbackMsg })
+        toast.error(fallbackMsg)
+        return
+      }
+
+      const errorData = await response.json().catch(() => ({}))
+      const message = errorData?.error || 'Failed to add highlight rule'
+      setFormMessage({ type: 'error', message })
+      toast.error(message)
     } catch (error) {
       console.error('Error adding highlight:', error)
+      setFormMessage({ type: 'error', message: 'Failed to save highlight rule' })
       toast.error('Failed to add highlight rule')
     }
   }
@@ -249,10 +339,18 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
           Highlight Configuration
         </h3>
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            if (showAddForm) {
+              setShowAddForm(false)
+              resetForm()
+              return
+            }
+            setFormMessage(null)
+            setShowAddForm(true)
+          }}
           className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors text-sm"
         >
-          {showAddForm ? 'Cancel' : 'Add Rule'}
+          {showAddForm ? (editingRuleId ? 'Cancel edit' : 'Cancel') : 'Add Rule'}
         </button>
       </div>
 
@@ -301,13 +399,44 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       {/* Add New Highlight Form */}
       {showAddForm && (
         <div className="bg-nhs-light-grey rounded-lg p-4 mb-6">
-          <h4 className="text-md font-medium text-nhs-dark-blue mb-3">Add New Highlight Rule</h4>
+          <div className="flex items-start justify-between gap-3 mb-3">
+            <h4 className="text-md font-medium text-nhs-dark-blue">
+              {editingRuleId ? 'Edit Highlight Rule' : 'Add New Highlight Rule'}
+            </h4>
+            {editingRuleId && (
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm()
+                }}
+                className="text-sm text-nhs-blue underline hover:text-nhs-dark-blue"
+              >
+                Cancel edit
+              </button>
+            )}
+          </div>
+
+          {formMessage && (
+            <div
+              className={`rounded-lg px-3 py-2 mb-3 text-sm ${
+                formMessage.type === 'error'
+                  ? 'bg-red-50 text-red-800'
+                  : 'bg-blue-50 text-nhs-dark-blue'
+              }`}
+              role={formMessage.type === 'error' ? 'alert' : 'status'}
+              aria-live="polite"
+            >
+              {formMessage.message}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-nhs-grey mb-1">
+              <label htmlFor="highlight-phrase" className="block text-sm font-medium text-nhs-grey mb-1">
                 Phrase
               </label>
               <input
+                id="highlight-phrase"
                 type="text"
                 value={newHighlight.phrase}
                 onChange={(e) => setNewHighlight({ ...newHighlight, phrase: e.target.value })}
@@ -316,10 +445,11 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-nhs-grey mb-1">
+              <label htmlFor="highlight-text-colour" className="block text-sm font-medium text-nhs-grey mb-1">
                 Text Color
               </label>
               <input
+                id="highlight-text-colour"
                 type="color"
                 value={newHighlight.textColor}
                 onChange={(e) => setNewHighlight({ ...newHighlight, textColor: e.target.value })}
@@ -327,10 +457,11 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-nhs-grey mb-1">
+              <label htmlFor="highlight-bg-colour" className="block text-sm font-medium text-nhs-grey mb-1">
                 Background Color
               </label>
               <input
+                id="highlight-bg-colour"
                 type="color"
                 value={newHighlight.bgColor}
                 onChange={(e) => setNewHighlight({ ...newHighlight, bgColor: e.target.value })}
@@ -353,10 +484,10 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
             )}
             <div className="flex items-end">
               <button
-                onClick={handleAddHighlight}
+                onClick={handleSubmit}
                 className="px-4 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors"
               >
-                Add Rule
+                {editingRuleId ? 'Save changes' : 'Add Rule'}
               </button>
             </div>
           </div>
@@ -404,6 +535,17 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
                 >
                   {highlight.isEnabled ? 'Enabled' : 'Disabled'}
                 </button>
+                {(isSuperuser || (highlight as any).surgeryId !== null) && (
+                  <button
+                    onClick={() => {
+                      setFormMessage(null)
+                      startEdit(highlight as any)
+                    }}
+                    className="px-3 py-1 bg-blue-100 text-nhs-dark-blue rounded text-sm hover:bg-blue-200"
+                  >
+                    Edit
+                  </button>
+                )}
                 {/* Only show delete button for rules that can be deleted */}
                 {(isSuperuser || (highlight as any).surgeryId !== null) && (
                   <button

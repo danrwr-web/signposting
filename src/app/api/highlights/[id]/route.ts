@@ -5,10 +5,23 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { updateHighlightRule, deleteHighlightRule, getAllHighlightRules } from '@/server/highlights'
+import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
+import {
+  updateHighlightRule,
+  deleteHighlightRule,
+  HIGHLIGHTS_TAG,
+  getCachedHighlightsTag,
+} from '@/server/highlights'
 import { getSession } from '@/server/auth'
+import { UpdateHighlightReqZ } from '@/lib/api-contracts'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
+
+const IdParamsZ = z.object({
+  id: z.string().min(1),
+})
 
 // PATCH /api/highlights/[id] - Update a highlight rule
 export async function PATCH(
@@ -16,12 +29,44 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
-    const body = await request.json()
-    const { phrase, textColor, bgColor, isEnabled } = body
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    // Validation
-    if (phrase !== undefined && (typeof phrase !== 'string' || phrase.trim().length < 1 || phrase.trim().length > 80)) {
+    const rawParams = await params
+    const { id } = IdParamsZ.parse(rawParams)
+    const body = await request.json()
+    const { phrase, textColor, bgColor, isEnabled } = UpdateHighlightReqZ.parse(body)
+
+    // Check the rule exists and authorise edits
+    const currentRule = await prisma.highlightRule.findUnique({
+      where: { id },
+      select: { surgeryId: true },
+    })
+
+    if (!currentRule) {
+      return NextResponse.json({ error: 'Highlight rule not found' }, { status: 404 })
+    }
+
+    // Global rules are superuser-only
+    if (currentRule.surgeryId === null && session.type !== 'superuser') {
+      return NextResponse.json(
+        { error: 'Unauthorized - superuser required for this change' },
+        { status: 403 }
+      )
+    }
+
+    // Surgery admins can only edit their own surgery rules
+    if (currentRule.surgeryId && session.type === 'surgery' && session.surgeryId !== currentRule.surgeryId) {
+      return NextResponse.json(
+        { error: 'Cannot edit rules from other surgeries' },
+        { status: 403 }
+      )
+    }
+
+    // Extra validation: treat phrase as trimmed, non-empty
+    if (phrase !== undefined && (phrase.trim().length < 1 || phrase.trim().length > 80)) {
       return NextResponse.json(
         { error: 'Phrase must be between 1 and 80 characters' },
         { status: 400 }
@@ -35,10 +80,18 @@ export async function PATCH(
       isEnabled
     })
 
+    revalidateTag(HIGHLIGHTS_TAG)
+    revalidateTag(getCachedHighlightsTag(currentRule.surgeryId))
+
     return NextResponse.json(rule)
   } catch (error) {
-    console.error('Error updating highlight rule:', error)
-    
+    if (error instanceof Error && error.name === 'ZodError') {
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      )
+    }
+
     if (error instanceof Error && (error.name === 'DuplicatePhraseError' || error.message.includes('already exists'))) {
       return NextResponse.json(
         { error: 'A highlight rule with this phrase already exists' },
@@ -46,6 +99,7 @@ export async function PATCH(
       )
     }
 
+    console.error('Error updating highlight rule:', error)
     return NextResponse.json(
       { error: 'Failed to update highlight rule' },
       { status: 500 }
@@ -60,17 +114,23 @@ export async function DELETE(
 ) {
   try {
     const session = await getSession()
-    const { id } = await params
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    // Check if the rule exists and get its details
-    // Get all rules (both global and surgery-specific) to find the rule
-    const globalRules = await getAllHighlightRules(null)
-    const surgeryRules = session?.type === 'surgery' ? await getAllHighlightRules(session.surgeryId) : []
-    const allRules = [...globalRules, ...surgeryRules]
-    const ruleToDelete = allRules.find(rule => rule.id === id)
+    const rawParams = await params
+    const { id } = IdParamsZ.parse(rawParams)
+
+    const ruleToDelete = await prisma.highlightRule.findUnique({
+      where: { id },
+      select: { surgeryId: true },
+    })
+    if (!ruleToDelete) {
+      return NextResponse.json({ error: 'Highlight rule not found' }, { status: 404 })
+    }
     
     // If rule is global (surgeryId is null) and user is not a superuser, prevent deletion
-    if (ruleToDelete && ruleToDelete.surgeryId === null && session?.type !== 'superuser') {
+    if (ruleToDelete.surgeryId === null && session.type !== 'superuser') {
       return NextResponse.json(
         { error: 'Cannot delete global rules - only disable/enable is allowed' },
         { status: 403 }
@@ -78,7 +138,7 @@ export async function DELETE(
     }
 
     // If rule belongs to a surgery and user is not the admin of that surgery or superuser, prevent deletion
-    if (ruleToDelete && ruleToDelete.surgeryId && session?.type === 'surgery' && session.surgeryId !== ruleToDelete.surgeryId) {
+    if (ruleToDelete.surgeryId && session.type === 'surgery' && session.surgeryId !== ruleToDelete.surgeryId) {
       return NextResponse.json(
         { error: 'Cannot delete rules from other surgeries' },
         { status: 403 }
@@ -86,6 +146,9 @@ export async function DELETE(
     }
 
     await deleteHighlightRule(id)
+
+    revalidateTag(HIGHLIGHTS_TAG)
+    revalidateTag(getCachedHighlightsTag(ruleToDelete.surgeryId))
 
     return NextResponse.json({ success: true })
   } catch (error) {

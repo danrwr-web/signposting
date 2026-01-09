@@ -44,7 +44,7 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
         }
         
         // Single API call for all card data - uses caching
-        const response = await fetch(url)
+        const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
           const { 
