@@ -88,6 +88,11 @@ export default function ClinicalReviewPanel({
     return selectedSurgery || null
   }, [selectedSurgery, selectedSurgeryId, isSuperuser])
 
+  const roleLabelDevOnly = useMemo(() => {
+    if (process.env.NODE_ENV === 'production') return null
+    return isSuperuser ? 'SUPERUSER' : 'SURGERY_ADMIN'
+  }, [isSuperuser])
+
   // Load surgeries list for superusers
   const ensureSurgeries = async () => {
     if (!isSuperuser || surgeries.length) return
@@ -631,19 +636,22 @@ export default function ClinicalReviewPanel({
         {/* Top bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           {/* Left group: surgery filter + actions */}
-          <div className="flex flex-wrap items-center gap-3 min-w-0">
-            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && (
-              <div className="flex items-center gap-2 min-w-0 w-full sm:w-auto">
+          <div className="flex items-center gap-3 flex-wrap min-w-0">
+            {roleLabelDevOnly && (
+              <div className="text-xs text-gray-500 whitespace-nowrap">
+                Debug: role = <span className="font-mono">{roleLabelDevOnly}</span>
+              </div>
+            )}
+            {isSuperuser && (
+              <div className="flex items-center gap-2 min-w-0">
                 <label className="text-sm text-gray-700 whitespace-nowrap" htmlFor="clinical-review-surgery">
                   Surgery
                 </label>
                 <select
                   id="clinical-review-surgery"
                   value={effectiveSurgeryId || ''}
-                  onChange={(e) => {
-                    setSelectedSurgeryId(e.target.value || null)
-                  }}
-                  className="h-10 px-3 border border-gray-300 rounded-md text-sm w-full sm:w-72 max-w-full"
+                  onChange={(e) => setSelectedSurgeryId(e.target.value || null)}
+                  className="h-10 px-3 border border-gray-300 rounded-md text-sm w-72 max-w-full"
                   aria-label="Filter by surgery"
                 >
                   {surgeries.map((s) => (
@@ -654,7 +662,7 @@ export default function ClinicalReviewPanel({
                 </select>
               </div>
             )}
-            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && effectiveSurgeryId && (
+            {effectiveSurgeryId && (
               <button
                 onClick={handleResetAll}
                 disabled={resettingAll || !effectiveSurgeryId}
@@ -663,7 +671,7 @@ export default function ClinicalReviewPanel({
                 {resettingAll ? 'Resetting...' : 'Request re-review'}
               </button>
             )}
-            {(isSuperuser || (!!adminSurgeryId && effectiveSurgeryId === adminSurgeryId)) && effectiveSurgeryId && (
+            {effectiveSurgeryId && (
               <button
                 onClick={handleBulkApprove}
                 disabled={bulkApproving || !effectiveSurgeryId}
@@ -675,18 +683,18 @@ export default function ClinicalReviewPanel({
           </div>
 
           {/* Right group: search + sort */}
-          <div className="flex flex-wrap items-center gap-3 min-w-0 w-full sm:w-auto sm:justify-end">
+          <div className="flex items-center gap-3 min-w-0 justify-end flex-nowrap max-[900px]:flex-wrap max-[900px]:w-full">
             <input
               type="text"
               placeholder="Search symptoms..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-full min-w-[240px] sm:w-auto sm:flex-1 max-w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="h-10 px-3 border border-gray-300 rounded-md text-sm min-w-[240px] w-[320px] max-w-full focus:outline-none focus:ring-2 focus:ring-blue-500 max-[900px]:w-full"
             />
             <select
               value={sort}
               onChange={e => setSort(e.target.value as any)}
-              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-full sm:w-auto max-w-full"
+              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-[220px] max-w-full max-[900px]:w-full"
               aria-label="Sort"
             >
               <option value="name-asc">Name A–Z</option>
