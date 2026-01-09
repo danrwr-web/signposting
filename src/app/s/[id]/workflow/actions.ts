@@ -1031,6 +1031,10 @@ export async function updateWorkflowNodeForDiagram(
 
     const node = await prisma.workflowNodeTemplate.findFirst({
       where: { id: nodeId, templateId },
+      select: {
+        id: true,
+        nodeType: true,
+      },
     })
 
     if (!node) {
@@ -1126,23 +1130,30 @@ export async function updateWorkflowNodeForDiagram(
           }
         }
         
-        // Process width/height: coerce to numbers, clamp to minimums, remove if NaN
-        if (mergedStyle.width !== undefined) {
-          const widthValue = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
-          if (isNaN(widthValue)) {
-            delete mergedStyle.width
-          } else {
-            // Clamp width to minimum 300
-            mergedStyle.width = Math.max(widthValue, 300)
+        // Process width/height: Only allow for PANEL nodes
+        // For non-PANEL nodes, strip width/height to prevent persistence
+        if (node.nodeType !== 'PANEL') {
+          delete mergedStyle.width
+          delete mergedStyle.height
+        } else {
+          // For PANEL nodes: coerce to numbers, clamp to minimums, remove if NaN
+          if (mergedStyle.width !== undefined) {
+            const widthValue = typeof mergedStyle.width === 'number' ? mergedStyle.width : Number(mergedStyle.width)
+            if (isNaN(widthValue)) {
+              delete mergedStyle.width
+            } else {
+              // Clamp width to minimum 300
+              mergedStyle.width = Math.max(widthValue, 300)
+            }
           }
-        }
-        if (mergedStyle.height !== undefined) {
-          const heightValue = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
-          if (isNaN(heightValue)) {
-            delete mergedStyle.height
-          } else {
-            // Clamp height to minimum 200
-            mergedStyle.height = Math.max(heightValue, 200)
+          if (mergedStyle.height !== undefined) {
+            const heightValue = typeof mergedStyle.height === 'number' ? mergedStyle.height : Number(mergedStyle.height)
+            if (isNaN(heightValue)) {
+              delete mergedStyle.height
+            } else {
+              // Clamp height to minimum 200
+              mergedStyle.height = Math.max(heightValue, 200)
+            }
           }
         }
         
@@ -2112,3 +2123,111 @@ export async function answerQuestionNode(
   }
 }
 
+// Template Style Defaults Actions (Superuser only)
+
+export async function upsertTemplateStyleDefault(
+  surgeryId: string,
+  templateId: string,
+  nodeType: WorkflowNodeType,
+  bgColor: string | null,
+  textColor: string | null,
+  borderColor: string | null
+): Promise<ActionResult> {
+  try {
+    const user = await getSessionUser()
+    if (!user || user.globalRole !== 'SUPERUSER') {
+      return { success: false, error: 'Unauthorized: Superuser access required' }
+    }
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return { success: false, error: 'Template not found' }
+    }
+
+    await prisma.workflowNodeStyleDefault.upsert({
+      where: {
+        templateId_nodeType: {
+          templateId,
+          nodeType,
+        },
+      },
+      update: {
+        bgColor,
+        textColor,
+        borderColor,
+      },
+      create: {
+        templateId,
+        nodeType,
+        bgColor,
+        textColor,
+        borderColor,
+      },
+    })
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error upserting template style default:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to update style default',
+    }
+  }
+}
+
+export async function resetTemplateStyleDefaults(
+  surgeryId: string,
+  templateId: string,
+  nodeType?: WorkflowNodeType
+): Promise<ActionResult> {
+  try {
+    const user = await getSessionUser()
+    if (!user || user.globalRole !== 'SUPERUSER') {
+      return { success: false, error: 'Unauthorized: Superuser access required' }
+    }
+
+    // Verify template belongs to surgery
+    const template = await prisma.workflowTemplate.findFirst({
+      where: { id: templateId, surgeryId },
+    })
+
+    if (!template) {
+      return { success: false, error: 'Template not found' }
+    }
+
+    if (nodeType) {
+      // Reset single node type
+      await prisma.workflowNodeStyleDefault.deleteMany({
+        where: {
+          templateId,
+          nodeType,
+        },
+      })
+    } else {
+      // Reset all node types
+      await prisma.workflowNodeStyleDefault.deleteMany({
+        where: {
+          templateId,
+        },
+      })
+    }
+
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}/view`)
+    revalidatePath(`/s/${surgeryId}/workflow/templates/${templateId}`)
+
+    return { success: true }
+  } catch (error) {
+    console.error('Error resetting template style defaults:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to reset style defaults',
+    }
+  }
+}

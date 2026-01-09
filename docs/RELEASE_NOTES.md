@@ -17,6 +17,12 @@ A high-level history of major changes.
 - Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section.
 - Added trust section highlighting GP-built origins and local clinical control.
 - User Guide link restored in marketing site navigation alongside Docs link.
+- Workflow Guidance Module (Initial Release)
+  - Visual workflow guidance engine
+  - Global Default workflows
+  - Per-surgery customisation
+  - Draft / Approved governance lifecycle
+  - Feature-flag controlled rollout
 
 ### 🧹 Updated
 - Workflow diagram viewer restores connector lines, arrowheads, and labels for saved and newly created edges.
@@ -34,6 +40,8 @@ A high-level history of major changes.
 - "Why practices choose" section condensed and moved higher on the landing page.
 - Docs site logo now links to www.signpostingtool.co.uk (marketing homepage).
 - All marketing site CTAs verified to use app.signpostingtool.co.uk.
+- Workflow diagram viewer restores connector lines, arrowheads, and labels for saved and newly created edges.
+- Workflow diagram details panel can be collapsed to give more space for the diagram.
 
 ---
 

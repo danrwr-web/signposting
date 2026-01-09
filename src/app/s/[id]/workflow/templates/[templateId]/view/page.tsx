@@ -5,6 +5,7 @@ export const revalidate = 0
 import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import Link from 'next/link'
 import WorkflowDiagramClientWrapper from '@/components/workflow/WorkflowDiagramClientWrapper'
 import {
@@ -22,16 +23,43 @@ import {
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
-type WorkflowTemplateWithGraph = NonNullable<Awaited<ReturnType<typeof prisma.workflowTemplate.findFirst>>>
+// Type for the Prisma query result with all includes
+type WorkflowTemplateQueryResult = NonNullable<Awaited<ReturnType<typeof prisma.workflowTemplate.findFirst<{
+  include: {
+    nodes: {
+      include: {
+        answerOptions: true
+        workflowLinks: {
+          include: {
+            template: {
+              select: {
+                id: true
+                name: true
+              }
+            }
+          }
+        }
+      }
+    }
+    styleDefaults: true
+  }
+}>>>>
+
+// Type for the component (with badges as string[] instead of Json)
+type WorkflowTemplateForComponent = Omit<WorkflowTemplateQueryResult, 'nodes'> & {
+  nodes: Array<Omit<WorkflowTemplateQueryResult['nodes'][number], 'badges'> & {
+    badges: string[]
+  }>
+}
 
 function buildNodeMatchKey(node: { sortOrder: number; nodeType: unknown; title: string }): string {
   return `${node.sortOrder}::${String(node.nodeType)}::${node.title.trim()}`
 }
 
 function repairOverrideAnswerOptionLinks(
-  overrideTemplate: WorkflowTemplateWithGraph,
-  sourceTemplate: WorkflowTemplateWithGraph,
-): WorkflowTemplateWithGraph {
+  overrideTemplate: WorkflowTemplateQueryResult,
+  sourceTemplate: WorkflowTemplateQueryResult,
+): WorkflowTemplateQueryResult {
   // Only repair when shapes look as expected
   if (!overrideTemplate.nodes?.length || !sourceTemplate.nodes?.length) return overrideTemplate
 
@@ -40,7 +68,7 @@ function repairOverrideAnswerOptionLinks(
     overrideByKey.set(buildNodeMatchKey(n), n.id)
   }
 
-  const sourceByKey = new Map<string, typeof sourceTemplate.nodes[number]>()
+  const sourceByKey = new Map<string, WorkflowTemplateQueryResult['nodes'][number]>()
   for (const n of sourceTemplate.nodes) {
     sourceByKey.set(buildNodeMatchKey(n), n)
   }
@@ -55,16 +83,16 @@ function repairOverrideAnswerOptionLinks(
   }
 
   // Repair only missing nextNodeId where the source has a nextNodeId.
-  const repairedNodes = overrideTemplate.nodes.map((overrideNode) => {
+  const repairedNodes = overrideTemplate.nodes.map((overrideNode: WorkflowTemplateQueryResult['nodes'][number]) => {
     const sourceNode = sourceByKey.get(buildNodeMatchKey(overrideNode))
     if (!sourceNode) return overrideNode
 
-    const sourceOptionByValueKey = new Map<string, typeof sourceNode.answerOptions[number]>()
+    const sourceOptionByValueKey = new Map<string, WorkflowTemplateQueryResult['nodes'][number]['answerOptions'][number]>()
     for (const opt of sourceNode.answerOptions) {
       sourceOptionByValueKey.set(opt.valueKey, opt)
     }
 
-    const repairedOptions = overrideNode.answerOptions.map((overrideOpt) => {
+    const repairedOptions = overrideNode.answerOptions.map((overrideOpt: WorkflowTemplateQueryResult['nodes'][number]['answerOptions'][number]) => {
       if (overrideOpt.nextNodeId) return overrideOpt
 
       const sourceOpt = sourceOptionByValueKey.get(overrideOpt.valueKey)
@@ -161,6 +189,18 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             },
           },
         },
+        styleDefaults: true,
+      },
+    })
+
+    // Get surgery-level style defaults
+    const surgeryDefaults = await prisma.workflowNodeStyleDefaultSurgery.findMany({
+      where: { surgeryId: templateOwnerSurgeryId },
+      select: {
+        nodeType: true,
+        bgColor: true,
+        textColor: true,
+        borderColor: true,
       },
     })
 
@@ -185,18 +225,30 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
             },
             include: {
               answerOptions: true,
+              workflowLinks: {
+                include: {
+                  template: {
+                    select: {
+                      id: true,
+                      name: true,
+                    },
+                  },
+                },
+              },
             },
           },
+          styleDefaults: true,
         },
       })
 
       if (sourceTemplate) {
-        templateForRender = repairOverrideAnswerOptionLinks(template as WorkflowTemplateWithGraph, sourceTemplate)
+        templateForRender = repairOverrideAnswerOptionLinks(template, sourceTemplate)
       }
     }
 
     // Check if user can admin *this template* (global templates should only be editable by superusers).
     const isAdmin = can(user).isAdminOfSurgery(templateOwnerSurgeryId)
+    const isSuperuser = user.globalRole === 'SUPERUSER'
 
     // Staff (and non-global admins) must not see draft templates.
     if (!isAdmin && templateForRender.approvalStatus !== 'APPROVED') {
@@ -289,10 +341,64 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
 
           <div className="w-full min-w-0">
             <WorkflowDiagramClientWrapper
-              template={templateForRender}
+              template={{
+                ...templateForRender,
+                nodes: templateForRender.nodes.map((node) => {
+                  // Safely convert Prisma Json to string[]
+                  let badges: string[] = []
+                  if (node.badges) {
+                    if (Array.isArray(node.badges)) {
+                      badges = node.badges as string[]
+                    } else if (typeof node.badges === 'string') {
+                      try {
+                        badges = JSON.parse(node.badges) as string[]
+                      } catch {
+                        badges = []
+                      }
+                    }
+                  }
+                  // Safely convert Prisma Json to style object
+                  let style: {
+                    bgColor?: string
+                    textColor?: string
+                    borderColor?: string
+                    borderWidth?: number
+                    radius?: number
+                    fontWeight?: 'normal' | 'medium' | 'bold'
+                    theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
+                    width?: number
+                    height?: number
+                  } | null = null
+                  if (node.style) {
+                    if (typeof node.style === 'object' && node.style !== null && !Array.isArray(node.style)) {
+                      style = node.style as unknown as typeof style
+                    } else if (typeof node.style === 'string') {
+                      try {
+                        style = JSON.parse(node.style) as typeof style
+                      } catch {
+                        style = null
+                      }
+                    }
+                  }
+                  return {
+                    ...node,
+                    badges,
+                    style,
+                  }
+                }),
+                styleDefaults: templateForRender.styleDefaults.map((default_) => ({
+                  nodeType: default_.nodeType,
+                  bgColor: default_.bgColor,
+                  textColor: default_.textColor,
+                  borderColor: default_.borderColor,
+                })),
+              } as Parameters<typeof WorkflowDiagramClientWrapper>[0]['template']}
               isAdmin={isAdmin}
+              isSuperuser={isSuperuser}
               allTemplates={allTemplates}
               surgeryId={surgeryId}
+              templateId={templateId}
+              surgeryDefaults={surgeryDefaults}
               updatePositionAction={updatePositionAction}
               createNodeAction={createNodeAction}
               createAnswerOptionAction={createAnswerOptionAction}

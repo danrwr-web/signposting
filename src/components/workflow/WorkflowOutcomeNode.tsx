@@ -2,7 +2,7 @@
 
 import { Handle, Position, type NodeProps } from 'reactflow'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
-import { getNodeStyles, renderBadges } from './nodeStyleUtils'
+import { getNodeStyles, renderBadges, type TemplateStyleDefault } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
 import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
@@ -23,6 +23,8 @@ type WorkflowOutcomeNodeData = {
     fontWeight?: 'normal' | 'medium' | 'bold'
     theme?: 'default' | 'info' | 'warning' | 'success' | 'muted' | 'panel'
   } | null
+  templateDefault?: TemplateStyleDefault | null
+  surgeryDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onNodeClick?: () => void
@@ -59,7 +61,7 @@ export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<Wo
   const isOutcomeNode = actionKey !== null && !hasOutgoingEdges
   const getDescription = customGetActionKeyDescription || getActionKeyDescription
   const handleClass = isAdmin ? 'w-3 h-3 !bg-blue-500' : 'w-3 h-3 opacity-0 pointer-events-none'
-  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style)
+  const { className: styleClasses, style: inlineStyles } = getNodeStyles(style, nodeType, data.templateDefault, data.surgeryDefault)
   const nodeStyles = getNodeTypeColor(nodeType)
   const showInfo = shouldShowInfoBadge({ data, style })
 
@@ -110,7 +112,7 @@ export default function WorkflowOutcomeNode({ id, data, selected }: NodeProps<Wo
           
           {/* Title - constrained with overflow protection */}
           <div className="min-h-[2.5rem] overflow-hidden">
-            <div className={`font-medium break-words text-sm leading-snug text-gray-900`} style={style?.textColor ? { color: style.textColor } : undefined}>
+            <div className="font-medium break-words text-sm leading-snug text-inherit">
               {title}
             </div>
           </div>

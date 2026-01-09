@@ -2,6 +2,7 @@
 
 import type { NodeProps } from 'reactflow'
 import { WorkflowNodeType } from '@prisma/client'
+import { getNodeStyles, type TemplateStyleDefault } from './nodeStyleUtils'
 import InfoBadgeButton from './InfoBadgeButton'
 import { shouldShowInfoBadge } from './shouldShowInfoBadge'
 
@@ -25,6 +26,8 @@ type WorkflowReferenceNodeData = {
       items?: Array<{ text: string; info?: string }>
     }
   } | null
+  templateDefault?: TemplateStyleDefault | null
+  surgeryDefault?: TemplateStyleDefault | null
   isSelected: boolean
   isAdmin?: boolean
   onInfoClick?: (nodeId: string) => void
@@ -49,7 +52,7 @@ function InfoIcon() {
 }
 
 export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<WorkflowReferenceNodeData>) {
-  const { nodeType, title, style, isSelected, isAdmin = false, onInfoClick } = data
+  const { nodeType, title, style, templateDefault, surgeryDefault, isSelected, isAdmin = false, onInfoClick } = data
   const showInfo = shouldShowInfoBadge({ data, style })
   
   // Extract reference data from style.reference (stored in DB)
@@ -57,10 +60,10 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
   const referenceTitle = referenceData?.title || title || 'Reference'
   const referenceItems = referenceData?.items || [{ text: 'New item' }]
 
-  // Light green background (NHS-like)
-  const bgColor = style?.bgColor || '#f0fdf4'
-  const borderColor = style?.borderColor || '#86efac'
-  const textColor = style?.textColor || '#166534'
+  // Use effective palette from getNodeStyles
+  const { style: inlineStyles } = getNodeStyles(style, nodeType, templateDefault, surgeryDefault)
+  const bgColor = inlineStyles.backgroundColor || '#f0fdf4'
+  const borderColor = inlineStyles.borderColor || '#86efac'
 
   return (
     <div className="relative" style={{ minWidth: 320 }}>
@@ -79,12 +82,13 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
           borderWidth: style?.borderWidth !== undefined ? style.borderWidth : 1,
           borderRadius: style?.radius !== undefined ? `${style.radius}px` : '8px',
           boxSizing: 'border-box',
+          ...(inlineStyles.color ? { color: inlineStyles.color } : {}),
         }}
       >
         {/* Header row */}
         <div className="px-4 py-3 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: borderColor }}>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="font-semibold text-sm break-words" style={{ color: textColor }}>
+            <div className="font-semibold text-sm break-words text-inherit">
               {referenceTitle}
             </div>
             <div className="text-xs font-medium px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200">
@@ -100,11 +104,10 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
         
         {/* Items list */}
         <div className="px-4 py-3 space-y-2">
-          {referenceItems.map((item, index) => (
+          {referenceItems.map((item: { text: string; info?: string }, index: number) => (
             <div 
               key={index} 
-              className="flex items-start gap-2 text-sm"
-              style={{ color: textColor }}
+              className="flex items-start gap-2 text-sm text-inherit"
             >
               <div className="flex-1 break-words">
                 {item.text}
@@ -112,9 +115,8 @@ export default function WorkflowReferenceNode({ id, data, selected }: NodeProps<
               {item.info && (
                 <div 
                   data-rf-no-details
-                  className="flex-shrink-0 cursor-help"
+                  className="flex-shrink-0 cursor-help opacity-70"
                   title={item.info}
-                  style={{ color: textColor, opacity: 0.7 }}
                 >
                   <InfoIcon />
                 </div>

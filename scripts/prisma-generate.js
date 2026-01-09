@@ -1,31 +1,38 @@
 /**
  * Prisma generate wrapper for CI/Vercel.
  *
- * If DIRECT_URL is not set, fall back to DATABASE_URL so `prisma generate` still works
- * in local/dev environments. For deploys where DATABASE_URL is a pooler endpoint,
- * migrations should use a non-pooler DIRECT_URL.
+ * Runs `prisma generate` which does not require a database connection.
+ * This script is safe to run during postinstall even when DATABASE_URL is missing.
  */
 
 const { spawnSync } = require('node:child_process')
+const path = require('node:path')
+const fs = require('node:fs')
 
-function run(cmd, args) {
-  const res = spawnSync(cmd, args, { stdio: 'inherit', shell: false, env: process.env })
-  if (res.status !== 0) process.exit(res.status ?? 1)
+// Find npx - try node_modules/.bin first, then system PATH
+const nodeModulesNpx = path.join(__dirname, '..', 'node_modules', '.bin', 'npx' + (process.platform === 'win32' ? '.cmd' : ''))
+const npxCmd = fs.existsSync(nodeModulesNpx) ? nodeModulesNpx : 'npx'
+
+// prisma generate does not require DATABASE_URL - it only needs the schema file
+// Always attempt to generate, but handle errors gracefully to not block npm install
+const res = spawnSync(npxCmd, ['prisma', 'generate'], { 
+  stdio: 'inherit', 
+  shell: process.platform === 'win32',
+  env: process.env 
+})
+
+if (res.error) {
+  console.warn('Warning: Failed to run prisma generate:', res.error.message)
+  console.warn('You may need to run "npx prisma generate" manually after installation.')
+  process.exit(0) // Don't block install
 }
 
-if (!process.env.DATABASE_URL) {
-  // Allow installs (e.g. in CI for linting) without a database connection.
-  console.warn('Skipping prisma generate: DATABASE_URL is not set.')
-  process.exit(0)
+if (res.status !== null && res.status !== 0) {
+  console.warn(`Warning: prisma generate exited with code ${res.status}`)
+  console.warn('You may need to run "npx prisma generate" manually after installation.')
+  process.exit(0) // Don't block install - allow it to continue
 }
 
-if (process.env.DATABASE_URL) {
-  // Normalise common DATABASE_URL formats for Prisma.
-  const raw = String(process.env.DATABASE_URL).trim().replace(/^['"]|['"]$/g, '')
-  process.env.DATABASE_URL = raw.startsWith('postgres://')
-    ? `postgresql://${raw.slice('postgres://'.length)}`
-    : raw
-}
-
-run('npx', ['prisma', 'generate'])
+// Success
+process.exit(0)
 
