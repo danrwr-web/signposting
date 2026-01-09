@@ -107,6 +107,10 @@ Surgeries can create custom highlight rules to colour-code any phrase they choos
 - **Background Colour** — Background colour
 - **Enabled/Disabled** — Toggle rule on/off
 
+Notes:
+- Phrases are treated as the same if they only differ by case or extra spaces (for example, “Pharmacy” and “  pharmacy  ”).
+- If you try to add a phrase that already exists, the Admin Dashboard will guide you to edit the existing rule instead.
+
 #### Use Cases
 - Local service names
 - Specific referral pathways

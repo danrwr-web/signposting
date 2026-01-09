@@ -5,10 +5,17 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { updateHighlightRule, deleteHighlightRule, getAllHighlightRules } from '@/server/highlights'
 import { getSession } from '@/server/auth'
+import { UpdateHighlightReqZ } from '@/lib/api-contracts'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
+
+const IdParamsZ = z.object({
+  id: z.string().min(1),
+})
 
 // PATCH /api/highlights/[id] - Update a highlight rule
 export async function PATCH(
@@ -16,12 +23,44 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
-    const body = await request.json()
-    const { phrase, textColor, bgColor, isEnabled } = body
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    // Validation
-    if (phrase !== undefined && (typeof phrase !== 'string' || phrase.trim().length < 1 || phrase.trim().length > 80)) {
+    const rawParams = await params
+    const { id } = IdParamsZ.parse(rawParams)
+    const body = await request.json()
+    const { phrase, textColor, bgColor, isEnabled } = UpdateHighlightReqZ.parse(body)
+
+    // Check the rule exists and authorise edits
+    const currentRule = await prisma.highlightRule.findUnique({
+      where: { id },
+      select: { surgeryId: true },
+    })
+
+    if (!currentRule) {
+      return NextResponse.json({ error: 'Highlight rule not found' }, { status: 404 })
+    }
+
+    // Global rules are superuser-only
+    if (currentRule.surgeryId === null && session.type !== 'superuser') {
+      return NextResponse.json(
+        { error: 'Unauthorized - superuser required for this change' },
+        { status: 403 }
+      )
+    }
+
+    // Surgery admins can only edit their own surgery rules
+    if (currentRule.surgeryId && session.type === 'surgery' && session.surgeryId !== currentRule.surgeryId) {
+      return NextResponse.json(
+        { error: 'Cannot edit rules from other surgeries' },
+        { status: 403 }
+      )
+    }
+
+    // Extra validation: treat phrase as trimmed, non-empty
+    if (phrase !== undefined && (phrase.trim().length < 1 || phrase.trim().length > 80)) {
       return NextResponse.json(
         { error: 'Phrase must be between 1 and 80 characters' },
         { status: 400 }
@@ -37,8 +76,13 @@ export async function PATCH(
 
     return NextResponse.json(rule)
   } catch (error) {
-    console.error('Error updating highlight rule:', error)
-    
+    if (error instanceof Error && error.name === 'ZodError') {
+      return NextResponse.json(
+        { error: 'Invalid request format' },
+        { status: 400 }
+      )
+    }
+
     if (error instanceof Error && (error.name === 'DuplicatePhraseError' || error.message.includes('already exists'))) {
       return NextResponse.json(
         { error: 'A highlight rule with this phrase already exists' },
@@ -46,6 +90,7 @@ export async function PATCH(
       )
     }
 
+    console.error('Error updating highlight rule:', error)
     return NextResponse.json(
       { error: 'Failed to update highlight rule' },
       { status: 500 }

@@ -5,19 +5,27 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
+import { unstable_noStore as noStore } from 'next/cache'
+import { z } from 'zod'
 import { getAllHighlightRules, createHighlightRule, getSurgeryBuiltInHighlightsSetting, getSurgeryImageIconsSetting } from '@/server/highlights'
 import { getSession } from '@/server/auth'
 import { GetHighlightsResZ, CreateHighlightReqZ } from '@/lib/api-contracts'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+const HighlightsQueryZ = z.object({
+  surgeryId: z.string().min(1).optional(),
+})
 
 // GET /api/highlights - Get highlight rules (global + surgery-specific)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession()
+    noStore()
     const { searchParams } = new URL(request.url)
-    const surgeryParam = searchParams.get('surgeryId')
+    const parsedQuery = HighlightsQueryZ.safeParse({ surgeryId: searchParams.get('surgeryId') ?? undefined })
+    const surgeryParam = parsedQuery.success ? parsedQuery.data.surgeryId : undefined
 
     // Convert surgery parameter to surgeryId (handles both ID and slug)
     let surgeryId: string | null = null
@@ -64,8 +72,8 @@ export async function GET(request: NextRequest) {
         enableImageIcons 
       }
     )
-    // Cache for 60s with stale-while-revalidate for better performance
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+    // Highlight configuration should update immediately after changes.
+    response.headers.set('Cache-Control', 'no-store')
     return response
   } catch (error) {
     console.error('Error fetching highlight rules:', error)
@@ -82,6 +90,13 @@ export async function POST(request: NextRequest) {
     const session = await getSession()
     const body = await request.json()
     const { phrase, textColor, bgColor, isEnabled, surgeryId, isGlobal } = CreateHighlightReqZ.parse(body)
+    const phraseTrimmed = phrase.trim()
+    if (!phraseTrimmed) {
+      return NextResponse.json(
+        { error: 'Phrase must be between 1 and 80 characters' },
+        { status: 400 }
+      )
+    }
 
     // Determine surgeryId based on session type and global rule setting
     let targetSurgeryId: string | null = null
@@ -104,7 +119,7 @@ export async function POST(request: NextRequest) {
     }
 
     const rule = await createHighlightRule({
-      phrase: phrase.trim(),
+      phrase: phraseTrimmed,
       textColor,
       bgColor,
       isEnabled: isEnabled ?? true,
@@ -113,8 +128,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ rule }, { status: 201 })
   } catch (error) {
-    console.error('Error creating highlight rule:', error)
-    
     if (error instanceof Error && error.name === 'ZodError') {
       return NextResponse.json(
         { error: 'Invalid request format' },
@@ -129,6 +142,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.error('Error creating highlight rule:', error)
     return NextResponse.json(
       { error: 'Failed to create highlight rule' },
       { status: 500 }
