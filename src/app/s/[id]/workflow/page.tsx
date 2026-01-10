@@ -20,6 +20,7 @@ interface WorkflowTemplateWithCategory {
   id: string
   name: string
   description: string | null
+  iconKey: string | null
   landingCategory: string
   isDependent: boolean
   source: 'global' | 'override' | 'custom'
@@ -117,6 +118,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
         id: template.id,
         name: template.name,
         description: template.description,
+        iconKey: template.iconKey ?? null,
         landingCategory: workflowType,
         isDependent,
         source: template.source,
@@ -135,6 +137,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
       id: w.id,
       name: w.name,
       description: w.description,
+      iconKey: w.iconKey,
       landingCategory: w.landingCategory,
       source: w.source,
       approvalStatus: w.approvalStatus,

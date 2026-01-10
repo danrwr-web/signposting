@@ -49,6 +49,7 @@ export default async function WorkflowTemplateEditPage({ params, searchParams }:
           id: true,
           name: true,
           description: true,
+          iconKey: true,
           colourHex: true,
           isActive: true,
           workflowType: true,

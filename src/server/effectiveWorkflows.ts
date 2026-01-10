@@ -20,6 +20,7 @@ export interface EffectiveWorkflow {
   id: string
   name: string
   description: string | null
+  iconKey: string | null
   colourHex: string | null
   isActive: boolean
   landingCategory: string
@@ -44,6 +45,23 @@ type WorkflowOptions = {
   includeInactive?: boolean // Include inactive workflows
 }
 
+async function backfillMissingIconKeys(templates: Array<{ id: string; name: string; description: string | null; iconKey: string | null }>) {
+  const { inferWorkflowIconKey } = await import('@/components/workflow/icons/inferWorkflowIconKey')
+
+  const missing = templates.filter((t) => !t.iconKey)
+  if (missing.length === 0) return
+
+  // Best-effort, idempotent backfill. If multiple requests race, later updates are harmless.
+  await prisma.$transaction(
+    missing.map((t) =>
+      prisma.workflowTemplate.updateMany({
+        where: { id: t.id, iconKey: null },
+        data: { iconKey: inferWorkflowIconKey({ name: t.name, description: t.description }) },
+      }),
+    ),
+  )
+}
+
 /**
  * Resolves effective workflows for a surgery:
  * - Starts with Global Default templates
@@ -66,6 +84,7 @@ export async function getEffectiveWorkflows(
         id: true,
         name: true,
         description: true,
+        iconKey: true,
         colourHex: true,
         isActive: true,
         landingCategory: true,
@@ -80,6 +99,8 @@ export async function getEffectiveWorkflows(
       },
       orderBy: { name: 'asc' },
     })
+
+    await backfillMissingIconKeys(globalTemplates)
 
     return globalTemplates
       .filter((t) => includeDrafts || t.approvalStatus === 'APPROVED')
@@ -102,6 +123,7 @@ export async function getEffectiveWorkflows(
         id: true,
         name: true,
         description: true,
+        iconKey: true,
         colourHex: true,
         isActive: true,
         landingCategory: true,
@@ -126,6 +148,7 @@ export async function getEffectiveWorkflows(
         id: true,
         name: true,
         description: true,
+        iconKey: true,
         colourHex: true,
         isActive: true,
         landingCategory: true,
@@ -142,6 +165,8 @@ export async function getEffectiveWorkflows(
       orderBy: { name: 'asc' },
     }),
   ])
+
+  await Promise.all([backfillMissingIconKeys(globalTemplates), backfillMissingIconKeys(localTemplates)])
 
   // Build map of global templates by ID
   const globalMap = new Map<string, typeof globalTemplates[0]>(
@@ -226,6 +251,7 @@ export async function getEffectiveWorkflowById(
       id: true,
       name: true,
       description: true,
+      iconKey: true,
       colourHex: true,
       isActive: true,
       landingCategory: true,
@@ -283,6 +309,7 @@ export async function getEffectiveWorkflowById(
       id: true,
       name: true,
       description: true,
+      iconKey: true,
       colourHex: true,
       isActive: true,
       landingCategory: true,
@@ -308,6 +335,7 @@ export async function getEffectiveWorkflowById(
         id: true,
         name: true,
         description: true,
+        iconKey: true,
         colourHex: true,
         isActive: true,
         landingCategory: true,

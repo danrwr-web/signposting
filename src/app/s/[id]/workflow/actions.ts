@@ -5,6 +5,8 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAdmin, requireSurgeryAccess, getSessionUser, can } from '@/lib/rbac'
 import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
+import { inferWorkflowIconKey } from '@/components/workflow/icons/inferWorkflowIconKey'
+import { isWorkflowIconKey } from '@/components/workflow/icons/workflowIconRegistry'
 
 export interface ActionResult {
   success: boolean
@@ -23,6 +25,12 @@ export async function createWorkflowTemplate(
     const colourHex = (formData.get('colourHex') as string)?.trim() || null
     const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true'
     const workflowType = (formData.get('workflowType') as string) || 'SUPPORTING'
+    const iconKeyFieldPresent = formData.has('iconKey')
+    const iconKeyRaw = iconKeyFieldPresent ? (((formData.get('iconKey') as string | null) ?? '').trim()) : ''
+    if (iconKeyRaw && !isWorkflowIconKey(iconKeyRaw)) {
+      return { success: false, error: 'Invalid icon key' }
+    }
+    const iconKey = iconKeyRaw ? iconKeyRaw : null
 
     // Validation
     if (!name || name.length === 0) {
@@ -52,6 +60,7 @@ export async function createWorkflowTemplate(
         surgeryId,
         name,
         description,
+        iconKey: iconKey ?? inferWorkflowIconKey({ name, description }),
         isActive,
         colourHex,
         workflowType: workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
@@ -94,6 +103,8 @@ export async function updateWorkflowTemplate(
     const description = ((formData.get('description') as string | null) ?? '')?.trim() || null
     const isActive = formData.get('isActive') === 'on' || formData.get('isActive') === 'true'
     const colourHex = (formData.get('colourHex') as string) || null
+    const iconKeyFieldPresent = formData.has('iconKey')
+    const iconKeyRaw = iconKeyFieldPresent ? (((formData.get('iconKey') as string | null) ?? '').trim()) : null
     const landingCategoryRaw = formData.get('landingCategory') as string
     const landingCategory = landingCategoryRaw && ['PRIMARY', 'SECONDARY', 'ADMIN'].includes(landingCategoryRaw) 
       ? landingCategoryRaw 
@@ -102,6 +113,19 @@ export async function updateWorkflowTemplate(
     const workflowType = workflowTypeRaw && ['PRIMARY', 'SUPPORTING', 'MODULE'].includes(workflowTypeRaw)
       ? workflowTypeRaw
       : existing.workflowType || 'SUPPORTING'
+
+    let nextIconKey: string | null = existing.iconKey ?? null
+    if (iconKeyFieldPresent) {
+      if (iconKeyRaw) {
+        if (!isWorkflowIconKey(iconKeyRaw)) {
+          return { success: false, error: 'Invalid icon key' }
+        }
+        nextIconKey = iconKeyRaw
+      } else {
+        // Explicitly cleared in the UI: revert to deterministic inferred default.
+        nextIconKey = inferWorkflowIconKey({ name: name || existing.name, description })
+      }
+    }
 
     const user = await getSessionUser()
     if (!user) {
@@ -117,7 +141,8 @@ export async function updateWorkflowTemplate(
       isActive !== existing.isActive ||
       (colourHex || null) !== existing.colourHex ||
       landingCategory !== existing.landingCategory ||
-      (workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE') !== existing.workflowType
+      (workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE') !== existing.workflowType ||
+      nextIconKey !== (existing.iconKey ?? null)
 
     // If workflow was approved and editable fields changed, revert to DRAFT and clear approval fields.
     const shouldRevertApproval = existing.approvalStatus === 'APPROVED' && editableFieldsChanged
@@ -128,6 +153,7 @@ export async function updateWorkflowTemplate(
       data: {
         name,
         description,
+        iconKey: nextIconKey,
         isActive,
         colourHex: colourHex || null,
         landingCategory,
@@ -1743,6 +1769,7 @@ export async function createWorkflowOverride(
           surgeryId,
           name: globalTemplate.name,
           description: globalTemplate.description,
+          iconKey: globalTemplate.iconKey ?? inferWorkflowIconKey({ name: globalTemplate.name, description: globalTemplate.description }),
           colourHex: globalTemplate.colourHex,
           isActive: globalTemplate.isActive,
           landingCategory: globalTemplate.landingCategory,

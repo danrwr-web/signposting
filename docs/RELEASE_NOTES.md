@@ -51,6 +51,7 @@ _Changes in development or planned for the next release._
 
 - Added a **Publish workflow** button on the workflow diagram page so admins can make draft workflows visible to staff.
 - Improved the Workflow Guidance landing page so reception and care navigation staff can choose the right document workflow more quickly, with clearer “Customised vs Global default” status.
+- Workflow templates now support **icons**, with automatic defaults and an admin icon picker in Manage Templates.
 
 ---
 
