@@ -81,10 +81,7 @@ function WorkflowCard({
   const icon = getWorkflowIcon(iconKeyToUse)
 
   const isCustomised = !isGlobalSurgery && (workflow.source === 'override' || workflow.source === 'custom')
-  const statusLabel = isCustomised ? 'Customised' : 'Standard'
-  const statusTooltip = isCustomised
-    ? 'This workflow has been adapted for your surgery.'
-    : 'This is the default workflow template.'
+  const customisedTooltip = 'This workflow has been adapted for your surgery.'
 
   const whenToUse = (workflow.description?.trim() ? workflow.description : meta.whenToUse).trim()
 
@@ -128,16 +125,14 @@ function WorkflowCard({
                 </span>
               )}
 
-              <span
-                title={statusTooltip}
-                className={
-                  isCustomised
-                    ? 'inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200'
-                    : 'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700'
-                }
-              >
-                {statusLabel}
-              </span>
+              {isCustomised && (
+                <span
+                  title={customisedTooltip}
+                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200"
+                >
+                  Customised
+                </span>
+              )}
             </div>
 
             <p className="mt-1 text-sm text-gray-600 line-clamp-1" title={whenToUse}>

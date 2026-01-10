@@ -211,7 +211,12 @@ export default function TemplateEditClient({
                     defaultChecked={template.workflowType === 'PRIMARY'}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                   />
-                  <span className="ml-2 text-sm text-gray-900">Primary workflow</span>
+                  <span className="ml-2 text-sm text-gray-900">
+                    Primary workflow
+                    <span className="ml-2 text-xs text-gray-500">
+                      Shown in the main workflow list on the Workflow Guidance page.
+                    </span>
+                  </span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -221,7 +226,12 @@ export default function TemplateEditClient({
                     defaultChecked={template.workflowType === 'SUPPORTING' || !template.workflowType}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                   />
-                  <span className="ml-2 text-sm text-gray-900">Supporting workflow</span>
+                  <span className="ml-2 text-sm text-gray-900">
+                    Supporting workflow
+                    <span className="ml-2 text-xs text-gray-500">
+                      Shown under Less common / specialist on the Workflow Guidance page.
+                    </span>
+                  </span>
                 </label>
                 <label className="flex items-center">
                   <input
@@ -231,7 +241,12 @@ export default function TemplateEditClient({
                     defaultChecked={template.workflowType === 'MODULE'}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                   />
-                  <span className="ml-2 text-sm text-gray-900">Linked module</span>
+                  <span className="ml-2 text-sm text-gray-900">
+                    Linked module
+                    <span className="ml-2 text-xs text-gray-500">
+                      Shown as a linked module entry (not a standard workflow card).
+                    </span>
+                  </span>
                 </label>
               </div>
               <p className="text-xs text-gray-500 mt-2">
@@ -421,7 +436,7 @@ export default function TemplateEditClient({
                   startTransition(async () => {
                     const result = await approveWorkflowTemplate(surgeryId, templateId)
                     if (result.success) {
-                      setSuccess('Workflow approved successfully')
+                      setSuccess('Workflow approved')
                       router.refresh()
                     } else {
                       setError(result.error || 'Failed to approve workflow')

@@ -252,11 +252,17 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
 
           {/* Admin Tools - Visually Quiet */}
           {isAdmin && (
-            <section className="mt-12 pt-6 border-t border-gray-200" aria-labelledby="admin-tools-heading">
-              <h2 id="admin-tools-heading" className="text-xs font-medium text-gray-400 mb-4 uppercase tracking-wide">
-                Admin Tools
-              </h2>
-              <div className="flex flex-wrap gap-4">
+            <section className="mt-14 pt-8 border-t border-gray-200" aria-labelledby="admin-tools-heading">
+              <div className="flex items-baseline justify-between gap-4 mb-4">
+                <h2 id="admin-tools-heading" className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  Admin Tools
+                </h2>
+                <span className="text-xs text-gray-400">Admin only</span>
+              </div>
+              <p className="text-sm text-gray-500 mb-3">
+                These links are for managing workflows and defaults.
+              </p>
+              <div className="flex flex-wrap gap-3">
                 <Link
                   href={`/s/${surgeryId}/workflow/templates`}
                   className="text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-3 py-1.5 transition-colors"
