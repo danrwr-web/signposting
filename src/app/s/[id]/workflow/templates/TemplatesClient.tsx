@@ -4,11 +4,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import CreateWorkflowModal from '@/components/workflow/CreateWorkflowModal'
+import { getWorkflowIcon } from '@/components/workflow/icons/workflowIconRegistry'
+import { inferWorkflowIconKey } from '@/components/workflow/icons/inferWorkflowIconKey'
 
 interface Template {
   id: string
   name: string
   description: string | null
+  iconKey?: string | null
   isActive: boolean
   workflowType: string | null
   createdAt: Date
@@ -20,9 +23,12 @@ interface Template {
 interface TemplatesClientProps {
   surgeryId: string
   templates: Template[]
+  isSuperuser: boolean
 }
 
-export default function TemplatesClient({ surgeryId, templates }: TemplatesClientProps) {
+const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
+export default function TemplatesClient({ surgeryId, templates, isSuperuser }: TemplatesClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -32,13 +38,15 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
   const getWorkflowTypeBadge = (type: string | null) => {
     if (!type) return null
     
+    // Map MODULE to SUPPORTING for backwards compatibility
+    const normalizedType = type === 'MODULE' ? 'SUPPORTING' : type
+    
     const badges = {
       PRIMARY: { label: 'Primary', className: 'bg-blue-100 text-blue-800' },
       SUPPORTING: { label: 'Supporting', className: 'bg-gray-100 text-gray-800' },
-      MODULE: { label: 'Module', className: 'bg-purple-100 text-purple-800' },
     }
     
-    const badge = badges[type as keyof typeof badges]
+    const badge = badges[normalizedType as keyof typeof badges]
     if (!badge) return null
     
     return (
@@ -147,7 +155,20 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
                 <tr key={template.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     <div className="flex items-center gap-2">
-                      <span>{template.name}</span>
+                      {(() => {
+                        const iconKeyToUse = template.iconKey?.trim()
+                          ? template.iconKey
+                          : inferWorkflowIconKey({ name: template.name, description: template.description })
+                        const icon = getWorkflowIcon(iconKeyToUse)
+                        return (
+                          <>
+                            <span className="text-gray-500" aria-hidden="true">
+                              <icon.Icon className="h-4 w-4" />
+                            </span>
+                            <span>{template.name}</span>
+                          </>
+                        )
+                      })()}
                       {template.approvalStatus === 'DRAFT' && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                           Draft (not visible to staff)
@@ -184,6 +205,11 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
                     {new Date(template.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                    {(() => {
+                      const editSurgeryId =
+                        isSuperuser && template.source === 'global' ? GLOBAL_SURGERY_ID : surgeryId
+                      return (
+                        <>
                     <Link
                       href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
                       className="text-blue-600 hover:text-blue-900"
@@ -192,12 +218,15 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
                     </Link>
                     <span className="text-gray-300">|</span>
                     <Link
-                      href={`/s/${surgeryId}/workflow/templates/${template.id}`}
+                      href={`/s/${editSurgeryId}/workflow/templates/${template.id}`}
                       className="text-gray-600 hover:text-gray-900"
                     >
                       Edit
                     </Link>
                     <span className="text-gray-300">|</span>
+                        </>
+                      )
+                    })()}
                     {deletingId === template.id ? (
                       <span className="inline-flex items-center gap-2">
                         <input

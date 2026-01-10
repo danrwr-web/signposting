@@ -6,7 +6,7 @@ jest.mock('@/lib/auth', () => ({
   authOptions: {}
 }))
 
-import { can, PermissionChecker } from '@/lib/rbac'
+import { can, PermissionChecker, isSuperuserOrSurgeryAdmin } from '@/lib/rbac'
 import { SessionUser } from '@/lib/rbac'
 
 describe('RBAC Utilities', () => {
@@ -52,6 +52,17 @@ describe('RBAC Utilities', () => {
       ]
     }
 
+    const superuserNoMembership: SessionUser = {
+      id: '4',
+      email: 'superuser2@example.com',
+      name: 'Super User (no memberships)',
+      globalRole: 'SUPERUSER',
+      defaultSurgeryId: undefined,
+      isTestUser: false,
+      symptomsUsed: 0,
+      memberships: [],
+    }
+
     describe('manageGlobal', () => {
       it('should return true for superuser', () => {
         expect(can(superuser).manageGlobal()).toBe(true)
@@ -68,6 +79,11 @@ describe('RBAC Utilities', () => {
         expect(can(superuser).manageSurgery('surgery1')).toBe(true)
         expect(can(superuser).manageSurgery('surgery2')).toBe(true)
         expect(can(superuser).manageSurgery('surgery3')).toBe(true)
+      })
+
+      it('should return true for superuser even without surgery membership', () => {
+        expect(can(superuserNoMembership).manageSurgery('surgery1')).toBe(true)
+        expect(can(superuserNoMembership).manageSurgery('surgeryX')).toBe(true)
       })
 
       it('should return true for admin of the surgery', () => {
@@ -88,6 +104,11 @@ describe('RBAC Utilities', () => {
         expect(can(superuser).viewSurgery('surgery1')).toBe(true)
         expect(can(superuser).viewSurgery('surgery2')).toBe(true)
         expect(can(superuser).viewSurgery('surgery3')).toBe(true)
+      })
+
+      it('should return true for superuser even without surgery membership', () => {
+        expect(can(superuserNoMembership).viewSurgery('surgery1')).toBe(true)
+        expect(can(superuserNoMembership).viewSurgery('surgeryX')).toBe(true)
       })
 
       it('should return true for user with membership in surgery', () => {
@@ -158,6 +179,22 @@ describe('RBAC Utilities', () => {
         expect(can(superuser).getAdminSurgeryIds()).toEqual(['surgery1'])
         expect(can(admin).getAdminSurgeryIds()).toEqual(['surgery1'])
         expect(can(standardUser).getAdminSurgeryIds()).toEqual([])
+      })
+    })
+
+    describe('isSuperuserOrSurgeryAdmin', () => {
+      it('should allow SUPERUSER even without membership', () => {
+        expect(isSuperuserOrSurgeryAdmin(superuserNoMembership, 'surgery1')).toBe(true)
+        expect(isSuperuserOrSurgeryAdmin(superuserNoMembership, 'surgeryX')).toBe(true)
+      })
+
+      it('should allow surgery admin only for their surgery', () => {
+        expect(isSuperuserOrSurgeryAdmin(admin, 'surgery1')).toBe(true)
+        expect(isSuperuserOrSurgeryAdmin(admin, 'surgery2')).toBe(false)
+      })
+
+      it('should deny standard users', () => {
+        expect(isSuperuserOrSurgeryAdmin(standardUser, 'surgery1')).toBe(false)
       })
     })
   })

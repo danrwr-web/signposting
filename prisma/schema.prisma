@@ -504,6 +504,7 @@ model WorkflowTemplate {
 
   name            String
   description     String?
+  iconKey         String?
   colourHex       String? // optional – to mirror Lucid colours
   isActive        Boolean @default(true)
   landingCategory String  @default("PRIMARY") // "PRIMARY" | "SECONDARY" | "ADMIN" - controls prominence on landing page
