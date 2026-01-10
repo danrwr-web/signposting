@@ -4,11 +4,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import CreateWorkflowModal from '@/components/workflow/CreateWorkflowModal'
+import { getWorkflowIcon } from '@/components/workflow/icons/workflowIconRegistry'
+import { inferWorkflowIconKey } from '@/components/workflow/icons/inferWorkflowIconKey'
 
 interface Template {
   id: string
   name: string
   description: string | null
+  iconKey?: string | null
   isActive: boolean
   workflowType: string | null
   createdAt: Date
@@ -150,7 +153,20 @@ export default function TemplatesClient({ surgeryId, templates, isSuperuser }: T
                 <tr key={template.id}>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     <div className="flex items-center gap-2">
-                      <span>{template.name}</span>
+                      {(() => {
+                        const iconKeyToUse = template.iconKey?.trim()
+                          ? template.iconKey
+                          : inferWorkflowIconKey({ name: template.name, description: template.description })
+                        const icon = getWorkflowIcon(iconKeyToUse)
+                        return (
+                          <>
+                            <span className="text-gray-500" aria-hidden="true">
+                              <icon.Icon className="h-4 w-4" />
+                            </span>
+                            <span>{template.name}</span>
+                          </>
+                        )
+                      })()}
                       {template.approvalStatus === 'DRAFT' && (
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
                           Draft (not visible to staff)
