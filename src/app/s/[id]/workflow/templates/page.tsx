@@ -44,6 +44,7 @@ export default async function WorkflowTemplatesPage({ params }: WorkflowTemplate
       id: w.id,
       name: w.name,
       description: w.description,
+      iconKey: w.iconKey,
       isActive: w.isActive,
       workflowType: w.workflowType,
       createdAt: w.createdAt,
