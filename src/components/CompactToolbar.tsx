@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { signOut } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import SurgeryFiltersHeader from './SurgeryFiltersHeader'
@@ -27,6 +28,7 @@ interface CompactToolbarProps {
   totalCount: number
   showSurgerySelector: boolean
   onShowSurgerySelector: (show: boolean) => void
+  workflowGuidanceEnabled?: boolean
 }
 
 export default function CompactToolbar({
@@ -41,9 +43,13 @@ export default function CompactToolbar({
   resultsCount,
   totalCount,
   showSurgerySelector,
-  onShowSurgerySelector
+  onShowSurgerySelector,
+  workflowGuidanceEnabled,
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const pathname = usePathname() || ''
+  const params = useParams()
+  const searchParams = useSearchParams()
   const { data: session } = useSession()
   const { surgery } = useSurgery()
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
@@ -87,6 +93,17 @@ export default function CompactToolbar({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onSearchChange, onLetterChange, onAgeChange])
 
+  // `params.id` is ambiguous: it is the surgery id on `/s/[id]/...`, but it is the symptom id on `/symptom/[id]`.
+  // Use the pathname to decide which value is safe to treat as a surgery id.
+  const surgeryId =
+    pathname.startsWith('/s/')
+      ? ((params as Record<string, string | string[] | undefined>)?.id as string | undefined)
+      : pathname.startsWith('/symptom/')
+        ? (searchParams.get('surgery') || undefined)
+        : (currentSurgeryId ?? surgery?.id)
+
+  const logoHref = surgeryId ? `/s/${surgeryId}` : '/s'
+
   return (
     <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
       {/* Row 1: Logo, Surgery Selector, Admin Link */}
@@ -94,7 +111,7 @@ export default function CompactToolbar({
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <div className="flex items-center">
-            <Link href="/" className="flex items-center">
+            <Link href={logoHref} className="flex items-center">
               <img
                 src="/images/signposting_logo_head.png"
                 alt="Signposting"
@@ -147,6 +164,16 @@ export default function CompactToolbar({
                 className="text-sm font-medium text-slate-700 hover:text-sky-700"
               >
                 Appointment Directory
+              </Link>
+            )}
+
+            {/* Workflow Guidance Link - only when enabled for this surgery */}
+            {currentSurgeryId && workflowGuidanceEnabled && (
+              <Link
+                href={`/s/${currentSurgeryId}/workflow`}
+                className="text-sm font-medium text-slate-700 hover:text-sky-700"
+              >
+                Workflow guidance
               </Link>
             )}
 

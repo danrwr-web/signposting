@@ -14,12 +14,16 @@ type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
 interface HomePageClientProps {
   surgeries: Surgery[]
   symptoms: EffectiveSymptom[]
+  // When rendered at `/s/[id]`, pass the canonical surgery id from the route.
+  // This avoids relying on cookie/localStorage context, which may be stale or point to a different surgery.
+  surgeryId?: string
   requiresClinicalReview?: boolean
   surgeryName?: string
+  workflowGuidanceEnabled?: boolean
 }
 
-function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName }: HomePageClientProps) {
-  const { surgery, currentSurgerySlug } = useSurgery()
+function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId, workflowGuidanceEnabled }: HomePageClientProps) {
+  const { surgery, currentSurgeryId, setSurgery } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
   const [selectedAge, setSelectedAge] = useState<AgeBand>('All')
@@ -29,7 +33,6 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   const symptomCache = useRef<Record<string, EffectiveSymptom[]>>({})
   const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
-  const currentSurgeryId = surgery?.id
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const deferredSelectedLetter = useDeferredValue(selectedLetter)
   const deferredSelectedAge = useDeferredValue(selectedAge)
@@ -41,24 +44,35 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
     }
   }, [surgery, surgeries.length])
 
+  // If we are on a surgery-scoped route, ensure the client-side surgery context matches it.
+  useEffect(() => {
+    if (!routeSurgeryId) return
+    if (currentSurgeryId === routeSurgeryId) return
+    const match = surgeries.find(s => s.id === routeSurgeryId)
+    if (match) {
+      setSurgery({ id: match.id, slug: match.slug || match.id, name: match.name })
+    }
+  }, [routeSurgeryId, currentSurgeryId, surgeries, setSurgery])
 
-  // Use surgerySlug from context
-  const surgerySlug = currentSurgerySlug
 
-  const getCacheKey = useCallback((slug: string) => `signposting:symptoms:${slug}`, [])
+  // Use the canonical surgery identifier used in `/s/[id]` routes.
+  // Avoid using the human-readable `surgery.slug` so we don't generate inconsistent `?surgery=` links.
+  const surgeryId = routeSurgeryId || currentSurgeryId
+
+  const getCacheKey = useCallback((id: string) => `signposting:symptoms:${id}`, [])
 
   // Cache the initial payload against whichever key we have available
   useEffect(() => {
-    const key = surgerySlug || 'initial'
+    const key = surgeryId || 'initial'
     if (!symptomCache.current[key]) {
       symptomCache.current[key] = initialSymptoms
     }
-  }, [initialSymptoms, surgerySlug])
+  }, [initialSymptoms, surgeryId])
 
   // Load cached symptoms from localStorage when surgery changes
   useEffect(() => {
-    if (!surgerySlug || typeof window === 'undefined') return
-    const key = getCacheKey(surgerySlug)
+    if (!surgeryId || typeof window === 'undefined') return
+    const key = getCacheKey(surgeryId)
     try {
       const raw = window.localStorage.getItem(key)
       if (!raw) return
@@ -66,18 +80,18 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
       if (!parsed?.updatedAt || !Array.isArray(parsed.symptoms)) return
       const isFresh = Date.now() - parsed.updatedAt < CACHE_TTL_MS
       if (!isFresh) return
-      symptomCache.current[surgerySlug] = parsed.symptoms
+      symptomCache.current[surgeryId] = parsed.symptoms
       setSymptoms(parsed.symptoms)
     } catch (error) {
       console.error('Failed to read cached symptoms', error)
     }
-  }, [getCacheKey, surgerySlug])
+  }, [getCacheKey, surgeryId])
 
   // Fetch symptoms when surgery changes
   useEffect(() => {
-    if (currentSurgeryId && surgerySlug) {
+    if (surgeryId) {
       setIsLoadingSymptoms(true)
-      const key = surgerySlug
+      const key = surgeryId
       const cached = symptomCache.current[key]
       if (cached) {
         setSymptoms(cached)
@@ -85,7 +99,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 
       const controller = new AbortController()
 
-      fetch(`/api/symptoms?surgery=${surgerySlug}`, { cache: 'force-cache', signal: controller.signal })
+      fetch(`/api/symptoms?surgery=${surgeryId}`, { cache: 'no-store', signal: controller.signal })
         .then(response => response.json())
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
@@ -113,7 +127,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 
       return () => controller.abort()
     }
-  }, [currentSurgeryId, surgerySlug])
+  }, [surgeryId, getCacheKey])
 
   // Manual refresh function - symptoms are refreshed when surgery changes or user explicitly refreshes
   // Removed automatic polling to reduce server load and improve performance
@@ -181,7 +195,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
       {/* Compact Toolbar */}
       <CompactToolbar
         surgeries={surgeries}
-        currentSurgeryId={currentSurgeryId}
+        currentSurgeryId={surgeryId}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         selectedLetter={selectedLetter}
@@ -192,6 +206,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         totalCount={initialSymptoms.length}
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
+        workflowGuidanceEnabled={workflowGuidanceEnabled}
       />
 
       {/* Clinical Review Warning Banner */}
@@ -238,7 +253,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         ) : filteredSymptoms.length > 0 && surgeries.length > 0 ? (
           <VirtualizedGrid
             symptoms={filteredSymptoms}
-            surgerySlug={surgerySlug || undefined}
+            surgeryId={surgeryId || undefined}
             columns={{
               xl: 4,
               lg: 3,

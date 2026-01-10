@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { GetDefaultHighRiskButtonsResZ, UpdateDefaultHighRiskButtonReqZ } from '@/lib/api-contracts'
+import { revalidateTag } from 'next/cache'
+import { HIGH_RISK_TAG, getHighRiskSurgeryTag } from '@/server/highRiskTags'
 
 export const runtime = 'nodejs'
 
@@ -252,6 +254,10 @@ export async function PATCH(request: NextRequest) {
         }
       })
       
+      revalidateTag(HIGH_RISK_TAG)
+      if (surgeryId && surgeryId !== GLOBAL_SURGERY_ID) {
+        revalidateTag(getHighRiskSurgeryTag(surgeryId))
+      }
       return NextResponse.json({ button: updatedConfig })
     } else {
       // Create new configuration
@@ -266,6 +272,10 @@ export async function PATCH(request: NextRequest) {
         }
       })
       
+      revalidateTag(HIGH_RISK_TAG)
+      if (surgeryId && surgeryId !== GLOBAL_SURGERY_ID) {
+        revalidateTag(getHighRiskSurgeryTag(surgeryId))
+      }
       return NextResponse.json({ button: newConfig })
     }
   } catch (error) {
@@ -335,6 +345,7 @@ export async function POST(request: NextRequest) {
       }
     })
     
+    revalidateTag(HIGH_RISK_TAG)
     return NextResponse.json({ button: newConfig }, { status: 201 })
   } catch (error) {
     console.error('Error creating global default button:', error)
@@ -401,6 +412,7 @@ export async function DELETE(request: NextRequest) {
       where: { buttonKey }
     })
 
+    revalidateTag(HIGH_RISK_TAG)
     return NextResponse.json({ success: true }, { status: 200 })
   } catch (error) {
     console.error('Error deleting default button:', error)

@@ -33,10 +33,15 @@ if (typeof global.TransformStream === 'undefined') {
   global.TransformStream = TransformStream
 }
 
+// If we polyfill MessageChannel in jsdom, React's scheduler can keep a MESSAGEPORT
+// handle open and prevent Jest from exiting cleanly. We only polyfill it long enough
+// for any dependencies that require it, then remove it.
+const didPolyfillMessageChannel = typeof global.MessageChannel === 'undefined'
 if (typeof global.MessageChannel === 'undefined') {
   global.MessageChannel = MessageChannel
 }
 
+const didPolyfillMessagePort = typeof global.MessagePort === 'undefined'
 if (typeof global.MessagePort === 'undefined') {
   global.MessagePort = MessagePort
 }
@@ -66,4 +71,14 @@ if (typeof global.FormData === 'undefined') {
 if (typeof global.File === 'undefined') {
   // @ts-ignore
   global.File = File
+}
+
+// Remove MessageChannel polyfills to avoid open Jest handles from React scheduler.
+if (didPolyfillMessageChannel) {
+  // @ts-ignore
+  delete global.MessageChannel
+}
+if (didPolyfillMessagePort) {
+  // @ts-ignore
+  delete global.MessagePort
 }

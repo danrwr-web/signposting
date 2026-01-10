@@ -4,9 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { useFadeUpOnScroll } from '@/hooks/useFadeUpOnScroll'
+import MarketingHeader from '@/components/marketing/MarketingHeader'
+import MarketingFooter from '@/components/marketing/MarketingFooter'
 
 export default function LandingPageClient() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const appBaseUrl =
     process.env.NEXT_PUBLIC_APP_BASE_URL?.replace(/\/$/, '') ||
     (process.env.NODE_ENV === 'development' ? '' : 'https://app.signpostingtool.co.uk')
@@ -32,130 +33,7 @@ export default function LandingPageClient() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4 md:py-6">
-            {/* Logo and Brand - Mobile: smaller, Desktop: normal */}
-            <Link href="/" className="flex items-center space-x-2 md:space-x-4 min-w-0 flex-shrink">
-              {/* Logo */}
-              <img 
-                src="/images/logo.png" 
-                alt="Signposting Toolkit Logo" 
-                className="h-12 md:h-16 w-auto flex-shrink-0"
-              />
-              <p className="text-lg md:text-2xl font-bold text-gray-900 truncate">
-                Signposting Toolkit
-              </p>
-            </Link>
-            
-            {/* Desktop Navigation - hidden on mobile */}
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link
-                href="/why-signposting-toolkit"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Why Choose Us
-              </Link>
-              <a
-                href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                User Guide
-              </a>
-              <a
-                href="https://docs.signpostingtool.co.uk/"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Docs
-              </a>
-              <Link
-                href="/demo-request"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Request a Demo
-              </Link>
-              <Link
-                href={appEntryUrl}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Launch Toolkit
-              </Link>
-            </nav>
-
-            {/* Mobile Menu Button - visible on mobile only */}
-            <div className="md:hidden flex items-center">
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                aria-label="Toggle menu"
-                aria-expanded={mobileMenuOpen}
-              >
-                {mobileMenuOpen ? (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                ) : (
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile Menu - visible when open */}
-          {mobileMenuOpen && (
-            <div className="md:hidden pb-4 border-t border-gray-200 mt-2">
-              <nav className="flex flex-col space-y-3 pt-4">
-                <Link
-                  href="/why-signposting-toolkit"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
-                >
-                  Why Choose Us
-                </Link>
-                <a
-                  href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
-                >
-                  User Guide
-                </a>
-                <a
-                  href="https://docs.signpostingtool.co.uk/"
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
-                >
-                  Docs
-                </a>
-                <Link
-                  href="/demo-request"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors py-2"
-                >
-                  Request a Demo
-                </Link>
-                <Link
-                  href={appEntryUrl}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 inline-block text-center mt-2"
-                >
-                  Launch Toolkit
-                </Link>
-              </nav>
-            </div>
-          )}
-        </div>
-      </header>
+      <MarketingHeader appEntryUrl={appEntryUrl} />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-b from-slate-50 to-white py-12 md:py-24">
@@ -241,7 +119,7 @@ export default function LandingPageClient() {
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Faster training for new staff</h3>
               <p className="text-gray-600 text-sm">
-                Consistent wording and AI-guided question prompts reduce the learning curve.
+                Consistent wording and a familiar layout reduce the learning curve.
               </p>
             </div>
           </div>
@@ -328,6 +206,143 @@ export default function LandingPageClient() {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               ></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonial */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900">What people are saying</h2>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <figure className="relative bg-slate-50 border border-slate-200 rounded-xl p-8 sm:p-10">
+              <div aria-hidden="true" className="absolute top-6 left-6 text-blue-600/20">
+                <svg className="h-10 w-10" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7.17 6A4.17 4.17 0 0 0 3 10.17V19h8v-8H7.17A1.17 1.17 0 0 1 6 9.83V9.67C6 8.75 6.75 8 7.67 8H9V6H7.17Zm13 0A4.17 4.17 0 0 0 16 10.17V19h8v-8h-3.83A1.17 1.17 0 0 1 19 9.83V9.67C19 8.75 19.75 8 20.67 8H22V6h-1.83Z" />
+                </svg>
+              </div>
+
+              <blockquote className="text-gray-800 leading-relaxed">
+                <p className="text-base sm:text-lg">
+                  “I have seen a number of signposting tools and techniques in over 50 practices across the South West. This signposting tool is easy for receptionists/care navigators to use and gives clear guidance on how to direct patients appropriately.
+                </p>
+                <p className="mt-4 text-base sm:text-lg">
+                  The visuals have been tailored to allow users to find the condition they require quickly. Having useful phrases and questions, which have been developed by both clinical and non-clinical team members, allows the user to navigate the patient promptly and capture the required information for the clinician without sounding robotic or lacking in empathy.
+                </p>
+                <p className="mt-4 text-base sm:text-lg">
+                  The tool is excellent for new starters or temporary staff who are learning the practice systems and allows all users to carry out the correct booking process/urgency consistently.”
+                </p>
+              </blockquote>
+
+              <figcaption className="mt-8 pt-6 border-t border-slate-200">
+                <p className="font-semibold text-gray-900">Emma Gregory</p>
+                <p className="text-sm text-gray-600">PLS Programme Facilitator &amp; Former Practice Manager</p>
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-gray-900">Pricing</h2>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-8 sm:p-10">
+              <p className="text-sm font-semibold text-blue-700">Early adopter offer</p>
+              <p className="mt-3 text-4xl sm:text-5xl font-bold text-gray-900">£0.07 per patient per year</p>
+              <p className="mt-3 text-base text-gray-700">Available to the first 10 practices to onboard.</p>
+              <p className="mt-2 text-base text-gray-700">
+                Early adopters will also have the opportunity to share feedback and help shape future development.
+              </p>
+
+              <div className="mt-8 pt-6 border-t border-slate-200">
+                <h3 className="text-base font-semibold text-gray-900">What’s included</h3>
+                <ul className="mt-4 space-y-4 text-gray-700">
+                  {[
+                    {
+                      title: 'Clear symptom guidance',
+                      description:
+                        'Over 200 clinically structured symptoms, written in clear, plain English and designed for reception and care navigation teams.',
+                    },
+                    {
+                      title: 'Clinical governance built in',
+                      description: (
+                        <>
+                          Every practice reviews and signs off its own guidance. A built-in clinical review
+                          workflow supports local approval, re-review cycles, and a clear audit trail.{' '}
+                          <Link href="/faqs" className="text-blue-700 underline underline-offset-2">
+                            See FAQs
+                          </Link>
+                          .
+                        </>
+                      ),
+                    },
+                    {
+                      title: 'Local customisation',
+                      description:
+                        'Tailor wording, appointment types, and local pathways so the guidance reflects how your practice works.',
+                    },
+                    {
+                      title: 'Onboarding & ongoing support',
+                      description: (
+                        <>
+                          Guided setup and practical support from a team who run the toolkit in a live NHS
+                          practice — helping you get up and running quickly and confidently.{' '}
+                          <Link href="/faqs" className="text-blue-700 underline underline-offset-2">
+                            Support FAQs
+                          </Link>
+                          .
+                        </>
+                      ),
+                    },
+                    {
+                      title: 'Optional clarity tools',
+                      description:
+                        'Optional tools are available to help administrators improve clarity or generate suggested questions. These features can be switched off, and any generated content must be reviewed locally before use.',
+                    },
+                  ].map((item) => (
+                    <li key={item.title} className="flex items-start gap-3">
+                      <svg
+                        className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <div>
+                        <p className="font-semibold text-gray-900">{item.title}</p>
+                        <p className="mt-1 text-sm text-gray-700 max-w-prose">{item.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <p className="mt-6 text-sm text-gray-600">
+                  Future pricing will be reviewed once the early adopter phase is complete.
+                </p>
+
+                <div className="mt-8">
+                  <Link
+                    href="/demo-request"
+                    className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  >
+                    Request a demo
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -467,6 +482,18 @@ export default function LandingPageClient() {
                 Designed for fast use at the front desk, with colour-coded urgency, plain-English instructions, and a dependable primary care workflow.
               </p>
             </div>
+
+            <div ref={register} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboarding &amp; support</h3>
+              <p className="text-gray-600">
+                Guided setup and practical support—built by a working NHS practice team.
+              </p>
+            </div>
           </div>
         </div>
       </section>
@@ -491,11 +518,18 @@ export default function LandingPageClient() {
         </div>
       </section>
 
-      {/* Tools that help your team work smarter section (formerly AI-Enabled) */}
+      {/* Optional tools */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Tools that help your team work smarter</h2>
+            <h2 className="text-3xl font-bold text-gray-900">Optional tools</h2>
+            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+              Optional tools can help administrators improve clarity and consistency. Any suggested content is treated as draft, must be reviewed locally before use, and can be disabled at practice level.{' '}
+              <Link href="/faqs" className="text-blue-600 hover:text-blue-700 font-medium underline">
+                See FAQs
+              </Link>{' '}
+              for common questions about governance and AI.
+            </p>
           </div>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             <div ref={register} className="bg-slate-50 p-6 rounded-xl shadow-sm border border-slate-200 transition-all duration-300 ease-out lg:hover:-translate-y-0.5 lg:hover:shadow-md">
@@ -596,8 +630,8 @@ export default function LandingPageClient() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-900 mb-1">AI helps with wording and clarity</h3>
-                <p className="text-sm text-gray-600">Clinicians stay in control of the pathways — AI suggestions require review before publishing.</p>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Onboarding and support</h3>
+                <p className="text-sm text-gray-600">Guided setup and practical support — built by a working NHS practice team.</p>
               </div>
             </div>
 
@@ -647,8 +681,8 @@ export default function LandingPageClient() {
                     <td className="px-6 py-4 text-sm text-gray-700">Limited role differentiation.</td>
                   </tr>
                   <tr ref={register}>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900">AI support for clarity and training</td>
-                    <td className="px-6 py-4 text-sm text-gray-700">✓ AI-powered instruction editor and training mode</td>
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">Optional tools for clarity and training</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">✓ Optional AI-assisted editing and suggested questions (review before use; can be disabled)</td>
                     <td className="px-6 py-4 text-sm text-gray-700">Manual editing only.</td>
                   </tr>
                 </tbody>
@@ -701,6 +735,13 @@ export default function LandingPageClient() {
                 Designed so each surgery keeps full local clinical sign-off
               </p>
             </div>
+            <div className="mt-6 flex justify-center">
+              <img
+                src="/images/logo.png"
+                alt="Ide Lane Surgery logo"
+                className="h-10 w-auto opacity-90"
+              />
+            </div>
           </div>
         </div>
       </section>
@@ -739,24 +780,7 @@ export default function LandingPageClient() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 bg-white border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-sm text-gray-500 space-y-2">
-            <p>
-              © {new Date().getFullYear()} The Signposting Toolkit · Built by GPs for GPs and their care navigators
-            </p>
-            <p>
-              <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
-              · <Link href="/demo-request" className="text-blue-600 hover:text-blue-700 underline">Request a demo</Link>{' '}
-              · Contact:{' '}
-              <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 underline">contact@signpostingtool.co.uk</a>
-              {' '}·{' '}
-              <span className="text-gray-400">Support development</span>
-            </p>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter />
     </div>
   )
 }

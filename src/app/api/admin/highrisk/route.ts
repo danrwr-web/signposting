@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { GetHighRiskResZ, CreateHighRiskReqZ } from '@/lib/api-contracts'
+import { revalidateTag } from 'next/cache'
+import { HIGH_RISK_TAG, getHighRiskSurgeryTag } from '@/server/highRiskTags'
 
 export const runtime = 'nodejs'
 
@@ -234,12 +236,51 @@ export async function POST(request: NextRequest) {
       await requireSurgeryAdmin(surgeryId)
     }
 
+    // Resolve symptom details (prefer ID; fall back to slug for backwards compatibility)
+    const resolved = await (async () => {
+      if (symptomId) {
+        const custom = await prisma.surgeryCustomSymptom.findFirst({
+          where: { id: symptomId, surgeryId, isDeleted: false },
+          select: { id: true, slug: true, name: true },
+        })
+        if (custom) return { id: custom.id, slug: custom.slug, name: custom.name }
+        const base = await prisma.baseSymptom.findFirst({
+          where: { id: symptomId, isDeleted: false },
+          select: { id: true, slug: true, name: true },
+        })
+        if (base) return { id: base.id, slug: base.slug, name: base.name }
+        return null
+      }
+      if (symptomSlug) {
+        const custom = await prisma.surgeryCustomSymptom.findFirst({
+          where: { slug: symptomSlug, surgeryId, isDeleted: false },
+          select: { id: true, slug: true, name: true },
+        })
+        if (custom) return { id: custom.id, slug: custom.slug, name: custom.name }
+        const base = await prisma.baseSymptom.findFirst({
+          where: { slug: symptomSlug, isDeleted: false },
+          select: { id: true, slug: true, name: true },
+        })
+        if (base) return { id: base.id, slug: base.slug, name: base.name }
+      }
+      return null
+    })()
+
+    if (!resolved) {
+      return NextResponse.json(
+        { error: 'Selected symptom not found' },
+        { status: 400 }
+      )
+    }
+
+    const labelToSave = (label ?? '').trim() || resolved.name
+
     // Check if label already exists for this surgery
     const existing = await prisma.highRiskLink.findUnique({
       where: {
         surgeryId_label: {
           surgeryId,
-          label
+          label: labelToSave
         }
       }
     })
@@ -254,9 +295,9 @@ export async function POST(request: NextRequest) {
     const link = await prisma.highRiskLink.create({
       data: {
         surgeryId,
-        label,
-        symptomSlug,
-        symptomId,
+        label: labelToSave,
+        symptomSlug: resolved.slug,
+        symptomId: resolved.id,
         orderIndex: orderIndex || 0
       },
       select: {
@@ -268,6 +309,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    revalidateTag(HIGH_RISK_TAG)
+    revalidateTag(getHighRiskSurgeryTag(surgeryId))
     return NextResponse.json({ link }, { status: 201 })
   } catch (error) {
     console.error('Error creating high-risk link:', error)
@@ -350,6 +393,8 @@ export async function PATCH(request: NextRequest) {
       data: { enableDefaultHighRisk }
     })
 
+    revalidateTag(HIGH_RISK_TAG)
+    revalidateTag(getHighRiskSurgeryTag(surgeryId))
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error updating default high-risk setting:', error)

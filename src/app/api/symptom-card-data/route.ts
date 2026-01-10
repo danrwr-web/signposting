@@ -5,16 +5,29 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { getAllHighlightRules, getSurgeryBuiltInHighlightsSetting, getSurgeryImageIconsSetting } from '@/server/highlights'
+import { unstable_noStore as noStore } from 'next/cache'
+import { z } from 'zod'
+import { getCachedHighlightRules, getSurgeryBuiltInHighlightsSetting, getSurgeryImageIconsSetting } from '@/server/highlights'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+const QueryZ = z.object({
+  surgeryId: z.string().optional(),
+  phrase: z.string().optional(),
+})
 
 export async function GET(request: NextRequest) {
   try {
+    noStore()
     const { searchParams } = new URL(request.url)
-    const surgeryParam = searchParams.get('surgeryId')
-    const phrase = searchParams.get('phrase') // Optional: for image icon lookup
+    const parsed = QueryZ.safeParse({
+      surgeryId: searchParams.get('surgeryId') ?? undefined,
+      phrase: searchParams.get('phrase') ?? undefined,
+    })
+    const surgeryParam = parsed.success ? parsed.data.surgeryId : undefined
+    const phrase = parsed.success ? parsed.data.phrase : undefined // Optional: for image icon lookup
 
     // Convert surgery parameter to surgeryId (handles both ID and slug)
     let surgeryId: string | null = null
@@ -38,8 +51,8 @@ export async function GET(request: NextRequest) {
 
     // Fetch highlights and image icon settings in parallel
     const [globalRules, surgeryRules, enableBuiltInHighlights, enableImageIcons] = await Promise.all([
-      getAllHighlightRules(null),
-      surgeryId ? getAllHighlightRules(surgeryId) : Promise.resolve([]),
+      getCachedHighlightRules(null),
+      surgeryId ? getCachedHighlightRules(surgeryId) : Promise.resolve([]),
       surgeryId ? getSurgeryBuiltInHighlightsSetting(surgeryId) : Promise.resolve(true),
       surgeryId ? getSurgeryImageIconsSetting(surgeryId) : Promise.resolve(true)
     ])
@@ -88,8 +101,8 @@ export async function GET(request: NextRequest) {
       imageIcon
     })
 
-    // Cache for 60s with stale-while-revalidate
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+    // The main UI should reflect highlight changes immediately.
+    response.headers.set('Cache-Control', 'no-store')
     return response
   } catch (error) {
     console.error('Error fetching symptom card data:', error)
@@ -99,7 +112,7 @@ export async function GET(request: NextRequest) {
       enableImageIcons: true,
       imageIcon: null
     })
-    response.headers.set('Cache-Control', 'public, s-maxage=5')
+    response.headers.set('Cache-Control', 'no-store')
     return response
   }
 }

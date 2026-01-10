@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
-const Schema = z.object({ customSymptomId: z.string().uuid() })
+// Symptom IDs are Prisma CUIDs (not UUIDs).
+const Schema = z.object({ customSymptomId: z.string().cuid() })
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +45,11 @@ export async function POST(req: NextRequest) {
 
       return base
     })
+
+    // Promoting a custom symptom affects base + surgery effective symptom lists.
+    revalidateTag(getCachedSymptomsTag(custom.surgeryId, false))
+    revalidateTag(getCachedSymptomsTag(custom.surgeryId, true))
+    revalidateTag('symptoms')
 
     // TODO: Add audit logging for create/promote actions (SymptomHistory)
     return NextResponse.json({ ok: true, baseSymptomId: created.id })

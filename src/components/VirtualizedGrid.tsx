@@ -8,7 +8,7 @@ import { useCardStyle } from '@/context/CardStyleContext'
 
 interface VirtualizedGridProps {
   symptoms: EffectiveSymptom[]
-  surgerySlug?: string
+  surgeryId?: string
   columns?: {
     xl: number
     lg: number
@@ -36,12 +36,12 @@ const DEFAULT_OVERSCAN = 5
 
 export default function VirtualizedGrid({
   symptoms,
-  surgerySlug,
+  surgeryId,
   columns = DEFAULT_COLUMNS,
   itemHeight,
   overscan = DEFAULT_OVERSCAN
 }: VirtualizedGridProps) {
-  const { currentSurgerySlug } = useSurgery()
+  const { currentSurgeryId } = useSurgery()
   const { isSimplified, cardStyle } = useCardStyle()
   const resolvedItemHeight = useMemo(() => {
     if (typeof itemHeight === 'number') {
@@ -51,8 +51,9 @@ export default function VirtualizedGrid({
     return isSimplified ? 220 : cardStyle === 'powerappsBlue' ? 280 : 272
   }, [itemHeight, isSimplified, cardStyle])
   
-  // Use provided surgerySlug or fall back to context
-  const effectiveSurgerySlug = surgerySlug || currentSurgerySlug
+  // Use provided surgeryId or fall back to context.
+  // This should match the `/s/[id]` route segment so symptom links remain consistent.
+  const effectiveSurgeryId = surgeryId || currentSurgeryId
   // Ensure symptoms are sorted alphabetically
   const sortedSymptoms = useMemo(() => 
     [...symptoms].sort((a, b) => a.name.localeCompare(b.name)), 
@@ -146,10 +147,10 @@ export default function VirtualizedGrid({
   const renderSymptom = useCallback(
     (symptom: EffectiveSymptom, key?: string) => (
       <div key={key ?? symptom.id}>
-        <SymptomCard symptom={symptom} surgerySlug={effectiveSurgerySlug} />
+        <SymptomCard symptom={symptom} surgeryId={effectiveSurgeryId || undefined} />
       </div>
     ),
-    [effectiveSurgerySlug]
+    [effectiveSurgeryId]
   )
 
   // If we have fewer than 150 symptoms, render normally without virtualization

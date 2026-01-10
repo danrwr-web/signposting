@@ -164,9 +164,9 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     }
   }, [surgerySlug, loadHighRiskLinks])
 
-  const addCustomLink = useCallback(async (newLink: { label: string; symptomSlug: string; orderIndex: number }) => {
-    if (!newLink.label.trim()) {
-      toast.error('Label is required')
+  const addCustomLink = useCallback(async (newLink: { label?: string; symptomId: string; symptomSlug?: string; orderIndex: number }) => {
+    if (!newLink.symptomId && !newLink.symptomSlug) {
+      toast.error('Please select a symptom')
       return false
     }
 

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import MarketingHeader from '@/components/marketing/MarketingHeader'
+import MarketingFooter from '@/components/marketing/MarketingFooter'
 
 interface FormErrors {
   name?: string
@@ -96,54 +98,7 @@ export default function DemoRequestClient() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <Link href="/" className="flex items-center space-x-4">
-              {/* Logo */}
-              <img 
-                src="/images/logo.png" 
-                alt="Signposting Toolkit Logo" 
-                className="h-16 w-auto"
-              />
-              <p className="text-2xl font-bold text-gray-900">
-                Signposting Toolkit
-              </p>
-            </Link>
-            <div className="flex items-center space-x-6">
-              <Link
-                href="/why-signposting-toolkit"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Why Choose Us
-              </Link>
-              <a
-                href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                User Guide
-              </a>
-              <a
-                href="https://docs.signpostingtool.co.uk/"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
-              >
-                Docs
-              </a>
-              <Link
-                href={appEntryUrl}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Launch Toolkit
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <MarketingHeader appEntryUrl={appEntryUrl} />
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -152,7 +107,7 @@ export default function DemoRequestClient() {
             Request a demo of the Signposting Toolkit
           </h1>
           <p className="text-lg text-gray-700">
-            Tell us a bit about your surgery and we'll get in touch to arrange a walkthrough.
+            Tell us a bit about your surgery and we’ll get in touch to arrange a walkthrough.
           </p>
         </div>
 
@@ -165,7 +120,7 @@ export default function DemoRequestClient() {
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Thanks for your request</h2>
             <p className="text-lg text-gray-700 mb-6">
-              We'll get back to you within one working day to arrange a demo.
+              We’ll get back to you within one working day to arrange a demo.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
@@ -346,21 +301,9 @@ export default function DemoRequestClient() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="py-12 bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center text-sm text-gray-500 space-y-2">
-            <p>
-              © {new Date().getFullYear()} The Signposting Toolkit · Built by GPs for GPs and their care navigators
-            </p>
-            <p>
-              <a href="/privacy" className="text-blue-600 hover:text-blue-700 underline">Privacy & Cookies</a>{' '}
-              · Contact:{' '}
-              <a href="mailto:contact@signpostingtool.co.uk" className="text-blue-600 underline">contact@signpostingtool.co.uk</a>
-            </p>
-          </div>
-        </div>
-      </footer>
+      <div className="mt-12">
+        <MarketingFooter showRequestDemoLink={false} showSupportDevelopmentText={false} />
+      </div>
     </div>
   )
 }

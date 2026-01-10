@@ -16,7 +16,7 @@ import HighRiskButtonsSkeleton from './HighRiskButtonsSkeleton'
 interface HighRiskConfigProps {
   surgeryId?: string
   surgeries?: Array<{ id: string; slug: string; name: string }>
-  symptoms?: Array<{ slug: string; name: string }>
+  symptoms?: Array<{ id: string; slug: string; name: string }>
   session?: Session
 }
 
@@ -46,7 +46,7 @@ export default function HighRiskConfig({ surgeryId, surgeries, symptoms = [], se
     loadDefaultButtons()
   }, [loadHighRiskLinks, loadDefaultButtons])
 
-  const handleAddCustomLink = async (data: { label: string; symptomSlug: string; orderIndex: number }) => {
+  const handleAddCustomLink = async (data: { label?: string; symptomId: string; symptomSlug?: string; orderIndex: number }) => {
     const success = await addCustomLink(data)
     if (success) {
       setShowAddForm(false)
@@ -90,6 +90,7 @@ export default function HighRiskConfig({ surgeryId, surgeries, symptoms = [], se
         <CustomButtonForm
           onSubmit={handleAddCustomLink}
           onCancel={() => setShowAddForm(false)}
+          symptoms={symptoms}
         />
       )}
 

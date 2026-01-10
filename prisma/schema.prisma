@@ -36,6 +36,13 @@ model User {
   // Feature flags
   userFeatureFlags UserFeatureFlag[]
 
+  // Workflow instances
+  workflowInstances WorkflowInstance[]
+
+  // Workflow governance
+  workflowApprovals WorkflowTemplate[] @relation("WorkflowApprovals")
+  workflowEdits     WorkflowTemplate[] @relation("WorkflowEdits")
+
   // NextAuth.js fields
   emailVerified DateTime?
   image         String?
@@ -76,22 +83,25 @@ model Surgery {
   lastClinicalReviewer   User?     @relation("ClinicalReviews", fields: [lastClinicalReviewerId], references: [id])
 
   // Config
-  enableDefaultHighRisk   Boolean                       @default(true) // Enable/disable default high-risk buttons
-  enableBuiltInHighlights Boolean                       @default(true) // Enable/disable built-in highlight rules
-  enableImageIcons        Boolean                       @default(true) // Enable/disable image icons on symptom cards
-  highRiskLinks           HighRiskLink[]
-  defaultHighRiskButtons  DefaultHighRiskButtonConfig[]
-  highlightRules          HighlightRule[]
-  symptomOverrides        SurgerySymptomOverride[]
-  customSymptoms          SurgeryCustomSymptom[]
-  suggestions             Suggestion[]
-  events                  EngagementEvent[]
-  symptomReviews          SymptomReviewStatus[]
-  symptomStatuses         SurgerySymptomStatus[]
-  surgeryFeatureFlags     SurgeryFeatureFlag[]
-  appointmentTypes        AppointmentType[]
-  appointmentStaffTypes   AppointmentStaffType[]
-  onboardingProfile       SurgeryOnboardingProfile?
+  enableDefaultHighRisk            Boolean                           @default(true) // Enable/disable default high-risk buttons
+  enableBuiltInHighlights          Boolean                           @default(true) // Enable/disable built-in highlight rules
+  enableImageIcons                 Boolean                           @default(true) // Enable/disable image icons on symptom cards
+  highRiskLinks                    HighRiskLink[]
+  defaultHighRiskButtons           DefaultHighRiskButtonConfig[]
+  highlightRules                   HighlightRule[]
+  symptomOverrides                 SurgerySymptomOverride[]
+  customSymptoms                   SurgeryCustomSymptom[]
+  suggestions                      Suggestion[]
+  events                           EngagementEvent[]
+  symptomReviews                   SymptomReviewStatus[]
+  symptomStatuses                  SurgerySymptomStatus[]
+  surgeryFeatureFlags              SurgeryFeatureFlag[]
+  appointmentTypes                 AppointmentType[]
+  appointmentStaffTypes            AppointmentStaffType[]
+  onboardingProfile                SurgeryOnboardingProfile?
+  workflowTemplates                WorkflowTemplate[]
+  workflowInstances                WorkflowInstance[]
+  workflowNodeStyleDefaultsSurgery WorkflowNodeStyleDefaultSurgery[]
 }
 
 model BaseSymptom {
@@ -384,6 +394,9 @@ model SurgerySymptomStatus {
 
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
+  // Ensure we have at most one status row per (surgery, symptom) reference.
+  // This enables Prisma upserts like `where: { surgeryId_customSymptomId: { ... } }`.
+  @@unique([surgeryId, customSymptomId], name: "surgeryId_customSymptomId")
   @@index([surgeryId])
   @@index([baseSymptomId])
   @@index([customSymptomId])
@@ -450,16 +463,16 @@ model AppointmentType {
 }
 
 model AppointmentStaffType {
-  id               String   @id @default(cuid())
-  surgeryId        String?
-  label            String
-  normalizedLabel  String
-  defaultColour    String?
-  orderIndex       Int      @default(0)
-  isBuiltIn        Boolean  @default(false)
-  isEnabled        Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(cuid())
+  surgeryId       String?
+  label           String
+  normalizedLabel String
+  defaultColour   String?
+  orderIndex      Int      @default(0)
+  isBuiltIn       Boolean  @default(false)
+  isEnabled       Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
@@ -468,15 +481,231 @@ model AppointmentStaffType {
 }
 
 model SurgeryOnboardingProfile {
-  id          String   @id @default(cuid())
-  surgeryId   String   @unique
-  surgery     Surgery  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  surgeryId String  @unique
+  surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
-  profileJson Json     // full JSON object of answers
-  completed   Boolean  @default(false)
+  profileJson Json // full JSON object of answers
+  completed   Boolean   @default(false)
   completedAt DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([surgeryId])
+}
+
+// Workflow Engine Models
+
+/// High-level workflow definition, e.g. "Discharge Summary", "Clinic Letter".
+model WorkflowTemplate {
+  id        String  @id @default(cuid())
+  surgeryId String
+  surgery   Surgery @relation(fields: [surgeryId], references: [id])
+
+  name            String
+  description     String?
+  colourHex       String? // optional – to mirror Lucid colours
+  isActive        Boolean @default(true)
+  landingCategory String  @default("PRIMARY") // "PRIMARY" | "SECONDARY" | "ADMIN" - controls prominence on landing page
+  workflowType    String  @default("SUPPORTING") // "PRIMARY" | "SUPPORTING" | "MODULE" - workflow type for landing page hierarchy
+
+  // Global Default inheritance
+  sourceTemplateId  String? // Points to global template when this is a surgery override
+  sourceTemplate    WorkflowTemplate?  @relation("WorkflowOverrides", fields: [sourceTemplateId], references: [id])
+  overrideTemplates WorkflowTemplate[] @relation("WorkflowOverrides")
+
+  // Governance / approval fields
+  approvalStatus   String    @default("DRAFT") // "DRAFT" | "APPROVED" | "SUPERSEDED"
+  approvedBy       String?
+  approvedAt       DateTime?
+  approvedByUser   User?     @relation("WorkflowApprovals", fields: [approvedBy], references: [id])
+  lastEditedBy     String?
+  lastEditedAt     DateTime?
+  lastEditedByUser User?     @relation("WorkflowEdits", fields: [lastEditedBy], references: [id])
+
+  nodes           WorkflowNodeTemplate[]
+  linkedFromNodes WorkflowNodeLink[]         @relation("LinkedWorkflow")
+  instances       WorkflowInstance[]
+  styleDefaults   WorkflowNodeStyleDefault[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Individual node in the flowchart – a question, instruction, or end node.
+model WorkflowNodeTemplate {
+  id         String           @id @default(cuid())
+  templateId String
+  template   WorkflowTemplate @relation(fields: [templateId], references: [id])
+
+  nodeType  WorkflowNodeType
+  title     String
+  body      String? // rich instructions / info
+  sortOrder Int // for default ordering in editors
+  isStart   Boolean          @default(false)
+
+  // Diagram layout position (optional - falls back to vertical layout using sortOrder if not set)
+  positionX Int?
+  positionY Int?
+
+  // For simple "end" nodes, you can attach an action directly.
+  actionKey WorkflowActionKey?
+
+  // Node badges (e.g. "STAMP") - stored as JSON array
+  badges Json @default("[]")
+
+  // Node visual styling - stored as JSON object
+  // { bgColor?: string, textColor?: string, borderColor?: string, borderWidth?: number, radius?: number, fontWeight?: "normal"|"medium"|"bold", theme?: "default"|"info"|"warning"|"success"|"muted"|"panel" }
+  style Json?
+
+  // Linked workflow navigation (Lucid-style) - supports multiple links per node
+  workflowLinks WorkflowNodeLink[]
+
+  answerOptions WorkflowAnswerOptionTemplate[]
+  answers       WorkflowAnswerRecord[] // instance-time answers linked back here
+}
+
+/// Possible answers from a question node, with simple branching.
+model WorkflowAnswerOptionTemplate {
+  id     String               @id @default(cuid())
+  nodeId String
+  node   WorkflowNodeTemplate @relation(fields: [nodeId], references: [id])
+
+  label       String // e.g. "Yes", "No", "Ad hoc locum"
+  valueKey    String // e.g. "yes", "no", "ad_hoc_locum" (stable key)
+  description String? // optional helper text for admins/staff
+
+  // Simple Option-B branching:
+  nextNodeId String? // id of next WorkflowNodeTemplate (nullable)
+  actionKey  WorkflowActionKey? // outcome if this terminates the workflow
+
+  // Edge routing handles (for orthogonal connections)
+  sourceHandle String? // e.g. "source-bottom", "source-right"
+  targetHandle String? // e.g. "target-top", "target-left"
+
+  answers WorkflowAnswerRecord[] // all instances that chose this option
+}
+
+/// Link from a workflow node to another workflow template (supports multiple links per node).
+model WorkflowNodeLink {
+  id     String               @id @default(cuid())
+  nodeId String
+  node   WorkflowNodeTemplate @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  templateId String
+  template   WorkflowTemplate @relation("LinkedWorkflow", fields: [templateId], references: [id])
+
+  label String // Display label for the link (e.g. "Open linked workflow", "See referral process")
+
+  sortOrder Int @default(0) // For ordering multiple links
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([nodeId])
+  @@index([templateId])
+}
+
+/// A running instance of a template for a specific document.
+model WorkflowInstance {
+  id        String  @id @default(cuid())
+  surgeryId String
+  surgery   Surgery @relation(fields: [surgeryId], references: [id])
+
+  templateId String
+  template   WorkflowTemplate @relation(fields: [templateId], references: [id])
+
+  startedById String
+  startedBy   User   @relation(fields: [startedById], references: [id])
+
+  status        WorkflowInstanceStatus @default(ACTIVE)
+  reference     String? // free text, e.g. "Cardiology 11/12/25 – JS"
+  category      String? // e.g. "Hospital Letter", "Result"
+  currentNodeId String? // id of current node (no relation for now)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  answers WorkflowAnswerRecord[]
+}
+
+/// "What did the user pick for this node in this instance?"
+model WorkflowAnswerRecord {
+  id         String           @id @default(cuid())
+  instanceId String
+  instance   WorkflowInstance @relation(fields: [instanceId], references: [id])
+
+  nodeTemplateId String
+  nodeTemplate   WorkflowNodeTemplate @relation(fields: [nodeTemplateId], references: [id])
+
+  answerOptionId String?
+  answerOption   WorkflowAnswerOptionTemplate? @relation(fields: [answerOptionId], references: [id])
+
+  answerValueKey String? // mirrors option.valueKey, or custom value
+  freeTextNote   String? // optional comment / note
+
+  createdAt DateTime @default(now())
+}
+
+/// Template-level default styling per node type
+model WorkflowNodeStyleDefault {
+  id         String           @id @default(cuid())
+  templateId String
+  template   WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  nodeType    WorkflowNodeType
+  bgColor     String?
+  textColor   String?
+  borderColor String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([templateId, nodeType])
+  @@index([templateId])
+}
+
+model WorkflowNodeStyleDefaultSurgery {
+  id          String           @id @default(cuid())
+  surgeryId   String
+  nodeType    WorkflowNodeType
+  bgColor     String?
+  textColor   String?
+  borderColor String?
+
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([surgeryId, nodeType])
+  @@index([surgeryId])
+}
+
+enum WorkflowNodeType {
+  INSTRUCTION // info block / "check this list…"
+  QUESTION // yes/no or multi-choice
+  END // pure end node with actionKey
+  PANEL // background container/group node
+  REFERENCE // informational reference card (non-connectable)
+}
+
+enum WorkflowInstanceStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+/// Actions represent "what should we do with this document?"
+/// You can add more over time; existing data will still work.
+enum WorkflowActionKey {
+  FORWARD_TO_GP
+  FORWARD_TO_PRESCRIBING_TEAM
+  FORWARD_TO_PHARMACY_TEAM
+  FILE_WITHOUT_FORWARDING
+  ADD_TO_YELLOW_SLOT
+  SEND_STANDARD_LETTER
+  CODE_AND_FILE
+  OTHER
 }

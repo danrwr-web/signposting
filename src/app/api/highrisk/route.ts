@@ -7,8 +7,11 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { GetHighRiskResZ } from '@/lib/api-contracts'
+import { unstable_noStore as noStore } from 'next/cache'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 async function getSurgeryIdFromContext(req: NextRequest): Promise<string | null> {
   // Try to get surgery from URL search params
@@ -46,6 +49,7 @@ async function getSurgeryIdFromContext(req: NextRequest): Promise<string | null>
 
 export async function GET(req: NextRequest) {
   try {
+    noStore()
     const surgeryId = await getSurgeryIdFromContext(req)
     
     if (!surgeryId) {
@@ -59,7 +63,7 @@ export async function GET(req: NextRequest) {
       ]
       
       const response = NextResponse.json(GetHighRiskResZ.parse({ links: defaultButtons }))
-      response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+      response.headers.set('Cache-Control', 'no-store')
       return response
     }
     
@@ -166,16 +170,12 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => (a?.orderIndex ?? 0) - (b?.orderIndex ?? 0))
     
     const response = NextResponse.json(GetHighRiskResZ.parse({ links: allLinks }))
-    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120')
+    response.headers.set('Cache-Control', 'no-store')
     return response
   } catch (error) {
     console.error('Error fetching high-risk links:', error)
-    return NextResponse.json(
-      GetHighRiskResZ.parse({ links: [] }),
-      { 
-        status: 200,
-        headers: { 'Cache-Control': 'private, max-age=5' }
-      }
-    )
+    const response = NextResponse.json(GetHighRiskResZ.parse({ links: [] }), { status: 200 })
+    response.headers.set('Cache-Control', 'no-store')
+    return response
   }
 }

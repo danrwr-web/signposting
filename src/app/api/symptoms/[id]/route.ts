@@ -1,6 +1,7 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getEffectiveSymptomById } from '@/server/effectiveSymptoms'
+import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
 
@@ -10,10 +11,21 @@ export async function GET(
 ) {
   try {
     const { searchParams } = new URL(request.url)
-    const surgerySlug = searchParams.get('surgery') || undefined
+    const surgeryParam = searchParams.get('surgery') || undefined
     const { id } = await params
 
-    const symptom = await getEffectiveSymptomById(id, surgerySlug)
+    // Accept both canonical surgery id (matches `/s/[id]`) and legacy slug.
+    let surgeryId: string | undefined
+    if (surgeryParam) {
+      const byId = await prisma.surgery.findUnique({ where: { id: surgeryParam }, select: { id: true } })
+      if (byId) surgeryId = byId.id
+      else {
+        const bySlug = await prisma.surgery.findUnique({ where: { slug: surgeryParam }, select: { id: true } })
+        surgeryId = bySlug?.id
+      }
+    }
+
+    const symptom = await getEffectiveSymptomById(id, surgeryId)
 
     if (!symptom) {
       return NextResponse.json(

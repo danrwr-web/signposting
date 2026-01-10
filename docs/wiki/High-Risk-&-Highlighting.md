@@ -16,9 +16,13 @@
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Workflow Guidance](Workflow-Guidance)
+
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
 
 - [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
+- [Admin Guide](Admin-Guide)
 
 - [Developer Guide](Developer-Guide)
 
@@ -106,6 +110,10 @@ Surgeries can create custom highlight rules to colour-code any phrase they choos
 - **Text Colour** — Foreground colour
 - **Background Colour** — Background colour
 - **Enabled/Disabled** — Toggle rule on/off
+
+Notes:
+- Phrases are treated as the same if they only differ by case or extra spaces (for example, “Pharmacy” and “  pharmacy  ”).
+- If you try to add a phrase that already exists, the Admin Dashboard will guide you to edit the existing rule instead.
 
 #### Use Cases
 - Local service names
