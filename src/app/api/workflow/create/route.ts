@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
     const description = parsed.description?.trim() || null
     const colourHex = parsed.colourHex?.trim() || null
     const isActive = parsed.isActive === 'true'
-    const workflowType = parsed.workflowType
+    // Map MODULE to SUPPORTING for backwards compatibility
+    const workflowType = parsed.workflowType === 'MODULE' ? 'SUPPORTING' : parsed.workflowType
 
     if (name.toLowerCase() === 'new workflow') {
       return NextResponse.json(
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
         iconKey: iconKeyRaw ? iconKeyRaw : inferWorkflowIconKey({ name, description }),
         isActive,
         colourHex,
-        workflowType,
+        workflowType: workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
       },
     })
 

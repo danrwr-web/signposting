@@ -38,13 +38,15 @@ export default function TemplatesClient({ surgeryId, templates, isSuperuser }: T
   const getWorkflowTypeBadge = (type: string | null) => {
     if (!type) return null
     
+    // Map MODULE to SUPPORTING for backwards compatibility
+    const normalizedType = type === 'MODULE' ? 'SUPPORTING' : type
+    
     const badges = {
       PRIMARY: { label: 'Primary', className: 'bg-blue-100 text-blue-800' },
       SUPPORTING: { label: 'Supporting', className: 'bg-gray-100 text-gray-800' },
-      MODULE: { label: 'Module', className: 'bg-purple-100 text-purple-800' },
     }
     
-    const badge = badges[type as keyof typeof badges]
+    const badge = badges[normalizedType as keyof typeof badges]
     if (!badge) return null
     
     return (

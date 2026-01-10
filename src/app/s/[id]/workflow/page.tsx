@@ -110,16 +110,19 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     const linkedCountMap = new Map(linkedCounts.map(l => [l.templateId, l._count._all]))
 
     // Classify workflows using workflowType field
+    // Map MODULE to SUPPORTING for backwards compatibility
     const workflows: WorkflowTemplateWithCategory[] = uniqueEffectiveWorkflows.map((template) => {
       const isDependent = (linkedCountMap.get(template.id) ?? 0) > 0
       const workflowType = (template.workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE') || 'SUPPORTING'
+      // Map MODULE to SUPPORTING - treat all previously "Linked module" workflows as Supporting
+      const landingCategory = workflowType === 'MODULE' ? 'SUPPORTING' : workflowType
 
       return {
         id: template.id,
         name: template.name,
         description: template.description,
         iconKey: template.iconKey ?? null,
-        landingCategory: workflowType,
+        landingCategory,
         isDependent,
         source: template.source,
         sourceTemplateId: template.sourceTemplateId,
@@ -130,7 +133,6 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     // Separate workflows by type - workflowType is the single source of truth
     const primaryWorkflows = workflows.filter(w => w.landingCategory === 'PRIMARY')
     const supportingWorkflows = workflows.filter(w => w.landingCategory === 'SUPPORTING')
-    const moduleWorkflows = workflows.filter(w => w.landingCategory === 'MODULE')
 
     const mainWorkflows = [...primaryWorkflows, ...supportingWorkflows]
     const clientWorkflows: WorkflowLandingItem[] = mainWorkflows.map((w) => ({
@@ -180,63 +182,8 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
             workflows={clientWorkflows}
           />
 
-          {/* Linked Modules - Very Subdued */}
-          {moduleWorkflows.length > 0 && (
-            <section className="mb-16" aria-labelledby="module-workflows-heading">
-              <h2 id="module-workflows-heading" className="text-sm font-medium text-gray-400 mb-4 uppercase tracking-wide">
-                Linked Modules
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {moduleWorkflows.map((template) => (
-                  <div
-                    key={template.id}
-                    className="group bg-gray-50 rounded-lg border border-gray-100 p-4 hover:bg-white hover:border-gray-200 transition-all duration-200"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Link
-                            href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
-                            className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-                          >
-                            {template.name}
-                          </Link>
-                          {template.approvalStatus === 'DRAFT' && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
-                              Draft
-                            </span>
-                          )}
-                          {!isGlobalSurgery && template.source === 'global' && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
-                              Global Default
-                            </span>
-                          )}
-                          {template.source === 'override' && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-700">
-                              Customised
-                            </span>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-400 group-hover:text-gray-600 transition-colors">
-                          View →
-                        </span>
-                      </div>
-                      {isAdmin && !isGlobalSurgery && template.source === 'global' && (
-                        <CustomiseWorkflowButton
-                          surgeryId={surgeryId}
-                          globalTemplateId={template.id}
-                          workflowName={template.name}
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
           {/* Empty State */}
-          {mainWorkflows.length === 0 && moduleWorkflows.length === 0 && (
+          {mainWorkflows.length === 0 && (
             <div className="bg-gray-50 rounded-xl border border-gray-200 p-12 text-center">
               <p className="text-gray-500 mb-4">No workflow templates available.</p>
               {isAdmin && (

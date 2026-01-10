@@ -8,7 +8,7 @@ interface CreateWorkflowModalProps {
   surgeryId: string
 }
 
-type WorkflowType = 'PRIMARY' | 'SUPPORTING' | 'MODULE'
+type WorkflowType = 'PRIMARY' | 'SUPPORTING'
 
 export default function CreateWorkflowModal({ isOpen, onClose, surgeryId }: CreateWorkflowModalProps) {
   const [name, setName] = useState('')
@@ -153,7 +153,7 @@ export default function CreateWorkflowModal({ isOpen, onClose, surgeryId }: Crea
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">Primary workflow</div>
                     <div className="text-sm text-gray-600 mt-1">
-                      Main entry point for a document process (e.g. Discharge Summaries)
+                      Shown as a main entry point on the Workflow Guidance page.
                     </div>
                   </div>
                 </label>
@@ -170,24 +170,7 @@ export default function CreateWorkflowModal({ isOpen, onClose, surgeryId }: Crea
                   <div className="flex-1">
                     <div className="font-medium text-gray-900">Supporting workflow</div>
                     <div className="text-sm text-gray-600 mt-1">
-                      Usually accessed directly, but not the main entry point
-                    </div>
-                  </div>
-                </label>
-                <label className="flex items-start p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="workflowType"
-                    value="MODULE"
-                    checked={workflowType === 'MODULE'}
-                    onChange={(e) => setWorkflowType(e.target.value as WorkflowType)}
-                    disabled={isSubmitting}
-                    className="mt-1 mr-3"
-                  />
-                  <div className="flex-1">
-                    <div className="font-medium text-gray-900">Linked module</div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      Normally accessed from within another workflow (e.g. Blood Tests)
+                      Used within or alongside other workflows; not shown as a main entry point.
                     </div>
                   </div>
                 </label>

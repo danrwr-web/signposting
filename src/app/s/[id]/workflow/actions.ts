@@ -46,7 +46,7 @@ export async function createWorkflowTemplate(
       }
     }
 
-    // Validate workflow type
+    // Validate workflow type - map MODULE to SUPPORTING for backwards compatibility
     const validTypes = ['PRIMARY', 'SUPPORTING', 'MODULE']
     if (!validTypes.includes(workflowType)) {
       return {
@@ -54,6 +54,9 @@ export async function createWorkflowTemplate(
         error: 'Invalid workflow type',
       }
     }
+    
+    // Map MODULE to SUPPORTING - treat all previously "Linked module" workflows as Supporting
+    const normalizedWorkflowType = workflowType === 'MODULE' ? 'SUPPORTING' : workflowType
 
     const template = await prisma.workflowTemplate.create({
       data: {
@@ -63,7 +66,7 @@ export async function createWorkflowTemplate(
         iconKey: iconKey ?? inferWorkflowIconKey({ name, description }),
         isActive,
         colourHex,
-        workflowType: workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
+        workflowType: normalizedWorkflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE',
       },
     })
 
@@ -110,9 +113,14 @@ export async function updateWorkflowTemplate(
       ? landingCategoryRaw 
       : 'PRIMARY'
     const workflowTypeRaw = formData.get('workflowType') as string
-    const workflowType = workflowTypeRaw && ['PRIMARY', 'SUPPORTING', 'MODULE'].includes(workflowTypeRaw)
+    let workflowType = workflowTypeRaw && ['PRIMARY', 'SUPPORTING', 'MODULE'].includes(workflowTypeRaw)
       ? workflowTypeRaw
       : existing.workflowType || 'SUPPORTING'
+    
+    // Map MODULE to SUPPORTING - treat all previously "Linked module" workflows as Supporting
+    if (workflowType === 'MODULE') {
+      workflowType = 'SUPPORTING'
+    }
 
     let nextIconKey: string | null = existing.iconKey ?? null
     if (iconKeyFieldPresent) {
@@ -135,13 +143,16 @@ export async function updateWorkflowTemplate(
       }
     }
 
+    // Normalize existing workflowType for comparison (MODULE -> SUPPORTING)
+    const normalizedExistingWorkflowType = existing.workflowType === 'MODULE' ? 'SUPPORTING' : existing.workflowType
+    
     const editableFieldsChanged =
       name !== existing.name ||
       description !== existing.description ||
       isActive !== existing.isActive ||
       (colourHex || null) !== existing.colourHex ||
       landingCategory !== existing.landingCategory ||
-      (workflowType as 'PRIMARY' | 'SUPPORTING' | 'MODULE') !== existing.workflowType ||
+      workflowType !== normalizedExistingWorkflowType ||
       nextIconKey !== (existing.iconKey ?? null)
 
     // If workflow was approved and editable fields changed, revert to DRAFT and clear approval fields.

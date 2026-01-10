@@ -214,7 +214,7 @@ export default function TemplateEditClient({
                   <span className="ml-2 text-sm text-gray-900">
                     Primary workflow
                     <span className="ml-2 text-xs text-gray-500">
-                      Shown in the main workflow list on the Workflow Guidance page.
+                      Shown as a main entry point on the Workflow Guidance page.
                     </span>
                   </span>
                 </label>
@@ -223,28 +223,13 @@ export default function TemplateEditClient({
                     type="radio"
                     name="workflowType"
                     value="SUPPORTING"
-                    defaultChecked={template.workflowType === 'SUPPORTING' || !template.workflowType}
+                    defaultChecked={template.workflowType === 'SUPPORTING' || template.workflowType === 'MODULE' || !template.workflowType}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                   />
                   <span className="ml-2 text-sm text-gray-900">
                     Supporting workflow
                     <span className="ml-2 text-xs text-gray-500">
-                      Shown under Less common / specialist on the Workflow Guidance page.
-                    </span>
-                  </span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="workflowType"
-                    value="MODULE"
-                    defaultChecked={template.workflowType === 'MODULE'}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
-                  />
-                  <span className="ml-2 text-sm text-gray-900">
-                    Linked module
-                    <span className="ml-2 text-xs text-gray-500">
-                      Shown as a linked module entry (not a standard workflow card).
+                      Used within or alongside other workflows; not shown as a main entry point.
                     </span>
                   </span>
                 </label>
