@@ -13,7 +13,6 @@ type WorkflowType = 'PRIMARY' | 'SUPPORTING' | 'MODULE'
 export default function CreateWorkflowModal({ isOpen, onClose, surgeryId }: CreateWorkflowModalProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [colourHex, setColourHex] = useState('')
   const [isActive, setIsActive] = useState(true)
   const [workflowType, setWorkflowType] = useState<WorkflowType>('SUPPORTING')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -42,7 +41,6 @@ export default function CreateWorkflowModal({ isOpen, onClose, surgeryId }: Crea
       const formData = new FormData()
       formData.append('name', trimmedName)
       formData.append('description', description.trim() || '')
-      formData.append('colourHex', colourHex.trim() || '')
       formData.append('isActive', isActive ? 'true' : 'false')
       formData.append('workflowType', workflowType)
 
@@ -70,7 +68,6 @@ export default function CreateWorkflowModal({ isOpen, onClose, surgeryId }: Crea
     if (!isSubmitting) {
       setName('')
       setDescription('')
-      setColourHex('')
       setIsActive(true)
       setWorkflowType('SUPPORTING')
       setError(null)
@@ -195,31 +192,6 @@ export default function CreateWorkflowModal({ isOpen, onClose, surgeryId }: Crea
                   </div>
                 </label>
               </div>
-            </div>
-
-            {/* Colour - Optional */}
-            <div className="mb-6">
-              <label htmlFor="colourHex" className="block text-sm font-medium text-gray-700 mb-2">
-                Colour (hex)
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="text"
-                  id="colourHex"
-                  value={colourHex}
-                  onChange={(e) => setColourHex(e.target.value)}
-                  disabled={isSubmitting}
-                  className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-                  placeholder="#3B82F6"
-                />
-                {colourHex && (
-                  <div
-                    className="w-10 h-10 rounded border border-gray-300"
-                    style={{ backgroundColor: colourHex }}
-                  />
-                )}
-              </div>
-              <p className="mt-1 text-xs text-gray-500">Optional hex colour code</p>
             </div>
 
             {/* Active - Optional */}
