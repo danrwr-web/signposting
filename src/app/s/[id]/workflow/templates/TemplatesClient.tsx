@@ -20,9 +20,12 @@ interface Template {
 interface TemplatesClientProps {
   surgeryId: string
   templates: Template[]
+  isSuperuser: boolean
 }
 
-export default function TemplatesClient({ surgeryId, templates }: TemplatesClientProps) {
+const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
+export default function TemplatesClient({ surgeryId, templates, isSuperuser }: TemplatesClientProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
@@ -184,6 +187,11 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
                     {new Date(template.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
+                    {(() => {
+                      const editSurgeryId =
+                        isSuperuser && template.source === 'global' ? GLOBAL_SURGERY_ID : surgeryId
+                      return (
+                        <>
                     <Link
                       href={`/s/${surgeryId}/workflow/templates/${template.id}/view`}
                       className="text-blue-600 hover:text-blue-900"
@@ -192,12 +200,15 @@ export default function TemplatesClient({ surgeryId, templates }: TemplatesClien
                     </Link>
                     <span className="text-gray-300">|</span>
                     <Link
-                      href={`/s/${surgeryId}/workflow/templates/${template.id}`}
+                      href={`/s/${editSurgeryId}/workflow/templates/${template.id}`}
                       className="text-gray-600 hover:text-gray-900"
                     >
                       Edit
                     </Link>
                     <span className="text-gray-300">|</span>
+                        </>
+                      )
+                    })()}
                     {deletingId === template.id ? (
                       <span className="inline-flex items-center gap-2">
                         <input

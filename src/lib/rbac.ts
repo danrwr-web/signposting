@@ -174,6 +174,22 @@ export async function requireSurgeryAdmin(surgeryId: string): Promise<SessionUse
   return user
 }
 
+export function isSuperuserOrSurgeryAdmin(user: SessionUser, surgeryId: string): boolean {
+  if (user.globalRole === 'SUPERUSER') return true
+  const membership = user.memberships.find((m) => m.surgeryId === surgeryId)
+  return membership?.role === 'ADMIN'
+}
+
+export async function requireSuperuserOrSurgeryAdmin(surgeryId: string): Promise<SessionUser> {
+  const user = await requireAuth()
+
+  if (!isSuperuserOrSurgeryAdmin(user, surgeryId)) {
+    throw new Error('Surgery admin access required')
+  }
+
+  return user
+}
+
 export async function requireSurgeryAccess(surgeryId: string): Promise<SessionUser> {
   const user = await requireAuth()
   
