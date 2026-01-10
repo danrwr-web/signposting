@@ -21,6 +21,7 @@ The toolkit provides a structured symptom library, local customisation, AI-assis
 - **AI Instruction Editor** — AI-powered tools to improve instruction clarity (with mandatory clinical review)
 - **AI Suggested Questions** — Generates grouped triage-style questions to help staff gather information safely
 - **Appointment Directory** — Simple, searchable catalogue of local services and appointment types
+- **Workflow Guidance** — Step-by-step workflows for processing common documents (with global defaults and per-surgery customisation)
 - **Clinical Review Workflow** — Every symptom must be clinically approved before going live
 - **Multi-surgery / Tenancy Model** — Complete data isolation between practices with independent configurations
 - **Role-based Access Control** — Three-level hierarchy: Superuser / Surgery Admin / Standard user

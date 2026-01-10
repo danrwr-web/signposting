@@ -60,6 +60,7 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
   - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
   - Workflow diagram details panel can be collapsed to give more space for the diagram
   - Workflow Guidance module added behind feature flags, with Global Default workflows and per-surgery customisation
+  - Workflow Guidance landing page redesigned to make it quicker to pick the right document workflow, with clearer “Customised vs Global default” status
 
 - **v1.1 – December 2025**
   - AI Suggested Questions panel helps staff gather information consistently
