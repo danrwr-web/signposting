@@ -189,23 +189,6 @@ export default function WorkflowLandingClient({
 }) {
   const [search, setSearch] = useState('')
 
-  const dailyWorkflowNames = useMemo(
-    () =>
-      new Set([
-        'advice & guidance',
-        'advice and guidance',
-        'clinic letters',
-        'discharge summaries',
-        'private provider requests',
-      ]),
-    [],
-  )
-
-  const specialistWorkflowNames = useMemo(
-    () => new Set(['blood test requests', 'firearms licensing request', 'gp review']),
-    [],
-  )
-
   const normalisedQuery = normalise(search)
 
   const filtered = useMemo(() => {
@@ -213,25 +196,18 @@ export default function WorkflowLandingClient({
     return workflows.filter((w) => matchesSearch(w, normalisedQuery))
   }, [workflows, normalisedQuery])
 
+  // Use landingCategory (derived from workflowType) as the single source of truth
   const dailyWorkflows = useMemo(
-    () => filtered.filter((w) => dailyWorkflowNames.has(normalise(w.name))),
-    [filtered, dailyWorkflowNames],
+    () => filtered.filter((w) => w.landingCategory === 'PRIMARY'),
+    [filtered],
   )
 
   const specialistWorkflows = useMemo(
-    () => filtered.filter((w) => specialistWorkflowNames.has(normalise(w.name))),
-    [filtered, specialistWorkflowNames],
+    () => filtered.filter((w) => w.landingCategory !== 'PRIMARY'),
+    [filtered],
   )
 
-  const otherWorkflows = useMemo(
-    () =>
-      filtered.filter(
-        (w) => !dailyWorkflowNames.has(normalise(w.name)) && !specialistWorkflowNames.has(normalise(w.name)),
-      ),
-    [filtered, dailyWorkflowNames, specialistWorkflowNames],
-  )
-
-  const hasResults = dailyWorkflows.length + specialistWorkflows.length + otherWorkflows.length > 0
+  const hasResults = dailyWorkflows.length + specialistWorkflows.length > 0
 
   return (
     <div>
@@ -317,13 +293,13 @@ export default function WorkflowLandingClient({
             </section>
           )}
 
-          {(specialistWorkflows.length > 0 || otherWorkflows.length > 0) && (
+          {specialistWorkflows.length > 0 && (
             <section aria-labelledby="specialist-workflows-heading">
               <h2 id="specialist-workflows-heading" className="text-lg font-semibold text-gray-900 mb-4">
                 Less common / specialist
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[...specialistWorkflows, ...otherWorkflows].map((workflow) => (
+                {specialistWorkflows.map((workflow) => (
                   <WorkflowCard
                     key={workflow.id}
                     surgeryId={surgeryId}
