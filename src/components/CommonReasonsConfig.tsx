@@ -8,7 +8,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsConfig, UiConfig } from '@/lib/commonReasons'
-import { useEffect } from 'react'
 
 interface CommonReasonsConfigProps {
   surgeryId?: string
