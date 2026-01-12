@@ -39,7 +39,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   }, [items])
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full min-h-0">
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0">
         <div className="text-sm text-gray-600" aria-live="polite">
           {itemsFiltered.length} item{itemsFiltered.length === 1 ? '' : 's'}
