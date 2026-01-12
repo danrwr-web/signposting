@@ -49,32 +49,7 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 
 ## What's New
 
-- **Unreleased**
-  - Redesigned marketing landing page with clearer hero, benefits strip, and 3-step "How it works" section
-  - User Guide link restored in marketing site navigation alongside Docs link
-  - Public FAQs page added (setup, governance, and optional AI), linked from the marketing navigation
-  - AI questions panel now titled "Suggested wording for questions to ask" with on-screen reminder to use the provided phrasing
-  - Admin forms no longer ask for symptom slugs — slugs are generated automatically, and high-risk buttons now link to symptoms via a searchable list
-  - Highlight rules can now be edited in the Admin Dashboard, with clearer guidance when a phrase already exists
-  - Marketing homepage stays on www.signpostingtool.co.uk; app.signpostingtool.co.uk now opens the toolkit entry screen
-  - Workflow diagram viewer now shows connector lines, arrowheads, and labels again for saved and new edges
-  - Workflow diagram details panel can be collapsed to give more space for the diagram
-  - Workflow Guidance module added behind feature flags, with Global Default workflows and per-surgery customisation
-  - Workflow Guidance landing page redesigned to make it quicker to pick the right document workflow, with clearer “Customised vs Global default” status
-  - Workflow templates now support icons (automatic defaults, plus an admin icon picker in Manage Templates)
-
-- **v1.1 – December 2025**
-  - AI Suggested Questions panel helps staff gather information consistently
-  - New preferences system for customising card layouts and high-risk buttons
-  - Improved colour highlighting for urgent appointments and key phrases
-  - Appointment Directory now accessible from top navigation
-
-- **v1.0 – October–November 2025**
-  - First full web version with Clinical Review workflow
-  - Multi-surgery support for practices with multiple sites or PCNs
-  - AI Instruction Editor to improve clarity of symptom guidance
-
-For full details, see the [Release Notes](../RELEASE_NOTES.md).
+The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
 
 ---
 
