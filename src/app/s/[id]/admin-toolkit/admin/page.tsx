@@ -11,6 +11,7 @@ import {
   getAdminToolkitPageItems,
   getAdminToolkitPinnedPanel,
   getLondonTodayUtc,
+  addDaysUtc,
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitAdminClient from './AdminToolkitAdminClient'
@@ -87,11 +88,19 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
     const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
 
-    const [categories, items, panel, onTakeWeek, members] = await Promise.all([
+    const upcomingWeekStarts = Array.from({ length: 8 }).map((_, i) => addDaysUtc(weekStartUtc, i * 7))
+    const upcomingWeekEnd = addDaysUtc(weekStartUtc, 8 * 7)
+
+    const [categories, items, panel, onTakeWeek, onTakeUpcoming, members] = await Promise.all([
       getAdminToolkitCategories(surgeryId),
       getAdminToolkitPageItems(surgeryId),
       getAdminToolkitPinnedPanel(surgeryId),
       getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc),
+      prisma.adminOnTakeWeek.findMany({
+        where: { surgeryId, weekCommencing: { gte: weekStartUtc, lt: upcomingWeekEnd } },
+        select: { weekCommencing: true, gpName: true },
+        orderBy: [{ weekCommencing: 'asc' }],
+      }),
       prisma.userSurgery.findMany({
         where: { surgeryId },
         select: {
@@ -133,8 +142,14 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
 
           <AdminToolkitAdminClient
             surgeryId={surgeryId}
-            weekCommencingIso={weekStartUtc.toISOString().slice(0, 10)}
+            currentWeekCommencingIso={weekStartUtc.toISOString().slice(0, 10)}
+            initialWeekCommencingIso={weekStartUtc.toISOString().slice(0, 10)}
             initialOnTakeGpName={onTakeWeek?.gpName ?? null}
+            upcomingWeeks={upcomingWeekStarts.map((d) => {
+              const iso = d.toISOString().slice(0, 10)
+              const match = onTakeUpcoming.find((x) => x.weekCommencing.toISOString().slice(0, 10) === iso)
+              return { weekCommencingIso: iso, gpName: match?.gpName ?? null }
+            })}
             initialPanel={panel}
             initialCategories={categories}
             initialItems={items}

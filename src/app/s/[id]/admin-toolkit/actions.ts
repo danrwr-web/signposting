@@ -42,6 +42,19 @@ async function requireAdminToolkitWrite(surgeryId: string): Promise<ActionResult
   }
 }
 
+async function requireAdminToolkitView(surgeryId: string): Promise<ActionResult<{ surgeryId: string }>> {
+  try {
+    await requireSurgeryAccess(surgeryId)
+    const enabled = await isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit')
+    if (!enabled) {
+      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Admin Toolkit is not enabled for this surgery.' } }
+    }
+    return { ok: true, data: { surgeryId } }
+  } catch {
+    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'You must be signed in.' } }
+  }
+}
+
 async function canEditItem(opts: { surgeryId: string; itemId: string; userId: string; isSuperuser: boolean }): Promise<boolean> {
   if (opts.isSuperuser) return true
 
@@ -550,6 +563,34 @@ export async function setAdminToolkitOnTakeWeek(input: unknown): Promise<ActionR
   })
 
   return { ok: true, data: { surgeryId } }
+}
+
+const getOnTakeWeekInput = z.object({
+  surgeryId: z.string().min(1),
+  weekCommencingIso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+})
+
+export async function getAdminToolkitOnTakeWeekValue(input: unknown): Promise<ActionResult<{ gpName: string | null }>> {
+  const parsed = getOnTakeWeekInput.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) },
+    }
+  }
+
+  const gate = await requireAdminToolkitView(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, weekCommencingIso } = parsed.data
+  const weekCommencingUtc = new Date(`${weekCommencingIso}T00:00:00.000Z`)
+
+  const row = await prisma.adminOnTakeWeek.findUnique({
+    where: { surgeryId_weekCommencing: { surgeryId, weekCommencing: weekCommencingUtc } },
+    select: { gpName: true },
+  })
+
+  return { ok: true, data: { gpName: row?.gpName ?? null } }
 }
 
 const addAttachmentInput = z.object({

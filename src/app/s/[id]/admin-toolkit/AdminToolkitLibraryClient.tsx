@@ -39,8 +39,8 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   }, [items])
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
-      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0">
         <div className="text-sm text-gray-600" aria-live="polite">
           {itemsFiltered.length} item{itemsFiltered.length === 1 ? '' : 's'}
         </div>
@@ -53,15 +53,18 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         )}
       </div>
 
-      <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
+      <div className="shrink-0">
+        <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
+      {/* Scroll region (keeps header/search stable) */}
+      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] min-h-0 flex-1">
         {/* Sidebar: categories */}
-        <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
-          <div className="px-4 py-4">
+        <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 flex flex-col min-h-0">
+          <div className="px-4 py-4 shrink-0">
             <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Categories</h2>
           </div>
-          <nav className="px-2 pb-4">
+          <nav className="px-2 pb-4 overflow-y-auto min-h-0">
             <button
               type="button"
               onClick={() => setSelectedCategoryId('ALL')}
@@ -96,7 +99,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         </aside>
 
         {/* Main: items */}
-        <section className="p-4">
+        <section className="p-4 overflow-y-auto min-h-0">
           {itemsFiltered.length === 0 ? (
             <div className="py-12 text-center text-sm text-gray-500">
               {normalisedSearch ? 'No items match your search.' : 'No items yet.'}

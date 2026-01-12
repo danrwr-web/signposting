@@ -17,14 +17,17 @@ import {
   setAdminToolkitItemEditors,
   upsertAdminToolkitPinnedPanel,
   setAdminToolkitOnTakeWeek,
+  getAdminToolkitOnTakeWeekValue,
 } from '../actions'
 
 type EditorCandidate = { id: string; name: string | null; email: string }
 
 interface AdminToolkitAdminClientProps {
   surgeryId: string
-  weekCommencingIso: string
+  currentWeekCommencingIso: string
+  initialWeekCommencingIso: string
   initialOnTakeGpName: string | null
+  upcomingWeeks: Array<{ weekCommencingIso: string; gpName: string | null }>
   initialPanel: AdminToolkitPinnedPanel
   initialCategories: AdminToolkitCategory[]
   initialItems: AdminToolkitPageItem[]
@@ -34,14 +37,35 @@ interface AdminToolkitAdminClientProps {
 
 const CREATE_PAGE_SENTINEL = '__create_page__'
 
-function dayLabel(date: Date): string {
-  return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
+function addDaysIso(weekCommencingIso: string, days: number): string {
+  const d = new Date(`${weekCommencingIso}T00:00:00.000Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function weekStartMondayIso(inputIso: string): string {
+  const d = new Date(`${inputIso}T00:00:00.000Z`)
+  const day = d.getUTCDay() // 0=Sun ... 6=Sat
+  const delta = (day + 6) % 7
+  d.setUTCDate(d.getUTCDate() - delta)
+  return d.toISOString().slice(0, 10)
+}
+
+function formatLondonDateNoWeekday(iso: string): string {
+  return new Date(`${iso}T00:00:00.000Z`).toLocaleDateString('en-GB', {
+    timeZone: 'Europe/London',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
 }
 
 export default function AdminToolkitAdminClient({
   surgeryId,
-  weekCommencingIso,
+  currentWeekCommencingIso,
+  initialWeekCommencingIso,
   initialOnTakeGpName,
+  upcomingWeeks,
   initialPanel,
   initialCategories,
   initialItems,
@@ -78,7 +102,15 @@ export default function AdminToolkitAdminClient({
   const [panelTaskBuddy, setPanelTaskBuddy] = useState(initialPanel.taskBuddyText ?? '')
   const [panelPostRoute, setPanelPostRoute] = useState(initialPanel.postRouteText ?? '')
 
+  const [selectedWeekCommencingIso, setSelectedWeekCommencingIso] = useState<string>(initialWeekCommencingIso)
   const [onTakeGpName, setOnTakeGpName] = useState(initialOnTakeGpName ?? '')
+  const [onTakeLoading, setOnTakeLoading] = useState(false)
+  const [onTakeDirty, setOnTakeDirty] = useState(false)
+  const [upcomingMap, setUpcomingMap] = useState<Record<string, string | null>>(() => {
+    const map: Record<string, string | null> = {}
+    for (const w of upcomingWeeks) map[w.weekCommencingIso] = w.gpName
+    return map
+  })
 
   function syncSelectedItemToForm(id: string | null, sourceItems: AdminToolkitPageItem[] = items) {
     setSelectedItemId(id)
@@ -126,9 +158,47 @@ export default function AdminToolkitAdminClient({
   }, [initialPanel.taskBuddyText, initialPanel.postRouteText])
 
   useEffect(() => {
-    setOnTakeGpName(initialOnTakeGpName ?? '')
-  }, [initialOnTakeGpName])
+    // Refresh the upcoming list snapshot on server refresh.
+    setUpcomingMap(() => {
+      const map: Record<string, string | null> = {}
+      for (const w of upcomingWeeks) map[w.weekCommencingIso] = w.gpName
+      return map
+    })
+    // If we are still on the initially rendered week, keep its value in sync unless the user has edited.
+    if (selectedWeekCommencingIso === initialWeekCommencingIso && !onTakeDirty) {
+      setOnTakeGpName(initialOnTakeGpName ?? '')
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [upcomingWeeks, initialOnTakeGpName, initialWeekCommencingIso])
 
+  useEffect(() => {
+    // When switching week: load from upcoming list first; otherwise query server.
+    let cancelled = false
+    async function load() {
+      setOnTakeLoading(true)
+      try {
+        const local = upcomingMap[selectedWeekCommencingIso]
+        if (local !== undefined) {
+          if (!cancelled) setOnTakeGpName(local ?? '')
+          return
+        }
+        const res = await getAdminToolkitOnTakeWeekValue({ surgeryId, weekCommencingIso: selectedWeekCommencingIso })
+        if (!res.ok) {
+          if (!cancelled) toast.error(res.error.message)
+          return
+        }
+        if (!cancelled) setOnTakeGpName(res.data.gpName ?? '')
+      } finally {
+        if (!cancelled) setOnTakeLoading(false)
+      }
+    }
+    setOnTakeDirty(false)
+    load()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeekCommencingIso, surgeryId])
   useEffect(() => {
     // Ensure selection remains valid after refresh
     if (selectedItemId === CREATE_PAGE_SENTINEL) {
@@ -791,35 +861,110 @@ export default function AdminToolkitAdminClient({
 
       {/* Rota */}
       <section id="on-take" className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-nhs-dark-blue">Current On-Take GP</h2>
-        <p className="mt-1 text-sm text-nhs-grey">One GP applies to the full week (Monday to Sunday).</p>
-
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-sm font-medium text-gray-700">Week commencing</div>
-            <div className="mt-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
-              Monday {new Date(`${weekCommencingIso}T00:00:00.000Z`).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' })}
+            <h2 className="text-lg font-semibold text-nhs-dark-blue">On-Take GP rota (weekly)</h2>
+            <p className="mt-1 text-sm text-nhs-grey">One GP applies to the full week (Monday to Sunday).</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              className="nhs-button-secondary"
+              onClick={() => setSelectedWeekCommencingIso(addDaysIso(selectedWeekCommencingIso, -7))}
+            >
+              Prev
+            </button>
+            <button
+              type="button"
+              className="nhs-button-secondary"
+              onClick={() => setSelectedWeekCommencingIso(currentWeekCommencingIso)}
+            >
+              This week
+            </button>
+            <button
+              type="button"
+              className="nhs-button-secondary"
+              onClick={() => setSelectedWeekCommencingIso(addDaysIso(selectedWeekCommencingIso, 7))}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4 items-end">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Week commencing (Monday)</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                className="nhs-input"
+                value={selectedWeekCommencingIso}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (!raw) return
+                  const monday = weekStartMondayIso(raw)
+                  setSelectedWeekCommencingIso(monday)
+                }}
+              />
+              <div className="text-sm text-gray-600">
+                Week of {formatLondonDateNoWeekday(selectedWeekCommencingIso)} to{' '}
+                {formatLondonDateNoWeekday(addDaysIso(selectedWeekCommencingIso, 6))}
+              </div>
             </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">GP taking on</label>
             <input
               value={onTakeGpName}
-              onChange={(e) => setOnTakeGpName(e.target.value)}
+              onChange={(e) => {
+                setOnTakeGpName(e.target.value)
+                setOnTakeDirty(true)
+              }}
               className="w-full nhs-input"
               placeholder="e.g. Dr Patel"
+              disabled={onTakeLoading}
             />
+            {onTakeLoading ? <p className="mt-1 text-xs text-gray-500">Loading…</p> : null}
           </div>
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex justify-between gap-3 flex-wrap">
+          <div className="text-sm text-gray-600">
+            <span className="font-medium">Upcoming weeks</span>
+            <span className="text-gray-400"> (next 8)</span>
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+              {upcomingWeeks.map((w) => {
+                const label = formatLondonDateNoWeekday(w.weekCommencingIso)
+                const value = w.gpName || 'Not set'
+                return (
+                  <button
+                    key={w.weekCommencingIso}
+                    type="button"
+                    onClick={() => setSelectedWeekCommencingIso(w.weekCommencingIso)}
+                    className={[
+                      'rounded-lg border px-3 py-2 text-left transition-colors',
+                      selectedWeekCommencingIso === w.weekCommencingIso
+                        ? 'border-nhs-blue bg-nhs-light-blue'
+                        : 'border-gray-200 bg-white hover:bg-gray-50',
+                    ].join(' ')}
+                  >
+                    <div className="text-xs text-gray-500">W/C {label}</div>
+                    <div className={w.gpName ? 'text-sm font-semibold text-gray-900' : 'text-sm text-gray-500'}>
+                      {value}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <button
             type="button"
             className="nhs-button"
             onClick={async () => {
               const res = await setAdminToolkitOnTakeWeek({
                 surgeryId,
-                weekCommencingIso,
+                weekCommencingIso: selectedWeekCommencingIso,
                 gpName: onTakeGpName.trim() ? onTakeGpName.trim() : null,
               })
               if (!res.ok) {
@@ -827,6 +972,8 @@ export default function AdminToolkitAdminClient({
                 return
               }
               toast.success('Saved')
+              setOnTakeDirty(false)
+              setUpcomingMap((prev) => ({ ...prev, [selectedWeekCommencingIso]: onTakeGpName.trim() || null }))
               await refresh()
             }}
           >
