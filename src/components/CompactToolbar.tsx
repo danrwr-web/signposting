@@ -31,6 +31,7 @@ interface CompactToolbarProps {
   showSurgerySelector: boolean
   onShowSurgerySelector: (show: boolean) => void
   workflowGuidanceEnabled?: boolean
+  adminToolkitEnabled?: boolean
   symptoms?: EffectiveSymptom[]
   commonReasonsItems?: CommonReasonsResolvedItem[]
 }
@@ -49,6 +50,7 @@ export default function CompactToolbar({
   showSurgerySelector,
   onShowSurgerySelector,
   workflowGuidanceEnabled,
+  adminToolkitEnabled,
   symptoms,
   commonReasonsItems,
 }: CompactToolbarProps) {
@@ -180,6 +182,16 @@ export default function CompactToolbar({
                 className="text-sm font-medium text-slate-700 hover:text-sky-700"
               >
                 Workflow guidance
+              </Link>
+            )}
+
+            {/* Admin Toolkit Link - only when enabled for this surgery */}
+            {currentSurgeryId && adminToolkitEnabled && (
+              <Link
+                href={`/s/${currentSurgeryId}/admin-toolkit`}
+                className="text-sm font-medium text-slate-700 hover:text-sky-700"
+              >
+                Admin Toolkit
               </Link>
             )}
 

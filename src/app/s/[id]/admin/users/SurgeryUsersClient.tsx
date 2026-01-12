@@ -13,6 +13,7 @@ interface Surgery {
   users: Array<{
     id: string
     role: string
+    adminToolkitWrite?: boolean
     user: {
       id: string
       email: string
@@ -163,6 +164,30 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
     setEditingUser(null)
   }
 
+  const handleToggleAdminToolkitWrite = async (userId: string, nextValue: boolean) => {
+    try {
+      const response = await fetch(`/api/s/${surgery.id}/members/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          adminToolkitWrite: nextValue,
+        }),
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Failed to update Admin Toolkit write access: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error updating admin toolkit write:', error)
+      alert('Failed to update Admin Toolkit write access')
+    }
+  }
+
   const handleSetDefaultSurgery = async (userId: string) => {
     try {
       const response = await fetch(`/api/s/${surgery.id}/members/${userId}`, {
@@ -311,6 +336,37 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     )}
                   </div>
                 ),
+              },
+              {
+                header: 'Admin Toolkit write',
+                key: 'adminToolkitWrite',
+                render: (membership) => {
+                  const isSurgeryAdmin = membership.role === 'ADMIN'
+                  const enabled = isSurgeryAdmin || membership.adminToolkitWrite === true
+                  return (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAdminToolkitWrite(membership.user.id, !enabled)}
+                        disabled={isSurgeryAdmin}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          enabled ? 'bg-nhs-green' : 'bg-gray-300'
+                        } ${isSurgeryAdmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        aria-label={`Toggle Admin Toolkit write for ${membership.user.name || membership.user.email}`}
+                        title={isSurgeryAdmin ? 'Surgery admins can always edit Admin Toolkit.' : undefined}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            enabled ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      <span className="text-xs text-gray-500">
+                        {isSurgeryAdmin ? 'Admin' : enabled ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                  )
+                },
               },
               {
                 header: 'Actions',

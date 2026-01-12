@@ -53,6 +53,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
     )
 
     const workflowGuidanceEnabled = await isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
+    const adminToolkitEnabled = await isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit')
 
     return (
       <HomePageClient
@@ -61,6 +62,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
         requiresClinicalReview={surgery.requiresClinicalReview}
         surgeryName={surgery.name}
         workflowGuidanceEnabled={workflowGuidanceEnabled}
+        adminToolkitEnabled={adminToolkitEnabled}
         surgeryId={surgeryId}
         commonReasonsItems={commonReasonsItems}
       />
