@@ -39,7 +39,8 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   }, [items])
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full min-h-0">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-full min-h-0">
+      {/* Header zone (static) */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0">
         <div className="text-sm text-gray-600" aria-live="polite">
           {itemsFiltered.length} item{itemsFiltered.length === 1 ? '' : 's'}
@@ -53,18 +54,19 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         )}
       </div>
 
-      <div className="shrink-0">
+      <div className="shrink-0 border-b border-gray-200">
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
       </div>
 
-      {/* Scroll region (keeps header/search stable) */}
-      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] min-h-0 flex-1">
-        {/* Sidebar: categories */}
-        <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 flex flex-col min-h-0">
-          <div className="px-4 py-4 shrink-0">
-            <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Categories</h2>
-          </div>
-          <nav className="px-2 pb-4 overflow-y-auto min-h-0">
+      {/* Main content zone (scroll container) */}
+      <div className="flex-1 min-h-0 overflow-y-auto pb-56">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] min-h-0">
+          {/* Sidebar: categories */}
+          <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
+            <div className="px-4 py-4">
+              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Categories</h2>
+            </div>
+            <nav className="px-2 pb-4">
             <button
               type="button"
               onClick={() => setSelectedCategoryId('ALL')}
@@ -95,42 +97,43 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                 </button>
               )
             })}
-          </nav>
-        </aside>
+            </nav>
+          </aside>
 
-        {/* Main: items */}
-        <section className="p-4 overflow-y-auto min-h-0">
-          {itemsFiltered.length === 0 ? (
-            <div className="py-12 text-center text-sm text-gray-500">
-              {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {itemsFiltered.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/s/${surgeryId}/admin-toolkit/${item.id}`}
-                  className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-base font-semibold text-nhs-dark-blue">{item.title}</h3>
-                    {item.warningLevel ? (
-                      <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
-                        {item.warningLevel}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-2 text-sm text-gray-600 line-clamp-3">
-                    {item.contentHtml ? 'Open guidance' : 'No content yet'}
-                  </p>
-                  <div className="mt-3 text-xs text-gray-500">
-                    Updated {new Date(item.updatedAt).toLocaleDateString('en-GB')}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
+          {/* Main: items */}
+          <section className="p-4">
+            {itemsFiltered.length === 0 ? (
+              <div className="py-12 text-center text-sm text-gray-500">
+                {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {itemsFiltered.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/s/${surgeryId}/admin-toolkit/${item.id}`}
+                    className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-base font-semibold text-nhs-dark-blue">{item.title}</h3>
+                      {item.warningLevel ? (
+                        <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
+                          {item.warningLevel}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600 line-clamp-3">
+                      {item.contentHtml ? 'Open guidance' : 'No content yet'}
+                    </p>
+                    <div className="mt-3 text-xs text-gray-500">
+                      Updated {new Date(item.updatedAt).toLocaleDateString('en-GB')}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   )
