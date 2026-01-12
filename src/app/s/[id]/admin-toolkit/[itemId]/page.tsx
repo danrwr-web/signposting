@@ -8,11 +8,10 @@ import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
 import {
-  getAdminToolkitDutyToday,
-  getAdminToolkitDutyWeek,
+  getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItem,
   getAdminToolkitPinnedPanel,
-  startOfDayUtc,
+  getLondonTodayUtc,
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
@@ -95,12 +94,9 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     const canEditThisItem = isSuperuser || (canWrite && (!isRestricted || isEditor))
 
     const panel = await getAdminToolkitPinnedPanel(surgeryId)
-    const todayUtc = startOfDayUtc(new Date())
+    const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
-    const [todayDuty, weekDuty] = await Promise.all([
-      getAdminToolkitDutyToday(surgeryId, todayUtc),
-      getAdminToolkitDutyWeek(surgeryId, weekStartUtc),
-    ])
+    const onTake = await getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc)
 
     return (
       <div className="min-h-screen bg-white">
@@ -183,7 +179,13 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
           </footer>
         </div>
 
-        <AdminToolkitPinnedPanel today={todayDuty} week={weekDuty} weekStartUtc={weekStartUtc} panel={panel} />
+        <AdminToolkitPinnedPanel
+          surgeryId={surgeryId}
+          canWrite={canWrite}
+          onTakeWeekCommencingUtc={weekStartUtc}
+          onTakeGpName={onTake?.gpName ?? null}
+          panel={panel}
+        />
       </div>
     )
   } catch {

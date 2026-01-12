@@ -8,11 +8,10 @@ import { isFeatureEnabledForSurgery } from '@/lib/features'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
 import {
   getAdminToolkitCategories,
-  getAdminToolkitDutyToday,
-  getAdminToolkitDutyWeek,
+  getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItems,
   getAdminToolkitPinnedPanel,
-  startOfDayUtc,
+  getLondonTodayUtc,
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitLibraryClient from './AdminToolkitLibraryClient'
@@ -76,12 +75,9 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
       getAdminToolkitPinnedPanel(surgeryId),
     ])
 
-    const todayUtc = startOfDayUtc(new Date())
+    const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
-    const [todayDuty, weekDuty] = await Promise.all([
-      getAdminToolkitDutyToday(surgeryId, todayUtc),
-      getAdminToolkitDutyWeek(surgeryId, weekStartUtc),
-    ])
+    const onTake = await getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc)
 
     return (
       <div className="min-h-screen bg-white">
@@ -119,7 +115,13 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
           />
         </div>
 
-        <AdminToolkitPinnedPanel today={todayDuty} week={weekDuty} weekStartUtc={weekStartUtc} panel={panel} />
+        <AdminToolkitPinnedPanel
+          surgeryId={surgeryId}
+          canWrite={canWrite}
+          onTakeWeekCommencingUtc={weekStartUtc}
+          onTakeGpName={onTake?.gpName ?? null}
+          panel={panel}
+        />
       </div>
     )
   } catch {

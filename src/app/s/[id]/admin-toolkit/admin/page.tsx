@@ -7,10 +7,10 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import {
   getAdminToolkitCategories,
-  getAdminToolkitDutyWeek,
+  getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItems,
   getAdminToolkitPinnedPanel,
-  startOfDayUtc,
+  getLondonTodayUtc,
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitAdminClient from './AdminToolkitAdminClient'
@@ -84,14 +84,14 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
       )
     }
 
-    const todayUtc = startOfDayUtc(new Date())
+    const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
 
-    const [categories, items, panel, weekDuty, members] = await Promise.all([
+    const [categories, items, panel, onTakeWeek, members] = await Promise.all([
       getAdminToolkitCategories(surgeryId),
       getAdminToolkitPageItems(surgeryId),
       getAdminToolkitPinnedPanel(surgeryId),
-      getAdminToolkitDutyWeek(surgeryId, weekStartUtc),
+      getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc),
       prisma.userSurgery.findMany({
         where: { surgeryId },
         select: {
@@ -133,8 +133,8 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
 
           <AdminToolkitAdminClient
             surgeryId={surgeryId}
-            weekStartUtcIso={weekStartUtc.toISOString()}
-            initialWeekDuty={weekDuty}
+            weekCommencingIso={weekStartUtc.toISOString().slice(0, 10)}
+            initialOnTakeGpName={onTakeWeek?.gpName ?? null}
             initialPanel={panel}
             initialCategories={categories}
             initialItems={items}

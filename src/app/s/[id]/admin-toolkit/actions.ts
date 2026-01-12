@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
-import { addDaysUtc, startOfWeekMondayUtc } from '@/server/adminToolkit'
 
 type ActionError =
   | { code: 'UNAUTHENTICATED'; message: string }
@@ -507,14 +506,14 @@ export async function upsertAdminToolkitPinnedPanel(input: unknown): Promise<Act
   return { ok: true, data: { surgeryId } }
 }
 
-const setRotaWeekInput = z.object({
+const setOnTakeWeekInput = z.object({
   surgeryId: z.string().min(1),
-  weekStartIso: z.string().datetime(),
-  entries: z.array(z.object({ dateIso: z.string().datetime(), name: z.string().trim().max(120).optional().default('') })).length(7),
+  weekCommencingIso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+  gpName: z.string().trim().max(120).nullable(),
 })
 
-export async function setAdminToolkitRotaWeek(input: unknown): Promise<ActionResult<{ surgeryId: string }>> {
-  const parsed = setRotaWeekInput.safeParse(input)
+export async function setAdminToolkitOnTakeWeek(input: unknown): Promise<ActionResult<{ surgeryId: string }>> {
+  const parsed = setOnTakeWeekInput.safeParse(input)
   if (!parsed.success) {
     return {
       ok: false,
@@ -525,38 +524,27 @@ export async function setAdminToolkitRotaWeek(input: unknown): Promise<ActionRes
   const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
   if (!gate.ok) return gate
 
-  const { surgeryId } = parsed.data
-  const weekStart = new Date(parsed.data.weekStartIso)
-  const canonicalWeekStart = startOfWeekMondayUtc(weekStart)
-
-  // Basic validation: the 7 entries must correspond to the same week.
-  for (let i = 0; i < 7; i++) {
-    const expected = addDaysUtc(canonicalWeekStart, i).toISOString()
-    if (new Date(parsed.data.entries[i].dateIso).toISOString() !== expected) {
-      return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Week entries did not match the expected dates.' } }
-    }
-  }
+  const { surgeryId, weekCommencingIso, gpName } = parsed.data
+  const weekCommencingUtc = new Date(`${weekCommencingIso}T00:00:00.000Z`)
+  const name = (gpName || '').trim()
 
   await prisma.$transaction(async (tx) => {
-    for (const entry of parsed.data.entries) {
-      const date = new Date(entry.dateIso)
-      const name = (entry.name || '').trim()
-      if (!name) {
-        await tx.adminDutyRotaEntry.deleteMany({ where: { surgeryId, date } })
-        continue
-      }
-      await tx.adminDutyRotaEntry.upsert({
-        where: { surgeryId_date: { surgeryId, date } },
-        update: { name },
-        create: { surgeryId, date, name },
+    if (!name) {
+      await tx.adminOnTakeWeek.deleteMany({ where: { surgeryId, weekCommencing: weekCommencingUtc } })
+    } else {
+      await tx.adminOnTakeWeek.upsert({
+        where: { surgeryId_weekCommencing: { surgeryId, weekCommencing: weekCommencingUtc } },
+        update: { gpName: name },
+        create: { surgeryId, weekCommencing: weekCommencingUtc, gpName: name },
       })
     }
+
     await tx.adminHistory.create({
       data: {
         surgeryId,
-        action: 'ROTA_WEEK_SET',
+        action: 'ON_TAKE_WEEK_SET',
         actorUserId: gate.data.userId,
-        diffJson: { weekStart: canonicalWeekStart.toISOString() },
+        diffJson: { weekCommencing: weekCommencingIso, gpName: name || null },
       },
     })
   })

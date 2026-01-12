@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
-import type { AdminToolkitCategory, AdminToolkitDutyEntry, AdminToolkitPageItem, AdminToolkitPinnedPanel } from '@/server/adminToolkit'
+import type { AdminToolkitCategory, AdminToolkitPageItem, AdminToolkitPinnedPanel } from '@/server/adminToolkit'
 import {
   createAdminToolkitCategory,
   deleteAdminToolkitCategory,
@@ -16,15 +16,15 @@ import {
   deleteAdminToolkitItem,
   setAdminToolkitItemEditors,
   upsertAdminToolkitPinnedPanel,
-  setAdminToolkitRotaWeek,
+  setAdminToolkitOnTakeWeek,
 } from '../actions'
 
 type EditorCandidate = { id: string; name: string | null; email: string }
 
 interface AdminToolkitAdminClientProps {
   surgeryId: string
-  weekStartUtcIso: string
-  initialWeekDuty: AdminToolkitDutyEntry[]
+  weekCommencingIso: string
+  initialOnTakeGpName: string | null
   initialPanel: AdminToolkitPinnedPanel
   initialCategories: AdminToolkitCategory[]
   initialItems: AdminToolkitPageItem[]
@@ -40,8 +40,8 @@ function dayLabel(date: Date): string {
 
 export default function AdminToolkitAdminClient({
   surgeryId,
-  weekStartUtcIso,
-  initialWeekDuty,
+  weekCommencingIso,
+  initialOnTakeGpName,
   initialPanel,
   initialCategories,
   initialItems,
@@ -78,15 +78,7 @@ export default function AdminToolkitAdminClient({
   const [panelTaskBuddy, setPanelTaskBuddy] = useState(initialPanel.taskBuddyText ?? '')
   const [panelPostRoute, setPanelPostRoute] = useState(initialPanel.postRouteText ?? '')
 
-  const weekStart = useMemo(() => new Date(weekStartUtcIso), [weekStartUtcIso])
-  const dutyMap = useMemo(() => new Map(initialWeekDuty.map((e) => [new Date(e.date).toISOString(), e.name])), [initialWeekDuty])
-  const [rotaNames, setRotaNames] = useState<string[]>(
-    Array.from({ length: 7 }).map((_, idx) => {
-      const d = new Date(weekStart.getTime())
-      d.setUTCDate(d.getUTCDate() + idx)
-      return dutyMap.get(d.toISOString()) || ''
-    }),
-  )
+  const [onTakeGpName, setOnTakeGpName] = useState(initialOnTakeGpName ?? '')
 
   function syncSelectedItemToForm(id: string | null, sourceItems: AdminToolkitPageItem[] = items) {
     setSelectedItemId(id)
@@ -134,13 +126,8 @@ export default function AdminToolkitAdminClient({
   }, [initialPanel.taskBuddyText, initialPanel.postRouteText])
 
   useEffect(() => {
-    const next = Array.from({ length: 7 }).map((_, idx) => {
-      const d = new Date(weekStart.getTime())
-      d.setUTCDate(d.getUTCDate() + idx)
-      return dutyMap.get(d.toISOString()) || ''
-    })
-    setRotaNames(next)
-  }, [dutyMap, weekStart])
+    setOnTakeGpName(initialOnTakeGpName ?? '')
+  }, [initialOnTakeGpName])
 
   useEffect(() => {
     // Ensure selection remains valid after refresh
@@ -803,32 +790,26 @@ export default function AdminToolkitAdminClient({
       </section>
 
       {/* Rota */}
-      <section className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-nhs-dark-blue">GP taking on rota</h2>
-        <p className="mt-1 text-sm text-nhs-grey">Set who is taking on for each day (free text for now).</p>
+      <section id="on-take" className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-semibold text-nhs-dark-blue">Current On-Take GP</h2>
+        <p className="mt-1 text-sm text-nhs-grey">One GP applies to the full week (Monday to Sunday).</p>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {Array.from({ length: 7 }).map((_, idx) => {
-            const d = new Date(weekStart.getTime())
-            d.setUTCDate(d.getUTCDate() + idx)
-            return (
-              <div key={idx} className="rounded-lg border border-gray-200 p-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">{dayLabel(d)}</label>
-                <input
-                  value={rotaNames[idx] || ''}
-                  onChange={(e) =>
-                    setRotaNames((prev) => {
-                      const next = prev.slice()
-                      next[idx] = e.target.value
-                      return next
-                    })
-                  }
-                  className="w-full nhs-input"
-                  placeholder="e.g. Dr Patel"
-                />
-              </div>
-            )
-          })}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+          <div>
+            <div className="text-sm font-medium text-gray-700">Week commencing</div>
+            <div className="mt-1 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+              Monday {new Date(`${weekCommencingIso}T00:00:00.000Z`).toLocaleDateString('en-GB', { timeZone: 'Europe/London', day: 'numeric', month: 'long', year: 'numeric' })}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">GP taking on</label>
+            <input
+              value={onTakeGpName}
+              onChange={(e) => setOnTakeGpName(e.target.value)}
+              className="w-full nhs-input"
+              placeholder="e.g. Dr Patel"
+            />
+          </div>
         </div>
 
         <div className="mt-4 flex justify-end">
@@ -836,21 +817,20 @@ export default function AdminToolkitAdminClient({
             type="button"
             className="nhs-button"
             onClick={async () => {
-              const entries = Array.from({ length: 7 }).map((_, idx) => {
-                const d = new Date(weekStart.getTime())
-                d.setUTCDate(d.getUTCDate() + idx)
-                return { dateIso: d.toISOString(), name: rotaNames[idx] || '' }
+              const res = await setAdminToolkitOnTakeWeek({
+                surgeryId,
+                weekCommencingIso,
+                gpName: onTakeGpName.trim() ? onTakeGpName.trim() : null,
               })
-              const res = await setAdminToolkitRotaWeek({ surgeryId, weekStartIso: weekStart.toISOString(), entries })
               if (!res.ok) {
                 toast.error(res.error.message)
                 return
               }
-              toast.success('Rota updated')
+              toast.success('Saved')
               await refresh()
             }}
           >
-            Save rota
+            Save
           </button>
         </div>
       </section>
