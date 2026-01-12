@@ -101,18 +101,19 @@ export function getCommonReasonsForSurgery(
     const symptomMap = new Map(effectiveSymptoms.map(s => [s.id, s]))
     const resolved: CommonReasonsResolvedItem[] = []
 
-    for (const item of items) {
-      const symptom = symptomMap.get(item.symptomId)
-      if (symptom && !symptom.isHidden) {
-        // Normalize label: trim whitespace, convert empty string to null
-        const label = item.label?.trim() || null
-        resolved.push({
-          symptom,
-          label: label || undefined
-        })
-        if (resolved.length >= max) break
+      for (const item of items) {
+        const symptom = symptomMap.get(item.symptomId)
+        if (symptom && !symptom.isHidden) {
+          // Use label as-is (already normalized on save)
+          // Only trim if somehow not normalized, but preserve spaces
+          const label = item.label?.trim() || undefined
+          resolved.push({
+            symptom,
+            label: label || undefined
+          })
+          if (resolved.length >= max) break
+        }
       }
-    }
 
     // If enabled config yields no valid symptoms, show nothing (no fallback)
     return resolved

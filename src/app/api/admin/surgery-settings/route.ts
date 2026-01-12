@@ -177,10 +177,17 @@ export async function PATCH(request: NextRequest) {
             seen.add(item.symptomId)
             return true
           })
-          .map(item => ({
-            symptomId: item.symptomId,
-            label: item.label?.trim() || undefined
-          }))
+          .map(item => {
+            let label = item.label?.trim()
+            if (label) {
+              // Collapse multiple internal spaces to single space
+              label = label.replace(/\s+/g, ' ')
+            }
+            return {
+              symptomId: item.symptomId,
+              label: label || undefined
+            }
+          })
       } else if (updateData.commonReasons.commonReasonsSymptomIds && Array.isArray(updateData.commonReasons.commonReasonsSymptomIds)) {
         // Legacy format: convert to items
         const seen = new Set<string>()

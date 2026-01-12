@@ -98,9 +98,10 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
   }
 
   const handleUpdateLabel = (symptomId: string, label: string) => {
+    // Allow spaces during typing - only normalize on save
     setItems(items.map(i => 
       i.symptomId === symptomId 
-        ? { ...i, label: label.trim() || undefined }
+        ? { ...i, label: label || undefined }
         : i
     ))
   }
@@ -124,11 +125,18 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
     setSaveMessage(null)
 
     try {
-      // Normalize items: trim labels, convert empty strings to undefined
-      const normalizedItems = items.map(item => ({
-        symptomId: item.symptomId,
-        label: item.label?.trim() || undefined
-      }))
+      // Normalize items: trim labels, collapse multiple spaces, convert empty strings to undefined
+      const normalizedItems = items.map(item => {
+        let label = item.label?.trim()
+        if (label) {
+          // Collapse multiple internal spaces to single space
+          label = label.replace(/\s+/g, ' ')
+        }
+        return {
+          symptomId: item.symptomId,
+          label: label || undefined
+        }
+      })
 
       const response = await fetch('/api/admin/surgery-settings', {
         method: 'PATCH',
