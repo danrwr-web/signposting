@@ -28,9 +28,9 @@ export type AdminToolkitPinnedPanel = {
   updatedAt: Date
 }
 
-export type AdminToolkitDutyEntry = {
-  date: Date
-  name: string
+export type AdminToolkitOnTakeWeek = {
+  weekCommencing: Date
+  gpName: string
 }
 
 export function startOfDayUtc(date: Date): Date {
@@ -49,6 +49,19 @@ export function addDaysUtc(date: Date, days: number): Date {
   const d = new Date(date.getTime())
   d.setUTCDate(d.getUTCDate() + days)
   return d
+}
+
+export function getLondonTodayUtc(): Date {
+  // Convert "now" into a date-only value in Europe/London, then represent it as a UTC midnight Date.
+  // This gives stable week calculations without DST edge cases.
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+  const ymd = fmt.format(new Date()) // YYYY-MM-DD
+  return new Date(`${ymd}T00:00:00.000Z`)
 }
 
 export async function getAdminToolkitCategories(surgeryId: string): Promise<AdminToolkitCategory[]> {
@@ -125,24 +138,14 @@ export async function getAdminToolkitPinnedPanel(surgeryId: string): Promise<Adm
   )
 }
 
-export async function getAdminToolkitDutyWeek(
+export async function getAdminToolkitOnTakeWeek(
   surgeryId: string,
-  weekStartUtc: Date,
-): Promise<AdminToolkitDutyEntry[]> {
-  const weekEnd = addDaysUtc(weekStartUtc, 7)
-  const entries = await prisma.adminDutyRotaEntry.findMany({
-    where: { surgeryId, date: { gte: weekStartUtc, lt: weekEnd } },
-    select: { date: true, name: true },
-    orderBy: [{ date: 'asc' }],
+  weekCommencing: Date,
+): Promise<AdminToolkitOnTakeWeek | null> {
+  const row = await prisma.adminOnTakeWeek.findUnique({
+    where: { surgeryId_weekCommencing: { surgeryId, weekCommencing } },
+    select: { weekCommencing: true, gpName: true },
   })
-  return entries
-}
-
-export async function getAdminToolkitDutyToday(surgeryId: string, todayUtc: Date): Promise<AdminToolkitDutyEntry | null> {
-  const entry = await prisma.adminDutyRotaEntry.findUnique({
-    where: { surgeryId_date: { surgeryId, date: todayUtc } },
-    select: { date: true, name: true },
-  })
-  return entry ?? null
+  return row ?? null
 }
 

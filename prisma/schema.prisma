@@ -117,6 +117,7 @@ model Surgery {
   adminItemAttachments AdminItemAttachment[]
   adminPinnedPanel AdminPinnedPanel?
   adminDutyRota    AdminDutyRotaEntry[]
+  adminOnTakeWeeks AdminOnTakeWeek[]
   adminHistory     AdminHistory[]
 }
 
@@ -611,6 +612,23 @@ model AdminDutyRotaEntry {
 
   @@unique([surgeryId, date])
   @@index([surgeryId, date])
+}
+
+model AdminOnTakeWeek {
+  id String @id @default(cuid())
+
+  surgeryId String
+  surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  // Monday for the week, stored as DATE (Europe/London semantics in app)
+  weekCommencing DateTime @db.Date
+  gpName         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([surgeryId, weekCommencing])
+  @@index([surgeryId, weekCommencing])
 }
 
 model AdminHistory {
