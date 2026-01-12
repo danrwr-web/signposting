@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
@@ -32,6 +32,8 @@ interface AdminToolkitAdminClientProps {
   initialItemId?: string
 }
 
+const CREATE_PAGE_SENTINEL = '__create_page__'
+
 function dayLabel(date: Date): string {
   return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
 }
@@ -47,6 +49,7 @@ export default function AdminToolkitAdminClient({
   initialItemId,
 }: AdminToolkitAdminClientProps) {
   const router = useRouter()
+  const titleInputRef = useRef<HTMLInputElement>(null)
   const [categories, setCategories] = useState(initialCategories)
   const [items, setItems] = useState(initialItems)
 
@@ -55,8 +58,12 @@ export default function AdminToolkitAdminClient({
   const [renamingValue, setRenamingValue] = useState('')
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(initialItemId || (items[0]?.id ?? null))
+  const isCreateMode = selectedItemId === CREATE_PAGE_SENTINEL
 
-  const selectedItem = useMemo(() => items.find((i) => i.id === selectedItemId) || null, [items, selectedItemId])
+  const selectedItem = useMemo(
+    () => (isCreateMode ? null : items.find((i) => i.id === selectedItemId) || null),
+    [items, selectedItemId, isCreateMode],
+  )
 
   const [itemTitle, setItemTitle] = useState(selectedItem?.title ?? '')
   const [itemCategoryId, setItemCategoryId] = useState<string | null>(selectedItem?.categoryId ?? null)
@@ -66,6 +73,7 @@ export default function AdminToolkitAdminClient({
     selectedItem?.lastReviewedAt ? new Date(selectedItem.lastReviewedAt).toISOString().slice(0, 10) : '',
   )
   const [itemEditorUserIds, setItemEditorUserIds] = useState<string[]>(selectedItem?.editors.map((e) => e.userId) ?? [])
+  const [showAddAnotherHint, setShowAddAnotherHint] = useState(false)
 
   const [panelTaskBuddy, setPanelTaskBuddy] = useState(initialPanel.taskBuddyText ?? '')
   const [panelPostRoute, setPanelPostRoute] = useState(initialPanel.postRouteText ?? '')
@@ -82,6 +90,9 @@ export default function AdminToolkitAdminClient({
 
   function syncSelectedItemToForm(id: string | null, sourceItems: AdminToolkitPageItem[] = items) {
     setSelectedItemId(id)
+    if (id === CREATE_PAGE_SENTINEL) {
+      return
+    }
     const item = sourceItems.find((i) => i.id === id) || null
     setItemTitle(item?.title ?? '')
     setItemCategoryId(item?.categoryId ?? null)
@@ -89,6 +100,23 @@ export default function AdminToolkitAdminClient({
     setItemContentHtml(item?.contentHtml ?? '')
     setItemLastReviewedAt(item?.lastReviewedAt ? new Date(item.lastReviewedAt).toISOString().slice(0, 10) : '')
     setItemEditorUserIds(item?.editors.map((e) => e.userId) ?? [])
+  }
+
+  function resetCreateForm(focusTitle = false) {
+    setItemTitle('')
+    setItemCategoryId(null)
+    setItemWarningLevel('')
+    setItemContentHtml('')
+    setItemLastReviewedAt('')
+    setItemEditorUserIds([])
+    if (focusTitle) {
+      requestAnimationFrame(() => titleInputRef.current?.focus())
+    }
+  }
+
+  function toUtcMidnightIso(dateOnly: string): string {
+    // Input format from <input type="date"> is YYYY-MM-DD
+    return new Date(`${dateOnly}T00:00:00.000Z`).toISOString()
   }
 
   // Sync server-provided props after router.refresh()
@@ -116,6 +144,10 @@ export default function AdminToolkitAdminClient({
 
   useEffect(() => {
     // Ensure selection remains valid after refresh
+    if (selectedItemId === CREATE_PAGE_SENTINEL) {
+      // In create mode we keep the user's in-progress inputs as-is.
+      return
+    }
     if (!selectedItemId) {
       if (initialItems[0]?.id) {
         syncSelectedItemToForm(initialItems[0].id, initialItems)
@@ -316,20 +348,13 @@ export default function AdminToolkitAdminClient({
           <button
             type="button"
             className="nhs-button"
-            onClick={async () => {
-              const title = prompt('New item title')
-              if (!title) return
-              const res = await createAdminToolkitPageItem({ surgeryId, title, categoryId: null, contentHtml: '' })
-              if (!res.ok) {
-                toast.error(res.error.message)
-                return
-              }
-              toast.success('Item created')
-              router.push(`/s/${surgeryId}/admin-toolkit/admin?item=${encodeURIComponent(res.data.id)}`)
-              router.refresh()
+            onClick={() => {
+              setShowAddAnotherHint(false)
+              syncSelectedItemToForm(CREATE_PAGE_SENTINEL)
+              resetCreateForm(true)
             }}
           >
-            Add PAGE item
+            New PAGE
           </button>
         </div>
 
@@ -337,8 +362,24 @@ export default function AdminToolkitAdminClient({
           <aside className="rounded-lg border border-gray-200 bg-gray-50 p-3">
             <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Items</h3>
             <div className="mt-2 space-y-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddAnotherHint(false)
+                  syncSelectedItemToForm(CREATE_PAGE_SENTINEL)
+                  resetCreateForm(true)
+                }}
+                className={[
+                  'w-full text-left rounded-md px-3 py-2 text-sm border',
+                  isCreateMode ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
+                ].join(' ')}
+              >
+                <span className="font-medium text-gray-900">+ Create new page</span>
+                <div className="text-xs text-gray-500 mt-0.5">Add another item</div>
+              </button>
+
               {items.length === 0 ? (
-                <p className="text-sm text-gray-500">No items yet.</p>
+                <p className="mt-2 text-sm text-gray-500">No items yet.</p>
               ) : (
                 items.map((it) => {
                   const isSelected = it.id === selectedItemId
@@ -347,7 +388,10 @@ export default function AdminToolkitAdminClient({
                     <button
                       key={it.id}
                       type="button"
-                      onClick={() => syncSelectedItemToForm(it.id)}
+                      onClick={() => {
+                        setShowAddAnotherHint(false)
+                        syncSelectedItemToForm(it.id)
+                      }}
                       className={[
                         'w-full text-left rounded-md px-3 py-2 text-sm border',
                         isSelected ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
@@ -368,14 +412,178 @@ export default function AdminToolkitAdminClient({
           </aside>
 
           <div className="rounded-lg border border-gray-200 bg-white p-4">
-            {!selectedItem ? (
-              <p className="text-sm text-gray-500">Select an item to edit.</p>
+            {isCreateMode ? (
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-nhs-dark-blue">Create PAGE</h3>
+                    <p className="mt-1 text-sm text-nhs-grey">Add a new guidance page. After saving, you can add another straight away.</p>
+                  </div>
+                </div>
+
+                {showAddAnotherHint ? (
+                  <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    <strong>Page created.</strong> Add another item?
+                  </div>
+                ) : null}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                    <input
+                      ref={titleInputRef}
+                      className="w-full nhs-input"
+                      value={itemTitle}
+                      onChange={(e) => setItemTitle(e.target.value)}
+                      placeholder="e.g. How to process discharge summaries"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select
+                      className="w-full nhs-input"
+                      value={itemCategoryId ?? ''}
+                      onChange={(e) => setItemCategoryId(e.target.value ? e.target.value : null)}
+                    >
+                      <option value="">Uncategorised</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Warning badge (optional)</label>
+                    <input
+                      className="w-full nhs-input"
+                      value={itemWarningLevel}
+                      onChange={(e) => setItemWarningLevel(e.target.value)}
+                      placeholder="e.g. Urgent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Last reviewed (optional)</label>
+                    <input
+                      type="date"
+                      className="w-full nhs-input"
+                      value={itemLastReviewedAt}
+                      onChange={(e) => setItemLastReviewedAt(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Content</label>
+                  <div className="mt-2">
+                    <RichTextEditor
+                      value={itemContentHtml}
+                      onChange={(html) => setItemContentHtml(sanitizeHtml(html))}
+                      height={260}
+                      placeholder="Write guidance for staff…"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
+                  <p className="mt-1 text-sm text-gray-600">
+                    You can set restrictions after creating, or tick names now and we’ll apply them after the page is created.
+                  </p>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {editorCandidates.length === 0 ? (
+                      <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
+                    ) : (
+                      editorCandidates.map((u) => {
+                        const checked = itemEditorUserIds.includes(u.id)
+                        const label = u.name ? `${u.name} (${u.email})` : u.email
+                        return (
+                          <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                setItemEditorUserIds((prev) => {
+                                  if (e.target.checked) return Array.from(new Set([...prev, u.id]))
+                                  return prev.filter((x) => x !== u.id)
+                                })
+                              }}
+                            />
+                            <span>{label}</span>
+                          </label>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button
+                    type="button"
+                    className="nhs-button-secondary"
+                    onClick={() => {
+                      setShowAddAnotherHint(false)
+                      resetCreateForm(true)
+                    }}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="nhs-button"
+                    disabled={!itemTitle.trim()}
+                    onClick={async () => {
+                      const res = await createAdminToolkitPageItem({
+                        surgeryId,
+                        title: itemTitle,
+                        categoryId: itemCategoryId,
+                        contentHtml: itemContentHtml,
+                        warningLevel: itemWarningLevel || null,
+                        lastReviewedAt: itemLastReviewedAt ? toUtcMidnightIso(itemLastReviewedAt) : null,
+                      })
+                      if (!res.ok) {
+                        toast.error(res.error.message)
+                        return
+                      }
+                      // Optional: apply restrictions immediately after create.
+                      if (itemEditorUserIds.length > 0) {
+                        const r = await setAdminToolkitItemEditors({
+                          surgeryId,
+                          itemId: res.data.id,
+                          editorUserIds: itemEditorUserIds,
+                        })
+                        if (!r.ok) {
+                          toast.error(r.error.message)
+                          return
+                        }
+                      }
+
+                      toast.success('Page created')
+                      setShowAddAnotherHint(true)
+                      resetCreateForm(true)
+                      await refresh()
+                    }}
+                  >
+                    Create page
+                  </button>
+                </div>
+              </div>
+            ) : !selectedItem ? (
+              <p className="text-sm text-gray-500">Select an item to edit, or create a new page.</p>
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                    <input className="w-full nhs-input" value={itemTitle} onChange={(e) => setItemTitle(e.target.value)} />
+                    <input
+                      ref={titleInputRef}
+                      className="w-full nhs-input"
+                      value={itemTitle}
+                      onChange={(e) => setItemTitle(e.target.value)}
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
