@@ -7,6 +7,7 @@ A high-level history of major changes.
 ## Unreleased
 
 - Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
+- Added **Admin Toolkit** (feature-flagged) for surgery-specific guidance pages, a pinned panel, and a simple “GP taking on” rota.
 
 ---
 

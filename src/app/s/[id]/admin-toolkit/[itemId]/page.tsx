@@ -5,6 +5,18 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
+import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
+import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
+import {
+  getAdminToolkitDutyToday,
+  getAdminToolkitDutyWeek,
+  getAdminToolkitPageItem,
+  getAdminToolkitPinnedPanel,
+  startOfDayUtc,
+  startOfWeekMondayUtc,
+} from '@/server/adminToolkit'
+import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
+import AdminToolkitAttachmentsClient from './AdminToolkitAttachmentsClient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -54,10 +66,45 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
     const canWrite = can(user).adminToolkitWrite(surgeryId)
 
-    // Item loading will be implemented shortly; for now, render shell so the route resolves.
+    const item = await getAdminToolkitPageItem(surgeryId, itemId)
+    if (!item) {
+      return (
+        <div className="min-h-screen bg-white">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+            <div className="mb-6">
+              <Link
+                href={`/s/${surgeryId}/admin-toolkit`}
+                className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              >
+                ← Back to Admin Toolkit
+              </Link>
+            </div>
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <p className="text-sm text-yellow-700">
+                <strong>That item could not be found.</strong> It may have been deleted.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    const isSuperuser = user.globalRole === 'SUPERUSER'
+    const isRestricted = item.editors.length > 0
+    const isEditor = item.editors.some((e) => e.userId === user.id)
+    const canEditThisItem = isSuperuser || (canWrite && (!isRestricted || isEditor))
+
+    const panel = await getAdminToolkitPinnedPanel(surgeryId)
+    const todayUtc = startOfDayUtc(new Date())
+    const weekStartUtc = startOfWeekMondayUtc(todayUtc)
+    const [todayDuty, weekDuty] = await Promise.all([
+      getAdminToolkitDutyToday(surgeryId, todayUtc),
+      getAdminToolkitDutyWeek(surgeryId, weekStartUtc),
+    ])
+
     return (
       <div className="min-h-screen bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-40">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-44">
           <div className="mb-6 flex items-center justify-between gap-4">
             <Link
               href={`/s/${surgeryId}/admin-toolkit`}
@@ -65,51 +112,78 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
             >
               ← Back to Admin Toolkit
             </Link>
-            {canWrite ? (
-              <Link
-                href={`/s/${surgeryId}/admin-toolkit/admin`}
-                className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
-              >
-                Manage
-              </Link>
-            ) : (
-              <span className="text-sm text-gray-500">View only</span>
-            )}
+            <AdminToolkitItemActionsClient
+              surgeryId={surgeryId}
+              itemId={item.id}
+              canWrite={canWrite}
+              canEditThisItem={canEditThisItem}
+              isRestricted={isRestricted}
+            />
           </div>
 
           <header className="mb-6">
-            <h1 className="text-3xl font-bold text-nhs-dark-blue">Admin Toolkit item</h1>
-            <p className="mt-1 text-nhs-grey">
-              {surgery.name} • Item ID: <span className="font-mono text-xs">{itemId}</span>
-            </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <h1 className="text-3xl font-bold text-nhs-dark-blue">{item.title}</h1>
+              {item.warningLevel ? (
+                <span className="inline-flex items-center rounded-full bg-yellow-50 px-3 py-1 text-sm font-medium text-yellow-800 border border-yellow-200">
+                  {item.warningLevel}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 text-nhs-grey">{surgery.name}</p>
+            {isRestricted ? (
+              <p className="mt-2 text-sm text-gray-600">
+                <strong>Restricted item:</strong> only approved editors can make changes.
+              </p>
+            ) : null}
+            {!canEditThisItem && canWrite ? (
+              <p className="mt-2 text-sm text-gray-600">
+                You have Admin Toolkit write access, but this item is restricted to a smaller set of editors.
+              </p>
+            ) : null}
           </header>
 
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-nhs-grey">Item rendering will be wired next.</p>
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <div
+              className="prose max-w-none"
+              dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(item.contentHtml || '') }}
+            />
           </div>
-        </div>
 
-        {/* Pinned panel (stub for now; will be wired to DB) */}
-        <div className="fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <section>
-                  <h2 className="text-sm font-semibold text-nhs-dark-blue">GP taking on</h2>
-                  <p className="mt-1 text-sm text-nhs-grey">Rota coming soon.</p>
-                </section>
-                <section>
-                  <h2 className="text-sm font-semibold text-nhs-dark-blue">Task buddy system</h2>
-                  <p className="mt-1 text-sm text-nhs-grey">Coming soon.</p>
-                </section>
-                <section>
-                  <h2 className="text-sm font-semibold text-nhs-dark-blue">Post route</h2>
-                  <p className="mt-1 text-sm text-nhs-grey">Coming soon.</p>
-                </section>
+          <section className="mt-6 bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-nhs-dark-blue">Attachments</h2>
+            <p className="mt-1 text-sm text-nhs-grey">Add links to PDFs, Word documents, images, or folders.</p>
+            <div className="mt-4">
+              <AdminToolkitAttachmentsClient
+                surgeryId={surgeryId}
+                itemId={item.id}
+                canEditThisItem={canEditThisItem}
+                attachments={item.attachments.map((a) => ({ id: a.id, label: a.label, url: a.url }))}
+              />
+            </div>
+          </section>
+
+          <footer className="mt-6 text-sm text-gray-600">
+            <div className="flex flex-wrap gap-x-6 gap-y-1">
+              <div>
+                <span className="text-gray-500">Owner:</span>{' '}
+                <span className="font-medium">{item.ownerUserId ? 'Set' : 'Not set'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Last reviewed:</span>{' '}
+                <span className="font-medium">
+                  {item.lastReviewedAt ? new Date(item.lastReviewedAt).toLocaleDateString('en-GB') : 'Not set'}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">Updated:</span>{' '}
+                <span className="font-medium">{new Date(item.updatedAt).toLocaleDateString('en-GB')}</span>
               </div>
             </div>
-          </div>
+          </footer>
         </div>
+
+        <AdminToolkitPinnedPanel today={todayDuty} week={weekDuty} weekStartUtc={weekStartUtc} panel={panel} />
       </div>
     )
   } catch {

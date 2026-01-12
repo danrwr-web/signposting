@@ -5,6 +5,17 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
+import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
+import {
+  getAdminToolkitCategories,
+  getAdminToolkitDutyToday,
+  getAdminToolkitDutyWeek,
+  getAdminToolkitPageItems,
+  getAdminToolkitPinnedPanel,
+  startOfDayUtc,
+  startOfWeekMondayUtc,
+} from '@/server/adminToolkit'
+import AdminToolkitLibraryClient from './AdminToolkitLibraryClient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -59,9 +70,22 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
       )
     }
 
+    const [categories, items, panel] = await Promise.all([
+      getAdminToolkitCategories(surgeryId),
+      getAdminToolkitPageItems(surgeryId),
+      getAdminToolkitPinnedPanel(surgeryId),
+    ])
+
+    const todayUtc = startOfDayUtc(new Date())
+    const weekStartUtc = startOfWeekMondayUtc(todayUtc)
+    const [todayDuty, weekDuty] = await Promise.all([
+      getAdminToolkitDutyToday(surgeryId, todayUtc),
+      getAdminToolkitDutyWeek(surgeryId, weekStartUtc),
+    ])
+
     return (
       <div className="min-h-screen bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-40">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-44">
           <div className="mb-6 flex items-center justify-between gap-4">
             <Link
               href={`/s/${surgeryId}`}
@@ -87,34 +111,15 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
             <p className="mt-1 text-nhs-grey">{surgery.name}</p>
           </header>
 
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-nhs-grey">
-              This page is now routed correctly. Next step is wiring categories, search, items, and the pinned panel data.
-            </p>
-          </div>
+          <AdminToolkitLibraryClient
+            surgeryId={surgeryId}
+            canWrite={canWrite}
+            categories={categories}
+            items={items}
+          />
         </div>
 
-        {/* Pinned panel (stub for now; will be wired to DB) */}
-        <div className="fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <section>
-                  <h2 className="text-sm font-semibold text-nhs-dark-blue">GP taking on</h2>
-                  <p className="mt-1 text-sm text-nhs-grey">Rota coming soon.</p>
-                </section>
-                <section>
-                  <h2 className="text-sm font-semibold text-nhs-dark-blue">Task buddy system</h2>
-                  <p className="mt-1 text-sm text-nhs-grey">Coming soon.</p>
-                </section>
-                <section>
-                  <h2 className="text-sm font-semibold text-nhs-dark-blue">Post route</h2>
-                  <p className="mt-1 text-sm text-nhs-grey">Coming soon.</p>
-                </section>
-              </div>
-            </div>
-          </div>
-        </div>
+        <AdminToolkitPinnedPanel today={todayDuty} week={weekDuty} weekStartUtc={weekStartUtc} panel={panel} />
       </div>
     )
   } catch {

@@ -49,3 +49,32 @@ The **Quick Access** tab in the Admin Dashboard controls the optional quick acce
 - You can choose up to **6** symptoms to show as quick access buttons.
 - You can optionally set a short custom label for each button (leave blank to use the full symptom name).
 
+---
+
+## Admin Toolkit
+
+The **Admin Toolkit** is an optional module for storing surgery-specific guidance pages for admin and reception workflows (for example: “how we process documents”, “post route”, or “task buddy system”).
+
+### Enabling the module
+
+- The module is controlled by the `admin_toolkit` feature flag (superuser-controlled).
+- When enabled, a new **Admin Toolkit** link appears in the top navigation.
+
+### Write access (who can edit)
+
+- Any signed-in member of the surgery can **view** Admin Toolkit pages.
+- Editing requires **Admin Toolkit write access** (separate from full Surgery Admin).
+- Surgery Admins and Superusers can always edit.
+
+### Restricted pages (approved editors only)
+
+Admins can optionally restrict an individual page so only approved editors (and superusers) can change it.
+
+### Pinned panel and rota
+
+Admin Toolkit pages show an always-visible pinned panel at the bottom, including:
+
+- **GP taking on** (from a simple rota)
+- **Task buddy system** (editable text)
+- **Post route** (editable text)
+

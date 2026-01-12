@@ -114,6 +114,7 @@ model Surgery {
   // Admin Toolkit
   adminCategories  AdminCategory[]
   adminItems       AdminItem[]
+  adminItemAttachments AdminItemAttachment[]
   adminPinnedPanel AdminPinnedPanel?
   adminDutyRota    AdminDutyRotaEntry[]
   adminHistory     AdminHistory[]
