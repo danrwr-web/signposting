@@ -40,3 +40,12 @@ Admin users can:
 
 Only approved workflows are visible to non-admin staff.
 
+---
+
+## Quick Access (staff home screen)
+
+The **Quick Access** tab in the Admin Dashboard controls the optional quick access buttons shown on the staff home screen.
+
+- You can choose up to **6** symptoms to show as quick access buttons.
+- You can optionally set a short custom label for each button (leave blank to use the full symptom name).
+

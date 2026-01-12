@@ -86,6 +86,7 @@ model Surgery {
   enableDefaultHighRisk            Boolean                           @default(true) // Enable/disable default high-risk buttons
   enableBuiltInHighlights          Boolean                           @default(true) // Enable/disable built-in highlight rules
   enableImageIcons                 Boolean                           @default(true) // Enable/disable image icons on symptom cards
+  uiConfig                         Json?                            // UI configuration (common reasons, etc.)
   highRiskLinks                    HighRiskLink[]
   defaultHighRiskButtons           DefaultHighRiskButtonConfig[]
   highlightRules                   HighlightRule[]
