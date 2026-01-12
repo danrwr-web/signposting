@@ -36,33 +36,40 @@ export function getCommonReasonsForSurgery(
   effectiveSymptoms: EffectiveSymptom[],
   fallbackNames: string[] = FALLBACK_SYMPTOM_NAMES
 ): EffectiveSymptom[] {
-  // If no config or disabled, use fallback
-  if (!uiConfig?.commonReasons?.commonReasonsEnabled) {
-    return getFallbackSymptoms(effectiveSymptoms, fallbackNames)
+  const config = uiConfig?.commonReasons
+
+  // If config exists and is disabled: render nothing
+  if (config && config.commonReasonsEnabled === false) {
+    return []
   }
 
-  const config = uiConfig.commonReasons
-  const max = config.commonReasonsMax || 8
+  // If config exists and is enabled
+  if (config && config.commonReasonsEnabled === true) {
+    const ids = config.commonReasonsSymptomIds || []
+    const max = config.commonReasonsMax || 8
 
-  // Resolve symptom IDs to symptom objects
-  const symptomMap = new Map(effectiveSymptoms.map(s => [s.id, s]))
-  const resolved: EffectiveSymptom[] = []
-
-  // Preserve order from config, skip missing/disabled symptoms
-  for (const symptomId of config.commonReasonsSymptomIds) {
-    const symptom = symptomMap.get(symptomId)
-    if (symptom && !symptom.isHidden) {
-      resolved.push(symptom)
-      if (resolved.length >= max) break
+    // If enabled but no ids configured, show nothing (no fallback)
+    if (ids.length === 0) {
+      return []
     }
+
+    const symptomMap = new Map(effectiveSymptoms.map(s => [s.id, s]))
+    const resolved: EffectiveSymptom[] = []
+
+    for (const symptomId of ids) {
+      const symptom = symptomMap.get(symptomId)
+      if (symptom && !symptom.isHidden) {
+        resolved.push(symptom)
+        if (resolved.length >= max) break
+      }
+    }
+
+    // If enabled config yields no valid symptoms, show nothing (no fallback)
+    return resolved
   }
 
-  // If no valid symptoms found, fall back to defaults
-  if (resolved.length === 0) {
-    return getFallbackSymptoms(effectiveSymptoms, fallbackNames)
-  }
-
-  return resolved
+  // No config present: use fallback names
+  return getFallbackSymptoms(effectiveSymptoms, fallbackNames)
 }
 
 /**

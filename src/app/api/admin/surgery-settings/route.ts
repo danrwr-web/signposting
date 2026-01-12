@@ -9,6 +9,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { validateCommonReasonsConfig, CommonReasonsConfig, UiConfig } from '@/lib/commonReasons'
+import { revalidatePath } from 'next/cache'
 
 export const runtime = 'nodejs'
 
@@ -196,6 +197,11 @@ export async function PATCH(request: NextRequest) {
     }
     
     const surgery = result[0]
+
+    // Revalidate affected paths to reflect UI config changes immediately
+    revalidatePath(`/s/${targetSurgeryId}`)
+    revalidatePath(`/s/${targetSurgeryId}/`)
+    revalidatePath('/admin')
 
     return NextResponse.json({ surgery })
   } catch (error) {

@@ -8,6 +8,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsConfig, UiConfig } from '@/lib/commonReasons'
+import { useRouter } from 'next/navigation'
 
 interface CommonReasonsConfigProps {
   surgeryId?: string
@@ -16,6 +17,7 @@ interface CommonReasonsConfigProps {
 }
 
 export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig }: CommonReasonsConfigProps) {
+  const router = useRouter()
   const [enabled, setEnabled] = useState(initialConfig?.commonReasonsEnabled ?? false)
   const [selectedIds, setSelectedIds] = useState<string[]>(initialConfig?.commonReasonsSymptomIds ?? [])
   const [maxChips, setMaxChips] = useState(initialConfig?.commonReasonsMax ?? 8)
@@ -116,6 +118,7 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
       }
 
       setSaveMessage({ type: 'success', text: 'Settings saved successfully' })
+      router.refresh()
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
       setSaveMessage({ 
