@@ -8,12 +8,81 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { validateCommonReasonsConfig, CommonReasonsConfig, UiConfig } from '@/lib/commonReasons'
 
 export const runtime = 'nodejs'
+
+// GET /api/admin/surgery-settings - Get surgery settings
+export async function GET(request: NextRequest) {
+  try {
+    const user = await getSessionUser()
+    
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    let targetSurgeryId: string | null = null
+    
+    if (user.globalRole === 'SUPERUSER') {
+      const url = new URL(request.url)
+      const surgeryParam = url.searchParams.get('surgeryId')
+      if (surgeryParam) {
+        targetSurgeryId = surgeryParam
+      } else {
+        const firstSurgery = await prisma.surgery.findFirst()
+        targetSurgeryId = firstSurgery?.id || null
+      }
+    } else {
+      const adminMembership = user.memberships.find(m => m.role === 'ADMIN')
+      targetSurgeryId = adminMembership?.surgeryId || null
+    }
+    
+    if (!targetSurgeryId) {
+      return NextResponse.json(
+        { error: 'Unauthorized - surgery admin access required' },
+        { status: 401 }
+      )
+    }
+
+    const surgery = await prisma.surgery.findUnique({
+      where: { id: targetSurgeryId },
+      select: {
+        id: true,
+        name: true,
+        enableBuiltInHighlights: true,
+        enableImageIcons: true,
+        uiConfig: true,
+      }
+    })
+
+    if (!surgery) {
+      return NextResponse.json(
+        { error: 'Surgery not found' },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ surgery })
+  } catch (error) {
+    console.error('Error fetching surgery settings:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch surgery settings' },
+      { status: 500 }
+    )
+  }
+}
 
 const updateSurgerySettingsSchema = z.object({
   enableBuiltInHighlights: z.boolean().optional(),
   enableImageIcons: z.boolean().optional(),
+  commonReasons: z.object({
+    commonReasonsEnabled: z.boolean(),
+    commonReasonsSymptomIds: z.array(z.string()),
+    commonReasonsMax: z.number().min(0).max(20),
+  }).optional(),
 })
 
 // PATCH /api/admin/surgery-settings - Update surgery settings
@@ -60,6 +129,23 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
     const updateData = updateSurgerySettingsSchema.parse(body)
 
+    // Validate common reasons config if provided
+    if (updateData.commonReasons) {
+      const validation = validateCommonReasonsConfig(updateData.commonReasons)
+      if (!validation.valid) {
+        return NextResponse.json(
+          { error: 'Invalid common reasons config', details: validation.errors },
+          { status: 400 }
+        )
+      }
+    }
+
+    // Get current surgery to preserve existing uiConfig
+    const currentSurgery = await prisma.surgery.findUnique({
+      where: { id: targetSurgeryId },
+      select: { uiConfig: true }
+    })
+
     // Prepare update data
     const data: any = {}
     if (updateData.enableBuiltInHighlights !== undefined) {
@@ -69,13 +155,34 @@ export async function PATCH(request: NextRequest) {
       data.enableImageIcons = updateData.enableImageIcons
     }
 
+    // Handle uiConfig update
+    if (updateData.commonReasons) {
+      const currentUiConfig = (currentSurgery?.uiConfig as UiConfig | null) || {}
+      const updatedUiConfig: UiConfig = {
+        ...currentUiConfig,
+        commonReasons: {
+          commonReasonsEnabled: updateData.commonReasons.commonReasonsEnabled,
+          commonReasonsSymptomIds: updateData.commonReasons.commonReasonsSymptomIds,
+          commonReasonsMax: updateData.commonReasons.commonReasonsMax,
+        }
+      }
+      data.uiConfig = updatedUiConfig
+    }
+
     // Update the surgery settings
     // Note: Using raw SQL to avoid Prisma client generation issues
+    const updateFields = Object.keys(data).map((key, index) => {
+      if (key === 'uiConfig') {
+        return `"${key}" = $${index + 2}::jsonb`
+      }
+      return `"${key}" = $${index + 2}`
+    }).join(', ')
+
     const updateQuery = `
       UPDATE "Surgery" 
-      SET ${Object.keys(data).map((key, index) => `"${key}" = $${index + 2}`).join(', ')}, "updatedAt" = NOW()
+      SET ${updateFields}, "updatedAt" = NOW()
       WHERE id = $1
-      RETURNING id, name, "enableBuiltInHighlights", "enableImageIcons", "updatedAt"
+      RETURNING id, name, "enableBuiltInHighlights", "enableImageIcons", "uiConfig", "updatedAt"
     `
     
     const updateValues = [targetSurgeryId, ...Object.values(data)]

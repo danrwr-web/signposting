@@ -31,6 +31,7 @@ interface CompactToolbarProps {
   onShowSurgerySelector: (show: boolean) => void
   workflowGuidanceEnabled?: boolean
   symptoms?: EffectiveSymptom[]
+  commonReasonsItems?: EffectiveSymptom[]
 }
 
 export default function CompactToolbar({
@@ -48,6 +49,7 @@ export default function CompactToolbar({
   onShowSurgerySelector,
   workflowGuidanceEnabled,
   symptoms,
+  commonReasonsItems,
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const pathname = usePathname() || ''
@@ -226,6 +228,7 @@ export default function CompactToolbar({
         currentSurgeryId={currentSurgeryId}
         searchInputRef={searchInputRef}
         symptoms={symptoms}
+        commonReasonsItems={commonReasonsItems}
       />
 
       {/* User Preferences Modal */}

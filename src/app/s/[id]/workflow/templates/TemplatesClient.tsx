@@ -187,7 +187,12 @@ export default function TemplatesClient({ surgeryId, templates, isSuperuser }: T
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {template.description || '—'}
+                    <div 
+                      className="max-w-xs whitespace-nowrap overflow-hidden text-ellipsis"
+                      title={template.description || undefined}
+                    >
+                      {template.description || '—'}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {getWorkflowTypeBadge(template.workflowType)}

@@ -7,6 +7,7 @@ import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
+import CommonReasonsConfig from '@/components/CommonReasonsConfig'
 import ImageIconConfig from '@/components/ImageIconConfig'
 import SymptomLibraryExplorer from '@/components/SymptomLibraryExplorer'
 import ClinicalReviewPanel from '@/components/ClinicalReviewPanel'
@@ -854,6 +855,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
                   { id: 'highlights', label: 'Highlight Config' },
                   { id: 'highrisk', label: 'High-Risk Buttons' },
+                  ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'front-page', label: 'Front Page' }] : []),
                   { id: 'engagement', label: 'Engagement' },
                   { id: 'suggestions', label: 'Suggestions', badge: suggestionsBadge },
                   // Features: visible to SUPERUSER and PRACTICE_ADMIN
@@ -1004,6 +1006,17 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     .map(s => ({ id: s.id, slug: s.slug as string, name: s.name }))
                     .sort((a, b) => a.name.localeCompare(b.name))}
                   session={session} 
+                />
+              </div>
+            )}
+
+            {/* Front Page Tab */}
+            {activeTab === 'front-page' && (session.type === 'superuser' || session.type === 'surgery') && (
+              <div className="space-y-6">
+                <CommonReasonsConfig 
+                  surgeryId={selectedSurgery} 
+                  symptoms={effectiveSymptoms}
+                  initialConfig={undefined} // Will be fetched client-side
                 />
               </div>
             )}

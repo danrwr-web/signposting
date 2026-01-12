@@ -53,6 +53,7 @@ interface SurgeryFiltersHeaderProps {
   currentSurgeryId?: string
   searchInputRef: RefObject<HTMLInputElement>
   symptoms?: EffectiveSymptom[]
+  commonReasonsItems?: EffectiveSymptom[]
 }
 
 export default function SurgeryFiltersHeader({
@@ -66,7 +67,8 @@ export default function SurgeryFiltersHeader({
   totalCount,
   currentSurgeryId,
   searchInputRef,
-  symptoms
+  symptoms,
+  commonReasonsItems
 }: SurgeryFiltersHeaderProps) {
   const { headerLayout, highRiskStyle } = useCardStyle()
   const activeLayout = headerLayout ?? 'split'
@@ -114,8 +116,8 @@ export default function SurgeryFiltersHeader({
           </div>
         </div>
 
-        {symptoms && (
-          <CommonReasonsRow symptoms={symptoms} surgeryId={currentSurgeryId} />
+        {commonReasonsItems && commonReasonsItems.length > 0 && (
+          <CommonReasonsRow items={commonReasonsItems} surgeryId={currentSurgeryId} />
         )}
 
         <div className="mt-3 overflow-x-auto scrollbar-hide">
@@ -204,8 +206,8 @@ export default function SurgeryFiltersHeader({
               </div>
             </div>
 
-            {symptoms && (
-              <CommonReasonsRow symptoms={symptoms} surgeryId={currentSurgeryId} />
+            {commonReasonsItems && commonReasonsItems.length > 0 && (
+              <CommonReasonsRow items={commonReasonsItems} surgeryId={currentSurgeryId} />
             )}
           </div>
         </div>
