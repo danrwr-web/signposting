@@ -62,7 +62,6 @@ export default function CommonReasonsRow({ items, surgeryId }: CommonReasonsRowP
 
   return (
     <div className="mt-3">
-      <h2 className="text-sm font-medium text-nhs-grey mb-2 px-1">Common reasons for calling</h2>
       <div 
         className="relative"
         onMouseEnter={() => setIsHovered(true)}
