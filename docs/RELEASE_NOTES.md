@@ -4,6 +4,12 @@ A high-level history of major changes.
 
 ---
 
+## Unreleased
+
+- Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
+
+---
+
 ## v1.2 — Workflow Guidance Module (Jan 2026)
 
 ### ✨ New

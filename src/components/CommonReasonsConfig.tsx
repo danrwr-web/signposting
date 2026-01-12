@@ -6,8 +6,13 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { EffectiveSymptom } from '@/server/effectiveSymptoms'
-import { CommonReasonsConfig, UiConfig, CommonReasonsItem } from '@/lib/commonReasons'
+import type { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import {
+  COMMON_REASONS_MAX,
+  type CommonReasonsConfig,
+  type UiConfig,
+  type CommonReasonsItem,
+} from '@/lib/commonReasonsShared'
 import { useRouter } from 'next/navigation'
 
 interface CommonReasonsConfigProps {
@@ -23,21 +28,23 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
   const normalizeInitialItems = (config: CommonReasonsConfig | null | undefined): CommonReasonsItem[] => {
     if (!config) return []
     if (config.items && Array.isArray(config.items)) {
-      return config.items
+      return config.items.slice(0, COMMON_REASONS_MAX)
     }
     if (config.commonReasonsSymptomIds && Array.isArray(config.commonReasonsSymptomIds)) {
-      return config.commonReasonsSymptomIds.map(id => ({ symptomId: id }))
+      return config.commonReasonsSymptomIds
+        .slice(0, COMMON_REASONS_MAX)
+        .map(id => ({ symptomId: id }))
     }
     return []
   }
 
   const [enabled, setEnabled] = useState(initialConfig?.commonReasonsEnabled ?? false)
   const [items, setItems] = useState<CommonReasonsItem[]>(normalizeInitialItems(initialConfig))
-  const [maxChips, setMaxChips] = useState(initialConfig?.commonReasonsMax ?? 8)
   const [searchTerm, setSearchTerm] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(!initialConfig && !!surgeryId)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [limitMessage, setLimitMessage] = useState<string | null>(null)
 
   // Fetch initial config if not provided
   useEffect(() => {
@@ -50,7 +57,6 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
             if (uiConfig?.commonReasons) {
               setEnabled(uiConfig.commonReasons.commonReasonsEnabled)
               setItems(normalizeInitialItems(uiConfig.commonReasons))
-              setMaxChips(uiConfig.commonReasons.commonReasonsMax)
             }
           }
         })
@@ -87,6 +93,11 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
   }, [filteredSymptoms, items])
 
   const handleAddSymptom = (symptomId: string) => {
+    if (items.length >= COMMON_REASONS_MAX) {
+      setLimitMessage(`Up to ${COMMON_REASONS_MAX} quick access buttons can be shown.`)
+      window.setTimeout(() => setLimitMessage(null), 3000)
+      return
+    }
     if (!items.some(i => i.symptomId === symptomId)) {
       setItems([...items, { symptomId }])
     }
@@ -145,7 +156,6 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
           commonReasons: {
             commonReasonsEnabled: enabled,
             items: normalizedItems,
-            commonReasonsMax: maxChips,
           }
         })
       })
@@ -171,21 +181,20 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
   const handleCancel = () => {
     setEnabled(initialConfig?.commonReasonsEnabled ?? false)
     setItems(normalizeInitialItems(initialConfig))
-    setMaxChips(initialConfig?.commonReasonsMax ?? 8)
     setSaveMessage(null)
+    setLimitMessage(null)
   }
 
   const hasChanges = useMemo(() => {
     if (!initialConfig) {
-      return enabled || items.length > 0 || maxChips !== 8
+      return enabled || items.length > 0
     }
     const initialItems = normalizeInitialItems(initialConfig)
     return (
       enabled !== initialConfig.commonReasonsEnabled ||
-      JSON.stringify(items) !== JSON.stringify(initialItems) ||
-      maxChips !== initialConfig.commonReasonsMax
+      JSON.stringify(items) !== JSON.stringify(initialItems)
     )
-  }, [enabled, items, maxChips, initialConfig])
+  }, [enabled, items, initialConfig])
 
   if (isLoading) {
     return (
@@ -200,9 +209,14 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h2 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-        Common Reasons for Calling
-      </h2>
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-nhs-dark-blue">
+          Quick access buttons
+        </h2>
+        <p className="text-sm text-nhs-grey mt-1">
+          These buttons give staff quick access to the most common problems.
+        </p>
+      </div>
 
       <div className="space-y-6">
         {/* Enable/Disable Toggle */}
@@ -215,35 +229,17 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
               className="w-4 h-4 text-nhs-blue border-gray-300 rounded focus:ring-nhs-blue"
             />
             <span className="text-sm font-medium text-gray-700">
-              Enable "Common reasons for calling" row
+              Show quick access buttons on the staff home screen
             </span>
           </label>
         </div>
 
         {enabled && (
           <>
-            {/* Max Chips Setting */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Maximum number of chips
-              </label>
-              <input
-                type="number"
-                min="0"
-                max="20"
-                value={maxChips}
-                onChange={(e) => setMaxChips(Math.max(0, Math.min(20, parseInt(e.target.value) || 0)))}
-                className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Maximum number of chips to display (0-20)
-              </p>
-            </div>
-
             {/* Selected Symptoms */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Selected Symptoms ({selectedItems.length})
+                Selected symptoms ({selectedItems.length}/{COMMON_REASONS_MAX})
               </label>
               {selectedItems.length === 0 ? (
                 <p className="text-sm text-gray-500 italic">No symptoms selected</p>
@@ -303,7 +299,7 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
                           className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                          Leave blank to use the symptom name
+                          Leave blank to use the full symptom name.
                         </p>
                       </div>
                     </div>
@@ -317,6 +313,11 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Add Symptoms
               </label>
+              {limitMessage && (
+                <p className="text-xs text-nhs-grey" aria-live="polite">
+                  {limitMessage}
+                </p>
+              )}
               <div className="relative">
                 <input
                   type="text"

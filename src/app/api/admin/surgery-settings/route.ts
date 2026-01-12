@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { validateCommonReasonsConfig, CommonReasonsConfig, UiConfig } from '@/lib/commonReasons'
+import { COMMON_REASONS_MAX, validateCommonReasonsConfig, type UiConfig } from '@/lib/commonReasons'
 import { revalidatePath } from 'next/cache'
 
 export const runtime = 'nodejs'
@@ -81,7 +81,8 @@ const updateSurgerySettingsSchema = z.object({
   enableImageIcons: z.boolean().optional(),
   commonReasons: z.object({
     commonReasonsEnabled: z.boolean(),
-    commonReasonsMax: z.number().min(0).max(20),
+    // Kept for backward compatibility only; treated as a fixed max everywhere.
+    commonReasonsMax: z.number().min(0).max(20).optional(),
     // New format: items array with optional labels
     items: z.array(z.object({
       symptomId: z.string(),
@@ -188,6 +189,7 @@ export async function PATCH(request: NextRequest) {
               label: label || undefined
             }
           })
+          .slice(0, COMMON_REASONS_MAX)
       } else if (updateData.commonReasons.commonReasonsSymptomIds && Array.isArray(updateData.commonReasons.commonReasonsSymptomIds)) {
         // Legacy format: convert to items
         const seen = new Set<string>()
@@ -198,13 +200,14 @@ export async function PATCH(request: NextRequest) {
             return true
           })
           .map(id => ({ symptomId: id }))
+          .slice(0, COMMON_REASONS_MAX)
       }
 
       const updatedUiConfig: UiConfig = {
         ...currentUiConfig,
         commonReasons: {
           commonReasonsEnabled: updateData.commonReasons.commonReasonsEnabled,
-          commonReasonsMax: updateData.commonReasons.commonReasonsMax,
+          commonReasonsMax: COMMON_REASONS_MAX,
           ...(items ? { items } : {}),
         }
       }

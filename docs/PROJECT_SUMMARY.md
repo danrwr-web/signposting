@@ -29,6 +29,7 @@ Each GP surgery has a fully independent configuration, symptom library, governan
 - Local-only symptoms can be added.
 - Clear badge indicating *base* or *locally modified*.
 - Alphabet filter, age-group filters, search, and high-risk quick buttons.
+- Optional **Quick Access** buttons can be configured by admins to give staff faster access to the most common problems (up to 6).
 
 ### 🔹 Symptom Detail Page
 - Clean NHS-styled layout.

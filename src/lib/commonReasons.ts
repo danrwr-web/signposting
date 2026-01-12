@@ -4,24 +4,15 @@
 
 import 'server-only'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import {
+  COMMON_REASONS_MAX,
+  type CommonReasonsConfig,
+  type CommonReasonsItem,
+  type UiConfig,
+} from '@/lib/commonReasonsShared'
 
-export interface CommonReasonsItem {
-  symptomId: string
-  label?: string | null
-}
-
-export interface CommonReasonsConfig {
-  commonReasonsEnabled: boolean
-  commonReasonsMax: number
-  // New format: items array with optional labels
-  items?: CommonReasonsItem[]
-  // Legacy format: symptomIds array (for backward compatibility)
-  commonReasonsSymptomIds?: string[]
-}
-
-export interface UiConfig {
-  commonReasons?: CommonReasonsConfig
-}
+export { COMMON_REASONS_MAX }
+export type { CommonReasonsConfig, CommonReasonsItem, UiConfig }
 
 export interface CommonReasonsResolvedItem {
   symptom: EffectiveSymptom
@@ -82,6 +73,7 @@ export function getCommonReasonsForSurgery(
   fallbackNames: string[] = FALLBACK_SYMPTOM_NAMES
 ): CommonReasonsResolvedItem[] {
   const config = uiConfig?.commonReasons
+  const max = COMMON_REASONS_MAX
 
   // If config exists and is disabled: render nothing
   if (config && config.commonReasonsEnabled === false) {
@@ -91,7 +83,6 @@ export function getCommonReasonsForSurgery(
   // If config exists and is enabled
   if (config && config.commonReasonsEnabled === true) {
     const items = normalizeCommonReasonsConfig(config)
-    const max = config.commonReasonsMax || 8
 
     // If enabled but no items configured, show nothing (no fallback)
     if (items.length === 0) {
@@ -121,7 +112,7 @@ export function getCommonReasonsForSurgery(
 
   // No config present: use fallback names
   const fallbackSymptoms = getFallbackSymptoms(effectiveSymptoms, fallbackNames)
-  return fallbackSymptoms.map(symptom => ({ symptom }))
+  return fallbackSymptoms.slice(0, max).map(symptom => ({ symptom }))
 }
 
 /**
@@ -210,8 +201,10 @@ export function validateCommonReasonsConfig(
   if (config.commonReasonsMax !== undefined) {
     if (typeof config.commonReasonsMax !== 'number') {
       errors.push('commonReasonsMax must be a number')
-    } else if (config.commonReasonsMax < 0 || config.commonReasonsMax > 20) {
-      errors.push('commonReasonsMax must be between 0 and 20')
+    } else {
+      // Kept only for backward compatibility; UI no longer allows changing this.
+      // Treat as a fixed maximum everywhere.
+      config.commonReasonsMax = COMMON_REASONS_MAX
     }
   }
 

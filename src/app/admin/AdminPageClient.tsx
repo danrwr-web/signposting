@@ -855,7 +855,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
                   { id: 'highlights', label: 'Highlight Config' },
                   { id: 'highrisk', label: 'High-Risk Buttons' },
-                  ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'front-page', label: 'Front Page' }] : []),
+                  ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'front-page', label: 'Quick Access' }] : []),
                   { id: 'engagement', label: 'Engagement' },
                   { id: 'suggestions', label: 'Suggestions', badge: suggestionsBadge },
                   // Features: visible to SUPERUSER and PRACTICE_ADMIN
@@ -1010,7 +1010,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               </div>
             )}
 
-            {/* Front Page Tab */}
+            {/* Quick Access Tab (route remains "front-page") */}
             {activeTab === 'front-page' && (session.type === 'superuser' || session.type === 'surgery') && (
               <div className="space-y-6">
                 <CommonReasonsConfig 

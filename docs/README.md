@@ -25,6 +25,19 @@ Use this site if you are:
 
 The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
 
+- **v1.2 — Jan 2026**
+  - Added Workflow Guidance (visual, governed workflows to guide staff through common processes)
+  - Improved admin and navigation experience across the app and docs
+
+- **v1.1 — Dec 2025**
+  - Added AI Suggested Questions (with clinical review safeguards)
+  - Improved symptom library, filters, and admin dashboard layout
+
+- **v1.0 — Oct–Nov 2025**
+  - First full web release with multi-surgery support, clinical governance, and engagement tracking
+
+See: [Release Notes](RELEASE_NOTES)
+
 ---
 
 ## Documentation
