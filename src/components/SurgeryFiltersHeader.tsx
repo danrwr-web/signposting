@@ -7,6 +7,7 @@ import HighRiskButtons from './HighRiskButtons'
 import CommonReasonsRow from './CommonReasonsRow'
 import { useCardStyle } from '@/context/CardStyleContext'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -53,7 +54,7 @@ interface SurgeryFiltersHeaderProps {
   currentSurgeryId?: string
   searchInputRef: RefObject<HTMLInputElement>
   symptoms?: EffectiveSymptom[]
-  commonReasonsItems?: EffectiveSymptom[]
+  commonReasonsItems?: CommonReasonsResolvedItem[]
 }
 
 export default function SurgeryFiltersHeader({

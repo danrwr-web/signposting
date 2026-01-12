@@ -5,6 +5,7 @@ import CompactToolbar from '@/components/CompactToolbar'
 import VirtualizedGrid from '@/components/VirtualizedGrid'
 import TestUserUsage from '@/components/TestUserUsage'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 import { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
 
@@ -20,7 +21,7 @@ interface HomePageClientProps {
   requiresClinicalReview?: boolean
   surgeryName?: string
   workflowGuidanceEnabled?: boolean
-  commonReasonsItems?: EffectiveSymptom[]
+  commonReasonsItems?: CommonReasonsResolvedItem[]
 }
 
 function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId, workflowGuidanceEnabled, commonReasonsItems }: HomePageClientProps) {

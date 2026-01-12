@@ -81,8 +81,14 @@ const updateSurgerySettingsSchema = z.object({
   enableImageIcons: z.boolean().optional(),
   commonReasons: z.object({
     commonReasonsEnabled: z.boolean(),
-    commonReasonsSymptomIds: z.array(z.string()),
     commonReasonsMax: z.number().min(0).max(20),
+    // New format: items array with optional labels
+    items: z.array(z.object({
+      symptomId: z.string(),
+      label: z.string().optional().nullable(),
+    })).optional(),
+    // Legacy format: symptomIds array (for backward compatibility)
+    commonReasonsSymptomIds: z.array(z.string()).optional(),
   }).optional(),
 })
 
@@ -159,12 +165,40 @@ export async function PATCH(request: NextRequest) {
     // Handle uiConfig update
     if (updateData.commonReasons) {
       const currentUiConfig = (currentSurgery?.uiConfig as UiConfig | null) || {}
+      
+      // Prefer new format (items) if provided, otherwise use legacy format (symptomIds)
+      let items: Array<{ symptomId: string; label?: string | null }> | undefined
+      if (updateData.commonReasons.items && Array.isArray(updateData.commonReasons.items)) {
+        // Normalize: trim labels, convert empty strings to undefined, deduplicate by symptomId
+        const seen = new Set<string>()
+        items = updateData.commonReasons.items
+          .filter(item => {
+            if (!item.symptomId || seen.has(item.symptomId)) return false
+            seen.add(item.symptomId)
+            return true
+          })
+          .map(item => ({
+            symptomId: item.symptomId,
+            label: item.label?.trim() || undefined
+          }))
+      } else if (updateData.commonReasons.commonReasonsSymptomIds && Array.isArray(updateData.commonReasons.commonReasonsSymptomIds)) {
+        // Legacy format: convert to items
+        const seen = new Set<string>()
+        items = updateData.commonReasons.commonReasonsSymptomIds
+          .filter(id => {
+            if (!id || seen.has(id)) return false
+            seen.add(id)
+            return true
+          })
+          .map(id => ({ symptomId: id }))
+      }
+
       const updatedUiConfig: UiConfig = {
         ...currentUiConfig,
         commonReasons: {
           commonReasonsEnabled: updateData.commonReasons.commonReasonsEnabled,
-          commonReasonsSymptomIds: updateData.commonReasons.commonReasonsSymptomIds,
           commonReasonsMax: updateData.commonReasons.commonReasonsMax,
+          ...(items ? { items } : {}),
         }
       }
       data.uiConfig = updatedUiConfig

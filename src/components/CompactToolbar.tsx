@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
 import LogoSizeControl from './LogoSizeControl'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -31,7 +32,7 @@ interface CompactToolbarProps {
   onShowSurgerySelector: (show: boolean) => void
   workflowGuidanceEnabled?: boolean
   symptoms?: EffectiveSymptom[]
-  commonReasonsItems?: EffectiveSymptom[]
+  commonReasonsItems?: CommonReasonsResolvedItem[]
 }
 
 export default function CompactToolbar({

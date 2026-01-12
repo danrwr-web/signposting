@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
-import { CommonReasonsConfig, UiConfig } from '@/lib/commonReasons'
+import { CommonReasonsConfig, UiConfig, CommonReasonsItem } from '@/lib/commonReasons'
 import { useRouter } from 'next/navigation'
 
 interface CommonReasonsConfigProps {
@@ -18,8 +18,21 @@ interface CommonReasonsConfigProps {
 
 export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig }: CommonReasonsConfigProps) {
   const router = useRouter()
+  
+  // Normalize initial config: convert legacy symptomIds to items format
+  const normalizeInitialItems = (config: CommonReasonsConfig | null | undefined): CommonReasonsItem[] => {
+    if (!config) return []
+    if (config.items && Array.isArray(config.items)) {
+      return config.items
+    }
+    if (config.commonReasonsSymptomIds && Array.isArray(config.commonReasonsSymptomIds)) {
+      return config.commonReasonsSymptomIds.map(id => ({ symptomId: id }))
+    }
+    return []
+  }
+
   const [enabled, setEnabled] = useState(initialConfig?.commonReasonsEnabled ?? false)
-  const [selectedIds, setSelectedIds] = useState<string[]>(initialConfig?.commonReasonsSymptomIds ?? [])
+  const [items, setItems] = useState<CommonReasonsItem[]>(normalizeInitialItems(initialConfig))
   const [maxChips, setMaxChips] = useState(initialConfig?.commonReasonsMax ?? 8)
   const [searchTerm, setSearchTerm] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -36,7 +49,7 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
             const uiConfig = data.surgery?.uiConfig as UiConfig | null
             if (uiConfig?.commonReasons) {
               setEnabled(uiConfig.commonReasons.commonReasonsEnabled)
-              setSelectedIds(uiConfig.commonReasons.commonReasonsSymptomIds)
+              setItems(normalizeInitialItems(uiConfig.commonReasons))
               setMaxChips(uiConfig.commonReasons.commonReasonsMax)
             }
           }
@@ -56,43 +69,54 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
     )
   }, [symptoms, searchTerm])
 
-  // Get selected symptoms in order
-  const selectedSymptoms = useMemo(() => {
+  // Get selected symptoms with labels in order
+  const selectedItems = useMemo(() => {
     const symptomMap = new Map(symptoms.map(s => [s.id, s]))
-    return selectedIds
-      .map(id => symptomMap.get(id))
-      .filter((s): s is EffectiveSymptom => s !== undefined)
-  }, [selectedIds, symptoms])
+    return items
+      .map(item => {
+        const symptom = symptomMap.get(item.symptomId)
+        return symptom ? { item, symptom } : null
+      })
+      .filter((x): x is { item: CommonReasonsItem; symptom: EffectiveSymptom } => x !== null)
+  }, [items, symptoms])
 
   // Get available symptoms (not already selected)
   const availableSymptoms = useMemo(() => {
-    const selectedSet = new Set(selectedIds)
+    const selectedSet = new Set(items.map(i => i.symptomId))
     return filteredSymptoms.filter(s => !selectedSet.has(s.id))
-  }, [filteredSymptoms, selectedIds])
+  }, [filteredSymptoms, items])
 
   const handleAddSymptom = (symptomId: string) => {
-    if (!selectedIds.includes(symptomId)) {
-      setSelectedIds([...selectedIds, symptomId])
+    if (!items.some(i => i.symptomId === symptomId)) {
+      setItems([...items, { symptomId }])
     }
     setSearchTerm('')
   }
 
   const handleRemoveSymptom = (symptomId: string) => {
-    setSelectedIds(selectedIds.filter(id => id !== symptomId))
+    setItems(items.filter(i => i.symptomId !== symptomId))
+  }
+
+  const handleUpdateLabel = (symptomId: string, label: string) => {
+    setItems(items.map(i => 
+      i.symptomId === symptomId 
+        ? { ...i, label: label.trim() || undefined }
+        : i
+    ))
   }
 
   const handleMoveUp = (index: number) => {
     if (index === 0) return
-    const newIds = [...selectedIds]
-    ;[newIds[index - 1], newIds[index]] = [newIds[index], newIds[index - 1]]
-    setSelectedIds(newIds)
+    const newItems = [...items]
+    ;[newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]]
+    setItems(newItems)
   }
 
   const handleMoveDown = (index: number) => {
-    if (index === selectedIds.length - 1) return
-    const newIds = [...selectedIds]
-    ;[newIds[index], newIds[index + 1]] = [newIds[index + 1], newIds[index]]
-    setSelectedIds(newIds)
+    if (index === items.length - 1) return
+    const newItems = [...items]
+    ;[newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]]
+    setItems(newItems)
   }
 
   const handleSave = async () => {
@@ -100,13 +124,19 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
     setSaveMessage(null)
 
     try {
+      // Normalize items: trim labels, convert empty strings to undefined
+      const normalizedItems = items.map(item => ({
+        symptomId: item.symptomId,
+        label: item.label?.trim() || undefined
+      }))
+
       const response = await fetch('/api/admin/surgery-settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           commonReasons: {
             commonReasonsEnabled: enabled,
-            commonReasonsSymptomIds: selectedIds,
+            items: normalizedItems,
             commonReasonsMax: maxChips,
           }
         })
@@ -132,21 +162,22 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
 
   const handleCancel = () => {
     setEnabled(initialConfig?.commonReasonsEnabled ?? false)
-    setSelectedIds(initialConfig?.commonReasonsSymptomIds ?? [])
+    setItems(normalizeInitialItems(initialConfig))
     setMaxChips(initialConfig?.commonReasonsMax ?? 8)
     setSaveMessage(null)
   }
 
   const hasChanges = useMemo(() => {
     if (!initialConfig) {
-      return enabled || selectedIds.length > 0 || maxChips !== 8
+      return enabled || items.length > 0 || maxChips !== 8
     }
+    const initialItems = normalizeInitialItems(initialConfig)
     return (
       enabled !== initialConfig.commonReasonsEnabled ||
-      JSON.stringify(selectedIds) !== JSON.stringify(initialConfig.commonReasonsSymptomIds) ||
+      JSON.stringify(items) !== JSON.stringify(initialItems) ||
       maxChips !== initialConfig.commonReasonsMax
     )
-  }, [enabled, selectedIds, maxChips, initialConfig])
+  }, [enabled, items, maxChips, initialConfig])
 
   if (isLoading) {
     return (
@@ -204,50 +235,68 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
             {/* Selected Symptoms */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Selected Symptoms ({selectedSymptoms.length})
+                Selected Symptoms ({selectedItems.length})
               </label>
-              {selectedSymptoms.length === 0 ? (
+              {selectedItems.length === 0 ? (
                 <p className="text-sm text-gray-500 italic">No symptoms selected</p>
               ) : (
-                <div className="space-y-2">
-                  {selectedSymptoms.map((symptom, index) => (
+                <div className="space-y-3">
+                  {selectedItems.map(({ item, symptom }, index) => (
                     <div
                       key={symptom.id}
-                      className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200"
+                      className="p-3 bg-gray-50 rounded border border-gray-200 space-y-2"
                     >
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{symptom.name}</div>
-                        <div className="text-xs text-gray-500">
-                          {symptom.ageGroup} • {symptom.briefInstruction || 'No brief instruction'}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-gray-900">{symptom.name}</div>
+                          <div className="text-xs text-gray-500">
+                            {symptom.ageGroup} • {symptom.briefInstruction || 'No brief instruction'}
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveUp(index)}
+                            disabled={index === 0}
+                            className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Move up"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveDown(index)}
+                            disabled={index === selectedItems.length - 1}
+                            className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Move down"
+                          >
+                            ↓
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSymptom(symptom.id)}
+                            className="px-2 py-1 text-xs bg-red-50 text-red-700 border border-red-300 rounded hover:bg-red-100"
+                            aria-label="Remove"
+                          >
+                            Remove
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          onClick={() => handleMoveUp(index)}
-                          disabled={index === 0}
-                          className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          aria-label="Move up"
-                        >
-                          ↑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleMoveDown(index)}
-                          disabled={index === selectedSymptoms.length - 1}
-                          className="px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          aria-label="Move down"
-                        >
-                          ↓
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSymptom(symptom.id)}
-                          className="px-2 py-1 text-xs bg-red-50 text-red-700 border border-red-300 rounded hover:bg-red-100"
-                          aria-label="Remove"
-                        >
-                          Remove
-                        </button>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          Button label (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={item.label || ''}
+                          onChange={(e) => handleUpdateLabel(symptom.id, e.target.value)}
+                          placeholder={symptom.name}
+                          maxLength={32}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Leave blank to use the symptom name
+                        </p>
                       </div>
                     </div>
                   ))}

@@ -5,14 +5,27 @@
 import 'server-only'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 
+export interface CommonReasonsItem {
+  symptomId: string
+  label?: string | null
+}
+
 export interface CommonReasonsConfig {
   commonReasonsEnabled: boolean
-  commonReasonsSymptomIds: string[]
   commonReasonsMax: number
+  // New format: items array with optional labels
+  items?: CommonReasonsItem[]
+  // Legacy format: symptomIds array (for backward compatibility)
+  commonReasonsSymptomIds?: string[]
 }
 
 export interface UiConfig {
   commonReasons?: CommonReasonsConfig
+}
+
+export interface CommonReasonsResolvedItem {
+  symptom: EffectiveSymptom
+  label?: string | null
 }
 
 // Hard-coded fallback list of symptom names
@@ -28,14 +41,46 @@ const FALLBACK_SYMPTOM_NAMES = [
 ]
 
 /**
- * Get common reasons symptoms for a surgery
- * Returns configured symptoms if available, otherwise falls back to hard-coded defaults
+ * Normalize common reasons config to new format (items array)
+ * Handles backward compatibility by converting legacy symptomIds to items
+ */
+export function normalizeCommonReasonsConfig(config: CommonReasonsConfig): CommonReasonsItem[] {
+  // Prefer new format if present
+  if (config.items && Array.isArray(config.items)) {
+    // Deduplicate by symptomId, preserving first occurrence
+    const seen = new Set<string>()
+    return config.items.filter(item => {
+      if (!item.symptomId || seen.has(item.symptomId)) return false
+      seen.add(item.symptomId)
+      return true
+    })
+  }
+
+  // Legacy format: convert symptomIds to items
+  if (config.commonReasonsSymptomIds && Array.isArray(config.commonReasonsSymptomIds)) {
+    // Deduplicate by symptomId, preserving first occurrence
+    const seen = new Set<string>()
+    return config.commonReasonsSymptomIds
+      .filter(id => {
+        if (!id || seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+      .map(id => ({ symptomId: id }))
+  }
+
+  return []
+}
+
+/**
+ * Get common reasons items for a surgery with resolved symptoms and labels
+ * Returns resolved items if available, otherwise falls back to hard-coded defaults
  */
 export function getCommonReasonsForSurgery(
   uiConfig: UiConfig | null | undefined,
   effectiveSymptoms: EffectiveSymptom[],
   fallbackNames: string[] = FALLBACK_SYMPTOM_NAMES
-): EffectiveSymptom[] {
+): CommonReasonsResolvedItem[] {
   const config = uiConfig?.commonReasons
 
   // If config exists and is disabled: render nothing
@@ -45,21 +90,26 @@ export function getCommonReasonsForSurgery(
 
   // If config exists and is enabled
   if (config && config.commonReasonsEnabled === true) {
-    const ids = config.commonReasonsSymptomIds || []
+    const items = normalizeCommonReasonsConfig(config)
     const max = config.commonReasonsMax || 8
 
-    // If enabled but no ids configured, show nothing (no fallback)
-    if (ids.length === 0) {
+    // If enabled but no items configured, show nothing (no fallback)
+    if (items.length === 0) {
       return []
     }
 
     const symptomMap = new Map(effectiveSymptoms.map(s => [s.id, s]))
-    const resolved: EffectiveSymptom[] = []
+    const resolved: CommonReasonsResolvedItem[] = []
 
-    for (const symptomId of ids) {
-      const symptom = symptomMap.get(symptomId)
+    for (const item of items) {
+      const symptom = symptomMap.get(item.symptomId)
       if (symptom && !symptom.isHidden) {
-        resolved.push(symptom)
+        // Normalize label: trim whitespace, convert empty string to null
+        const label = item.label?.trim() || null
+        resolved.push({
+          symptom,
+          label: label || undefined
+        })
         if (resolved.length >= max) break
       }
     }
@@ -69,7 +119,8 @@ export function getCommonReasonsForSurgery(
   }
 
   // No config present: use fallback names
-  return getFallbackSymptoms(effectiveSymptoms, fallbackNames)
+  const fallbackSymptoms = getFallbackSymptoms(effectiveSymptoms, fallbackNames)
+  return fallbackSymptoms.map(symptom => ({ symptom }))
 }
 
 /**
@@ -106,6 +157,42 @@ export function validateCommonReasonsConfig(
     errors.push('commonReasonsEnabled must be a boolean')
   }
 
+  // Validate new format (items)
+  if (config.items !== undefined) {
+    if (!Array.isArray(config.items)) {
+      errors.push('items must be an array')
+    } else {
+      const seen = new Set<string>()
+      for (const item of config.items) {
+        if (!item.symptomId || typeof item.symptomId !== 'string') {
+          errors.push('All items must have a symptomId string')
+        } else if (seen.has(item.symptomId)) {
+          errors.push(`Duplicate symptomId: ${item.symptomId}`)
+        } else {
+          seen.add(item.symptomId)
+        }
+        if (item.label !== undefined && item.label !== null && typeof item.label !== 'string') {
+          errors.push('Label must be a string or null')
+        }
+      }
+      // Deduplicate by symptomId, preserving first occurrence
+      if (errors.length === 0) {
+        const uniqueItems: CommonReasonsItem[] = []
+        const seenIds = new Set<string>()
+        for (const item of config.items) {
+          if (!seenIds.has(item.symptomId)) {
+            seenIds.add(item.symptomId)
+            // Normalize label: trim whitespace, convert empty string to undefined
+            const label = item.label?.trim() || undefined
+            uniqueItems.push({ symptomId: item.symptomId, label })
+          }
+        }
+        config.items = uniqueItems
+      }
+    }
+  }
+
+  // Validate legacy format (commonReasonsSymptomIds) for backward compatibility
   if (config.commonReasonsSymptomIds !== undefined) {
     if (!Array.isArray(config.commonReasonsSymptomIds)) {
       errors.push('commonReasonsSymptomIds must be an array')

@@ -2,10 +2,10 @@
 
 import Link from 'next/link'
 import { useRef, useState, useEffect } from 'react'
-import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 
 interface CommonReasonsRowProps {
-  items: EffectiveSymptom[]
+  items: CommonReasonsResolvedItem[]
   surgeryId?: string
 }
 
@@ -112,15 +112,16 @@ export default function CommonReasonsRow({ items, surgeryId }: CommonReasonsRowP
           className="overflow-x-auto scrollbar-hide"
         >
           <div className="flex gap-2 pb-2 min-w-max">
-            {items.map((symptom) => {
-              const href = `/symptom/${symptom.id}${surgeryId ? `?surgery=${surgeryId}` : ''}`
+            {items.map((item) => {
+              const href = `/symptom/${item.symptom.id}${surgeryId ? `?surgery=${surgeryId}` : ''}`
+              const displayLabel = item.label || item.symptom.name
               return (
                 <Link
-                  key={symptom.id}
+                  key={item.symptom.id}
                   href={href}
                   className="inline-flex items-center justify-center h-9 px-4 rounded-full bg-white border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:border-slate-400 hover:shadow-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 focus-visible:bg-slate-100 focus-visible:border-slate-400 focus-visible:underline whitespace-nowrap transition-all duration-150"
                 >
-                  {symptom.name}
+                  {displayLabel}
                 </Link>
               )
             })}
