@@ -4,7 +4,9 @@ import { RefObject } from 'react'
 import SearchBox from './SearchBox'
 import AgeFilter from './AgeFilter'
 import HighRiskButtons from './HighRiskButtons'
+import CommonReasonsRow from './CommonReasonsRow'
 import { useCardStyle } from '@/context/CardStyleContext'
+import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -50,6 +52,7 @@ interface SurgeryFiltersHeaderProps {
   totalCount: number
   currentSurgeryId?: string
   searchInputRef: RefObject<HTMLInputElement>
+  symptoms?: EffectiveSymptom[]
 }
 
 export default function SurgeryFiltersHeader({
@@ -62,7 +65,8 @@ export default function SurgeryFiltersHeader({
   resultsCount,
   totalCount,
   currentSurgeryId,
-  searchInputRef
+  searchInputRef,
+  symptoms
 }: SurgeryFiltersHeaderProps) {
   const { headerLayout, highRiskStyle } = useCardStyle()
   const activeLayout = headerLayout ?? 'split'
@@ -109,6 +113,10 @@ export default function SurgeryFiltersHeader({
             />
           </div>
         </div>
+
+        {symptoms && (
+          <CommonReasonsRow symptoms={symptoms} surgeryId={currentSurgeryId} />
+        )}
 
         <div className="mt-3 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 pb-2 min-w-max">
@@ -195,6 +203,10 @@ export default function SurgeryFiltersHeader({
                 </div>
               </div>
             </div>
+
+            {symptoms && (
+              <CommonReasonsRow symptoms={symptoms} surgeryId={currentSurgeryId} />
+            )}
           </div>
         </div>
 

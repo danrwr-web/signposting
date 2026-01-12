@@ -207,6 +207,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
         workflowGuidanceEnabled={workflowGuidanceEnabled}
+        symptoms={symptoms}
       />
 
       {/* Clinical Review Warning Banner */}

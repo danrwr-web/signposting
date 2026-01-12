@@ -11,6 +11,7 @@ import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
 import LogoSizeControl from './LogoSizeControl'
+import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -29,6 +30,7 @@ interface CompactToolbarProps {
   showSurgerySelector: boolean
   onShowSurgerySelector: (show: boolean) => void
   workflowGuidanceEnabled?: boolean
+  symptoms?: EffectiveSymptom[]
 }
 
 export default function CompactToolbar({
@@ -45,6 +47,7 @@ export default function CompactToolbar({
   showSurgerySelector,
   onShowSurgerySelector,
   workflowGuidanceEnabled,
+  symptoms,
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const pathname = usePathname() || ''
@@ -222,6 +225,7 @@ export default function CompactToolbar({
         totalCount={totalCount}
         currentSurgeryId={currentSurgeryId}
         searchInputRef={searchInputRef}
+        symptoms={symptoms}
       />
 
       {/* User Preferences Modal */}
