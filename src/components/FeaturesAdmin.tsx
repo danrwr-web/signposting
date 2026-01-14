@@ -105,6 +105,7 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
     if (!currentSurgeryId) return
 
     try {
+      const featureMeta = features.find((f) => f.id === featureId) || surgeryFeatures.find((f) => f.id === featureId)
       const res = await fetch('/api/surgeryFeatures', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,7 +121,19 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
         throw new Error(error.error || 'Failed to update surgery feature')
       }
 
-      toast.success('Surgery feature updated')
+      const json = await res.json().catch(() => null as any)
+      if (featureMeta?.key === 'admin_toolkit' && enabled === true) {
+        const seedStatus = json?.seedResult?.status
+        if (seedStatus === 'seeded') {
+          toast.success('Admin Toolkit enabled and starter kit added')
+        } else {
+          toast.success('Admin Toolkit enabled')
+        }
+      } else if (featureMeta?.key === 'admin_toolkit' && enabled === false) {
+        toast.success('Admin Toolkit disabled')
+      } else {
+        toast.success('Surgery feature updated')
+      }
       
       // Reload surgery features
       const surgeryFeaturesRes = await fetch(`/api/surgeryFeatures?surgeryId=${currentSurgeryId}`)
