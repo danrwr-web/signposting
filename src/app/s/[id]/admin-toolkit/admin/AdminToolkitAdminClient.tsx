@@ -35,7 +35,25 @@ interface AdminToolkitAdminClientProps {
   initialItemId?: string
 }
 
-const CREATE_PAGE_SENTINEL = '__create_page__'
+type PageEditorMode = 'create' | 'edit'
+
+type PageFormState = {
+  title: string
+  categoryId: string | null
+  warningLevel: string
+  contentHtml: string
+  lastReviewedDate: string // YYYY-MM-DD (local input), stored as UTC midnight when saving
+  editorUserIds: string[]
+}
+
+const DEFAULT_PAGE_FORM: PageFormState = {
+  title: '',
+  categoryId: null,
+  warningLevel: '',
+  contentHtml: '',
+  lastReviewedDate: '',
+  editorUserIds: [],
+}
 
 function addDaysIso(weekCommencingIso: string, days: number): string {
   const d = new Date(`${weekCommencingIso}T00:00:00.000Z`)
@@ -81,22 +99,13 @@ export default function AdminToolkitAdminClient({
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null)
   const [renamingValue, setRenamingValue] = useState('')
 
+  const [mode, setMode] = useState<PageEditorMode>(() => (initialItemId ? 'edit' : 'edit'))
   const [selectedItemId, setSelectedItemId] = useState<string | null>(initialItemId || (items[0]?.id ?? null))
-  const isCreateMode = selectedItemId === CREATE_PAGE_SENTINEL
-
-  const selectedItem = useMemo(
-    () => (isCreateMode ? null : items.find((i) => i.id === selectedItemId) || null),
-    [items, selectedItemId, isCreateMode],
-  )
-
-  const [itemTitle, setItemTitle] = useState(selectedItem?.title ?? '')
-  const [itemCategoryId, setItemCategoryId] = useState<string | null>(selectedItem?.categoryId ?? null)
-  const [itemWarningLevel, setItemWarningLevel] = useState<string>(selectedItem?.warningLevel ?? '')
-  const [itemContentHtml, setItemContentHtml] = useState<string>(selectedItem?.contentHtml ?? '')
-  const [itemLastReviewedAt, setItemLastReviewedAt] = useState<string>(
-    selectedItem?.lastReviewedAt ? new Date(selectedItem.lastReviewedAt).toISOString().slice(0, 10) : '',
-  )
-  const [itemEditorUserIds, setItemEditorUserIds] = useState<string[]>(selectedItem?.editors.map((e) => e.userId) ?? [])
+  const selectedItem = useMemo(() => (selectedItemId ? items.find((i) => i.id === selectedItemId) || null : null), [
+    items,
+    selectedItemId,
+  ])
+  const [form, setForm] = useState<PageFormState>(DEFAULT_PAGE_FORM)
   const [showAddAnotherHint, setShowAddAnotherHint] = useState(false)
 
   const [panelTaskBuddy, setPanelTaskBuddy] = useState(initialPanel.taskBuddyText ?? '')
@@ -112,30 +121,33 @@ export default function AdminToolkitAdminClient({
     return map
   })
 
-  function syncSelectedItemToForm(id: string | null, sourceItems: AdminToolkitPageItem[] = items) {
-    setSelectedItemId(id)
-    if (id === CREATE_PAGE_SENTINEL) {
-      return
-    }
-    const item = sourceItems.find((i) => i.id === id) || null
-    setItemTitle(item?.title ?? '')
-    setItemCategoryId(item?.categoryId ?? null)
-    setItemWarningLevel(item?.warningLevel ?? '')
-    setItemContentHtml(item?.contentHtml ?? '')
-    setItemLastReviewedAt(item?.lastReviewedAt ? new Date(item.lastReviewedAt).toISOString().slice(0, 10) : '')
-    setItemEditorUserIds(item?.editors.map((e) => e.userId) ?? [])
+  function focusTitle() {
+    requestAnimationFrame(() => titleInputRef.current?.focus())
   }
 
-  function resetCreateForm(focusTitle = false) {
-    setItemTitle('')
-    setItemCategoryId(null)
-    setItemWarningLevel('')
-    setItemContentHtml('')
-    setItemLastReviewedAt('')
-    setItemEditorUserIds([])
-    if (focusTitle) {
-      requestAnimationFrame(() => titleInputRef.current?.focus())
+  function formFromItem(item: AdminToolkitPageItem): PageFormState {
+    return {
+      title: item.title ?? '',
+      categoryId: item.categoryId ?? null,
+      warningLevel: item.warningLevel ?? '',
+      contentHtml: item.contentHtml ?? '',
+      lastReviewedDate: item.lastReviewedAt ? new Date(item.lastReviewedAt).toISOString().slice(0, 10) : '',
+      editorUserIds: item.editors.map((e) => e.userId),
     }
+  }
+
+  function enterCreateMode() {
+    setMode('create')
+    setSelectedItemId(null)
+    setShowAddAnotherHint(false)
+    setForm(DEFAULT_PAGE_FORM)
+    focusTitle()
+  }
+
+  function enterEditMode(itemId: string) {
+    setMode('edit')
+    setSelectedItemId(itemId)
+    setShowAddAnotherHint(false)
   }
 
   function toUtcMidnightIso(dateOnly: string): string {
@@ -151,6 +163,17 @@ export default function AdminToolkitAdminClient({
   useEffect(() => {
     setItems(initialItems)
   }, [initialItems])
+
+  useEffect(() => {
+    // Populate the form when switching items in edit mode.
+    // Important: do not run in create mode, otherwise the create form becomes pre-filled.
+    if (mode !== 'edit') return
+    if (!selectedItemId) return
+    const item = items.find((i) => i.id === selectedItemId) || null
+    if (!item) return
+    setForm(formFromItem(item))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, selectedItemId])
 
   useEffect(() => {
     setPanelTaskBuddy(initialPanel.taskBuddyText ?? '')
@@ -200,26 +223,30 @@ export default function AdminToolkitAdminClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWeekCommencingIso, surgeryId])
   useEffect(() => {
-    // Ensure selection remains valid after refresh
-    if (selectedItemId === CREATE_PAGE_SENTINEL) {
-      // In create mode we keep the user's in-progress inputs as-is.
+    // Keep form in sync with latest server item, but NEVER overwrite while creating.
+    if (mode === 'create') {
       return
     }
-    if (!selectedItemId) {
-      if (initialItems[0]?.id) {
-        syncSelectedItemToForm(initialItems[0].id, initialItems)
-      }
+
+    const nextId = selectedItemId ?? initialItems[0]?.id ?? null
+    if (!nextId) {
       return
     }
-    const exists = initialItems.some((i) => i.id === selectedItemId)
-    if (!exists) {
-      syncSelectedItemToForm(initialItems[0]?.id ?? null, initialItems)
-      return
+
+    const exists = initialItems.some((i) => i.id === nextId)
+    const finalId = exists ? nextId : initialItems[0]?.id ?? null
+    if (!finalId) return
+
+    if (finalId !== selectedItemId) {
+      setSelectedItemId(finalId)
     }
-    // Keep form in sync with latest server item
-    syncSelectedItemToForm(selectedItemId, initialItems)
+
+    const item = initialItems.find((i) => i.id === finalId) || null
+    if (item) {
+      setForm(formFromItem(item))
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialItems, selectedItemId])
+  }, [initialItems, selectedItemId, mode])
 
   const refresh = async () => {
     router.refresh()
@@ -406,9 +433,7 @@ export default function AdminToolkitAdminClient({
             type="button"
             className="nhs-button"
             onClick={() => {
-              setShowAddAnotherHint(false)
-              syncSelectedItemToForm(CREATE_PAGE_SENTINEL)
-              resetCreateForm(true)
+              enterCreateMode()
             }}
           >
             New PAGE
@@ -422,13 +447,11 @@ export default function AdminToolkitAdminClient({
               <button
                 type="button"
                 onClick={() => {
-                  setShowAddAnotherHint(false)
-                  syncSelectedItemToForm(CREATE_PAGE_SENTINEL)
-                  resetCreateForm(true)
+                  enterCreateMode()
                 }}
                 className={[
                   'w-full text-left rounded-md px-3 py-2 text-sm border',
-                  isCreateMode ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
+                  mode === 'create' ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
                 ].join(' ')}
               >
                 <span className="font-medium text-gray-900">+ Create new page</span>
@@ -446,8 +469,7 @@ export default function AdminToolkitAdminClient({
                       key={it.id}
                       type="button"
                       onClick={() => {
-                        setShowAddAnotherHint(false)
-                        syncSelectedItemToForm(it.id)
+                        enterEditMode(it.id)
                       }}
                       className={[
                         'w-full text-left rounded-md px-3 py-2 text-sm border',
@@ -469,7 +491,7 @@ export default function AdminToolkitAdminClient({
           </aside>
 
           <div className="rounded-lg border border-gray-200 bg-white p-4">
-            {isCreateMode ? (
+            {mode === 'create' ? (
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -490,8 +512,8 @@ export default function AdminToolkitAdminClient({
                     <input
                       ref={titleInputRef}
                       className="w-full nhs-input"
-                      value={itemTitle}
-                      onChange={(e) => setItemTitle(e.target.value)}
+                      value={form.title}
+                      onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                       placeholder="e.g. How to process discharge summaries"
                     />
                   </div>
@@ -499,8 +521,8 @@ export default function AdminToolkitAdminClient({
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                     <select
                       className="w-full nhs-input"
-                      value={itemCategoryId ?? ''}
-                      onChange={(e) => setItemCategoryId(e.target.value ? e.target.value : null)}
+                      value={form.categoryId ?? ''}
+                      onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
                     >
                       <option value="">Uncategorised</option>
                       {categories.map((c) => (
@@ -517,8 +539,8 @@ export default function AdminToolkitAdminClient({
                     <label className="block text-sm font-medium text-gray-700 mb-1">Warning badge (optional)</label>
                     <input
                       className="w-full nhs-input"
-                      value={itemWarningLevel}
-                      onChange={(e) => setItemWarningLevel(e.target.value)}
+                      value={form.warningLevel}
+                      onChange={(e) => setForm((prev) => ({ ...prev, warningLevel: e.target.value }))}
                       placeholder="e.g. Urgent"
                     />
                   </div>
@@ -527,8 +549,8 @@ export default function AdminToolkitAdminClient({
                     <input
                       type="date"
                       className="w-full nhs-input"
-                      value={itemLastReviewedAt}
-                      onChange={(e) => setItemLastReviewedAt(e.target.value)}
+                      value={form.lastReviewedDate}
+                      onChange={(e) => setForm((prev) => ({ ...prev, lastReviewedDate: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -537,8 +559,8 @@ export default function AdminToolkitAdminClient({
                   <label className="block text-sm font-medium text-gray-700">Content</label>
                   <div className="mt-2">
                     <RichTextEditor
-                      value={itemContentHtml}
-                      onChange={(html) => setItemContentHtml(sanitizeHtml(html))}
+                      value={form.contentHtml}
+                      onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
                       height={260}
                       placeholder="Write guidance for staff…"
                     />
@@ -555,7 +577,7 @@ export default function AdminToolkitAdminClient({
                       <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
                     ) : (
                       editorCandidates.map((u) => {
-                        const checked = itemEditorUserIds.includes(u.id)
+                        const checked = form.editorUserIds.includes(u.id)
                         const label = u.name ? `${u.name} (${u.email})` : u.email
                         return (
                           <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
@@ -563,9 +585,11 @@ export default function AdminToolkitAdminClient({
                               type="checkbox"
                               checked={checked}
                               onChange={(e) => {
-                                setItemEditorUserIds((prev) => {
-                                  if (e.target.checked) return Array.from(new Set([...prev, u.id]))
-                                  return prev.filter((x) => x !== u.id)
+                                setForm((prev) => {
+                                  const nextIds = e.target.checked
+                                    ? Array.from(new Set([...prev.editorUserIds, u.id]))
+                                    : prev.editorUserIds.filter((x) => x !== u.id)
+                                  return { ...prev, editorUserIds: nextIds }
                                 })
                               }}
                             />
@@ -583,7 +607,8 @@ export default function AdminToolkitAdminClient({
                     className="nhs-button-secondary"
                     onClick={() => {
                       setShowAddAnotherHint(false)
-                      resetCreateForm(true)
+                      setForm(DEFAULT_PAGE_FORM)
+                      focusTitle()
                     }}
                   >
                     Clear
@@ -591,26 +616,26 @@ export default function AdminToolkitAdminClient({
                   <button
                     type="button"
                     className="nhs-button"
-                    disabled={!itemTitle.trim()}
+                    disabled={!form.title.trim()}
                     onClick={async () => {
                       const res = await createAdminToolkitPageItem({
                         surgeryId,
-                        title: itemTitle,
-                        categoryId: itemCategoryId,
-                        contentHtml: itemContentHtml,
-                        warningLevel: itemWarningLevel || null,
-                        lastReviewedAt: itemLastReviewedAt ? toUtcMidnightIso(itemLastReviewedAt) : null,
+                        title: form.title,
+                        categoryId: form.categoryId,
+                        contentHtml: form.contentHtml,
+                        warningLevel: form.warningLevel || null,
+                        lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
                       })
                       if (!res.ok) {
                         toast.error(res.error.message)
                         return
                       }
                       // Optional: apply restrictions immediately after create.
-                      if (itemEditorUserIds.length > 0) {
+                      if (form.editorUserIds.length > 0) {
                         const r = await setAdminToolkitItemEditors({
                           surgeryId,
                           itemId: res.data.id,
-                          editorUserIds: itemEditorUserIds,
+                          editorUserIds: form.editorUserIds,
                         })
                         if (!r.ok) {
                           toast.error(r.error.message)
@@ -620,7 +645,8 @@ export default function AdminToolkitAdminClient({
 
                       toast.success('Page created')
                       setShowAddAnotherHint(true)
-                      resetCreateForm(true)
+                      setForm(DEFAULT_PAGE_FORM)
+                      focusTitle()
                       await refresh()
                     }}
                   >
@@ -638,16 +664,16 @@ export default function AdminToolkitAdminClient({
                     <input
                       ref={titleInputRef}
                       className="w-full nhs-input"
-                      value={itemTitle}
-                      onChange={(e) => setItemTitle(e.target.value)}
+                      value={form.title}
+                      onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                     <select
                       className="w-full nhs-input"
-                      value={itemCategoryId ?? ''}
-                      onChange={(e) => setItemCategoryId(e.target.value ? e.target.value : null)}
+                      value={form.categoryId ?? ''}
+                      onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
                     >
                       <option value="">Uncategorised</option>
                       {categories.map((c) => (
@@ -664,8 +690,8 @@ export default function AdminToolkitAdminClient({
                     <label className="block text-sm font-medium text-gray-700 mb-1">Warning badge (optional)</label>
                     <input
                       className="w-full nhs-input"
-                      value={itemWarningLevel}
-                      onChange={(e) => setItemWarningLevel(e.target.value)}
+                      value={form.warningLevel}
+                      onChange={(e) => setForm((prev) => ({ ...prev, warningLevel: e.target.value }))}
                       placeholder="e.g. Urgent"
                     />
                   </div>
@@ -674,8 +700,8 @@ export default function AdminToolkitAdminClient({
                     <input
                       type="date"
                       className="w-full nhs-input"
-                      value={itemLastReviewedAt}
-                      onChange={(e) => setItemLastReviewedAt(e.target.value)}
+                      value={form.lastReviewedDate}
+                      onChange={(e) => setForm((prev) => ({ ...prev, lastReviewedDate: e.target.value }))}
                     />
                   </div>
                 </div>
@@ -683,19 +709,21 @@ export default function AdminToolkitAdminClient({
                 <div>
                   <div className="flex items-center justify-between gap-3">
                     <label className="block text-sm font-medium text-gray-700">Content</label>
-                    <a
-                      className="text-sm text-nhs-blue hover:underline"
-                      href={`/s/${surgeryId}/admin-toolkit/${selectedItem.id}`}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                    >
-                      Open item
-                    </a>
+                    {mode === 'edit' ? (
+                      <a
+                        className="text-sm text-nhs-blue hover:underline"
+                        href={`/s/${surgeryId}/admin-toolkit/${selectedItem.id}`}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                      >
+                        Open item
+                      </a>
+                    ) : null}
                   </div>
                   <div className="mt-2">
                     <RichTextEditor
-                      value={itemContentHtml}
-                      onChange={(html) => setItemContentHtml(sanitizeHtml(html))}
+                      value={form.contentHtml}
+                      onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
                       height={260}
                       placeholder="Write guidance for staff…"
                     />
@@ -712,7 +740,7 @@ export default function AdminToolkitAdminClient({
                       <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
                     ) : (
                       editorCandidates.map((u) => {
-                        const checked = itemEditorUserIds.includes(u.id)
+                        const checked = form.editorUserIds.includes(u.id)
                         const label = u.name ? `${u.name} (${u.email})` : u.email
                         return (
                           <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
@@ -720,9 +748,11 @@ export default function AdminToolkitAdminClient({
                               type="checkbox"
                               checked={checked}
                               onChange={(e) => {
-                                setItemEditorUserIds((prev) => {
-                                  if (e.target.checked) return Array.from(new Set([...prev, u.id]))
-                                  return prev.filter((x) => x !== u.id)
+                                setForm((prev) => {
+                                  const nextIds = e.target.checked
+                                    ? Array.from(new Set([...prev.editorUserIds, u.id]))
+                                    : prev.editorUserIds.filter((x) => x !== u.id)
+                                  return { ...prev, editorUserIds: nextIds }
                                 })
                               }}
                             />
@@ -740,7 +770,7 @@ export default function AdminToolkitAdminClient({
                         const res = await setAdminToolkitItemEditors({
                           surgeryId,
                           itemId: selectedItem.id,
-                          editorUserIds: itemEditorUserIds,
+                          editorUserIds: form.editorUserIds,
                         })
                         if (!res.ok) {
                           toast.error(res.error.message)
@@ -759,7 +789,10 @@ export default function AdminToolkitAdminClient({
                   <button
                     type="button"
                     className="nhs-button-secondary"
-                    onClick={() => syncSelectedItemToForm(selectedItem.id)}
+                    onClick={() => {
+                      setForm(formFromItem(selectedItem))
+                      focusTitle()
+                    }}
                   >
                     Reset changes
                   </button>
@@ -770,17 +803,18 @@ export default function AdminToolkitAdminClient({
                       const res = await updateAdminToolkitPageItem({
                         surgeryId,
                         itemId: selectedItem.id,
-                        title: itemTitle,
-                        categoryId: itemCategoryId,
-                        contentHtml: itemContentHtml,
-                        warningLevel: itemWarningLevel || null,
-                        lastReviewedAt: itemLastReviewedAt ? new Date(itemLastReviewedAt).toISOString() : null,
+                        title: form.title,
+                        categoryId: form.categoryId,
+                        contentHtml: form.contentHtml,
+                        warningLevel: form.warningLevel || null,
+                        lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
                       })
                       if (!res.ok) {
                         toast.error(res.error.message)
                         return
                       }
                       toast.success('Item saved')
+                      setMode('edit')
                       await refresh()
                     }}
                   >
