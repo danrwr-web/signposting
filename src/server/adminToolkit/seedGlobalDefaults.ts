@@ -21,12 +21,12 @@ export async function seedAdminToolkitGlobalDefaults(opts?: { force?: boolean })
   const force = opts?.force === true
 
   const surgery = await prisma.surgery.findFirst({
-    where: { OR: [{ slug: GLOBAL_DEFAULTS_SLUG }, { name: 'global-default-buttons' }] },
+    where: { OR: [{ id: GLOBAL_DEFAULTS_SLUG }, { slug: GLOBAL_DEFAULTS_SLUG }, { name: GLOBAL_DEFAULTS_SLUG }] },
     select: { id: true, name: true, slug: true },
   })
 
   if (!surgery) {
-    throw new Error(`Global defaults surgery not found (slug "${GLOBAL_DEFAULTS_SLUG}").`)
+    throw new Error(`Global defaults surgery not found (id/slug/name "${GLOBAL_DEFAULTS_SLUG}").`)
   }
 
   const [existingCategories, existingItems] = await Promise.all([
