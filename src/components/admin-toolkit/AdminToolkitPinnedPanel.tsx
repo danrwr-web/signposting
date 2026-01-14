@@ -9,6 +9,7 @@ interface AdminToolkitPinnedPanelProps {
   onTakeWeekCommencingUtc: Date
   onTakeGpName: string | null
   panel: AdminToolkitPinnedPanel
+  variant?: 'fixed' | 'inline'
 }
 
 function formatDateNoWeekday(date: Date): string {
@@ -21,11 +22,17 @@ export default function AdminToolkitPinnedPanel({
   onTakeWeekCommencingUtc,
   onTakeGpName,
   panel,
+  variant = 'fixed',
 }: AdminToolkitPinnedPanelProps) {
   const weekEndUtc = addDaysUtc(onTakeWeekCommencingUtc, 6)
 
+  const outerClassName =
+    variant === 'fixed'
+      ? 'fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm'
+      : 'mt-8 border-t border-gray-200 bg-white'
+
   return (
-    <div className="fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm">
+    <div className={outerClassName}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="divide-y divide-gray-200 md:divide-y-0 md:divide-x md:flex">

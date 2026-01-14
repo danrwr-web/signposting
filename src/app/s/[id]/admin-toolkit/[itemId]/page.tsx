@@ -97,7 +97,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     if (item.type === 'LIST' && isRestricted && !canWrite) {
       return (
         <div className="min-h-screen bg-white">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-44">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <div className="mb-6">
               <Link
                 href={`/s/${surgeryId}/admin-toolkit`}
@@ -123,7 +123,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
     return (
       <div className="min-h-screen bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-44">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <div className="mb-6 flex items-center justify-between gap-4">
             <Link
               href={`/s/${surgeryId}/admin-toolkit`}
@@ -231,6 +231,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
           onTakeWeekCommencingUtc={weekStartUtc}
           onTakeGpName={onTake?.gpName ?? null}
           panel={panel}
+          variant="inline"
         />
       </div>
     )
