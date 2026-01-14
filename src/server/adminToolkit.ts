@@ -19,6 +19,8 @@ export type AdminToolkitPageItem = {
   updatedAt: Date
   createdAt: Date
   ownerUserId: string | null
+  createdBy?: { id: string; name: string | null; email: string } | null
+  updatedBy?: { id: string; name: string | null; email: string } | null
   editors: Array<{ userId: string }>
   attachments: Array<{ id: string; label: string; url: string; orderIndex: number; deletedAt: Date | null }>
   listColumns?: Array<{ id: string; key: string; label: string; fieldType: string; orderIndex: number }>
@@ -90,6 +92,8 @@ export async function getAdminToolkitPageItems(surgeryId: string): Promise<Admin
       updatedAt: true,
       createdAt: true,
       ownerUserId: true,
+      createdBy: { select: { id: true, name: true, email: true } },
+      updatedBy: { select: { id: true, name: true, email: true } },
       editors: { select: { userId: true } },
       attachments: {
         where: { deletedAt: null },
@@ -120,6 +124,8 @@ export async function getAdminToolkitPageItem(surgeryId: string, itemId: string)
       updatedAt: true,
       createdAt: true,
       ownerUserId: true,
+      createdBy: { select: { id: true, name: true, email: true } },
+      updatedBy: { select: { id: true, name: true, email: true } },
       editors: { select: { userId: true } },
       attachments: {
         where: { deletedAt: null },

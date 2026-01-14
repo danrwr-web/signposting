@@ -39,6 +39,8 @@ model User {
   // Admin Toolkit
   adminItemEditors AdminItemEditor[]
   adminItemOwnership AdminItem[] @relation("AdminItemOwner")
+  adminItemsCreated AdminItem[] @relation("AdminItemCreatedBy")
+  adminItemsUpdated AdminItem[] @relation("AdminItemUpdatedBy")
   adminToolkitHistory AdminHistory[] @relation("AdminToolkitHistoryActor")
 
   // Workflow instances
@@ -498,6 +500,8 @@ model AdminItem {
 
   warningLevel   String?
   ownerUserId    String?
+  createdByUserId String?
+  updatedByUserId String?
   lastReviewedAt DateTime?
   deletedAt      DateTime?
 
@@ -507,6 +511,8 @@ model AdminItem {
   surgery   Surgery        @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   category AdminCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   owner    User?           @relation("AdminItemOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy User?          @relation("AdminItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy User?          @relation("AdminItemUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   editors     AdminItemEditor[]
   listColumns AdminListColumn[]
@@ -517,6 +523,8 @@ model AdminItem {
   @@index([surgeryId, deletedAt])
   @@index([surgeryId, categoryId])
   @@index([surgeryId, title])
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
 }
 
 model AdminItemEditor {

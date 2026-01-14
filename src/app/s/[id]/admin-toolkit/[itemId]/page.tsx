@@ -208,8 +208,12 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
           <footer className="mt-6 text-sm text-gray-600">
             <div className="flex flex-wrap gap-x-6 gap-y-1">
               <div>
-                <span className="text-gray-500">Owner:</span>{' '}
-                <span className="font-medium">{item.ownerUserId ? 'Set' : 'Not set'}</span>
+                <span className="text-gray-500">Created by:</span>{' '}
+                <span className="font-medium">{item.createdBy ? item.createdBy.name || item.createdBy.email : 'Not set'}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Last updated by:</span>{' '}
+                <span className="font-medium">{item.updatedBy ? item.updatedBy.name || item.updatedBy.email : 'Not set'}</span>
               </div>
               <div>
                 <span className="text-gray-500">Last reviewed:</span>{' '}

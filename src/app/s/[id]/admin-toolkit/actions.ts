@@ -286,6 +286,8 @@ export async function createAdminToolkitPageItem(input: unknown): Promise<Action
         warningLevel: warningLevel ?? null,
         lastReviewedAt: lastReviewedAt ? new Date(lastReviewedAt) : null,
         ownerUserId: gate.data.userId,
+        createdByUserId: gate.data.userId,
+        updatedByUserId: gate.data.userId,
       },
       select: { id: true },
     })
@@ -336,6 +338,8 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
         warningLevel: warningLevel ?? null,
         lastReviewedAt: lastReviewedAt ? new Date(lastReviewedAt) : null,
         ownerUserId: gate.data.userId,
+        createdByUserId: gate.data.userId,
+        updatedByUserId: gate.data.userId,
       },
       select: { id: true },
     })
@@ -400,7 +404,7 @@ export async function updateAdminToolkitPageItem(input: unknown): Promise<Action
   await prisma.$transaction(async (tx) => {
     await tx.adminItem.update({
       where: { id: itemId },
-      data: next,
+      data: { ...next, updatedByUserId: gate.data.userId },
     })
     await tx.adminHistory.create({
       data: {
@@ -469,7 +473,7 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.adminItem.update({ where: { id: itemId }, data: next })
+    await tx.adminItem.update({ where: { id: itemId }, data: { ...next, updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
       data: {
         surgeryId,
@@ -549,6 +553,7 @@ export async function createAdminToolkitListColumn(input: unknown): Promise<Acti
       data: { adminItemId: itemId, key, label, fieldType, orderIndex: nextOrder },
       select: { id: true },
     })
+    await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
       data: {
         surgeryId,
@@ -589,6 +594,7 @@ export async function updateAdminToolkitListColumn(input: unknown): Promise<Acti
 
   await prisma.$transaction(async (tx) => {
     await tx.adminListColumn.update({ where: { id: columnId }, data: { label, fieldType } })
+    await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
       data: {
         surgeryId,
@@ -626,6 +632,7 @@ export async function deleteAdminToolkitListColumn(input: unknown): Promise<Acti
 
   await prisma.$transaction(async (tx) => {
     await tx.adminListColumn.delete({ where: { id: columnId } })
+    await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
       data: {
         surgeryId,
@@ -667,6 +674,7 @@ export async function reorderAdminToolkitListColumns(input: unknown): Promise<Ac
     for (let i = 0; i < orderedColumnIds.length; i++) {
       await tx.adminListColumn.update({ where: { id: orderedColumnIds[i] }, data: { orderIndex: i } })
     }
+    await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
       data: { surgeryId, adminItemId: itemId, action: 'LIST_COLUMN_REORDER', actorUserId: gate.data.userId, diffJson: { orderedColumnIds } },
     })
@@ -700,6 +708,7 @@ export async function createAdminToolkitListRow(input: unknown): Promise<ActionR
 
   const created = await prisma.$transaction(async (tx) => {
     const row = await tx.adminListRow.create({ data: { adminItemId: itemId, dataJson: {}, orderIndex: nextOrder }, select: { id: true } })
+    await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
       data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_CREATE', actorUserId: gate.data.userId, diffJson: { orderIndex: nextOrder } },
     })
@@ -733,6 +742,7 @@ export async function updateAdminToolkitListRow(input: unknown): Promise<ActionR
 
   await prisma.$transaction(async (tx) => {
     await tx.adminListRow.update({ where: { id: rowId }, data: { dataJson: data } })
+    await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
       data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_UPDATE', actorUserId: gate.data.userId, diffJson: { before: existing.dataJson, after: data } },
     })
@@ -764,6 +774,7 @@ export async function deleteAdminToolkitListRow(input: unknown): Promise<ActionR
 
   await prisma.$transaction(async (tx) => {
     await tx.adminListRow.update({ where: { id: rowId }, data: { deletedAt: new Date() } })
+    await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({ data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_DELETE', actorUserId: gate.data.userId } })
   })
 
