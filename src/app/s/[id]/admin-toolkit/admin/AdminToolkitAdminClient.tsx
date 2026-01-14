@@ -11,13 +11,17 @@ import {
   deleteAdminToolkitCategory,
   renameAdminToolkitCategory,
   reorderAdminToolkitCategories,
-  createAdminToolkitPageItem,
-  updateAdminToolkitPageItem,
+  createAdminToolkitItem,
+  updateAdminToolkitItem,
   deleteAdminToolkitItem,
   setAdminToolkitItemEditors,
   upsertAdminToolkitPinnedPanel,
   setAdminToolkitOnTakeWeek,
   getAdminToolkitOnTakeWeekValue,
+  createAdminToolkitListColumn,
+  updateAdminToolkitListColumn,
+  deleteAdminToolkitListColumn,
+  reorderAdminToolkitListColumns,
 } from '../actions'
 
 type EditorCandidate = { id: string; name: string | null; email: string }
@@ -38,6 +42,7 @@ interface AdminToolkitAdminClientProps {
 type PageEditorMode = 'create' | 'edit'
 
 type PageFormState = {
+  type: 'PAGE' | 'LIST'
   title: string
   categoryId: string | null
   warningLevel: string
@@ -47,6 +52,7 @@ type PageFormState = {
 }
 
 const DEFAULT_PAGE_FORM: PageFormState = {
+  type: 'PAGE',
   title: '',
   categoryId: null,
   warningLevel: '',
@@ -107,6 +113,8 @@ export default function AdminToolkitAdminClient({
   ])
   const [form, setForm] = useState<PageFormState>(DEFAULT_PAGE_FORM)
   const [showAddAnotherHint, setShowAddAnotherHint] = useState(false)
+  const [newListColumnLabel, setNewListColumnLabel] = useState('')
+  const [newListColumnType, setNewListColumnType] = useState<'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'>('TEXT')
 
   const [panelTaskBuddy, setPanelTaskBuddy] = useState(initialPanel.taskBuddyText ?? '')
   const [panelPostRoute, setPanelPostRoute] = useState(initialPanel.postRouteText ?? '')
@@ -127,6 +135,7 @@ export default function AdminToolkitAdminClient({
 
   function formFromItem(item: AdminToolkitPageItem): PageFormState {
     return {
+      type: item.type,
       title: item.title ?? '',
       categoryId: item.categoryId ?? null,
       warningLevel: item.warningLevel ?? '',
@@ -141,6 +150,8 @@ export default function AdminToolkitAdminClient({
     setSelectedItemId(null)
     setShowAddAnotherHint(false)
     setForm(DEFAULT_PAGE_FORM)
+    setNewListColumnLabel('')
+    setNewListColumnType('TEXT')
     focusTitle()
   }
 
@@ -148,6 +159,8 @@ export default function AdminToolkitAdminClient({
     setMode('edit')
     setSelectedItemId(itemId)
     setShowAddAnotherHint(false)
+    setNewListColumnLabel('')
+    setNewListColumnType('TEXT')
   }
 
   function toUtcMidnightIso(dateOnly: string): string {
@@ -426,8 +439,8 @@ export default function AdminToolkitAdminClient({
       <section className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-nhs-dark-blue">PAGE items</h2>
-            <p className="mt-1 text-sm text-nhs-grey">Create and edit guidance pages.</p>
+            <h2 className="text-lg font-semibold text-nhs-dark-blue">Admin Toolkit items</h2>
+            <p className="mt-1 text-sm text-nhs-grey">Create and edit guidance pages and lists.</p>
           </div>
           <button
             type="button"
@@ -436,7 +449,7 @@ export default function AdminToolkitAdminClient({
               enterCreateMode()
             }}
           >
-            New PAGE
+            New item
           </button>
         </div>
 
@@ -454,7 +467,7 @@ export default function AdminToolkitAdminClient({
                   mode === 'create' ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
                 ].join(' ')}
               >
-                <span className="font-medium text-gray-900">+ Create new page</span>
+                <span className="font-medium text-gray-900">+ Create new item</span>
                 <div className="text-xs text-gray-500 mt-0.5">Add another item</div>
               </button>
 
@@ -479,9 +492,16 @@ export default function AdminToolkitAdminClient({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-gray-900 truncate">{it.title}</span>
-                        {restricted ? (
-                          <span className="text-[11px] rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">Restricted</span>
-                        ) : null}
+                        <span className="flex items-center gap-1">
+                          {it.type === 'LIST' ? (
+                            <span className="text-[11px] rounded-full bg-blue-50 px-2 py-0.5 text-blue-800 border border-blue-200">LIST</span>
+                          ) : (
+                            <span className="text-[11px] rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 border border-gray-200">PAGE</span>
+                          )}
+                          {restricted ? (
+                            <span className="text-[11px] rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">Restricted</span>
+                          ) : null}
+                        </span>
                       </div>
                     </button>
                   )
@@ -495,18 +515,29 @@ export default function AdminToolkitAdminClient({
               <div className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-base font-semibold text-nhs-dark-blue">Create PAGE</h3>
-                    <p className="mt-1 text-sm text-nhs-grey">Add a new guidance page. After saving, you can add another straight away.</p>
+                    <h3 className="text-base font-semibold text-nhs-dark-blue">Create item</h3>
+                    <p className="mt-1 text-sm text-nhs-grey">Add a new Admin Toolkit item. After saving, you can add another straight away.</p>
                   </div>
                 </div>
 
                 {showAddAnotherHint ? (
                   <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                    <strong>Page created.</strong> Add another item?
+                    <strong>Created.</strong> Add another item?
                   </div>
                 ) : null}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <select
+                      className="w-full nhs-input"
+                      value={form.type}
+                      onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as 'PAGE' | 'LIST' }))}
+                    >
+                      <option value="PAGE">PAGE (guidance)</option>
+                      <option value="LIST">LIST (table)</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
                     <input
@@ -556,15 +587,23 @@ export default function AdminToolkitAdminClient({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">Content</label>
-                  <div className="mt-2">
-                    <RichTextEditor
-                      value={form.contentHtml}
-                      onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-                      height={260}
-                      placeholder="Write guidance for staff…"
-                    />
-                  </div>
+                  {form.type === 'PAGE' ? (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700">Content</label>
+                      <div className="mt-2">
+                        <RichTextEditor
+                          value={form.contentHtml}
+                          onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
+                          height={260}
+                          placeholder="Write guidance for staff…"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                      <strong>This is a LIST item.</strong> You can add and edit rows on the item page after creating it.
+                    </div>
+                  )}
                 </div>
 
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
@@ -618,11 +657,12 @@ export default function AdminToolkitAdminClient({
                     className="nhs-button"
                     disabled={!form.title.trim()}
                     onClick={async () => {
-                      const res = await createAdminToolkitPageItem({
+                      const res = await createAdminToolkitItem({
                         surgeryId,
+                        type: form.type,
                         title: form.title,
                         categoryId: form.categoryId,
-                        contentHtml: form.contentHtml,
+                        contentHtml: form.type === 'PAGE' ? form.contentHtml : '',
                         warningLevel: form.warningLevel || null,
                         lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
                       })
@@ -643,14 +683,14 @@ export default function AdminToolkitAdminClient({
                         }
                       }
 
-                      toast.success('Page created')
+                      toast.success(form.type === 'LIST' ? 'List created' : 'Page created')
                       setShowAddAnotherHint(true)
                       setForm(DEFAULT_PAGE_FORM)
                       focusTitle()
                       await refresh()
                     }}
                   >
-                    Create page
+                    Create
                   </button>
                 </div>
               </div>
@@ -720,15 +760,192 @@ export default function AdminToolkitAdminClient({
                       </a>
                     ) : null}
                   </div>
-                  <div className="mt-2">
-                    <RichTextEditor
-                      value={form.contentHtml}
-                      onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-                      height={260}
-                      placeholder="Write guidance for staff…"
-                    />
-                  </div>
+                  {selectedItem.type === 'PAGE' ? (
+                    <div className="mt-2">
+                      <RichTextEditor
+                        value={form.contentHtml}
+                        onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
+                        height={260}
+                        placeholder="Write guidance for staff…"
+                      />
+                    </div>
+                  ) : (
+                    <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                      <strong>LIST item:</strong> rows are managed on the item page. Use the columns section below to configure fields.
+                    </div>
+                  )}
                 </div>
+
+                {selectedItem.type === 'LIST' ? (
+                  <div className="rounded-lg border border-gray-200 bg-white p-4">
+                    <h4 className="text-sm font-semibold text-gray-900">Columns</h4>
+                    <p className="mt-1 text-sm text-gray-600">Add, rename, and reorder columns for this list.</p>
+
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2">
+                      <input
+                        className="nhs-input"
+                        placeholder="New column label…"
+                        value={newListColumnLabel}
+                        onChange={(e) => setNewListColumnLabel(e.target.value)}
+                      />
+                      <select
+                        className="nhs-input"
+                        value={newListColumnType}
+                        onChange={(e) => setNewListColumnType(e.target.value as typeof newListColumnType)}
+                      >
+                        <option value="TEXT">Text</option>
+                        <option value="MULTILINE">Notes</option>
+                        <option value="PHONE">Phone</option>
+                        <option value="EMAIL">Email</option>
+                        <option value="URL">Link</option>
+                      </select>
+                      <button
+                        type="button"
+                        className="nhs-button"
+                        onClick={async () => {
+                          const label = newListColumnLabel.trim()
+                          if (!label) {
+                            toast.error('Enter a column label.')
+                            return
+                          }
+                          const res = await createAdminToolkitListColumn({
+                            surgeryId,
+                            itemId: selectedItem.id,
+                            label,
+                            fieldType: newListColumnType,
+                          })
+                          if (!res.ok) {
+                            toast.error(res.error.message)
+                            return
+                          }
+                          toast.success('Column added')
+                          setNewListColumnLabel('')
+                          setNewListColumnType('TEXT')
+                          await refresh()
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      {(selectedItem.listColumns ?? []).length === 0 ? (
+                        <p className="text-sm text-gray-500">No columns yet.</p>
+                      ) : (
+                        (selectedItem.listColumns ?? []).map((col, idx) => (
+                          <div key={col.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-2 items-end">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                                <input
+                                  className="nhs-input"
+                                  defaultValue={col.label}
+                                  onBlur={async (e) => {
+                                    const nextLabel = e.target.value.trim()
+                                    if (!nextLabel || nextLabel === col.label) return
+                                    const r = await updateAdminToolkitListColumn({
+                                      surgeryId,
+                                      itemId: selectedItem.id,
+                                      columnId: col.id,
+                                      label: nextLabel,
+                                      fieldType: col.fieldType as any,
+                                    })
+                                    if (!r.ok) toast.error(r.error.message)
+                                    else toast.success('Column updated')
+                                    await refresh()
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                                <select
+                                  className="nhs-input"
+                                  value={col.fieldType}
+                                  onChange={async (e) => {
+                                    const r = await updateAdminToolkitListColumn({
+                                      surgeryId,
+                                      itemId: selectedItem.id,
+                                      columnId: col.id,
+                                      label: col.label,
+                                      fieldType: e.target.value as any,
+                                    })
+                                    if (!r.ok) toast.error(r.error.message)
+                                    else toast.success('Column updated')
+                                    await refresh()
+                                  }}
+                                >
+                                  <option value="TEXT">Text</option>
+                                  <option value="MULTILINE">Notes</option>
+                                  <option value="PHONE">Phone</option>
+                                  <option value="EMAIL">Email</option>
+                                  <option value="URL">Link</option>
+                                </select>
+                              </div>
+                              <div className="flex gap-2 justify-end">
+                                <button
+                                  type="button"
+                                  className="nhs-button-secondary"
+                                  disabled={idx === 0}
+                                  onClick={async () => {
+                                    const cols = (selectedItem.listColumns ?? []).slice()
+                                    const tmp = cols[idx - 1]
+                                    cols[idx - 1] = cols[idx]
+                                    cols[idx] = tmp
+                                    const r = await reorderAdminToolkitListColumns({
+                                      surgeryId,
+                                      itemId: selectedItem.id,
+                                      orderedColumnIds: cols.map((c) => c.id),
+                                    })
+                                    if (!r.ok) toast.error(r.error.message)
+                                    else toast.success('Columns reordered')
+                                    await refresh()
+                                  }}
+                                >
+                                  ↑
+                                </button>
+                                <button
+                                  type="button"
+                                  className="nhs-button-secondary"
+                                  disabled={idx === (selectedItem.listColumns?.length ?? 0) - 1}
+                                  onClick={async () => {
+                                    const cols = (selectedItem.listColumns ?? []).slice()
+                                    const tmp = cols[idx + 1]
+                                    cols[idx + 1] = cols[idx]
+                                    cols[idx] = tmp
+                                    const r = await reorderAdminToolkitListColumns({
+                                      surgeryId,
+                                      itemId: selectedItem.id,
+                                      orderedColumnIds: cols.map((c) => c.id),
+                                    })
+                                    if (!r.ok) toast.error(r.error.message)
+                                    else toast.success('Columns reordered')
+                                    await refresh()
+                                  }}
+                                >
+                                  ↓
+                                </button>
+                                <button
+                                  type="button"
+                                  className="nhs-button-secondary"
+                                  onClick={async () => {
+                                    const ok = confirm(`Delete column "${col.label}"?`)
+                                    if (!ok) return
+                                    const r = await deleteAdminToolkitListColumn({ surgeryId, itemId: selectedItem.id, columnId: col.id })
+                                    if (!r.ok) toast.error(r.error.message)
+                                    else toast.success('Column deleted')
+                                    await refresh()
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
                   <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
@@ -800,12 +1017,12 @@ export default function AdminToolkitAdminClient({
                     type="button"
                     className="nhs-button"
                     onClick={async () => {
-                      const res = await updateAdminToolkitPageItem({
+                      const res = await updateAdminToolkitItem({
                         surgeryId,
                         itemId: selectedItem.id,
                         title: form.title,
                         categoryId: form.categoryId,
-                        contentHtml: form.contentHtml,
+                        contentHtml: selectedItem.type === 'PAGE' ? form.contentHtml : undefined,
                         warningLevel: form.warningLevel || null,
                         lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
                       })

@@ -304,6 +304,56 @@ export async function createAdminToolkitPageItem(input: unknown): Promise<Action
   return { ok: true, data: { id: created.id } }
 }
 
+const createItemInput = z.object({
+  surgeryId: z.string().min(1),
+  type: z.enum(['PAGE', 'LIST']),
+  title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
+  categoryId: z.string().min(1).nullable().optional(),
+  contentHtml: z.string().optional().default(''),
+  warningLevel: z.string().trim().max(40).nullable().optional(),
+  lastReviewedAt: z.string().datetime().nullable().optional(),
+})
+
+export async function createAdminToolkitItem(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = createItemInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, type, title, categoryId, contentHtml, warningLevel, lastReviewedAt } = parsed.data
+  const cleanedHtml = type === 'PAGE' ? sanitizeHtml(contentHtml || '') : null
+
+  const created = await prisma.$transaction(async (tx) => {
+    const item = await tx.adminItem.create({
+      data: {
+        surgeryId,
+        categoryId: categoryId ?? null,
+        type,
+        title,
+        contentHtml: cleanedHtml,
+        warningLevel: warningLevel ?? null,
+        lastReviewedAt: lastReviewedAt ? new Date(lastReviewedAt) : null,
+        ownerUserId: gate.data.userId,
+      },
+      select: { id: true },
+    })
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        adminItemId: item.id,
+        action: 'ITEM_CREATE',
+        actorUserId: gate.data.userId,
+        diffJson: { type, title, categoryId: categoryId ?? null },
+      },
+    })
+    return item
+  })
+
+  return { ok: true, data: { id: created.id } }
+}
+
 const updatePageItemInput = z.object({
   surgeryId: z.string().min(1),
   itemId: z.string().min(1),
@@ -377,6 +427,347 @@ export async function updateAdminToolkitPageItem(input: unknown): Promise<Action
   })
 
   return { ok: true, data: { id: itemId } }
+}
+
+const updateItemInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
+  categoryId: z.string().min(1).nullable().optional(),
+  contentHtml: z.string().optional(),
+  warningLevel: z.string().trim().max(40).nullable().optional(),
+  lastReviewedAt: z.string().datetime().nullable().optional(),
+})
+
+export async function updateAdminToolkitItem(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = updateItemInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) {
+    return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+  }
+
+  const existing = await prisma.adminItem.findFirst({
+    where: { id: itemId, surgeryId, deletedAt: null, type: { in: ['PAGE', 'LIST'] } },
+    select: { id: true, type: true, title: true, categoryId: true, warningLevel: true, contentHtml: true, lastReviewedAt: true },
+  })
+  if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found.' } }
+
+  const nextContentHtml = existing.type === 'PAGE' ? sanitizeHtml(parsed.data.contentHtml ?? existing.contentHtml ?? '') : existing.contentHtml
+  const next = {
+    title: parsed.data.title,
+    categoryId: parsed.data.categoryId ?? null,
+    warningLevel: parsed.data.warningLevel ?? null,
+    lastReviewedAt: parsed.data.lastReviewedAt ? new Date(parsed.data.lastReviewedAt) : null,
+    contentHtml: nextContentHtml,
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.adminItem.update({ where: { id: itemId }, data: next })
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        adminItemId: itemId,
+        action: 'ITEM_UPDATE',
+        actorUserId: gate.data.userId,
+        diffJson: {
+          before: {
+            title: existing.title,
+            categoryId: existing.categoryId,
+            warningLevel: existing.warningLevel,
+            lastReviewedAt: existing.lastReviewedAt,
+          },
+          after: {
+            title: next.title,
+            categoryId: next.categoryId,
+            warningLevel: next.warningLevel,
+            lastReviewedAt: next.lastReviewedAt,
+          },
+        },
+      },
+    })
+  })
+
+  return { ok: true, data: { id: itemId } }
+}
+
+function normaliseListKey(raw: string): string {
+  const base = raw
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+  return base || 'field'
+}
+
+const listColumnFieldType = z.enum(['TEXT', 'MULTILINE', 'PHONE', 'EMAIL', 'URL'])
+
+const createListColumnInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  label: z.string().trim().min(1, 'Label is required').max(80),
+  fieldType: listColumnFieldType.default('TEXT'),
+})
+
+export async function createAdminToolkitListColumn(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = createListColumnInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId, label, fieldType } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+
+  const existingItem = await prisma.adminItem.findFirst({ where: { id: itemId, surgeryId, deletedAt: null, type: 'LIST' }, select: { id: true } })
+  if (!existingItem) return { ok: false, error: { code: 'NOT_FOUND', message: 'List item not found.' } }
+
+  const max = await prisma.adminListColumn.aggregate({ where: { adminItemId: itemId }, _max: { orderIndex: true } })
+  const nextOrder = (max._max.orderIndex ?? 0) + 1
+
+  const existingKeys = await prisma.adminListColumn.findMany({ where: { adminItemId: itemId }, select: { key: true } })
+  const keySet = new Set(existingKeys.map((k) => k.key))
+  const baseKey = normaliseListKey(label)
+  let key = baseKey
+  let i = 2
+  while (keySet.has(key)) {
+    key = `${baseKey}_${i}`
+    i++
+  }
+
+  const created = await prisma.$transaction(async (tx) => {
+    const col = await tx.adminListColumn.create({
+      data: { adminItemId: itemId, key, label, fieldType, orderIndex: nextOrder },
+      select: { id: true },
+    })
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        adminItemId: itemId,
+        action: 'LIST_COLUMN_CREATE',
+        actorUserId: gate.data.userId,
+        diffJson: { key, label, fieldType, orderIndex: nextOrder },
+      },
+    })
+    return col
+  })
+
+  return { ok: true, data: { id: created.id } }
+}
+
+const updateListColumnInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  columnId: z.string().min(1),
+  label: z.string().trim().min(1, 'Label is required').max(80),
+  fieldType: listColumnFieldType,
+})
+
+export async function updateAdminToolkitListColumn(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = updateListColumnInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId, columnId, label, fieldType } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+
+  const existing = await prisma.adminListColumn.findFirst({ where: { id: columnId, adminItemId: itemId }, select: { id: true, label: true, fieldType: true } })
+  if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Column not found.' } }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.adminListColumn.update({ where: { id: columnId }, data: { label, fieldType } })
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        adminItemId: itemId,
+        action: 'LIST_COLUMN_UPDATE',
+        actorUserId: gate.data.userId,
+        diffJson: { before: { label: existing.label, fieldType: existing.fieldType }, after: { label, fieldType } },
+      },
+    })
+  })
+
+  return { ok: true, data: { id: columnId } }
+}
+
+const deleteListColumnInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  columnId: z.string().min(1),
+})
+
+export async function deleteAdminToolkitListColumn(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = deleteListColumnInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId, columnId } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+
+  const existing = await prisma.adminListColumn.findFirst({ where: { id: columnId, adminItemId: itemId }, select: { id: true, key: true, label: true } })
+  if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Column not found.' } }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.adminListColumn.delete({ where: { id: columnId } })
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        adminItemId: itemId,
+        action: 'LIST_COLUMN_DELETE',
+        actorUserId: gate.data.userId,
+        diffJson: { key: existing.key, label: existing.label },
+      },
+    })
+  })
+
+  return { ok: true, data: { id: columnId } }
+}
+
+const reorderListColumnsInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  orderedColumnIds: z.array(z.string().min(1)).min(1),
+})
+
+export async function reorderAdminToolkitListColumns(input: unknown): Promise<ActionResult<{ updated: number }>> {
+  const parsed = reorderListColumnsInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId, orderedColumnIds } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+
+  const existing = await prisma.adminListColumn.findMany({ where: { adminItemId: itemId, id: { in: orderedColumnIds } }, select: { id: true } })
+  if (existing.length !== orderedColumnIds.length) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'One or more columns were not found.' } }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (let i = 0; i < orderedColumnIds.length; i++) {
+      await tx.adminListColumn.update({ where: { id: orderedColumnIds[i] }, data: { orderIndex: i } })
+    }
+    await tx.adminHistory.create({
+      data: { surgeryId, adminItemId: itemId, action: 'LIST_COLUMN_REORDER', actorUserId: gate.data.userId, diffJson: { orderedColumnIds } },
+    })
+  })
+
+  return { ok: true, data: { updated: orderedColumnIds.length } }
+}
+
+const createListRowInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+})
+
+export async function createAdminToolkitListRow(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = createListRowInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+
+  const existingItem = await prisma.adminItem.findFirst({ where: { id: itemId, surgeryId, deletedAt: null, type: 'LIST' }, select: { id: true } })
+  if (!existingItem) return { ok: false, error: { code: 'NOT_FOUND', message: 'List item not found.' } }
+
+  const max = await prisma.adminListRow.aggregate({ where: { adminItemId: itemId, deletedAt: null }, _max: { orderIndex: true } })
+  const nextOrder = (max._max.orderIndex ?? 0) + 1
+
+  const created = await prisma.$transaction(async (tx) => {
+    const row = await tx.adminListRow.create({ data: { adminItemId: itemId, dataJson: {}, orderIndex: nextOrder }, select: { id: true } })
+    await tx.adminHistory.create({
+      data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_CREATE', actorUserId: gate.data.userId, diffJson: { orderIndex: nextOrder } },
+    })
+    return row
+  })
+
+  return { ok: true, data: { id: created.id } }
+}
+
+const updateListRowInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  rowId: z.string().min(1),
+  data: z.record(z.string(), z.string().max(2000)).default({}),
+})
+
+export async function updateAdminToolkitListRow(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = updateListRowInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId, rowId, data } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+
+  const existing = await prisma.adminListRow.findFirst({ where: { id: rowId, adminItemId: itemId, deletedAt: null }, select: { id: true, dataJson: true } })
+  if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Row not found.' } }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.adminListRow.update({ where: { id: rowId }, data: { dataJson: data } })
+    await tx.adminHistory.create({
+      data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_UPDATE', actorUserId: gate.data.userId, diffJson: { before: existing.dataJson, after: data } },
+    })
+  })
+
+  return { ok: true, data: { id: rowId } }
+}
+
+const deleteListRowInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  rowId: z.string().min(1),
+})
+
+export async function deleteAdminToolkitListRow(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = deleteListRowInput.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
+  }
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId, itemId, rowId } = parsed.data
+  const allowed = await canEditItem({ surgeryId, itemId, userId: gate.data.userId, isSuperuser: gate.data.isSuperuser })
+  if (!allowed) return { ok: false, error: { code: 'FORBIDDEN', message: 'This item is restricted to a smaller set of editors.' } }
+
+  const existing = await prisma.adminListRow.findFirst({ where: { id: rowId, adminItemId: itemId, deletedAt: null }, select: { id: true } })
+  if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Row not found.' } }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.adminListRow.update({ where: { id: rowId }, data: { deletedAt: new Date() } })
+    await tx.adminHistory.create({ data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_DELETE', actorUserId: gate.data.userId } })
+  })
+
+  return { ok: true, data: { id: rowId } }
 }
 
 const deleteItemInput = z.object({

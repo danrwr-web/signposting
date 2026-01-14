@@ -10,6 +10,7 @@ export type AdminToolkitCategory = {
 
 export type AdminToolkitPageItem = {
   id: string
+  type: 'PAGE' | 'LIST'
   title: string
   categoryId: string | null
   warningLevel: string | null
@@ -20,6 +21,8 @@ export type AdminToolkitPageItem = {
   ownerUserId: string | null
   editors: Array<{ userId: string }>
   attachments: Array<{ id: string; label: string; url: string; orderIndex: number; deletedAt: Date | null }>
+  listColumns?: Array<{ id: string; key: string; label: string; fieldType: string; orderIndex: number }>
+  listRows?: Array<{ id: string; dataJson: unknown; orderIndex: number }>
 }
 
 export type AdminToolkitPinnedPanel = {
@@ -75,9 +78,10 @@ export async function getAdminToolkitCategories(surgeryId: string): Promise<Admi
 
 export async function getAdminToolkitPageItems(surgeryId: string): Promise<AdminToolkitPageItem[]> {
   const items = await prisma.adminItem.findMany({
-    where: { surgeryId, deletedAt: null, type: 'PAGE' },
+    where: { surgeryId, deletedAt: null, type: { in: ['PAGE', 'LIST'] } },
     select: {
       id: true,
+      type: true,
       title: true,
       categoryId: true,
       warningLevel: true,
@@ -92,20 +96,22 @@ export async function getAdminToolkitPageItems(surgeryId: string): Promise<Admin
         select: { id: true, label: true, url: true, orderIndex: true, deletedAt: true },
         orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }],
       },
+      listColumns: {
+        select: { id: true, key: true, label: true, fieldType: true, orderIndex: true },
+        orderBy: [{ orderIndex: 'asc' }],
+      },
     },
     orderBy: [{ updatedAt: 'desc' }],
   })
   return items
 }
 
-export async function getAdminToolkitPageItem(
-  surgeryId: string,
-  itemId: string,
-): Promise<AdminToolkitPageItem | null> {
+export async function getAdminToolkitPageItem(surgeryId: string, itemId: string): Promise<AdminToolkitPageItem | null> {
   return prisma.adminItem.findFirst({
-    where: { id: itemId, surgeryId, deletedAt: null, type: 'PAGE' },
+    where: { id: itemId, surgeryId, deletedAt: null, type: { in: ['PAGE', 'LIST'] } },
     select: {
       id: true,
+      type: true,
       title: true,
       categoryId: true,
       warningLevel: true,
@@ -119,6 +125,15 @@ export async function getAdminToolkitPageItem(
         where: { deletedAt: null },
         select: { id: true, label: true, url: true, orderIndex: true, deletedAt: true },
         orderBy: [{ orderIndex: 'asc' }, { createdAt: 'asc' }],
+      },
+      listColumns: {
+        select: { id: true, key: true, label: true, fieldType: true, orderIndex: true },
+        orderBy: [{ orderIndex: 'asc' }],
+      },
+      listRows: {
+        where: { deletedAt: null },
+        select: { id: true, dataJson: true, orderIndex: true },
+        orderBy: [{ orderIndex: 'asc' }],
       },
     },
   })

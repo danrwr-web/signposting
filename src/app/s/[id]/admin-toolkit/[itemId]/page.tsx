@@ -16,6 +16,7 @@ import {
 } from '@/server/adminToolkit'
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
 import AdminToolkitAttachmentsClient from './AdminToolkitAttachmentsClient'
+import AdminToolkitListClient from './AdminToolkitListClient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -93,6 +94,28 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     const isEditor = item.editors.some((e) => e.userId === user.id)
     const canEditThisItem = isSuperuser || (canWrite && (!isRestricted || isEditor))
 
+    if (item.type === 'LIST' && isRestricted && !canWrite) {
+      return (
+        <div className="min-h-screen bg-white">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 pb-44">
+            <div className="mb-6">
+              <Link
+                href={`/s/${surgeryId}/admin-toolkit`}
+                className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              >
+                ← Back to Admin Toolkit
+              </Link>
+            </div>
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+              <p className="text-sm text-yellow-700">
+                <strong>This list is restricted.</strong> You need Admin Toolkit write access to view it.
+              </p>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
     const panel = await getAdminToolkitPinnedPanel(surgeryId)
     const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
@@ -139,25 +162,48 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
             ) : null}
           </header>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <div
-              className="prose max-w-none"
-              dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(item.contentHtml || '') }}
-            />
-          </div>
+          {item.type === 'PAGE' ? (
+            <>
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <div
+                  className="prose max-w-none"
+                  dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(item.contentHtml || '') }}
+                />
+              </div>
 
-          <section className="mt-6 bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-nhs-dark-blue">Attachments</h2>
-            <p className="mt-1 text-sm text-nhs-grey">Add links to PDFs, Word documents, images, or folders.</p>
-            <div className="mt-4">
-              <AdminToolkitAttachmentsClient
+              <section className="mt-6 bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-lg font-semibold text-nhs-dark-blue">Attachments</h2>
+                <p className="mt-1 text-sm text-nhs-grey">Add links to PDFs, Word documents, images, or folders.</p>
+                <div className="mt-4">
+                  <AdminToolkitAttachmentsClient
+                    surgeryId={surgeryId}
+                    itemId={item.id}
+                    canEditThisItem={canEditThisItem}
+                    attachments={item.attachments.map((a) => ({ id: a.id, label: a.label, url: a.url }))}
+                  />
+                </div>
+              </section>
+            </>
+          ) : (
+            <section className="bg-white rounded-lg shadow-md p-6">
+              <AdminToolkitListClient
                 surgeryId={surgeryId}
                 itemId={item.id}
                 canEditThisItem={canEditThisItem}
-                attachments={item.attachments.map((a) => ({ id: a.id, label: a.label, url: a.url }))}
+                columns={(item.listColumns ?? []).map((c) => ({ id: c.id, key: c.key, label: c.label, fieldType: c.fieldType, orderIndex: c.orderIndex }))}
+                rows={(item.listRows ?? []).map((r) => {
+                  const raw = r.dataJson
+                  const obj =
+                    raw && typeof raw === 'object' && !Array.isArray(raw)
+                      ? (raw as Record<string, unknown>)
+                      : ({} as Record<string, unknown>)
+                  const data: Record<string, string> = {}
+                  for (const [k, v] of Object.entries(obj)) data[k] = v === null || v === undefined ? '' : String(v)
+                  return { id: r.id, data, orderIndex: r.orderIndex }
+                })}
               />
-            </div>
-          </section>
+            </section>
+          )}
 
           <footer className="mt-6 text-sm text-gray-600">
             <div className="flex flex-wrap gap-x-6 gap-y-1">

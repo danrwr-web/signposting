@@ -538,7 +538,7 @@ model AdminListColumn {
   key         String
   label       String
   orderIndex  Int      @default(0)
-  type        String   @default("TEXT")
+  fieldType   String   @default("TEXT")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

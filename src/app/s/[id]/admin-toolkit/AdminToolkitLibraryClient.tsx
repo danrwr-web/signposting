@@ -123,7 +123,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                       ) : null}
                     </div>
                     <p className="mt-2 text-sm text-gray-600 line-clamp-3">
-                      {item.contentHtml ? 'Open guidance' : 'No content yet'}
+                      {item.type === 'LIST' ? 'Open list' : item.contentHtml ? 'Open guidance' : 'No content yet'}
                     </p>
                     <div className="mt-3 text-xs text-gray-500">
                       Updated {new Date(item.updatedAt).toLocaleDateString('en-GB')}

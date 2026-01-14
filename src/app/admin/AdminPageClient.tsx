@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { signOut } from 'next-auth/react'
 import SimpleHeader from '@/components/SimpleHeader'
-import Modal from '@/components/appointments/Modal'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
 import CommonReasonsConfig from '@/components/CommonReasonsConfig'
@@ -23,7 +22,6 @@ import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
 import { GetEffectiveSymptomsResZ, GetHighlightsResZ } from '@/lib/api-contracts'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
-import { seedAdminToolkitGlobalDefaultsAction } from './actions'
 
 interface AdminPageClientProps {
   surgeries: Surgery[]
@@ -105,8 +103,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     pendingCount: number
   } | null>(null)
   const [setupChecklistLoading, setSetupChecklistLoading] = useState(false)
-  const [showSeedAdminToolkitModal, setShowSeedAdminToolkitModal] = useState(false)
-  const [seedAdminToolkitLoading, setSeedAdminToolkitLoading] = useState(false)
 
   const refreshMetrics = useCallback(async () => {
     if (!selectedSurgery) return
@@ -835,15 +831,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             </p>
           </div>
           <div className="flex gap-2">
-            {session.type === 'superuser' ? (
-              <button
-                type="button"
-                onClick={() => setShowSeedAdminToolkitModal(true)}
-                className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors"
-              >
-                Seed Admin Toolkit global defaults
-              </button>
-            ) : null}
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
@@ -1395,63 +1382,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           </div>
         </div>
       </main>
-
-      {showSeedAdminToolkitModal ? (
-        <Modal
-          title="Seed Admin Toolkit global defaults"
-          description="This will populate the global-default-buttons surgery with starter Admin Toolkit categories and template pages (only if it is currently empty)."
-          onClose={() => {
-            if (seedAdminToolkitLoading) return
-            setShowSeedAdminToolkitModal(false)
-          }}
-        >
-          <div className="space-y-4">
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              <p className="text-sm text-yellow-800">
-                <strong>Warning:</strong> Run this once in production. It will <strong>not</strong> overwrite content if global defaults are already populated.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap justify-end gap-2">
-              <button
-                type="button"
-                className="nhs-button-secondary"
-                disabled={seedAdminToolkitLoading}
-                onClick={() => setShowSeedAdminToolkitModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="nhs-button"
-                disabled={seedAdminToolkitLoading}
-                onClick={async () => {
-                  setSeedAdminToolkitLoading(true)
-                  try {
-                    const res = await seedAdminToolkitGlobalDefaultsAction({ force: false })
-                    if (!res.ok) {
-                      toast.error(res.error.message)
-                      return
-                    }
-                    if (res.data.skipped) {
-                      toast.success(res.data.reason || 'Already populated — skipped.')
-                    } else {
-                      toast.success(`Seeded global defaults: ${res.data.categoriesCreated} categories, ${res.data.itemsCreated} pages.`)
-                    }
-                    setShowSeedAdminToolkitModal(false)
-                  } catch (err) {
-                    toast.error(err instanceof Error ? err.message : 'Failed to seed global defaults.')
-                  } finally {
-                    setSeedAdminToolkitLoading(false)
-                  }
-                }}
-              >
-                {seedAdminToolkitLoading ? 'Seeding…' : 'Seed now'}
-              </button>
-            </div>
-          </div>
-        </Modal>
-      ) : null}
 
       {/* Add Symptom Modal */}
       {showAddSymptomForm && (
