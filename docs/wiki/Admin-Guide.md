@@ -60,12 +60,12 @@ The **Admin Toolkit** is an optional module for storing surgery-specific guidanc
 - The module is controlled by the `admin_toolkit` feature flag (superuser-controlled).
 - When enabled, a new **Admin Toolkit** link appears in the top navigation.
 
-### Copying global defaults (superusers)
+### Global defaults starter kit (templates)
 
-Superusers can use a temporary **Copy then clear** tool in Admin Toolkit settings to:
+We keep a special surgery record, `global-default-buttons`, as the template source for Admin Toolkit starter content.
 
-- copy the Admin Toolkit categories, pages, pinned panel, and on-take rota from `global-default-buttons` into another surgery, then
-- clear (soft-delete) the global defaults ready to be used as starter-kit templates.
+- A seeding script can populate it with a lightweight starter kit (categories + example pages).
+- Surgeries can then be populated by copying from this global defaults surgery (without copying rota or pinned panel text).
 
 ### Write access (who can edit)
 

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
-import Modal from '@/components/appointments/Modal'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import type { AdminToolkitCategory, AdminToolkitPageItem, AdminToolkitPinnedPanel } from '@/server/adminToolkit'
 import {
@@ -19,15 +18,12 @@ import {
   upsertAdminToolkitPinnedPanel,
   setAdminToolkitOnTakeWeek,
   getAdminToolkitOnTakeWeekValue,
-  copyAdminToolkitThenClear,
-  clearAdminToolkitContent,
 } from '../actions'
 
 type EditorCandidate = { id: string; name: string | null; email: string }
 
 interface AdminToolkitAdminClientProps {
   surgeryId: string
-  isSuperuser: boolean
   currentWeekCommencingIso: string
   initialWeekCommencingIso: string
   initialOnTakeGpName: string | null
@@ -84,7 +80,6 @@ function formatLondonDateNoWeekday(iso: string): string {
 
 export default function AdminToolkitAdminClient({
   surgeryId,
-  isSuperuser,
   currentWeekCommencingIso,
   initialWeekCommencingIso,
   initialOnTakeGpName,
@@ -125,40 +120,6 @@ export default function AdminToolkitAdminClient({
     for (const w of upcomingWeeks) map[w.weekCommencingIso] = w.gpName
     return map
   })
-
-  type ToolkitCounts = { categories: number; items: number; attachments: number; rotaWeeks: number }
-  type ToolkitCopyDryRun = {
-    dryRun: true
-    source: { id: string; name: string; slug: string | null }
-    target: { id: string; name: string; slug: string | null }
-    sourceActiveCounts: ToolkitCounts
-    targetActiveCounts: ToolkitCounts
-    editorLinks: { copied: number; skipped: number }
-    canProceed: boolean
-    blockingReasons: string[]
-  }
-  type ClearDryRun = {
-    dryRun: true
-    surgery: { id: string; name: string; slug: string | null }
-    activeCounts: ToolkitCounts
-  }
-  type ClearResult = {
-    dryRun: false
-    surgery: { id: string; name: string; slug: string | null }
-    cleared: {
-      itemsSoftDeleted: number
-      categoriesSoftDeleted: number
-      attachmentsSoftDeleted: number
-      editorLinksDeleted: number
-      rotaWeeksDeleted: number
-      pinnedPanelCleared: boolean
-      legacyDailyRotaDeleted: number
-    }
-  }
-
-  const [templateModal, setTemplateModal] = useState<null | 'copy' | 'clear'>(null)
-  const [templateDryRun, setTemplateDryRun] = useState<ToolkitCopyDryRun | ClearDryRun | null>(null)
-  const [templateBusy, setTemplateBusy] = useState(false)
 
   function focusTitle() {
     requestAnimationFrame(() => titleInputRef.current?.focus())
@@ -293,221 +254,6 @@ export default function AdminToolkitAdminClient({
 
   return (
     <div className="space-y-6">
-      {isSuperuser ? (
-        <section className="bg-white rounded-lg shadow-md p-6 border border-yellow-200">
-          <h2 className="text-lg font-semibold text-nhs-dark-blue">Template tools (superusers)</h2>
-          <p className="mt-1 text-sm text-nhs-grey">
-            Copy Admin Toolkit content from <strong>global-default-buttons</strong> into this surgery, then clear the source.
-          </p>
-
-          <div className="mt-4 flex flex-col sm:flex-row gap-3">
-            <button
-              type="button"
-              className="nhs-button"
-              disabled={templateBusy}
-              onClick={async () => {
-                setTemplateBusy(true)
-                try {
-                  const res = await copyAdminToolkitThenClear({
-                    sourceSurgerySlugOrId: 'global-default-buttons',
-                    targetSurgerySlugOrId: surgeryId,
-                    dryRun: true,
-                  })
-                  if (!res.ok) {
-                    toast.error(res.error.message)
-                    return
-                  }
-                  setTemplateDryRun(res.data as ToolkitCopyDryRun)
-                  setTemplateModal('copy')
-                } finally {
-                  setTemplateBusy(false)
-                }
-              }}
-                       >
-              Copy then clear (dry run)
-            </button>
-
-            <button
-              type="button"
-              className="nhs-button-secondary"
-              disabled={templateBusy}
-              onClick={async () => {
-                setTemplateBusy(true)
-                try {
-                  const res = await clearAdminToolkitContent({ surgerySlugOrId: 'global-default-buttons', dryRun: true })
-                  if (!res.ok) {
-                    toast.error(res.error.message)
-                    return
-                  }
-                  setTemplateDryRun(res.data as ClearDryRun)
-                  setTemplateModal('clear')
-                } finally {
-                  setTemplateBusy(false)
-                }
-              }}
-            >
-              Clear global defaults (dry run)
-            </button>
-          </div>
-
-          {templateModal && templateDryRun ? (
-            <Modal
-              title={templateModal === 'copy' ? 'Copy then clear Admin Toolkit content' : 'Clear global defaults Admin Toolkit'}
-              description="This is a powerful operation. Double-check the counts before continuing."
-              onClose={() => {
-                setTemplateModal(null)
-                setTemplateDryRun(null)
-              }}
-            >
-              <div className="space-y-4">
-                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Warning:</strong> Clearing will remove (soft-delete) Admin Toolkit categories and pages from the source surgery and blank its pinned panel.
-                  </p>
-                </div>
-
-                {templateModal === 'copy' ? (
-                  (() => {
-                    const data = templateDryRun as ToolkitCopyDryRun
-                    return (
-                      <div className="space-y-3 text-sm text-gray-800">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div className="rounded-lg border border-gray-200 bg-white p-3">
-                            <div className="font-medium">Source</div>
-                            <div className="text-gray-600">{data.source.name}</div>
-                          </div>
-                          <div className="rounded-lg border border-gray-200 bg-white p-3">
-                            <div className="font-medium">Target</div>
-                            <div className="text-gray-600">{data.target.name}</div>
-                          </div>
-                        </div>
-
-                        <div className="rounded-lg border border-gray-200 bg-white p-4">
-                          <div className="font-medium mb-2">What will be copied</div>
-                          <ul className="list-disc pl-5 space-y-1">
-                            <li>{data.sourceActiveCounts.categories} categories</li>
-                            <li>{data.sourceActiveCounts.items} pages</li>
-                            <li>{data.sourceActiveCounts.attachments} attachments (links)</li>
-                            <li>{data.sourceActiveCounts.rotaWeeks} on-take weeks</li>
-                            <li>
-                              Editor restrictions: {data.editorLinks.copied} links copied, {data.editorLinks.skipped} skipped
-                            </li>
-                          </ul>
-                        </div>
-
-                        {!data.canProceed ? (
-                          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                            <div className="font-medium text-red-800">Cannot proceed</div>
-                            <ul className="mt-2 list-disc pl-5 space-y-1 text-red-800">
-                              {data.blockingReasons.map((r) => (
-                                <li key={r}>{r}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            className="nhs-button-secondary"
-                            onClick={() => {
-                              setTemplateModal(null)
-                              setTemplateDryRun(null)
-                            }}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            className="nhs-button"
-                            disabled={templateBusy || !data.canProceed}
-                            onClick={async () => {
-                              setTemplateBusy(true)
-                              try {
-                                const res = await copyAdminToolkitThenClear({
-                                  sourceSurgerySlugOrId: 'global-default-buttons',
-                                  targetSurgerySlugOrId: surgeryId,
-                                  dryRun: false,
-                                })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Copy complete and global defaults cleared')
-                                setTemplateModal(null)
-                                setTemplateDryRun(null)
-                                await refresh()
-                              } finally {
-                                setTemplateBusy(false)
-                              }
-                            }}
-                          >
-                            Copy then clear
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })()
-                ) : (
-                  (() => {
-                    const data = templateDryRun as ClearDryRun
-                    return (
-                      <div className="space-y-3 text-sm text-gray-800">
-                        <div className="rounded-lg border border-gray-200 bg-white p-4">
-                          <div className="font-medium mb-2">What will be cleared</div>
-                          <ul className="list-disc pl-5 space-y-1">
-                            <li>{data.activeCounts.categories} categories (soft delete)</li>
-                            <li>{data.activeCounts.items} items (soft delete)</li>
-                            <li>{data.activeCounts.attachments} attachments (soft delete)</li>
-                            <li>{data.activeCounts.rotaWeeks} on-take weeks (delete)</li>
-                            <li>Pinned panel text will be blanked</li>
-                          </ul>
-                        </div>
-
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <button
-                            type="button"
-                            className="nhs-button-secondary"
-                            onClick={() => {
-                              setTemplateModal(null)
-                              setTemplateDryRun(null)
-                            }}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            className="nhs-button"
-                            disabled={templateBusy}
-                            onClick={async () => {
-                              setTemplateBusy(true)
-                              try {
-                                const res = await clearAdminToolkitContent({ surgerySlugOrId: 'global-default-buttons', dryRun: false })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Global defaults cleared')
-                                setTemplateModal(null)
-                                setTemplateDryRun(null)
-                              } finally {
-                                setTemplateBusy(false)
-                              }
-                            }}
-                          >
-                            Clear global defaults
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })()
-                )}
-              </div>
-            </Modal>
-          ) : null}
-        </section>
-      ) : null}
-
       {/* Categories */}
       <section className="bg-white rounded-lg shadow-md p-6">
         <h2 className="text-lg font-semibold text-nhs-dark-blue">Categories</h2>

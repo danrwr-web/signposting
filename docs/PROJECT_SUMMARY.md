@@ -62,7 +62,7 @@ Each GP surgery has a fully independent configuration, symptom library, governan
 - Optional restrictions per page (approved editors only).
 - Pinned panel shown on every Admin Toolkit page (task buddy system, post route, and “GP taking on” from a rota).
 - Soft delete + audit history for changes.
-- Superusers can copy global default Admin Toolkit content into a surgery and then clear the global defaults to use as starter templates.
+- The Admin Toolkit supports a “global defaults” starter kit (stored in a dedicated surgery record) to help seed new surgeries.
 
 ### 🔹 Workflow Guidance
 
