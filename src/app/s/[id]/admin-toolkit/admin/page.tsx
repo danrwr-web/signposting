@@ -142,6 +142,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
 
           <AdminToolkitAdminClient
             surgeryId={surgeryId}
+            isSuperuser={user.globalRole === 'SUPERUSER'}
             currentWeekCommencingIso={weekStartUtc.toISOString().slice(0, 10)}
             initialWeekCommencingIso={weekStartUtc.toISOString().slice(0, 10)}
             initialOnTakeGpName={onTakeWeek?.gpName ?? null}
