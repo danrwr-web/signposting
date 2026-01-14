@@ -72,7 +72,10 @@ export async function copyAdminToolkitFromGlobalDefaultsToSurgery(opts: {
     }),
   ])
 
-  const seeded = await db.$transaction(async (tx) => {
+  const hasTransaction = (client: DbClient): client is PrismaClient =>
+    typeof (client as PrismaClient).$transaction === 'function'
+
+  const runSeed = async (tx: Prisma.TransactionClient) => {
     const categoryIdMap = new Map<string, string>()
     for (const c of sourceCats) {
       const created = await tx.adminCategory.create({
@@ -140,7 +143,13 @@ export async function copyAdminToolkitFromGlobalDefaultsToSurgery(opts: {
     })
 
     return { categoriesCreated: sourceCats.length, itemsCreated, attachmentsCreated }
-  })
+  }
+
+  // If we're called with a PrismaClient, wrap the seed in a transaction.
+  // If we're called with a TransactionClient (e.g. from an outer $transaction), run directly.
+  const seeded = hasTransaction(db)
+    ? await db.$transaction(runSeed)
+    : (console.warn('[admin-toolkit] copyFromGlobalDefaults: db has no $transaction; assuming this is already a transaction client.'), await runSeed(db))
 
   return { status: 'seeded', ...seeded }
 }
