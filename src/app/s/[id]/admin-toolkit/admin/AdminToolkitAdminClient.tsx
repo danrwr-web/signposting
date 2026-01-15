@@ -1160,15 +1160,15 @@ export default function AdminToolkitAdminClient({
               const editing = editingQuickLinks[ql.id]
               if (!editing) return null
 
-              // Calculate contrast ratio
-              const contrastRatio = useMemo(() => {
-                if (!editing.bgColor || !editing.textColor) return null
+              // Calculate contrast ratio (helper function, not a hook)
+              const calculateContrastRatio = (bgColor: string, textColor: string): number | null => {
+                if (!bgColor || !textColor) return null
                 const hexToRgb = (hex: string) => {
                   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
                   return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null
                 }
-                const bg = hexToRgb(editing.bgColor)
-                const text = hexToRgb(editing.textColor)
+                const bg = hexToRgb(bgColor)
+                const text = hexToRgb(textColor)
                 if (!bg || !text) return null
                 const luminance = (r: number, g: number, b: number) => {
                   const [rs, gs, bs] = [r, g, b].map((val) => {
@@ -1182,7 +1182,8 @@ export default function AdminToolkitAdminClient({
                 const lighter = Math.max(l1, l2)
                 const darker = Math.min(l1, l2)
                 return (lighter + 0.05) / (darker + 0.05)
-              }, [editing.bgColor, editing.textColor])
+              }
+              const contrastRatio = calculateContrastRatio(editing.bgColor, editing.textColor)
 
               return (
                 <div key={ql.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
