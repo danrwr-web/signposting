@@ -133,7 +133,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       )}
 
       {/* Sticky search bar */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-200 py-2">
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
       </div>
 
