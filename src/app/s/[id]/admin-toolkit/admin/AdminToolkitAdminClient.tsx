@@ -108,6 +108,20 @@ export default function AdminToolkitAdminClient({
   const [items, setItems] = useState(initialItems)
   const [quickLinks, setQuickLinks] = useState(initialQuickLinks)
 
+  // Flatten categories for dropdown: parents and children with indentation
+  const flatCategoriesForSelect = useMemo(() => {
+    const flat: Array<{ id: string; name: string; isChild: boolean }> = []
+    for (const parent of categories) {
+      flat.push({ id: parent.id, name: parent.name, isChild: false })
+      if (parent.children && parent.children.length > 0) {
+        for (const child of parent.children) {
+          flat.push({ id: child.id, name: child.name, isChild: true })
+        }
+      }
+    }
+    return flat
+  }, [categories])
+
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newSubcategoryName, setNewSubcategoryName] = useState<Record<string, string>>({})
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null)
@@ -767,9 +781,9 @@ export default function AdminToolkitAdminClient({
                       onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
                     >
                       <option value="">Uncategorised</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
+                      {flatCategoriesForSelect.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.isChild ? `↳ ${cat.name}` : cat.name}
                         </option>
                       ))}
                     </select>
@@ -927,9 +941,9 @@ export default function AdminToolkitAdminClient({
                       onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
                     >
                       <option value="">Uncategorised</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
+                      {flatCategoriesForSelect.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.isChild ? `↳ ${cat.name}` : cat.name}
                         </option>
                       ))}
                     </select>
