@@ -44,21 +44,15 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
 
   const isBlueStyle = cardStyle === 'powerappsBlue'
   
-  const containerClasses = isBlueStyle
-    ? 'bg-[#264c96] rounded-xl shadow-md border border-blue-700 flex flex-col h-full min-h-0'
-    : 'bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-full min-h-0'
+  // Container always uses neutral styling (blue mode only affects item cards)
+  const containerClasses = 'bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-full min-h-0'
 
-  const headerClasses = isBlueStyle
-    ? 'flex items-center justify-between border-b border-blue-500 px-4 py-3 shrink-0'
-    : 'flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0'
+  // Header always uses neutral styling
+  const headerClasses = 'flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0'
 
-  const countTextClasses = isBlueStyle
-    ? 'text-sm text-white'
-    : 'text-sm text-gray-600'
+  const countTextClasses = 'text-sm text-gray-600'
 
-  const viewOnlyTextClasses = isBlueStyle
-    ? 'text-sm text-blue-200'
-    : 'text-sm text-gray-500'
+  const viewOnlyTextClasses = 'text-sm text-gray-500'
 
   return (
     <div className={containerClasses}>
@@ -70,7 +64,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         {canWrite ? (
           <Link 
             href={`/s/${surgeryId}/admin-toolkit/admin`} 
-            className={isBlueStyle ? 'px-4 py-2 bg-white text-[#264c96] rounded-md hover:bg-blue-50 transition-colors font-medium' : 'nhs-button'}
+            className="nhs-button"
           >
             Add item
           </Link>
