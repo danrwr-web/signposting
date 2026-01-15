@@ -37,11 +37,11 @@ model User {
   userFeatureFlags UserFeatureFlag[]
 
   // Admin Toolkit
-  adminItemEditors AdminItemEditor[]
-  adminItemOwnership AdminItem[] @relation("AdminItemOwner")
-  adminItemsCreated AdminItem[] @relation("AdminItemCreatedBy")
-  adminItemsUpdated AdminItem[] @relation("AdminItemUpdatedBy")
-  adminToolkitHistory AdminHistory[] @relation("AdminToolkitHistoryActor")
+  adminItemEditors    AdminItemEditor[]
+  adminItemOwnership  AdminItem[]       @relation("AdminItemOwner")
+  adminItemsCreated   AdminItem[]       @relation("AdminItemCreatedBy")
+  adminItemsUpdated   AdminItem[]       @relation("AdminItemUpdatedBy")
+  adminToolkitHistory AdminHistory[]    @relation("AdminToolkitHistoryActor")
 
   // Workflow instances
   workflowInstances WorkflowInstance[]
@@ -58,14 +58,14 @@ model User {
 }
 
 model UserSurgery {
-  id        String  @id @default(cuid())
-  userId    String
-  surgeryId String
-  role      String  @default("STANDARD") // "STANDARD" | "ADMIN"
+  id                String  @id @default(cuid())
+  userId            String
+  surgeryId         String
+  role              String  @default("STANDARD") // "STANDARD" | "ADMIN"
   // Admin Toolkit module write permission (separate from surgery ADMIN role)
   adminToolkitWrite Boolean @default(false)
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  surgery   Surgery @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery           Surgery @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, surgeryId])
 }
@@ -95,7 +95,7 @@ model Surgery {
   enableDefaultHighRisk            Boolean                           @default(true) // Enable/disable default high-risk buttons
   enableBuiltInHighlights          Boolean                           @default(true) // Enable/disable built-in highlight rules
   enableImageIcons                 Boolean                           @default(true) // Enable/disable image icons on symptom cards
-  uiConfig                         Json?                            // UI configuration (common reasons, etc.)
+  uiConfig                         Json? // UI configuration (common reasons, etc.)
   highRiskLinks                    HighRiskLink[]
   defaultHighRiskButtons           DefaultHighRiskButtonConfig[]
   highlightRules                   HighlightRule[]
@@ -114,13 +114,14 @@ model Surgery {
   workflowNodeStyleDefaultsSurgery WorkflowNodeStyleDefaultSurgery[]
 
   // Admin Toolkit
-  adminCategories  AdminCategory[]
-  adminItems       AdminItem[]
+  adminCategories      AdminCategory[]
+  adminItems           AdminItem[]
   adminItemAttachments AdminItemAttachment[]
-  adminPinnedPanel AdminPinnedPanel?
-  adminDutyRota    AdminDutyRotaEntry[]
-  adminOnTakeWeeks AdminOnTakeWeek[]
-  adminHistory     AdminHistory[]
+  adminPinnedPanel     AdminPinnedPanel?
+  adminDutyRota        AdminDutyRotaEntry[]
+  adminOnTakeWeeks     AdminOnTakeWeek[]
+  adminQuickLinks      AdminQuickLink[]
+  adminHistory         AdminHistory[]
 }
 
 model BaseSymptom {
@@ -468,16 +469,16 @@ model UserFeatureFlag {
 // -----------------------
 
 model AdminCategory {
-  id        String   @id @default(cuid())
-  surgeryId String
-  name      String
-  orderIndex Int     @default(0)
+  id         String @id @default(cuid())
+  surgeryId  String
+  name       String
+  orderIndex Int    @default(0)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery        @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   items   AdminItem[]
   history AdminHistory[]
 
@@ -498,19 +499,19 @@ model AdminItem {
   // Optional extra metadata (future-proofing)
   contentJson Json?
 
-  warningLevel   String?
-  ownerUserId    String?
+  warningLevel    String?
+  ownerUserId     String?
   createdByUserId String?
   updatedByUserId String?
-  lastReviewedAt DateTime?
-  deletedAt      DateTime?
+  lastReviewedAt  DateTime?
+  deletedAt       DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   surgery   Surgery        @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  category AdminCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  owner    User?           @relation("AdminItemOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  category  AdminCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  owner     User?          @relation("AdminItemOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   createdBy User?          @relation("AdminItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   updatedBy User?          @relation("AdminItemUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
@@ -518,6 +519,7 @@ model AdminItem {
   listColumns AdminListColumn[]
   listRows    AdminListRow[]
   attachments AdminItemAttachment[]
+  quickLinks  AdminQuickLink[]
   history     AdminHistory[]
 
   @@index([surgeryId, deletedAt])
@@ -541,12 +543,12 @@ model AdminItemEditor {
 }
 
 model AdminListColumn {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   adminItemId String
   key         String
   label       String
-  orderIndex  Int      @default(0)
-  fieldType   String   @default("TEXT")
+  orderIndex  Int    @default(0)
+  fieldType   String @default("TEXT")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -558,14 +560,14 @@ model AdminListColumn {
 }
 
 model AdminListRow {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   adminItemId String
   dataJson    Json
-  orderIndex  Int      @default(0)
+  orderIndex  Int    @default(0)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
 
@@ -574,18 +576,18 @@ model AdminListRow {
 }
 
 model AdminItemAttachment {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   surgeryId   String
   adminItemId String
   label       String
   url         String
-  orderIndex  Int      @default(0)
+  orderIndex  Int    @default(0)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  surgery   Surgery  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
 
   @@index([adminItemId, orderIndex])
@@ -595,7 +597,7 @@ model AdminItemAttachment {
 model AdminPinnedPanel {
   id String @id @default(cuid())
 
-  surgeryId String @unique
+  surgeryId String  @unique
   surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   taskBuddyText String?
@@ -639,6 +641,26 @@ model AdminOnTakeWeek {
   @@index([surgeryId, weekCommencing])
 }
 
+model AdminQuickLink {
+  id String @id @default(cuid())
+
+  surgeryId   String
+  adminItemId String
+  label       String
+  orderIndex  Int
+  bgColor     String? // hex e.g. "#1D4ED8"
+  textColor   String? // hex e.g. "#FFFFFF"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+
+  @@unique([surgeryId, adminItemId])
+  @@index([surgeryId, orderIndex])
+}
+
 model AdminHistory {
   id String @id @default(cuid())
 
@@ -656,7 +678,7 @@ model AdminHistory {
 
   adminItem     AdminItem?     @relation(fields: [adminItemId], references: [id], onDelete: SetNull)
   adminCategory AdminCategory? @relation(fields: [adminCategoryId], references: [id], onDelete: SetNull)
-  actorUser     User          @relation("AdminToolkitHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  actorUser     User           @relation("AdminToolkitHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([surgeryId, createdAt])
   @@index([adminItemId])

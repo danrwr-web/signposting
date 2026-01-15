@@ -12,6 +12,7 @@ import {
   getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItems,
   getAdminToolkitPinnedPanel,
+  getAdminQuickLinks,
   getLondonTodayUtc,
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
@@ -70,11 +71,22 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
       )
     }
 
-    const [categories, items, panel] = await Promise.all([
+    const [categories, items, panel, quickLinks] = await Promise.all([
       getAdminToolkitCategories(surgeryId),
       getAdminToolkitPageItems(surgeryId),
       getAdminToolkitPinnedPanel(surgeryId),
+      getAdminQuickLinks(surgeryId),
     ])
+
+    // Filter quick links: hide restricted items the user cannot view
+    const visibleQuickLinks = quickLinks.filter((ql) => {
+      // Superusers can see everything
+      if (user.globalRole === 'SUPERUSER') return true
+      // If item has no editors restriction, anyone can view
+      if (ql.adminItem.editors.length === 0) return true
+      // Otherwise, check if user is in the editors list
+      return ql.adminItem.editors.some((e) => e.userId === user.id)
+    })
 
     const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
@@ -95,6 +107,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
               canWrite={canWrite}
               categories={categories}
               items={items}
+              quickLinks={visibleQuickLinks}
             />
           </div>
         </div>

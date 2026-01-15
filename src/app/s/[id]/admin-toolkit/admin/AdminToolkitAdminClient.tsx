@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
-import type { AdminToolkitCategory, AdminToolkitPageItem, AdminToolkitPinnedPanel } from '@/server/adminToolkit'
+import type { AdminToolkitCategory, AdminToolkitPageItem, AdminToolkitPinnedPanel, AdminQuickLink } from '@/server/adminToolkit'
 import {
   createAdminToolkitCategory,
   deleteAdminToolkitCategory,
@@ -22,6 +22,10 @@ import {
   updateAdminToolkitListColumn,
   deleteAdminToolkitListColumn,
   reorderAdminToolkitListColumns,
+  createAdminQuickLink,
+  updateAdminQuickLink,
+  deleteAdminQuickLink,
+  reorderAdminQuickLinks,
 } from '../actions'
 
 type EditorCandidate = { id: string; name: string | null; email: string }
@@ -35,6 +39,7 @@ interface AdminToolkitAdminClientProps {
   initialPanel: AdminToolkitPinnedPanel
   initialCategories: AdminToolkitCategory[]
   initialItems: AdminToolkitPageItem[]
+  initialQuickLinks: AdminQuickLink[]
   editorCandidates: EditorCandidate[]
   initialItemId?: string
 }
@@ -93,6 +98,7 @@ export default function AdminToolkitAdminClient({
   initialPanel,
   initialCategories,
   initialItems,
+  initialQuickLinks,
   editorCandidates,
   initialItemId,
 }: AdminToolkitAdminClientProps) {
@@ -100,6 +106,7 @@ export default function AdminToolkitAdminClient({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const [categories, setCategories] = useState(initialCategories)
   const [items, setItems] = useState(initialItems)
+  const [quickLinks, setQuickLinks] = useState(initialQuickLinks)
 
   const [newCategoryName, setNewCategoryName] = useState('')
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null)
@@ -128,6 +135,21 @@ export default function AdminToolkitAdminClient({
     for (const w of upcomingWeeks) map[w.weekCommencingIso] = w.gpName
     return map
   })
+
+  // Quick links editing state
+  const [editingQuickLinks, setEditingQuickLinks] = useState<Record<string, { label: string; itemId: string; bgColor: string; textColor: string }>>(() => {
+    const map: Record<string, { label: string; itemId: string; bgColor: string; textColor: string }> = {}
+    for (const ql of initialQuickLinks) {
+      map[ql.id] = {
+        label: ql.label,
+        itemId: ql.adminItemId,
+        bgColor: ql.bgColor || '',
+        textColor: ql.textColor || '',
+      }
+    }
+    return map
+  })
+  const [savingQuickLinkId, setSavingQuickLinkId] = useState<string | null>(null)
 
   function focusTitle() {
     requestAnimationFrame(() => titleInputRef.current?.focus())
@@ -176,6 +198,21 @@ export default function AdminToolkitAdminClient({
   useEffect(() => {
     setItems(initialItems)
   }, [initialItems])
+
+  useEffect(() => {
+    setQuickLinks(initialQuickLinks)
+    // Reset editing state when quick links change
+    const map: Record<string, { label: string; itemId: string; bgColor: string; textColor: string }> = {}
+    for (const ql of initialQuickLinks) {
+      map[ql.id] = {
+        label: ql.label,
+        itemId: ql.adminItemId,
+        bgColor: ql.bgColor || '',
+        textColor: ql.textColor || '',
+      }
+    }
+    setEditingQuickLinks(map)
+  }, [initialQuickLinks])
 
   useEffect(() => {
     // Populate the form when switching items in edit mode.
@@ -1106,6 +1143,285 @@ export default function AdminToolkitAdminClient({
             }}
           >
             Save pinned panel
+          </button>
+        </div>
+      </section>
+
+      {/* Quick access buttons */}
+      <section className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-lg font-semibold text-nhs-dark-blue">Quick access buttons</h2>
+        <p className="mt-1 text-sm text-nhs-grey">Configure buttons that appear on the Admin Toolkit front page for quick navigation.</p>
+
+        <div className="mt-4 space-y-4">
+          {quickLinks.length === 0 ? (
+            <p className="text-sm text-gray-500">No quick access buttons yet.</p>
+          ) : (
+            quickLinks.map((ql, idx) => {
+              const editing = editingQuickLinks[ql.id]
+              if (!editing) return null
+
+              // Calculate contrast ratio
+              const contrastRatio = useMemo(() => {
+                if (!editing.bgColor || !editing.textColor) return null
+                const hexToRgb = (hex: string) => {
+                  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+                  return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null
+                }
+                const bg = hexToRgb(editing.bgColor)
+                const text = hexToRgb(editing.textColor)
+                if (!bg || !text) return null
+                const luminance = (r: number, g: number, b: number) => {
+                  const [rs, gs, bs] = [r, g, b].map((val) => {
+                    val = val / 255
+                    return val <= 0.03928 ? val / 12.92 : Math.pow((val + 0.055) / 1.055, 2.4)
+                  })
+                  return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs
+                }
+                const l1 = luminance(bg.r, bg.g, bg.b)
+                const l2 = luminance(text.r, text.g, text.b)
+                const lighter = Math.max(l1, l2)
+                const darker = Math.min(l1, l2)
+                return (lighter + 0.05) / (darker + 0.05)
+              }, [editing.bgColor, editing.textColor])
+
+              return (
+                <div key={ql.id} className="border border-gray-200 rounded-lg p-4 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Button label</label>
+                      <input
+                        type="text"
+                        value={editing.label}
+                        onChange={(e) =>
+                          setEditingQuickLinks((prev) => ({
+                            ...prev,
+                            [ql.id]: { ...prev[ql.id], label: e.target.value },
+                          }))
+                        }
+                        className="w-full nhs-input"
+                        maxLength={80}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Target item</label>
+                      <select
+                        value={editing.itemId}
+                        onChange={(e) =>
+                          setEditingQuickLinks((prev) => ({
+                            ...prev,
+                            [ql.id]: { ...prev[ql.id], itemId: e.target.value },
+                          }))
+                        }
+                        className="w-full nhs-input"
+                      >
+                        <option value="">Select an item…</option>
+                        {items.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.title} ({item.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Background colour</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={editing.bgColor || '#1D4ED8'}
+                          onChange={(e) =>
+                            setEditingQuickLinks((prev) => ({
+                              ...prev,
+                              [ql.id]: { ...prev[ql.id], bgColor: e.target.value },
+                            }))
+                          }
+                          className="h-10 w-20 rounded border border-gray-300"
+                        />
+                        <input
+                          type="text"
+                          value={editing.bgColor}
+                          onChange={(e) =>
+                            setEditingQuickLinks((prev) => ({
+                              ...prev,
+                              [ql.id]: { ...prev[ql.id], bgColor: e.target.value },
+                            }))
+                          }
+                          placeholder="#1D4ED8"
+                          className="flex-1 nhs-input font-mono text-sm"
+                          pattern="^#[0-9a-fA-F]{6}$"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Text colour</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={editing.textColor || '#FFFFFF'}
+                          onChange={(e) =>
+                            setEditingQuickLinks((prev) => ({
+                              ...prev,
+                              [ql.id]: { ...prev[ql.id], textColor: e.target.value },
+                            }))
+                          }
+                          className="h-10 w-20 rounded border border-gray-300"
+                        />
+                        <input
+                          type="text"
+                          value={editing.textColor}
+                          onChange={(e) =>
+                            setEditingQuickLinks((prev) => ({
+                              ...prev,
+                              [ql.id]: { ...prev[ql.id], textColor: e.target.value },
+                            }))
+                          }
+                          placeholder="#FFFFFF"
+                          className="flex-1 nhs-input font-mono text-sm"
+                          pattern="^#[0-9a-fA-F]{6}$"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {contrastRatio !== null && contrastRatio < 4.5 && (
+                    <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                      Low contrast – may be hard to read (ratio: {contrastRatio.toFixed(2)})
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="nhs-button-secondary text-sm"
+                        disabled={idx === 0 || savingQuickLinkId === ql.id}
+                        onClick={async () => {
+                          const ordered = [...quickLinks]
+                          ;[ordered[idx], ordered[idx - 1]] = [ordered[idx - 1], ordered[idx]]
+                          const res = await reorderAdminQuickLinks({
+                            surgeryId,
+                            orderedIds: ordered.map((q) => q.id),
+                          })
+                          if (!res.ok) {
+                            toast.error(res.error.message)
+                            return
+                          }
+                          toast.success('Reordered')
+                          await refresh()
+                        }}
+                      >
+                        ↑ Move up
+                      </button>
+                      <button
+                        type="button"
+                        className="nhs-button-secondary text-sm"
+                        disabled={idx === quickLinks.length - 1 || savingQuickLinkId === ql.id}
+                        onClick={async () => {
+                          const ordered = [...quickLinks]
+                          ;[ordered[idx], ordered[idx + 1]] = [ordered[idx + 1], ordered[idx]]
+                          const res = await reorderAdminQuickLinks({
+                            surgeryId,
+                            orderedIds: ordered.map((q) => q.id),
+                          })
+                          if (!res.ok) {
+                            toast.error(res.error.message)
+                            return
+                          }
+                          toast.success('Reordered')
+                          await refresh()
+                        }}
+                      >
+                        ↓ Move down
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="nhs-button text-sm"
+                        disabled={savingQuickLinkId === ql.id}
+                        onClick={async () => {
+                          setSavingQuickLinkId(ql.id)
+                          try {
+                            const res = await updateAdminQuickLink({
+                              surgeryId,
+                              id: ql.id,
+                              adminItemId: editing.itemId,
+                              label: editing.label.trim(),
+                              bgColor: editing.bgColor.trim() || null,
+                              textColor: editing.textColor.trim() || null,
+                            })
+                            if (!res.ok) {
+                              toast.error(res.error.message)
+                              return
+                            }
+                            toast.success('Quick link updated')
+                            await refresh()
+                          } finally {
+                            setSavingQuickLinkId(null)
+                          }
+                        }}
+                      >
+                        {savingQuickLinkId === ql.id ? 'Saving…' : 'Save'}
+                      </button>
+                      <button
+                        type="button"
+                        className="nhs-button-secondary text-sm text-red-600 hover:text-red-700"
+                        disabled={savingQuickLinkId === ql.id}
+                        onClick={async () => {
+                          if (!confirm('Delete this quick access button?')) return
+                          setSavingQuickLinkId(ql.id)
+                          try {
+                            const res = await deleteAdminQuickLink({ surgeryId, id: ql.id })
+                            if (!res.ok) {
+                              toast.error(res.error.message)
+                              return
+                            }
+                            toast.success('Quick link deleted')
+                            await refresh()
+                          } finally {
+                            setSavingQuickLinkId(null)
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        <div className="mt-4">
+          <button
+            type="button"
+            className="nhs-button"
+            onClick={async () => {
+              // Find first available item or use first item
+              const availableItem = items.find((item) => !quickLinks.some((ql) => ql.adminItemId === item.id)) || items[0]
+              if (!availableItem) {
+                toast.error('No items available. Create an item first.')
+                return
+              }
+              const res = await createAdminQuickLink({
+                surgeryId,
+                adminItemId: availableItem.id,
+                label: availableItem.title,
+                bgColor: null,
+                textColor: null,
+              })
+              if (!res.ok) {
+                toast.error(res.error.message)
+                return
+              }
+              toast.success('Quick link added')
+              await refresh()
+            }}
+          >
+            Add quick access button
           </button>
         </div>
       </section>

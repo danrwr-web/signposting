@@ -10,6 +10,7 @@ import {
   getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItems,
   getAdminToolkitPinnedPanel,
+  getAdminQuickLinks,
   getLondonTodayUtc,
   addDaysUtc,
   startOfWeekMondayUtc,
@@ -91,10 +92,11 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
     const upcomingWeekStarts = Array.from({ length: 8 }).map((_, i) => addDaysUtc(weekStartUtc, i * 7))
     const upcomingWeekEnd = addDaysUtc(weekStartUtc, 8 * 7)
 
-    const [categories, items, panel, onTakeWeek, onTakeUpcoming, members] = await Promise.all([
+    const [categories, items, panel, quickLinks, onTakeWeek, onTakeUpcoming, members] = await Promise.all([
       getAdminToolkitCategories(surgeryId),
       getAdminToolkitPageItems(surgeryId),
       getAdminToolkitPinnedPanel(surgeryId),
+      getAdminQuickLinks(surgeryId),
       getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc),
       prisma.adminOnTakeWeek.findMany({
         where: { surgeryId, weekCommencing: { gte: weekStartUtc, lt: upcomingWeekEnd } },
@@ -153,6 +155,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
             initialPanel={panel}
             initialCategories={categories}
             initialItems={items}
+            initialQuickLinks={quickLinks}
             editorCandidates={editorCandidates}
             initialItemId={initialItemId}
           />

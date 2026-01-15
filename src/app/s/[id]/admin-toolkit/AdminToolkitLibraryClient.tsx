@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import type { AdminToolkitCategory, AdminToolkitPageItem } from '@/server/adminToolkit'
+import type { AdminToolkitCategory, AdminToolkitPageItem, AdminQuickLink } from '@/server/adminToolkit'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import { useCardStyle } from '@/context/CardStyleContext'
 
@@ -11,9 +11,10 @@ interface AdminToolkitLibraryClientProps {
   canWrite: boolean
   categories: AdminToolkitCategory[]
   items: AdminToolkitPageItem[]
+  quickLinks: AdminQuickLink[]
 }
 
-export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items }: AdminToolkitLibraryClientProps) {
+export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items, quickLinks }: AdminToolkitLibraryClientProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
   const { cardStyle } = useCardStyle()
@@ -76,6 +77,42 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
           <span className={viewOnlyTextClasses}>You have view-only access.</span>
         )}
       </div>
+
+      {/* Quick access buttons */}
+      {quickLinks.length > 0 && (
+        <div className={`shrink-0 border-b ${isBlueStyle ? 'border-blue-500' : 'border-gray-200'} px-4 py-3`}>
+          <h3 className={`text-xs font-medium uppercase tracking-wide mb-2 ${isBlueStyle ? 'text-blue-200' : 'text-gray-500'}`}>
+            Quick access
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {quickLinks.map((ql) => {
+              const hasCustomColors = ql.bgColor && ql.textColor
+              const buttonStyle = hasCustomColors
+                ? {
+                    backgroundColor: ql.bgColor,
+                    color: ql.textColor,
+                    borderColor: ql.bgColor,
+                  }
+                : undefined
+              const defaultButtonClasses = isBlueStyle
+                ? 'px-4 py-2 bg-white text-[#264c96] rounded-md hover:bg-blue-50 transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2'
+                : 'px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-nhs-dark-blue transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2'
+              const customButtonClasses = 'px-4 py-2 rounded-md font-medium text-sm transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 border'
+              
+              return (
+                <Link
+                  key={ql.id}
+                  href={`/s/${surgeryId}/admin-toolkit/${ql.adminItemId}`}
+                  className={hasCustomColors ? customButtonClasses : defaultButtonClasses}
+                  style={buttonStyle}
+                >
+                  {ql.label}
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className={`shrink-0 border-b ${isBlueStyle ? 'border-blue-500' : 'border-gray-200'}`}>
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />

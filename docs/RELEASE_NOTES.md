@@ -7,11 +7,12 @@ A high-level history of major changes.
 ## Unreleased
 
 - Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
-- Added **Admin Toolkit** (feature-flagged) for surgery-specific guidance pages, a pinned panel, and a simple “GP taking on” rota.
+- Added **Admin Toolkit** (feature-flagged) for surgery-specific guidance pages, a pinned panel, and a simple "GP taking on" rota.
 - Admin Toolkit: added seeding for the **global defaults** surgery so it can act as a starter-kit template source for new surgeries.
 - Admin Toolkit: when enabled for an empty surgery, a starter kit is now added automatically (pinned panel and rota remain blank).
 - Admin Toolkit: added **LIST** items (simple editable tables) for storing structured information.
 - Admin Toolkit: removed the temporary global-defaults seeding button from the admin dashboard.
+- Admin Toolkit: Quick access buttons on the front page (configurable, with custom colours).
 
 ---
 

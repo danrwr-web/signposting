@@ -38,6 +38,21 @@ export type AdminToolkitOnTakeWeek = {
   gpName: string
 }
 
+export type AdminQuickLink = {
+  id: string
+  adminItemId: string
+  label: string
+  orderIndex: number
+  bgColor: string | null
+  textColor: string | null
+  adminItem: {
+    id: string
+    title: string
+    type: 'PAGE' | 'LIST'
+    editors: Array<{ userId: string }>
+  }
+}
+
 export function startOfDayUtc(date: Date): Date {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
 }
@@ -170,3 +185,26 @@ export async function getAdminToolkitOnTakeWeek(
   return row ?? null
 }
 
+export async function getAdminQuickLinks(surgeryId: string): Promise<AdminQuickLink[]> {
+  const quickLinks = await prisma.adminQuickLink.findMany({
+    where: { surgeryId },
+    select: {
+      id: true,
+      adminItemId: true,
+      label: true,
+      orderIndex: true,
+      bgColor: true,
+      textColor: true,
+      adminItem: {
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          editors: { select: { userId: true } },
+        },
+      },
+    },
+    orderBy: { orderIndex: 'asc' },
+  })
+  return quickLinks
+}
