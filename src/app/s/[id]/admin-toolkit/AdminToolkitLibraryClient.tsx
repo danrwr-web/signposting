@@ -100,9 +100,9 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               if (hasBgColor && !hasTextColor) {
                 // Simple contrast check: if bg is dark, use white text; otherwise use dark text
                 const hex = ql.bgColor.replace('#', '')
-                const r = parseInt(hex.substr(0, 2), 16)
-                const g = parseInt(hex.substr(2, 2), 16)
-                const b = parseInt(hex.substr(4, 2), 16)
+                const r = parseInt(hex.substring(0, 2), 16)
+                const g = parseInt(hex.substring(2, 4), 16)
+                const b = parseInt(hex.substring(4, 6), 16)
                 const brightness = (r * 299 + g * 587 + b * 114) / 1000
                 buttonStyle.color = brightness < 128 ? '#FFFFFF' : '#000000'
               }
@@ -237,7 +237,6 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
             )}
           </section>
         </div>
-      </div>
     </div>
   )
 }
