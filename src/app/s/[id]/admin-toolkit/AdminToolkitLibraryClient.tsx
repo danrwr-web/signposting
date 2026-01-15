@@ -23,7 +23,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
 
   const itemsFiltered = useMemo(() => {
-    return items.filter((item) => {
+    const filtered = items.filter((item) => {
       const matchesCategory = selectedCategoryId === 'ALL' || item.categoryId === selectedCategoryId
       const matchesSearch =
         !normalisedSearch ||
@@ -31,6 +31,8 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         (item.contentHtml ? item.contentHtml.toLowerCase().includes(normalisedSearch) : false)
       return matchesCategory && matchesSearch
     })
+    // Sort alphabetically by title (case-insensitive, natural sorting)
+    return filtered.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }))
   }, [items, selectedCategoryId, normalisedSearch])
 
   const categoryCounts = useMemo(() => {
