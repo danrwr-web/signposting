@@ -1053,3 +1053,218 @@ export async function removeAdminToolkitAttachment(input: unknown): Promise<Acti
   return { ok: true, data: { id: attachmentId } }
 }
 
+const hexColorRegex = /^#([0-9a-fA-F]{6})$/
+
+const createQuickLinkInput = z.object({
+  surgeryId: z.string().min(1),
+  adminItemId: z.string().min(1),
+  label: z.string().trim().min(1, 'Label is required').max(80, 'Label is too long'),
+  bgColor: z.string().regex(hexColorRegex, 'Background colour must be a valid hex colour (e.g. #1D4ED8)').nullable().optional(),
+  textColor: z.string().regex(hexColorRegex, 'Text colour must be a valid hex colour (e.g. #FFFFFF)').nullable().optional(),
+})
+
+export async function createAdminQuickLink(input: unknown): Promise<ActionResult<{ id: string }>> {
+  return withWriteAccess(input, createQuickLinkInput, async (data, gate) => {
+    const { surgeryId, adminItemId, label, bgColor, textColor } = data
+
+    // Verify the adminItem belongs to this surgery
+    const item = await prisma.adminItem.findFirst({
+      where: { id: adminItemId, surgeryId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!item) {
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found or does not belong to this surgery.' } }
+    }
+
+    // Check if a quick link already exists for this item
+    const existing = await prisma.adminQuickLink.findUnique({
+      where: { surgeryId_adminItemId: { surgeryId, adminItemId } },
+      select: { id: true },
+    })
+    if (existing) {
+      return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'A quick link already exists for this item.' } }
+    }
+
+    // Get max orderIndex
+    const max = await prisma.adminQuickLink.aggregate({
+      where: { surgeryId },
+      _max: { orderIndex: true },
+    })
+    const nextOrder = (max._max.orderIndex ?? -1) + 1
+
+    const created = await prisma.$transaction(async (tx) => {
+      const quickLink = await tx.adminQuickLink.create({
+        data: {
+          surgeryId,
+          adminItemId,
+          label,
+          orderIndex: nextOrder,
+          bgColor: bgColor ?? null,
+          textColor: textColor ?? null,
+        },
+        select: { id: true },
+      })
+      await tx.adminHistory.create({
+        data: {
+          surgeryId,
+          action: 'QUICK_LINK_CREATE',
+          actorUserId: gate.userId,
+          diffJson: { adminItemId, label, bgColor: bgColor ?? null, textColor: textColor ?? null },
+        },
+      })
+      return quickLink
+    })
+
+    return { ok: true, data: { id: created.id } }
+  })
+}
+
+const updateQuickLinkInput = z.object({
+  surgeryId: z.string().min(1),
+  id: z.string().min(1),
+  adminItemId: z.string().min(1),
+  label: z.string().trim().min(1, 'Label is required').max(80, 'Label is too long'),
+  bgColor: z.string().regex(hexColorRegex, 'Background colour must be a valid hex colour (e.g. #1D4ED8)').nullable().optional(),
+  textColor: z.string().regex(hexColorRegex, 'Text colour must be a valid hex colour (e.g. #FFFFFF)').nullable().optional(),
+})
+
+export async function updateAdminQuickLink(input: unknown): Promise<ActionResult<{ id: string }>> {
+  return withWriteAccess(input, updateQuickLinkInput, async (data, gate) => {
+    const { surgeryId, id, adminItemId, label, bgColor, textColor } = data
+
+    // Verify the quick link belongs to this surgery
+    const existing = await prisma.adminQuickLink.findFirst({
+      where: { id, surgeryId },
+      select: { id: true, adminItemId: true, label: true, bgColor: true, textColor: true },
+    })
+    if (!existing) {
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Quick link not found.' } }
+    }
+
+    // Verify the adminItem belongs to this surgery
+    const item = await prisma.adminItem.findFirst({
+      where: { id: adminItemId, surgeryId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!item) {
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found or does not belong to this surgery.' } }
+    }
+
+    // If changing adminItemId, check for duplicate
+    if (existing.adminItemId !== adminItemId) {
+      const duplicate = await prisma.adminQuickLink.findUnique({
+        where: { surgeryId_adminItemId: { surgeryId, adminItemId } },
+        select: { id: true },
+      })
+      if (duplicate) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'A quick link already exists for this item.' } }
+      }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.adminQuickLink.update({
+        where: { id },
+        data: {
+          adminItemId,
+          label,
+          bgColor: bgColor ?? null,
+          textColor: textColor ?? null,
+        },
+      })
+      await tx.adminHistory.create({
+        data: {
+          surgeryId,
+          action: 'QUICK_LINK_UPDATE',
+          actorUserId: gate.userId,
+          diffJson: {
+            before: {
+              adminItemId: existing.adminItemId,
+              label: existing.label,
+              bgColor: existing.bgColor,
+              textColor: existing.textColor,
+            },
+            after: {
+              adminItemId,
+              label,
+              bgColor: bgColor ?? null,
+              textColor: textColor ?? null,
+            },
+          },
+        },
+      })
+    })
+
+    return { ok: true, data: { id } }
+  })
+}
+
+const deleteQuickLinkInput = z.object({
+  surgeryId: z.string().min(1),
+  id: z.string().min(1),
+})
+
+export async function deleteAdminQuickLink(input: unknown): Promise<ActionResult<{ id: string }>> {
+  return withWriteAccess(input, deleteQuickLinkInput, async (data, gate) => {
+    const { surgeryId, id } = data
+
+    const existing = await prisma.adminQuickLink.findFirst({
+      where: { id, surgeryId },
+      select: { id: true, label: true, adminItemId: true },
+    })
+    if (!existing) {
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Quick link not found.' } }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.adminQuickLink.delete({ where: { id } })
+      await tx.adminHistory.create({
+        data: {
+          surgeryId,
+          action: 'QUICK_LINK_DELETE',
+          actorUserId: gate.userId,
+          diffJson: { label: existing.label, adminItemId: existing.adminItemId },
+        },
+      })
+    })
+
+    return { ok: true, data: { id } }
+  })
+}
+
+const reorderQuickLinksInput = z.object({
+  surgeryId: z.string().min(1),
+  orderedIds: z.array(z.string().min(1)).min(1),
+})
+
+export async function reorderAdminQuickLinks(input: unknown): Promise<ActionResult<{ updated: number }>> {
+  return withWriteAccess(input, reorderQuickLinksInput, async (data, gate) => {
+    const { surgeryId, orderedIds } = data
+
+    const existing = await prisma.adminQuickLink.findMany({
+      where: { surgeryId, id: { in: orderedIds } },
+      select: { id: true },
+    })
+    if (existing.length !== orderedIds.length) {
+      return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'One or more quick links were not found.' } }
+    }
+
+    await prisma.$transaction(async (tx) => {
+      for (let i = 0; i < orderedIds.length; i++) {
+        await tx.adminQuickLink.update({
+          where: { id: orderedIds[i] },
+          data: { orderIndex: i },
+        })
+      }
+      await tx.adminHistory.create({
+        data: {
+          surgeryId,
+          action: 'QUICK_LINK_REORDER',
+          actorUserId: gate.userId,
+          diffJson: { orderedIds },
+        },
+      })
+    })
+
+    return { ok: true, data: { updated: orderedIds.length } }
+  })
+}
