@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import type React from 'react'
 import type { AdminToolkitCategory, AdminToolkitPageItem, AdminQuickLink } from '@/server/adminToolkit'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import { useCardStyle } from '@/context/CardStyleContext'
@@ -80,31 +81,54 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
 
       {/* Quick access buttons */}
       {quickLinks.length > 0 && (
-        <div className={`shrink-0 border-b ${isBlueStyle ? 'border-blue-500' : 'border-gray-200'} px-4 py-3`}>
-          <h3 className={`text-xs font-medium uppercase tracking-wide mb-2 ${isBlueStyle ? 'text-blue-200' : 'text-gray-500'}`}>
+        <div className="shrink-0 border-b border-gray-200 px-4 py-3">
+          <h3 className="text-xs font-medium uppercase tracking-wide mb-2 text-gray-500">
             Quick access
           </h3>
           <div className="flex flex-wrap gap-2">
             {quickLinks.map((ql) => {
-              const hasCustomColors = ql.bgColor && ql.textColor
-              const buttonStyle = hasCustomColors
-                ? {
-                    backgroundColor: ql.bgColor,
-                    color: ql.textColor,
-                    borderColor: ql.bgColor,
-                  }
-                : undefined
-              const defaultButtonClasses = isBlueStyle
-                ? 'px-4 py-2 bg-white text-[#264c96] rounded-md hover:bg-blue-50 transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2'
-                : 'px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-nhs-dark-blue transition-colors font-medium text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2'
-              const customButtonClasses = 'px-4 py-2 rounded-md font-medium text-sm transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 border'
+              // Determine if we have custom colors (either or both)
+              const hasBgColor = !!ql.bgColor
+              const hasTextColor = !!ql.textColor
+              const hasCustomColors = hasBgColor || hasTextColor
+              
+              // Build inline style object
+              const buttonStyle: React.CSSProperties = {}
+              if (hasBgColor) {
+                buttonStyle.backgroundColor = ql.bgColor
+                buttonStyle.borderColor = ql.bgColor
+              }
+              if (hasTextColor) {
+                buttonStyle.color = ql.textColor
+              }
+              
+              // If only bgColor is provided, compute a safe default text color
+              if (hasBgColor && !hasTextColor) {
+                // Simple contrast check: if bg is dark, use white text; otherwise use dark text
+                const hex = ql.bgColor.replace('#', '')
+                const r = parseInt(hex.substr(0, 2), 16)
+                const g = parseInt(hex.substr(2, 2), 16)
+                const b = parseInt(hex.substr(4, 2), 16)
+                const brightness = (r * 299 + g * 587 + b * 114) / 1000
+                buttonStyle.color = brightness < 128 ? '#FFFFFF' : '#000000'
+              }
+              
+              // Base classes (layout only, no color classes when custom colors are present)
+              const baseClasses = 'px-4 py-2 rounded-md font-medium text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2'
+              const hoverClasses = hasCustomColors ? 'hover:opacity-90' : ''
+              const borderClasses = hasCustomColors ? 'border' : ''
+              
+              // Default button classes (only used when no custom colors)
+              const defaultButtonClasses = hasCustomColors
+                ? `${baseClasses} ${hoverClasses} ${borderClasses}`
+                : `${baseClasses} bg-nhs-blue text-white hover:bg-nhs-dark-blue focus:ring-nhs-blue`
               
               return (
                 <Link
                   key={ql.id}
                   href={`/s/${surgeryId}/admin-toolkit/${ql.adminItemId}`}
-                  className={hasCustomColors ? customButtonClasses : defaultButtonClasses}
-                  style={buttonStyle}
+                  className={defaultButtonClasses}
+                  style={hasCustomColors ? buttonStyle : undefined}
                 >
                   {ql.label}
                 </Link>
@@ -114,7 +138,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         </div>
       )}
 
-      <div className={`shrink-0 border-b ${isBlueStyle ? 'border-blue-500' : 'border-gray-200'}`}>
+      <div className="shrink-0 border-b border-gray-200">
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
       </div>
 
@@ -122,9 +146,9 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       <div className="flex-1 min-h-0 overflow-y-auto pb-56">
         <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] min-h-0">
           {/* Sidebar: categories */}
-          <aside className={`border-b md:border-b-0 md:border-r ${isBlueStyle ? 'border-blue-500 bg-blue-900/30' : 'border-gray-200 bg-gray-50'}`}>
+          <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
             <div className="px-4 py-4">
-              <h2 className={`text-xs font-medium uppercase tracking-wide ${isBlueStyle ? 'text-blue-200' : 'text-gray-500'}`}>Categories</h2>
+              <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">Categories</h2>
             </div>
             <nav className="px-2 pb-4">
             <button
@@ -132,17 +156,13 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               onClick={() => setSelectedCategoryId('ALL')}
               className={[
                 'w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
-                isBlueStyle
-                  ? selectedCategoryId === 'ALL'
-                    ? 'bg-white text-[#264c96] border border-blue-300'
-                    : 'hover:bg-white/20 text-white'
-                  : selectedCategoryId === 'ALL'
-                    ? 'bg-white border border-gray-200'
-                    : 'hover:bg-white/70',
+                selectedCategoryId === 'ALL'
+                  ? 'bg-white border border-gray-200'
+                  : 'hover:bg-white/70',
               ].join(' ')}
             >
-              <span className={isBlueStyle && selectedCategoryId !== 'ALL' ? 'text-white' : isBlueStyle ? 'text-[#264c96]' : 'text-gray-900'}>All</span>
-              <span className={isBlueStyle && selectedCategoryId !== 'ALL' ? 'text-xs text-blue-200' : isBlueStyle ? 'text-xs text-[#264c96]' : 'text-xs text-gray-500'}>{items.length}</span>
+              <span className="text-gray-900">All</span>
+              <span className="text-xs text-gray-500">{items.length}</span>
             </button>
 
             {categories.map((cat) => {
@@ -155,17 +175,13 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                   onClick={() => setSelectedCategoryId(cat.id)}
                   className={[
                     'mt-1 w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
-                    isBlueStyle
-                      ? isSelected
-                        ? 'bg-white text-[#264c96] border border-blue-300'
-                        : 'hover:bg-white/20 text-white'
-                      : isSelected
-                        ? 'bg-white border border-gray-200'
-                        : 'hover:bg-white/70',
+                    isSelected
+                      ? 'bg-white border border-gray-200'
+                      : 'hover:bg-white/70',
                   ].join(' ')}
                 >
-                  <span className={isBlueStyle && !isSelected ? 'text-white' : isBlueStyle ? 'text-[#264c96]' : 'text-gray-900'}>{cat.name}</span>
-                  <span className={isBlueStyle && !isSelected ? 'text-xs text-blue-200' : isBlueStyle ? 'text-xs text-[#264c96]' : 'text-xs text-gray-500'}>{count}</span>
+                  <span className="text-gray-900">{cat.name}</span>
+                  <span className="text-xs text-gray-500">{count}</span>
                 </button>
               )
             })}
@@ -175,7 +191,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
           {/* Main: items */}
           <section className="p-4">
             {itemsFiltered.length === 0 ? (
-              <div className={`py-12 text-center text-sm ${isBlueStyle ? 'text-blue-200' : 'text-gray-500'}`}>
+              <div className="py-12 text-center text-sm text-gray-500">
                 {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
               </div>
             ) : (
