@@ -109,6 +109,7 @@ export default function AdminToolkitAdminClient({
   const [quickLinks, setQuickLinks] = useState(initialQuickLinks)
 
   const [newCategoryName, setNewCategoryName] = useState('')
+  const [newSubcategoryName, setNewSubcategoryName] = useState<Record<string, string>>({})
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null)
   const [renamingValue, setRenamingValue] = useState('')
 
@@ -335,135 +336,308 @@ export default function AdminToolkitAdminClient({
           </button>
         </div>
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 space-y-3">
           {categories.length === 0 ? (
             <p className="text-sm text-gray-500">No categories yet.</p>
           ) : (
-            categories.map((c, idx) => {
-              const isRenaming = renamingCategoryId === c.id
+            categories.map((parent, parentIdx) => {
+              const isRenaming = renamingCategoryId === parent.id
+              const children = parent.children || []
+              const parentCategories = categories.filter((c) => !c.parentId)
+              const parentIndex = parentCategories.findIndex((c) => c.id === parent.id)
+
               return (
-                <div key={c.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2">
-                  <div className="min-w-0 flex-1">
-                    {isRenaming ? (
-                      <input
-                        className="w-full nhs-input"
-                        value={renamingValue}
-                        onChange={(e) => setRenamingValue(e.target.value)}
-                      />
-                    ) : (
-                      <div className="font-medium text-gray-900 truncate">{c.name}</div>
-                    )}
+                <div key={parent.id} className="border border-gray-200 rounded-lg p-3">
+                  {/* Parent category */}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      {isRenaming ? (
+                        <input
+                          className="w-full nhs-input"
+                          value={renamingValue}
+                          onChange={(e) => setRenamingValue(e.target.value)}
+                        />
+                      ) : (
+                        <div className="font-medium text-gray-900">{parent.name}</div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="text-sm text-gray-700 hover:text-gray-900"
+                        disabled={parentIndex === 0}
+                        onClick={async () => {
+                          const ordered = parentCategories.slice()
+                          const tmp = ordered[parentIndex - 1]
+                          ordered[parentIndex - 1] = ordered[parentIndex]
+                          ordered[parentIndex] = tmp
+                          const res = await reorderAdminToolkitCategories({
+                            surgeryId,
+                            orderedCategoryIds: ordered.map((x) => x.id),
+                            parentId: null,
+                          })
+                          if (!res.ok) {
+                            toast.error(res.error.message)
+                            return
+                          }
+                          toast.success('Category order updated')
+                          await refresh()
+                        }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm text-gray-700 hover:text-gray-900"
+                        disabled={parentIndex === parentCategories.length - 1}
+                        onClick={async () => {
+                          const ordered = parentCategories.slice()
+                          const tmp = ordered[parentIndex + 1]
+                          ordered[parentIndex + 1] = ordered[parentIndex]
+                          ordered[parentIndex] = tmp
+                          const res = await reorderAdminToolkitCategories({
+                            surgeryId,
+                            orderedCategoryIds: ordered.map((x) => x.id),
+                            parentId: null,
+                          })
+                          if (!res.ok) {
+                            toast.error(res.error.message)
+                            return
+                          }
+                          toast.success('Category order updated')
+                          await refresh()
+                        }}
+                      >
+                        ↓
+                      </button>
+
+                      {isRenaming ? (
+                        <>
+                          <button
+                            type="button"
+                            className="text-sm text-nhs-blue hover:underline"
+                            onClick={async () => {
+                              const res = await renameAdminToolkitCategory({ surgeryId, categoryId: parent.id, name: renamingValue })
+                              if (!res.ok) {
+                                toast.error(res.error.message)
+                                return
+                              }
+                              toast.success('Category renamed')
+                              setRenamingCategoryId(null)
+                              setRenamingValue('')
+                              await refresh()
+                            }}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            className="text-sm text-gray-600 hover:underline"
+                            onClick={() => {
+                              setRenamingCategoryId(null)
+                              setRenamingValue('')
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="text-sm text-nhs-blue hover:underline"
+                            onClick={() => {
+                              setRenamingCategoryId(parent.id)
+                              setRenamingValue(parent.name)
+                            }}
+                          >
+                            Rename
+                          </button>
+                          <button
+                            type="button"
+                            className="text-sm text-red-700 hover:underline"
+                            onClick={async () => {
+                              const ok = confirm('Delete this category? You can only delete empty categories.')
+                              if (!ok) return
+                              const res = await deleteAdminToolkitCategory({ surgeryId, categoryId: parent.id })
+                              if (!res.ok) {
+                                toast.error(res.error.message)
+                                return
+                              }
+                              toast.success('Category deleted')
+                              await refresh()
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="text-sm text-gray-700 hover:text-gray-900"
-                      disabled={idx === 0}
-                      onClick={async () => {
-                        const ordered = categories.slice()
-                        const tmp = ordered[idx - 1]
-                        ordered[idx - 1] = ordered[idx]
-                        ordered[idx] = tmp
-                        const res = await reorderAdminToolkitCategories({
-                          surgeryId,
-                          orderedCategoryIds: ordered.map((x) => x.id),
-                        })
-                        if (!res.ok) {
-                          toast.error(res.error.message)
-                          return
-                        }
-                        toast.success('Category order updated')
-                        await refresh()
-                      }}
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      className="text-sm text-gray-700 hover:text-gray-900"
-                      disabled={idx === categories.length - 1}
-                      onClick={async () => {
-                        const ordered = categories.slice()
-                        const tmp = ordered[idx + 1]
-                        ordered[idx + 1] = ordered[idx]
-                        ordered[idx] = tmp
-                        const res = await reorderAdminToolkitCategories({
-                          surgeryId,
-                          orderedCategoryIds: ordered.map((x) => x.id),
-                        })
-                        if (!res.ok) {
-                          toast.error(res.error.message)
-                          return
-                        }
-                        toast.success('Category order updated')
-                        await refresh()
-                      }}
-                    >
-                      ↓
-                    </button>
+                  {/* Subcategories */}
+                  {children.length > 0 && (
+                    <div className="mt-3 pl-4 border-l-2 border-gray-200 space-y-2">
+                      {children.map((child, childIdx) => {
+                        const isChildRenaming = renamingCategoryId === child.id
+                        return (
+                          <div key={child.id} className="flex items-center justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              {isChildRenaming ? (
+                                <input
+                                  className="w-full nhs-input text-sm"
+                                  value={renamingValue}
+                                  onChange={(e) => setRenamingValue(e.target.value)}
+                                />
+                              ) : (
+                                <div className="text-sm text-gray-700">{child.name}</div>
+                              )}
+                            </div>
 
-                    {isRenaming ? (
-                      <>
-                        <button
-                          type="button"
-                          className="text-sm text-nhs-blue hover:underline"
-                          onClick={async () => {
-                            const res = await renameAdminToolkitCategory({ surgeryId, categoryId: c.id, name: renamingValue })
-                            if (!res.ok) {
-                              toast.error(res.error.message)
-                              return
-                            }
-                            toast.success('Category renamed')
-                            setRenamingCategoryId(null)
-                            setRenamingValue('')
-                            await refresh()
-                          }}
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          className="text-sm text-gray-600 hover:underline"
-                          onClick={() => {
-                            setRenamingCategoryId(null)
-                            setRenamingValue('')
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          className="text-sm text-nhs-blue hover:underline"
-                          onClick={() => {
-                            setRenamingCategoryId(c.id)
-                            setRenamingValue(c.name)
-                          }}
-                        >
-                          Rename
-                        </button>
-                        <button
-                          type="button"
-                          className="text-sm text-red-700 hover:underline"
-                          onClick={async () => {
-                            const ok = confirm('Delete this category? You can only delete empty categories.')
-                            if (!ok) return
-                            const res = await deleteAdminToolkitCategory({ surgeryId, categoryId: c.id })
-                            if (!res.ok) {
-                              toast.error(res.error.message)
-                              return
-                            }
-                            toast.success('Category deleted')
-                            await refresh()
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                className="text-xs text-gray-700 hover:text-gray-900"
+                                disabled={childIdx === 0}
+                                onClick={async () => {
+                                  const ordered = children.slice()
+                                  const tmp = ordered[childIdx - 1]
+                                  ordered[childIdx - 1] = ordered[childIdx]
+                                  ordered[childIdx] = tmp
+                                  const res = await reorderAdminToolkitCategories({
+                                    surgeryId,
+                                    orderedCategoryIds: ordered.map((x) => x.id),
+                                    parentId: parent.id,
+                                  })
+                                  if (!res.ok) {
+                                    toast.error(res.error.message)
+                                    return
+                                  }
+                                  toast.success('Subcategory order updated')
+                                  await refresh()
+                                }}
+                              >
+                                ↑
+                              </button>
+                              <button
+                                type="button"
+                                className="text-xs text-gray-700 hover:text-gray-900"
+                                disabled={childIdx === children.length - 1}
+                                onClick={async () => {
+                                  const ordered = children.slice()
+                                  const tmp = ordered[childIdx + 1]
+                                  ordered[childIdx + 1] = ordered[childIdx]
+                                  ordered[childIdx] = tmp
+                                  const res = await reorderAdminToolkitCategories({
+                                    surgeryId,
+                                    orderedCategoryIds: ordered.map((x) => x.id),
+                                    parentId: parent.id,
+                                  })
+                                  if (!res.ok) {
+                                    toast.error(res.error.message)
+                                    return
+                                  }
+                                  toast.success('Subcategory order updated')
+                                  await refresh()
+                                }}
+                              >
+                                ↓
+                              </button>
+
+                              {isChildRenaming ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-nhs-blue hover:underline"
+                                    onClick={async () => {
+                                      const res = await renameAdminToolkitCategory({ surgeryId, categoryId: child.id, name: renamingValue })
+                                      if (!res.ok) {
+                                        toast.error(res.error.message)
+                                        return
+                                      }
+                                      toast.success('Subcategory renamed')
+                                      setRenamingCategoryId(null)
+                                      setRenamingValue('')
+                                      await refresh()
+                                    }}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-gray-600 hover:underline"
+                                    onClick={() => {
+                                      setRenamingCategoryId(null)
+                                      setRenamingValue('')
+                                    }}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-nhs-blue hover:underline"
+                                    onClick={() => {
+                                      setRenamingCategoryId(child.id)
+                                      setRenamingValue(child.name)
+                                    }}
+                                  >
+                                    Rename
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-red-700 hover:underline"
+                                    onClick={async () => {
+                                      const ok = confirm('Delete this subcategory? You can only delete empty subcategories.')
+                                      if (!ok) return
+                                      const res = await deleteAdminToolkitCategory({ surgeryId, categoryId: child.id })
+                                      if (!res.ok) {
+                                        toast.error(res.error.message)
+                                        return
+                                      }
+                                      toast.success('Subcategory deleted')
+                                      await refresh()
+                                    }}
+                                  >
+                                    Delete
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* Add subcategory */}
+                  <div className="mt-3 pl-4 flex flex-col md:flex-row gap-2">
+                    <input
+                      value={newSubcategoryName[parent.id] || ''}
+                      onChange={(e) => setNewSubcategoryName({ ...newSubcategoryName, [parent.id]: e.target.value })}
+                      className="flex-1 nhs-input text-sm"
+                      placeholder="New subcategory name…"
+                    />
+                    <button
+                      type="button"
+                      className="nhs-button-secondary text-sm whitespace-nowrap"
+                      disabled={!newSubcategoryName[parent.id]?.trim()}
+                      onClick={async () => {
+                        const res = await createAdminToolkitCategory({ surgeryId, name: newSubcategoryName[parent.id]!, parentId: parent.id })
+                        if (!res.ok) {
+                          toast.error(res.error.message)
+                          return
+                        }
+                        toast.success('Subcategory created')
+                        setNewSubcategoryName({ ...newSubcategoryName, [parent.id]: '' })
+                        await refresh()
+                      }}
+                    >
+                      Add subcategory
+                    </button>
                   </div>
                 </div>
               )

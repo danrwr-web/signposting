@@ -13,6 +13,7 @@ A high-level history of major changes.
 - Admin Toolkit: added **LIST** items (simple editable tables) for storing structured information.
 - Admin Toolkit: removed the temporary global-defaults seeding button from the admin dashboard.
 - Admin Toolkit: Quick access buttons on the front page (configurable, with custom colours).
+- Admin Toolkit: Subcategories (one level deep) for better organisation of items.
 
 ---
 

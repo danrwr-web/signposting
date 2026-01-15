@@ -120,35 +120,75 @@ async function canEditItem(opts: { surgeryId: string; itemId: string; userId: st
 const createCategoryInput = z.object({
   surgeryId: z.string().min(1),
   name: z.string().trim().min(1, 'Category name is required').max(80, 'Category name is too long'),
+  parentId: z.string().min(1).nullable().optional(),
 })
 
 export async function createAdminToolkitCategory(input: unknown): Promise<ActionResult<{ id: string }>> {
   return withWriteAccess(input, createCategoryInput, async (data, gate) => {
-    const { surgeryId, name } = data
-    const max = await prisma.adminCategory.aggregate({
-      where: { surgeryId, deletedAt: null },
-      _max: { orderIndex: true },
-    })
-    const nextOrder = (max._max.orderIndex ?? 0) + 1
+    const { surgeryId, name, parentId } = data
 
-    const created = await prisma.$transaction(async (tx) => {
-      const category = await tx.adminCategory.create({
-        data: { surgeryId, name, orderIndex: nextOrder },
+    // If parentId is provided, validate it exists and is a top-level category
+    if (parentId) {
+      const parent = await prisma.adminCategory.findFirst({
+        where: { id: parentId, surgeryId, deletedAt: null, parentId: null },
         select: { id: true },
       })
-      await tx.adminHistory.create({
-        data: {
-          surgeryId,
-          adminCategoryId: category.id,
-          action: 'CATEGORY_CREATE',
-          actorUserId: gate.userId,
-          diffJson: { name },
-        },
-      })
-      return category
-    })
+      if (!parent) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Parent category not found or is not a top-level category.' } }
+      }
 
-    return { ok: true, data: { id: created.id } }
+      // Get max orderIndex for children of this parent
+      const max = await prisma.adminCategory.aggregate({
+        where: { surgeryId, deletedAt: null, parentId },
+        _max: { orderIndex: true },
+      })
+      const nextOrder = (max._max.orderIndex ?? 0) + 1
+
+      const created = await prisma.$transaction(async (tx) => {
+        const category = await tx.adminCategory.create({
+          data: { surgeryId, name, orderIndex: nextOrder, parentId },
+          select: { id: true },
+        })
+        await tx.adminHistory.create({
+          data: {
+            surgeryId,
+            adminCategoryId: category.id,
+            action: 'CATEGORY_CREATE',
+            actorUserId: gate.userId,
+            diffJson: { name, parentId },
+          },
+        })
+        return category
+      })
+
+      return { ok: true, data: { id: created.id } }
+    } else {
+      // Top-level category
+      const max = await prisma.adminCategory.aggregate({
+        where: { surgeryId, deletedAt: null, parentId: null },
+        _max: { orderIndex: true },
+      })
+      const nextOrder = (max._max.orderIndex ?? 0) + 1
+
+      const created = await prisma.$transaction(async (tx) => {
+        const category = await tx.adminCategory.create({
+          data: { surgeryId, name, orderIndex: nextOrder, parentId: null },
+          select: { id: true },
+        })
+        await tx.adminHistory.create({
+          data: {
+            surgeryId,
+            adminCategoryId: category.id,
+            action: 'CATEGORY_CREATE',
+            actorUserId: gate.userId,
+            diffJson: { name },
+          },
+        })
+        return category
+      })
+
+      return { ok: true, data: { id: created.id } }
+    }
   })
 }
 
@@ -187,18 +227,28 @@ export async function renameAdminToolkitCategory(input: unknown): Promise<Action
 const reorderCategoriesInput = z.object({
   surgeryId: z.string().min(1),
   orderedCategoryIds: z.array(z.string().min(1)).min(1),
+  parentId: z.string().nullable().optional(), // If provided, reordering children of this parent
 })
 
 export async function reorderAdminToolkitCategories(input: unknown): Promise<ActionResult<{ updated: number }>> {
   return withWriteAccess(input, reorderCategoriesInput, async (data, gate) => {
-    const { surgeryId, orderedCategoryIds } = data
+    const { surgeryId, orderedCategoryIds, parentId } = data
 
+    // Verify all categories exist and belong to the same level (same parentId)
     const existing = await prisma.adminCategory.findMany({
       where: { surgeryId, deletedAt: null, id: { in: orderedCategoryIds } },
-      select: { id: true },
+      select: { id: true, parentId: true },
     })
     if (existing.length !== orderedCategoryIds.length) {
       return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'One or more categories were not found.' } }
+    }
+
+    // Verify all categories have the same parentId
+    const expectedParentId = parentId ?? null
+    for (const cat of existing) {
+      if (cat.parentId !== expectedParentId) {
+        return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Cannot reorder categories from different levels together.' } }
+      }
     }
 
     await prisma.$transaction(async (tx) => {
@@ -213,7 +263,7 @@ export async function reorderAdminToolkitCategories(input: unknown): Promise<Act
           surgeryId,
           action: 'CATEGORY_REORDER',
           actorUserId: gate.userId,
-          diffJson: { orderedCategoryIds },
+          diffJson: { orderedCategoryIds, parentId },
         },
       })
     })
@@ -241,6 +291,14 @@ export async function deleteAdminToolkitCategory(input: unknown): Promise<Action
     })
     if (itemsCount > 0) {
       return { ok: false, error: { code: 'CATEGORY_NOT_EMPTY', message: 'You cannot delete a category that still contains items.' } }
+    }
+
+    // Check if category has children
+    const childrenCount = await prisma.adminCategory.count({
+      where: { surgeryId, parentId: categoryId, deletedAt: null },
+    })
+    if (childrenCount > 0) {
+      return { ok: false, error: { code: 'CATEGORY_NOT_EMPTY', message: 'You cannot delete a category that has subcategories. Delete or move the subcategories first.' } }
     }
 
     await prisma.$transaction(async (tx) => {

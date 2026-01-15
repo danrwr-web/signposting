@@ -473,6 +473,7 @@ model AdminCategory {
   surgeryId  String
   name       String
   orderIndex Int    @default(0)
+  parentId   String?
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())
@@ -481,9 +482,12 @@ model AdminCategory {
   surgery Surgery        @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   items   AdminItem[]
   history AdminHistory[]
+  parent  AdminCategory? @relation("AdminCategoryTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children AdminCategory[] @relation("AdminCategoryTree")
 
   @@index([surgeryId, orderIndex])
   @@index([surgeryId, deletedAt])
+  @@index([surgeryId, parentId, orderIndex])
 }
 
 model AdminItem {

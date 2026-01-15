@@ -15,8 +15,10 @@ interface AdminToolkitLibraryClientProps {
   quickLinks: AdminQuickLink[]
 }
 
+type CategorySelection = { type: 'all' } | { type: 'parent'; id: string } | { type: 'child'; id: string }
+
 export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items, quickLinks }: AdminToolkitLibraryClientProps) {
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'ALL'>('ALL')
+  const [selectedCategory, setSelectedCategory] = useState<CategorySelection>({ type: 'all' })
   const [search, setSearch] = useState('')
   const { cardStyle } = useCardStyle()
 
@@ -24,7 +26,20 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
 
   const itemsFiltered = useMemo(() => {
     const filtered = items.filter((item) => {
-      const matchesCategory = selectedCategoryId === 'ALL' || item.categoryId === selectedCategoryId
+      let matchesCategory = false
+      if (selectedCategory.type === 'all') {
+        matchesCategory = true
+      } else if (selectedCategory.type === 'parent') {
+        // Include items in parent category or any of its children
+        const parentCat = categories.find((c) => c.id === selectedCategory.id)
+        if (parentCat) {
+          const childIds = parentCat.children?.map((c) => c.id) || []
+          matchesCategory = item.categoryId === selectedCategory.id || childIds.includes(item.categoryId || '')
+        }
+      } else if (selectedCategory.type === 'child') {
+        matchesCategory = item.categoryId === selectedCategory.id
+      }
+
       const matchesSearch =
         !normalisedSearch ||
         item.title.toLowerCase().includes(normalisedSearch) ||
@@ -33,16 +48,27 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     })
     // Sort alphabetically by title (case-insensitive, natural sorting)
     return filtered.sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }))
-  }, [items, selectedCategoryId, normalisedSearch])
+  }, [items, selectedCategory, categories, normalisedSearch])
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>()
+    // Count items per category
     for (const item of items) {
       if (!item.categoryId) continue
       counts.set(item.categoryId, (counts.get(item.categoryId) || 0) + 1)
     }
+    // Calculate aggregate counts for parents (include their children's items)
+    for (const category of categories) {
+      if (category.parentId === null && category.children) {
+        let aggregateCount = counts.get(category.id) || 0
+        for (const child of category.children) {
+          aggregateCount += counts.get(child.id) || 0
+        }
+        counts.set(category.id, aggregateCount)
+      }
+    }
     return counts
-  }, [items])
+  }, [items, categories])
 
   const isBlueStyle = cardStyle === 'powerappsBlue'
   
@@ -149,10 +175,10 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
             <nav className="px-2 pb-4 overflow-y-auto pr-2 flex-1 min-h-0">
             <button
               type="button"
-              onClick={() => setSelectedCategoryId('ALL')}
+              onClick={() => setSelectedCategory({ type: 'all' })}
               className={[
                 'w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
-                selectedCategoryId === 'ALL'
+                selectedCategory.type === 'all'
                   ? 'bg-white border border-gray-200'
                   : 'hover:bg-white/70',
               ].join(' ')}
@@ -163,22 +189,50 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
 
             {categories.map((cat) => {
               const count = categoryCounts.get(cat.id) || 0
-              const isSelected = selectedCategoryId === cat.id
+              const isParentSelected = selectedCategory.type === 'parent' && selectedCategory.id === cat.id
+              const hasChildren = cat.children && cat.children.length > 0
+              
               return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategoryId(cat.id)}
-                  className={[
-                    'mt-1 w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
-                    isSelected
-                      ? 'bg-white border border-gray-200'
-                      : 'hover:bg-white/70',
-                  ].join(' ')}
-                >
-                  <span className="text-gray-900">{cat.name}</span>
-                  <span className="text-xs text-gray-500">{count}</span>
-                </button>
+                <div key={cat.id} className="mt-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory({ type: 'parent', id: cat.id })}
+                    className={[
+                      'w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
+                      isParentSelected
+                        ? 'bg-white border border-gray-200'
+                        : 'hover:bg-white/70',
+                    ].join(' ')}
+                  >
+                    <span className="text-gray-900 font-medium">{cat.name}</span>
+                    <span className="text-xs text-gray-500">{count}</span>
+                  </button>
+                  
+                  {hasChildren && cat.children && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      {cat.children.map((child) => {
+                        const childCount = categoryCounts.get(child.id) || 0
+                        const isChildSelected = selectedCategory.type === 'child' && selectedCategory.id === child.id
+                        return (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={() => setSelectedCategory({ type: 'child', id: child.id })}
+                            className={[
+                              'w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
+                              isChildSelected
+                                ? 'bg-white border border-gray-200'
+                                : 'hover:bg-white/70',
+                            ].join(' ')}
+                          >
+                            <span className="text-gray-700 text-xs">{child.name}</span>
+                            <span className="text-xs text-gray-400">{childCount}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               )
             })}
             </nav>
