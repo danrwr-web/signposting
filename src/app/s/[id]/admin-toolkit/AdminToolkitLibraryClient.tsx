@@ -45,7 +45,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const isBlueStyle = cardStyle === 'powerappsBlue'
   
   // Container always uses neutral styling (blue mode only affects item cards)
-  const containerClasses = 'bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-full min-h-0'
+  const containerClasses = 'bg-white rounded-lg shadow-md border border-gray-200'
 
   // Header always uses neutral styling
   const headerClasses = 'flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0'
@@ -132,13 +132,12 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         </div>
       )}
 
-      <div className="shrink-0 border-b border-gray-200">
+      <div className="border-b border-gray-200">
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
       </div>
 
-      {/* Main content zone (scroll container) */}
-      <div className="flex-1 min-h-0 overflow-y-auto pb-56">
-        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] min-h-0">
+      {/* Main content zone */}
+      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
             <div className="px-4 py-4">

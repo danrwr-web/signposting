@@ -93,23 +93,21 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
     const onTake = await getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc)
 
     return (
-      <div className="bg-white flex flex-col h-[100dvh]">
-        <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex-1 min-h-0 flex flex-col">
+      <div className="bg-white min-h-screen">
+        <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 pb-48">
           <AdminToolkitHeader
             surgeryId={surgeryId}
             surgeryName={surgery.name}
             canWrite={canWrite}
           />
 
-          <div className="flex-1 min-h-0">
-            <AdminToolkitLibraryClient
-              surgeryId={surgeryId}
-              canWrite={canWrite}
-              categories={categories}
-              items={items}
-              quickLinks={visibleQuickLinks}
-            />
-          </div>
+          <AdminToolkitLibraryClient
+            surgeryId={surgeryId}
+            canWrite={canWrite}
+            categories={categories}
+            items={items}
+            quickLinks={visibleQuickLinks}
+          />
         </div>
 
         <AdminToolkitPinnedPanel

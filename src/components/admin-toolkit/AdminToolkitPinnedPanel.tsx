@@ -28,7 +28,7 @@ export default function AdminToolkitPinnedPanel({
 
   const outerClassName =
     variant === 'fixed'
-      ? 'fixed inset-x-0 bottom-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm'
+      ? 'sticky bottom-0 z-10 border-t border-gray-200 bg-white shadow-sm'
       : 'mt-8 border-t border-gray-200 bg-white'
 
   return (
