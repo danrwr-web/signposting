@@ -133,18 +133,18 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       )}
 
       {/* Sticky search bar */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-200 py-2">
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
       </div>
 
       {/* Main content zone */}
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
-          <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
-            <div className="px-4 py-4">
+          <aside className="sticky top-[72px] self-start border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 max-h-[calc(100vh-72px-200px)] flex flex-col">
+            <div className="px-4 py-4 shrink-0">
               <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">Categories</h2>
             </div>
-            <nav className="px-2 pb-4">
+            <nav className="px-2 pb-4 overflow-y-auto pr-2 flex-1 min-h-0">
             <button
               type="button"
               onClick={() => setSelectedCategoryId('ALL')}
