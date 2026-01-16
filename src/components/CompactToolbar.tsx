@@ -173,6 +173,13 @@ export default function CompactToolbar({
               </Link>
             )}
 
+            <Link
+              href={currentSurgeryId ? `/daily-dose?surgery=${currentSurgeryId}` : '/daily-dose'}
+              className="text-sm font-medium text-slate-700 hover:text-sky-700"
+            >
+              Daily Dose
+            </Link>
+
             {/* Workflow Guidance Link - only when enabled for this surgery */}
             {currentSurgeryId && workflowGuidanceEnabled && (
               <Link

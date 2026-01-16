@@ -29,7 +29,7 @@ const authMiddleware = withAuth(
     }
 
     // Admin routes - accessible by superusers or surgery admins
-    if (pathname.startsWith('/admin')) {
+    if (pathname.startsWith('/admin') || pathname.startsWith('/daily-dose/admin') || pathname.startsWith('/daily-dose/insights')) {
       const isSuperuser = token.globalRole === 'SUPERUSER'
       const isSurgeryAdmin = (token.memberships as Array<{ surgeryId: string; role: string }>)?.some(
         m => m.role === 'ADMIN'
@@ -123,7 +123,7 @@ export default async function middleware(req: NextRequest) {
   }
 
   // In development or for other hosts, keep existing behaviour.
-  const isProtectedPath = pathname.startsWith('/admin') || pathname.startsWith('/s/')
+  const isProtectedPath = pathname.startsWith('/admin') || pathname.startsWith('/s/') || pathname.startsWith('/daily-dose')
   if (isProtectedPath) {
     return authMiddleware(req)
   }
