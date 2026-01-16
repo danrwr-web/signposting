@@ -17,6 +17,7 @@ export interface SessionUser {
   memberships: Array<{
     surgeryId: string
     role: string
+    adminToolkitWrite?: boolean
   }>
 }
 
@@ -34,6 +35,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       include: {
         memberships: {
           include: {
+            // include the membership fields used for permission checks
             surgery: {
               select: {
                 id: true,
@@ -74,7 +76,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       symptomsUsed: user.symptomsUsed,
       memberships: user.memberships.map(m => ({
         surgeryId: m.surgeryId,
-        role: m.role
+        role: m.role,
+        adminToolkitWrite: m.adminToolkitWrite,
       }))
     }
   } catch (error) {
@@ -118,6 +121,16 @@ export class PermissionChecker {
 
     const membership = this.user.memberships.find(m => m.surgeryId === surgeryId)
     return membership?.role === 'ADMIN'
+  }
+
+  adminToolkitWrite(surgeryId: string): boolean {
+    if (this.user.globalRole === 'SUPERUSER') {
+      return true
+    }
+    const membership = this.user.memberships.find((m) => m.surgeryId === surgeryId)
+    if (!membership) return false
+    // Surgery admins can always write; otherwise require explicit flag.
+    return membership.role === 'ADMIN' || membership.adminToolkitWrite === true
   }
 
   getSurgeryRole(surgeryId: string): string | null {

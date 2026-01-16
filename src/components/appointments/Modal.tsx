@@ -25,10 +25,21 @@ export default function Modal({
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<Element | null>(null)
+  const onCloseRef = useRef(onClose)
+  const hasFocusedRef = useRef(false)
   const titleId = useId()
   const descriptionId = description ? `${titleId}-description` : undefined
 
+  // Keep onClose ref up to date without triggering re-runs
   useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    // Only focus on initial mount, not on every dependency change
+    if (hasFocusedRef.current) return
+    hasFocusedRef.current = true
+
     previousFocusRef.current = document.activeElement
     const focusTarget =
       initialFocusRef?.current ||
@@ -40,7 +51,7 @@ export default function Modal({
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
 
@@ -83,12 +94,13 @@ export default function Modal({
 
     document.addEventListener('keydown', handleKeydown)
     return () => {
+      hasFocusedRef.current = false
       document.removeEventListener('keydown', handleKeydown)
       if (previousFocusRef.current instanceof HTMLElement) {
         previousFocusRef.current.focus()
       }
     }
-  }, [initialFocusRef, onClose])
+  }, [initialFocusRef])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

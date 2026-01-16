@@ -16,12 +16,14 @@ interface SimpleHeaderProps {
   surgeries: Surgery[]
   currentSurgeryId?: string
   directoryLinkOverride?: DirectoryLinkOverride
+  adminToolkitEnabled?: boolean
 }
 
 export default function SimpleHeader({
   surgeries,
   currentSurgeryId,
-  directoryLinkOverride
+  directoryLinkOverride,
+  adminToolkitEnabled
 }: SimpleHeaderProps) {
   const pathname = usePathname()
   const params = useParams()
@@ -79,6 +81,17 @@ export default function SimpleHeader({
                 className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
               >
                 {appointmentLinkLabel}
+              </Link>
+            )}
+
+            {/* Admin Toolkit Link - visible when enabled for this surgery */}
+            {currentSurgeryId && adminToolkitEnabled && (
+              <Link
+                href={`/s/${currentSurgeryId}/admin-toolkit`}
+                prefetch={false}
+                className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
+              >
+                Admin Toolkit
               </Link>
             )}
             

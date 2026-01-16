@@ -28,6 +28,11 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
     name: 'Workflow guidance',
     description: 'Enable document workflow guidance for reception and care navigation teams.',
   },
+  {
+    key: 'admin_toolkit',
+    name: 'Admin Toolkit',
+    description: 'Enable the Admin Toolkit module (practice guidance pages, lists, rota and pinned panel).',
+  },
 ]
 
 /**

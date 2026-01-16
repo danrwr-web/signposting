@@ -6,7 +6,8 @@ import { z } from 'zod'
 const updateMemberSchema = z.object({
   role: z.enum(['STANDARD', 'ADMIN']).optional(),
   name: z.string().optional(),
-  setAsDefault: z.boolean().optional()
+  setAsDefault: z.boolean().optional(),
+  adminToolkitWrite: z.boolean().optional(),
 })
 
 // PATCH /api/s/[surgeryId]/members/[userId] - Update surgery member
@@ -19,7 +20,7 @@ export async function PATCH(
     await requireSurgeryAdmin(surgeryId)
     
     const body = await request.json()
-    const { role, name, setAsDefault } = updateMemberSchema.parse(body)
+    const { role, name, setAsDefault, adminToolkitWrite } = updateMemberSchema.parse(body)
 
     // Check if membership exists
     const membership = await prisma.userSurgery.findUnique({
@@ -39,7 +40,7 @@ export async function PATCH(
     }
 
     // Update membership role if provided
-    if (role) {
+    if (role !== undefined || adminToolkitWrite !== undefined) {
       await prisma.userSurgery.update({
         where: {
           userId_surgeryId: {
@@ -47,7 +48,10 @@ export async function PATCH(
             surgeryId
           }
         },
-        data: { role }
+        data: {
+          ...(role !== undefined ? { role } : {}),
+          ...(adminToolkitWrite !== undefined ? { adminToolkitWrite } : {}),
+        }
       })
     }
 

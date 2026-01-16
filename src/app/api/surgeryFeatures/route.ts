@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { ensureFeatures } from '@/lib/ensureFeatures'
 import { z } from 'zod'
+import { copyAdminToolkitFromGlobalDefaultsToSurgery } from '@/server/adminToolkit/copyFromGlobalDefaults'
 
 const updateSurgeryFeatureSchema = z.object({
   surgeryId: z.string(),
@@ -108,26 +109,50 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { surgeryId, featureId, enabled } = updateSurgeryFeatureSchema.parse(body)
 
-    // Upsert the surgery feature flag
-    const flag = await prisma.surgeryFeatureFlag.upsert({
-      where: {
-        surgeryId_featureId: {
+    // Ensure features are up-to-date (safe to call repeatedly)
+    await ensureFeatures()
+
+    const feature = await prisma.feature.findUnique({
+      where: { id: featureId },
+      select: { id: true, key: true },
+    })
+    if (!feature) {
+      return NextResponse.json({ error: 'Feature not found' }, { status: 404 })
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const flag = await tx.surgeryFeatureFlag.upsert({
+        where: {
+          surgeryId_featureId: {
+            surgeryId,
+            featureId,
+          },
+        },
+        update: {
+          enabled,
+          updatedAt: new Date(),
+        },
+        create: {
           surgeryId,
-          featureId
-        }
-      },
-      update: {
-        enabled,
-        updatedAt: new Date()
-      },
-      create: {
-        surgeryId,
-        featureId,
-        enabled
+          featureId,
+          enabled,
+        },
+      })
+
+      // Seed-on-enable for Admin Toolkit (only if target is empty).
+      if (enabled === true && feature.key === 'admin_toolkit') {
+        const seedResult = await copyAdminToolkitFromGlobalDefaultsToSurgery({
+          targetSurgeryId: surgeryId,
+          actorUserId: user.id,
+          db: tx,
+        })
+        return { flag, seedResult }
       }
+
+      return { flag, seedResult: null as null }
     })
 
-    return NextResponse.json({ flag })
+    return NextResponse.json({ flag: result.flag, seedResult: result.seedResult })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid input', details: error.issues }, { status: 400 })

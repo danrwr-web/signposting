@@ -8,13 +8,15 @@ const addMemberSchema = z.object({
   email: z.string().email(),
   name: z.string().optional(),
   password: z.string().min(1, 'Password is required'),
-  role: z.enum(['STANDARD', 'ADMIN']).default('STANDARD')
+  role: z.enum(['STANDARD', 'ADMIN']).default('STANDARD'),
+  adminToolkitWrite: z.boolean().optional(),
 })
 
 const updateMemberSchema = z.object({
   role: z.enum(['STANDARD', 'ADMIN']).optional(),
   name: z.string().optional(),
-  setAsDefault: z.boolean().optional()
+  setAsDefault: z.boolean().optional(),
+  adminToolkitWrite: z.boolean().optional(),
 })
 
 // GET /api/s/[surgeryId]/members - List surgery members
@@ -60,7 +62,7 @@ export async function POST(
     await requireSurgeryAdmin(surgeryId)
     
     const body = await request.json()
-    const { email, name, password, role } = addMemberSchema.parse(body)
+    const { email, name, password, role, adminToolkitWrite } = addMemberSchema.parse(body)
 
     // Check if surgery exists
     const surgery = await prisma.surgery.findUnique({
@@ -107,7 +109,8 @@ export async function POST(
       data: {
         userId: user.id,
         surgeryId,
-        role
+        role,
+        adminToolkitWrite: adminToolkitWrite ?? false,
       },
       include: {
         user: true

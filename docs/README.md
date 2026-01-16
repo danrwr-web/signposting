@@ -56,6 +56,8 @@ The full documentation is organised into the following sections:
 
 - [Workflow Guidance](wiki/Workflow-Guidance) – Visual workflows to guide staff through common document and administrative processes
 
+- [Admin Toolkit](wiki/Admin-Guide#admin-toolkit) – Surgery-specific guidance pages, pinned panel, and rota
+
 - [AI Features](wiki/AI-Features) – Instruction Editor and Suggested Questions (with clinical review safeguards)
 
 - [High-Risk & Highlighting](wiki/High-Risk-&-Highlighting) – Colour rules, high-risk buttons, and highlighting behaviour

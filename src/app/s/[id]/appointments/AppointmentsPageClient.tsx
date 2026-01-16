@@ -27,6 +27,7 @@ interface AppointmentsPageClientProps {
   isAdmin: boolean
   surgeries: Surgery[]
   initialStaffTypes: StaffTypeResponse[]
+  adminToolkitEnabled?: boolean
 }
 
 export default function AppointmentsPageClient({ 
@@ -34,7 +35,8 @@ export default function AppointmentsPageClient({
   surgeryName,
   isAdmin,
   surgeries,
-  initialStaffTypes
+  initialStaffTypes,
+  adminToolkitEnabled
 }: AppointmentsPageClientProps) {
   const [appointments, setAppointments] = useState<AppointmentType[]>([])
   const [loading, setLoading] = useState(true)
@@ -229,6 +231,7 @@ export default function AppointmentsPageClient({
       <SimpleHeader
         surgeries={surgeries}
         currentSurgeryId={surgeryId}
+        adminToolkitEnabled={adminToolkitEnabled}
         directoryLinkOverride={{
           href: `/s/${surgeryId}`,
           label: 'Back to main page'
