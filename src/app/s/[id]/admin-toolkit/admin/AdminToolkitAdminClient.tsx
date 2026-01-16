@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
@@ -37,6 +37,7 @@ interface AdminToolkitAdminClientProps {
   initialItems: AdminToolkitPageItem[]
   editorCandidates: EditorCandidate[]
   initialItemId?: string
+  initialTab?: 'items' | 'settings'
 }
 
 type PageEditorMode = 'create' | 'edit'
@@ -95,9 +96,24 @@ export default function AdminToolkitAdminClient({
   initialItems,
   editorCandidates,
   initialItemId,
+  initialTab = 'items',
 }: AdminToolkitAdminClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const titleInputRef = useRef<HTMLInputElement>(null)
+  
+  // Tab state with URL query param persistence
+  const [activeTab, setActiveTab] = useState<'items' | 'settings'>(() => {
+    const tabParam = searchParams.get('tab')
+    return tabParam === 'items' || tabParam === 'settings' ? tabParam : initialTab
+  })
+  
+  const handleTabChange = (tab: 'items' | 'settings') => {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', tab)
+    router.push(`/s/${surgeryId}/admin-toolkit/admin?${params.toString()}`, { scroll: false })
+  }
   const [categories, setCategories] = useState(initialCategories)
   const [items, setItems] = useState(initialItems)
 
@@ -266,6 +282,869 @@ export default function AdminToolkitAdminClient({
   }
 
   return (
+    <div>
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-lg shadow-sm mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-6">
+            {[
+              { id: 'items', label: 'Items' },
+              { id: 'settings', label: 'Structure & Settings' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id as 'items' | 'settings')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === tab.id
+                    ? 'border-nhs-blue text-nhs-blue'
+                    : 'border-transparent text-nhs-grey hover:text-nhs-blue hover:border-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'items' ? (
+        <ItemsTab
+          surgeryId={surgeryId}
+          categories={categories}
+          items={items}
+          selectedItemId={selectedItemId}
+          mode={mode}
+          form={form}
+          setForm={setForm}
+          showAddAnotherHint={showAddAnotherHint}
+          setShowAddAnotherHint={setShowAddAnotherHint}
+          newListColumnLabel={newListColumnLabel}
+          setNewListColumnLabel={setNewListColumnLabel}
+          newListColumnType={newListColumnType}
+          setNewListColumnType={setNewListColumnType}
+          editorCandidates={editorCandidates}
+          selectedItem={selectedItem}
+          titleInputRef={titleInputRef}
+          enterCreateMode={enterCreateMode}
+          enterEditMode={enterEditMode}
+          refresh={refresh}
+          toUtcMidnightIso={toUtcMidnightIso}
+          formFromItem={formFromItem}
+          focusTitle={focusTitle}
+        />
+      ) : (
+        <StructureSettingsTab
+          surgeryId={surgeryId}
+          categories={categories}
+          newCategoryName={newCategoryName}
+          setNewCategoryName={setNewCategoryName}
+          renamingCategoryId={renamingCategoryId}
+          setRenamingCategoryId={setRenamingCategoryId}
+          renamingValue={renamingValue}
+          setRenamingValue={setRenamingValue}
+          panelTaskBuddy={panelTaskBuddy}
+          setPanelTaskBuddy={setPanelTaskBuddy}
+          panelPostRoute={panelPostRoute}
+          setPanelPostRoute={setPanelPostRoute}
+          currentWeekCommencingIso={currentWeekCommencingIso}
+          selectedWeekCommencingIso={selectedWeekCommencingIso}
+          setSelectedWeekCommencingIso={setSelectedWeekCommencingIso}
+          onTakeGpName={onTakeGpName}
+          setOnTakeGpName={setOnTakeGpName}
+          onTakeLoading={onTakeLoading}
+          onTakeDirty={onTakeDirty}
+          setOnTakeDirty={setOnTakeDirty}
+          upcomingWeeks={upcomingWeeks}
+          upcomingMap={upcomingMap}
+          setUpcomingMap={setUpcomingMap}
+          refresh={refresh}
+          addDaysIso={addDaysIso}
+          weekStartMondayIso={weekStartMondayIso}
+          formatLondonDateNoWeekday={formatLondonDateNoWeekday}
+        />
+      )}
+    </div>
+  )
+}
+
+// Items Tab Component
+function ItemsTab({
+  surgeryId,
+  categories,
+  items,
+  selectedItemId,
+  mode,
+  form,
+  setForm,
+  showAddAnotherHint,
+  setShowAddAnotherHint,
+  newListColumnLabel,
+  setNewListColumnLabel,
+  newListColumnType,
+  setNewListColumnType,
+  editorCandidates,
+  selectedItem,
+  titleInputRef,
+  enterCreateMode,
+  enterEditMode,
+  refresh,
+  toUtcMidnightIso,
+  formFromItem,
+  focusTitle,
+}: {
+  surgeryId: string
+  categories: AdminToolkitCategory[]
+  items: AdminToolkitPageItem[]
+  selectedItemId: string | null
+  mode: PageEditorMode
+  form: PageFormState
+  setForm: React.Dispatch<React.SetStateAction<PageFormState>>
+  showAddAnotherHint: boolean
+  setShowAddAnotherHint: React.Dispatch<React.SetStateAction<boolean>>
+  newListColumnLabel: string
+  setNewListColumnLabel: React.Dispatch<React.SetStateAction<string>>
+  newListColumnType: 'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'
+  setNewListColumnType: React.Dispatch<React.SetStateAction<'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'>>
+  editorCandidates: EditorCandidate[]
+  selectedItem: AdminToolkitPageItem | null
+  titleInputRef: React.RefObject<HTMLInputElement>
+  enterCreateMode: () => void
+  enterEditMode: (itemId: string) => void
+  refresh: () => Promise<void>
+  toUtcMidnightIso: (dateOnly: string) => string
+  formFromItem: (item: AdminToolkitPageItem) => PageFormState
+  focusTitle: () => void
+}) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+      {/* Left Column: Items List */}
+      <aside className="bg-white rounded-lg shadow-md p-4">
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h2 className="text-lg font-semibold text-nhs-dark-blue">Items</h2>
+          <button
+            type="button"
+            className="nhs-button"
+            onClick={enterCreateMode}
+          >
+            New item
+          </button>
+        </div>
+        <div className="space-y-2">
+          <button
+            type="button"
+            onClick={enterCreateMode}
+            className={[
+              'w-full text-left rounded-md px-3 py-2 text-sm border',
+              mode === 'create' ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
+            ].join(' ')}
+          >
+            <span className="font-medium text-gray-900">+ Create new item</span>
+            <div className="text-xs text-gray-500 mt-0.5">Add another item</div>
+          </button>
+
+          {items.length === 0 ? (
+            <p className="mt-2 text-sm text-gray-500">No items yet.</p>
+          ) : (
+            items.map((it) => {
+              const isSelected = it.id === selectedItemId
+              const restricted = it.editors.length > 0
+              return (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => enterEditMode(it.id)}
+                  className={[
+                    'w-full text-left rounded-md px-3 py-2 text-sm border',
+                    isSelected ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
+                  ].join(' ')}
+                  title={restricted ? 'Restricted item' : undefined}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-gray-900 truncate">{it.title}</span>
+                    <span className="flex items-center gap-1">
+                      {it.type === 'LIST' ? (
+                        <span className="text-[11px] rounded-full bg-blue-50 px-2 py-0.5 text-blue-800 border border-blue-200">LIST</span>
+                      ) : (
+                        <span className="text-[11px] rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 border border-gray-200">PAGE</span>
+                      )}
+                      {restricted ? (
+                        <span className="text-[11px] rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">Restricted</span>
+                      ) : null}
+                    </span>
+                  </div>
+                </button>
+              )
+            })
+          )}
+        </div>
+      </aside>
+
+      {/* Right Column: Item Editor */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        {mode === 'create' ? (
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-semibold text-nhs-dark-blue">Create item</h3>
+                <p className="mt-1 text-sm text-nhs-grey">Add a new Admin Toolkit item. After saving, you can add another straight away.</p>
+              </div>
+            </div>
+
+            {showAddAnotherHint ? (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                <strong>Created.</strong> Add another item?
+              </div>
+            ) : null}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  className="w-full nhs-input"
+                  value={form.type}
+                  onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as 'PAGE' | 'LIST' }))}
+                >
+                  <option value="PAGE">PAGE (guidance)</option>
+                  <option value="LIST">LIST (table)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input
+                  ref={titleInputRef}
+                  className="w-full nhs-input"
+                  value={form.title}
+                  onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="e.g. How to process discharge summaries"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  className="w-full nhs-input"
+                  value={form.categoryId ?? ''}
+                  onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
+                >
+                  <option value="">Uncategorised</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Warning badge (optional)</label>
+                <input
+                  className="w-full nhs-input"
+                  value={form.warningLevel}
+                  onChange={(e) => setForm((prev) => ({ ...prev, warningLevel: e.target.value }))}
+                  placeholder="e.g. Urgent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last reviewed (optional)</label>
+                <input
+                  type="date"
+                  className="w-full nhs-input"
+                  value={form.lastReviewedDate}
+                  onChange={(e) => setForm((prev) => ({ ...prev, lastReviewedDate: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div>
+              {form.type === 'PAGE' ? (
+                <>
+                  <label className="block text-sm font-medium text-gray-700">Content</label>
+                  <div className="mt-2">
+                    <RichTextEditor
+                      value={form.contentHtml}
+                      onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
+                      height={260}
+                      placeholder="Write guidance for staff…"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                  <strong>This is a LIST item.</strong> You can add and edit rows on the item page after creating it.
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
+              <p className="mt-1 text-sm text-gray-600">
+                You can set restrictions after creating, or tick names now and we'll apply them after the page is created.
+              </p>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {editorCandidates.length === 0 ? (
+                  <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
+                ) : (
+                  editorCandidates.map((u) => {
+                    const checked = form.editorUserIds.includes(u.id)
+                    const label = u.name ? `${u.name} (${u.email})` : u.email
+                    return (
+                      <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setForm((prev) => {
+                              const nextIds = e.target.checked
+                                ? Array.from(new Set([...prev.editorUserIds, u.id]))
+                                : prev.editorUserIds.filter((x) => x !== u.id)
+                              return { ...prev, editorUserIds: nextIds }
+                            })
+                          }}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 justify-end">
+              <button
+                type="button"
+                className="nhs-button-secondary"
+                onClick={() => {
+                  setShowAddAnotherHint(false)
+                  setForm(DEFAULT_PAGE_FORM)
+                  focusTitle()
+                }}
+              >
+                Clear
+              </button>
+              <button
+                type="button"
+                className="nhs-button"
+                disabled={!form.title.trim()}
+                onClick={async () => {
+                  const res = await createAdminToolkitItem({
+                    surgeryId,
+                    type: form.type,
+                    title: form.title,
+                    categoryId: form.categoryId,
+                    contentHtml: form.type === 'PAGE' ? form.contentHtml : '',
+                    warningLevel: form.warningLevel || null,
+                    lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
+                  })
+                  if (!res.ok) {
+                    toast.error(res.error.message)
+                    return
+                  }
+                  // Optional: apply restrictions immediately after create.
+                  if (form.editorUserIds.length > 0) {
+                    const r = await setAdminToolkitItemEditors({
+                      surgeryId,
+                      itemId: res.data.id,
+                      editorUserIds: form.editorUserIds,
+                    })
+                    if (!r.ok) {
+                      toast.error(r.error.message)
+                      return
+                    }
+                  }
+
+                  toast.success(form.type === 'LIST' ? 'List created' : 'Page created')
+                  setShowAddAnotherHint(true)
+                  setForm(DEFAULT_PAGE_FORM)
+                  focusTitle()
+                  await refresh()
+                }}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        ) : !selectedItem ? (
+          <div className="py-12 text-center">
+            <p className="text-sm text-gray-500">Select an item to edit, or create a new one.</p>
+          </div>
+        ) : (
+          <ItemEditFormContent
+            surgeryId={surgeryId}
+            categories={categories}
+            selectedItem={selectedItem}
+            form={form}
+            setForm={setForm}
+            newListColumnLabel={newListColumnLabel}
+            setNewListColumnLabel={setNewListColumnLabel}
+            newListColumnType={newListColumnType}
+            setNewListColumnType={setNewListColumnType}
+            editorCandidates={editorCandidates}
+            titleInputRef={titleInputRef}
+            refresh={refresh}
+            toUtcMidnightIso={toUtcMidnightIso}
+            formFromItem={formFromItem}
+            focusTitle={focusTitle}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Item Edit Form Content (extracted for reuse)
+function ItemEditFormContent({
+  surgeryId,
+  categories,
+  selectedItem,
+  form,
+  setForm,
+  newListColumnLabel,
+  setNewListColumnLabel,
+  newListColumnType,
+  setNewListColumnType,
+  editorCandidates,
+  titleInputRef,
+  refresh,
+  toUtcMidnightIso,
+  formFromItem,
+  focusTitle,
+}: {
+  surgeryId: string
+  categories: AdminToolkitCategory[]
+  selectedItem: AdminToolkitPageItem
+  form: PageFormState
+  setForm: React.Dispatch<React.SetStateAction<PageFormState>>
+  newListColumnLabel: string
+  setNewListColumnLabel: React.Dispatch<React.SetStateAction<string>>
+  newListColumnType: 'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'
+  setNewListColumnType: React.Dispatch<React.SetStateAction<'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'>>
+  editorCandidates: EditorCandidate[]
+  titleInputRef: React.RefObject<HTMLInputElement>
+  refresh: () => Promise<void>
+  toUtcMidnightIso: (dateOnly: string) => string
+  formFromItem: (item: AdminToolkitPageItem) => PageFormState
+  focusTitle: () => void
+}) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <input
+            ref={titleInputRef}
+            className="w-full nhs-input"
+            value={form.title}
+            onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <select
+            className="w-full nhs-input"
+            value={form.categoryId ?? ''}
+            onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
+          >
+            <option value="">Uncategorised</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Warning badge (optional)</label>
+          <input
+            className="w-full nhs-input"
+            value={form.warningLevel}
+            onChange={(e) => setForm((prev) => ({ ...prev, warningLevel: e.target.value }))}
+            placeholder="e.g. Urgent"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Last reviewed (optional)</label>
+          <input
+            type="date"
+            className="w-full nhs-input"
+            value={form.lastReviewedDate}
+            onChange={(e) => setForm((prev) => ({ ...prev, lastReviewedDate: e.target.value }))}
+          />
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <label className="block text-sm font-medium text-gray-700">Content</label>
+          <a
+            className="text-sm text-nhs-blue hover:underline"
+            href={`/s/${surgeryId}/admin-toolkit/${selectedItem.id}`}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Open item
+          </a>
+        </div>
+        {selectedItem.type === 'PAGE' ? (
+          <div className="mt-2">
+            <RichTextEditor
+              value={form.contentHtml}
+              onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
+              height={260}
+              placeholder="Write guidance for staff…"
+            />
+          </div>
+        ) : (
+          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+            <strong>LIST item:</strong> rows are managed on the item page. Use the columns section below to configure fields.
+          </div>
+        )}
+      </div>
+
+      {selectedItem.type === 'LIST' ? (
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <h4 className="text-sm font-semibold text-gray-900">Columns</h4>
+          <p className="mt-1 text-sm text-gray-600">Add, rename, and reorder columns for this list.</p>
+
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2">
+            <input
+              className="nhs-input"
+              placeholder="New column label…"
+              value={newListColumnLabel}
+              onChange={(e) => setNewListColumnLabel(e.target.value)}
+            />
+            <select
+              className="nhs-input"
+              value={newListColumnType}
+              onChange={(e) => setNewListColumnType(e.target.value as typeof newListColumnType)}
+            >
+              <option value="TEXT">Text</option>
+              <option value="MULTILINE">Notes</option>
+              <option value="PHONE">Phone</option>
+              <option value="EMAIL">Email</option>
+              <option value="URL">Link</option>
+            </select>
+            <button
+              type="button"
+              className="nhs-button"
+              onClick={async () => {
+                const label = newListColumnLabel.trim()
+                if (!label) {
+                  toast.error('Enter a column label.')
+                  return
+                }
+                const res = await createAdminToolkitListColumn({
+                  surgeryId,
+                  itemId: selectedItem.id,
+                  label,
+                  fieldType: newListColumnType,
+                })
+                if (!res.ok) {
+                  toast.error(res.error.message)
+                  return
+                }
+                toast.success('Column added')
+                setNewListColumnLabel('')
+                setNewListColumnType('TEXT')
+                await refresh()
+              }}
+            >
+              Add
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-2">
+            {(selectedItem.listColumns ?? []).length === 0 ? (
+              <p className="text-sm text-gray-500">No columns yet.</p>
+            ) : (
+              (selectedItem.listColumns ?? []).map((col, idx) => (
+                <div key={col.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-2 items-end">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                      <input
+                        className="nhs-input"
+                        defaultValue={col.label}
+                        onBlur={async (e) => {
+                          const nextLabel = e.target.value.trim()
+                          if (!nextLabel || nextLabel === col.label) return
+                          const r = await updateAdminToolkitListColumn({
+                            surgeryId,
+                            itemId: selectedItem.id,
+                            columnId: col.id,
+                            label: nextLabel,
+                            fieldType: col.fieldType as any,
+                          })
+                          if (!r.ok) toast.error(r.error.message)
+                          else toast.success('Column updated')
+                          await refresh()
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
+                      <select
+                        className="nhs-input"
+                        value={col.fieldType}
+                        onChange={async (e) => {
+                          const r = await updateAdminToolkitListColumn({
+                            surgeryId,
+                            itemId: selectedItem.id,
+                            columnId: col.id,
+                            label: col.label,
+                            fieldType: e.target.value as any,
+                          })
+                          if (!r.ok) toast.error(r.error.message)
+                          else toast.success('Column updated')
+                          await refresh()
+                        }}
+                      >
+                        <option value="TEXT">Text</option>
+                        <option value="MULTILINE">Notes</option>
+                        <option value="PHONE">Phone</option>
+                        <option value="EMAIL">Email</option>
+                        <option value="URL">Link</option>
+                      </select>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        type="button"
+                        className="nhs-button-secondary"
+                        disabled={idx === 0}
+                        onClick={async () => {
+                          const cols = (selectedItem.listColumns ?? []).slice()
+                          const tmp = cols[idx - 1]
+                          cols[idx - 1] = cols[idx]
+                          cols[idx] = tmp
+                          const r = await reorderAdminToolkitListColumns({
+                            surgeryId,
+                            itemId: selectedItem.id,
+                            orderedColumnIds: cols.map((c) => c.id),
+                          })
+                          if (!r.ok) toast.error(r.error.message)
+                          else toast.success('Columns reordered')
+                          await refresh()
+                        }}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="nhs-button-secondary"
+                        disabled={idx === (selectedItem.listColumns?.length ?? 0) - 1}
+                        onClick={async () => {
+                          const cols = (selectedItem.listColumns ?? []).slice()
+                          const tmp = cols[idx + 1]
+                          cols[idx + 1] = cols[idx]
+                          cols[idx] = tmp
+                          const r = await reorderAdminToolkitListColumns({
+                            surgeryId,
+                            itemId: selectedItem.id,
+                            orderedColumnIds: cols.map((c) => c.id),
+                          })
+                          if (!r.ok) toast.error(r.error.message)
+                          else toast.success('Columns reordered')
+                          await refresh()
+                        }}
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="nhs-button-secondary"
+                        onClick={async () => {
+                          const ok = confirm(`Delete column "${col.label}"?`)
+                          if (!ok) return
+                          const r = await deleteAdminToolkitListColumn({ surgeryId, itemId: selectedItem.id, columnId: col.id })
+                          if (!r.ok) toast.error(r.error.message)
+                          else toast.success('Column deleted')
+                          await refresh()
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+        <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
+        <p className="mt-1 text-sm text-gray-600">
+          If you tick any names, only those people (and superusers) can edit this item. You still need Admin Toolkit write access.
+        </p>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {editorCandidates.length === 0 ? (
+            <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
+          ) : (
+            editorCandidates.map((u) => {
+              const checked = form.editorUserIds.includes(u.id)
+              const label = u.name ? `${u.name} (${u.email})` : u.email
+              return (
+                <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      setForm((prev) => {
+                        const nextIds = e.target.checked
+                          ? Array.from(new Set([...prev.editorUserIds, u.id]))
+                          : prev.editorUserIds.filter((x) => x !== u.id)
+                        return { ...prev, editorUserIds: nextIds }
+                      })
+                    }}
+                  />
+                  <span>{label}</span>
+                </label>
+              )
+            })
+          )}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            className="nhs-button-secondary"
+            onClick={async () => {
+              const res = await setAdminToolkitItemEditors({
+                surgeryId,
+                itemId: selectedItem.id,
+                editorUserIds: form.editorUserIds,
+              })
+              if (!res.ok) {
+                toast.error(res.error.message)
+                return
+              }
+              toast.success('Editors updated')
+              await refresh()
+            }}
+          >
+            Save editors
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 justify-end">
+        <button
+          type="button"
+          className="nhs-button-secondary"
+          onClick={() => {
+            setForm(formFromItem(selectedItem))
+            focusTitle()
+          }}
+        >
+          Reset changes
+        </button>
+        <button
+          type="button"
+          className="nhs-button"
+          onClick={async () => {
+            const res = await updateAdminToolkitItem({
+              surgeryId,
+              itemId: selectedItem.id,
+              title: form.title,
+              categoryId: form.categoryId,
+              contentHtml: selectedItem.type === 'PAGE' ? form.contentHtml : undefined,
+              warningLevel: form.warningLevel || null,
+              lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
+            })
+            if (!res.ok) {
+              toast.error(res.error.message)
+              return
+            }
+            toast.success('Item saved')
+            await refresh()
+          }}
+        >
+          Save item
+        </button>
+        <button
+          type="button"
+          className="rounded-md bg-nhs-red px-4 py-2 text-white transition-colors hover:bg-nhs-red-dark focus:outline-none focus:ring-2 focus:ring-nhs-red"
+          onClick={async () => {
+            const ok = confirm('Delete this item?')
+            if (!ok) return
+            const res = await deleteAdminToolkitItem({ surgeryId, itemId: selectedItem.id })
+            if (!res.ok) {
+              toast.error(res.error.message)
+              return
+            }
+            toast.success('Item deleted')
+            await refresh()
+          }}
+        >
+          Delete item
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// Structure & Settings Tab Component
+function StructureSettingsTab({
+  surgeryId,
+  categories,
+  newCategoryName,
+  setNewCategoryName,
+  renamingCategoryId,
+  setRenamingCategoryId,
+  renamingValue,
+  setRenamingValue,
+  panelTaskBuddy,
+  setPanelTaskBuddy,
+  panelPostRoute,
+  setPanelPostRoute,
+  currentWeekCommencingIso,
+  selectedWeekCommencingIso,
+  setSelectedWeekCommencingIso,
+  onTakeGpName,
+  setOnTakeGpName,
+  onTakeLoading,
+  onTakeDirty,
+  setOnTakeDirty,
+  upcomingWeeks,
+  upcomingMap,
+  setUpcomingMap,
+  refresh,
+  addDaysIso,
+  weekStartMondayIso,
+  formatLondonDateNoWeekday,
+}: {
+  surgeryId: string
+  categories: AdminToolkitCategory[]
+  newCategoryName: string
+  setNewCategoryName: React.Dispatch<React.SetStateAction<string>>
+  renamingCategoryId: string | null
+  setRenamingCategoryId: React.Dispatch<React.SetStateAction<string | null>>
+  renamingValue: string
+  setRenamingValue: React.Dispatch<React.SetStateAction<string>>
+  panelTaskBuddy: string
+  setPanelTaskBuddy: React.Dispatch<React.SetStateAction<string>>
+  panelPostRoute: string
+  setPanelPostRoute: React.Dispatch<React.SetStateAction<string>>
+  currentWeekCommencingIso: string
+  selectedWeekCommencingIso: string
+  setSelectedWeekCommencingIso: React.Dispatch<React.SetStateAction<string>>
+  onTakeGpName: string
+  setOnTakeGpName: React.Dispatch<React.SetStateAction<string>>
+  onTakeLoading: boolean
+  onTakeDirty: boolean
+  setOnTakeDirty: React.Dispatch<React.SetStateAction<boolean>>
+  upcomingWeeks: Array<{ weekCommencingIso: string; gpName: string | null }>
+  upcomingMap: Record<string, string | null>
+  setUpcomingMap: React.Dispatch<React.SetStateAction<Record<string, string | null>>>
+  refresh: () => Promise<void>
+  addDaysIso: (weekCommencingIso: string, days: number) => string
+  weekStartMondayIso: (inputIso: string) => string
+  formatLondonDateNoWeekday: (iso: string) => string
+}) {
+  return (
     <div className="space-y-6">
       {/* Categories */}
       <section className="bg-white rounded-lg shadow-md p-6">
@@ -432,632 +1311,6 @@ export default function AdminToolkitAdminClient({
               )
             })
           )}
-        </div>
-      </section>
-
-      {/* Items */}
-      <section className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-nhs-dark-blue">Admin Toolkit items</h2>
-            <p className="mt-1 text-sm text-nhs-grey">Create and edit guidance pages and lists.</p>
-          </div>
-          <button
-            type="button"
-            className="nhs-button"
-            onClick={() => {
-              enterCreateMode()
-            }}
-          >
-            New item
-          </button>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-          <aside className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Items</h3>
-            <div className="mt-2 space-y-1">
-              <button
-                type="button"
-                onClick={() => {
-                  enterCreateMode()
-                }}
-                className={[
-                  'w-full text-left rounded-md px-3 py-2 text-sm border',
-                  mode === 'create' ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
-                ].join(' ')}
-              >
-                <span className="font-medium text-gray-900">+ Create new item</span>
-                <div className="text-xs text-gray-500 mt-0.5">Add another item</div>
-              </button>
-
-              {items.length === 0 ? (
-                <p className="mt-2 text-sm text-gray-500">No items yet.</p>
-              ) : (
-                items.map((it) => {
-                  const isSelected = it.id === selectedItemId
-                  const restricted = it.editors.length > 0
-                  return (
-                    <button
-                      key={it.id}
-                      type="button"
-                      onClick={() => {
-                        enterEditMode(it.id)
-                      }}
-                      className={[
-                        'w-full text-left rounded-md px-3 py-2 text-sm border',
-                        isSelected ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
-                      ].join(' ')}
-                      title={restricted ? 'Restricted item' : undefined}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-gray-900 truncate">{it.title}</span>
-                        <span className="flex items-center gap-1">
-                          {it.type === 'LIST' ? (
-                            <span className="text-[11px] rounded-full bg-blue-50 px-2 py-0.5 text-blue-800 border border-blue-200">LIST</span>
-                          ) : (
-                            <span className="text-[11px] rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 border border-gray-200">PAGE</span>
-                          )}
-                          {restricted ? (
-                            <span className="text-[11px] rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">Restricted</span>
-                          ) : null}
-                        </span>
-                      </div>
-                    </button>
-                  )
-                })
-              )}
-            </div>
-          </aside>
-
-          <div className="rounded-lg border border-gray-200 bg-white p-4">
-            {mode === 'create' ? (
-              <div className="space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-base font-semibold text-nhs-dark-blue">Create item</h3>
-                    <p className="mt-1 text-sm text-nhs-grey">Add a new Admin Toolkit item. After saving, you can add another straight away.</p>
-                  </div>
-                </div>
-
-                {showAddAnotherHint ? (
-                  <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                    <strong>Created.</strong> Add another item?
-                  </div>
-                ) : null}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                    <select
-                      className="w-full nhs-input"
-                      value={form.type}
-                      onChange={(e) => setForm((prev) => ({ ...prev, type: e.target.value as 'PAGE' | 'LIST' }))}
-                    >
-                      <option value="PAGE">PAGE (guidance)</option>
-                      <option value="LIST">LIST (table)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                    <input
-                      ref={titleInputRef}
-                      className="w-full nhs-input"
-                      value={form.title}
-                      onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                      placeholder="e.g. How to process discharge summaries"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                    <select
-                      className="w-full nhs-input"
-                      value={form.categoryId ?? ''}
-                      onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
-                    >
-                      <option value="">Uncategorised</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Warning badge (optional)</label>
-                    <input
-                      className="w-full nhs-input"
-                      value={form.warningLevel}
-                      onChange={(e) => setForm((prev) => ({ ...prev, warningLevel: e.target.value }))}
-                      placeholder="e.g. Urgent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last reviewed (optional)</label>
-                    <input
-                      type="date"
-                      className="w-full nhs-input"
-                      value={form.lastReviewedDate}
-                      onChange={(e) => setForm((prev) => ({ ...prev, lastReviewedDate: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  {form.type === 'PAGE' ? (
-                    <>
-                      <label className="block text-sm font-medium text-gray-700">Content</label>
-                      <div className="mt-2">
-                        <RichTextEditor
-                          value={form.contentHtml}
-                          onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-                          height={260}
-                          placeholder="Write guidance for staff…"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                      <strong>This is a LIST item.</strong> You can add and edit rows on the item page after creating it.
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
-                  <p className="mt-1 text-sm text-gray-600">
-                    You can set restrictions after creating, or tick names now and we’ll apply them after the page is created.
-                  </p>
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {editorCandidates.length === 0 ? (
-                      <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
-                    ) : (
-                      editorCandidates.map((u) => {
-                        const checked = form.editorUserIds.includes(u.id)
-                        const label = u.name ? `${u.name} (${u.email})` : u.email
-                        return (
-                          <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                setForm((prev) => {
-                                  const nextIds = e.target.checked
-                                    ? Array.from(new Set([...prev.editorUserIds, u.id]))
-                                    : prev.editorUserIds.filter((x) => x !== u.id)
-                                  return { ...prev, editorUserIds: nextIds }
-                                })
-                              }}
-                            />
-                            <span>{label}</span>
-                          </label>
-                        )
-                      })
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <button
-                    type="button"
-                    className="nhs-button-secondary"
-                    onClick={() => {
-                      setShowAddAnotherHint(false)
-                      setForm(DEFAULT_PAGE_FORM)
-                      focusTitle()
-                    }}
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="button"
-                    className="nhs-button"
-                    disabled={!form.title.trim()}
-                    onClick={async () => {
-                      const res = await createAdminToolkitItem({
-                        surgeryId,
-                        type: form.type,
-                        title: form.title,
-                        categoryId: form.categoryId,
-                        contentHtml: form.type === 'PAGE' ? form.contentHtml : '',
-                        warningLevel: form.warningLevel || null,
-                        lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
-                      })
-                      if (!res.ok) {
-                        toast.error(res.error.message)
-                        return
-                      }
-                      // Optional: apply restrictions immediately after create.
-                      if (form.editorUserIds.length > 0) {
-                        const r = await setAdminToolkitItemEditors({
-                          surgeryId,
-                          itemId: res.data.id,
-                          editorUserIds: form.editorUserIds,
-                        })
-                        if (!r.ok) {
-                          toast.error(r.error.message)
-                          return
-                        }
-                      }
-
-                      toast.success(form.type === 'LIST' ? 'List created' : 'Page created')
-                      setShowAddAnotherHint(true)
-                      setForm(DEFAULT_PAGE_FORM)
-                      focusTitle()
-                      await refresh()
-                    }}
-                  >
-                    Create
-                  </button>
-                </div>
-              </div>
-            ) : !selectedItem ? (
-              <p className="text-sm text-gray-500">Select an item to edit, or create a new page.</p>
-            ) : (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-                    <input
-                      ref={titleInputRef}
-                      className="w-full nhs-input"
-                      value={form.title}
-                      onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                    <select
-                      className="w-full nhs-input"
-                      value={form.categoryId ?? ''}
-                      onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
-                    >
-                      <option value="">Uncategorised</option>
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Warning badge (optional)</label>
-                    <input
-                      className="w-full nhs-input"
-                      value={form.warningLevel}
-                      onChange={(e) => setForm((prev) => ({ ...prev, warningLevel: e.target.value }))}
-                      placeholder="e.g. Urgent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last reviewed (optional)</label>
-                    <input
-                      type="date"
-                      className="w-full nhs-input"
-                      value={form.lastReviewedDate}
-                      onChange={(e) => setForm((prev) => ({ ...prev, lastReviewedDate: e.target.value }))}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between gap-3">
-                    <label className="block text-sm font-medium text-gray-700">Content</label>
-                    {mode === 'edit' ? (
-                      <a
-                        className="text-sm text-nhs-blue hover:underline"
-                        href={`/s/${surgeryId}/admin-toolkit/${selectedItem.id}`}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                      >
-                        Open item
-                      </a>
-                    ) : null}
-                  </div>
-                  {selectedItem.type === 'PAGE' ? (
-                    <div className="mt-2">
-                      <RichTextEditor
-                        value={form.contentHtml}
-                        onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-                        height={260}
-                        placeholder="Write guidance for staff…"
-                      />
-                    </div>
-                  ) : (
-                    <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                      <strong>LIST item:</strong> rows are managed on the item page. Use the columns section below to configure fields.
-                    </div>
-                  )}
-                </div>
-
-                {selectedItem.type === 'LIST' ? (
-                  <div className="rounded-lg border border-gray-200 bg-white p-4">
-                    <h4 className="text-sm font-semibold text-gray-900">Columns</h4>
-                    <p className="mt-1 text-sm text-gray-600">Add, rename, and reorder columns for this list.</p>
-
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_180px_auto] gap-2">
-                      <input
-                        className="nhs-input"
-                        placeholder="New column label…"
-                        value={newListColumnLabel}
-                        onChange={(e) => setNewListColumnLabel(e.target.value)}
-                      />
-                      <select
-                        className="nhs-input"
-                        value={newListColumnType}
-                        onChange={(e) => setNewListColumnType(e.target.value as typeof newListColumnType)}
-                      >
-                        <option value="TEXT">Text</option>
-                        <option value="MULTILINE">Notes</option>
-                        <option value="PHONE">Phone</option>
-                        <option value="EMAIL">Email</option>
-                        <option value="URL">Link</option>
-                      </select>
-                      <button
-                        type="button"
-                        className="nhs-button"
-                        onClick={async () => {
-                          const label = newListColumnLabel.trim()
-                          if (!label) {
-                            toast.error('Enter a column label.')
-                            return
-                          }
-                          const res = await createAdminToolkitListColumn({
-                            surgeryId,
-                            itemId: selectedItem.id,
-                            label,
-                            fieldType: newListColumnType,
-                          })
-                          if (!res.ok) {
-                            toast.error(res.error.message)
-                            return
-                          }
-                          toast.success('Column added')
-                          setNewListColumnLabel('')
-                          setNewListColumnType('TEXT')
-                          await refresh()
-                        }}
-                      >
-                        Add
-                      </button>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      {(selectedItem.listColumns ?? []).length === 0 ? (
-                        <p className="text-sm text-gray-500">No columns yet.</p>
-                      ) : (
-                        (selectedItem.listColumns ?? []).map((col, idx) => (
-                          <div key={col.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                            <div className="grid grid-cols-1 md:grid-cols-[1fr_180px_auto] gap-2 items-end">
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
-                                <input
-                                  className="nhs-input"
-                                  defaultValue={col.label}
-                                  onBlur={async (e) => {
-                                    const nextLabel = e.target.value.trim()
-                                    if (!nextLabel || nextLabel === col.label) return
-                                    const r = await updateAdminToolkitListColumn({
-                                      surgeryId,
-                                      itemId: selectedItem.id,
-                                      columnId: col.id,
-                                      label: nextLabel,
-                                      fieldType: col.fieldType as any,
-                                    })
-                                    if (!r.ok) toast.error(r.error.message)
-                                    else toast.success('Column updated')
-                                    await refresh()
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Type</label>
-                                <select
-                                  className="nhs-input"
-                                  value={col.fieldType}
-                                  onChange={async (e) => {
-                                    const r = await updateAdminToolkitListColumn({
-                                      surgeryId,
-                                      itemId: selectedItem.id,
-                                      columnId: col.id,
-                                      label: col.label,
-                                      fieldType: e.target.value as any,
-                                    })
-                                    if (!r.ok) toast.error(r.error.message)
-                                    else toast.success('Column updated')
-                                    await refresh()
-                                  }}
-                                >
-                                  <option value="TEXT">Text</option>
-                                  <option value="MULTILINE">Notes</option>
-                                  <option value="PHONE">Phone</option>
-                                  <option value="EMAIL">Email</option>
-                                  <option value="URL">Link</option>
-                                </select>
-                              </div>
-                              <div className="flex gap-2 justify-end">
-                                <button
-                                  type="button"
-                                  className="nhs-button-secondary"
-                                  disabled={idx === 0}
-                                  onClick={async () => {
-                                    const cols = (selectedItem.listColumns ?? []).slice()
-                                    const tmp = cols[idx - 1]
-                                    cols[idx - 1] = cols[idx]
-                                    cols[idx] = tmp
-                                    const r = await reorderAdminToolkitListColumns({
-                                      surgeryId,
-                                      itemId: selectedItem.id,
-                                      orderedColumnIds: cols.map((c) => c.id),
-                                    })
-                                    if (!r.ok) toast.error(r.error.message)
-                                    else toast.success('Columns reordered')
-                                    await refresh()
-                                  }}
-                                >
-                                  ↑
-                                </button>
-                                <button
-                                  type="button"
-                                  className="nhs-button-secondary"
-                                  disabled={idx === (selectedItem.listColumns?.length ?? 0) - 1}
-                                  onClick={async () => {
-                                    const cols = (selectedItem.listColumns ?? []).slice()
-                                    const tmp = cols[idx + 1]
-                                    cols[idx + 1] = cols[idx]
-                                    cols[idx] = tmp
-                                    const r = await reorderAdminToolkitListColumns({
-                                      surgeryId,
-                                      itemId: selectedItem.id,
-                                      orderedColumnIds: cols.map((c) => c.id),
-                                    })
-                                    if (!r.ok) toast.error(r.error.message)
-                                    else toast.success('Columns reordered')
-                                    await refresh()
-                                  }}
-                                >
-                                  ↓
-                                </button>
-                                <button
-                                  type="button"
-                                  className="nhs-button-secondary"
-                                  onClick={async () => {
-                                    const ok = confirm(`Delete column "${col.label}"?`)
-                                    if (!ok) return
-                                    const r = await deleteAdminToolkitListColumn({ surgeryId, itemId: selectedItem.id, columnId: col.id })
-                                    if (!r.ok) toast.error(r.error.message)
-                                    else toast.success('Column deleted')
-                                    await refresh()
-                                  }}
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-                  <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
-                  <p className="mt-1 text-sm text-gray-600">
-                    If you tick any names, only those people (and superusers) can edit this item. You still need Admin Toolkit write access.
-                  </p>
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {editorCandidates.length === 0 ? (
-                      <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
-                    ) : (
-                      editorCandidates.map((u) => {
-                        const checked = form.editorUserIds.includes(u.id)
-                        const label = u.name ? `${u.name} (${u.email})` : u.email
-                        return (
-                          <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                setForm((prev) => {
-                                  const nextIds = e.target.checked
-                                    ? Array.from(new Set([...prev.editorUserIds, u.id]))
-                                    : prev.editorUserIds.filter((x) => x !== u.id)
-                                  return { ...prev, editorUserIds: nextIds }
-                                })
-                              }}
-                            />
-                            <span>{label}</span>
-                          </label>
-                        )
-                      })
-                    )}
-                  </div>
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      type="button"
-                      className="nhs-button-secondary"
-                      onClick={async () => {
-                        const res = await setAdminToolkitItemEditors({
-                          surgeryId,
-                          itemId: selectedItem.id,
-                          editorUserIds: form.editorUserIds,
-                        })
-                        if (!res.ok) {
-                          toast.error(res.error.message)
-                          return
-                        }
-                        toast.success('Editors updated')
-                        await refresh()
-                      }}
-                    >
-                      Save editors
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <button
-                    type="button"
-                    className="nhs-button-secondary"
-                    onClick={() => {
-                      setForm(formFromItem(selectedItem))
-                      focusTitle()
-                    }}
-                  >
-                    Reset changes
-                  </button>
-                  <button
-                    type="button"
-                    className="nhs-button"
-                    onClick={async () => {
-                      const res = await updateAdminToolkitItem({
-                        surgeryId,
-                        itemId: selectedItem.id,
-                        title: form.title,
-                        categoryId: form.categoryId,
-                        contentHtml: selectedItem.type === 'PAGE' ? form.contentHtml : undefined,
-                        warningLevel: form.warningLevel || null,
-                        lastReviewedAt: form.lastReviewedDate ? toUtcMidnightIso(form.lastReviewedDate) : null,
-                      })
-                      if (!res.ok) {
-                        toast.error(res.error.message)
-                        return
-                      }
-                      toast.success('Item saved')
-                      setMode('edit')
-                      await refresh()
-                    }}
-                  >
-                    Save item
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-md bg-nhs-red px-4 py-2 text-white transition-colors hover:bg-nhs-red-dark focus:outline-none focus:ring-2 focus:ring-nhs-red"
-                    onClick={async () => {
-                      const ok = confirm('Delete this item?')
-                      if (!ok) return
-                      const res = await deleteAdminToolkitItem({ surgeryId, itemId: selectedItem.id })
-                      if (!res.ok) {
-                        toast.error(res.error.message)
-                        return
-                      }
-                      toast.success('Item deleted')
-                      await refresh()
-                    }}
-                  >
-                    Delete item
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </section>
 

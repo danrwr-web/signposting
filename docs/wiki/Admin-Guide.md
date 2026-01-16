@@ -1,30 +1,24 @@
 # Admin Guide
 
-## Navigation
+[Home](Home)
 
-- [Home](Home)
+[Getting Started](Getting-Started)
 
-- [Getting Started](Getting-Started)
+[User Guide](User-Guide)
 
-- [User Guide](User-Guide)
+[Symptom Library](Symptom-Library)
 
-- [Symptom Library](Symptom-Library)
+[Clinical Governance](Clinical-Governance)
 
-- [Clinical Governance](Clinical-Governance)
+[AI Features](AI-Features)
 
-- [AI Features](AI-Features)
+[Appointment Directory](Appointment-Directory)
 
-- [Appointment Directory](Appointment-Directory)
+[High-Risk & Highlighting](High-Risk-&-Highlighting)
 
-- [Workflow Guidance](Workflow-Guidance)
+[Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
 
-- [High-Risk & Highlighting](High-Risk-&-Highlighting)
-
-- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
-
-- [Admin Guide](Admin-Guide)
-
-- [Developer Guide](Developer-Guide)
+[Developer Guide](Developer-Guide)
 
 ---
 
@@ -54,6 +48,8 @@ The **Quick Access** tab in the Admin Dashboard controls the optional quick acce
 ## Admin Toolkit
 
 The **Admin Toolkit** is an optional module for storing surgery-specific guidance pages for admin and reception workflows (for example: “how we process documents”, “post route”, or “task buddy system”).
+
+The Admin Toolkit admin page is split into **Items** (day-to-day content editing) and **Structure & Settings** (categories, pinned panel, and rota) tabs for clarity.
 
 ### Enabling the module
 

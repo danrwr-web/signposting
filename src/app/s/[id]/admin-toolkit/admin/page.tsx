@@ -28,6 +28,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
   const { id: surgeryId } = await params
   const sp = (await searchParams) ?? {}
   const initialItemId = typeof sp.item === 'string' ? sp.item : undefined
+  const initialTab = typeof sp.tab === 'string' && (sp.tab === 'items' || sp.tab === 'settings') ? sp.tab : 'items'
 
   try {
     const user = await requireSurgeryAccess(surgeryId)
@@ -155,6 +156,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
             initialItems={items}
             editorCandidates={editorCandidates}
             initialItemId={initialItemId}
+            initialTab={initialTab}
           />
         </div>
       </div>

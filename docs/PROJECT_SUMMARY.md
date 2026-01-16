@@ -59,6 +59,7 @@ Each GP surgery has a fully independent configuration, symptom library, governan
 
 ### 🔹 Admin Toolkit (practice guidance)
 - Feature-flagged module for surgery-specific “how-to” pages for admin and reception workflows.
+- Admin settings split into **Items** and **Structure & Settings** tabs for easier editing.
 - Optional restrictions per page (approved editors only).
 - Pinned panel shown on every Admin Toolkit page (task buddy system, post route, and “GP taking on” from a rota).
 - Soft delete + audit history for changes.
