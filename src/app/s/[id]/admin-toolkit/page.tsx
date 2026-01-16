@@ -6,11 +6,13 @@ import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
+import AdminToolkitHeader from '@/components/admin-toolkit/AdminToolkitHeader'
 import {
   getAdminToolkitCategories,
   getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItems,
   getAdminToolkitPinnedPanel,
+  getAdminQuickLinks,
   getLondonTodayUtc,
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
@@ -69,52 +71,43 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
       )
     }
 
-    const [categories, items, panel] = await Promise.all([
+    const [categories, items, panel, quickLinks] = await Promise.all([
       getAdminToolkitCategories(surgeryId),
       getAdminToolkitPageItems(surgeryId),
       getAdminToolkitPinnedPanel(surgeryId),
+      getAdminQuickLinks(surgeryId),
     ])
+
+    // Filter quick links: hide restricted items the user cannot view
+    const visibleQuickLinks = quickLinks.filter((ql) => {
+      // Superusers can see everything
+      if (user.globalRole === 'SUPERUSER') return true
+      // If item has no editors restriction, anyone can view
+      if (ql.adminItem.editors.length === 0) return true
+      // Otherwise, check if user is in the editors list
+      return ql.adminItem.editors.some((e) => e.userId === user.id)
+    })
 
     const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
     const onTake = await getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc)
 
     return (
-      <div className="bg-white flex flex-col h-[100dvh]">
-        <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex-1 min-h-0 flex flex-col">
-          <div className="mb-6 flex items-center justify-between gap-4">
-            <Link
-              href={`/s/${surgeryId}`}
-              className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-            >
-              ← Back to Signposting
-            </Link>
+      <div className="bg-white min-h-screen">
+        <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 pb-48">
+          <AdminToolkitHeader
+            surgeryId={surgeryId}
+            surgeryName={surgery.name}
+            canWrite={canWrite}
+          />
 
-            {canWrite ? (
-              <Link
-                href={`/s/${surgeryId}/admin-toolkit/admin`}
-                className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
-              >
-                Manage Admin Toolkit
-              </Link>
-            ) : (
-              <span className="text-sm text-gray-500">View only</span>
-            )}
-          </div>
-
-          <header className="mb-6">
-            <h1 className="text-3xl font-bold text-nhs-dark-blue">Admin Toolkit</h1>
-            <p className="mt-1 text-nhs-grey">{surgery.name}</p>
-          </header>
-
-          <div className="flex-1 min-h-0">
-            <AdminToolkitLibraryClient
-              surgeryId={surgeryId}
-              canWrite={canWrite}
-              categories={categories}
-              items={items}
-            />
-          </div>
+          <AdminToolkitLibraryClient
+            surgeryId={surgeryId}
+            canWrite={canWrite}
+            categories={categories}
+            items={items}
+            quickLinks={visibleQuickLinks}
+          />
         </div>
 
         <AdminToolkitPinnedPanel

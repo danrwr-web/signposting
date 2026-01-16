@@ -6,6 +6,8 @@ export type AdminToolkitCategory = {
   id: string
   name: string
   orderIndex: number
+  parentId: string | null
+  children?: AdminToolkitCategory[]
 }
 
 export type AdminToolkitPageItem = {
@@ -36,6 +38,21 @@ export type AdminToolkitPinnedPanel = {
 export type AdminToolkitOnTakeWeek = {
   weekCommencing: Date
   gpName: string
+}
+
+export type AdminQuickLink = {
+  id: string
+  adminItemId: string
+  label: string
+  orderIndex: number
+  bgColor: string | null
+  textColor: string | null
+  adminItem: {
+    id: string
+    title: string
+    type: 'PAGE' | 'LIST'
+    editors: Array<{ userId: string }>
+  }
 }
 
 export function startOfDayUtc(date: Date): Date {
@@ -70,12 +87,34 @@ export function getLondonTodayUtc(): Date {
 }
 
 export async function getAdminToolkitCategories(surgeryId: string): Promise<AdminToolkitCategory[]> {
-  const categories = await prisma.adminCategory.findMany({
+  const allCategories = await prisma.adminCategory.findMany({
     where: { surgeryId, deletedAt: null },
-    select: { id: true, name: true, orderIndex: true },
+    select: { id: true, name: true, orderIndex: true, parentId: true },
     orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
   })
-  return categories
+
+  // Separate parents and children
+  const parents = allCategories.filter((cat) => !cat.parentId)
+  const children = allCategories.filter((cat) => cat.parentId !== null)
+
+  // Group children by parentId
+  const childrenByParent = new Map<string, AdminToolkitCategory[]>()
+  for (const child of children) {
+    if (child.parentId) {
+      const existing = childrenByParent.get(child.parentId) || []
+      existing.push(child)
+      childrenByParent.set(child.parentId, existing)
+    }
+  }
+
+  // Build hierarchical structure
+  return parents.map((parent) => ({
+    ...parent,
+    children: (childrenByParent.get(parent.id) || []).sort((a, b) => {
+      if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex
+      return a.name.localeCompare(b.name)
+    }),
+  }))
 }
 
 export async function getAdminToolkitPageItems(surgeryId: string): Promise<AdminToolkitPageItem[]> {
@@ -170,3 +209,26 @@ export async function getAdminToolkitOnTakeWeek(
   return row ?? null
 }
 
+export async function getAdminQuickLinks(surgeryId: string): Promise<AdminQuickLink[]> {
+  const quickLinks = await prisma.adminQuickLink.findMany({
+    where: { surgeryId },
+    select: {
+      id: true,
+      adminItemId: true,
+      label: true,
+      orderIndex: true,
+      bgColor: true,
+      textColor: true,
+      adminItem: {
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          editors: { select: { userId: true } },
+        },
+      },
+    },
+    orderBy: { orderIndex: 'asc' },
+  })
+  return quickLinks
+}

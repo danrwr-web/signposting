@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Modal from '@/components/appointments/Modal'
@@ -56,6 +56,11 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
       return false
     })
   }, [rows, columns, normalisedQuery])
+
+  const handleModalClose = useCallback(() => {
+    if (saving) return
+    setEditingRow(null)
+  }, [saving])
 
   return (
     <div>
@@ -184,10 +189,7 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
       {editingRow ? (
         <Modal
           title="Edit row"
-          onClose={() => {
-            if (saving) return
-            setEditingRow(null)
-          }}
+          onClose={handleModalClose}
           initialFocusRef={modalFirstFieldRef}
         >
           <form
@@ -214,16 +216,18 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
               const fieldType = (c.fieldType as ColumnFieldType) || 'TEXT'
               const value = draft[c.key] ?? ''
               return (
-                <div key={c.id}>
+                <div key={c.key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">{c.label}</label>
                   {fieldType === 'MULTILINE' ? (
                     <textarea
+                      key={`textarea-${c.key}`}
                       className="w-full nhs-input min-h-[90px]"
                       value={value}
                       onChange={(e) => setDraft((prev) => ({ ...prev, [c.key]: e.target.value }))}
                     />
                   ) : (
                     <input
+                      key={`input-${c.key}`}
                       ref={idx === 0 ? modalFirstFieldRef : undefined}
                       className="w-full nhs-input"
                       type={fieldType === 'PHONE' ? 'tel' : fieldType === 'EMAIL' ? 'email' : fieldType === 'URL' ? 'url' : 'text'}
