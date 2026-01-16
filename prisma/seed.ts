@@ -34,6 +34,167 @@ async function ensureBuiltInStaffTypes() {
   }
 }
 
+async function ensureDailyDoseTopics(surgeryId: string) {
+  const topics = [
+    { name: 'Safer signposting language (demo)', roleScope: ['ADMIN', 'GP', 'NURSE'], ordering: 1 },
+    { name: 'Reception triage basics (demo)', roleScope: ['ADMIN'], ordering: 2 },
+    { name: 'Clinician safety refresh (demo)', roleScope: ['GP', 'NURSE'], ordering: 3 },
+    { name: 'Practice workflow updates (demo)', roleScope: ['ADMIN', 'GP', 'NURSE'], ordering: 4 },
+    { name: 'Safeguarding awareness (demo)', roleScope: ['ADMIN', 'GP', 'NURSE'], ordering: 5 },
+  ]
+
+  const results: Array<{ id: string; name: string }> = []
+  for (const topic of topics) {
+    const existing = await prisma.dailyDoseTopic.findFirst({
+      where: { surgeryId, name: topic.name },
+    })
+    if (existing) {
+      results.push({ id: existing.id, name: existing.name })
+      continue
+    }
+    const created = await prisma.dailyDoseTopic.create({
+      data: {
+        surgeryId,
+        name: topic.name,
+        roleScope: topic.roleScope,
+        ordering: topic.ordering,
+        isActive: true,
+      },
+    })
+    results.push({ id: created.id, name: created.name })
+  }
+  return results
+}
+
+async function ensureDailyDoseCards(surgeryId: string, topics: Array<{ id: string; name: string }>) {
+  const demoSource = {
+    title: 'Demo source (not clinical guidance)',
+    org: 'Signposting Toolkit',
+    url: 'https://example.com/demo-source',
+    publishedDate: 'Demo content',
+  }
+
+  const cards = [
+    {
+      title: 'Using calm, consistent wording at the front desk',
+      topicName: 'Safer signposting language (demo)',
+      roleScope: ['ADMIN', 'GP', 'NURSE'],
+      contentBlocks: [
+        { type: 'paragraph', text: 'Demo content only: this card shows how Daily Dose content is structured.' },
+        {
+          type: 'question',
+          questionType: 'MCQ',
+          prompt: 'Which option sounds most neutral and supportive?',
+          options: ['You must book online', 'Let us look at the safest option together'],
+          correctAnswer: 'Let us look at the safest option together',
+          rationale: 'A calm, shared approach helps keep conversations respectful.',
+          difficulty: 1,
+        },
+        { type: 'reveal', text: 'Keep language consistent so patients feel listened to and supported.' },
+      ],
+    },
+    {
+      title: 'Five-minute triage essentials for reception teams',
+      topicName: 'Reception triage basics (demo)',
+      roleScope: ['ADMIN'],
+      contentBlocks: [
+        { type: 'paragraph', text: 'Demo content only: use this template to capture local triage reminders.' },
+        {
+          type: 'question',
+          questionType: 'TRUE_FALSE',
+          prompt: 'True or false: it helps to confirm preferred contact details early.',
+          options: ['True', 'False'],
+          correctAnswer: 'True',
+          rationale: 'Confirming contact details early avoids delays later.',
+          difficulty: 1,
+        },
+        { type: 'reveal', text: 'Short checklists can help new colleagues stay confident on busy days.' },
+      ],
+    },
+    {
+      title: 'Clinical safety refresh: escalation cues',
+      topicName: 'Clinician safety refresh (demo)',
+      roleScope: ['GP', 'NURSE'],
+      contentBlocks: [
+        { type: 'paragraph', text: 'Demo content only: replace with approved clinical guidance.' },
+        {
+          type: 'question',
+          questionType: 'SCENARIO',
+          prompt: 'A colleague is unsure if a case needs escalation. What is the safest next step?',
+          options: ['Wait until later', 'Check the agreed escalation pathway'],
+          correctAnswer: 'Check the agreed escalation pathway',
+          rationale: 'Agreed pathways support consistent, safe decisions.',
+          difficulty: 2,
+        },
+        { type: 'reveal', text: 'Document local escalation steps so everyone follows the same route.' },
+      ],
+    },
+    {
+      title: 'Keeping workflow notes up to date',
+      topicName: 'Practice workflow updates (demo)',
+      roleScope: ['ADMIN', 'GP', 'NURSE'],
+      contentBlocks: [
+        { type: 'paragraph', text: 'Demo content only: highlight how to keep workflow notes current.' },
+        {
+          type: 'question',
+          questionType: 'MCQ',
+          prompt: 'What helps staff stay aligned with workflow changes?',
+          options: ['Informal updates only', 'A single shared reference point'],
+          correctAnswer: 'A single shared reference point',
+          rationale: 'Shared references reduce confusion and drift.',
+          difficulty: 2,
+        },
+        { type: 'reveal', text: 'Weekly refreshes help everyone stay confident with the latest process.' },
+      ],
+    },
+    {
+      title: 'Safeguarding refresher: listen and record',
+      topicName: 'Safeguarding awareness (demo)',
+      roleScope: ['ADMIN', 'GP', 'NURSE'],
+      contentBlocks: [
+        { type: 'paragraph', text: 'Demo content only: include safeguarding reminders approved locally.' },
+        {
+          type: 'question',
+          questionType: 'TRUE_FALSE',
+          prompt: 'True or false: always record safeguarding concerns promptly.',
+          options: ['True', 'False'],
+          correctAnswer: 'True',
+          rationale: 'Prompt recording keeps care safe and traceable.',
+          difficulty: 1,
+        },
+        { type: 'reveal', text: 'Use local guidance to keep safeguarding steps clear and consistent.' },
+      ],
+    },
+  ]
+
+  const createdCards: Array<{ id: string; title: string }> = []
+  for (const card of cards) {
+    const topic = topics.find((item) => item.name === card.topicName)
+    if (!topic) continue
+    const existing = await prisma.dailyDoseCard.findFirst({
+      where: { surgeryId, title: card.title },
+    })
+    if (existing) {
+      createdCards.push({ id: existing.id, title: existing.title })
+      continue
+    }
+    const created = await prisma.dailyDoseCard.create({
+      data: {
+        surgeryId,
+        title: card.title,
+        topicId: topic.id,
+        roleScope: card.roleScope,
+        contentBlocks: card.contentBlocks,
+        sources: [demoSource],
+        status: 'PUBLISHED',
+        version: 1,
+      },
+    })
+    createdCards.push({ id: created.id, title: created.title })
+  }
+  return createdCards
+}
+
 async function main() {
   console.log('Starting seed...')
 
@@ -128,6 +289,66 @@ async function main() {
   })
 
   console.log('Created surgery memberships')
+
+  const dailyDoseTopics = await ensureDailyDoseTopics(surgery1.id)
+  const dailyDoseCards = await ensureDailyDoseCards(surgery1.id, dailyDoseTopics)
+
+  await prisma.dailyDoseProfile.upsert({
+    where: {
+      userId_surgeryId: {
+        userId: adminUser.id,
+        surgeryId: surgery1.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: adminUser.id,
+      surgeryId: surgery1.id,
+      role: 'ADMIN',
+      onboardingCompleted: true,
+      preferences: {
+        weekdayOnlyStreak: true,
+        chosenFocusTopicIds: dailyDoseTopics.slice(0, 2).map((topic) => topic.id),
+        baselineConfidence: 3,
+      },
+    },
+  })
+
+  await prisma.dailyDoseProfile.upsert({
+    where: {
+      userId_surgeryId: {
+        userId: standardUser.id,
+        surgeryId: surgery1.id,
+      },
+    },
+    update: {},
+    create: {
+      userId: standardUser.id,
+      surgeryId: surgery1.id,
+      role: 'NURSE',
+      onboardingCompleted: true,
+      preferences: {
+        weekdayOnlyStreak: true,
+        chosenFocusTopicIds: dailyDoseTopics.slice(2, 4).map((topic) => topic.id),
+        baselineConfidence: 2,
+      },
+    },
+  })
+
+  if (dailyDoseCards.length > 0) {
+    await prisma.dailyDoseSession.create({
+      data: {
+        userId: standardUser.id,
+        surgeryId: surgery1.id,
+        cardIds: [dailyDoseCards[0].id],
+        cardResults: [{ cardId: dailyDoseCards[0].id, correctCount: 1, questionCount: 1 }],
+        questionsAttempted: 1,
+        correctCount: 1,
+        xpEarned: 15,
+        completedAt: new Date(),
+      },
+    })
+  }
 
   // Create sample base symptoms
   const symptoms = [

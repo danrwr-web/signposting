@@ -16,6 +16,8 @@
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Daily Dose](Daily-Dose)
+
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
@@ -229,6 +231,18 @@ Options include:
 - shared symptom sets with local variation  
 
 This flexibility ensures governance scales with organisational structure.
+
+---
+
+## Daily Dose governance
+
+Daily Dose learning cards follow the same governance expectations as symptom content:
+
+- Cards must be reviewed before publishing
+- Sources and review-by dates are required
+- Staff can flag content that looks out of date
+
+This keeps learning content safe, current, and locally appropriate.
 
 ---
 

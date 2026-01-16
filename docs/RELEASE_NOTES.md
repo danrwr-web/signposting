@@ -7,6 +7,7 @@ A high-level history of major changes.
 ## Unreleased
 
 - Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
+- Added Daily Dose — short, role-based learning sessions with approvals, sources, and safe practice-level insights.
 
 ---
 

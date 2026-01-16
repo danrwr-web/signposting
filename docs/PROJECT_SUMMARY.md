@@ -71,6 +71,12 @@ Workflows are:
 
 A Global Default set of workflows can be maintained centrally, with individual surgeries able to override and adapt workflows locally where required.
 
+### 🔹 Daily Dose Learning
+- Short, role-based micro-learning sessions (5–10 minutes)
+- Embedded questions + quick quiz with explanations and sources
+- Draft → Review → Approved → Published editorial workflow
+- Aggregated insights only, with minimum group thresholds for privacy
+
 ### 🔹 Preferences System (per browser)
 - **Appearance:** Modern white or Classic blue cards.
 - **Header layout:** Classic toolbar vs Split layout.
@@ -142,6 +148,12 @@ Used extensively for:
 - **User**  
 - **Surgery**
 - **UserSurgery** (junction table)
+- **DailyDoseProfile**
+- **DailyDoseTopic**
+- **DailyDoseCard**
+- **DailyDoseSession**
+- **DailyDoseUserCardState**
+- **DailyDoseFlaggedContent**
 - **BaseSymptom**
 - **SurgerySymptomOverride**
 - **SurgeryCustomSymptom**

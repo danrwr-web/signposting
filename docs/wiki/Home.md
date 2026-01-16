@@ -25,6 +25,8 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Daily Dose](Daily-Dose)
+
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
@@ -50,6 +52,10 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 ## What's New
 
 The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
+
+- **Unreleased — In progress**
+  - Added Daily Dose learning sessions with approvals and sources
+  - Simplified the Admin Dashboard Quick Access setup
 
 - **v1.2 — Jan 2026**
   - Added Workflow Guidance (visual, governed workflows to guide staff through common processes)
@@ -96,6 +102,9 @@ AI-powered tools help improve instruction clarity and generate safe triage quest
 ### [Appointment Directory](Appointment-Directory)
 A simple, searchable catalogue of local services and appointment types. Perfect for new receptionists and experienced staff alike.
 
+### [Daily Dose](Daily-Dose)
+Short, role-based learning sessions that help teams stay consistent and confident in day-to-day care navigation.
+
 ### [High-Risk & Highlighting](High-Risk-&-Highlighting)
 Automatic colour-coding highlights urgent phrases and high-risk symptoms, helping staff identify critical cases immediately.
 
@@ -115,9 +124,10 @@ See: [Workflow Guidance →](Workflow-Guidance)
 1. **Comprehensive Symptom Library** — 200+ pre-loaded symptoms, all editable and clinically structured.
 2. **Local Customisation** — Surgeries adapt wording, instructions, appointment types, and highlight rules.
 3. **Appointment Directory** — A simple catalogue of local services and appointment types.
-4. **AI Tools** — AI Instruction Editor and AI Suggested Questions to improve clarity and safety.
-5. **Built-in Governance** — Clinical Review workflow ensures every symptom is signed off before going live.
-6. **Audit, Access & Safety** — Role-based access, no patient data stored, activity tracking & suggestions.
+4. **Daily Dose** — Short learning sessions for whole-practice staff, with approval gates and sources.
+5. **AI Tools** — AI Instruction Editor and AI Suggested Questions to improve clarity and safety.
+6. **Built-in Governance** — Clinical Review workflow ensures every symptom is signed off before going live.
+7. **Audit, Access & Safety** — Role-based access, no patient data stored, activity tracking & suggestions.
 
 ---
 

@@ -16,6 +16,8 @@
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Daily Dose](Daily-Dose)
+
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
@@ -132,7 +134,16 @@ This acts as a mini-training module inside the workflow.
 
 ---
 
-## 8. Go Live
+## 8. Daily Dose learning (Optional)
+Daily Dose is a short, role-based learning module for practice teams.
+
+- Ask staff to complete the Daily Dose onboarding (role + focus topics)
+- Keep cards in **Draft** until they are approved locally
+- Use the insights page to spot common gaps (aggregated only)
+
+---
+
+## 9. Go Live
 Once the clinical lead is satisfied:
 
 - Inform reception/admin staff  
@@ -143,7 +154,7 @@ Most practices adopt it fully within **24 hours**.
 
 ---
 
-## 9. Monitor Usage (Optional)
+## 10. Monitor Usage (Optional)
 If enabled, the admin dashboard can show:
 
 - Most-used symptoms  
@@ -154,7 +165,7 @@ This helps identify where further training or refinement is needed.
 
 ---
 
-## 10. Maintain Governance
+## 11. Maintain Governance
 Simply repeat the clinical review cycle whenever:
 
 - New symptoms are added  

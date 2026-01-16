@@ -10,7 +10,7 @@ A web-based signposting and care-navigation toolkit for GP reception and care na
 
 The Signposting Toolkit helps primary care teams send patients to the right service first time. It replaces guesswork with clarity, ensuring teams make the same safe decisions even on the busiest days.
 
-The toolkit provides a structured symptom library, local customisation, AI-assisted clarity tools, an appointment directory, and a full governance workflow for clinical review — all delivered through a clean, modern, NHS-aligned interface.
+The toolkit provides a structured symptom library, local customisation, AI-assisted clarity tools, an appointment directory, Daily Dose micro-learning, and a full governance workflow for clinical review — all delivered through a clean, modern, NHS-aligned interface.
 
 ---
 
@@ -21,6 +21,7 @@ The toolkit provides a structured symptom library, local customisation, AI-assis
 - **AI Instruction Editor** — AI-powered tools to improve instruction clarity (with mandatory clinical review)
 - **AI Suggested Questions** — Generates grouped triage-style questions to help staff gather information safely
 - **Appointment Directory** — Simple, searchable catalogue of local services and appointment types
+- **Daily Dose** — Short, role-based micro-learning sessions with editorial approval and review dates
 - **Workflow Guidance** — Step-by-step workflows for processing common documents (with global defaults and per-surgery customisation)
 - **Clinical Review Workflow** — Every symptom must be clinically approved before going live
 - **Multi-surgery / Tenancy Model** — Complete data isolation between practices with independent configurations
@@ -51,6 +52,7 @@ Comprehensive documentation is available in the repository:
 - [Clinical Governance](docs/wiki/Clinical-Governance.md) — Review workflow and safety
 - [AI Features](docs/wiki/AI-Features.md) — AI tools and safety checks
 - [Appointment Directory](docs/wiki/Appointment-Directory.md) — Appointment types and filtering
+- [Daily Dose](docs/wiki/Daily-Dose.md) — Daily micro-learning sessions
 - [High-Risk & Highlighting](docs/wiki/High-Risk-&-Highlighting.md) — Visual indicators and rules
 - [Multi-Surgery & RBAC](docs/wiki/Multi-Surgery-&-RBAC.md) — Multi-tenancy and permissions
 - [Developer Guide](docs/wiki/Developer-Guide.md) — Architecture and development
