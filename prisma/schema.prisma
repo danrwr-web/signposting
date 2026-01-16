@@ -48,6 +48,16 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+
+  // Daily Dose relationships
+  dailyDoseProfiles       DailyDoseProfile[]
+  dailyDoseSessions       DailyDoseSession[]
+  dailyDoseCardStates     DailyDoseUserCardState[]
+  dailyDoseCardsCreated   DailyDoseCard[]        @relation("DailyDoseCardCreatedBy")
+  dailyDoseCardsApproved  DailyDoseCard[]        @relation("DailyDoseCardApprovedBy")
+  dailyDoseCardVersions   DailyDoseCardVersion[] @relation("DailyDoseCardVersionCreatedBy")
+  dailyDoseFlags          DailyDoseFlaggedContent[]
+  dailyDoseFlagsResolved  DailyDoseFlaggedContent[] @relation("DailyDoseFlagResolvedBy")
 }
 
 model UserSurgery {
@@ -103,6 +113,163 @@ model Surgery {
   workflowTemplates                WorkflowTemplate[]
   workflowInstances                WorkflowInstance[]
   workflowNodeStyleDefaultsSurgery WorkflowNodeStyleDefaultSurgery[]
+
+  // Daily Dose configuration
+  analyticsGuardrailMinN Int @default(10)
+
+  dailyDoseProfiles   DailyDoseProfile[]
+  dailyDoseTopics     DailyDoseTopic[]
+  dailyDoseCards      DailyDoseCard[]
+  dailyDoseSessions   DailyDoseSession[]
+  dailyDoseCardStates DailyDoseUserCardState[]
+  dailyDoseFlags      DailyDoseFlaggedContent[]
+}
+
+model DailyDoseProfile {
+  id                   String  @id @default(cuid())
+  userId               String
+  surgeryId            String
+  role                 String // "GP" | "NURSE" | "ADMIN"
+  onboardingCompleted  Boolean @default(false)
+  preferences          Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, surgeryId])
+  @@index([surgeryId])
+}
+
+model DailyDoseTopic {
+  id        String  @id @default(cuid())
+  surgeryId String?
+  name      String
+  roleScope Json
+  ordering  Int     @default(0)
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  cards   DailyDoseCard[]
+
+  @@index([surgeryId])
+  @@index([isActive])
+}
+
+model DailyDoseCard {
+  id            String   @id @default(cuid())
+  surgeryId     String?
+  title         String
+  roleScope     Json
+  topicId       String
+  contentBlocks Json
+  sources       Json
+  version       Int      @default(1)
+  status        String   @default("DRAFT") // "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "RETIRED"
+  createdBy     String?
+  approvedBy    String?
+  approvedAt    DateTime?
+  reviewByDate  DateTime?
+  tags          Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  topic          DailyDoseTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  surgery        Surgery?       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  createdByUser  User?          @relation("DailyDoseCardCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  approvedByUser User?          @relation("DailyDoseCardApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+  versions       DailyDoseCardVersion[]
+  userStates     DailyDoseUserCardState[]
+  flags          DailyDoseFlaggedContent[]
+
+  @@index([topicId])
+  @@index([surgeryId])
+  @@index([status])
+}
+
+model DailyDoseCardVersion {
+  id          String   @id @default(cuid())
+  cardId      String
+  version     Int
+  snapshot    Json
+  publishedAt DateTime?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  card          DailyDoseCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  createdByUser User?         @relation("DailyDoseCardVersionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([cardId, version])
+  @@index([cardId])
+}
+
+model DailyDoseSession {
+  id                 String   @id @default(cuid())
+  userId             String
+  surgeryId          String
+  sessionDate        DateTime @default(now())
+  cardIds            Json
+  cardResults        Json?
+  questionsAttempted Int      @default(0)
+  correctCount       Int      @default(0)
+  xpEarned           Int      @default(0)
+  completedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sessionDate])
+  @@index([surgeryId, completedAt])
+}
+
+model DailyDoseUserCardState {
+  id             String   @id @default(cuid())
+  userId         String
+  cardId         String
+  surgeryId      String
+  box            Int      @default(1)
+  intervalDays   Int      @default(1)
+  dueAt          DateTime
+  lastReviewedAt DateTime?
+  correctStreak  Int      @default(0)
+  incorrectStreak Int     @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card    DailyDoseCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  surgery Surgery      @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cardId])
+  @@index([userId, dueAt])
+  @@index([surgeryId])
+}
+
+model DailyDoseFlaggedContent {
+  id          String   @id @default(cuid())
+  userId      String
+  cardId      String
+  surgeryId   String
+  reason      String
+  freeText    String?
+  status      String   @default("OPEN") // "OPEN" | "RESOLVED"
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card           DailyDoseCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  surgery        Surgery       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  resolvedByUser User?         @relation("DailyDoseFlagResolvedBy", fields: [resolvedBy], references: [id], onDelete: SetNull)
+
+  @@index([surgeryId])
+  @@index([status])
 }
 
 model BaseSymptom {
