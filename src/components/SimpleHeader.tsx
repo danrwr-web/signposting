@@ -46,6 +46,7 @@ export default function SimpleHeader({
     directoryLinkOverride?.href ??
     (currentSurgeryId ? `/s/${currentSurgeryId}/appointments` : '/')
   const appointmentLinkLabel = directoryLinkOverride?.label ?? 'Appointment Directory'
+  const dailyDoseLinkHref = currentSurgeryId ? `/daily-dose?surgery=${currentSurgeryId}` : '/daily-dose'
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -81,6 +82,14 @@ export default function SimpleHeader({
                 {appointmentLinkLabel}
               </Link>
             )}
+
+            <Link
+              href={dailyDoseLinkHref}
+              prefetch={false}
+              className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
+            >
+              Daily Dose
+            </Link>
             
             {/* Admin Link */}
             <Link 

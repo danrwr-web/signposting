@@ -25,6 +25,11 @@ Use this site if you are:
 
 The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
 
+- **Unreleased — In progress**
+  - Added AI-assisted Daily Dose editorial drafting (batch review, variations, clinician sign-off for high-risk content)
+  - Added Daily Dose learning sessions with approvals and sources
+  - Simplified the Admin Dashboard Quick Access setup
+
 - **v1.2 — Jan 2026**
   - Added Workflow Guidance (visual, governed workflows to guide staff through common processes)
   - Improved admin and navigation experience across the app and docs
@@ -53,6 +58,8 @@ The full documentation is organised into the following sections:
 - [Clinical Governance](wiki/Clinical-Governance) – Review workflow, approval states, and safety principles
 
 - [Appointment Directory](wiki/Appointment-Directory) – Configuring appointment types, teams, and local services
+
+- [Daily Dose](wiki/Daily-Dose) – Daily micro-learning for whole-practice teams
 
 - [Workflow Guidance](wiki/Workflow-Guidance) – Visual workflows to guide staff through common document and administrative processes
 

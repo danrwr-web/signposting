@@ -16,6 +16,8 @@
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Daily Dose](Daily-Dose)
+
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)

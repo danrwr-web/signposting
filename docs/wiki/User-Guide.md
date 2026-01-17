@@ -16,6 +16,8 @@
 
 - [Appointment Directory](Appointment-Directory)
 
+- [Daily Dose](Daily-Dose)
+
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
@@ -69,7 +71,13 @@ A practical guide for reception and care-navigation teams using the Signposting 
 - The toolkit shows a banner if content needs clinical review; follow the guidance but confirm with a clinician if worried.
 - New features (e.g. AI Suggested Questions) appear after they are reviewed and enabled for your surgery.
 
-## 9. Key tips for safe navigation
+## 9. Daily Dose learning (optional)
+- Use **Daily Dose** for a short 5–10 minute refresher during the week.
+- Answer the questions before the explanation appears.
+- Use the History page to see your streak and review queue.
+- Flag any content that looks out of date.
+
+## 10. Key tips for safe navigation
 - Always confirm the age group.
 - Re-read red flags before booking.
 - If symptoms do not fit the available options, escalate rather than book a routine slot.
