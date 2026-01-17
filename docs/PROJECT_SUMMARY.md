@@ -74,7 +74,8 @@ A Global Default set of workflows can be maintained centrally, with individual s
 ### 🔹 Daily Dose Learning
 - Short, role-based micro-learning sessions (5–10 minutes)
 - Embedded questions + quick quiz with explanations and sources
-- Draft → Review → Approved → Published editorial workflow
+- AI-assisted editorial drafting with batch review, variations, and section regeneration
+- Draft → Review → Approved → Published workflow with clinician sign-off for high-risk content
 - Aggregated insights only, with minimum group thresholds for privacy
 
 ### 🔹 Preferences System (per browser)
@@ -151,6 +152,8 @@ Used extensively for:
 - **DailyDoseProfile**
 - **DailyDoseTopic**
 - **DailyDoseCard**
+- **DailyDoseGenerationBatch**
+- **DailyDoseQuiz**
 - **DailyDoseSession**
 - **DailyDoseUserCardState**
 - **DailyDoseFlaggedContent**

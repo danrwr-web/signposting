@@ -26,6 +26,7 @@ Use this site if you are:
 The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
 
 - **Unreleased — In progress**
+  - Added AI-assisted Daily Dose editorial drafting (batch review, variations, clinician sign-off for high-risk content)
   - Added Daily Dose learning sessions with approvals and sources
   - Simplified the Admin Dashboard Quick Access setup
 

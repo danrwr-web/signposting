@@ -64,6 +64,23 @@ Cards always show:
 
 ---
 
+## Editorial drafting (AI-assisted)
+
+Admins can draft Daily Dose learning cards using an AI prompt. Each generation creates a batch of draft cards and a matching quiz for review.
+
+The editorial workflow includes:
+
+- **Batch review** with a card list on the left and an editor on the right
+- **Save, approve, and publish** actions (publish is disabled until approved)
+- **Variations** to reframe the same learning objective in a different scenario
+- **Section regeneration** to rewrite a single area (e.g. MCQ or feedback)
+- **High-risk safeguards**: cards flagged HIGH require clinician sign-off before publishing
+- **Sources required**: cards must include UK sources and a review-by date before approval
+
+When triage advice is relevant, cards must use slot language: **Red / Orange / Pink-Purple / Green**.
+
+---
+
 ## Streaks and XP
 
 Daily Dose keeps motivation light:

@@ -38,6 +38,7 @@ The AI features are designed to support, not replace, clinical judgement. They a
 - Improving clarity and readability
 - Generating appropriate triage questions
 - Maintaining consistent tone and structure
+- Drafting Daily Dose learning cards for admin and clinical teams
 
 All AI output is subject to the same clinical governance requirements as manually-written content.
 
@@ -96,6 +97,21 @@ The AI Instruction Editor helps improve the clarity and tone of symptom instruct
 
 AI Suggested Questions generates grouped triage-style questions to help staff gather information safely and consistently.
 On each symptom page, the panel is titled “Suggested wording for questions to ask” with a reminder to use the phrasing exactly as written.
+
+---
+
+## Daily Dose Editorial Generator
+
+Daily Dose includes an AI drafting tool for practice learning content. Admins can enter a short prompt and receive a batch of draft cards plus a matching quiz.
+
+Safety rules:
+
+- Drafts start in **DRAFT** and must be approved before publishing
+- UK sources and a review-by date are required for approval
+- High-risk topics (e.g. suicide, chest pain, stroke) require clinician sign-off
+- Slot language uses the standard **Red / Orange / Pink-Purple / Green** labels
+
+The editor supports variations (same objective, new scenario) and section-only regeneration (e.g. rewrite an MCQ without changing the rest).
 
 ### Question Categories
 
