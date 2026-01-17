@@ -118,6 +118,8 @@ export default function AdminToolkitAdminClient({
   const [items, setItems] = useState(initialItems)
 
   const [newCategoryName, setNewCategoryName] = useState('')
+  const [newSubcategoryName, setNewSubcategoryName] = useState('')
+  const [addingSubcategoryToId, setAddingSubcategoryToId] = useState<string | null>(null)
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null)
   const [renamingValue, setRenamingValue] = useState('')
 
@@ -339,6 +341,10 @@ export default function AdminToolkitAdminClient({
           categories={categories}
           newCategoryName={newCategoryName}
           setNewCategoryName={setNewCategoryName}
+          newSubcategoryName={newSubcategoryName}
+          setNewSubcategoryName={setNewSubcategoryName}
+          addingSubcategoryToId={addingSubcategoryToId}
+          setAddingSubcategoryToId={setAddingSubcategoryToId}
           renamingCategoryId={renamingCategoryId}
           setRenamingCategoryId={setRenamingCategoryId}
           renamingValue={renamingValue}
@@ -1097,6 +1103,10 @@ function StructureSettingsTab({
   categories,
   newCategoryName,
   setNewCategoryName,
+  newSubcategoryName,
+  setNewSubcategoryName,
+  addingSubcategoryToId,
+  setAddingSubcategoryToId,
   renamingCategoryId,
   setRenamingCategoryId,
   renamingValue,
@@ -1125,6 +1135,10 @@ function StructureSettingsTab({
   categories: AdminToolkitCategory[]
   newCategoryName: string
   setNewCategoryName: React.Dispatch<React.SetStateAction<string>>
+  newSubcategoryName: string
+  setNewSubcategoryName: React.Dispatch<React.SetStateAction<string>>
+  addingSubcategoryToId: string | null
+  setAddingSubcategoryToId: React.Dispatch<React.SetStateAction<string | null>>
   renamingCategoryId: string | null
   setRenamingCategoryId: React.Dispatch<React.SetStateAction<string | null>>
   renamingValue: string
@@ -1188,8 +1202,16 @@ function StructureSettingsTab({
           ) : (
             (() => {
               // Render categories hierarchically (parents with nested children)
-              const renderCategory = (c: AdminToolkitCategory, isSubcategory: boolean, topLevelIndex: number, topLevelCategories: AdminToolkitCategory[]) => {
+              const renderCategory = (
+                c: AdminToolkitCategory,
+                isSubcategory: boolean,
+                topLevelIndex: number,
+                topLevelCategories: AdminToolkitCategory[],
+                siblings?: AdminToolkitCategory[],
+                siblingIndex?: number
+              ) => {
                 const isRenaming = renamingCategoryId === c.id
+                const isAddingSub = !isSubcategory && addingSubcategoryToId === c.id
                 return (
                   <div key={c.id}>
                     <div className={`flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2 ${isSubcategory ? 'ml-6 bg-gray-50' : ''}`}>
@@ -1251,6 +1273,57 @@ function StructureSettingsTab({
                                   return
                                 }
                                 toast.success('Category order updated')
+                                await refresh()
+                              }}
+                            >
+                              ↓
+                            </button>
+                          </>
+                        )}
+
+                        {isSubcategory && siblings && siblingIndex !== undefined && (
+                          <>
+                            <button
+                              type="button"
+                              className="text-sm text-gray-700 hover:text-gray-900"
+                              disabled={siblingIndex === 0}
+                              onClick={async () => {
+                                const ordered = siblings.slice()
+                                const tmp = ordered[siblingIndex - 1]
+                                ordered[siblingIndex - 1] = ordered[siblingIndex]
+                                ordered[siblingIndex] = tmp
+                                const res = await reorderAdminToolkitCategories({
+                                  surgeryId,
+                                  orderedCategoryIds: ordered.map((x) => x.id),
+                                })
+                                if (!res.ok) {
+                                  toast.error(res.error.message)
+                                  return
+                                }
+                                toast.success('Subcategory order updated')
+                                await refresh()
+                              }}
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className="text-sm text-gray-700 hover:text-gray-900"
+                              disabled={siblingIndex === siblings.length - 1}
+                              onClick={async () => {
+                                const ordered = siblings.slice()
+                                const tmp = ordered[siblingIndex + 1]
+                                ordered[siblingIndex + 1] = ordered[siblingIndex]
+                                ordered[siblingIndex] = tmp
+                                const res = await reorderAdminToolkitCategories({
+                                  surgeryId,
+                                  orderedCategoryIds: ordered.map((x) => x.id),
+                                })
+                                if (!res.ok) {
+                                  toast.error(res.error.message)
+                                  return
+                                }
+                                toast.success('Subcategory order updated')
                                 await refresh()
                               }}
                             >
@@ -1322,9 +1395,73 @@ function StructureSettingsTab({
                         )}
                       </div>
                     </div>
+                    {!isSubcategory && isAddingSub && (
+                      <div className="ml-6 mt-1 flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2">
+                        <input
+                          className="flex-1 nhs-input"
+                          value={newSubcategoryName}
+                          onChange={(e) => setNewSubcategoryName(e.target.value)}
+                          placeholder="New subcategory name…"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              createAdminToolkitCategory({ surgeryId, name: newSubcategoryName.trim(), parentCategoryId: c.id }).then((res) => {
+                                if (res.ok) {
+                                  toast.success('Subcategory created')
+                                  setNewSubcategoryName('')
+                                  setAddingSubcategoryToId(null)
+                                  refresh()
+                                } else toast.error(res.error.message)
+                              })
+                            }
+                            if (e.key === 'Escape') {
+                              setAddingSubcategoryToId(null)
+                              setNewSubcategoryName('')
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="nhs-button"
+                          disabled={!newSubcategoryName.trim()}
+                          onClick={async () => {
+                            const res = await createAdminToolkitCategory({ surgeryId, name: newSubcategoryName.trim(), parentCategoryId: c.id })
+                            if (!res.ok) {
+                              toast.error(res.error.message)
+                              return
+                            }
+                            toast.success('Subcategory created')
+                            setNewSubcategoryName('')
+                            setAddingSubcategoryToId(null)
+                            await refresh()
+                          }}
+                        >
+                          Add
+                        </button>
+                        <button
+                          type="button"
+                          className="text-sm text-gray-600 hover:underline"
+                          onClick={() => {
+                            setAddingSubcategoryToId(null)
+                            setNewSubcategoryName('')
+                          }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                    {!isSubcategory && !isAddingSub && (
+                      <button
+                        type="button"
+                        className="ml-6 mt-1 text-sm text-nhs-blue hover:underline"
+                        onClick={() => setAddingSubcategoryToId(c.id)}
+                      >
+                        + Add subcategory
+                      </button>
+                    )}
                     {c.children && c.children.length > 0 && (
                       <div className="mt-1 space-y-1">
-                        {c.children.map((child) => renderCategory(child, true, topLevelIndex, topLevelCategories))}
+                        {c.children.map((child, sibIdx) => renderCategory(child, true, topLevelIndex, topLevelCategories, c.children, sibIdx))}
                       </div>
                     )}
                   </div>
