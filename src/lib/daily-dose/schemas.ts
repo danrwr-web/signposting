@@ -12,9 +12,11 @@ export const DailyDoseQuestionTypeZ = z.enum(DAILY_DOSE_QUESTION_TYPES)
 
 export const DailyDoseSourceZ = z.object({
   title: z.string().min(1),
-  org: z.string().min(1),
+  org: z.string().min(1).optional(),
+  publisher: z.string().min(1).optional(),
   url: z.string().url(),
   publishedDate: z.string().optional(),
+  accessedDate: z.string().optional(),
 })
 
 export const DailyDoseQuestionBlockZ = z.object({
@@ -31,6 +33,22 @@ export const DailyDoseContentBlockZ = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('paragraph'),
     text: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('text'),
+    text: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('callout'),
+    text: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal('steps'),
+    items: z.array(z.string().min(1)).min(1),
+  }),
+  z.object({
+    type: z.literal('do-dont'),
+    items: z.array(z.string().min(1)).min(2),
   }),
   z.object({
     type: z.literal('reveal'),
@@ -100,6 +118,7 @@ export const DailyDoseSubmitAnswerZ = z.object({
   cardId: z.string(),
   blockIndex: z.number().int().min(0),
   answer: z.string().min(1),
+  source: z.enum(['content', 'interaction']).optional(),
 })
 
 export const DailyDoseSurgeryQueryZ = z.object({

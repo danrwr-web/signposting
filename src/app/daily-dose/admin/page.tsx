@@ -2,7 +2,6 @@ import 'server-only'
 
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
-import DailyDoseAdminClient from './DailyDoseAdminClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,5 +37,5 @@ export default async function DailyDoseAdminPage({ searchParams }: AdminPageProp
     redirect('/unauthorized')
   }
 
-  return <DailyDoseAdminClient surgeryId={surgeryId} />
+  redirect(`/editorial?surgery=${surgeryId}`)
 }

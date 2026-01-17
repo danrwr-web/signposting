@@ -20,6 +20,7 @@ function toCardPayload(card: {
   topic: { name: string }
   roleScope: unknown
   contentBlocks: unknown
+  interactions?: unknown
   sources: unknown
   reviewByDate: Date | null
   version: number
@@ -33,6 +34,9 @@ function toCardPayload(card: {
     topicName: card.topic?.name,
     roleScope: normaliseRoleScope(card.roleScope),
     contentBlocks: Array.isArray(card.contentBlocks) ? (card.contentBlocks as DailyDoseCardPayload['contentBlocks']) : [],
+    interactions: Array.isArray(card.interactions)
+      ? (card.interactions as DailyDoseCardPayload['interactions'])
+      : [],
     sources: Array.isArray(card.sources) ? (card.sources as DailyDoseCardPayload['sources']) : [],
     reviewByDate: card.reviewByDate ? card.reviewByDate.toISOString() : null,
     version: card.version,

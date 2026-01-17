@@ -30,7 +30,7 @@ export default function DailyDoseNav({ currentSurgeryId }: DailyDoseNavProps) {
 
   const adminItems = isSuperuser || isAdmin
     ? [
-        { href: '/daily-dose/admin', label: 'Editorial' },
+        { href: '/editorial', label: 'Editorial' },
         { href: '/daily-dose/insights', label: 'Insights' },
       ]
     : []
@@ -41,7 +41,7 @@ export default function DailyDoseNav({ currentSurgeryId }: DailyDoseNavProps) {
     <nav aria-label="Daily Dose" className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap gap-4 px-4 py-3 text-sm text-slate-600 sm:px-6 lg:px-8">
         {items.map((item) => {
-          const active = pathname === item.href
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
           return (
             <Link
               key={item.href}

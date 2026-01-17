@@ -6,6 +6,7 @@ export const DAILY_DOSE_STATUSES = [
   'IN_REVIEW',
   'APPROVED',
   'PUBLISHED',
+  'ARCHIVED',
   'RETIRED',
 ] as const
 export type DailyDoseStatus = (typeof DAILY_DOSE_STATUSES)[number]

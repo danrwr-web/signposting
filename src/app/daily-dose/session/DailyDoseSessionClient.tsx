@@ -13,6 +13,13 @@ type CoreCard = {
   title: string
   topicName?: string
   contentBlocks: DailyDoseContentBlock[]
+  interactions?: Array<{
+    type: 'mcq' | 'true_false' | 'choose_action'
+    question: string
+    options: string[]
+    correctIndex: number
+    explanation: string
+  }>
   sources: Array<{ title: string; org: string; url: string; publishedDate?: string }>
   reviewByDate?: string | null
 }
@@ -85,10 +92,14 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
   }, [surgeryId])
 
   const embeddedQuestionKeys = useMemo(() => {
-    if (!session?.coreCard?.contentBlocks) return []
-    return session.coreCard.contentBlocks
-      .map((block, index) => (block.type === 'question' ? `embed:${session.coreCard.id}:${index}` : null))
+    if (!session?.coreCard) return []
+    const contentKeys = session.coreCard.contentBlocks
+      .map((block, index) => (block.type === 'question' ? `embed:${session.coreCard.id}:content:${index}` : null))
       .filter((key): key is string => Boolean(key))
+    const interactionKeys = (session.coreCard.interactions ?? []).map(
+      (_, index) => `embed:${session.coreCard.id}:interaction:${index}`
+    )
+    return [...contentKeys, ...interactionKeys]
   }, [session])
 
   const allEmbeddedAnswered = embeddedQuestionKeys.every((key) => Boolean(questionResults[key]))
@@ -98,8 +109,9 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     blockIndex: number
     answer: string
     keyPrefix: 'embed' | 'quiz'
+    source: 'content' | 'interaction'
   }) => {
-    const key = `${params.keyPrefix}:${params.cardId}:${params.blockIndex}`
+    const key = `${params.keyPrefix}:${params.cardId}:${params.source}:${params.blockIndex}`
     if (questionResults[key]) return
 
     const response = await fetch('/api/daily-dose/session/submit-answer', {
@@ -110,6 +122,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         cardId: params.cardId,
         blockIndex: params.blockIndex,
         answer: params.answer,
+        source: params.source,
       }),
     })
 
@@ -143,8 +156,9 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         blockIndex: question.blockIndex,
         answer,
         keyPrefix: 'quiz',
+        source: question.source,
       })
-      setQuizFeedbackKey(`quiz:${question.cardId}:${question.blockIndex}`)
+      setQuizFeedbackKey(`quiz:${question.cardId}:${question.source}:${question.blockIndex}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to record answer')
     }
@@ -304,6 +318,53 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         </div>
 
         <div className="mt-4 space-y-4">
+          {(session.coreCard.interactions ?? []).length > 0 && (
+            <div className="space-y-3">
+              {(session.coreCard.interactions ?? []).map((interaction, index) => {
+                const key = `embed:${session.coreCard.id}:interaction:${index}`
+                const result = questionResults[key]
+                return (
+                  <div key={key} className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-sm font-semibold text-slate-700">{interaction.question}</p>
+                    <div className="mt-2 space-y-2">
+                      {interaction.options.map((option) => (
+                        <button
+                          type="button"
+                          key={option}
+                          onClick={() =>
+                            handleAnswer({
+                              cardId: session.coreCard.id,
+                              blockIndex: index,
+                              answer: option,
+                              keyPrefix: 'embed',
+                              source: 'interaction',
+                            }).catch((err) =>
+                              setError(err instanceof Error ? err.message : 'Unable to record answer')
+                            )
+                          }
+                          disabled={Boolean(result)}
+                          className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                            result
+                              ? option === result.correctAnswer
+                                ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                                : 'border-slate-200 text-slate-500'
+                              : 'border-slate-200 hover:border-nhs-blue'
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                    {result && (
+                      <p className={`mt-3 text-sm ${result.correct ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {result.correct ? 'Correct.' : 'Not quite.'} {result.rationale}
+                      </p>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
           {session.coreCard.contentBlocks.map((block, index) => {
             if (block.type === 'paragraph') {
               return (
@@ -313,8 +374,36 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
               )
             }
 
+            if (block.type === 'text' || block.type === 'callout') {
+              return (
+                <div
+                  key={`t-${index}`}
+                  className={`rounded-md border p-4 text-slate-700 ${
+                    block.type === 'callout' ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'
+                  }`}
+                >
+                  {block.text}
+                </div>
+              )
+            }
+
+            if (block.type === 'steps' || block.type === 'do-dont') {
+              return (
+                <div key={`list-${index}`} className="rounded-md border border-slate-200 bg-white p-4">
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    {block.items.map((item, itemIndex) => (
+                      <li key={`${index}-${itemIndex}`} className="flex gap-2">
+                        <span className="text-nhs-blue">•</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }
+
             if (block.type === 'question') {
-              const key = `embed:${session.coreCard.id}:${index}`
+              const key = `embed:${session.coreCard.id}:content:${index}`
               const result = questionResults[key]
               return (
                 <div key={key} className="rounded-md border border-slate-200 bg-slate-50 p-4">
@@ -330,6 +419,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                             blockIndex: index,
                             answer: option,
                             keyPrefix: 'embed',
+                            source: 'content',
                           }).catch((err) =>
                             setError(err instanceof Error ? err.message : 'Unable to record answer')
                           )
@@ -383,9 +473,10 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                   rel="noreferrer noopener"
                   className="text-nhs-blue underline-offset-2 hover:underline"
                 >
-                  {source.title} ({source.org})
+                  {source.title} ({source.org ?? source.publisher ?? 'UK source'})
                 </a>
                 {source.publishedDate && <span className="text-slate-500"> — {source.publishedDate}</span>}
+                {source.accessedDate && <span className="text-slate-500"> — Accessed {source.accessedDate}</span>}
               </li>
             ))}
           </ul>
@@ -424,9 +515,11 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                   key={option}
                   type="button"
                   onClick={() => handleQuizAnswer(quizQuestion, option)}
-                  disabled={Boolean(questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.blockIndex}`])}
+                  disabled={Boolean(
+                    questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.source}:${quizQuestion.blockIndex}`]
+                  )}
                   className={`w-full rounded-md border px-3 py-2 text-left text-sm transition-colors ${
-                    questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.blockIndex}`]
+                    questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.source}:${quizQuestion.blockIndex}`]
                       ? option === quizQuestion.correctAnswer
                         ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
                         : 'border-slate-200 text-slate-500'
@@ -460,7 +553,9 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
               {quizIndex < session.quizQuestions.length - 1 ? (
                 <button
                   type="button"
-                  disabled={!questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.blockIndex}`]}
+                  disabled={
+                    !questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.source}:${quizQuestion.blockIndex}`]
+                  }
                   onClick={() => {
                     setQuizFeedbackKey(null)
                     setQuizIndex((index) => Math.min(index + 1, session.quizQuestions.length - 1))
@@ -472,7 +567,10 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
               ) : (
                 <button
                   type="button"
-                  disabled={saving || !questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.blockIndex}`]}
+                  disabled={
+                    saving ||
+                    !questionResults[`quiz:${quizQuestion.cardId}:${quizQuestion.source}:${quizQuestion.blockIndex}`]
+                  }
                   onClick={handleComplete}
                   className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
                 >

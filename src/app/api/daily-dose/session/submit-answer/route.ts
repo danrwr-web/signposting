@@ -26,11 +26,36 @@ export async function POST(request: NextRequest) {
         id: parsed.cardId,
         OR: [{ surgeryId }, { surgeryId: null }],
       },
-      select: { contentBlocks: true },
+      select: { contentBlocks: true, interactions: true },
     })
 
-    if (!card || !Array.isArray(card.contentBlocks)) {
+    if (!card) {
       return NextResponse.json({ error: 'Card not found' }, { status: 404 })
+    }
+
+    const source = parsed.source ?? 'content'
+    if (source === 'interaction') {
+      const interactions = Array.isArray(card.interactions) ? card.interactions : []
+      const interaction = interactions[parsed.blockIndex] as
+        | { options?: string[]; correctIndex?: number; explanation?: string }
+        | undefined
+      if (!interaction) {
+        return NextResponse.json({ error: 'Question not found' }, { status: 404 })
+      }
+      const options = interaction.options ?? []
+      const correctIndex = interaction.correctIndex ?? 0
+      const correctAnswer = options[correctIndex] ?? options[0] ?? ''
+      const isCorrect = correctAnswer.trim().toLowerCase() === parsed.answer.trim().toLowerCase()
+
+      return NextResponse.json({
+        correct: isCorrect,
+        correctAnswer,
+        rationale: interaction.explanation ?? '',
+      })
+    }
+
+    if (!Array.isArray(card.contentBlocks)) {
+      return NextResponse.json({ error: 'Question not found' }, { status: 404 })
     }
 
     const block = (card.contentBlocks as Array<{ type?: string }>)[parsed.blockIndex]

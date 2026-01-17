@@ -6,6 +6,22 @@ export type DailyDoseContentBlock =
       text: string
     }
   | {
+      type: 'text'
+      text: string
+    }
+  | {
+      type: 'callout'
+      text: string
+    }
+  | {
+      type: 'steps'
+      items: string[]
+    }
+  | {
+      type: 'do-dont'
+      items: string[]
+    }
+  | {
       type: 'reveal'
       text: string
     }
@@ -21,9 +37,11 @@ export type DailyDoseContentBlock =
 
 export type DailyDoseSource = {
   title: string
-  org: string
+  org?: string
+  publisher?: string
   url: string
   publishedDate?: string
+  accessedDate?: string
 }
 
 export type DailyDoseCardPayload = {
@@ -33,11 +51,20 @@ export type DailyDoseCardPayload = {
   topicName?: string
   roleScope: DailyDoseRole[]
   contentBlocks: DailyDoseContentBlock[]
+  interactions?: DailyDoseInteraction[]
   sources: DailyDoseSource[]
   reviewByDate?: string | null
   version: number
   status: string
   tags?: string[]
+}
+
+export type DailyDoseInteraction = {
+  type: 'mcq' | 'true_false' | 'choose_action'
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
 }
 
 export type DailyDoseQuestion = {
@@ -50,6 +77,7 @@ export type DailyDoseQuestion = {
   rationale: string
   difficulty?: number
   blockIndex: number
+  source: 'content' | 'interaction'
 }
 
 export type DailyDoseQuizQuestion = DailyDoseQuestion & {
