@@ -6,6 +6,8 @@ export type AdminToolkitCategory = {
   id: string
   name: string
   orderIndex: number
+  parentCategoryId: string | null
+  children?: AdminToolkitCategory[]
 }
 
 export type AdminToolkitPageItem = {
@@ -72,10 +74,49 @@ export function getLondonTodayUtc(): Date {
 export async function getAdminToolkitCategories(surgeryId: string): Promise<AdminToolkitCategory[]> {
   const categories = await prisma.adminCategory.findMany({
     where: { surgeryId, deletedAt: null },
-    select: { id: true, name: true, orderIndex: true },
+    select: { id: true, name: true, orderIndex: true, parentCategoryId: true },
     orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
   })
-  return categories
+  
+  // Build hierarchy: parents with nested children
+  const categoryMap = new Map<string, AdminToolkitCategory>()
+  const rootCategories: AdminToolkitCategory[] = []
+  
+  // First pass: create all category objects
+  for (const cat of categories) {
+    categoryMap.set(cat.id, { ...cat, parentCategoryId: cat.parentCategoryId, children: [] })
+  }
+  
+  // Second pass: build hierarchy
+  for (const cat of categories) {
+    const category = categoryMap.get(cat.id)!
+    if (cat.parentCategoryId) {
+      const parent = categoryMap.get(cat.parentCategoryId)
+      if (parent) {
+        parent.children!.push(category)
+      } else {
+        // Orphaned subcategory - treat as root
+        rootCategories.push(category)
+      }
+    } else {
+      rootCategories.push(category)
+    }
+  }
+  
+  // Sort children within each parent
+  const sortCategories = (cats: AdminToolkitCategory[]): AdminToolkitCategory[] => {
+    return cats
+      .sort((a, b) => {
+        if (a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex
+        return a.name.localeCompare(b.name)
+      })
+      .map((cat) => ({
+        ...cat,
+        children: cat.children ? sortCategories(cat.children) : undefined,
+      }))
+  }
+  
+  return sortCategories(rootCategories)
 }
 
 export async function getAdminToolkitPageItems(surgeryId: string): Promise<AdminToolkitPageItem[]> {

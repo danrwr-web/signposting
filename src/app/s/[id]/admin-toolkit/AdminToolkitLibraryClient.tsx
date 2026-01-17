@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import type { AdminToolkitCategory, AdminToolkitPageItem } from '@/server/adminToolkit'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
+import { useCardStyle } from '@/context/CardStyleContext'
 
 interface AdminToolkitLibraryClientProps {
   surgeryId: string
@@ -15,19 +16,57 @@ interface AdminToolkitLibraryClientProps {
 export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items }: AdminToolkitLibraryClientProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
+  const { cardStyle, setCardStyle } = useCardStyle()
+  const isBlueCards = cardStyle === 'powerappsBlue'
 
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
 
+  // Helper to get all category IDs including children for filtering
+  const getCategoryAndChildrenIds = useMemo(() => {
+    const helper = (cat: AdminToolkitCategory): string[] => {
+      const ids = [cat.id]
+      if (cat.children) {
+        for (const child of cat.children) {
+          ids.push(...helper(child))
+        }
+      }
+      return ids
+    }
+    return helper
+  }, [])
+
   const itemsFiltered = useMemo(() => {
     return items.filter((item) => {
-      const matchesCategory = selectedCategoryId === 'ALL' || item.categoryId === selectedCategoryId
+      let matchesCategory = selectedCategoryId === 'ALL'
+      if (selectedCategoryId !== 'ALL') {
+        if (item.categoryId === selectedCategoryId) {
+          matchesCategory = true
+        } else {
+          // Check if item belongs to a child of the selected parent category
+          const findCategory = (cats: AdminToolkitCategory[], targetId: string): AdminToolkitCategory | null => {
+            for (const cat of cats) {
+              if (cat.id === targetId) return cat
+              if (cat.children) {
+                const found = findCategory(cat.children, targetId)
+                if (found) return found
+              }
+            }
+            return null
+          }
+          const selectedCat = findCategory(categories, selectedCategoryId)
+          if (selectedCat && selectedCat.children) {
+            const childIds = getCategoryAndChildrenIds(selectedCat)
+            matchesCategory = childIds.includes(item.categoryId)
+          }
+        }
+      }
       const matchesSearch =
         !normalisedSearch ||
         item.title.toLowerCase().includes(normalisedSearch) ||
         (item.contentHtml ? item.contentHtml.toLowerCase().includes(normalisedSearch) : false)
       return matchesCategory && matchesSearch
     })
-  }, [items, selectedCategoryId, normalisedSearch])
+  }, [items, selectedCategoryId, normalisedSearch, categories, getCategoryAndChildrenIds])
 
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -35,8 +74,28 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       if (!item.categoryId) continue
       counts.set(item.categoryId, (counts.get(item.categoryId) || 0) + 1)
     }
+    
+    // Helper to recursively count items in a category and its children
+    const countCategoryAndChildren = (cat: AdminToolkitCategory): number => {
+      const directCount = counts.get(cat.id) || 0
+      const childrenCount = cat.children?.reduce((sum, child) => sum + countCategoryAndChildren(child), 0) || 0
+      return directCount + childrenCount
+    }
+    
+    // Update counts to include children for parent categories
+    const updateCounts = (cats: AdminToolkitCategory[]) => {
+      for (const cat of cats) {
+        if (cat.children && cat.children.length > 0) {
+          const totalCount = countCategoryAndChildren(cat)
+          counts.set(cat.id, totalCount)
+          updateCounts(cat.children)
+        }
+      }
+    }
+    updateCounts(categories)
+    
     return counts
-  }, [items])
+  }, [items, categories])
 
   return (
     <div className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-full min-h-0">
@@ -45,13 +104,27 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         <div className="text-sm text-gray-600" aria-live="polite">
           {itemsFiltered.length} item{itemsFiltered.length === 1 ? '' : 's'}
         </div>
-        {canWrite ? (
-          <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
-            Add item
-          </Link>
-        ) : (
-          <span className="text-sm text-gray-500">You have view-only access.</span>
-        )}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCardStyle(isBlueCards ? 'default' : 'powerappsBlue')}
+            className="p-2 text-nhs-grey hover:text-nhs-blue transition-colors"
+            title={isBlueCards ? 'Switch to default cards' : 'Switch to blue cards'}
+            aria-label={isBlueCards ? 'Switch to default cards' : 'Switch to blue cards'}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+          {canWrite ? (
+            <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
+              Add item
+            </Link>
+          ) : (
+            <span className="text-sm text-gray-500">You have view-only access.</span>
+          )}
+        </div>
       </div>
 
       <div className="shrink-0 border-b border-gray-200">
@@ -83,18 +156,41 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               const count = categoryCounts.get(cat.id) || 0
               const isSelected = selectedCategoryId === cat.id
               return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedCategoryId(cat.id)}
-                  className={[
-                    'mt-1 w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
-                    isSelected ? 'bg-white border border-gray-200' : 'hover:bg-white/70',
-                  ].join(' ')}
-                >
-                  <span className="text-gray-900">{cat.name}</span>
-                  <span className="text-xs text-gray-500">{count}</span>
-                </button>
+                <div key={cat.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategoryId(cat.id)}
+                    className={[
+                      'mt-1 w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
+                      isSelected ? 'bg-white border border-gray-200' : 'hover:bg-white/70',
+                    ].join(' ')}
+                  >
+                    <span className="text-gray-900 font-medium">{cat.name}</span>
+                    <span className="text-xs text-gray-500">{count}</span>
+                  </button>
+                  {cat.children && cat.children.length > 0 && (
+                    <div className="pl-4 mt-1 space-y-1">
+                      {cat.children.map((child) => {
+                        const childCount = categoryCounts.get(child.id) || 0
+                        const isChildSelected = selectedCategoryId === child.id
+                        return (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={() => setSelectedCategoryId(child.id)}
+                            className={[
+                              'w-full text-left rounded-md px-3 py-1.5 text-sm flex items-center justify-between',
+                              isChildSelected ? 'bg-white border border-gray-200' : 'hover:bg-white/70',
+                            ].join(' ')}
+                          >
+                            <span className="text-gray-700 text-sm">↳ {child.name}</span>
+                            <span className="text-xs text-gray-500">{childCount}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               )
             })}
             </nav>
@@ -107,25 +203,33 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                 {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${isBlueCards ? 'bg-nhs-blue p-4 rounded-lg' : ''}`}>
                 {itemsFiltered.map((item) => (
                   <Link
                     key={item.id}
                     href={`/s/${surgeryId}/admin-toolkit/${item.id}`}
-                    className="block rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+                    className={`block rounded-lg border p-4 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
+                      isBlueCards
+                        ? 'border-white/20 bg-white/10 text-white hover:bg-white/20'
+                        : 'border-gray-200 bg-white'
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-base font-semibold text-nhs-dark-blue">{item.title}</h3>
+                      <h3 className={`text-base font-semibold ${isBlueCards ? 'text-white' : 'text-nhs-dark-blue'}`}>{item.title}</h3>
                       {item.warningLevel ? (
-                        <span className="inline-flex items-center rounded-full bg-yellow-50 px-2 py-0.5 text-xs font-medium text-yellow-800 border border-yellow-200">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium border ${
+                          isBlueCards
+                            ? 'bg-yellow-400/30 text-yellow-100 border-yellow-300/50'
+                            : 'bg-yellow-50 text-yellow-800 border-yellow-200'
+                        }`}>
                           {item.warningLevel}
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-2 text-sm text-gray-600 line-clamp-3">
+                    <p className={`mt-2 text-sm line-clamp-3 ${isBlueCards ? 'text-white/90' : 'text-gray-600'}`}>
                       {item.type === 'LIST' ? 'Open list' : item.contentHtml ? 'Open guidance' : 'No content yet'}
                     </p>
-                    <div className="mt-3 text-xs text-gray-500">
+                    <div className={`mt-3 text-xs ${isBlueCards ? 'text-white/70' : 'text-gray-500'}`}>
                       Updated {new Date(item.updatedAt).toLocaleDateString('en-GB')}
                     </div>
                   </Link>

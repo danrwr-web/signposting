@@ -468,21 +468,25 @@ model UserFeatureFlag {
 // -----------------------
 
 model AdminCategory {
-  id        String   @id @default(cuid())
-  surgeryId String
-  name      String
-  orderIndex Int     @default(0)
+  id             String   @id @default(cuid())
+  surgeryId      String
+  name           String
+  orderIndex     Int      @default(0)
+  parentCategoryId String?
 
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  items   AdminItem[]
-  history AdminHistory[]
+  surgery        Surgery         @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  parentCategory AdminCategory?  @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  subcategories  AdminCategory[] @relation("CategoryHierarchy")
+  items          AdminItem[]
+  history        AdminHistory[]
 
   @@index([surgeryId, orderIndex])
   @@index([surgeryId, deletedAt])
+  @@index([surgeryId, parentCategoryId])
 }
 
 model AdminItem {
