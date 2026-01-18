@@ -16,6 +16,8 @@ A high-level history of major changes.
 - Admin Toolkit: settings cog moved to page header (consistent with main signposting tool) and opens the shared preferences dialog; blue cards mode now only affects individual item cards, not the surrounding container.
 - Admin Toolkit settings: improved the Items picker with search, type filters, and grouped (collapsible) sections by category.
 - Admin Toolkit settings: the editor now opens ready to create a new item by default (no previous item auto-selected).
+- Admin Toolkit settings: “Structure & Settings” is now laid out as a cleaner settings dashboard with section navigation.
+- Admin Toolkit settings: categories are searchable with clearer hierarchy and controls; pinned panel includes a preview; rota “upcoming weeks” is now collapsible.
 
 ---
 

@@ -137,6 +137,10 @@ export default function AdminToolkitAdminClient({
 
   const [panelTaskBuddy, setPanelTaskBuddy] = useState(initialPanel.taskBuddyText ?? '')
   const [panelPostRoute, setPanelPostRoute] = useState(initialPanel.postRouteText ?? '')
+  const [panelSaved, setPanelSaved] = useState(() => ({
+    taskBuddyText: initialPanel.taskBuddyText ?? '',
+    postRouteText: initialPanel.postRouteText ?? '',
+  }))
 
   const [selectedWeekCommencingIso, setSelectedWeekCommencingIso] = useState<string>(initialWeekCommencingIso)
   const [onTakeGpName, setOnTakeGpName] = useState(initialOnTakeGpName ?? '')
@@ -215,6 +219,10 @@ export default function AdminToolkitAdminClient({
   useEffect(() => {
     setPanelTaskBuddy(initialPanel.taskBuddyText ?? '')
     setPanelPostRoute(initialPanel.postRouteText ?? '')
+    setPanelSaved({
+      taskBuddyText: initialPanel.taskBuddyText ?? '',
+      postRouteText: initialPanel.postRouteText ?? '',
+    })
   }, [initialPanel.taskBuddyText, initialPanel.postRouteText])
 
   useEffect(() => {
@@ -322,6 +330,7 @@ export default function AdminToolkitAdminClient({
         <StructureSettingsTab
           surgeryId={surgeryId}
           categories={categories}
+          items={items}
           newCategoryName={newCategoryName}
           setNewCategoryName={setNewCategoryName}
           newSubcategoryName={newSubcategoryName}
@@ -336,6 +345,8 @@ export default function AdminToolkitAdminClient({
           setPanelTaskBuddy={setPanelTaskBuddy}
           panelPostRoute={panelPostRoute}
           setPanelPostRoute={setPanelPostRoute}
+          panelSaved={panelSaved}
+          setPanelSaved={setPanelSaved}
           currentWeekCommencingIso={currentWeekCommencingIso}
           selectedWeekCommencingIso={selectedWeekCommencingIso}
           setSelectedWeekCommencingIso={setSelectedWeekCommencingIso}
@@ -1314,10 +1325,74 @@ function ItemEditFormContent({
   )
 }
 
+function PinnedPanelPreview({ taskBuddyText, postRouteText }: { taskBuddyText: string; postRouteText: string }) {
+  const task = (taskBuddyText || '').trim()
+  const post = (postRouteText || '').trim()
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <div className="text-xs font-medium text-gray-600 uppercase tracking-wide">Preview</div>
+      <div className="mt-3 space-y-3">
+        <div className="rounded-md border border-gray-200 bg-white p-3">
+          <div className="text-xs font-semibold text-gray-700">Task buddy system</div>
+          <div className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{task || 'Nothing set yet.'}</div>
+        </div>
+        <div className="rounded-md border border-gray-200 bg-white p-3">
+          <div className="text-xs font-semibold text-gray-700">Post route</div>
+          <div className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{post || 'Nothing set yet.'}</div>
+        </div>
+      </div>
+      <p className="mt-3 text-xs text-gray-500">This is a simple mock-up of the pinned panel at the bottom of the Admin Toolkit main page.</p>
+    </div>
+  )
+}
+
+function RotaUpcomingAccordion({
+  upcomingWeeks,
+  selectedWeekCommencingIso,
+  onSelect,
+  formatLondonDateNoWeekday,
+}: {
+  upcomingWeeks: Array<{ weekCommencingIso: string; gpName: string | null }>
+  selectedWeekCommencingIso: string
+  onSelect: (iso: string) => void
+  formatLondonDateNoWeekday: (iso: string) => string
+}) {
+  return (
+    <details className="rounded-lg border border-gray-200 bg-white">
+      <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium text-gray-900">
+        Upcoming weeks <span className="text-gray-400">(next 8)</span>
+      </summary>
+      <div className="border-t border-gray-200 px-4 py-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+          {upcomingWeeks.map((w) => {
+            const label = formatLondonDateNoWeekday(w.weekCommencingIso)
+            const value = w.gpName || 'Not set'
+            return (
+              <button
+                key={w.weekCommencingIso}
+                type="button"
+                onClick={() => onSelect(w.weekCommencingIso)}
+                className={[
+                  'rounded-lg border px-3 py-2 text-left transition-colors',
+                  selectedWeekCommencingIso === w.weekCommencingIso ? 'border-nhs-blue bg-nhs-light-blue' : 'border-gray-200 bg-white hover:bg-gray-50',
+                ].join(' ')}
+              >
+                <div className="text-xs text-gray-500">W/C {label}</div>
+                <div className={w.gpName ? 'text-sm font-semibold text-gray-900' : 'text-sm text-gray-500'}>{value}</div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </details>
+  )
+}
+
 // Structure & Settings Tab Component
 function StructureSettingsTab({
   surgeryId,
   categories,
+  items,
   newCategoryName,
   setNewCategoryName,
   newSubcategoryName,
@@ -1332,6 +1407,8 @@ function StructureSettingsTab({
   setPanelTaskBuddy,
   panelPostRoute,
   setPanelPostRoute,
+  panelSaved,
+  setPanelSaved,
   currentWeekCommencingIso,
   selectedWeekCommencingIso,
   setSelectedWeekCommencingIso,
@@ -1350,6 +1427,7 @@ function StructureSettingsTab({
 }: {
   surgeryId: string
   categories: AdminToolkitCategory[]
+  items: AdminToolkitPageItem[]
   newCategoryName: string
   setNewCategoryName: React.Dispatch<React.SetStateAction<string>>
   newSubcategoryName: string
@@ -1364,6 +1442,8 @@ function StructureSettingsTab({
   setPanelTaskBuddy: React.Dispatch<React.SetStateAction<string>>
   panelPostRoute: string
   setPanelPostRoute: React.Dispatch<React.SetStateAction<string>>
+  panelSaved: { taskBuddyText: string; postRouteText: string }
+  setPanelSaved: React.Dispatch<React.SetStateAction<{ taskBuddyText: string; postRouteText: string }>>
   currentWeekCommencingIso: string
   selectedWeekCommencingIso: string
   setSelectedWeekCommencingIso: React.Dispatch<React.SetStateAction<string>>
@@ -1380,488 +1460,631 @@ function StructureSettingsTab({
   weekStartMondayIso: (inputIso: string) => string
   formatLondonDateNoWeekday: (iso: string) => string
 }) {
+  const [categorySearch, setCategorySearch] = useState('')
+
+  const parentById = useMemo(() => new Map(categories.map((p) => [p.id, p])), [categories])
+
+  const categoryCounts = useMemo(() => {
+    const direct = new Map<string, number>()
+    for (const it of items) {
+      if (!it.categoryId) continue
+      direct.set(it.categoryId, (direct.get(it.categoryId) ?? 0) + 1)
+    }
+
+    const aggregate = new Map<string, number>()
+    for (const parent of categories) {
+      const parentDirect = direct.get(parent.id) ?? 0
+      const childSum = (parent.children ?? []).reduce((sum, child) => sum + (direct.get(child.id) ?? 0), 0)
+      aggregate.set(parent.id, parentDirect + childSum)
+      for (const child of parent.children ?? []) {
+        aggregate.set(child.id, direct.get(child.id) ?? 0)
+      }
+    }
+    return aggregate
+  }, [items, categories])
+
+  const filteredCategories = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase()
+    if (!q) return categories
+
+    return categories
+      .map((parent) => {
+        const parentMatch = parent.name.toLowerCase().includes(q)
+        const children = (parent.children ?? []).filter((c) => c.name.toLowerCase().includes(q))
+        if (parentMatch) return parent
+        if (children.length > 0) return { ...parent, children }
+        return null
+      })
+      .filter((x): x is AdminToolkitCategory => x !== null)
+  }, [categories, categorySearch])
+
+  const pinnedDirty =
+    (panelTaskBuddy ?? '') !== (panelSaved.taskBuddyText ?? '') || (panelPostRoute ?? '') !== (panelSaved.postRouteText ?? '')
+
+  const settingsLinkClass = 'block text-sm text-nhs-blue hover:underline underline-offset-2'
+
+  const ActionButton = ({
+    children,
+    onClick,
+    disabled,
+    variant,
+    ariaLabel,
+  }: {
+    children: React.ReactNode
+    onClick: () => void
+    disabled?: boolean
+    variant: 'primary' | 'danger' | 'neutral'
+    ariaLabel: string
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className={[
+        'rounded-md border px-2 py-1 text-sm transition focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2',
+        disabled ? 'opacity-50 cursor-not-allowed' : '',
+        variant === 'primary'
+          ? 'border-nhs-blue text-nhs-blue hover:bg-nhs-light-blue'
+          : variant === 'danger'
+            ? 'border-red-200 text-red-700 hover:bg-red-50'
+            : 'border-gray-200 text-gray-700 hover:bg-gray-50',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  )
+
   return (
-    <div className="space-y-6">
-      {/* Categories */}
-      <section className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-nhs-dark-blue">Categories</h2>
-        <p className="mt-1 text-sm text-nhs-grey">Create and organise categories for Admin Toolkit items.</p>
-
-        <div className="mt-4 flex flex-col md:flex-row gap-3">
-          <input
-            value={newCategoryName}
-            onChange={(e) => setNewCategoryName(e.target.value)}
-            className="flex-1 nhs-input"
-            placeholder="New category name…"
-          />
-          <button
-            type="button"
-            className="nhs-button"
-            disabled={!newCategoryName.trim()}
-            onClick={async () => {
-              const res = await createAdminToolkitCategory({ surgeryId, name: newCategoryName })
-              if (!res.ok) {
-                toast.error(res.error.message)
-                return
-              }
-              toast.success('Category created')
-              setNewCategoryName('')
-              await refresh()
-            }}
-          >
-            Add category
-          </button>
+    <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+      {/* Left: settings navigation */}
+      <aside className="lg:sticky lg:top-4 h-fit">
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Settings</div>
+          <nav className="mt-3 space-y-2">
+            <a className={settingsLinkClass} href="#settings-categories">
+              Categories
+            </a>
+            <a className={settingsLinkClass} href="#settings-pinned-panel">
+              Pinned panel
+            </a>
+            <a className={settingsLinkClass} href="#settings-on-take">
+              On-take rota (weekly)
+            </a>
+          </nav>
         </div>
+      </aside>
 
-        <div className="mt-4 space-y-2">
-          {categories.length === 0 ? (
-            <p className="text-sm text-gray-500">No categories yet.</p>
-          ) : (
-            (() => {
-              // Render categories hierarchically (parents with nested children)
-              const renderCategory = (
-                c: AdminToolkitCategory,
-                isSubcategory: boolean,
-                topLevelIndex: number,
-                topLevelCategories: AdminToolkitCategory[],
-                siblings?: AdminToolkitCategory[],
-                siblingIndex?: number
-              ) => {
-                const isRenaming = renamingCategoryId === c.id
-                const isAddingSub = !isSubcategory && addingSubcategoryToId === c.id
-                return (
-                  <div key={c.id}>
-                    <div className={`flex items-center justify-between gap-3 rounded-lg border border-gray-200 px-3 py-2 ${isSubcategory ? 'ml-6 bg-gray-50' : ''}`}>
-                      <div className="min-w-0 flex-1">
-                        {isRenaming ? (
-                          <input
-                            className="w-full nhs-input"
-                            value={renamingValue}
-                            onChange={(e) => setRenamingValue(e.target.value)}
-                          />
-                        ) : (
-                          <div className={`font-medium text-gray-900 truncate ${isSubcategory ? 'text-sm' : ''}`}>
-                            {isSubcategory ? '↳ ' : ''}{c.name}
+      {/* Right: settings cards */}
+      <div className="space-y-6">
+        {/* Categories */}
+        <section id="settings-categories" className="bg-white rounded-lg shadow-md border border-gray-200 scroll-mt-6">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-nhs-dark-blue">Categories</h2>
+                <p className="mt-1 text-sm text-nhs-grey">Create and organise categories for Admin Toolkit items.</p>
+              </div>
+              <div className="w-full md:w-auto flex flex-col md:flex-row gap-2">
+                <input
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  className="nhs-input md:w-[260px]"
+                  placeholder="New category name…"
+                />
+                <button
+                  type="button"
+                  className="nhs-button"
+                  disabled={!newCategoryName.trim()}
+                  onClick={async () => {
+                    const res = await createAdminToolkitCategory({ surgeryId, name: newCategoryName })
+                    if (!res.ok) {
+                      toast.error(res.error.message)
+                      return
+                    }
+                    toast.success('Category created')
+                    setNewCategoryName('')
+                    await refresh()
+                  }}
+                >
+                  Add category
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="category-search">
+                Search categories
+              </label>
+              <input
+                id="category-search"
+                className="w-full nhs-input"
+                value={categorySearch}
+                onChange={(e) => setCategorySearch(e.target.value)}
+                placeholder="Search parents and subcategories…"
+              />
+            </div>
+          </div>
+
+          <div className="p-6">
+            {filteredCategories.length === 0 ? (
+              <p className="text-sm text-gray-500">No categories match your search.</p>
+            ) : (
+              <div className="space-y-2">
+                {filteredCategories.map((parent) => {
+                  const topLevelIndex = categories.findIndex((c) => c.id === parent.id)
+                  const parentCount = categoryCounts.get(parent.id) ?? 0
+                  const isParentRenaming = renamingCategoryId === parent.id
+                  const isAddingSub = addingSubcategoryToId === parent.id
+
+                  return (
+                    <div key={parent.id}>
+                      <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            {isParentRenaming ? (
+                              <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                <input
+                                  className="w-full nhs-input"
+                                  value={renamingValue}
+                                  onChange={(e) => setRenamingValue(e.target.value)}
+                                />
+                                <div className="flex gap-2">
+                                  <ActionButton
+                                    variant="primary"
+                                    ariaLabel="Save category rename"
+                                    onClick={async () => {
+                                      const res = await renameAdminToolkitCategory({ surgeryId, categoryId: parent.id, name: renamingValue })
+                                      if (!res.ok) {
+                                        toast.error(res.error.message)
+                                        return
+                                      }
+                                      toast.success('Category renamed')
+                                      setRenamingCategoryId(null)
+                                      setRenamingValue('')
+                                      await refresh()
+                                    }}
+                                  >
+                                    Save
+                                  </ActionButton>
+                                  <ActionButton
+                                    variant="neutral"
+                                    ariaLabel="Cancel category rename"
+                                    onClick={() => {
+                                      setRenamingCategoryId(null)
+                                      setRenamingValue('')
+                                    }}
+                                  >
+                                    Cancel
+                                  </ActionButton>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className="font-semibold text-gray-900 truncate">{parent.name}</div>
+                                <span className="shrink-0 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 border border-gray-200">
+                                  {parentCount}
+                                </span>
+                              </div>
+                            )}
                           </div>
-                        )}
+
+                          {!isParentRenaming ? (
+                            <div className="flex flex-wrap gap-2 justify-end">
+                              <ActionButton
+                                variant="neutral"
+                                ariaLabel="Move category up"
+                                disabled={topLevelIndex <= 0}
+                                onClick={async () => {
+                                  const ordered = categories.slice()
+                                  const tmp = ordered[topLevelIndex - 1]
+                                  ordered[topLevelIndex - 1] = ordered[topLevelIndex]
+                                  ordered[topLevelIndex] = tmp
+                                  const res = await reorderAdminToolkitCategories({ surgeryId, orderedCategoryIds: ordered.map((x) => x.id) })
+                                  if (!res.ok) {
+                                    toast.error(res.error.message)
+                                    return
+                                  }
+                                  toast.success('Category order updated')
+                                  await refresh()
+                                }}
+                              >
+                                ↑
+                              </ActionButton>
+                              <ActionButton
+                                variant="neutral"
+                                ariaLabel="Move category down"
+                                disabled={topLevelIndex === -1 || topLevelIndex >= categories.length - 1}
+                                onClick={async () => {
+                                  const ordered = categories.slice()
+                                  const tmp = ordered[topLevelIndex + 1]
+                                  ordered[topLevelIndex + 1] = ordered[topLevelIndex]
+                                  ordered[topLevelIndex] = tmp
+                                  const res = await reorderAdminToolkitCategories({ surgeryId, orderedCategoryIds: ordered.map((x) => x.id) })
+                                  if (!res.ok) {
+                                    toast.error(res.error.message)
+                                    return
+                                  }
+                                  toast.success('Category order updated')
+                                  await refresh()
+                                }}
+                              >
+                                ↓
+                              </ActionButton>
+                              <ActionButton variant="primary" ariaLabel="Add subcategory" onClick={() => setAddingSubcategoryToId(parent.id)}>
+                                Add subcategory
+                              </ActionButton>
+                              <ActionButton
+                                variant="neutral"
+                                ariaLabel="Rename category"
+                                onClick={() => {
+                                  setRenamingCategoryId(parent.id)
+                                  setRenamingValue(parent.name)
+                                }}
+                              >
+                                Rename
+                              </ActionButton>
+                              <ActionButton
+                                variant="danger"
+                                ariaLabel="Delete category"
+                                onClick={async () => {
+                                  const ok = confirm('Delete this category? You can only delete empty categories.')
+                                  if (!ok) return
+                                  const res = await deleteAdminToolkitCategory({ surgeryId, categoryId: parent.id })
+                                  if (!res.ok) {
+                                    toast.error(res.error.message)
+                                    return
+                                  }
+                                  toast.success('Category deleted')
+                                  await refresh()
+                                }}
+                              >
+                                Delete
+                              </ActionButton>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        {!isSubcategory && (
-                          <>
-                            <button
-                              type="button"
-                              className="text-sm text-gray-700 hover:text-gray-900"
-                              disabled={topLevelIndex === 0}
-                              onClick={async () => {
-                                const ordered = topLevelCategories.slice()
-                                const tmp = ordered[topLevelIndex - 1]
-                                ordered[topLevelIndex - 1] = ordered[topLevelIndex]
-                                ordered[topLevelIndex] = tmp
-                                const res = await reorderAdminToolkitCategories({
-                                  surgeryId,
-                                  orderedCategoryIds: ordered.map((x) => x.id),
-                                })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Category order updated')
-                                await refresh()
-                              }}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              className="text-sm text-gray-700 hover:text-gray-900"
-                              disabled={topLevelIndex === topLevelCategories.length - 1}
-                              onClick={async () => {
-                                const ordered = topLevelCategories.slice()
-                                const tmp = ordered[topLevelIndex + 1]
-                                ordered[topLevelIndex + 1] = ordered[topLevelIndex]
-                                ordered[topLevelIndex] = tmp
-                                const res = await reorderAdminToolkitCategories({
-                                  surgeryId,
-                                  orderedCategoryIds: ordered.map((x) => x.id),
-                                })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Category order updated')
-                                await refresh()
-                              }}
-                            >
-                              ↓
-                            </button>
-                          </>
-                        )}
-
-                        {isSubcategory && siblings && siblingIndex !== undefined && (
-                          <>
-                            <button
-                              type="button"
-                              className="text-sm text-gray-700 hover:text-gray-900"
-                              disabled={siblingIndex === 0}
-                              onClick={async () => {
-                                const ordered = siblings.slice()
-                                const tmp = ordered[siblingIndex - 1]
-                                ordered[siblingIndex - 1] = ordered[siblingIndex]
-                                ordered[siblingIndex] = tmp
-                                const res = await reorderAdminToolkitCategories({
-                                  surgeryId,
-                                  orderedCategoryIds: ordered.map((x) => x.id),
-                                })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Subcategory order updated')
-                                await refresh()
-                              }}
-                            >
-                              ↑
-                            </button>
-                            <button
-                              type="button"
-                              className="text-sm text-gray-700 hover:text-gray-900"
-                              disabled={siblingIndex === siblings.length - 1}
-                              onClick={async () => {
-                                const ordered = siblings.slice()
-                                const tmp = ordered[siblingIndex + 1]
-                                ordered[siblingIndex + 1] = ordered[siblingIndex]
-                                ordered[siblingIndex] = tmp
-                                const res = await reorderAdminToolkitCategories({
-                                  surgeryId,
-                                  orderedCategoryIds: ordered.map((x) => x.id),
-                                })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Subcategory order updated')
-                                await refresh()
-                              }}
-                            >
-                              ↓
-                            </button>
-                          </>
-                        )}
-
-                        {isRenaming ? (
-                          <>
-                            <button
-                              type="button"
-                              className="text-sm text-nhs-blue hover:underline"
-                              onClick={async () => {
-                                const res = await renameAdminToolkitCategory({ surgeryId, categoryId: c.id, name: renamingValue })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Category renamed')
-                                setRenamingCategoryId(null)
-                                setRenamingValue('')
-                                await refresh()
-                              }}
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              className="text-sm text-gray-600 hover:underline"
-                              onClick={() => {
-                                setRenamingCategoryId(null)
-                                setRenamingValue('')
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              className="text-sm text-nhs-blue hover:underline"
-                              onClick={() => {
-                                setRenamingCategoryId(c.id)
-                                setRenamingValue(c.name)
-                              }}
-                            >
-                              Rename
-                            </button>
-                            <button
-                              type="button"
-                              className="text-sm text-red-700 hover:underline"
-                              onClick={async () => {
-                                const ok = confirm('Delete this category? You can only delete empty categories.')
-                                if (!ok) return
-                                const res = await deleteAdminToolkitCategory({ surgeryId, categoryId: c.id })
-                                if (!res.ok) {
-                                  toast.error(res.error.message)
-                                  return
-                                }
-                                toast.success('Category deleted')
-                                await refresh()
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {!isSubcategory && isAddingSub && (
-                      <div className="ml-6 mt-1 flex items-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2">
-                        <input
-                          className="flex-1 nhs-input"
-                          value={newSubcategoryName}
-                          onChange={(e) => setNewSubcategoryName(e.target.value)}
-                          placeholder="New subcategory name…"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              createAdminToolkitCategory({ surgeryId, name: newSubcategoryName.trim(), parentCategoryId: c.id }).then((res) => {
-                                if (res.ok) {
+                      {isAddingSub ? (
+                        <div className="ml-6 mt-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 p-3">
+                          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                            <input
+                              className="flex-1 nhs-input"
+                              value={newSubcategoryName}
+                              onChange={(e) => setNewSubcategoryName(e.target.value)}
+                              placeholder="New subcategory name…"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className="nhs-button"
+                                disabled={!newSubcategoryName.trim()}
+                                onClick={async () => {
+                                  const res = await createAdminToolkitCategory({ surgeryId, name: newSubcategoryName.trim(), parentCategoryId: parent.id })
+                                  if (!res.ok) {
+                                    toast.error(res.error.message)
+                                    return
+                                  }
                                   toast.success('Subcategory created')
                                   setNewSubcategoryName('')
                                   setAddingSubcategoryToId(null)
-                                  refresh()
-                                } else toast.error(res.error.message)
-                              })
-                            }
-                            if (e.key === 'Escape') {
-                              setAddingSubcategoryToId(null)
-                              setNewSubcategoryName('')
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          className="nhs-button"
-                          disabled={!newSubcategoryName.trim()}
-                          onClick={async () => {
-                            const res = await createAdminToolkitCategory({ surgeryId, name: newSubcategoryName.trim(), parentCategoryId: c.id })
-                            if (!res.ok) {
-                              toast.error(res.error.message)
-                              return
-                            }
-                            toast.success('Subcategory created')
-                            setNewSubcategoryName('')
-                            setAddingSubcategoryToId(null)
-                            await refresh()
-                          }}
-                        >
-                          Add
-                        </button>
-                        <button
-                          type="button"
-                          className="text-sm text-gray-600 hover:underline"
-                          onClick={() => {
-                            setAddingSubcategoryToId(null)
-                            setNewSubcategoryName('')
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                    {!isSubcategory && !isAddingSub && (
-                      <button
-                        type="button"
-                        className="ml-6 mt-1 text-sm text-nhs-blue hover:underline"
-                        onClick={() => setAddingSubcategoryToId(c.id)}
-                      >
-                        + Add subcategory
-                      </button>
-                    )}
-                    {c.children && c.children.length > 0 && (
-                      <div className="mt-1 space-y-1">
-                        {c.children.map((child, sibIdx) => renderCategory(child, true, topLevelIndex, topLevelCategories, c.children, sibIdx))}
-                      </div>
-                    )}
-                  </div>
-                )
-              }
+                                  await refresh()
+                                }}
+                              >
+                                Add
+                              </button>
+                              <button
+                                type="button"
+                                className="nhs-button-secondary"
+                                onClick={() => {
+                                  setAddingSubcategoryToId(null)
+                                  setNewSubcategoryName('')
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
 
-              return categories.map((c, idx) => renderCategory(c, false, idx, categories))
-            })()
-          )}
-        </div>
-      </section>
+                      {(parent.children ?? []).length > 0 ? (
+                        <div className="mt-2 space-y-2">
+                          {(parent.children ?? []).map((child) => {
+                            const fullParent = parentById.get(parent.id)
+                            const siblings = fullParent?.children ?? []
+                            const siblingIndex = siblings.findIndex((x) => x.id === child.id)
+                            const childCount = categoryCounts.get(child.id) ?? 0
+                            const isChildRenaming = renamingCategoryId === child.id
 
-      {/* Pinned panel */}
-      <section className="bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-lg font-semibold text-nhs-dark-blue">Pinned panel</h2>
-        <p className="mt-1 text-sm text-nhs-grey">This appears at the bottom of Admin Toolkit pages.</p>
+                            return (
+                              <div key={child.id} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 ml-6">
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    {isChildRenaming ? (
+                                      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                        <input
+                                          className="w-full nhs-input"
+                                          value={renamingValue}
+                                          onChange={(e) => setRenamingValue(e.target.value)}
+                                        />
+                                        <div className="flex gap-2">
+                                          <ActionButton
+                                            variant="primary"
+                                            ariaLabel="Save subcategory rename"
+                                            onClick={async () => {
+                                              const res = await renameAdminToolkitCategory({ surgeryId, categoryId: child.id, name: renamingValue })
+                                              if (!res.ok) {
+                                                toast.error(res.error.message)
+                                                return
+                                              }
+                                              toast.success('Category renamed')
+                                              setRenamingCategoryId(null)
+                                              setRenamingValue('')
+                                              await refresh()
+                                            }}
+                                          >
+                                            Save
+                                          </ActionButton>
+                                          <ActionButton
+                                            variant="neutral"
+                                            ariaLabel="Cancel subcategory rename"
+                                            onClick={() => {
+                                              setRenamingCategoryId(null)
+                                              setRenamingValue('')
+                                            }}
+                                          >
+                                            Cancel
+                                          </ActionButton>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <div className="truncate text-sm text-gray-900">↳ {child.name}</div>
+                                        <span className="shrink-0 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-700 border border-gray-200">
+                                          {childCount}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
 
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Task buddy system</label>
-            <textarea
-              className="w-full nhs-input min-h-[120px]"
-              value={panelTaskBuddy}
-              onChange={(e) => setPanelTaskBuddy(e.target.value)}
-              placeholder="Add the steps and who covers who…"
-            />
+                                  {!isChildRenaming ? (
+                                    <div className="flex flex-wrap gap-2 justify-end">
+                                      <ActionButton
+                                        variant="neutral"
+                                        ariaLabel="Move subcategory up"
+                                        disabled={siblingIndex <= 0}
+                                        onClick={async () => {
+                                          const ordered = siblings.slice()
+                                          const tmp = ordered[siblingIndex - 1]
+                                          ordered[siblingIndex - 1] = ordered[siblingIndex]
+                                          ordered[siblingIndex] = tmp
+                                          const res = await reorderAdminToolkitCategories({ surgeryId, orderedCategoryIds: ordered.map((x) => x.id) })
+                                          if (!res.ok) {
+                                            toast.error(res.error.message)
+                                            return
+                                          }
+                                          toast.success('Subcategory order updated')
+                                          await refresh()
+                                        }}
+                                      >
+                                        ↑
+                                      </ActionButton>
+                                      <ActionButton
+                                        variant="neutral"
+                                        ariaLabel="Move subcategory down"
+                                        disabled={siblingIndex === -1 || siblingIndex >= siblings.length - 1}
+                                        onClick={async () => {
+                                          const ordered = siblings.slice()
+                                          const tmp = ordered[siblingIndex + 1]
+                                          ordered[siblingIndex + 1] = ordered[siblingIndex]
+                                          ordered[siblingIndex] = tmp
+                                          const res = await reorderAdminToolkitCategories({ surgeryId, orderedCategoryIds: ordered.map((x) => x.id) })
+                                          if (!res.ok) {
+                                            toast.error(res.error.message)
+                                            return
+                                          }
+                                          toast.success('Subcategory order updated')
+                                          await refresh()
+                                        }}
+                                      >
+                                        ↓
+                                      </ActionButton>
+                                      <ActionButton
+                                        variant="neutral"
+                                        ariaLabel="Rename subcategory"
+                                        onClick={() => {
+                                          setRenamingCategoryId(child.id)
+                                          setRenamingValue(child.name)
+                                        }}
+                                      >
+                                        Rename
+                                      </ActionButton>
+                                      <ActionButton
+                                        variant="danger"
+                                        ariaLabel="Delete subcategory"
+                                        onClick={async () => {
+                                          const ok = confirm('Delete this category? You can only delete empty categories.')
+                                          if (!ok) return
+                                          const res = await deleteAdminToolkitCategory({ surgeryId, categoryId: child.id })
+                                          if (!res.ok) {
+                                            toast.error(res.error.message)
+                                            return
+                                          }
+                                          toast.success('Category deleted')
+                                          await refresh()
+                                        }}
+                                      >
+                                        Delete
+                                      </ActionButton>
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Post route</label>
-            <textarea
-              className="w-full nhs-input min-h-[120px]"
-              value={panelPostRoute}
-              onChange={(e) => setPanelPostRoute(e.target.value)}
-              placeholder="Add the route / trays / handover rules…"
-            />
-          </div>
-        </div>
+        </section>
 
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            className="nhs-button"
-            onClick={async () => {
-              const res = await upsertAdminToolkitPinnedPanel({
-                surgeryId,
-                taskBuddyText: panelTaskBuddy || null,
-                postRouteText: panelPostRoute || null,
-              })
-              if (!res.ok) {
-                toast.error(res.error.message)
-                return
-              }
-              toast.success('Pinned panel updated')
-              await refresh()
-            }}
-          >
-            Save pinned panel
-          </button>
-        </div>
-      </section>
-
-      {/* Rota */}
-      <section id="on-take" className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-nhs-dark-blue">On-Take GP rota (weekly)</h2>
-            <p className="mt-1 text-sm text-nhs-grey">One GP applies to the full week (Monday to Sunday).</p>
+        {/* Pinned panel */}
+        <section id="settings-pinned-panel" className="bg-white rounded-lg shadow-md border border-gray-200 scroll-mt-6">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-nhs-dark-blue">Pinned panel</h2>
+            <p className="mt-1 text-sm text-nhs-grey">This appears at the bottom of the Admin Toolkit main page.</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="nhs-button-secondary"
-              onClick={() => setSelectedWeekCommencingIso(addDaysIso(selectedWeekCommencingIso, -7))}
-            >
-              Prev
-            </button>
-            <button
-              type="button"
-              className="nhs-button-secondary"
-              onClick={() => setSelectedWeekCommencingIso(currentWeekCommencingIso)}
-            >
-              This week
-            </button>
-            <button
-              type="button"
-              className="nhs-button-secondary"
-              onClick={() => setSelectedWeekCommencingIso(addDaysIso(selectedWeekCommencingIso, 7))}
-            >
-              Next
-            </button>
-          </div>
-        </div>
+          <div className="p-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Task buddy system</label>
+                <p className="text-xs text-gray-500 mb-2">Short steps for staff, including who covers who.</p>
+                <textarea
+                  className="w-full nhs-input min-h-[120px]"
+                  value={panelTaskBuddy}
+                  onChange={(e) => setPanelTaskBuddy(e.target.value)}
+                  placeholder="Add the steps and who covers who…"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Post route</label>
+                <p className="text-xs text-gray-500 mb-2">What to do after the call (trays, handover, routing rules).</p>
+                <textarea
+                  className="w-full nhs-input min-h-[120px]"
+                  value={panelPostRoute}
+                  onChange={(e) => setPanelPostRoute(e.target.value)}
+                  placeholder="Add the route / trays / handover rules…"
+                />
+              </div>
 
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4 items-end">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Week commencing (Monday)</label>
-            <div className="flex items-center gap-3">
-              <input
-                type="date"
-                className="nhs-input"
-                value={selectedWeekCommencingIso}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  if (!raw) return
-                  const monday = weekStartMondayIso(raw)
-                  setSelectedWeekCommencingIso(monday)
-                }}
-              />
-              <div className="text-sm text-gray-600">
-                Week of {formatLondonDateNoWeekday(selectedWeekCommencingIso)} to{' '}
-                {formatLondonDateNoWeekday(addDaysIso(selectedWeekCommencingIso, 6))}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  className="nhs-button"
+                  disabled={!pinnedDirty}
+                  onClick={async () => {
+                    const res = await upsertAdminToolkitPinnedPanel({
+                      surgeryId,
+                      taskBuddyText: panelTaskBuddy || null,
+                      postRouteText: panelPostRoute || null,
+                    })
+                    if (!res.ok) {
+                      toast.error(res.error.message)
+                      return
+                    }
+                    toast.success('Pinned panel updated')
+                    setPanelSaved({ taskBuddyText: panelTaskBuddy ?? '', postRouteText: panelPostRoute ?? '' })
+                    await refresh()
+                  }}
+                >
+                  Save pinned panel
+                </button>
+              </div>
+            </div>
+
+            <PinnedPanelPreview taskBuddyText={panelTaskBuddy} postRouteText={panelPostRoute} />
+          </div>
+        </section>
+
+        {/* Rota */}
+        <section id="settings-on-take" className="bg-white rounded-lg shadow-md border border-gray-200 scroll-mt-6">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-nhs-dark-blue">On-take rota (weekly)</h2>
+                <p className="mt-1 text-sm text-nhs-grey">Set one GP for each week (Monday to Sunday).</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button type="button" className="nhs-button-secondary" onClick={() => setSelectedWeekCommencingIso(addDaysIso(selectedWeekCommencingIso, -7))}>
+                  Prev
+                </button>
+                <button type="button" className="nhs-button-secondary" onClick={() => setSelectedWeekCommencingIso(currentWeekCommencingIso)}>
+                  This week
+                </button>
+                <button type="button" className="nhs-button-secondary" onClick={() => setSelectedWeekCommencingIso(addDaysIso(selectedWeekCommencingIso, 7))}>
+                  Next
+                </button>
               </div>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">GP taking on</label>
-            <input
-              value={onTakeGpName}
-              onChange={(e) => {
-                setOnTakeGpName(e.target.value)
-                setOnTakeDirty(true)
-              }}
-              className="w-full nhs-input"
-              placeholder="e.g. Dr Patel"
-              disabled={onTakeLoading}
-            />
-            {onTakeLoading ? <p className="mt-1 text-xs text-gray-500">Loading…</p> : null}
-          </div>
-        </div>
 
-        <div className="mt-4 flex justify-between gap-3 flex-wrap">
-          <div className="text-sm text-gray-600">
-            <span className="font-medium">Upcoming weeks</span>
-            <span className="text-gray-400"> (next 8)</span>
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-              {upcomingWeeks.map((w) => {
-                const label = formatLondonDateNoWeekday(w.weekCommencingIso)
-                const value = w.gpName || 'Not set'
-                return (
+          <div className="p-6 space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4 items-end">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">This week (week commencing Monday)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="date"
+                    className="nhs-input"
+                    value={selectedWeekCommencingIso}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      if (!raw) return
+                      const monday = weekStartMondayIso(raw)
+                      setSelectedWeekCommencingIso(monday)
+                    }}
+                  />
+                  <div className="text-sm text-gray-600">
+                    {formatLondonDateNoWeekday(selectedWeekCommencingIso)} – {formatLondonDateNoWeekday(addDaysIso(selectedWeekCommencingIso, 6))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GP taking on</label>
+                <div className="flex gap-2">
+                  <input
+                    value={onTakeGpName}
+                    onChange={(e) => {
+                      setOnTakeGpName(e.target.value)
+                      setOnTakeDirty(true)
+                    }}
+                    className="w-full nhs-input"
+                    placeholder="e.g. Dr Patel"
+                    disabled={onTakeLoading}
+                  />
                   <button
-                    key={w.weekCommencingIso}
                     type="button"
-                    onClick={() => setSelectedWeekCommencingIso(w.weekCommencingIso)}
-                    className={[
-                      'rounded-lg border px-3 py-2 text-left transition-colors',
-                      selectedWeekCommencingIso === w.weekCommencingIso
-                        ? 'border-nhs-blue bg-nhs-light-blue'
-                        : 'border-gray-200 bg-white hover:bg-gray-50',
-                    ].join(' ')}
+                    className="nhs-button"
+                    disabled={onTakeLoading || !onTakeDirty}
+                    onClick={async () => {
+                      const res = await setAdminToolkitOnTakeWeek({
+                        surgeryId,
+                        weekCommencingIso: selectedWeekCommencingIso,
+                        gpName: onTakeGpName.trim() ? onTakeGpName.trim() : null,
+                      })
+                      if (!res.ok) {
+                        toast.error(res.error.message)
+                        return
+                      }
+                      toast.success('Saved')
+                      setOnTakeDirty(false)
+                      setUpcomingMap((prev) => ({ ...prev, [selectedWeekCommencingIso]: onTakeGpName.trim() || null }))
+                      await refresh()
+                    }}
                   >
-                    <div className="text-xs text-gray-500">W/C {label}</div>
-                    <div className={w.gpName ? 'text-sm font-semibold text-gray-900' : 'text-sm text-gray-500'}>
-                      {value}
-                    </div>
+                    Save
                   </button>
-                )
-              })}
+                </div>
+                {onTakeLoading ? <p className="mt-1 text-xs text-gray-500">Loading…</p> : null}
+              </div>
             </div>
-          </div>
 
-          <button
-            type="button"
-            className="nhs-button"
-            onClick={async () => {
-              const res = await setAdminToolkitOnTakeWeek({
-                surgeryId,
-                weekCommencingIso: selectedWeekCommencingIso,
-                gpName: onTakeGpName.trim() ? onTakeGpName.trim() : null,
-              })
-              if (!res.ok) {
-                toast.error(res.error.message)
-                return
-              }
-              toast.success('Saved')
-              setOnTakeDirty(false)
-              setUpcomingMap((prev) => ({ ...prev, [selectedWeekCommencingIso]: onTakeGpName.trim() || null }))
-              await refresh()
-            }}
-          >
-            Save
-          </button>
-        </div>
-      </section>
+            <RotaUpcomingAccordion
+              upcomingWeeks={upcomingWeeks}
+              selectedWeekCommencingIso={selectedWeekCommencingIso}
+              onSelect={(iso) => setSelectedWeekCommencingIso(iso)}
+              formatLondonDateNoWeekday={formatLondonDateNoWeekday}
+            />
+          </div>
+        </section>
+      </div>
     </div>
   )
 }
