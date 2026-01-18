@@ -16,11 +16,17 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   const [interactiveFirst, setInteractiveFirst] = useState(true)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorDetails, setErrorDetails] = useState<{
+    requestId?: string
+    issues: Array<{ path: string; message: string }>
+    rawSnippet?: string
+  } | null>(null)
 
   const handleGenerate = async (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)
     setError(null)
+    setErrorDetails(null)
 
     try {
       const response = await fetch('/api/editorial/generate', {
@@ -41,6 +47,15 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
 
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
+        if (payload?.errorCode === 'SCHEMA_MISMATCH') {
+          setError('Generation failed: schema mismatch')
+          setErrorDetails({
+            requestId: payload.requestId,
+            issues: Array.isArray(payload.issues) ? payload.issues : [],
+            rawSnippet: payload.rawSnippet,
+          })
+          return
+        }
         throw new Error(payload?.error?.message || 'Unable to generate drafts')
       }
 
@@ -59,6 +74,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setTargetRole('ADMIN')
     setInteractiveFirst(true)
     setError(null)
+    setErrorDetails(null)
   }
 
   return (
@@ -71,6 +87,30 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         {error && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
             {error}
+            {errorDetails && (
+              <details className="mt-3 text-xs text-red-800">
+                <summary className="cursor-pointer">Details (editors/admin only)</summary>
+                {errorDetails.requestId && (
+                  <div className="mt-2">
+                    Request ID: <span className="font-mono">{errorDetails.requestId}</span>
+                  </div>
+                )}
+                {errorDetails.issues.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-1 pl-5">
+                    {errorDetails.issues.map((issue, index) => (
+                      <li key={`${issue.path}-${index}`}>
+                        <span className="font-semibold">{issue.path}:</span> {issue.message}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {errorDetails.rawSnippet && (
+                  <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-red-100 p-2 text-[11px] text-red-900">
+                    {errorDetails.rawSnippet}
+                  </pre>
+                )}
+              </details>
+            )}
           </div>
         )}
       </div>

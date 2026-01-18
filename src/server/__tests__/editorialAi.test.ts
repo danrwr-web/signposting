@@ -29,7 +29,14 @@ describe('editorialAi', () => {
                     riskLevel: 'HIGH',
                     needsSourcing: false,
                     reviewByDate: '2026-02-01',
-                    sources: [{ title: 'NHS', url: 'https://www.nhs.uk/conditions/' }],
+                    sources: [
+                      {
+                        title: 'Signposting Toolkit (internal)',
+                        url: 'https://app.signpostingtool.co.uk/toolkit/mental-health-crisis',
+                        publisher: 'Signposting Toolkit',
+                      },
+                      { title: 'NHS', url: 'https://www.nhs.uk/conditions/' },
+                    ],
                     contentBlocks: [{ type: 'text', text: 'Recognise warning signs.' }],
                     interactions: [
                       {
@@ -70,11 +77,264 @@ describe('editorialAi', () => {
       count: 1,
       interactiveFirst: true,
       tags: ['mental health'],
+      requestId: 'test-request',
     })
 
     expect(result.cards).toHaveLength(1)
     expect(result.quiz.questions).toHaveLength(1)
     expect(result.modelUsed).toBe('gpt-test')
+  })
+
+  it('retries once when schema validation fails', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'GP',
+                      title: 'Suicide risk assessment basics',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'HIGH',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [{ title: 'NICE', url: 'https://www.nice.org.uk/guidance' }],
+                      contentBlocks: [{ type: 'text', text: 'Assess immediate risk.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'Next step?',
+                          options: ['Assess risk', 'Ignore'],
+                          correctIndex: 0,
+                          explanation: 'Assessment is required.',
+                        },
+                      ],
+                      slotLanguage: { relevant: true, guidance: [{ slot: 'Red', rule: 'Urgent escalation.' }] },
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is urgent?',
+                        options: ['Red', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Red slots are urgent.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-1',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'GP',
+                      title: 'Suicide risk assessment basics',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'HIGH',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [{ title: 'NICE', url: 'https://www.nice.org.uk/guidance' }],
+                      contentBlocks: [{ type: 'text', text: 'Assess immediate risk.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'Next step?',
+                          options: ['Assess risk', 'Ignore'],
+                          correctIndex: 0,
+                          explanation: 'Assessment is required.',
+                        },
+                      ],
+                      slotLanguage: { relevant: true, guidance: [{ slot: 'Red', rule: 'Urgent escalation.' }] },
+                      safetyNetting: ['Escalate if risk is immediate.'],
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is urgent?',
+                        options: ['Red', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Red slots are urgent.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-2',
+        }),
+      })
+
+    const result = await generateEditorialBatch({
+      promptText: 'Create 1 learning card for GPs about suicide risk assessment.',
+      targetRole: 'GP',
+      count: 1,
+      interactiveFirst: true,
+      requestId: 'schema-retry',
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    const secondBody = JSON.parse(mockFetch.mock.calls[1][1].body as string)
+    const userMessage = secondBody.messages.find((message: { role: string }) => message.role === 'user')
+    expect(userMessage.content).toContain('Validation issues')
+    expect(result.modelUsed).toBe('gpt-test-2')
+  })
+
+  it('retries generation when admin validation fails', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'ADMIN',
+                      title: 'Mental health support screening',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'MED',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [
+                        {
+                          title: 'Signposting Toolkit (internal)',
+                          url: 'https://app.signpostingtool.co.uk/toolkit/mental-health-crisis',
+                          publisher: 'Signposting Toolkit',
+                        },
+                      ],
+                      contentBlocks: [{ type: 'text', text: 'Use PHQ-9 during calls.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'What should you do next?',
+                          options: ['Escalate to duty GP', 'Offer counselling'],
+                          correctIndex: 0,
+                          explanation: 'Escalate to the duty GP.',
+                        },
+                      ],
+                      slotLanguage: {
+                        relevant: true,
+                        guidance: [{ slot: 'Orange', rule: 'Same-day clinician call-back.' }],
+                      },
+                      safetyNetting: ['Call 999 if there is immediate danger.'],
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is urgent?',
+                        options: ['Orange', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Orange slots are urgent.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-1',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'ADMIN',
+                      title: 'Admin escalation for mental health crisis',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'HIGH',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [
+                        {
+                          title: 'Signposting Toolkit (internal)',
+                          url: 'https://app.signpostingtool.co.uk/toolkit/mental-health-crisis',
+                          publisher: 'Signposting Toolkit',
+                        },
+                        { title: 'NHS', url: 'https://www.nhs.uk/conditions/' },
+                      ],
+                      contentBlocks: [{ type: 'text', text: 'Use the toolkit script and escalate.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'Who should you alert?',
+                          options: ['Duty GP', 'Pharmacy'],
+                          correctIndex: 0,
+                          explanation: 'Alert the duty GP.',
+                        },
+                      ],
+                      slotLanguage: {
+                        relevant: true,
+                        guidance: [{ slot: 'Red', rule: 'Call 999 for immediate danger.' }],
+                      },
+                      safetyNetting: ['Call 999 if danger is immediate.'],
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is for immediate danger?',
+                        options: ['Red', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Red slots are for immediate danger.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-2',
+        }),
+      })
+
+    const result = await generateEditorialBatch({
+      promptText: 'Create 1 learning card for the admin team about mental health crisis.',
+      targetRole: 'ADMIN',
+      count: 1,
+      interactiveFirst: true,
+      requestId: 'retry-request',
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(result.modelUsed).toBe('gpt-test-2')
+    expect(result.cards[0].title).toBe('Admin escalation for mental health crisis')
   })
 
   it('returns patch for regenerated section', async () => {
