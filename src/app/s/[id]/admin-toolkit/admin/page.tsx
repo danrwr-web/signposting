@@ -12,6 +12,7 @@ import {
   getAdminToolkitPinnedPanel,
   getLondonTodayUtc,
   addDaysUtc,
+  readAdminToolkitQuickAccessButtons,
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitAdminClient from './AdminToolkitAdminClient'
@@ -33,7 +34,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
   try {
     const user = await requireSurgeryAccess(surgeryId)
     const [surgery, enabled] = await Promise.all([
-      prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true, name: true } }),
+      prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true, name: true, uiConfig: true } }),
       isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
     ])
 
@@ -118,6 +119,8 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
       .map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email }))
       .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email))
 
+    const quickAccessButtons = readAdminToolkitQuickAccessButtons(surgery.uiConfig)
+
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
@@ -155,6 +158,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
             initialCategories={categories}
             initialItems={items}
             editorCandidates={editorCandidates}
+            initialQuickAccessButtons={quickAccessButtons}
             initialItemId={initialItemId}
             initialTab={initialTab}
           />

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import type { AdminToolkitCategory, AdminToolkitPageItem, AdminToolkitPinnedPanel } from '@/server/adminToolkit'
+import type { AdminToolkitQuickAccessButton } from '@/lib/adminToolkitQuickAccessShared'
 import {
   createAdminToolkitCategory,
   deleteAdminToolkitCategory,
@@ -22,6 +23,7 @@ import {
   updateAdminToolkitListColumn,
   deleteAdminToolkitListColumn,
   reorderAdminToolkitListColumns,
+  setAdminToolkitQuickAccessButtons,
 } from '../actions'
 
 type EditorCandidate = { id: string; name: string | null; email: string }
@@ -36,6 +38,7 @@ interface AdminToolkitAdminClientProps {
   initialCategories: AdminToolkitCategory[]
   initialItems: AdminToolkitPageItem[]
   editorCandidates: EditorCandidate[]
+  initialQuickAccessButtons: AdminToolkitQuickAccessButton[]
   initialItemId?: string
   initialTab?: 'items' | 'settings'
 }
@@ -95,6 +98,7 @@ export default function AdminToolkitAdminClient({
   initialCategories,
   initialItems,
   editorCandidates,
+  initialQuickAccessButtons,
   initialItemId,
   initialTab = 'items',
 }: AdminToolkitAdminClientProps) {
@@ -331,6 +335,7 @@ export default function AdminToolkitAdminClient({
           surgeryId={surgeryId}
           categories={categories}
           items={items}
+          initialQuickAccessButtons={initialQuickAccessButtons}
           newCategoryName={newCategoryName}
           setNewCategoryName={setNewCategoryName}
           newSubcategoryName={newSubcategoryName}
@@ -1398,6 +1403,7 @@ function StructureSettingsTab({
   surgeryId,
   categories,
   items,
+  initialQuickAccessButtons,
   newCategoryName,
   setNewCategoryName,
   newSubcategoryName,
@@ -1433,6 +1439,7 @@ function StructureSettingsTab({
   surgeryId: string
   categories: AdminToolkitCategory[]
   items: AdminToolkitPageItem[]
+  initialQuickAccessButtons: AdminToolkitQuickAccessButton[]
   newCategoryName: string
   setNewCategoryName: React.Dispatch<React.SetStateAction<string>>
   newSubcategoryName: string
@@ -1506,6 +1513,42 @@ function StructureSettingsTab({
   const pinnedDirty =
     (panelTaskBuddy ?? '') !== (panelSaved.taskBuddyText ?? '') || (panelPostRoute ?? '') !== (panelSaved.postRouteText ?? '')
 
+  const sortQuickAccess = (buttons: AdminToolkitQuickAccessButton[]): AdminToolkitQuickAccessButton[] =>
+    buttons
+      .slice()
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((b, idx) => ({ ...b, orderIndex: idx }))
+
+  const [quickAccessButtons, setQuickAccessButtons] = useState<AdminToolkitQuickAccessButton[]>(() =>
+    sortQuickAccess(initialQuickAccessButtons),
+  )
+  const [quickAccessSaved, setQuickAccessSaved] = useState<AdminToolkitQuickAccessButton[]>(() =>
+    sortQuickAccess(initialQuickAccessButtons),
+  )
+  const [quickAccessSaving, setQuickAccessSaving] = useState(false)
+  const [newQuickLabel, setNewQuickLabel] = useState('')
+  const [newQuickItemId, setNewQuickItemId] = useState('')
+  const [newQuickBg, setNewQuickBg] = useState('#005EB8')
+  const [newQuickText, setNewQuickText] = useState('#FFFFFF')
+
+  useEffect(() => {
+    const sorted = sortQuickAccess(initialQuickAccessButtons)
+    setQuickAccessButtons(sorted)
+    setQuickAccessSaved(sorted)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(initialQuickAccessButtons)])
+
+  const quickAccessDirty = useMemo(() => {
+    return JSON.stringify(quickAccessButtons) !== JSON.stringify(quickAccessSaved)
+  }, [quickAccessButtons, quickAccessSaved])
+
+  const itemOptions = useMemo(() => {
+    return items
+      .slice()
+      .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
+      .map((it) => ({ id: it.id, label: `${it.title} (${it.type})` }))
+  }, [items])
+
   const settingsLinkClass = 'block text-sm text-nhs-blue hover:underline underline-offset-2'
 
   const ActionButton = ({
@@ -1540,6 +1583,33 @@ function StructureSettingsTab({
     </button>
   )
 
+  const saveQuickAccess = async (nextButtons?: AdminToolkitQuickAccessButton[]) => {
+    setQuickAccessSaving(true)
+    try {
+      const res = await setAdminToolkitQuickAccessButtons({
+        surgeryId,
+        buttons: (nextButtons ?? quickAccessButtons).map((b) => ({
+          id: b.id,
+          label: b.label,
+          itemId: b.itemId,
+          backgroundColour: b.backgroundColour,
+          textColour: b.textColour,
+        })),
+      })
+      if (!res.ok) {
+        toast.error(res.error.message)
+        return
+      }
+      toast.success('Quick access updated')
+      const sorted = sortQuickAccess(res.data.buttons)
+      setQuickAccessButtons(sorted)
+      setQuickAccessSaved(sorted)
+      await refresh()
+    } finally {
+      setQuickAccessSaving(false)
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
       {/* Left: settings navigation */}
@@ -1549,6 +1619,9 @@ function StructureSettingsTab({
           <nav className="mt-3 space-y-2">
             <a className={settingsLinkClass} href="#settings-categories">
               Categories
+            </a>
+            <a className={settingsLinkClass} href="#settings-quick-access">
+              Quick access buttons
             </a>
             <a className={settingsLinkClass} href="#settings-pinned-panel">
               Pinned panel
@@ -1934,6 +2007,227 @@ function StructureSettingsTab({
                     </div>
                   )
                 })}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Quick access */}
+        <section id="settings-quick-access" className="bg-white rounded-lg shadow-md border border-gray-200 scroll-mt-6">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-nhs-dark-blue">Quick access buttons</h2>
+            <p className="mt-1 text-sm text-nhs-grey">
+              These buttons appear on the Admin Toolkit main page and open a specific item. Colours here are always respected (including in blue cards mode).
+            </p>
+          </div>
+
+          <div className="p-6 space-y-6">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="text-sm font-semibold text-gray-900">Add a button</div>
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto_auto] gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                  <input
+                    className="nhs-input"
+                    value={newQuickLabel}
+                    onChange={(e) => setNewQuickLabel(e.target.value)}
+                    placeholder="e.g. Prescriptions"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Target item</label>
+                  <select className="nhs-input" value={newQuickItemId} onChange={(e) => setNewQuickItemId(e.target.value)}>
+                    <option value="">Select an item…</option>
+                    {itemOptions.map((it) => (
+                      <option key={it.id} value={it.id}>
+                        {it.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Background</label>
+                    <input type="color" value={newQuickBg} onChange={(e) => setNewQuickBg(e.target.value)} className="h-10 w-12" />
+                  </div>
+                  <div className="pt-5 text-xs text-gray-500">{newQuickBg}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Text</label>
+                    <input type="color" value={newQuickText} onChange={(e) => setNewQuickText(e.target.value)} className="h-10 w-12" />
+                  </div>
+                  <div className="pt-5 text-xs text-gray-500">{newQuickText}</div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="nhs-button"
+                    disabled={quickAccessSaving || !newQuickLabel.trim() || !newQuickItemId}
+                    onClick={() => {
+                      const next = sortQuickAccess([
+                        ...quickAccessButtons,
+                        {
+                          id: `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                          label: newQuickLabel.trim(),
+                          itemId: newQuickItemId,
+                          backgroundColour: newQuickBg,
+                          textColour: newQuickText,
+                          orderIndex: quickAccessButtons.length,
+                        },
+                      ])
+                      setQuickAccessButtons(next)
+                      setNewQuickLabel('')
+                      setNewQuickItemId('')
+                      setNewQuickBg('#005EB8')
+                      setNewQuickText('#FFFFFF')
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {quickAccessButtons.length === 0 ? (
+              <p className="text-sm text-gray-500">No quick access buttons yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {quickAccessButtons.map((b, idx) => (
+                  <div key={b.id} className="rounded-lg border border-gray-200 bg-white p-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                        <input
+                          className="nhs-input"
+                          value={b.label}
+                          onChange={(e) =>
+                            setQuickAccessButtons((prev) =>
+                              sortQuickAccess(prev.map((x) => (x.id === b.id ? { ...x, label: e.target.value } : x))),
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Target item</label>
+                        <select
+                          className="nhs-input"
+                          value={b.itemId}
+                          onChange={(e) =>
+                            setQuickAccessButtons((prev) =>
+                              sortQuickAccess(prev.map((x) => (x.id === b.id ? { ...x, itemId: e.target.value } : x))),
+                            )
+                          }
+                        >
+                          {itemOptions.map((it) => (
+                            <option key={it.id} value={it.id}>
+                              {it.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Background</label>
+                            <input
+                              type="color"
+                              value={b.backgroundColour}
+                              onChange={(e) =>
+                                setQuickAccessButtons((prev) =>
+                                  sortQuickAccess(
+                                    prev.map((x) => (x.id === b.id ? { ...x, backgroundColour: e.target.value } : x)),
+                                  ),
+                                )
+                              }
+                              className="h-10 w-12"
+                            />
+                          </div>
+                          <div className="pt-5 text-xs text-gray-500">{b.backgroundColour}</div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-600 mb-1">Text</label>
+                            <input
+                              type="color"
+                              value={b.textColour}
+                              onChange={(e) =>
+                                setQuickAccessButtons((prev) =>
+                                  sortQuickAccess(prev.map((x) => (x.id === b.id ? { ...x, textColour: e.target.value } : x))),
+                                )
+                              }
+                              className="h-10 w-12"
+                            />
+                          </div>
+                          <div className="pt-5 text-xs text-gray-500">{b.textColour}</div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 justify-end">
+                        <ActionButton
+                          variant="neutral"
+                          ariaLabel="Move button up"
+                          disabled={idx === 0}
+                          onClick={() => {
+                            const next = quickAccessButtons.slice()
+                            const tmp = next[idx - 1]
+                            next[idx - 1] = next[idx]
+                            next[idx] = tmp
+                            setQuickAccessButtons(sortQuickAccess(next))
+                          }}
+                        >
+                          ↑
+                        </ActionButton>
+                        <ActionButton
+                          variant="neutral"
+                          ariaLabel="Move button down"
+                          disabled={idx >= quickAccessButtons.length - 1}
+                          onClick={() => {
+                            const next = quickAccessButtons.slice()
+                            const tmp = next[idx + 1]
+                            next[idx + 1] = next[idx]
+                            next[idx] = tmp
+                            setQuickAccessButtons(sortQuickAccess(next))
+                          }}
+                        >
+                          ↓
+                        </ActionButton>
+                        <ActionButton
+                          variant="danger"
+                          ariaLabel="Delete quick access button"
+                          onClick={() => {
+                            const ok = confirm(`Delete "${b.label}"?`)
+                            if (!ok) return
+                            setQuickAccessButtons((prev) => sortQuickAccess(prev.filter((x) => x.id !== b.id)))
+                          }}
+                        >
+                          Delete
+                        </ActionButton>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <div
+                        className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium"
+                        style={{ backgroundColor: b.backgroundColour, color: b.textColour }}
+                      >
+                        Preview: {b.label || 'Button label'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    className="nhs-button"
+                    disabled={!quickAccessDirty || quickAccessSaving}
+                    onClick={() => saveQuickAccess()}
+                  >
+                    Save quick access
+                  </button>
+                </div>
               </div>
             )}
           </div>

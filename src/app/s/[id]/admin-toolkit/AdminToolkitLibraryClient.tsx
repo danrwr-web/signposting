@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import type { AdminToolkitCategory, AdminToolkitPageItem } from '@/server/adminToolkit'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import { useCardStyle } from '@/context/CardStyleContext'
+import type { AdminToolkitQuickAccessButton } from '@/lib/adminToolkitQuickAccessShared'
 
 // Note: Settings cog moved to page header (AdminToolkitHeaderActions component)
 
@@ -13,9 +14,10 @@ interface AdminToolkitLibraryClientProps {
   canWrite: boolean
   categories: AdminToolkitCategory[]
   items: AdminToolkitPageItem[]
+  quickAccessButtons: AdminToolkitQuickAccessButton[]
 }
 
-export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items }: AdminToolkitLibraryClientProps) {
+export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items, quickAccessButtons }: AdminToolkitLibraryClientProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
   const { cardStyle } = useCardStyle()
@@ -105,23 +107,50 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     return counts
   }, [items, categories])
 
+  const quickAccessRenderable = useMemo(() => {
+    if (!quickAccessButtons || quickAccessButtons.length === 0) return []
+    const itemById = new Map(items.map((it) => [it.id, it]))
+    return quickAccessButtons
+      .slice()
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map((b) => ({ button: b, item: itemById.get(b.itemId) ?? null }))
+      .filter((x) => x.item !== null)
+  }, [quickAccessButtons, items])
+
   return (
-    <div className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col h-full min-h-0">
-      {/* Header zone (static) */}
-      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0">
+    <div className="bg-white rounded-lg shadow-md border border-gray-200">
+      {/* Header zone */}
+      <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
         <div className="text-sm text-gray-600" aria-live="polite">
           {itemsSorted.length} item{itemsSorted.length === 1 ? '' : 's'}
         </div>
         {canWrite ? null : <span className="text-sm text-gray-500">You have view-only access.</span>}
       </div>
 
-      <div className="shrink-0 border-b border-gray-200">
+      {quickAccessRenderable.length > 0 ? (
+        <div className="border-b border-gray-200 px-4 py-3">
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Quick access</div>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {quickAccessRenderable.map(({ button, item }) => (
+              <Link
+                key={button.id}
+                href={`/s/${surgeryId}/admin-toolkit/${item!.id}`}
+                className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-nhs-yellow focus:ring-offset-2"
+                style={{ backgroundColor: button.backgroundColour, color: button.textColour }}
+              >
+                {button.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
       </div>
 
-      {/* Main content zone (scroll container) */}
-      <div className="flex-1 min-h-0 overflow-y-auto pb-56">
-        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] min-h-0">
+      {/* Main content zone (normal page scroll) */}
+      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
             <div className="px-4 py-4">
@@ -225,7 +254,6 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               </div>
             )}
           </section>
-        </div>
       </div>
     </div>
   )

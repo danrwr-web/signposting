@@ -1,10 +1,12 @@
 'use server'
 
+import { randomUUID } from 'crypto'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
 
 type ActionError =
   | { code: 'UNAUTHENTICATED'; message: string }
@@ -945,6 +947,95 @@ export async function upsertAdminToolkitPinnedPanel(input: unknown): Promise<Act
   })
 
   return { ok: true, data: { surgeryId } }
+}
+
+const hexColour = z.string().regex(/^#([0-9a-fA-F]{6})$/, 'Use a hex colour like #005EB8')
+
+const quickAccessButtonInput = z.object({
+  id: z.string().min(1).optional(),
+  label: z.string().trim().min(1, 'Button label is required').max(40, 'Button label is too long'),
+  itemId: z.string().min(1, 'Pick a target item'),
+  backgroundColour: hexColour,
+  textColour: hexColour,
+})
+
+const setQuickAccessButtonsInput = z.object({
+  surgeryId: z.string().min(1),
+  buttons: z.array(quickAccessButtonInput).max(24, 'Too many buttons'),
+})
+
+export async function setAdminToolkitQuickAccessButtons(
+  input: unknown,
+): Promise<ActionResult<{ buttons: AdminToolkitQuickAccessButton[] }>> {
+  const parsed = setQuickAccessButtonsInput.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) },
+    }
+  }
+
+  const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
+  if (!gate.ok) return gate
+
+  const { surgeryId } = parsed.data
+
+  // Normalise IDs and order
+  const normalised: AdminToolkitQuickAccessButton[] = parsed.data.buttons.map((b, idx) => ({
+    id: b.id ?? randomUUID(),
+    label: b.label.trim(),
+    itemId: b.itemId,
+    backgroundColour: b.backgroundColour.toUpperCase(),
+    textColour: b.textColour.toUpperCase(),
+    orderIndex: idx,
+  }))
+
+  // Validate item targets exist within the surgery
+  const itemIds = Array.from(new Set(normalised.map((b) => b.itemId)))
+  const items = await prisma.adminItem.findMany({
+    where: { surgeryId, deletedAt: null, type: { in: ['PAGE', 'LIST'] }, id: { in: itemIds } },
+    select: { id: true },
+  })
+  const okIds = new Set(items.map((x) => x.id))
+  const bad = itemIds.find((id) => !okIds.has(id))
+  if (bad) {
+    return { ok: false, error: { code: 'NOT_FOUND', message: 'One or more target items could not be found.' } }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const row = await tx.surgery.findUnique({ where: { id: surgeryId }, select: { uiConfig: true } })
+    const existing = row?.uiConfig
+    const base =
+      existing && typeof existing === 'object' && !Array.isArray(existing) ? (existing as Record<string, unknown>) : ({} as Record<string, unknown>)
+    const existingAdminToolkit =
+      base.adminToolkit && typeof base.adminToolkit === 'object' && !Array.isArray(base.adminToolkit)
+        ? (base.adminToolkit as Record<string, unknown>)
+        : ({} as Record<string, unknown>)
+
+    const nextUiConfig: AdminToolkitUiConfig & Record<string, unknown> = {
+      ...base,
+      adminToolkit: {
+        ...existingAdminToolkit,
+        quickAccessButtons: normalised,
+      },
+    }
+
+    await tx.surgery.update({
+      where: { id: surgeryId },
+      data: { uiConfig: nextUiConfig as any },
+    })
+
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        action: 'QUICK_ACCESS_SET',
+        actorUserId: gate.data.userId,
+        diffJson: { buttons: normalised },
+      },
+    })
+  })
+
+  return { ok: true, data: { buttons: normalised } }
 }
 
 const setOnTakeWeekInput = z.object({

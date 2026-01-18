@@ -18,6 +18,8 @@ A high-level history of major changes.
 - Admin Toolkit settings: the editor now opens ready to create a new item by default (no previous item auto-selected).
 - Admin Toolkit settings: “Structure & Settings” is now laid out as a cleaner settings dashboard with section navigation.
 - Admin Toolkit settings: categories are searchable with clearer hierarchy and controls; pinned panel includes a preview; rota “upcoming weeks” is now collapsible.
+- Restored natural page scrolling on the Admin Toolkit front page, with a sticky search bar during scrolling.
+- Restored Admin Toolkit Quick access buttons, including configurable colours and ordering in settings.
 
 ---
 

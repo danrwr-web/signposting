@@ -1,6 +1,8 @@
 import 'server-only'
 
 import { prisma } from '@/lib/prisma'
+import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
+import { z } from 'zod'
 
 export type AdminToolkitCategory = {
   id: string
@@ -38,6 +40,41 @@ export type AdminToolkitPinnedPanel = {
 export type AdminToolkitOnTakeWeek = {
   weekCommencing: Date
   gpName: string
+}
+
+const adminToolkitQuickAccessButtonSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().trim().min(1).max(40),
+  itemId: z.string().min(1),
+  backgroundColour: z.string().regex(/^#([0-9a-fA-F]{6})$/),
+  textColour: z.string().regex(/^#([0-9a-fA-F]{6})$/),
+  orderIndex: z.number().int().min(0),
+})
+
+const adminToolkitUiConfigSchema = z
+  .object({
+    adminToolkit: z
+      .object({
+        quickAccessButtons: z.array(adminToolkitQuickAccessButtonSchema).optional(),
+      })
+      .optional(),
+  })
+  .passthrough()
+
+export function readAdminToolkitQuickAccessButtons(uiConfig: unknown): AdminToolkitQuickAccessButton[] {
+  const parsed = adminToolkitUiConfigSchema.safeParse(uiConfig)
+  const raw = parsed.success ? parsed.data.adminToolkit?.quickAccessButtons : undefined
+  const list = (raw ?? []).slice()
+  list.sort((a, b) => a.orderIndex - b.orderIndex)
+  return list
+}
+
+export async function getAdminToolkitQuickAccessButtons(surgeryId: string): Promise<AdminToolkitQuickAccessButton[]> {
+  const row = await prisma.surgery.findUnique({
+    where: { id: surgeryId },
+    select: { uiConfig: true },
+  })
+  return readAdminToolkitQuickAccessButtons(row?.uiConfig ?? null)
 }
 
 export function startOfDayUtc(date: Date): Date {
