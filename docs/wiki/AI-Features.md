@@ -110,6 +110,8 @@ Safety rules:
 - UK sources and a review-by date are required for approval
 - High-risk topics (e.g. suicide, chest pain, stroke) require clinician sign-off
 - Slot language uses the standard **Red / Orange / Pink-Purple / Green** labels
+- Admin cards are toolkit-first and include scripts, slot choice, escalation steps, boundaries, and safety netting
+- Admin drafts are checked for off-scope content and re-generated if they drift into clinician-only guidance
 
 The editor supports variations (same objective, new scenario) and section-only regeneration (e.g. rewrite an MCQ without changing the rest).
 

@@ -76,6 +76,8 @@ The editorial workflow includes:
 - **Section regeneration** to rewrite a single area (e.g. MCQ or feedback)
 - **High-risk safeguards**: cards flagged HIGH require clinician sign-off before publishing
 - **Sources required**: cards must include UK sources and a review-by date before approval
+- **Admin scope controls**: admin drafts must follow toolkit scripts, slot language, escalation boundaries, and safety netting
+- **Scope checks**: admin drafts are re-generated if they drift into clinician-only guidance
 
 When triage advice is relevant, cards must use slot language: **Red / Orange / Pink-Purple / Green**.
 

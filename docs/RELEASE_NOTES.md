@@ -9,6 +9,7 @@ A high-level history of major changes.
 - Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
 - Added Daily Dose — short, role-based learning sessions with approvals, sources, and safe practice-level insights.
 - Added AI-assisted Daily Dose editorial drafting with batch review, variations, and section regeneration (clinician sign-off for high-risk content).
+- Aligned admin Daily Dose AI drafts to the Signposting Toolkit slot language, scripts, and escalation boundaries.
 
 ---
 
