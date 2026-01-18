@@ -126,14 +126,29 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
             quickAccessButtons={quickAccessButtons}
           />
 
-          <AdminToolkitPinnedPanel
-            surgeryId={surgeryId}
-            canWrite={canWrite}
-            onTakeWeekCommencingUtc={weekStartUtc}
-            onTakeGpName={onTake?.gpName ?? null}
-            panel={panel}
-            variant="inline"
-          />
+          {/* Desktop: keep pinned panel visible while browsing (no inner scroll regions). */}
+          <div className="hidden lg:block">
+            <AdminToolkitPinnedPanel
+              surgeryId={surgeryId}
+              canWrite={canWrite}
+              onTakeWeekCommencingUtc={weekStartUtc}
+              onTakeGpName={onTake?.gpName ?? null}
+              panel={panel}
+              variant="fixed"
+            />
+          </div>
+
+          {/* Mobile: show inline to avoid covering content on small screens. */}
+          <div className="lg:hidden">
+            <AdminToolkitPinnedPanel
+              surgeryId={surgeryId}
+              canWrite={canWrite}
+              onTakeWeekCommencingUtc={weekStartUtc}
+              onTakeGpName={onTake?.gpName ?? null}
+              panel={panel}
+              variant="inline"
+            />
+          </div>
         </div>
       </div>
     )

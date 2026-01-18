@@ -1542,12 +1542,179 @@ function StructureSettingsTab({
     return JSON.stringify(quickAccessButtons) !== JSON.stringify(quickAccessSaved)
   }, [quickAccessButtons, quickAccessSaved])
 
-  const itemOptions = useMemo(() => {
+  type QuickAccessTargetOption = {
+    id: string
+    title: string
+    type: 'PAGE' | 'LIST'
+    categoryLabel: string
+  }
+
+  const categoryLabelById = useMemo(() => {
+    const map = new Map<string, string>()
+    const walk = (cat: AdminToolkitCategory, parentPath?: string) => {
+      const path = parentPath ? `${parentPath} › ${cat.name}` : cat.name
+      map.set(cat.id, path)
+      for (const child of cat.children ?? []) walk(child, path)
+    }
+    for (const top of categories) walk(top)
+    return map
+  }, [categories])
+
+  const itemOptions = useMemo<QuickAccessTargetOption[]>(() => {
     return items
       .slice()
       .sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }))
-      .map((it) => ({ id: it.id, label: `${it.title} (${it.type})` }))
-  }, [items])
+      .map((it) => ({
+        id: it.id,
+        title: it.title,
+        type: it.type,
+        categoryLabel: it.categoryId ? categoryLabelById.get(it.categoryId) ?? 'Category' : 'Uncategorised',
+      }))
+  }, [items, categoryLabelById])
+
+  const itemOptionById = useMemo(() => new Map(itemOptions.map((o) => [o.id, o])), [itemOptions])
+
+  const QuickAccessItemPicker = ({
+    inputId,
+    value,
+    onChange,
+    placeholder = 'Search items…',
+  }: {
+    inputId: string
+    value: string
+    onChange: (id: string) => void
+    placeholder?: string
+  }) => {
+    const [query, setQuery] = useState('')
+    const [open, setOpen] = useState(false)
+    const [activeIndex, setActiveIndex] = useState(0)
+    const dropdownRef = useRef<HTMLDivElement>(null)
+    const listboxId = `${inputId}-listbox`
+
+    const selected = value ? itemOptionById.get(value) ?? null : null
+
+    const filtered = useMemo(() => {
+      const q = query.trim().toLowerCase()
+      const base = q
+        ? itemOptions.filter((it) => {
+            const hay = `${it.title} ${it.type} ${it.categoryLabel}`.toLowerCase()
+            return hay.includes(q)
+          })
+        : itemOptions
+      return base.slice(0, 60)
+    }, [itemOptions, query])
+
+    useEffect(() => {
+      const onDocMouseDown = (event: MouseEvent) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+          setOpen(false)
+        }
+      }
+      if (open) document.addEventListener('mousedown', onDocMouseDown)
+      return () => document.removeEventListener('mousedown', onDocMouseDown)
+    }, [open])
+
+    useEffect(() => {
+      setActiveIndex(0)
+    }, [query])
+
+    const pick = (id: string) => {
+      onChange(id)
+      setQuery('')
+      setOpen(false)
+      setActiveIndex(0)
+    }
+
+    return (
+      <div className="relative min-w-0" ref={dropdownRef}>
+        <input
+          id={inputId}
+          type="text"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value)
+            setOpen(true)
+          }}
+          onFocus={() => setOpen(true)}
+          placeholder={placeholder}
+          className="nhs-input w-full"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listboxId}
+          aria-autocomplete="list"
+          onKeyDown={(e) => {
+            if (!open) return
+            if (e.key === 'Escape') {
+              setOpen(false)
+              return
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              setActiveIndex((i) => Math.min(i + 1, Math.max(0, filtered.length - 1)))
+            }
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              setActiveIndex((i) => Math.max(0, i - 1))
+            }
+            if (e.key === 'Enter') {
+              const hit = filtered[activeIndex]
+              if (hit) {
+                e.preventDefault()
+                pick(hit.id)
+              }
+            }
+          }}
+        />
+
+        {open && filtered.length > 0 ? (
+          <div
+            id={listboxId}
+            className="absolute z-20 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg max-h-64 overflow-y-auto"
+            role="listbox"
+            aria-label="Matching items"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {filtered.map((it, idx) => {
+              const isActive = idx === activeIndex
+              const isSelected = it.id === value
+              return (
+                <button
+                  key={it.id}
+                  type="button"
+                  onMouseEnter={() => setActiveIndex(idx)}
+                  onClick={() => pick(it.id)}
+                  className={[
+                    'w-full text-left px-3 py-2 text-sm',
+                    isActive ? 'bg-nhs-light-blue' : 'hover:bg-gray-50',
+                  ].join(' ')}
+                  role="option"
+                  aria-selected={isSelected}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-900 truncate">{it.title}</div>
+                      <div className="text-xs text-gray-500 truncate">{it.categoryLabel}</div>
+                    </div>
+                    <span className="shrink-0 inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-700">
+                      {it.type}
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
+
+        {selected ? (
+          <p className="mt-1 text-xs text-gray-500">
+            Selected: <span className="font-medium text-gray-700">{selected.title}</span>
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-gray-500">Pick a target item to open.</p>
+        )}
+      </div>
+    )
+  }
 
   const settingsLinkClass = 'block text-sm text-nhs-blue hover:underline underline-offset-2'
 
@@ -1589,8 +1756,8 @@ function StructureSettingsTab({
       const res = await setAdminToolkitQuickAccessButtons({
         surgeryId,
         buttons: (nextButtons ?? quickAccessButtons).map((b) => ({
-          id: b.id,
-          label: b.label,
+          id: b.id.startsWith('tmp-') ? undefined : b.id,
+          label: b.label.trim() ? b.label : undefined,
           itemId: b.itemId,
           backgroundColour: b.backgroundColour,
           textColour: b.textColour,
@@ -1634,7 +1801,7 @@ function StructureSettingsTab({
       </aside>
 
       {/* Right: settings cards */}
-      <div className="space-y-6">
+      <div className="space-y-6 min-w-0">
         {/* Categories */}
         <section id="settings-categories" className="bg-white rounded-lg shadow-md border border-gray-200 scroll-mt-6">
           <div className="p-6 border-b border-gray-200">
@@ -2024,52 +2191,53 @@ function StructureSettingsTab({
           <div className="p-6 space-y-6">
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="text-sm font-semibold text-gray-900">Add a button</div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto_auto_auto] gap-3 items-end">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+              <div className="mt-1 text-xs text-gray-500">Label is optional and defaults to the target item title when you save.</div>
+              <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3 items-end">
+                <div className="min-w-0">
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Label (optional)</label>
                   <input
-                    className="nhs-input"
+                    className="nhs-input w-full"
                     value={newQuickLabel}
                     onChange={(e) => setNewQuickLabel(e.target.value)}
-                    placeholder="e.g. Prescriptions"
+                    placeholder="Defaults to the target item title"
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Target item</label>
-                  <select className="nhs-input" value={newQuickItemId} onChange={(e) => setNewQuickItemId(e.target.value)}>
-                    <option value="">Select an item…</option>
-                    {itemOptions.map((it) => (
-                      <option key={it.id} value={it.id}>
-                        {it.label}
-                      </option>
-                    ))}
-                  </select>
+
+                <div className="min-w-0">
+                  <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="new-quick-access-item">
+                    Target item
+                  </label>
+                  <QuickAccessItemPicker inputId="new-quick-access-item" value={newQuickItemId} onChange={setNewQuickItemId} />
                 </div>
-                <div className="flex items-center gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Background</label>
-                    <input type="color" value={newQuickBg} onChange={(e) => setNewQuickBg(e.target.value)} className="h-10 w-12" />
+
+                <div className="flex flex-wrap items-end gap-6">
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Background</label>
+                      <input type="color" value={newQuickBg} onChange={(e) => setNewQuickBg(e.target.value)} className="h-10 w-12" />
+                    </div>
+                    <code className="pt-5 text-xs text-gray-500 break-all">{newQuickBg}</code>
                   </div>
-                  <div className="pt-5 text-xs text-gray-500">{newQuickBg}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Text</label>
-                    <input type="color" value={newQuickText} onChange={(e) => setNewQuickText(e.target.value)} className="h-10 w-12" />
+                  <div className="flex items-center gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Text</label>
+                      <input type="color" value={newQuickText} onChange={(e) => setNewQuickText(e.target.value)} className="h-10 w-12" />
+                    </div>
+                    <code className="pt-5 text-xs text-gray-500 break-all">{newQuickText}</code>
                   </div>
-                  <div className="pt-5 text-xs text-gray-500">{newQuickText}</div>
                 </div>
-                <div className="flex justify-end">
+
+                <div className="flex justify-end items-end">
                   <button
                     type="button"
                     className="nhs-button"
-                    disabled={quickAccessSaving || !newQuickLabel.trim() || !newQuickItemId}
+                    disabled={quickAccessSaving || !newQuickItemId}
                     onClick={() => {
                       const next = sortQuickAccess([
                         ...quickAccessButtons,
                         {
                           id: `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-                          label: newQuickLabel.trim(),
+                          label: newQuickLabel,
                           itemId: newQuickItemId,
                           backgroundColour: newQuickBg,
                           textColour: newQuickText,
@@ -2095,39 +2263,37 @@ function StructureSettingsTab({
               <div className="space-y-3">
                 {quickAccessButtons.map((b, idx) => (
                   <div key={b.id} className="rounded-lg border border-gray-200 bg-white p-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_auto_auto] gap-3 items-end">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Label</label>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 items-end">
+                      <div className="min-w-0">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Label (optional)</label>
                         <input
-                          className="nhs-input"
+                          className="nhs-input w-full"
                           value={b.label}
                           onChange={(e) =>
                             setQuickAccessButtons((prev) =>
                               sortQuickAccess(prev.map((x) => (x.id === b.id ? { ...x, label: e.target.value } : x))),
                             )
                           }
+                          placeholder="Defaults to the target item title"
                         />
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Target item</label>
-                        <select
-                          className="nhs-input"
+
+                      <div className="min-w-0">
+                        <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`quick-access-item-${b.id}`}>
+                          Target item
+                        </label>
+                        <QuickAccessItemPicker
+                          inputId={`quick-access-item-${b.id}`}
                           value={b.itemId}
-                          onChange={(e) =>
+                          onChange={(id) =>
                             setQuickAccessButtons((prev) =>
-                              sortQuickAccess(prev.map((x) => (x.id === b.id ? { ...x, itemId: e.target.value } : x))),
+                              sortQuickAccess(prev.map((x) => (x.id === b.id ? { ...x, itemId: id } : x))),
                             )
                           }
-                        >
-                          {itemOptions.map((it) => (
-                            <option key={it.id} value={it.id}>
-                              {it.label}
-                            </option>
-                          ))}
-                        </select>
+                        />
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex flex-wrap items-end gap-6">
                         <div className="flex items-center gap-2">
                           <div>
                             <label className="block text-xs font-medium text-gray-600 mb-1">Background</label>
@@ -2136,15 +2302,13 @@ function StructureSettingsTab({
                               value={b.backgroundColour}
                               onChange={(e) =>
                                 setQuickAccessButtons((prev) =>
-                                  sortQuickAccess(
-                                    prev.map((x) => (x.id === b.id ? { ...x, backgroundColour: e.target.value } : x)),
-                                  ),
+                                  sortQuickAccess(prev.map((x) => (x.id === b.id ? { ...x, backgroundColour: e.target.value } : x))),
                                 )
                               }
                               className="h-10 w-12"
                             />
                           </div>
-                          <div className="pt-5 text-xs text-gray-500">{b.backgroundColour}</div>
+                          <code className="pt-5 text-xs text-gray-500 break-all">{b.backgroundColour}</code>
                         </div>
                         <div className="flex items-center gap-2">
                           <div>
@@ -2160,7 +2324,7 @@ function StructureSettingsTab({
                               className="h-10 w-12"
                             />
                           </div>
-                          <div className="pt-5 text-xs text-gray-500">{b.textColour}</div>
+                          <code className="pt-5 text-xs text-gray-500 break-all">{b.textColour}</code>
                         </div>
                       </div>
 
@@ -2197,7 +2361,8 @@ function StructureSettingsTab({
                           variant="danger"
                           ariaLabel="Delete quick access button"
                           onClick={() => {
-                            const ok = confirm(`Delete "${b.label}"?`)
+                            const display = b.label.trim() || itemOptionById.get(b.itemId)?.title || 'this button'
+                            const ok = confirm(`Delete "${display}"?`)
                             if (!ok) return
                             setQuickAccessButtons((prev) => sortQuickAccess(prev.filter((x) => x.id !== b.id)))
                           }}
@@ -2209,10 +2374,15 @@ function StructureSettingsTab({
 
                     <div className="mt-3">
                       <div
-                        className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium"
+                        className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium max-w-full break-words"
                         style={{ backgroundColor: b.backgroundColour, color: b.textColour }}
                       >
-                        Preview: {b.label || 'Button label'}
+                        Preview:{' '}
+                        {b.label.trim()
+                          ? b.label.trim()
+                          : itemOptionById.get(b.itemId)?.title
+                            ? itemOptionById.get(b.itemId)!.title
+                            : 'Button label'}
                       </div>
                     </div>
                   </div>

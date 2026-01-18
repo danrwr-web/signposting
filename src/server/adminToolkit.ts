@@ -44,7 +44,12 @@ export type AdminToolkitOnTakeWeek = {
 
 const adminToolkitQuickAccessButtonSchema = z.object({
   id: z.string().min(1),
-  label: z.string().trim().min(1).max(40),
+  label: z
+    .string()
+    .max(40)
+    .optional()
+    .nullable()
+    .transform((v) => (v ?? '').trim()),
   itemId: z.string().min(1),
   backgroundColour: z.string().regex(/^#([0-9a-fA-F]{6})$/),
   textColour: z.string().regex(/^#([0-9a-fA-F]{6})$/),

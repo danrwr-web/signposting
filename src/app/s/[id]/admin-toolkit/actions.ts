@@ -953,7 +953,7 @@ const hexColour = z.string().regex(/^#([0-9a-fA-F]{6})$/, 'Use a hex colour like
 
 const quickAccessButtonInput = z.object({
   id: z.string().min(1).optional(),
-  label: z.string().trim().min(1, 'Button label is required').max(40, 'Button label is too long'),
+  label: z.string().max(40, 'Button label is too long').optional(),
   itemId: z.string().min(1, 'Pick a target item'),
   backgroundColour: hexColour,
   textColour: hexColour,
@@ -980,26 +980,35 @@ export async function setAdminToolkitQuickAccessButtons(
 
   const { surgeryId } = parsed.data
 
-  // Normalise IDs and order
-  const normalised: AdminToolkitQuickAccessButton[] = parsed.data.buttons.map((b, idx) => ({
-    id: b.id ?? randomUUID(),
-    label: b.label.trim(),
-    itemId: b.itemId,
-    backgroundColour: b.backgroundColour.toUpperCase(),
-    textColour: b.textColour.toUpperCase(),
-    orderIndex: idx,
-  }))
-
-  // Validate item targets exist within the surgery
-  const itemIds = Array.from(new Set(normalised.map((b) => b.itemId)))
+  // Validate item targets exist within the surgery (and use titles for default labels).
+  const itemIds = Array.from(new Set(parsed.data.buttons.map((b) => b.itemId)))
   const items = await prisma.adminItem.findMany({
     where: { surgeryId, deletedAt: null, type: { in: ['PAGE', 'LIST'] }, id: { in: itemIds } },
-    select: { id: true },
+    select: { id: true, title: true },
   })
-  const okIds = new Set(items.map((x) => x.id))
-  const bad = itemIds.find((id) => !okIds.has(id))
+  const itemById = new Map(items.map((x) => [x.id, x]))
+  const bad = itemIds.find((id) => !itemById.has(id))
   if (bad) {
     return { ok: false, error: { code: 'NOT_FOUND', message: 'One or more target items could not be found.' } }
+  }
+
+  // Normalise IDs and order, defaulting blank labels to the target item title (stable).
+  const normalised: AdminToolkitQuickAccessButton[] = []
+  for (const [idx, b] of parsed.data.buttons.entries()) {
+    const fallback = (itemById.get(b.itemId)?.title ?? '').trim()
+    const rawLabel = (b.label ?? '').trim()
+    const resolved = (rawLabel || fallback).slice(0, 40)
+    if (!resolved) {
+      return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Button label is required.', fieldErrors: { label: 'Button label is required.' } } }
+    }
+    normalised.push({
+      id: b.id ?? randomUUID(),
+      label: resolved,
+      itemId: b.itemId,
+      backgroundColour: b.backgroundColour.toUpperCase(),
+      textColour: b.textColour.toUpperCase(),
+      orderIndex: idx,
+    })
   }
 
   await prisma.$transaction(async (tx) => {

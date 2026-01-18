@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AdminToolkitCategory, AdminToolkitPageItem } from '@/server/adminToolkit'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import { useCardStyle } from '@/context/CardStyleContext'
@@ -22,6 +22,29 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const [search, setSearch] = useState('')
   const { cardStyle } = useCardStyle()
   const isBlueCards = cardStyle === 'powerappsBlue'
+
+  const searchStickyRef = useRef<HTMLDivElement>(null)
+  const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
+  const [categoryListMaxHeightPx, setCategoryListMaxHeightPx] = useState<number | null>(null)
+
+  useEffect(() => {
+    const measure = () => {
+      const searchH = searchStickyRef.current?.getBoundingClientRect().height ?? 0
+      setSidebarStickyTopPx(searchH)
+
+      // Allow the category list to scroll within itself only when necessary.
+      // On large screens the pinned panel is fixed at the bottom, so reserve space for it.
+      const reserveForPinnedPanel = window.innerWidth >= 1024 ? 220 : 0
+      const reserveForPadding = 24
+      const reserveForCategoryHeader = 56
+      const max = Math.max(160, window.innerHeight - searchH - reserveForPinnedPanel - reserveForPadding - reserveForCategoryHeader)
+      setCategoryListMaxHeightPx(max)
+    }
+
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
 
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
 
@@ -138,25 +161,32 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                 className="inline-flex items-center rounded-md px-3 py-2 text-sm font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-nhs-yellow focus:ring-offset-2"
                 style={{ backgroundColor: button.backgroundColour, color: button.textColour }}
               >
-                {button.label}
+                {button.label?.trim() ? button.label : item!.title}
               </Link>
             ))}
           </div>
         </div>
       ) : null}
 
-      <div className="sticky top-0 z-20 border-b border-gray-200 bg-white">
+      <div ref={searchStickyRef} className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
       </div>
 
       {/* Main content zone (normal page scroll) */}
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
-          <aside className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50">
+          <aside
+            className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 md:sticky md:self-start"
+            style={sidebarStickyTopPx ? { top: sidebarStickyTopPx } : undefined}
+          >
             <div className="px-4 py-4">
               <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Categories</h2>
             </div>
-            <nav className="px-2 pb-4">
+            <nav
+              className="px-2 pb-4 md:overflow-y-auto"
+              style={categoryListMaxHeightPx ? { maxHeight: categoryListMaxHeightPx } : undefined}
+              aria-label="Admin Toolkit categories"
+            >
             <button
               type="button"
               onClick={() => setSelectedCategoryId('ALL')}
@@ -214,7 +244,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
           </aside>
 
           {/* Main: items */}
-          <section className="p-4">
+          <section className="p-4 lg:pb-64">
             {itemsSorted.length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-500">
                 {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
