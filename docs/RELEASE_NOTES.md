@@ -13,6 +13,7 @@ A high-level history of major changes.
 - Admin Toolkit: when enabled for an empty surgery, a starter kit is now added automatically (pinned panel and rota remain blank).
 - Admin Toolkit: added **LIST** items (simple editable tables) for storing structured information.
 - Admin Toolkit: removed the temporary global-defaults seeding button from the admin dashboard.
+- Admin Toolkit: settings cog moved to page header (consistent with main signposting tool) and opens the shared preferences dialog; blue cards mode now only affects individual item cards, not the surrounding container.
 
 ---
 

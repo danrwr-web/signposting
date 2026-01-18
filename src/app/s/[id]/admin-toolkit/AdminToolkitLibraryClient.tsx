@@ -6,6 +6,8 @@ import type { AdminToolkitCategory, AdminToolkitPageItem } from '@/server/adminT
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import { useCardStyle } from '@/context/CardStyleContext'
 
+// Note: Settings cog moved to page header (AdminToolkitHeaderActions component)
+
 interface AdminToolkitLibraryClientProps {
   surgeryId: string
   canWrite: boolean
@@ -16,7 +18,7 @@ interface AdminToolkitLibraryClientProps {
 export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items }: AdminToolkitLibraryClientProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
-  const { cardStyle, setCardStyle } = useCardStyle()
+  const { cardStyle } = useCardStyle()
   const isBlueCards = cardStyle === 'powerappsBlue'
 
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
@@ -104,27 +106,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
         <div className="text-sm text-gray-600" aria-live="polite">
           {itemsFiltered.length} item{itemsFiltered.length === 1 ? '' : 's'}
         </div>
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setCardStyle(isBlueCards ? 'default' : 'powerappsBlue')}
-            className="p-2 text-nhs-grey hover:text-nhs-blue transition-colors"
-            title={isBlueCards ? 'Switch to default cards' : 'Switch to blue cards'}
-            aria-label={isBlueCards ? 'Switch to default cards' : 'Switch to blue cards'}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-          {canWrite ? (
-            <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
-              Add item
-            </Link>
-          ) : (
-            <span className="text-sm text-gray-500">You have view-only access.</span>
-          )}
-        </div>
+        {canWrite ? null : <span className="text-sm text-gray-500">You have view-only access.</span>}
       </div>
 
       <div className="shrink-0 border-b border-gray-200">
@@ -203,7 +185,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                 {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
               </div>
             ) : (
-              <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 ${isBlueCards ? 'bg-nhs-blue p-4 rounded-lg' : ''}`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {itemsFiltered.map((item) => (
                   <Link
                     key={item.id}

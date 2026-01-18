@@ -15,6 +15,7 @@ import {
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitLibraryClient from './AdminToolkitLibraryClient'
+import AdminToolkitHeaderActions from './AdminToolkitHeaderActions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -90,16 +91,24 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
               ← Back to Signposting
             </Link>
 
-            {canWrite ? (
-              <Link
-                href={`/s/${surgeryId}/admin-toolkit/admin`}
-                className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
-              >
-                Manage Admin Toolkit
-              </Link>
-            ) : (
-              <span className="text-sm text-gray-500">View only</span>
-            )}
+            <div className="flex items-center gap-3">
+              {canWrite ? (
+                <>
+                  <Link
+                    href={`/s/${surgeryId}/admin-toolkit/admin`}
+                    className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
+                  >
+                    Manage Admin Toolkit
+                  </Link>
+                  <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
+                    Add item
+                  </Link>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">View only</span>
+              )}
+              <AdminToolkitHeaderActions />
+            </div>
           </div>
 
           <header className="mb-6">
