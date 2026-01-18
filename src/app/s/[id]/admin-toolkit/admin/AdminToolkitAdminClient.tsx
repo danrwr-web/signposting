@@ -1522,10 +1522,10 @@ function StructureSettingsTab({
   const [quickAccessButtons, setQuickAccessButtons] = useState<AdminToolkitQuickAccessButton[]>(() =>
     sortQuickAccess(initialQuickAccessButtons),
   )
-  const [quickAccessSaved, setQuickAccessSaved] = useState<AdminToolkitQuickAccessButton[]>(() =>
-    sortQuickAccess(initialQuickAccessButtons),
-  )
-  const [quickAccessSaving, setQuickAccessSaving] = useState(false)
+  const [quickAccessSaveState, setQuickAccessSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const quickAccessLastSavedJsonRef = useRef<string>(JSON.stringify(sortQuickAccess(initialQuickAccessButtons)))
+  const quickAccessSaveTimerRef = useRef<number | null>(null)
+
   const [newQuickLabel, setNewQuickLabel] = useState('')
   const [newQuickItemId, setNewQuickItemId] = useState('')
   const [newQuickBg, setNewQuickBg] = useState('#005EB8')
@@ -1534,13 +1534,65 @@ function StructureSettingsTab({
   useEffect(() => {
     const sorted = sortQuickAccess(initialQuickAccessButtons)
     setQuickAccessButtons(sorted)
-    setQuickAccessSaved(sorted)
+    quickAccessLastSavedJsonRef.current = JSON.stringify(sorted)
+    setQuickAccessSaveState('idle')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(initialQuickAccessButtons)])
 
-  const quickAccessDirty = useMemo(() => {
-    return JSON.stringify(quickAccessButtons) !== JSON.stringify(quickAccessSaved)
-  }, [quickAccessButtons, quickAccessSaved])
+  const persistQuickAccessButtons = async (
+    nextButtons: AdminToolkitQuickAccessButton[],
+    opts?: { successToast?: string; errorToast?: string },
+  ): Promise<boolean> => {
+    setQuickAccessSaveState('saving')
+    try {
+      const res = await setAdminToolkitQuickAccessButtons({
+        surgeryId,
+        buttons: nextButtons.map((b) => ({
+          id: b.id.startsWith('tmp-') ? undefined : b.id,
+          label: b.label.trim() ? b.label : undefined,
+          itemId: b.itemId,
+          backgroundColour: b.backgroundColour,
+          textColour: b.textColour,
+        })),
+      })
+      if (!res.ok) {
+        toast.error(opts?.errorToast ?? res.error.message)
+        setQuickAccessSaveState('error')
+        return false
+      }
+
+      const sorted = sortQuickAccess(res.data.buttons)
+      quickAccessLastSavedJsonRef.current = JSON.stringify(sorted)
+      setQuickAccessButtons(sorted)
+      setQuickAccessSaveState('saved')
+      if (opts?.successToast) toast.success(opts.successToast)
+
+      // Keep behaviour consistent with the rest of the settings page.
+      await refresh()
+
+      window.setTimeout(() => setQuickAccessSaveState('idle'), 1200)
+      return true
+    } finally {
+      // no-op: state handled above
+    }
+  }
+
+  // Debounced autosave for edits (label/colours/target), avoids toast spam.
+  useEffect(() => {
+    const json = JSON.stringify(quickAccessButtons)
+    if (json === quickAccessLastSavedJsonRef.current) return
+
+    if (quickAccessSaveTimerRef.current) window.clearTimeout(quickAccessSaveTimerRef.current)
+    setQuickAccessSaveState('saving')
+    quickAccessSaveTimerRef.current = window.setTimeout(() => {
+      void persistQuickAccessButtons(quickAccessButtons)
+    }, 500)
+
+    return () => {
+      if (quickAccessSaveTimerRef.current) window.clearTimeout(quickAccessSaveTimerRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quickAccessButtons])
 
   type QuickAccessTargetOption = {
     id: string
@@ -1637,7 +1689,7 @@ function StructureSettingsTab({
           }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
-          className="nhs-input w-full"
+          className="nhs-input w-full h-10"
           role="combobox"
           aria-expanded={open}
           aria-controls={listboxId}
@@ -1749,33 +1801,6 @@ function StructureSettingsTab({
       {children}
     </button>
   )
-
-  const saveQuickAccess = async (nextButtons?: AdminToolkitQuickAccessButton[]) => {
-    setQuickAccessSaving(true)
-    try {
-      const res = await setAdminToolkitQuickAccessButtons({
-        surgeryId,
-        buttons: (nextButtons ?? quickAccessButtons).map((b) => ({
-          id: b.id.startsWith('tmp-') ? undefined : b.id,
-          label: b.label.trim() ? b.label : undefined,
-          itemId: b.itemId,
-          backgroundColour: b.backgroundColour,
-          textColour: b.textColour,
-        })),
-      })
-      if (!res.ok) {
-        toast.error(res.error.message)
-        return
-      }
-      toast.success('Quick access updated')
-      const sorted = sortQuickAccess(res.data.buttons)
-      setQuickAccessButtons(sorted)
-      setQuickAccessSaved(sorted)
-      await refresh()
-    } finally {
-      setQuickAccessSaving(false)
-    }
-  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
@@ -2182,25 +2207,33 @@ function StructureSettingsTab({
         {/* Quick access */}
         <section id="settings-quick-access" className="bg-white rounded-lg shadow-md border border-gray-200 scroll-mt-6">
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-nhs-dark-blue">Quick access buttons</h2>
-            <p className="mt-1 text-sm text-nhs-grey">
-              These buttons appear on the Admin Toolkit main page and open a specific item. Colours here are always respected (including in blue cards mode).
-            </p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-nhs-dark-blue">Quick access buttons</h2>
+                <p className="mt-1 text-sm text-nhs-grey">
+                  These buttons appear on the Admin Toolkit main page and open a specific item. Colours here are always respected (including in blue cards mode).
+                </p>
+              </div>
+              <div className="shrink-0 text-sm text-gray-500" aria-live="polite">
+                {quickAccessSaveState === 'saving' ? 'Saving…' : quickAccessSaveState === 'saved' ? 'Saved' : quickAccessSaveState === 'error' ? 'Not saved' : null}
+              </div>
+            </div>
           </div>
 
           <div className="p-6 space-y-6">
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
               <div className="text-sm font-semibold text-gray-900">Add a button</div>
-              <div className="mt-1 text-xs text-gray-500">Label is optional and defaults to the target item title when you save.</div>
+              <div className="mt-1 text-xs text-gray-500">Label is optional and defaults to the target item title.</div>
               <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3 items-end">
                 <div className="min-w-0">
                   <label className="block text-xs font-medium text-gray-600 mb-1">Label (optional)</label>
                   <input
-                    className="nhs-input w-full"
+                    className="nhs-input w-full h-10"
                     value={newQuickLabel}
                     onChange={(e) => setNewQuickLabel(e.target.value)}
                     placeholder="Defaults to the target item title"
                   />
+                  <p className="mt-1 text-xs text-gray-500">&nbsp;</p>
                 </div>
 
                 <div className="min-w-0">
@@ -2231,8 +2264,8 @@ function StructureSettingsTab({
                   <button
                     type="button"
                     className="nhs-button"
-                    disabled={quickAccessSaving || !newQuickItemId}
-                    onClick={() => {
+                    disabled={quickAccessSaveState === 'saving' || !newQuickItemId}
+                    onClick={async () => {
                       const next = sortQuickAccess([
                         ...quickAccessButtons,
                         {
@@ -2244,7 +2277,10 @@ function StructureSettingsTab({
                           orderIndex: quickAccessButtons.length,
                         },
                       ])
-                      setQuickAccessButtons(next)
+
+                      const ok = await persistQuickAccessButtons(next, { successToast: 'Quick access button added' })
+                      if (!ok) return
+
                       setNewQuickLabel('')
                       setNewQuickItemId('')
                       setNewQuickBg('#005EB8')
@@ -2267,7 +2303,7 @@ function StructureSettingsTab({
                       <div className="min-w-0">
                         <label className="block text-xs font-medium text-gray-600 mb-1">Label (optional)</label>
                         <input
-                          className="nhs-input w-full"
+                          className="nhs-input w-full h-10"
                           value={b.label}
                           onChange={(e) =>
                             setQuickAccessButtons((prev) =>
@@ -2276,6 +2312,7 @@ function StructureSettingsTab({
                           }
                           placeholder="Defaults to the target item title"
                         />
+                        <p className="mt-1 text-xs text-gray-500">&nbsp;</p>
                       </div>
 
                       <div className="min-w-0">
@@ -2333,12 +2370,14 @@ function StructureSettingsTab({
                           variant="neutral"
                           ariaLabel="Move button up"
                           disabled={idx === 0}
-                          onClick={() => {
+                          onClick={async () => {
                             const next = quickAccessButtons.slice()
                             const tmp = next[idx - 1]
                             next[idx - 1] = next[idx]
                             next[idx] = tmp
-                            setQuickAccessButtons(sortQuickAccess(next))
+                            const ordered = sortQuickAccess(next)
+                            setQuickAccessButtons(ordered)
+                            await persistQuickAccessButtons(ordered)
                           }}
                         >
                           ↑
@@ -2347,12 +2386,14 @@ function StructureSettingsTab({
                           variant="neutral"
                           ariaLabel="Move button down"
                           disabled={idx >= quickAccessButtons.length - 1}
-                          onClick={() => {
+                          onClick={async () => {
                             const next = quickAccessButtons.slice()
                             const tmp = next[idx + 1]
                             next[idx + 1] = next[idx]
                             next[idx] = tmp
-                            setQuickAccessButtons(sortQuickAccess(next))
+                            const ordered = sortQuickAccess(next)
+                            setQuickAccessButtons(ordered)
+                            await persistQuickAccessButtons(ordered)
                           }}
                         >
                           ↓
@@ -2360,11 +2401,13 @@ function StructureSettingsTab({
                         <ActionButton
                           variant="danger"
                           ariaLabel="Delete quick access button"
-                          onClick={() => {
+                          onClick={async () => {
                             const display = b.label.trim() || itemOptionById.get(b.itemId)?.title || 'this button'
                             const ok = confirm(`Delete "${display}"?`)
                             if (!ok) return
-                            setQuickAccessButtons((prev) => sortQuickAccess(prev.filter((x) => x.id !== b.id)))
+                            const next = sortQuickAccess(quickAccessButtons.filter((x) => x.id !== b.id))
+                            setQuickAccessButtons(next)
+                            await persistQuickAccessButtons(next, { successToast: 'Quick access button deleted' })
                           }}
                         >
                           Delete
@@ -2387,17 +2430,6 @@ function StructureSettingsTab({
                     </div>
                   </div>
                 ))}
-
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    className="nhs-button"
-                    disabled={!quickAccessDirty || quickAccessSaving}
-                    onClick={() => saveQuickAccess()}
-                  >
-                    Save quick access
-                  </button>
-                </div>
               </div>
             )}
           </div>

@@ -20,6 +20,7 @@ A high-level history of major changes.
 - Admin Toolkit settings: categories are searchable with clearer hierarchy and controls; pinned panel includes a preview; rota “upcoming weeks” is now collapsible.
 - Admin Toolkit: restored sticky categories sidebar and pinned bottom panel on the front page (with natural page scrolling).
 - Admin Toolkit: improved Quick access buttons with a scalable searchable picker and optional labels (defaults to the target item title).
+- Admin Toolkit settings: Quick access buttons now auto-save changes to avoid an extra “Save” step.
 
 ---
 
