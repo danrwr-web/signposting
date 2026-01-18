@@ -70,6 +70,12 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     })
   }, [items, selectedCategoryId, normalisedSearch, categories, getCategoryAndChildrenIds])
 
+  const itemsSorted = useMemo(() => {
+    return itemsFiltered
+      .slice()
+      .sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }))
+  }, [itemsFiltered])
+
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>()
     for (const item of items) {
@@ -104,7 +110,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       {/* Header zone (static) */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 shrink-0">
         <div className="text-sm text-gray-600" aria-live="polite">
-          {itemsFiltered.length} item{itemsFiltered.length === 1 ? '' : 's'}
+          {itemsSorted.length} item{itemsSorted.length === 1 ? '' : 's'}
         </div>
         {canWrite ? null : <span className="text-sm text-gray-500">You have view-only access.</span>}
       </div>
@@ -180,13 +186,13 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
 
           {/* Main: items */}
           <section className="p-4">
-            {itemsFiltered.length === 0 ? (
+            {itemsSorted.length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-500">
                 {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {itemsFiltered.map((item) => (
+                {itemsSorted.map((item) => (
                   <Link
                     key={item.id}
                     href={`/s/${surgeryId}/admin-toolkit/${item.id}`}
