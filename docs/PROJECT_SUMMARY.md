@@ -76,6 +76,7 @@ A Global Default set of workflows can be maintained centrally, with individual s
 - Embedded questions + quick quiz with explanations and sources
 - AI-assisted editorial drafting with batch review, variations, and section regeneration
 - Admin drafts are toolkit-first, using slot language, scripts, escalation boundaries, and scope checks
+- AI generation includes schema repair and editor-facing diagnostics for safer drafting
 - Draft → Review → Approved → Published workflow with clinician sign-off for high-risk content
 - Aggregated insights only, with minimum group thresholds for privacy
 

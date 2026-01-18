@@ -78,6 +78,7 @@ The editorial workflow includes:
 - **Sources required**: cards must include UK sources and a review-by date before approval
 - **Admin scope controls**: admin drafts must follow toolkit scripts, slot language, escalation boundaries, and safety netting
 - **Scope checks**: admin drafts are re-generated if they drift into clinician-only guidance
+- **Schema repair**: one auto-repair retry runs on formatting issues, with request IDs shown if it still fails
 
 When triage advice is relevant, cards must use slot language: **Red / Orange / Pink-Purple / Green**.
 

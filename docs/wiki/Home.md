@@ -56,6 +56,7 @@ The latest released changes are listed below. For full details, see the versione
 - **Unreleased — In progress**
   - Added AI-assisted Daily Dose editorial drafting (batch review, variations, clinician sign-off for high-risk content)
   - Admin Daily Dose drafts now follow toolkit slot language, scripts, and escalation boundaries
+  - Daily Dose AI generation now auto-repairs schema issues and shows diagnostics for editors
   - Added Daily Dose learning sessions with approvals and sources
   - Simplified the Admin Dashboard Quick Access setup
 

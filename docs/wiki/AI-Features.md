@@ -112,6 +112,7 @@ Safety rules:
 - Slot language uses the standard **Red / Orange / Pink-Purple / Green** labels
 - Admin cards are toolkit-first and include scripts, slot choice, escalation steps, boundaries, and safety netting
 - Admin drafts are checked for off-scope content and re-generated if they drift into clinician-only guidance
+- Schema mismatches trigger one auto-repair retry; editors see request IDs and validation details if it still fails
 
 The editor supports variations (same objective, new scenario) and section-only regeneration (e.g. rewrite an MCQ without changing the rest).
 

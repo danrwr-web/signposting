@@ -10,6 +10,7 @@ A high-level history of major changes.
 - Added Daily Dose — short, role-based learning sessions with approvals, sources, and safe practice-level insights.
 - Added AI-assisted Daily Dose editorial drafting with batch review, variations, and section regeneration (clinician sign-off for high-risk content).
 - Aligned admin Daily Dose AI drafts to the Signposting Toolkit slot language, scripts, and escalation boundaries.
+- Improved Daily Dose AI generation reliability with schema repair, retry prompts, and clearer diagnostics for editors.
 
 ---
 
