@@ -29,7 +29,14 @@ describe('editorialAi', () => {
                     riskLevel: 'HIGH',
                     needsSourcing: false,
                     reviewByDate: '2026-02-01',
-                    sources: [{ title: 'NHS', url: 'https://www.nhs.uk/conditions/' }],
+                    sources: [
+                      {
+                        title: 'Signposting Toolkit (internal)',
+                        url: 'https://app.signpostingtool.co.uk/toolkit/mental-health-crisis',
+                        publisher: 'Signposting Toolkit',
+                      },
+                      { title: 'NHS', url: 'https://www.nhs.uk/conditions/' },
+                    ],
                     contentBlocks: [{ type: 'text', text: 'Recognise warning signs.' }],
                     interactions: [
                       {
@@ -75,6 +82,140 @@ describe('editorialAi', () => {
     expect(result.cards).toHaveLength(1)
     expect(result.quiz.questions).toHaveLength(1)
     expect(result.modelUsed).toBe('gpt-test')
+  })
+
+  it('retries generation when admin validation fails', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'ADMIN',
+                      title: 'Mental health support screening',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'MED',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [
+                        {
+                          title: 'Signposting Toolkit (internal)',
+                          url: 'https://app.signpostingtool.co.uk/toolkit/mental-health-crisis',
+                          publisher: 'Signposting Toolkit',
+                        },
+                      ],
+                      contentBlocks: [{ type: 'text', text: 'Use PHQ-9 during calls.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'What should you do next?',
+                          options: ['Escalate to duty GP', 'Offer counselling'],
+                          correctIndex: 0,
+                          explanation: 'Escalate to the duty GP.',
+                        },
+                      ],
+                      slotLanguage: {
+                        relevant: true,
+                        guidance: [{ slot: 'Orange', rule: 'Same-day clinician call-back.' }],
+                      },
+                      safetyNetting: ['Call 999 if there is immediate danger.'],
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is urgent?',
+                        options: ['Orange', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Orange slots are urgent.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-1',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'ADMIN',
+                      title: 'Admin escalation for mental health crisis',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'HIGH',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [
+                        {
+                          title: 'Signposting Toolkit (internal)',
+                          url: 'https://app.signpostingtool.co.uk/toolkit/mental-health-crisis',
+                          publisher: 'Signposting Toolkit',
+                        },
+                        { title: 'NHS', url: 'https://www.nhs.uk/conditions/' },
+                      ],
+                      contentBlocks: [{ type: 'text', text: 'Use the toolkit script and escalate.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'Who should you alert?',
+                          options: ['Duty GP', 'Pharmacy'],
+                          correctIndex: 0,
+                          explanation: 'Alert the duty GP.',
+                        },
+                      ],
+                      slotLanguage: {
+                        relevant: true,
+                        guidance: [{ slot: 'Red', rule: 'Call 999 for immediate danger.' }],
+                      },
+                      safetyNetting: ['Call 999 if danger is immediate.'],
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is for immediate danger?',
+                        options: ['Red', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Red slots are for immediate danger.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-2',
+        }),
+      })
+
+    const result = await generateEditorialBatch({
+      promptText: 'Create 1 learning card for the admin team about mental health crisis.',
+      targetRole: 'ADMIN',
+      count: 1,
+      interactiveFirst: true,
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(result.modelUsed).toBe('gpt-test-2')
+    expect(result.cards[0].title).toBe('Admin escalation for mental health crisis')
   })
 
   it('returns patch for regenerated section', async () => {

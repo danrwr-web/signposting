@@ -7,6 +7,7 @@ import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/acce
 import { EditorialGenerateRequestZ, type EditorialRole } from '@/lib/schemas/editorial'
 import { generateEditorialBatch, EditorialAiError } from '@/server/editorialAi'
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
+import { resolveTargetRole } from '@/lib/editorial/roleRouting'
 import { z } from 'zod'
 
 const MAX_GENERATIONS_PER_HOUR = 5
@@ -45,15 +46,20 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const resolvedRole = resolveTargetRole({
+      promptText: parsed.promptText,
+      requestedRole: parsed.targetRole,
+    })
+
     const generated = await generateEditorialBatch({
       promptText: parsed.promptText,
-      targetRole: parsed.targetRole,
+      targetRole: resolvedRole,
       count: parsed.count,
       tags: parsed.tags,
       interactiveFirst: parsed.interactiveFirst,
     })
 
-    const topicId = await ensureEditorialTopic(surgeryId, parsed.targetRole)
+    const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
     const now = new Date()
 
     const batch = await prisma.dailyDoseGenerationBatch.create({
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
         surgeryId,
         createdBy: user.id,
         promptText: parsed.promptText,
-        targetRole: parsed.targetRole,
+        targetRole: resolvedRole,
         modelUsed: generated.modelUsed,
         status: 'DRAFT',
       },

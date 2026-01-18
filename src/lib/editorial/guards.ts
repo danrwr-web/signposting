@@ -25,6 +25,7 @@ const UK_SOURCE_HOSTS = [
   'rcgp.org.uk',
   'gmc-uk.org',
   'mhra.gov.uk',
+  'signpostingtool.co.uk',
 ]
 
 export function inferRiskLevel(input: string): EditorialRisk {

@@ -18,5 +18,11 @@ describe('editorial guards', () => {
   it('accepts recognised UK sources', () => {
     expect(resolveNeedsSourcing([{ url: 'https://www.nhs.uk/conditions/', title: 'NHS' }], false)).toBe(false)
     expect(resolveNeedsSourcing([{ url: 'https://www.nice.org.uk/guidance', title: 'NICE' }], false)).toBe(false)
+    expect(
+      resolveNeedsSourcing(
+        [{ url: 'https://app.signpostingtool.co.uk/toolkit/mental-health-crisis', title: 'Toolkit' }],
+        false
+      )
+    ).toBe(false)
   })
 })
