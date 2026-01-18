@@ -190,10 +190,10 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                   <Link
                     key={item.id}
                     href={`/s/${surgeryId}/admin-toolkit/${item.id}`}
-                    className={`block rounded-lg border p-4 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-nhs-blue ${
+                    className={`block rounded-lg border p-4 shadow-sm hover:shadow-md transition-shadow focus:outline-none focus:ring-2 ${
                       isBlueCards
-                        ? 'border-white/20 bg-white/10 text-white hover:bg-white/20'
-                        : 'border-gray-200 bg-white'
+                        ? 'border-nhs-blue bg-nhs-blue text-white hover:bg-nhs-dark-blue focus:ring-nhs-yellow focus:ring-offset-2 focus:ring-offset-white'
+                        : 'border-gray-200 bg-white focus:ring-nhs-blue'
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
