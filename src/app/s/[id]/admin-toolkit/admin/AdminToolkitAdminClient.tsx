@@ -123,8 +123,9 @@ export default function AdminToolkitAdminClient({
   const [renamingCategoryId, setRenamingCategoryId] = useState<string | null>(null)
   const [renamingValue, setRenamingValue] = useState('')
 
-  const [mode, setMode] = useState<PageEditorMode>(() => (initialItemId ? 'edit' : 'edit'))
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(initialItemId || (items[0]?.id ?? null))
+  // Default behaviour: open in "Create item" mode unless an item is explicitly selected.
+  const [mode, setMode] = useState<PageEditorMode>(() => (initialItemId ? 'edit' : 'create'))
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(() => initialItemId ?? null)
   const selectedItem = useMemo(() => (selectedItemId ? items.find((i) => i.id === selectedItemId) || null : null), [
     items,
     selectedItemId,
@@ -196,15 +197,20 @@ export default function AdminToolkitAdminClient({
   }, [initialItems])
 
   useEffect(() => {
-    // Populate the form when switching items in edit mode.
-    // Important: do not run in create mode, otherwise the create form becomes pre-filled.
+    // Populate the form ONLY when an item is explicitly selected in edit mode.
     if (mode !== 'edit') return
     if (!selectedItemId) return
+
     const item = items.find((i) => i.id === selectedItemId) || null
-    if (!item) return
+    if (!item) {
+      // The selected item no longer exists (e.g. deleted). Return to a blank create form.
+      enterCreateMode()
+      return
+    }
+
     setForm(formFromItem(item))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, selectedItemId])
+  }, [mode, selectedItemId, items])
 
   useEffect(() => {
     setPanelTaskBuddy(initialPanel.taskBuddyText ?? '')
@@ -253,31 +259,8 @@ export default function AdminToolkitAdminClient({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWeekCommencingIso, surgeryId])
-  useEffect(() => {
-    // Keep form in sync with latest server item, but NEVER overwrite while creating.
-    if (mode === 'create') {
-      return
-    }
-
-    const nextId = selectedItemId ?? initialItems[0]?.id ?? null
-    if (!nextId) {
-      return
-    }
-
-    const exists = initialItems.some((i) => i.id === nextId)
-    const finalId = exists ? nextId : initialItems[0]?.id ?? null
-    if (!finalId) return
-
-    if (finalId !== selectedItemId) {
-      setSelectedItemId(finalId)
-    }
-
-    const item = initialItems.find((i) => i.id === finalId) || null
-    if (item) {
-      setForm(formFromItem(item))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialItems, selectedItemId, mode])
+  // IMPORTANT: do not auto-select an item on refresh/navigation.
+  // The editor should remain blank in create mode until the user explicitly selects an item.
 
   const refresh = async () => {
     router.refresh()
@@ -422,66 +405,291 @@ function ItemsTab({
   formFromItem: (item: AdminToolkitPageItem) => PageFormState
   focusTitle: () => void
 }) {
+  const [searchTerm, setSearchTerm] = useState('')
+  const [typeFilter, setTypeFilter] = useState<'ALL' | 'PAGE' | 'LIST'>('ALL')
+  const [categoryFilterId, setCategoryFilterId] = useState<string | 'ALL' | 'UNCAT'>('ALL')
+
+  const categoryById = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; parentId: string | null }>()
+    for (const parent of categories) {
+      map.set(parent.id, { id: parent.id, name: parent.name, parentId: null })
+      for (const child of parent.children ?? []) {
+        map.set(child.id, { id: child.id, name: child.name, parentId: parent.id })
+      }
+    }
+    return map
+  }, [categories])
+
+  const childIdsByParentId = useMemo(() => {
+    const map = new Map<string, string[]>()
+    for (const parent of categories) {
+      map.set(parent.id, (parent.children ?? []).map((c) => c.id))
+    }
+    return map
+  }, [categories])
+
+  const topLevelIdForCategoryId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const [id, c] of categoryById.entries()) {
+      map.set(id, c.parentId ?? id)
+    }
+    return map
+  }, [categoryById])
+
+  const filteredItems = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase()
+    return items.filter((it) => {
+      if (typeFilter !== 'ALL' && it.type !== typeFilter) return false
+      if (q && !it.title.toLowerCase().includes(q)) return false
+
+      if (categoryFilterId === 'ALL') return true
+      if (categoryFilterId === 'UNCAT') return it.categoryId == null
+      if (it.categoryId == null) return false
+
+      if (it.categoryId === categoryFilterId) return true
+
+      // If filtering by a parent category, include items in its child categories.
+      const childIds = childIdsByParentId.get(categoryFilterId) ?? []
+      return childIds.includes(it.categoryId)
+    })
+  }, [items, searchTerm, typeFilter, categoryFilterId, childIdsByParentId])
+
+  type Group = { key: string; title: string; count: number; items: AdminToolkitPageItem[] }
+
+  const groups = useMemo((): Group[] => {
+    const byKey = new Map<string, AdminToolkitPageItem[]>()
+
+    for (const it of filteredItems) {
+      const key = it.categoryId ? topLevelIdForCategoryId.get(it.categoryId) ?? 'UNCAT' : 'UNCAT'
+      byKey.set(key, [...(byKey.get(key) ?? []), it])
+    }
+
+    const makeTitle = (key: string) => {
+      if (key === 'UNCAT') return 'Uncategorised'
+      return categoryById.get(key)?.name ?? 'Other'
+    }
+
+    const sorted = Array.from(byKey.entries())
+      .map(([key, its]) => {
+        const itemsSorted = its.slice().sort((a, b) => {
+          const at = new Date(a.updatedAt).getTime()
+          const bt = new Date(b.updatedAt).getTime()
+          if (at !== bt) return bt - at
+          return a.title.localeCompare(b.title)
+        })
+        return { key, title: makeTitle(key), count: itemsSorted.length, items: itemsSorted }
+      })
+      .sort((a, b) => {
+        if (a.key === 'UNCAT') return -1
+        if (b.key === 'UNCAT') return 1
+        return a.title.localeCompare(b.title)
+      })
+
+    return sorted
+  }, [filteredItems, topLevelIdForCategoryId, categoryById])
+
+  const expandedStorageKey = useMemo(() => `adminToolkitItemsPickerExpanded:${surgeryId}`, [surgeryId])
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set<string>()
+    try {
+      const raw = window.localStorage.getItem(expandedStorageKey)
+      if (!raw) return new Set<string>()
+      const parsed = JSON.parse(raw) as unknown
+      if (!Array.isArray(parsed)) return new Set<string>()
+      return new Set(parsed.filter((x) => typeof x === 'string'))
+    } catch {
+      return new Set<string>()
+    }
+  })
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.localStorage.setItem(expandedStorageKey, JSON.stringify(Array.from(expandedGroupKeys)))
+    } catch {
+      // ignore
+    }
+  }, [expandedGroupKeys, expandedStorageKey])
+
+  // If no stored state yet, default to expanding all visible groups.
+  useEffect(() => {
+    if (expandedGroupKeys.size > 0) return
+    if (groups.length === 0) return
+    setExpandedGroupKeys(new Set(groups.map((g) => g.key)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups.length])
+
+  const toggleGroup = (key: string) => {
+    setExpandedGroupKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
       {/* Left Column: Items List */}
-      <aside className="bg-white rounded-lg shadow-md p-4">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 className="text-lg font-semibold text-nhs-dark-blue">Items</h2>
-          <button
-            type="button"
-            className="nhs-button"
-            onClick={enterCreateMode}
-          >
-            New item
-          </button>
+      <aside className="bg-white rounded-lg shadow-md border border-gray-200 flex flex-col min-h-0 lg:sticky lg:top-4 lg:max-h-[calc(100vh-6rem)]">
+        <div className="p-4 border-b border-gray-200 bg-white">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-nhs-dark-blue">Items</h2>
+            <button type="button" className="nhs-button" onClick={enterCreateMode}>
+              Create new item
+            </button>
+          </div>
+
+          <div className="mt-3">
+            <label className="sr-only" htmlFor="admin-toolkit-item-search">
+              Search items
+            </label>
+            <input
+              id="admin-toolkit-item-search"
+              className="w-full nhs-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search items…"
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Item type filter">
+            {(['ALL', 'PAGE', 'LIST'] as const).map((t) => {
+              const active = typeFilter === t
+              const label = t === 'ALL' ? 'All' : t === 'PAGE' ? 'Pages' : 'Lists'
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setTypeFilter(t)}
+                  className={[
+                    'text-sm rounded-full px-3 py-1 border transition',
+                    active ? 'bg-nhs-blue text-white border-nhs-blue' : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor="admin-toolkit-category-filter">
+              Category (optional)
+            </label>
+            <select
+              id="admin-toolkit-category-filter"
+              className="w-full nhs-input"
+              value={categoryFilterId}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === 'ALL' || v === 'UNCAT') {
+                  setCategoryFilterId(v)
+                } else {
+                  setCategoryFilterId(v)
+                }
+              }}
+            >
+              <option value="ALL">All categories</option>
+              <option value="UNCAT">Uncategorised</option>
+              {categories.map((c) => (
+                <optgroup key={c.id} label={c.name}>
+                  <option value={c.id}>{c.name}</option>
+                  {(c.children ?? []).map((child) => (
+                    <option key={child.id} value={child.id}>
+                      ↳ {child.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
         </div>
-        <div className="space-y-2">
+
+        <div className="p-2 overflow-y-auto min-h-0">
           <button
             type="button"
             onClick={enterCreateMode}
             className={[
-              'w-full text-left rounded-md px-3 py-2 text-sm border',
+              'w-full text-left rounded-md px-3 py-2 text-sm border mb-2',
               mode === 'create' ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
             ].join(' ')}
           >
-            <span className="font-medium text-gray-900">+ Create new item</span>
-            <div className="text-xs text-gray-500 mt-0.5">Add another item</div>
+            <span className="font-medium text-gray-900">Blank editor (new item)</span>
+            <div className="text-xs text-gray-500 mt-0.5">Ready to add a new PAGE or LIST</div>
           </button>
 
-          {items.length === 0 ? (
-            <p className="mt-2 text-sm text-gray-500">No items yet.</p>
+          {filteredItems.length === 0 ? (
+            <p className="mt-2 px-1 text-sm text-gray-500">No items match your filters.</p>
           ) : (
-            items.map((it) => {
-              const isSelected = it.id === selectedItemId
-              const restricted = it.editors.length > 0
-              return (
-                <button
-                  key={it.id}
-                  type="button"
-                  onClick={() => enterEditMode(it.id)}
-                  className={[
-                    'w-full text-left rounded-md px-3 py-2 text-sm border',
-                    isSelected ? 'bg-white border-gray-200' : 'bg-white/70 border-transparent hover:border-gray-200',
-                  ].join(' ')}
-                  title={restricted ? 'Restricted item' : undefined}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-gray-900 truncate">{it.title}</span>
-                    <span className="flex items-center gap-1">
-                      {it.type === 'LIST' ? (
-                        <span className="text-[11px] rounded-full bg-blue-50 px-2 py-0.5 text-blue-800 border border-blue-200">LIST</span>
-                      ) : (
-                        <span className="text-[11px] rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 border border-gray-200">PAGE</span>
-                      )}
-                      {restricted ? (
-                        <span className="text-[11px] rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">Restricted</span>
-                      ) : null}
-                    </span>
+            <div className="space-y-2">
+              {groups.map((g) => {
+                const expanded = expandedGroupKeys.has(g.key)
+                const buttonId = `group-${g.key}`
+                const panelId = `panel-${g.key}`
+                return (
+                  <div key={g.key} className="rounded-lg border border-gray-200 bg-white">
+                    <button
+                      id={buttonId}
+                      type="button"
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left"
+                      aria-expanded={expanded}
+                      aria-controls={panelId}
+                      onClick={() => toggleGroup(g.key)}
+                    >
+                      <span className="font-medium text-gray-900 truncate">{g.title}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="text-xs text-gray-500">{g.count}</span>
+                        <span className="text-gray-500" aria-hidden="true">
+                          {expanded ? '▾' : '▸'}
+                        </span>
+                      </span>
+                    </button>
+                    {expanded ? (
+                      <div id={panelId} role="region" aria-labelledby={buttonId} className="border-t border-gray-200">
+                        <div className="py-1">
+                          {g.items.map((it) => {
+                            const isSelected = it.id === selectedItemId && mode === 'edit'
+                            const restricted = it.editors.length > 0
+                            const updated = new Date(it.updatedAt).toLocaleDateString('en-GB')
+                            return (
+                              <button
+                                key={it.id}
+                                type="button"
+                                onClick={() => enterEditMode(it.id)}
+                                className={[
+                                  'w-full text-left px-3 py-2 text-sm border-l-4',
+                                  isSelected ? 'bg-nhs-blue/5 border-l-nhs-blue' : 'hover:bg-gray-50 border-l-transparent',
+                                ].join(' ')}
+                                title={restricted ? 'Restricted item' : undefined}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-gray-900 truncate">{it.title}</div>
+                                    <div className="mt-0.5 text-xs text-gray-500">Updated {updated}</div>
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    {it.type === 'LIST' ? (
+                                      <span className="text-[11px] rounded-full bg-blue-50 px-2 py-0.5 text-blue-800 border border-blue-200">LIST</span>
+                                    ) : (
+                                      <span className="text-[11px] rounded-full bg-gray-100 px-2 py-0.5 text-gray-700 border border-gray-200">PAGE</span>
+                                    )}
+                                    {restricted ? (
+                                      <span className="text-[11px] rounded-full bg-gray-200 px-2 py-0.5 text-gray-700">Restricted</span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
-                </button>
-              )
-            })
+                )
+              })}
+            </div>
           )}
         </div>
       </aside>
@@ -497,11 +705,6 @@ function ItemsTab({
               </div>
             </div>
 
-            {showAddAnotherHint ? (
-              <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                <strong>Created.</strong> Add another item?
-              </div>
-            ) : null}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
@@ -664,8 +867,22 @@ function ItemsTab({
                     }
                   }
 
-                  toast.success(form.type === 'LIST' ? 'List created' : 'Page created')
-                  setShowAddAnotherHint(true)
+                  toast.custom((t) => (
+                    <div className="rounded-lg bg-white shadow-lg border border-gray-200 px-4 py-3">
+                      <div className="text-sm text-gray-900">
+                        <strong>{form.type === 'LIST' ? 'List created.' : 'Page created.'}</strong>{' '}
+                        <a
+                          href={`/s/${surgeryId}/admin-toolkit/${res.data.id}`}
+                          className="text-nhs-blue underline underline-offset-2"
+                        >
+                          Open item
+                        </a>
+                      </div>
+                    </div>
+                  ))
+
+                  // Reset to a blank "Create item" form for adding another.
+                  setShowAddAnotherHint(false)
                   setForm(DEFAULT_PAGE_FORM)
                   focusTitle()
                   await refresh()
