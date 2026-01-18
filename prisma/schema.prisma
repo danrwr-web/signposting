@@ -61,6 +61,7 @@ model User {
   dailyDoseFlags          DailyDoseFlaggedContent[]
   dailyDoseFlagsResolved  DailyDoseFlaggedContent[] @relation("DailyDoseFlagResolvedBy")
   dailyDoseBatchesCreated DailyDoseGenerationBatch[] @relation("DailyDoseBatchCreatedBy")
+  dailyDoseGenerationAttempts DailyDoseGenerationAttempt[] @relation("DailyDoseAttemptCreatedBy")
 }
 
 model UserSurgery {
@@ -128,6 +129,7 @@ model Surgery {
   dailyDoseFlags      DailyDoseFlaggedContent[]
   dailyDoseBatches    DailyDoseGenerationBatch[]
   dailyDoseQuizzes    DailyDoseQuiz[]
+  dailyDoseGenerationAttempts DailyDoseGenerationAttempt[]
 }
 
 model DailyDoseProfile {
@@ -266,7 +268,35 @@ model DailyDoseGenerationBatch {
   createdByUser User? @relation("DailyDoseBatchCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
   cards        DailyDoseCard[]
   quiz         DailyDoseQuiz?
+  attempts     DailyDoseGenerationAttempt[]
 
+  @@index([surgeryId])
+  @@index([createdBy])
+}
+
+model DailyDoseGenerationAttempt {
+  id               String   @id @default(cuid())
+  requestId        String
+  attemptIndex     Int      @default(0)
+  batchId          String?
+  surgeryId        String?
+  createdBy        String?
+  promptText       String
+  targetRole       String
+  modelName        String?
+  status           String   @default("FAILED") // "FAILED" | "SUCCESS"
+  rawModelOutput   String
+  rawModelJson     Json?
+  validationErrors Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  batch          DailyDoseGenerationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  surgery        Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  createdByUser  User? @relation("DailyDoseAttemptCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([requestId])
+  @@index([batchId])
   @@index([surgeryId])
   @@index([createdBy])
 }

@@ -5,14 +5,21 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { EditorialGenerateRequestZ, type EditorialRole } from '@/lib/schemas/editorial'
-import { generateEditorialBatch, EditorialAiError } from '@/server/editorialAi'
+import {
+  generateEditorialBatch,
+  EditorialAiError,
+  type GenerationAttemptRecord,
+} from '@/server/editorialAi'
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
 import { resolveTargetRole } from '@/lib/editorial/roleRouting'
 import { z } from 'zod'
+import { randomUUID } from 'node:crypto'
 
 const MAX_GENERATIONS_PER_HOUR = 5
 
 export async function POST(request: NextRequest) {
+  let requestId: string | null = null
+  let allowDiagnostics = false
   try {
     const user = await getSessionUser()
     if (!user) {
@@ -31,6 +38,7 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+    allowDiagnostics = true
 
     const since = new Date(Date.now() - 60 * 60 * 1000)
     const recentCount = await prisma.dailyDoseGenerationBatch.count({
@@ -46,10 +54,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    requestId = randomUUID()
     const resolvedRole = resolveTargetRole({
       promptText: parsed.promptText,
       requestedRole: parsed.targetRole,
     })
+
+    const recordAttempt = async (attempt: GenerationAttemptRecord) => {
+      await prisma.dailyDoseGenerationAttempt.create({
+        data: {
+          requestId: attempt.requestId,
+          attemptIndex: attempt.attemptIndex,
+          modelName: attempt.modelName,
+          promptText: parsed.promptText,
+          targetRole: resolvedRole,
+          rawModelOutput: attempt.rawModelOutput,
+          rawModelJson: attempt.rawModelJson ?? undefined,
+          validationErrors: attempt.validationErrors ?? undefined,
+          status: attempt.status,
+          surgeryId,
+          createdBy: user.id,
+        },
+      })
+    }
 
     const generated = await generateEditorialBatch({
       promptText: parsed.promptText,
@@ -57,6 +84,8 @@ export async function POST(request: NextRequest) {
       count: parsed.count,
       tags: parsed.tags,
       interactiveFirst: parsed.interactiveFirst,
+      requestId,
+      onAttempt: recordAttempt,
     })
 
     const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
@@ -71,6 +100,11 @@ export async function POST(request: NextRequest) {
         modelUsed: generated.modelUsed,
         status: 'DRAFT',
       },
+    })
+
+    await prisma.dailyDoseGenerationAttempt.updateMany({
+      where: { requestId },
+      data: { batchId: batch.id },
     })
 
     const cardCreates = generated.cards.slice(0, parsed.count).map((card) => {
@@ -133,8 +167,24 @@ export async function POST(request: NextRequest) {
       )
     }
     if (error instanceof EditorialAiError) {
+      if (error.code === 'SCHEMA_MISMATCH') {
+        const details = error.details as
+          | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string }
+          | undefined
+        const includeRawSnippet = process.env.NODE_ENV !== 'production' || allowDiagnostics
+        return NextResponse.json(
+          {
+            errorCode: 'SCHEMA_MISMATCH',
+            requestId: details?.requestId ?? requestId,
+            issues: details?.issues ?? [],
+            rawSnippet: includeRawSnippet ? details?.rawSnippet : undefined,
+          },
+          { status: 502 }
+        )
+      }
+
       return NextResponse.json(
-        { error: { code: error.code, message: error.message, details: error.details } },
+        { error: { code: error.code, message: error.message, details: error.details, requestId } },
         { status: 502 }
       )
     }

@@ -2,11 +2,7 @@ import 'server-only'
 
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
-import {
-  EditorialGenerationOutputZ,
-  EditorialLearningCardZ,
-  type EditorialRole,
-} from '@/lib/schemas/editorial'
+import { EditorialLearningCardZ, type EditorialRole } from '@/lib/schemas/editorial'
 import { validateAdminCards, type AdminValidationIssue } from '@/lib/editorial/adminValidator'
 import { getRoleProfile } from '@/lib/editorial/roleProfiles'
 import {
@@ -14,6 +10,10 @@ import {
   ADMIN_TOOLKIT_SOURCE_PUBLISHER,
   ADMIN_TOOLKIT_SOURCE_TITLE,
 } from '@/lib/editorial/toolkitSources'
+import {
+  parseAndValidateGeneration,
+  type GenerationValidationIssue,
+} from '@/lib/editorial/generationParsing'
 import { z } from 'zod'
 
 const DEFAULT_TEMPERATURE = 0.2
@@ -30,6 +30,8 @@ CONTENT RULES:
 - Use triage slot language where relevant: Red / Orange / Pink-Purple / Green.
 - If high-risk content is present, mark riskLevel HIGH.
 - Every card must include at least one interaction with an explanation.
+- interactions MUST be an array. quiz.questions MUST be an array.
+- correctIndex MUST be a number.
 `
 
 const GENERAL_SOURCE_RULES = `
@@ -69,6 +71,17 @@ type ToolkitPack = {
   filePath: string
   keywords: string[]
   sourceRoute: string
+}
+
+export type GenerationAttemptRecord = {
+  requestId: string
+  attemptIndex: number
+  modelName?: string
+  rawModelOutput: string
+  rawModelJson?: unknown
+  validationErrors?: GenerationValidationIssue[]
+  repaired?: boolean
+  status: 'SUCCESS' | 'FAILED'
 }
 
 const ADMIN_TOOLKIT_PACKS: ToolkitPack[] = [
@@ -254,7 +267,38 @@ Interactive-first: ${params.interactiveFirst ? 'yes' : 'no'}
 
 Return JSON using this schema:
 ${GENERATION_SCHEMA}
+Return ONLY valid JSON. No markdown, no commentary.
 `
+}
+
+const GENERATION_SCHEMA_SUMMARY = `
+Required top-level keys: cards, quiz.
+Each card must include: targetRole, title, estimatedTimeMinutes, tags, riskLevel, needsSourcing, reviewByDate, sources, contentBlocks, interactions, slotLanguage, safetyNetting.
+Quiz must include: title, questions (array of { type, question, options, correctIndex, explanation }).
+`
+
+function buildSchemaCorrectionPrompt(params: {
+  issues: GenerationValidationIssue[]
+  previousJson: unknown
+}) {
+  const issueLines = params.issues.map((issue) => `- ${issue.path}: ${issue.message}`).join('\n')
+  return `
+The previous JSON did not match the schema. Fix the errors below.
+${GENERATION_SCHEMA_SUMMARY.trim()}
+
+Validation issues:
+${issueLines}
+
+Previous JSON:
+${JSON.stringify(params.previousJson, null, 2)}
+
+Return corrected JSON only. Do not add or remove top-level keys.
+Return ONLY valid JSON. No markdown, no commentary.
+`
+}
+
+function toRawSnippet(raw: string) {
+  return raw.slice(0, 2000)
 }
 
 function findToolkitPack(text: string) {
@@ -290,13 +334,100 @@ async function resolveAdminToolkitContext(params: { promptText: string; tags?: s
   return { context: context.trim() || DEFAULT_ADMIN_TOOLKIT_CONTEXT.trim(), source }
 }
 
+type GenerationAttemptResult = {
+  modelUsed: string
+  rawOutput: string
+  parseResult: ReturnType<typeof parseAndValidateGeneration>
+}
+
+async function runGenerationAttempt(params: {
+  systemPrompt: string
+  userPrompt: string
+  requestId: string
+  attemptIndex: number
+  onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
+}): Promise<GenerationAttemptResult> {
+  const result = await callAzureOpenAi({
+    systemPrompt: params.systemPrompt,
+    userPrompt: params.userPrompt,
+  })
+
+  const parseResult = parseAndValidateGeneration(result.content)
+  await params.onAttempt?.({
+    requestId: params.requestId,
+    attemptIndex: params.attemptIndex,
+    modelName: result.modelUsed,
+    rawModelOutput: result.content,
+    rawModelJson: parseResult.rawJson,
+    validationErrors: parseResult.success ? undefined : parseResult.issues,
+    repaired: parseResult.repaired,
+    status: parseResult.success ? 'SUCCESS' : 'FAILED',
+  })
+
+  return {
+    modelUsed: result.modelUsed,
+    rawOutput: result.content,
+    parseResult,
+  }
+}
+
+async function resolveGenerationResult(params: {
+  attempt: GenerationAttemptResult
+  requestId: string
+  attemptIndex: () => number
+  systemPrompt: string
+  onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
+}) {
+  if (params.attempt.parseResult.success) {
+    return {
+      data: params.attempt.parseResult.data,
+      modelUsed: params.attempt.modelUsed,
+    }
+  }
+
+  const issues = params.attempt.parseResult.issues
+  const rawJson = params.attempt.parseResult.rawJson
+  if (!rawJson) {
+    throw new EditorialAiError('SCHEMA_MISMATCH', 'Generated output did not match schema', {
+      requestId: params.requestId,
+      issues,
+      rawSnippet: toRawSnippet(params.attempt.rawOutput),
+    })
+  }
+
+  const correctionPrompt = buildSchemaCorrectionPrompt({ issues, previousJson: rawJson })
+  const retryAttempt = await runGenerationAttempt({
+    systemPrompt: params.systemPrompt,
+    userPrompt: correctionPrompt,
+    requestId: params.requestId,
+    attemptIndex: params.attemptIndex(),
+    onAttempt: params.onAttempt,
+  })
+
+  if (!retryAttempt.parseResult.success) {
+    throw new EditorialAiError('SCHEMA_MISMATCH', 'Generated output did not match schema after retry', {
+      requestId: params.requestId,
+      issues: retryAttempt.parseResult.issues,
+      rawSnippet: toRawSnippet(retryAttempt.rawOutput),
+    })
+  }
+
+  return {
+    data: retryAttempt.parseResult.data,
+    modelUsed: retryAttempt.modelUsed,
+  }
+}
+
 export async function generateEditorialBatch(params: {
   promptText: string
   targetRole: EditorialRole
   count: number
   tags?: string[]
   interactiveFirst: boolean
+  requestId: string
+  onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
 }) {
+  let attemptIndex = 0
   const toolkit =
     params.targetRole === 'ADMIN'
       ? await resolveAdminToolkitContext({ promptText: params.promptText, tags: params.tags })
@@ -312,19 +443,26 @@ export async function generateEditorialBatch(params: {
     toolkitSource: toolkit?.source,
   })
 
-  const result = await callAzureOpenAi({
+  const primaryResult = await runGenerationAttempt({
     systemPrompt: buildSystemPrompt({ role: params.targetRole }),
     userPrompt,
+    requestId: params.requestId,
+    attemptIndex: attemptIndex++,
+    onAttempt: params.onAttempt,
   })
 
-  const parsed = parseJson(result.content)
-  const validation = EditorialGenerationOutputZ.safeParse(parsed)
-  if (!validation.success) {
-    throw new EditorialAiError('INVALID_JSON', 'Generated output did not match schema', validation.error)
-  }
+  const primaryParsed = await resolveGenerationResult({
+    attempt: primaryResult,
+    requestId: params.requestId,
+    attemptIndex: () => attemptIndex++,
+    systemPrompt: buildSystemPrompt({ role: params.targetRole }),
+    onAttempt: params.onAttempt,
+  })
+
+  let finalResult = primaryParsed
 
   if (params.targetRole === 'ADMIN') {
-    const issues = validateAdminCards({ cards: validation.data.cards, promptText: params.promptText })
+    const issues = validateAdminCards({ cards: finalResult.data.cards, promptText: params.promptText })
     if (issues.length > 0) {
       const retryPrompt = buildUserPrompt({
         promptText: params.promptText,
@@ -337,41 +475,36 @@ export async function generateEditorialBatch(params: {
         validationIssues: issues,
       })
 
-      const retryResult = await callAzureOpenAi({
+      const strictResult = await runGenerationAttempt({
         systemPrompt: buildSystemPrompt({ role: params.targetRole, strictAdmin: true }),
         userPrompt: retryPrompt,
+        requestId: params.requestId,
+        attemptIndex: attemptIndex++,
+        onAttempt: params.onAttempt,
       })
 
-      const retryParsed = parseJson(retryResult.content)
-      const retryValidation = EditorialGenerationOutputZ.safeParse(retryParsed)
-      if (!retryValidation.success) {
-        throw new EditorialAiError(
-          'INVALID_JSON',
-          'Generated output did not match schema after admin retry',
-          retryValidation.error
-        )
-      }
+      finalResult = await resolveGenerationResult({
+        attempt: strictResult,
+        requestId: params.requestId,
+        attemptIndex: () => attemptIndex++,
+        systemPrompt: buildSystemPrompt({ role: params.targetRole, strictAdmin: true }),
+        onAttempt: params.onAttempt,
+      })
 
       const retryIssues = validateAdminCards({
-        cards: retryValidation.data.cards,
+        cards: finalResult.data.cards,
         promptText: params.promptText,
       })
       if (retryIssues.length > 0) {
         throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', retryIssues)
       }
-
-      return {
-        cards: retryValidation.data.cards,
-        quiz: retryValidation.data.quiz,
-        modelUsed: retryResult.modelUsed,
-      }
     }
   }
 
   return {
-    cards: validation.data.cards,
-    quiz: validation.data.quiz,
-    modelUsed: result.modelUsed,
+    cards: finalResult.data.cards,
+    quiz: finalResult.data.quiz,
+    modelUsed: finalResult.modelUsed,
   }
 }
 
@@ -399,6 +532,7 @@ ${JSON.stringify(params.sourceCard, null, 2)}
 
 Return JSON using this schema:
 ${VARIATION_SCHEMA}
+Return ONLY valid JSON. No markdown, no commentary.
 `
 
   const result = await callAzureOpenAi({
@@ -449,6 +583,7 @@ Return JSON with ONLY the updated section, using one of these shapes:
 {"safetyNetting": ["string"]}
 {"sources": [{ "title": "string", "url": "https://", "publisher": "string?", "accessedDate": "string?" }]}
 {"slotLanguage": { "relevant": true|false, "guidance": [{ "slot": "Red|Orange|Pink-Purple|Green", "rule": "string" }] }}
+Return ONLY valid JSON. No markdown, no commentary.
 `
 
   const result = await callAzureOpenAi({
@@ -513,7 +648,13 @@ function parseJson(input: string) {
 
 export class EditorialAiError extends Error {
   constructor(
-    public code: 'CONFIG_MISSING' | 'LLM_FAILED' | 'LLM_EMPTY' | 'INVALID_JSON' | 'VALIDATION_FAILED',
+    public code:
+      | 'CONFIG_MISSING'
+      | 'LLM_FAILED'
+      | 'LLM_EMPTY'
+      | 'INVALID_JSON'
+      | 'VALIDATION_FAILED'
+      | 'SCHEMA_MISMATCH',
     message: string,
     public details?: unknown
   ) {

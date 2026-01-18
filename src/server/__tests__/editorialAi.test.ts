@@ -77,11 +77,129 @@ describe('editorialAi', () => {
       count: 1,
       interactiveFirst: true,
       tags: ['mental health'],
+      requestId: 'test-request',
     })
 
     expect(result.cards).toHaveLength(1)
     expect(result.quiz.questions).toHaveLength(1)
     expect(result.modelUsed).toBe('gpt-test')
+  })
+
+  it('retries once when schema validation fails', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'GP',
+                      title: 'Suicide risk assessment basics',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'HIGH',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [{ title: 'NICE', url: 'https://www.nice.org.uk/guidance' }],
+                      contentBlocks: [{ type: 'text', text: 'Assess immediate risk.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'Next step?',
+                          options: ['Assess risk', 'Ignore'],
+                          correctIndex: 0,
+                          explanation: 'Assessment is required.',
+                        },
+                      ],
+                      slotLanguage: { relevant: true, guidance: [{ slot: 'Red', rule: 'Urgent escalation.' }] },
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is urgent?',
+                        options: ['Red', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Red slots are urgent.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-1',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  cards: [
+                    {
+                      targetRole: 'GP',
+                      title: 'Suicide risk assessment basics',
+                      estimatedTimeMinutes: 5,
+                      tags: ['mental health'],
+                      riskLevel: 'HIGH',
+                      needsSourcing: false,
+                      reviewByDate: '2026-02-01',
+                      sources: [{ title: 'NICE', url: 'https://www.nice.org.uk/guidance' }],
+                      contentBlocks: [{ type: 'text', text: 'Assess immediate risk.' }],
+                      interactions: [
+                        {
+                          type: 'mcq',
+                          question: 'Next step?',
+                          options: ['Assess risk', 'Ignore'],
+                          correctIndex: 0,
+                          explanation: 'Assessment is required.',
+                        },
+                      ],
+                      slotLanguage: { relevant: true, guidance: [{ slot: 'Red', rule: 'Urgent escalation.' }] },
+                      safetyNetting: ['Escalate if risk is immediate.'],
+                    },
+                  ],
+                  quiz: {
+                    title: 'Quick check',
+                    questions: [
+                      {
+                        type: 'mcq',
+                        question: 'Which slot is urgent?',
+                        options: ['Red', 'Green'],
+                        correctIndex: 0,
+                        explanation: 'Red slots are urgent.',
+                      },
+                    ],
+                  },
+                }),
+              },
+            },
+          ],
+          model: 'gpt-test-2',
+        }),
+      })
+
+    const result = await generateEditorialBatch({
+      promptText: 'Create 1 learning card for GPs about suicide risk assessment.',
+      targetRole: 'GP',
+      count: 1,
+      interactiveFirst: true,
+      requestId: 'schema-retry',
+    })
+
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    const secondBody = JSON.parse(mockFetch.mock.calls[1][1].body as string)
+    const userMessage = secondBody.messages.find((message: { role: string }) => message.role === 'user')
+    expect(userMessage.content).toContain('Validation issues')
+    expect(result.modelUsed).toBe('gpt-test-2')
   })
 
   it('retries generation when admin validation fails', async () => {
@@ -211,6 +329,7 @@ describe('editorialAi', () => {
       targetRole: 'ADMIN',
       count: 1,
       interactiveFirst: true,
+      requestId: 'retry-request',
     })
 
     expect(mockFetch).toHaveBeenCalledTimes(2)
