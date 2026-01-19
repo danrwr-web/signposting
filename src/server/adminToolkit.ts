@@ -19,6 +19,7 @@ export type AdminToolkitPageItem = {
   categoryId: string | null
   warningLevel: string | null
   contentHtml: string | null
+  contentJson?: unknown | null
   lastReviewedAt: Date | null
   updatedAt: Date
   createdAt: Date
@@ -171,6 +172,7 @@ export async function getAdminToolkitPageItems(surgeryId: string): Promise<Admin
       categoryId: true,
       warningLevel: true,
       contentHtml: true,
+      contentJson: true,
       lastReviewedAt: true,
       updatedAt: true,
       createdAt: true,
@@ -203,6 +205,7 @@ export async function getAdminToolkitPageItem(surgeryId: string, itemId: string)
       categoryId: true,
       warningLevel: true,
       contentHtml: true,
+      contentJson: true,
       lastReviewedAt: true,
       updatedAt: true,
       createdAt: true,

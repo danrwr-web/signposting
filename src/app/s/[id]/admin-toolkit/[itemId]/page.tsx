@@ -7,6 +7,7 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
+import RoleCardsRenderer from '@/components/admin-toolkit/RoleCardsRenderer'
 import {
   getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItem,
@@ -17,6 +18,7 @@ import {
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
 import AdminToolkitAttachmentsClient from './AdminToolkitAttachmentsClient'
 import AdminToolkitListClient from './AdminToolkitListClient'
+import { getRoleCardsBlock } from '@/lib/adminToolkitContentBlocksShared'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -93,6 +95,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     const isRestricted = item.editors.length > 0
     const isEditor = item.editors.some((e) => e.userId === user.id)
     const canEditThisItem = isSuperuser || (canWrite && (!isRestricted || isEditor))
+    const roleCardsBlock = item.type === 'PAGE' ? getRoleCardsBlock(item.contentJson ?? null) : null
 
     if (item.type === 'LIST' && isRestricted && !canWrite) {
       return (
@@ -165,6 +168,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
           {item.type === 'PAGE' ? (
             <>
               <div className="bg-white rounded-lg shadow-md p-6">
+                {roleCardsBlock ? <RoleCardsRenderer block={roleCardsBlock} /> : null}
                 <div
                   className="prose max-w-none"
                   dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(item.contentHtml || '') }}

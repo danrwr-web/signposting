@@ -7,6 +7,7 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
+import type { RoleCardsColumns, RoleCardsLayout } from '@/lib/adminToolkitContentBlocksShared'
 
 type ActionError =
   | { code: 'UNAUTHENTICATED'; message: string }
@@ -342,6 +343,26 @@ const createItemInput = z.object({
   contentHtml: z.string().optional().default(''),
   warningLevel: z.string().trim().max(40).nullable().optional(),
   lastReviewedAt: z.string().datetime().nullable().optional(),
+  roleCardsBlock: z
+    .object({
+      id: z.string().min(1).optional(),
+      title: z.string().trim().max(80).nullable().optional(),
+      layout: z.enum(['grid', 'row']).optional(),
+      columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+      cards: z
+        .array(
+          z.object({
+            id: z.string().min(1).optional(),
+            title: z.string().trim().max(80).default(''),
+            body: z.string().max(4000).default(''),
+            orderIndex: z.number().int().min(0).optional(),
+          }),
+        )
+        .max(50)
+        .default([]),
+    })
+    .nullable()
+    .optional(),
 })
 
 export async function createAdminToolkitItem(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -352,8 +373,32 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
   const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
   if (!gate.ok) return gate
 
-  const { surgeryId, type, title, categoryId, contentHtml, warningLevel, lastReviewedAt } = parsed.data
+  const { surgeryId, type, title, categoryId, contentHtml, warningLevel, lastReviewedAt, roleCardsBlock } = parsed.data
   const cleanedHtml = type === 'PAGE' ? sanitizeHtml(contentHtml || '') : null
+
+  const contentJson =
+    type === 'PAGE' && roleCardsBlock
+      ? {
+          blocks: [
+            {
+              type: 'ROLE_CARDS' as const,
+              id: roleCardsBlock.id ?? randomUUID(),
+              title: roleCardsBlock.title ?? null,
+              layout: (roleCardsBlock.layout ?? 'grid') as RoleCardsLayout,
+              columns: (roleCardsBlock.columns ?? 3) as RoleCardsColumns,
+              cards: (roleCardsBlock.cards ?? [])
+                .slice()
+                .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+                .map((c, idx) => ({
+                  id: c.id ?? randomUUID(),
+                  title: (c.title ?? '').trim(),
+                  body: c.body ?? '',
+                  orderIndex: idx,
+                })),
+            },
+          ],
+        }
+      : undefined
 
   const created = await prisma.$transaction(async (tx) => {
     const item = await tx.adminItem.create({
@@ -363,6 +408,7 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
         type,
         title,
         contentHtml: cleanedHtml,
+        contentJson,
         warningLevel: warningLevel ?? null,
         lastReviewedAt: lastReviewedAt ? new Date(lastReviewedAt) : null,
         ownerUserId: gate.data.userId,
@@ -469,6 +515,26 @@ const updateItemInput = z.object({
   contentHtml: z.string().optional(),
   warningLevel: z.string().trim().max(40).nullable().optional(),
   lastReviewedAt: z.string().datetime().nullable().optional(),
+  roleCardsBlock: z
+    .object({
+      id: z.string().min(1).optional(),
+      title: z.string().trim().max(80).nullable().optional(),
+      layout: z.enum(['grid', 'row']).optional(),
+      columns: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
+      cards: z
+        .array(
+          z.object({
+            id: z.string().min(1).optional(),
+            title: z.string().trim().max(80).default(''),
+            body: z.string().max(4000).default(''),
+            orderIndex: z.number().int().min(0).optional(),
+          }),
+        )
+        .max(50)
+        .default([]),
+    })
+    .nullable()
+    .optional(),
 })
 
 export async function updateAdminToolkitItem(input: unknown): Promise<ActionResult<{ id: string }>> {
@@ -487,17 +553,57 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
 
   const existing = await prisma.adminItem.findFirst({
     where: { id: itemId, surgeryId, deletedAt: null, type: { in: ['PAGE', 'LIST'] } },
-    select: { id: true, type: true, title: true, categoryId: true, warningLevel: true, contentHtml: true, lastReviewedAt: true },
+    select: { id: true, type: true, title: true, categoryId: true, warningLevel: true, contentHtml: true, contentJson: true, lastReviewedAt: true },
   })
   if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found.' } }
 
   const nextContentHtml = existing.type === 'PAGE' ? sanitizeHtml(parsed.data.contentHtml ?? existing.contentHtml ?? '') : existing.contentHtml
+
+  const mergeRoleCards = (baseJson: unknown, roleCards: (typeof parsed.data)['roleCardsBlock']): unknown => {
+    if (roleCards === undefined) return baseJson
+    const base =
+      baseJson && typeof baseJson === 'object' && !Array.isArray(baseJson)
+        ? ({ ...(baseJson as Record<string, unknown>) } as Record<string, unknown>)
+        : ({} as Record<string, unknown>)
+    const blocksRaw = Array.isArray(base.blocks) ? base.blocks : []
+    const kept = blocksRaw.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'ROLE_CARDS'))
+
+    if (roleCards === null) {
+      const next = { ...base, blocks: kept }
+      const keys = Object.keys(next).filter((k) => k !== 'blocks')
+      return kept.length === 0 && keys.length === 0 ? null : next
+    }
+
+    if (existing.type !== 'PAGE') return baseJson
+
+    const normalisedBlock = {
+      type: 'ROLE_CARDS' as const,
+      id: roleCards.id ?? randomUUID(),
+      title: roleCards.title ?? null,
+      layout: (roleCards.layout ?? 'grid') as RoleCardsLayout,
+      columns: (roleCards.columns ?? 3) as RoleCardsColumns,
+      cards: (roleCards.cards ?? [])
+        .slice()
+        .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+        .map((c, idx) => ({
+          id: c.id ?? randomUUID(),
+          title: (c.title ?? '').trim(),
+          body: c.body ?? '',
+          orderIndex: idx,
+        })),
+    }
+
+    return { ...base, blocks: [...kept, normalisedBlock] }
+  }
+
+  const nextContentJson = existing.type === 'PAGE' ? mergeRoleCards(existing.contentJson, parsed.data.roleCardsBlock) : existing.contentJson
   const next = {
     title: parsed.data.title,
     categoryId: parsed.data.categoryId ?? null,
     warningLevel: parsed.data.warningLevel ?? null,
     lastReviewedAt: parsed.data.lastReviewedAt ? new Date(parsed.data.lastReviewedAt) : null,
     contentHtml: nextContentHtml,
+    contentJson: nextContentJson,
   }
 
   await prisma.$transaction(async (tx) => {

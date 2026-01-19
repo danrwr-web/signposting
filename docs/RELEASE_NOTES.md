@@ -21,6 +21,7 @@ A high-level history of major changes.
 - Admin Toolkit: restored sticky categories sidebar and pinned bottom panel on the front page (with natural page scrolling).
 - Admin Toolkit: improved Quick access buttons with a scalable searchable picker and optional labels (defaults to the target item title).
 - Admin Toolkit settings: Quick access buttons now auto-save changes to avoid an extra “Save” step.
+- Admin Toolkit: Added optional “Role cards” section for guidance pages (static responsibility cards).
 
 ---
 
