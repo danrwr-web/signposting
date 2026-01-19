@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Modal from '@/components/appointments/Modal'
@@ -56,6 +56,11 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
       return false
     })
   }, [rows, columns, normalisedQuery])
+
+  const handleModalClose = useCallback(() => {
+    if (saving) return
+    setEditingRow(null)
+  }, [saving])
 
   return (
     <div>
@@ -184,10 +189,7 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
       {editingRow ? (
         <Modal
           title="Edit row"
-          onClose={() => {
-            if (saving) return
-            setEditingRow(null)
-          }}
+          onClose={handleModalClose}
           initialFocusRef={modalFirstFieldRef}
         >
           <form
