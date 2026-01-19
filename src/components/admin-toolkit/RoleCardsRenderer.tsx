@@ -7,13 +7,29 @@ function gridColsClass(columns: number): string {
   return 'lg:grid-cols-3'
 }
 
-export default function RoleCardsRenderer({ block }: { block: RoleCardsBlock }) {
+export default function RoleCardsRenderer({
+  block,
+  useBlueStyle,
+}: {
+  block: RoleCardsBlock
+  useBlueStyle?: boolean
+}) {
   const cards = (block.cards ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex)
   if (cards.length === 0) return null
 
   const title = (block.title ?? '').trim()
   const layout = block.layout === 'row' ? 'row' : 'grid'
   const columns = block.columns ?? 3
+  const isBlue = useBlueStyle === true
+
+  const cardClassName = isBlue
+    ? 'rounded-lg border border-nhs-blue bg-nhs-blue p-4 shadow-sm'
+    : 'rounded-lg border border-gray-200 bg-white p-4 shadow-sm'
+  const titleClassName = isBlue ? 'font-semibold text-white' : 'font-semibold text-gray-900'
+  const listClassName = isBlue
+    ? 'mt-2 list-disc pl-5 space-y-1 text-sm text-white/90'
+    : 'mt-2 list-disc pl-5 space-y-1 text-sm text-gray-700'
+  const emptyClassName = isBlue ? 'mt-2 text-sm text-white/80' : 'mt-2 text-sm text-gray-500'
 
   return (
     <section className="mb-6">
@@ -25,16 +41,22 @@ export default function RoleCardsRenderer({ block }: { block: RoleCardsBlock }) 
             {cards.map((c) => {
               const lines = splitRoleCardBodyToLines(c.body)
               return (
-                <div key={c.id} className="w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="font-semibold text-gray-900">{c.title}</div>
+                <div
+                  key={c.id}
+                  className={[
+                    'w-full sm:w-[calc(50%-0.5rem)] lg:w-[calc(33.333%-0.75rem)]',
+                    cardClassName,
+                  ].join(' ')}
+                >
+                  <div className={titleClassName}>{c.title}</div>
                   {lines.length > 0 ? (
-                    <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-gray-700">
+                    <ul className={listClassName}>
                       {lines.map((l, idx) => (
                         <li key={idx}>{l}</li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-2 text-sm text-gray-500">No responsibilities added yet.</p>
+                    <p className={emptyClassName}>No responsibilities added yet.</p>
                   )}
                 </div>
               )
@@ -45,16 +67,16 @@ export default function RoleCardsRenderer({ block }: { block: RoleCardsBlock }) 
             {cards.map((c) => {
               const lines = splitRoleCardBodyToLines(c.body)
               return (
-                <div key={c.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                  <div className="font-semibold text-gray-900">{c.title}</div>
+                <div key={c.id} className={cardClassName}>
+                  <div className={titleClassName}>{c.title}</div>
                   {lines.length > 0 ? (
-                    <ul className="mt-2 list-disc pl-5 space-y-1 text-sm text-gray-700">
+                    <ul className={listClassName}>
                       {lines.map((l, idx) => (
                         <li key={idx}>{l}</li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-2 text-sm text-gray-500">No responsibilities added yet.</p>
+                    <p className={emptyClassName}>No responsibilities added yet.</p>
                   )}
                 </div>
               )

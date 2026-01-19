@@ -22,6 +22,7 @@ A high-level history of major changes.
 - Admin Toolkit: improved Quick access buttons with a scalable searchable picker and optional labels (defaults to the target item title).
 - Admin Toolkit settings: Quick access buttons now auto-save changes to avoid an extra “Save” step.
 - Admin Toolkit: Added optional “Role cards” section for guidance pages (static responsibility cards).
+- Admin Toolkit: Role cards now respect blue-cards mode and the editor auto-expands when populated.
 
 ---
 

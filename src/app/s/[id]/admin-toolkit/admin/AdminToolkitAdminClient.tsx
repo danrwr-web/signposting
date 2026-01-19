@@ -116,13 +116,23 @@ function newClientId(): string {
 function RoleCardsEditor({
   form,
   setForm,
+  editorKey,
 }: {
   form: PageFormState
   setForm: React.Dispatch<React.SetStateAction<PageFormState>>
+  editorKey: string
 }) {
   if (form.type !== 'PAGE') return null
 
   const enabled = form.roleCardsEnabled
+  const defaultOpen = enabled && (((form.roleCardsCards ?? []).length > 0) || (form.roleCardsTitle ?? '').trim().length > 0)
+  const [open, setOpen] = useState(defaultOpen)
+
+  useEffect(() => {
+    setOpen(defaultOpen)
+    // Only re-evaluate default when switching items/contexts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorKey])
 
   const setEnabled = (next: boolean) => {
     setForm((prev) => {
@@ -137,6 +147,7 @@ function RoleCardsEditor({
       }
       return { ...prev, roleCardsEnabled: false }
     })
+    if (next) setOpen(true)
   }
 
   const updateCard = (id: string, patch: Partial<RoleCard>) => {
@@ -176,7 +187,11 @@ function RoleCardsEditor({
   }
 
   return (
-    <details className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+    <details
+      className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4"
+      open={open}
+      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
+    >
       <summary className="cursor-pointer select-none text-sm font-semibold text-gray-900">Role cards (optional)</summary>
       <div className="mt-3 space-y-4">
         <label className="flex items-center gap-2 text-sm text-gray-800">
@@ -1034,7 +1049,7 @@ function ItemsTab({
                     />
                   </div>
 
-                  <RoleCardsEditor form={form} setForm={setForm} />
+                  <RoleCardsEditor form={form} setForm={setForm} editorKey="create" />
                 </>
               ) : (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
@@ -1299,7 +1314,7 @@ function ItemEditFormContent({
               height={260}
               placeholder="Write guidance for staff…"
             />
-            <RoleCardsEditor form={form} setForm={setForm} />
+            <RoleCardsEditor form={form} setForm={setForm} editorKey={`edit-${selectedItem.id}`} />
           </div>
         ) : (
           <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">

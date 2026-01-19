@@ -7,7 +7,7 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
-import RoleCardsRenderer from '@/components/admin-toolkit/RoleCardsRenderer'
+import RoleCardsRendererWithCardStyle from '@/components/admin-toolkit/RoleCardsRendererWithCardStyle'
 import {
   getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItem,
@@ -168,7 +168,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
           {item.type === 'PAGE' ? (
             <>
               <div className="bg-white rounded-lg shadow-md p-6">
-                {roleCardsBlock ? <RoleCardsRenderer block={roleCardsBlock} /> : null}
+                {roleCardsBlock ? <RoleCardsRendererWithCardStyle block={roleCardsBlock} /> : null}
                 <div
                   className="prose max-w-none"
                   dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(item.contentHtml || '') }}
