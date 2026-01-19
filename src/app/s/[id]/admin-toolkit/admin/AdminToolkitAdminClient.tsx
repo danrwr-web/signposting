@@ -125,7 +125,12 @@ function RoleCardsEditor({
   if (form.type !== 'PAGE') return null
 
   const enabled = form.roleCardsEnabled
-  const defaultOpen = enabled && (((form.roleCardsCards ?? []).length > 0) || (form.roleCardsTitle ?? '').trim().length > 0)
+  const hasRoleCards =
+    enabled &&
+    (((form.roleCardsCards ?? []).length > 0) ||
+      (form.roleCardsTitle ?? '').trim().length > 0 ||
+      form.roleCardsLayout === 'row')
+  const defaultOpen = hasRoleCards
   const [open, setOpen] = useState(defaultOpen)
 
   useEffect(() => {
@@ -133,6 +138,12 @@ function RoleCardsEditor({
     // Only re-evaluate default when switching items/contexts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorKey])
+
+  useEffect(() => {
+    // If role cards exist (or load in after deep-link selection), auto-expand.
+    // Do not force-close when empty.
+    if (hasRoleCards) setOpen(true)
+  }, [hasRoleCards, editorKey])
 
   const setEnabled = (next: boolean) => {
     setForm((prev) => {
@@ -1806,6 +1817,9 @@ function StructureSettingsTab({
       .sort((a, b) => a.orderIndex - b.orderIndex)
       .map((b, idx) => ({ ...b, orderIndex: idx }))
 
+  const reindexQuickAccess = (buttons: AdminToolkitQuickAccessButton[]): AdminToolkitQuickAccessButton[] =>
+    buttons.map((b, idx) => ({ ...b, orderIndex: idx }))
+
   const [quickAccessButtons, setQuickAccessButtons] = useState<AdminToolkitQuickAccessButton[]>(() =>
     sortQuickAccess(initialQuickAccessButtons),
   )
@@ -2658,13 +2672,24 @@ function StructureSettingsTab({
                           ariaLabel="Move button up"
                           disabled={idx === 0}
                           onClick={async () => {
+                            const prevButtons = quickAccessButtons
+                            const prevSavedJson = quickAccessLastSavedJsonRef.current
+
                             const next = quickAccessButtons.slice()
                             const tmp = next[idx - 1]
                             next[idx - 1] = next[idx]
                             next[idx] = tmp
-                            const ordered = sortQuickAccess(next)
+                            const ordered = reindexQuickAccess(next)
+
+                            // Optimistic UI, and suppress the debounced autosave to avoid duplicate saves.
+                            quickAccessLastSavedJsonRef.current = JSON.stringify(ordered)
                             setQuickAccessButtons(ordered)
-                            await persistQuickAccessButtons(ordered)
+
+                            const ok = await persistQuickAccessButtons(ordered)
+                            if (!ok) {
+                              quickAccessLastSavedJsonRef.current = prevSavedJson
+                              setQuickAccessButtons(prevButtons)
+                            }
                           }}
                         >
                           ↑
@@ -2674,13 +2699,23 @@ function StructureSettingsTab({
                           ariaLabel="Move button down"
                           disabled={idx >= quickAccessButtons.length - 1}
                           onClick={async () => {
+                            const prevButtons = quickAccessButtons
+                            const prevSavedJson = quickAccessLastSavedJsonRef.current
+
                             const next = quickAccessButtons.slice()
                             const tmp = next[idx + 1]
                             next[idx + 1] = next[idx]
                             next[idx] = tmp
-                            const ordered = sortQuickAccess(next)
+                            const ordered = reindexQuickAccess(next)
+
+                            quickAccessLastSavedJsonRef.current = JSON.stringify(ordered)
                             setQuickAccessButtons(ordered)
-                            await persistQuickAccessButtons(ordered)
+
+                            const ok = await persistQuickAccessButtons(ordered)
+                            if (!ok) {
+                              quickAccessLastSavedJsonRef.current = prevSavedJson
+                              setQuickAccessButtons(prevButtons)
+                            }
                           }}
                         >
                           ↓
@@ -2692,9 +2727,19 @@ function StructureSettingsTab({
                             const display = b.label.trim() || itemOptionById.get(b.itemId)?.title || 'this button'
                             const ok = confirm(`Delete "${display}"?`)
                             if (!ok) return
-                            const next = sortQuickAccess(quickAccessButtons.filter((x) => x.id !== b.id))
+                            const prevButtons = quickAccessButtons
+                            const prevSavedJson = quickAccessLastSavedJsonRef.current
+
+                            const next = reindexQuickAccess(quickAccessButtons.filter((x) => x.id !== b.id))
+
+                            quickAccessLastSavedJsonRef.current = JSON.stringify(next)
                             setQuickAccessButtons(next)
-                            await persistQuickAccessButtons(next, { successToast: 'Quick access button deleted' })
+
+                            const saved = await persistQuickAccessButtons(next, { successToast: 'Quick access button deleted' })
+                            if (!saved) {
+                              quickAccessLastSavedJsonRef.current = prevSavedJson
+                              setQuickAccessButtons(prevButtons)
+                            }
                           }}
                         >
                           Delete
