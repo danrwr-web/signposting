@@ -1053,6 +1053,7 @@ function ItemsTab({
                   <label className="block text-sm font-medium text-gray-700">Content</label>
                   <div className="mt-2">
                     <RichTextEditor
+                      docId={`admin-toolkit:create`}
                       value={form.contentHtml}
                       onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
                       height={260}
@@ -1320,6 +1321,7 @@ function ItemEditFormContent({
         {selectedItem.type === 'PAGE' ? (
           <div className="mt-2">
             <RichTextEditor
+              docId={`admin-toolkit:item:${selectedItem.id}`}
               value={form.contentHtml}
               onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
               height={260}
