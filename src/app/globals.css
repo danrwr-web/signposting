@@ -75,3 +75,52 @@
     transition: none;
   }
 }
+
+/* TipTap editor baseline styling (caret/selection/focus visibility) */
+.safe-tiptap .ProseMirror {
+  outline: none;
+  min-height: 100px;
+  color: #0b0c0c; /* NHS black */
+  caret-color: #0b0c0c;
+}
+
+.safe-tiptap .ProseMirror p {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.safe-tiptap .ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.safe-tiptap .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.safe-tiptap .ProseMirror ul,
+.safe-tiptap .ProseMirror ol {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.safe-tiptap .ProseMirror li {
+  margin: 0.25rem 0;
+}
+
+.safe-tiptap .ProseMirror strong {
+  font-weight: 700;
+}
+
+.safe-tiptap .ProseMirror em {
+  font-style: italic;
+}
+
+/* Selection styling (works on white + blue-card contexts) */
+.safe-tiptap .ProseMirror ::selection {
+  background: rgba(0, 94, 184, 0.25);
+}
+
+.safe-tiptap .ProseMirror-selectednode {
+  outline: 2px solid rgba(0, 94, 184, 0.5);
+  outline-offset: 2px;
+}
