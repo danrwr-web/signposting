@@ -154,8 +154,8 @@ export default function SafeTipTapEditor({
     const nextHtml = ensureProperParagraphs(initialHtml)
     if (editor.getHTML() === nextHtml) return
 
-    // `false` here avoids emitting an update event (prevents feedback loops).
-    editor.commands.setContent(nextHtml, false)
+    // Avoid emitting an update event (prevents feedback loops).
+    editor.commands.setContent(nextHtml, { emitUpdate: false })
     // Ensure toolbar state reflects the document.
     setShowColorPicker(false)
   }, [editor, docId, initialHtml])
