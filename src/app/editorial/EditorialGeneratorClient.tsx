@@ -20,6 +20,8 @@ interface PromptTrace {
   modelNormalisedJson?: unknown
   validationErrors?: unknown
   sources?: unknown
+  safetyValidationPassed?: boolean
+  safetyValidationErrors?: Array<{ code: string; message: string; cardTitle?: string }>
 }
 
 export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
@@ -85,6 +87,25 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
           }
           return
         }
+        
+        // Handle safety validation failures
+        if (payload?.error?.code === 'SAFETY_VALIDATION_FAILED') {
+          setError('Admin output failed safety validation')
+          const traceIdFromError = payload.traceId
+          setErrorDetails({
+            requestId: payload.requestId,
+            traceId: traceIdFromError,
+            issues: Array.isArray(payload.error?.details) ? payload.error.details : [],
+          })
+          // Auto-open debug panel on safety validation failure
+          if (traceIdFromError && isDevMode) {
+            setTraceId(traceIdFromError)
+            setDebugPanelOpen(true)
+            fetchTrace(traceIdFromError)
+          }
+          return
+        }
+        
         throw new Error(payload?.error?.message || 'Unable to generate drafts')
       }
 
@@ -355,10 +376,46 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
 
                   {trace.validationErrors && (
                     <div>
-                      <strong className="text-sm text-red-700">Validation Errors</strong>
+                      <strong className="text-sm text-red-700">Schema Validation Errors</strong>
                       <pre className="text-xs bg-red-50 p-3 rounded border overflow-auto max-h-64 mt-2">
                         {formatJson(trace.validationErrors)}
                       </pre>
+                    </div>
+                  )}
+
+                  {trace.safetyValidationErrors && trace.safetyValidationErrors.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <strong className="text-sm text-red-700">
+                          Safety Validation Errors{' '}
+                          {trace.safetyValidationPassed === false && (
+                            <span className="font-normal text-red-600">(Failed)</span>
+                          )}
+                        </strong>
+                        <button
+                          onClick={() => copyToClipboard(formatJson(trace.safetyValidationErrors))}
+                          className="text-xs text-nhs-blue hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {trace.safetyValidationErrors.map((error, index) => (
+                          <div key={index} className="bg-red-50 p-3 rounded border border-red-200">
+                            <div className="font-semibold text-sm text-red-900">
+                              {error.code}
+                              {error.cardTitle && <span className="font-normal text-red-700"> - {error.cardTitle}</span>}
+                            </div>
+                            <div className="text-xs text-red-700 mt-1">{error.message}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {trace.safetyValidationPassed === true && (
+                    <div className="bg-green-50 p-3 rounded border border-green-200">
+                      <strong className="text-sm text-green-900">Safety Validation: Passed ✓</strong>
                     </div>
                   )}
 

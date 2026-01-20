@@ -22,6 +22,8 @@ export interface PromptTrace {
   modelNormalisedJson?: unknown
   validationErrors?: unknown
   sources?: unknown
+  safetyValidationPassed?: boolean
+  safetyValidationErrors?: Array<{ code: string; message: string; cardTitle?: string }>
 }
 
 const TRACE_TTL_MS = 10 * 60 * 1000 // 10 minutes

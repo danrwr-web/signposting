@@ -216,6 +216,24 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      if (error.code === 'VALIDATION_FAILED') {
+        const details = error.details as
+          | { issues?: Array<{ code: string; message: string; cardTitle?: string }>; traceId?: string }
+          | undefined
+        return NextResponse.json(
+          {
+            error: {
+              code: 'SAFETY_VALIDATION_FAILED',
+              message: error.message,
+              details: details?.issues ?? [],
+            },
+            traceId: details?.traceId ?? undefined,
+            requestId,
+          },
+          { status: 502 }
+        )
+      }
+
       return NextResponse.json(
         { error: { code: error.code, message: error.message, details: error.details, requestId } },
         { status: 502 }

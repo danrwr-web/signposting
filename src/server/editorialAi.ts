@@ -704,6 +704,17 @@ export async function generateEditorialBatch(params: {
   if (params.targetRole === 'ADMIN') {
     const issues = validateAdminCards({ cards: finalResult.data.cards, promptText: params.promptText })
     if (issues.length > 0) {
+      // Store initial safety validation failure in trace (before retry)
+      if (process.env.NODE_ENV !== 'production') {
+        promptTraceStore.update(traceId, {
+          safetyValidationPassed: false,
+          safetyValidationErrors: issues.map((issue) => ({
+            code: issue.code,
+            message: issue.message,
+            cardTitle: issue.cardTitle,
+          })),
+        })
+      }
       // Reuse the same toolkit context for retry (no need to refetch)
       const retryPrompt = buildUserPrompt({
         promptText: params.promptText,
@@ -740,8 +751,30 @@ export async function generateEditorialBatch(params: {
         promptText: params.promptText,
       })
       if (retryIssues.length > 0) {
-        throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', retryIssues)
+        // Store safety validation failure in trace before throwing
+        if (process.env.NODE_ENV !== 'production') {
+          promptTraceStore.update(traceId, {
+            safetyValidationPassed: false,
+            safetyValidationErrors: retryIssues.map((issue) => ({
+              code: issue.code,
+              message: issue.message,
+              cardTitle: issue.cardTitle,
+            })),
+          })
+        }
+        throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
+          issues: retryIssues,
+          traceId,
+        })
       }
+    }
+    
+    // Mark safety validation as passed if we got here (ADMIN role only)
+    if (params.targetRole === 'ADMIN' && process.env.NODE_ENV !== 'production') {
+      promptTraceStore.update(traceId, {
+        safetyValidationPassed: true,
+        safetyValidationErrors: undefined,
+      })
     }
   }
 
