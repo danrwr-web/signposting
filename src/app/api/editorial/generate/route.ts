@@ -9,6 +9,7 @@ import {
   generateEditorialBatch,
   EditorialAiError,
   type GenerationAttemptRecord,
+  type EditorialDebugInfo,
 } from '@/server/editorialAi'
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
 import { resolveTargetRole } from '@/lib/editorial/roleRouting'
@@ -17,9 +18,20 @@ import { randomUUID } from 'node:crypto'
 
 const MAX_GENERATIONS_PER_HOUR = 5
 
+// Helper to check if we should include debug info
+function shouldIncludeDebug(request: NextRequest): boolean {
+  if (process.env.NODE_ENV === 'production') return false
+  const searchParams = request.nextUrl.searchParams
+  const debugHeader = request.headers.get('x-dd-debug')
+  return searchParams.get('debug') === '1' || debugHeader === '1'
+}
+
 export async function POST(request: NextRequest) {
   let requestId: string | null = null
   let allowDiagnostics = false
+  let debugInfo: EditorialDebugInfo | null = null
+  const isDebugMode = shouldIncludeDebug(request)
+  
   try {
     const user = await getSessionUser()
     if (!user) {
@@ -28,13 +40,6 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       )
     }
-
-    // Check for debug mode (dev only)
-    const searchParams = request.nextUrl.searchParams
-    const debugHeader = request.headers.get('x-dd-debug')
-    const isDebugMode =
-      process.env.NODE_ENV !== 'production' &&
-      (searchParams.get('debug') === '1' || debugHeader === '1')
 
     const body = await request.json()
     const parsed = EditorialGenerateRequestZ.parse(body)
@@ -98,15 +103,9 @@ export async function POST(request: NextRequest) {
       returnDebugInfo: isDebugMode,
     })
 
-    // If debug mode, return early with debug info (dev only)
-    if (isDebugMode && 'debug' in generated && generated.debug) {
-      return NextResponse.json({
-        debug: generated.debug,
-        batchId: null,
-        cardIds: [],
-        quizId: null,
-        createdAt: new Date(),
-      })
+    // Capture debug info if available (for inclusion in response)
+    if ('debug' in generated && generated.debug) {
+      debugInfo = generated.debug
     }
 
     const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
@@ -186,6 +185,8 @@ export async function POST(request: NextRequest) {
       quizId: quiz.id,
       createdAt: now,
       traceId: generated.traceId,
+      // Include inline debug info (dev-only, when requested)
+      ...(isDebugMode && debugInfo ? { debug: debugInfo } : {}),
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof EditorialAiError) {
       if (error.code === 'SCHEMA_MISMATCH') {
         const details = error.details as
-          | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string; traceId?: string }
+          | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string; traceId?: string; debug?: EditorialDebugInfo }
           | undefined
         const includeRawSnippet = process.env.NODE_ENV !== 'production' || allowDiagnostics
         return NextResponse.json(
@@ -211,6 +212,8 @@ export async function POST(request: NextRequest) {
               code: 'SCHEMA_MISMATCH', 
               message: 'Generated output did not match schema. Check Debug panel for details.' 
             },
+            // Include inline debug info (dev-only)
+            ...(isDebugMode && details?.debug ? { debug: details.debug } : {}),
           },
           { status: 502 }
         )
@@ -218,7 +221,7 @@ export async function POST(request: NextRequest) {
 
       if (error.code === 'VALIDATION_FAILED') {
         const details = error.details as
-          | { issues?: Array<{ code: string; message: string; cardTitle?: string }>; traceId?: string }
+          | { issues?: Array<{ code: string; message: string; cardTitle?: string }>; traceId?: string; debug?: EditorialDebugInfo }
           | undefined
         return NextResponse.json(
           {
@@ -229,6 +232,8 @@ export async function POST(request: NextRequest) {
             },
             traceId: details?.traceId ?? undefined,
             requestId,
+            // Include inline debug info (dev-only)
+            ...(isDebugMode && details?.debug ? { debug: details.debug } : {}),
           },
           { status: 502 }
         )

@@ -7,21 +7,19 @@ interface EditorialGeneratorClientProps {
   surgeryId: string
 }
 
-interface PromptTrace {
+// Debug info returned inline from the generate API (no separate fetch needed)
+interface DebugInfo {
   traceId: string
-  createdAt: string
   toolkitInjected: boolean
+  toolkitSource: { title: string; url: string | null; publisher?: string } | null
   matchedSymptoms: string[]
   toolkitContextLength: number
   promptSystem: string
   promptUser: string
-  modelRawText?: string
   modelRawJson?: unknown
   modelNormalisedJson?: unknown
-  validationErrors?: unknown
-  sources?: unknown
-  safetyValidationPassed?: boolean
-  safetyValidationErrors?: Array<{ code: string; message: string; cardTitle?: string }>
+  schemaErrors?: Array<{ path: string; message: string }>
+  safetyErrors?: Array<{ code: string; message: string; cardTitle?: string }>
 }
 
 export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
@@ -39,10 +37,9 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     issues: Array<{ path: string; message: string }>
     rawSnippet?: string
   } | null>(null)
-  const [traceId, setTraceId] = useState<string | null>(null)
-  const [trace, setTrace] = useState<PromptTrace | null>(null)
+  const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
-  // Note: Client-side check - we'll rely on server returning traceId only in dev
+  // Client-side check for dev mode (non-production hostnames)
   const [isDevMode] = useState(typeof window !== 'undefined' && window.location.hostname !== 'app.signpostingtool.co.uk')
 
   const handleGenerate = async (event: React.FormEvent) => {
@@ -50,9 +47,12 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setLoading(true)
     setError(null)
     setErrorDetails(null)
+    setDebugInfo(null)
 
     try {
-      const response = await fetch('/api/editorial/generate', {
+      // Add debug query param in dev mode
+      const url = isDevMode ? '/api/editorial/generate?debug=1' : '/api/editorial/generate'
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,21 +69,24 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
       })
 
       const payload = await response.json().catch(() => ({}))
+      
+      // Capture inline debug info if available (from both success and error responses)
+      if (isDevMode && payload?.debug) {
+        setDebugInfo(payload.debug as DebugInfo)
+      }
+      
       if (!response.ok) {
         if (payload?.errorCode === 'SCHEMA_MISMATCH') {
           setError('Generation failed: schema mismatch')
-          const traceIdFromError = payload.traceId
           setErrorDetails({
             requestId: payload.requestId,
-            traceId: traceIdFromError,
+            traceId: payload.traceId,
             issues: Array.isArray(payload.issues) ? payload.issues : [],
             rawSnippet: payload.rawSnippet,
           })
           // Auto-open debug panel on schema mismatch
-          if (traceIdFromError && isDevMode) {
-            setTraceId(traceIdFromError)
+          if (isDevMode) {
             setDebugPanelOpen(true)
-            fetchTrace(traceIdFromError)
           }
           return
         }
@@ -91,28 +94,19 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         // Handle safety validation failures
         if (payload?.error?.code === 'SAFETY_VALIDATION_FAILED') {
           setError('Admin output failed safety validation')
-          const traceIdFromError = payload.traceId
           setErrorDetails({
             requestId: payload.requestId,
-            traceId: traceIdFromError,
+            traceId: payload.traceId,
             issues: Array.isArray(payload.error?.details) ? payload.error.details : [],
           })
           // Auto-open debug panel on safety validation failure
-          if (traceIdFromError && isDevMode) {
-            setTraceId(traceIdFromError)
+          if (isDevMode) {
             setDebugPanelOpen(true)
-            fetchTrace(traceIdFromError)
           }
           return
         }
         
         throw new Error(payload?.error?.message || 'Unable to generate drafts')
-      }
-
-      // Store traceId and fetch trace in dev mode
-      if (payload.traceId && isDevMode) {
-        setTraceId(payload.traceId)
-        fetchTrace(payload.traceId)
       }
 
       router.push(`/editorial/batches/${payload.batchId}?surgery=${surgeryId}`)
@@ -131,21 +125,8 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setInteractiveFirst(true)
     setError(null)
     setErrorDetails(null)
-    setTraceId(null)
-    setTrace(null)
+    setDebugInfo(null)
     setDebugPanelOpen(false)
-  }
-
-  const fetchTrace = async (id: string) => {
-    try {
-      const response = await fetch(`/api/editorial/prompt-trace?traceId=${id}`)
-      if (response.ok) {
-        const data = await response.json()
-        setTrace(data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch trace:', err)
-    }
   }
 
   const copyToClipboard = (text: string) => {
@@ -282,148 +263,153 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
           className="rounded-lg border border-slate-200 bg-white"
         >
           <summary className="cursor-pointer px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Debug Panel {traceId && <span className="font-mono text-xs text-slate-500">(Trace ID: {traceId})</span>}
+            Debug Panel {debugInfo?.traceId && <span className="font-mono text-xs text-slate-500">(Trace: {debugInfo.traceId.slice(0, 8)}…)</span>}
           </summary>
           <div className="border-t border-slate-200 p-6 space-y-4">
-            {!trace && traceId && (
-              <div className="text-sm text-slate-600">Loading trace data...</div>
-            )}
-            {!traceId && (
+            {!debugInfo && (
               <div className="text-sm text-slate-500">Generate cards to see debug information</div>
             )}
-            {trace && (
+            {debugInfo && (
               <>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                {/* Debug Summary Row */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-slate-50 p-3 rounded border">
                   <div>
-                    <strong>Toolkit Injected:</strong> {trace.toolkitInjected ? 'Yes' : 'No'}
+                    <strong>Toolkit:</strong> {debugInfo.toolkitInjected ? '✓ Injected' : '✗ None'}
                   </div>
                   <div>
-                    <strong>Matched Symptoms:</strong>{' '}
-                    {trace.matchedSymptoms.length > 0 ? trace.matchedSymptoms.join(', ') : 'None'}
+                    <strong>Symptoms:</strong>{' '}
+                    {debugInfo.matchedSymptoms.length > 0 ? debugInfo.matchedSymptoms.join(', ') : 'None'}
                   </div>
                   <div>
-                    <strong>Context Length:</strong> {trace.toolkitContextLength.toLocaleString()} chars
+                    <strong>Context:</strong> {debugInfo.toolkitContextLength.toLocaleString()} chars
                   </div>
                   <div>
-                    <strong>Created At:</strong> {new Date(trace.createdAt).toLocaleString()}
+                    <strong>Trace:</strong>{' '}
+                    <span className="font-mono text-xs">{debugInfo.traceId.slice(0, 8)}</span>
                   </div>
                 </div>
 
                 <div className="space-y-4">
+                  {/* System Prompt */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <strong className="text-sm">System Prompt</strong>
                       <button
-                        onClick={() => copyToClipboard(trace.promptSystem)}
+                        type="button"
+                        onClick={() => copyToClipboard(debugInfo.promptSystem)}
                         className="text-xs text-nhs-blue hover:underline"
                       >
                         Copy
                       </button>
                     </div>
                     <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap">
-                      {trace.promptSystem}
+                      {debugInfo.promptSystem}
                     </pre>
                   </div>
 
+                  {/* User Prompt */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <strong className="text-sm">User Prompt</strong>
                       <button
-                        onClick={() => copyToClipboard(trace.promptUser)}
+                        type="button"
+                        onClick={() => copyToClipboard(debugInfo.promptUser)}
                         className="text-xs text-nhs-blue hover:underline"
                       >
                         Copy
                       </button>
                     </div>
                     <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap">
-                      {trace.promptUser}
+                      {debugInfo.promptUser}
                     </pre>
                   </div>
 
-                  {trace.modelRawJson && (
+                  {/* Model Raw JSON */}
+                  {debugInfo.modelRawJson && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <strong className="text-sm">Raw Model Output (JSON)</strong>
                         <button
-                          onClick={() => copyToClipboard(formatJson(trace.modelRawJson))}
+                          type="button"
+                          onClick={() => copyToClipboard(formatJson(debugInfo.modelRawJson))}
                           className="text-xs text-nhs-blue hover:underline"
                         >
                           Copy
                         </button>
                       </div>
-                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96">
-                        {formatJson(trace.modelRawJson)}
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap">
+                        {formatJson(debugInfo.modelRawJson)}
                       </pre>
                     </div>
                   )}
 
-                  {trace.modelNormalisedJson && (
+                  {/* Normalised Output */}
+                  {debugInfo.modelNormalisedJson && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <strong className="text-sm">Normalised Output</strong>
                         <button
-                          onClick={() => copyToClipboard(formatJson(trace.modelNormalisedJson))}
+                          type="button"
+                          onClick={() => copyToClipboard(formatJson(debugInfo.modelNormalisedJson))}
                           className="text-xs text-nhs-blue hover:underline"
                         >
                           Copy
                         </button>
                       </div>
-                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96">
-                        {formatJson(trace.modelNormalisedJson)}
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap">
+                        {formatJson(debugInfo.modelNormalisedJson)}
                       </pre>
                     </div>
                   )}
 
-                  {trace.validationErrors && (
+                  {/* Schema Validation Errors */}
+                  {debugInfo.schemaErrors && debugInfo.schemaErrors.length > 0 && (
                     <div>
                       <strong className="text-sm text-red-700">Schema Validation Errors</strong>
-                      <pre className="text-xs bg-red-50 p-3 rounded border overflow-auto max-h-64 mt-2">
-                        {formatJson(trace.validationErrors)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {trace.safetyValidationErrors && trace.safetyValidationErrors.length > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm text-red-700">
-                          Safety Validation Errors{' '}
-                          {trace.safetyValidationPassed === false && (
-                            <span className="font-normal text-red-600">(Failed)</span>
-                          )}
-                        </strong>
-                        <button
-                          onClick={() => copyToClipboard(formatJson(trace.safetyValidationErrors))}
-                          className="text-xs text-nhs-blue hover:underline"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <div className="space-y-2">
-                        {trace.safetyValidationErrors.map((error, index) => (
+                      <div className="space-y-2 mt-2">
+                        {debugInfo.schemaErrors.map((err, index) => (
                           <div key={index} className="bg-red-50 p-3 rounded border border-red-200">
-                            <div className="font-semibold text-sm text-red-900">
-                              {error.code}
-                              {error.cardTitle && <span className="font-normal text-red-700"> - {error.cardTitle}</span>}
-                            </div>
-                            <div className="text-xs text-red-700 mt-1">{error.message}</div>
+                            <div className="font-semibold text-sm text-red-900">{err.path}</div>
+                            <div className="text-xs text-red-700 mt-1">{err.message}</div>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {trace.safetyValidationPassed === true && (
-                    <div className="bg-green-50 p-3 rounded border border-green-200">
-                      <strong className="text-sm text-green-900">Safety Validation: Passed ✓</strong>
+                  {/* Safety Validation Errors */}
+                  {debugInfo.safetyErrors && debugInfo.safetyErrors.length > 0 && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <strong className="text-sm text-red-700">Safety Validation Errors (Failed)</strong>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(formatJson(debugInfo.safetyErrors))}
+                          className="text-xs text-nhs-blue hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {debugInfo.safetyErrors.map((err, index) => (
+                          <div key={index} className="bg-red-50 p-3 rounded border border-red-200">
+                            <div className="font-semibold text-sm text-red-900">
+                              {err.code}
+                              {err.cardTitle && <span className="font-normal text-red-700"> – {err.cardTitle}</span>}
+                            </div>
+                            <div className="text-xs text-red-700 mt-1">{err.message}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 
-                  {trace.sources && (
+                  {/* Toolkit Source */}
+                  {debugInfo.toolkitSource && (
                     <div>
-                      <strong className="text-sm">Sources</strong>
-                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 mt-2">
-                        {formatJson(trace.sources)}
+                      <strong className="text-sm">Toolkit Source</strong>
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 mt-2 whitespace-pre-wrap">
+                        {formatJson(debugInfo.toolkitSource)}
                       </pre>
                     </div>
                   )}

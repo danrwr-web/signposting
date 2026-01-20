@@ -88,6 +88,20 @@ export type GenerationAttemptRecord = {
   status: 'SUCCESS' | 'FAILED'
 }
 
+export type EditorialDebugInfo = {
+  traceId: string
+  toolkitInjected: boolean
+  toolkitSource: { title: string; url: string | null; publisher?: string } | null
+  matchedSymptoms: string[]
+  toolkitContextLength: number
+  promptSystem: string
+  promptUser: string
+  modelRawJson?: unknown
+  modelNormalisedJson?: unknown
+  schemaErrors?: Array<{ path: string; message: string }>
+  safetyErrors?: Array<{ code: string; message: string; cardTitle?: string }>
+}
+
 const ADMIN_TOOLKIT_PACKS: ToolkitPack[] = [
   {
     id: 'admin-mental-health',
@@ -762,9 +776,28 @@ export async function generateEditorialBatch(params: {
             })),
           })
         }
+        // Build debug info for error response
+        const debugInfoForError: EditorialDebugInfo | undefined = params.returnDebugInfo ? {
+          traceId,
+          toolkitInjected: !!toolkit,
+          toolkitSource: toolkit?.source || null,
+          matchedSymptoms: matchedSymptomNames,
+          toolkitContextLength: toolkit?.context?.length || 0,
+          promptSystem: systemPrompt,
+          promptUser: userPrompt,
+          modelRawJson: finalResult.data,
+          modelNormalisedJson: finalResult.data,
+          safetyErrors: retryIssues.map((issue) => ({
+            code: issue.code,
+            message: issue.message,
+            cardTitle: issue.cardTitle,
+          })),
+        } : undefined
+        
         throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
           issues: retryIssues,
           traceId,
+          debug: debugInfoForError,
         })
       }
     }
