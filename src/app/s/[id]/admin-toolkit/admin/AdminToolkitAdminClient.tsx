@@ -133,14 +133,16 @@ function CreateModePageEditor({
     setMounted(true)
   }, [])
 
-  const hasIntro = !isHtmlEmpty(form.introHtml)
+  const hasRoleCards = form.roleCardsEnabled && (
+    ((form.roleCardsCards ?? []).length > 0) ||
+    (form.roleCardsTitle ?? '').trim().length > 0 ||
+    form.roleCardsLayout === 'row'
+  )
   const hasFooter = !isHtmlEmpty(form.footerHtml)
-  const [introOpen, setIntroOpen] = useState(hasIntro)
+  // Page content expanded by default (primary writing surface)
+  const [introOpen, setIntroOpen] = useState(true)
   const [footerOpen, setFooterOpen] = useState(hasFooter)
 
-  useEffect(() => {
-    if (hasIntro) setIntroOpen(true)
-  }, [hasIntro])
   useEffect(() => {
     if (hasFooter) setFooterOpen(true)
   }, [hasFooter])
@@ -148,10 +150,10 @@ function CreateModePageEditor({
   return (
     <>
       <div className="space-y-4">
-        {/* Intro Text Editor */}
+        {/* Page Content Editor */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-sm font-medium text-gray-700">Intro text (optional)</label>
+            <label className="block text-sm font-medium text-gray-700">Page content (optional)</label>
             <button
               type="button"
               onClick={() => setIntroOpen(!introOpen)}
@@ -162,6 +164,11 @@ function CreateModePageEditor({
           </div>
           {introOpen && (
             <div className="mt-2">
+              <p className="mb-2 text-xs text-gray-500">
+                {hasRoleCards
+                  ? 'Main guidance text for this page. If role cards are used, this appears above them.'
+                  : 'Main guidance text for this page.'}
+              </p>
               {mounted ? (
                 <RichTextEditor
                   key={`admin-create-intro-${editorInstanceKey}`}
@@ -169,7 +176,7 @@ function CreateModePageEditor({
                   value={form.introHtml}
                   onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
                   height={200}
-                  placeholder="Text that appears above role cards…"
+                  placeholder="Write guidance for staff…"
                 />
               ) : (
                 <div className="h-[200px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
@@ -194,6 +201,7 @@ function CreateModePageEditor({
           </div>
           {footerOpen && (
             <div className="mt-2">
+              <p className="mb-2 text-xs text-gray-500">Optional extra guidance shown below role cards.</p>
               {mounted ? (
                 <RichTextEditor
                   key={`admin-create-footer-${editorInstanceKey}`}
@@ -201,7 +209,7 @@ function CreateModePageEditor({
                   value={form.footerHtml}
                   onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
                   height={200}
-                  placeholder="Text that appears below role cards…"
+                  placeholder="Optional extra guidance…"
                 />
               ) : (
                 <div className="h-[200px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
@@ -225,14 +233,16 @@ function PageEditorContent({
   selectedItemId: string
   hasLegacyContent: boolean
 }) {
-  const hasIntro = !isHtmlEmpty(form.introHtml)
+  const hasRoleCards = form.roleCardsEnabled && (
+    ((form.roleCardsCards ?? []).length > 0) ||
+    (form.roleCardsTitle ?? '').trim().length > 0 ||
+    form.roleCardsLayout === 'row'
+  )
   const hasFooter = !isHtmlEmpty(form.footerHtml)
-  const [introOpen, setIntroOpen] = useState(hasIntro)
+  // Page content expanded by default (primary writing surface)
+  const [introOpen, setIntroOpen] = useState(true)
   const [footerOpen, setFooterOpen] = useState(hasFooter || hasLegacyContent)
 
-  useEffect(() => {
-    if (hasIntro) setIntroOpen(true)
-  }, [hasIntro])
   useEffect(() => {
     if (hasFooter || hasLegacyContent) setFooterOpen(true)
   }, [hasFooter, hasLegacyContent])
@@ -249,10 +259,10 @@ function PageEditorContent({
 
   return (
     <div className="mt-2 space-y-4">
-      {/* Intro Text Editor */}
+      {/* Page Content Editor */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">Intro text (optional)</label>
+          <label className="block text-sm font-medium text-gray-700">Page content (optional)</label>
           <button
             type="button"
             onClick={() => setIntroOpen(!introOpen)}
@@ -262,13 +272,20 @@ function PageEditorContent({
           </button>
         </div>
         {introOpen && (
-          <RichTextEditor
-            docId={`admin-toolkit:item:${selectedItemId}:intro`}
-            value={form.introHtml}
-            onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
-            height={200}
-            placeholder="Text that appears above role cards…"
-          />
+          <>
+            <p className="mb-2 text-xs text-gray-500">
+              {hasRoleCards
+                ? 'Main guidance text for this page. If role cards are used, this appears above them.'
+                : 'Main guidance text for this page.'}
+            </p>
+            <RichTextEditor
+              docId={`admin-toolkit:item:${selectedItemId}:intro`}
+              value={form.introHtml}
+              onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
+              height={200}
+              placeholder="Write guidance for staff…"
+            />
+          </>
         )}
       </div>
 
@@ -301,13 +318,16 @@ function PageEditorContent({
           </div>
         )}
         {footerOpen && (
-          <RichTextEditor
-            docId={`admin-toolkit:item:${selectedItemId}:footer`}
-            value={form.footerHtml}
-            onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
-            height={200}
-            placeholder="Text that appears below role cards…"
-          />
+          <>
+            <p className="mb-2 text-xs text-gray-500">Optional extra guidance shown below role cards.</p>
+            <RichTextEditor
+              docId={`admin-toolkit:item:${selectedItemId}:footer`}
+              value={form.footerHtml}
+              onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
+              height={200}
+              placeholder="Optional extra guidance…"
+            />
+          </>
         )}
       </div>
     </div>
