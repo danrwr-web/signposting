@@ -225,76 +225,88 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     return baseReady
   }, [cardForm, canApprove, activeCard])
 
-  const saveDraft = async () => {
-    if (!cardForm.id) return
-    setSaving(true)
-    setError(null)
-    try {
-      const payload = {
-        surgeryId,
-        title: cardForm.title,
-        targetRole: cardForm.targetRole,
-        estimatedTimeMinutes: cardForm.estimatedTimeMinutes,
-        tags: cardForm.tagsText
-          .split(',')
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        riskLevel: cardForm.riskLevel,
-        needsSourcing: cardForm.needsSourcing,
-        reviewByDate: cardForm.reviewByDate || null,
-        sources: cardForm.sources
-          .filter((source) => source.title && source.title.trim()) // Only require title, URL can be null/empty for internal sources
-          .map((source) => ({
-            ...source,
-            url: source.url && source.url.trim() ? source.url.trim() : null, // Normalize empty strings to null
-          })),
-        contentBlocks: cardForm.blocks.map((block) => {
-          if (block.type === 'steps' || block.type === 'do-dont') {
-            return {
-              type: block.type,
-              items: block.itemsText
-                .split('\n')
-                .map((item) => item.trim())
-                .filter(Boolean),
-            }
-          }
-          return block
-        }),
-        interactions: cardForm.interactions.map((interaction) => ({
-          type: interaction.type,
-          question: interaction.question,
-          options: interaction.optionsText
+  // Build the save payload from current form state
+  const buildSavePayload = () => ({
+    surgeryId,
+    title: cardForm.title,
+    targetRole: cardForm.targetRole,
+    estimatedTimeMinutes: cardForm.estimatedTimeMinutes,
+    tags: cardForm.tagsText
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean),
+    riskLevel: cardForm.riskLevel,
+    needsSourcing: cardForm.needsSourcing,
+    reviewByDate: cardForm.reviewByDate || null,
+    sources: cardForm.sources
+      .filter((source) => source.title && source.title.trim())
+      .map((source) => ({
+        ...source,
+        url: source.url && source.url.trim() ? source.url.trim() : null,
+      })),
+    contentBlocks: cardForm.blocks.map((block) => {
+      if (block.type === 'steps' || block.type === 'do-dont') {
+        return {
+          type: block.type,
+          items: block.itemsText
             .split('\n')
-            .map((option) => option.trim())
+            .map((item) => item.trim())
             .filter(Boolean),
-          correctIndex: interaction.correctIndex,
-          explanation: interaction.explanation,
-        })),
-        slotLanguage: {
-          relevant: cardForm.slotRelevant,
-          guidance: cardForm.slotRelevant
-            ? cardForm.slotGuidance.filter((item) => item.slot && item.rule)
-            : [],
-        },
-        safetyNetting: cardForm.safetyNettingText
-          .split('\n')
-          .map((item) => item.trim())
-          .filter(Boolean),
-        // Note: clinician approval is handled server-side via the /approve endpoint
+        }
       }
+      return block
+    }),
+    interactions: cardForm.interactions.map((interaction) => ({
+      type: interaction.type,
+      question: interaction.question,
+      options: interaction.optionsText
+        .split('\n')
+        .map((option) => option.trim())
+        .filter(Boolean),
+      correctIndex: interaction.correctIndex,
+      explanation: interaction.explanation,
+    })),
+    slotLanguage: {
+      relevant: cardForm.slotRelevant,
+      guidance: cardForm.slotRelevant
+        ? cardForm.slotGuidance.filter((item) => item.slot && item.rule)
+        : [],
+    },
+    safetyNetting: cardForm.safetyNettingText
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean),
+  })
 
+  // Save draft and return success status
+  const doSave = async (): Promise<boolean> => {
+    if (!cardForm.id) return false
+    try {
       const response = await fetch(`/api/editorial/cards/${cardForm.id}?surgeryId=${surgeryId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(buildSavePayload()),
       })
       const resPayload = await response.json().catch(() => ({}))
       if (!response.ok) {
         throw new Error(resPayload?.error?.message || 'Unable to save card')
       }
-      await loadBatch()
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
+      return false
+    }
+  }
+
+  const saveDraft = async () => {
+    if (!cardForm.id) return
+    setSaving(true)
+    setError(null)
+    try {
+      const success = await doSave()
+      if (success) {
+        await loadBatch()
+      }
     } finally {
       setSaving(false)
     }
@@ -305,6 +317,13 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     setSaving(true)
     setError(null)
     try {
+      // First, save the current form state to persist any changes (like "Sources verified")
+      const saveSuccess = await doSave()
+      if (!saveSuccess) {
+        return // Error already set by doSave
+      }
+
+      // Then approve
       const response = await fetch(`/api/editorial/cards/${cardForm.id}/approve?surgeryId=${surgeryId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
