@@ -61,7 +61,8 @@ ADMIN SCOPE:
 
 const ADMIN_SOURCE_RULES = `
 ADMIN SOURCES:
-- sources[0] MUST be "Signposting Toolkit (internal)" using the TOOLKIT SOURCE details provided.
+- sources[0] MUST be "Signposting Toolkit ({surgery name})" or "Signposting Toolkit (internal)" using the TOOLKIT SOURCE details provided.
+- The URL may be null if the source is from the practice-specific toolkit database.
 - Only add NHS/NICE for safety-netting wording if needed.
 - Do not cite GP college guidance for admin cards.
 `
@@ -494,7 +495,7 @@ USAGE RULES:
 
     const source = {
       title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
-      url: `https://app.signpostingtool.co.uk/s/${params.surgeryId}`,
+      url: null, // DB-driven context has no single URL - symptoms are practice-specific
       publisher: 'Signposting Toolkit',
     }
 
@@ -606,6 +607,7 @@ export async function generateEditorialBatch(params: {
   interactiveFirst: boolean
   requestId: string
   onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
+  returnDebugInfo?: boolean
 }) {
   let attemptIndex = 0
   const toolkit = await resolveSignpostingToolkitAdvice({
@@ -615,6 +617,7 @@ export async function generateEditorialBatch(params: {
     targetRole: params.targetRole,
   })
 
+  const systemPrompt = buildSystemPrompt({ role: params.targetRole })
   const userPrompt = buildUserPrompt({
     promptText: params.promptText,
     targetRole: params.targetRole,
@@ -625,8 +628,21 @@ export async function generateEditorialBatch(params: {
     toolkitSource: toolkit?.source,
   })
 
+  // Extract matched symptom names from toolkit context for debug info
+  const matchedSymptomNames: string[] = []
+  if (toolkit?.context && toolkit.context.includes('INTERNAL PRACTICE-APPROVED GUIDANCE')) {
+    // Extract symptom names from the context (they appear as ## Symptom Name)
+    const lines = toolkit.context.split('\n')
+    for (const line of lines) {
+      const match = line.match(/^## (.+)$/)
+      if (match && match[1]) {
+        matchedSymptomNames.push(match[1].trim())
+      }
+    }
+  }
+
   const primaryResult = await runGenerationAttempt({
-    systemPrompt: buildSystemPrompt({ role: params.targetRole }),
+    systemPrompt,
     userPrompt,
     requestId: params.requestId,
     attemptIndex: attemptIndex++,
@@ -637,7 +653,7 @@ export async function generateEditorialBatch(params: {
     attempt: primaryResult,
     requestId: params.requestId,
     attemptIndex: () => attemptIndex++,
-    systemPrompt: buildSystemPrompt({ role: params.targetRole }),
+    systemPrompt,
     onAttempt: params.onAttempt,
   })
 
@@ -658,8 +674,9 @@ export async function generateEditorialBatch(params: {
         validationIssues: issues,
       })
 
+      const strictSystemPrompt = buildSystemPrompt({ role: params.targetRole, strictAdmin: true })
       const strictResult = await runGenerationAttempt({
-        systemPrompt: buildSystemPrompt({ role: params.targetRole, strictAdmin: true }),
+        systemPrompt: strictSystemPrompt,
         userPrompt: retryPrompt,
         requestId: params.requestId,
         attemptIndex: attemptIndex++,
@@ -670,7 +687,7 @@ export async function generateEditorialBatch(params: {
         attempt: strictResult,
         requestId: params.requestId,
         attemptIndex: () => attemptIndex++,
-        systemPrompt: buildSystemPrompt({ role: params.targetRole, strictAdmin: true }),
+        systemPrompt: strictSystemPrompt,
         onAttempt: params.onAttempt,
       })
 
@@ -684,11 +701,28 @@ export async function generateEditorialBatch(params: {
     }
   }
 
-  return {
+  const result = {
     cards: finalResult.data.cards,
     quiz: finalResult.data.quiz,
     modelUsed: finalResult.modelUsed,
   }
+
+  // Add debug info if requested (dev only)
+  if (params.returnDebugInfo) {
+    return {
+      ...result,
+      debug: {
+        promptUser: userPrompt,
+        promptSystem: systemPrompt,
+        toolkitInjected: !!toolkit,
+        toolkitSource: toolkit?.source || null,
+        matchedSymptoms: matchedSymptomNames,
+        toolkitContextLength: toolkit?.context?.length || 0,
+      },
+    }
+  }
+
+  return result
 }
 
 export async function generateEditorialVariations(params: {

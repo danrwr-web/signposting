@@ -29,6 +29,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check for debug mode (dev only)
+    const searchParams = request.nextUrl.searchParams
+    const debugHeader = request.headers.get('x-dd-debug')
+    const isDebugMode =
+      process.env.NODE_ENV !== 'production' &&
+      (searchParams.get('debug') === '1' || debugHeader === '1')
+
     const body = await request.json()
     const parsed = EditorialGenerateRequestZ.parse(body)
     const surgeryId = resolveSurgeryIdForUser({ requestedId: parsed.surgeryId, user })
@@ -87,7 +94,19 @@ export async function POST(request: NextRequest) {
       interactiveFirst: parsed.interactiveFirst,
       requestId,
       onAttempt: recordAttempt,
+      returnDebugInfo: isDebugMode,
     })
+
+    // If debug mode, return early with debug info (dev only)
+    if (isDebugMode && 'debug' in generated && generated.debug) {
+      return NextResponse.json({
+        debug: generated.debug,
+        batchId: null,
+        cardIds: [],
+        quizId: null,
+        createdAt: new Date(),
+      })
+    }
 
     const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
     const now = new Date()
