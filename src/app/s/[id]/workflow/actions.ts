@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAdmin, requireSurgeryAccess, getSessionUser, can } from '@/lib/rbac'
-import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
+import { WorkflowNodeType, WorkflowActionKey, Prisma } from '@prisma/client'
 import { inferWorkflowIconKey } from '@/components/workflow/icons/inferWorkflowIconKey'
 import { isWorkflowIconKey } from '@/components/workflow/icons/workflowIconRegistry'
 
@@ -658,7 +658,7 @@ export async function createWorkflowNodeForTemplate(
         title: defaultTitle,
         items: [{ text: 'New item' }],
       },
-    } : null
+    } : undefined
 
     const node = await prisma.workflowNodeTemplate.create({
       data: {
@@ -1111,8 +1111,8 @@ export async function updateWorkflowNodeForDiagram(
         title: string
         body: string | null
         actionKey: WorkflowActionKey | null
-        badges?: unknown
-        style?: unknown
+        badges?: Prisma.InputJsonValue
+        style?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput
       } = {
         title,
         body: body || null,
@@ -1194,9 +1194,9 @@ export async function updateWorkflowNodeForDiagram(
           }
         }
         
-        // If style is explicitly null, allow clearing it
+        // If style is explicitly null, allow clearing it (use Prisma.DbNull for database NULL)
         // Otherwise, use merged style with clamped dimensions
-        updateData.style = style === null ? null : mergedStyle
+        updateData.style = style === null ? Prisma.DbNull : mergedStyle
       }
       
       await tx.workflowNodeTemplate.update({
