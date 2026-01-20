@@ -621,6 +621,7 @@ export default function AdminToolkitAdminClient({
           formFromItem={formFromItem}
           focusTitle={focusTitle}
           editorInstanceKey={editorInstanceKey}
+          setEditorInstanceKey={setEditorInstanceKey}
         />
       ) : (
         <StructureSettingsTab
@@ -690,6 +691,7 @@ function ItemsTab({
   formFromItem,
   focusTitle,
   editorInstanceKey,
+  setEditorInstanceKey,
 }: {
   surgeryId: string
   categories: AdminToolkitCategory[]
@@ -714,6 +716,7 @@ function ItemsTab({
   formFromItem: (item: AdminToolkitPageItem) => PageFormState
   focusTitle: () => void
   editorInstanceKey: number
+  setEditorInstanceKey: React.Dispatch<React.SetStateAction<number>>
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'PAGE' | 'LIST'>('ALL')
