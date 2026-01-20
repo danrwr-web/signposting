@@ -6,7 +6,20 @@ export const EditorialRiskZ = z.enum(['LOW', 'MED', 'HIGH'])
 
 export const EditorialSourceZ = z.object({
   title: z.string().min(1),
-  url: z.string().url().nullable().optional(), // Allow null for internal/practice-specific sources
+  url: z
+    .union([
+      z.string().url(),
+      z.string().length(0), // Empty string
+      z.literal(null),
+      z.undefined(),
+    ])
+    .nullable()
+    .optional()
+    .transform((val) => {
+      // Convert empty strings and undefined to null for internal/practice-specific sources
+      if (val === '' || val === undefined) return null
+      return val
+    }),
   publisher: z.string().optional(),
   accessedDate: z.string().optional(),
 })

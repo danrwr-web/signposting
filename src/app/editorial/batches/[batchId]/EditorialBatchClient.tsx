@@ -223,7 +223,12 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         riskLevel: cardForm.riskLevel,
         needsSourcing: cardForm.needsSourcing,
         reviewByDate: cardForm.reviewByDate || null,
-        sources: cardForm.sources.filter((source) => source.title && source.url),
+        sources: cardForm.sources
+          .filter((source) => source.title && source.title.trim()) // Only require title, URL can be null/empty for internal sources
+          .map((source) => ({
+            ...source,
+            url: source.url && source.url.trim() ? source.url.trim() : null, // Normalize empty strings to null
+          })),
         contentBlocks: cardForm.blocks.map((block) => {
           if (block.type === 'steps' || block.type === 'do-dont') {
             return {

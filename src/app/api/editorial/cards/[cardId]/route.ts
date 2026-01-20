@@ -93,8 +93,18 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ cardId: updated.id })
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const issueMessages = error.issues.map((issue) => {
+        const path = issue.path.join('.')
+        return `${path}: ${issue.message}`
+      })
       return NextResponse.json(
-        { error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.issues } },
+        {
+          error: {
+            code: 'INVALID_INPUT',
+            message: `Validation failed: ${issueMessages.join('; ')}`,
+            details: error.issues,
+          },
+        },
         { status: 400 }
       )
     }

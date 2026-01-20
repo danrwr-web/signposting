@@ -49,6 +49,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const interactions = Array.isArray(card.interactions) ? card.interactions : []
     const sources = Array.isArray(card.sources) ? card.sources : []
+    
+    // Validate sources - at least one must have a title
+    const validSources = sources.filter((s: any) => s?.title && s.title.trim())
 
     if (card.status !== 'APPROVED') {
       return NextResponse.json(
@@ -57,12 +60,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    if (!card.reviewByDate || sources.length === 0 || interactions.length === 0 || card.needsSourcing) {
+    const missingRequirements: string[] = []
+    if (!card.reviewByDate) missingRequirements.push('review-by date')
+    if (validSources.length === 0) missingRequirements.push('at least one source with a title')
+    if (interactions.length === 0) missingRequirements.push('at least one interaction/question')
+    if (card.needsSourcing) missingRequirements.push('sourcing needs to be marked as complete')
+
+    if (missingRequirements.length > 0) {
       return NextResponse.json(
         {
           error: {
             code: 'INVALID_STATE',
-            message: 'Cards require sources, interactions, and a review-by date before publishing',
+            message: `Card cannot be published. Missing: ${missingRequirements.join(', ')}.`,
           },
         },
         { status: 409 }
@@ -75,7 +84,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           {
             error: {
               code: 'CLINICIAN_REQUIRED',
-              message: 'Clinician approval is required for high-risk content',
+              message: 'Clinician approval is required for high-risk content. Please approve the card first.',
             },
           },
           { status: 409 }
