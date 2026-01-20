@@ -19,6 +19,7 @@ import AdminToolkitAdminClient from './AdminToolkitAdminClient'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const __VERCEL_REDEPLOY_BUMP__ = 'BUMP-2026-01-20T12:00:00Z'
 
 interface AdminToolkitAdminPageProps {
   params: Promise<{ id: string }>
