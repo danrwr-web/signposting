@@ -6,7 +6,7 @@ export const EditorialRiskZ = z.enum(['LOW', 'MED', 'HIGH'])
 
 export const EditorialSourceZ = z.object({
   title: z.string().min(1),
-  url: z.string().url(),
+  url: z.string().url().nullable().optional(), // Allow null for internal/practice-specific sources
   publisher: z.string().optional(),
   accessedDate: z.string().optional(),
 })

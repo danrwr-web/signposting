@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
       tags: parsed.tags,
       interactiveFirst: parsed.interactiveFirst,
       requestId,
+      userId: user.id,
       onAttempt: recordAttempt,
       returnDebugInfo: isDebugMode,
     })
@@ -135,6 +136,12 @@ export async function POST(request: NextRequest) {
       const reviewByDateValid = !Number.isNaN(reviewByDate.getTime())
       const needsSourcing = resolveNeedsSourcing(card.sources, card.needsSourcing) || !reviewByDateValid
 
+      // Normalize sources: convert empty string URLs to null
+      const normalizedSources = card.sources.map((source) => ({
+        ...source,
+        url: source.url === '' ? null : source.url,
+      }))
+
       return prisma.dailyDoseCard.create({
         data: {
           batchId: batch.id,
@@ -147,7 +154,7 @@ export async function POST(request: NextRequest) {
           interactions: card.interactions,
           slotLanguage: card.slotLanguage,
           safetyNetting: card.safetyNetting,
-          sources: card.sources,
+          sources: normalizedSources,
           estimatedTimeMinutes: card.estimatedTimeMinutes,
           riskLevel,
           needsSourcing,
@@ -178,6 +185,7 @@ export async function POST(request: NextRequest) {
       cardIds: createdCards.map((card) => card.id),
       quizId: quiz.id,
       createdAt: now,
+      traceId: generated.traceId,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -189,15 +197,20 @@ export async function POST(request: NextRequest) {
     if (error instanceof EditorialAiError) {
       if (error.code === 'SCHEMA_MISMATCH') {
         const details = error.details as
-          | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string }
+          | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string; traceId?: string }
           | undefined
         const includeRawSnippet = process.env.NODE_ENV !== 'production' || allowDiagnostics
         return NextResponse.json(
           {
             errorCode: 'SCHEMA_MISMATCH',
             requestId: details?.requestId ?? requestId,
+            traceId: details?.traceId,
             issues: details?.issues ?? [],
             rawSnippet: includeRawSnippet ? details?.rawSnippet : undefined,
+            error: { 
+              code: 'SCHEMA_MISMATCH', 
+              message: 'Generated output did not match schema. Check Debug panel for details.' 
+            },
           },
           { status: 502 }
         )

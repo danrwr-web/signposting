@@ -2,6 +2,7 @@ import 'server-only'
 
 import { promises as fs } from 'node:fs'
 import path from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { EditorialLearningCardZ, type EditorialRole } from '@/lib/schemas/editorial'
 import { validateAdminCards, type AdminValidationIssue } from '@/lib/editorial/adminValidator'
 import { getRoleProfile } from '@/lib/editorial/roleProfiles'
@@ -14,6 +15,7 @@ import {
   parseAndValidateGeneration,
   type GenerationValidationIssue,
 } from '@/lib/editorial/generationParsing'
+import { promptTraceStore } from '@/lib/editorial/promptTraceStore'
 import { z } from 'zod'
 
 const DEFAULT_TEMPERATURE = 0.2
@@ -63,6 +65,7 @@ const ADMIN_SOURCE_RULES = `
 ADMIN SOURCES:
 - sources[0] MUST be "Signposting Toolkit ({surgery name})" or "Signposting Toolkit (internal)" using the TOOLKIT SOURCE details provided.
 - The URL may be null if the source is from the practice-specific toolkit database.
+- If there is no real URL, set url to null. Do NOT output an empty string.
 - Only add NHS/NICE for safety-netting wording if needed.
 - Do not cite GP college guidance for admin cards.
 `
@@ -525,6 +528,7 @@ async function runGenerationAttempt(params: {
   userPrompt: string
   requestId: string
   attemptIndex: number
+  traceId?: string
   onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
 }): Promise<GenerationAttemptResult> {
   const result = await callAzureOpenAi({
@@ -533,6 +537,17 @@ async function runGenerationAttempt(params: {
   })
 
   const parseResult = parseAndValidateGeneration(result.content)
+  
+  // Update trace with model output (dev/preview only)
+  if (process.env.NODE_ENV !== 'production' && params.traceId) {
+    promptTraceStore.update(params.traceId, {
+      modelRawText: result.content,
+      modelRawJson: parseResult.rawJson,
+      modelNormalisedJson: parseResult.success ? parseResult.data : undefined,
+      validationErrors: parseResult.success ? undefined : parseResult.issues,
+    })
+  }
+
   await params.onAttempt?.({
     requestId: params.requestId,
     attemptIndex: params.attemptIndex,
@@ -556,6 +571,7 @@ async function resolveGenerationResult(params: {
   requestId: string
   attemptIndex: () => number
   systemPrompt: string
+  traceId?: string
   onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
 }) {
   if (params.attempt.parseResult.success) {
@@ -570,6 +586,7 @@ async function resolveGenerationResult(params: {
   if (!rawJson) {
     throw new EditorialAiError('SCHEMA_MISMATCH', 'Generated output did not match schema', {
       requestId: params.requestId,
+      traceId: params.traceId,
       issues,
       rawSnippet: toRawSnippet(params.attempt.rawOutput),
     })
@@ -581,12 +598,14 @@ async function resolveGenerationResult(params: {
     userPrompt: correctionPrompt,
     requestId: params.requestId,
     attemptIndex: params.attemptIndex(),
+    traceId: params.traceId,
     onAttempt: params.onAttempt,
   })
 
   if (!retryAttempt.parseResult.success) {
     throw new EditorialAiError('SCHEMA_MISMATCH', 'Generated output did not match schema after retry', {
       requestId: params.requestId,
+      traceId: params.traceId,
       issues: retryAttempt.parseResult.issues,
       rawSnippet: toRawSnippet(retryAttempt.rawOutput),
     })
@@ -608,7 +627,10 @@ export async function generateEditorialBatch(params: {
   requestId: string
   onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
   returnDebugInfo?: boolean
+  userId?: string
+  traceId?: string // Optional: if provided, use this; otherwise generate new one
 }) {
+  const traceId = params.traceId || randomUUID()
   let attemptIndex = 0
   const toolkit = await resolveSignpostingToolkitAdvice({
     surgeryId: params.surgeryId,
@@ -641,11 +663,29 @@ export async function generateEditorialBatch(params: {
     }
   }
 
+  // Store initial trace (dev/preview only)
+  if (process.env.NODE_ENV !== 'production') {
+    promptTraceStore.set({
+      traceId,
+      createdAt: new Date().toISOString(),
+      userId: params.userId,
+      surgeryId: params.surgeryId,
+      targetRole: params.targetRole,
+      promptText: params.promptText,
+      toolkitInjected: !!toolkit,
+      matchedSymptoms: matchedSymptomNames,
+      toolkitContextLength: toolkit?.context?.length || 0,
+      promptSystem: systemPrompt,
+      promptUser: userPrompt,
+    })
+  }
+
   const primaryResult = await runGenerationAttempt({
     systemPrompt,
     userPrompt,
     requestId: params.requestId,
     attemptIndex: attemptIndex++,
+    traceId,
     onAttempt: params.onAttempt,
   })
 
@@ -654,6 +694,7 @@ export async function generateEditorialBatch(params: {
     requestId: params.requestId,
     attemptIndex: () => attemptIndex++,
     systemPrompt,
+    traceId,
     onAttempt: params.onAttempt,
   })
 
@@ -680,6 +721,7 @@ export async function generateEditorialBatch(params: {
         userPrompt: retryPrompt,
         requestId: params.requestId,
         attemptIndex: attemptIndex++,
+        traceId,
         onAttempt: params.onAttempt,
       })
 
@@ -688,6 +730,7 @@ export async function generateEditorialBatch(params: {
         requestId: params.requestId,
         attemptIndex: () => attemptIndex++,
         systemPrompt: strictSystemPrompt,
+        traceId,
         onAttempt: params.onAttempt,
       })
 
@@ -701,10 +744,19 @@ export async function generateEditorialBatch(params: {
     }
   }
 
+  // Update trace with final sources from cards (dev/preview only)
+  if (process.env.NODE_ENV !== 'production') {
+    const firstCardSources = finalResult.data.cards[0]?.sources
+    promptTraceStore.update(traceId, {
+      sources: firstCardSources,
+    })
+  }
+
   const result = {
     cards: finalResult.data.cards,
     quiz: finalResult.data.quiz,
     modelUsed: finalResult.modelUsed,
+    traceId, // Always return traceId
   }
 
   // Add debug info if requested (dev only)

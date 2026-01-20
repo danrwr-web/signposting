@@ -7,6 +7,21 @@ interface EditorialGeneratorClientProps {
   surgeryId: string
 }
 
+interface PromptTrace {
+  traceId: string
+  createdAt: string
+  toolkitInjected: boolean
+  matchedSymptoms: string[]
+  toolkitContextLength: number
+  promptSystem: string
+  promptUser: string
+  modelRawText?: string
+  modelRawJson?: unknown
+  modelNormalisedJson?: unknown
+  validationErrors?: unknown
+  sources?: unknown
+}
+
 export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
   const router = useRouter()
   const [promptText, setPromptText] = useState('')
@@ -18,9 +33,15 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<{
     requestId?: string
+    traceId?: string
     issues: Array<{ path: string; message: string }>
     rawSnippet?: string
   } | null>(null)
+  const [traceId, setTraceId] = useState<string | null>(null)
+  const [trace, setTrace] = useState<PromptTrace | null>(null)
+  const [debugPanelOpen, setDebugPanelOpen] = useState(false)
+  // Note: Client-side check - we'll rely on server returning traceId only in dev
+  const [isDevMode] = useState(typeof window !== 'undefined' && window.location.hostname !== 'app.signpostingtool.co.uk')
 
   const handleGenerate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -49,14 +70,28 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
       if (!response.ok) {
         if (payload?.errorCode === 'SCHEMA_MISMATCH') {
           setError('Generation failed: schema mismatch')
+          const traceIdFromError = payload.traceId
           setErrorDetails({
             requestId: payload.requestId,
+            traceId: traceIdFromError,
             issues: Array.isArray(payload.issues) ? payload.issues : [],
             rawSnippet: payload.rawSnippet,
           })
+          // Auto-open debug panel on schema mismatch
+          if (traceIdFromError && isDevMode) {
+            setTraceId(traceIdFromError)
+            setDebugPanelOpen(true)
+            fetchTrace(traceIdFromError)
+          }
           return
         }
         throw new Error(payload?.error?.message || 'Unable to generate drafts')
+      }
+
+      // Store traceId and fetch trace in dev mode
+      if (payload.traceId && isDevMode) {
+        setTraceId(payload.traceId)
+        fetchTrace(payload.traceId)
       }
 
       router.push(`/editorial/batches/${payload.batchId}?surgery=${surgeryId}`)
@@ -75,6 +110,29 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setInteractiveFirst(true)
     setError(null)
     setErrorDetails(null)
+    setTraceId(null)
+    setTrace(null)
+    setDebugPanelOpen(false)
+  }
+
+  const fetchTrace = async (id: string) => {
+    try {
+      const response = await fetch(`/api/editorial/prompt-trace?traceId=${id}`)
+      if (response.ok) {
+        const data = await response.json()
+        setTrace(data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch trace:', err)
+    }
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text)
+  }
+
+  const formatJson = (obj: unknown) => {
+    return JSON.stringify(obj, null, 2)
   }
 
   return (
@@ -195,6 +253,129 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
           </button>
         </div>
       </form>
+
+      {/* Debug Panel (dev/preview only) */}
+      {isDevMode && (
+        <details
+          open={debugPanelOpen}
+          className="rounded-lg border border-slate-200 bg-white"
+        >
+          <summary className="cursor-pointer px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+            Debug Panel {traceId && <span className="font-mono text-xs text-slate-500">(Trace ID: {traceId})</span>}
+          </summary>
+          <div className="border-t border-slate-200 p-6 space-y-4">
+            {!trace && traceId && (
+              <div className="text-sm text-slate-600">Loading trace data...</div>
+            )}
+            {!traceId && (
+              <div className="text-sm text-slate-500">Generate cards to see debug information</div>
+            )}
+            {trace && (
+              <>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <strong>Toolkit Injected:</strong> {trace.toolkitInjected ? 'Yes' : 'No'}
+                  </div>
+                  <div>
+                    <strong>Matched Symptoms:</strong>{' '}
+                    {trace.matchedSymptoms.length > 0 ? trace.matchedSymptoms.join(', ') : 'None'}
+                  </div>
+                  <div>
+                    <strong>Context Length:</strong> {trace.toolkitContextLength.toLocaleString()} chars
+                  </div>
+                  <div>
+                    <strong>Created At:</strong> {new Date(trace.createdAt).toLocaleString()}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <strong className="text-sm">System Prompt</strong>
+                      <button
+                        onClick={() => copyToClipboard(trace.promptSystem)}
+                        className="text-xs text-nhs-blue hover:underline"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap">
+                      {trace.promptSystem}
+                    </pre>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <strong className="text-sm">User Prompt</strong>
+                      <button
+                        onClick={() => copyToClipboard(trace.promptUser)}
+                        className="text-xs text-nhs-blue hover:underline"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap">
+                      {trace.promptUser}
+                    </pre>
+                  </div>
+
+                  {trace.modelRawJson && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <strong className="text-sm">Raw Model Output (JSON)</strong>
+                        <button
+                          onClick={() => copyToClipboard(formatJson(trace.modelRawJson))}
+                          className="text-xs text-nhs-blue hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96">
+                        {formatJson(trace.modelRawJson)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {trace.modelNormalisedJson && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <strong className="text-sm">Normalised Output</strong>
+                        <button
+                          onClick={() => copyToClipboard(formatJson(trace.modelNormalisedJson))}
+                          className="text-xs text-nhs-blue hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96">
+                        {formatJson(trace.modelNormalisedJson)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {trace.validationErrors && (
+                    <div>
+                      <strong className="text-sm text-red-700">Validation Errors</strong>
+                      <pre className="text-xs bg-red-50 p-3 rounded border overflow-auto max-h-64 mt-2">
+                        {formatJson(trace.validationErrors)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {trace.sources && (
+                    <div>
+                      <strong className="text-sm">Sources</strong>
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 mt-2">
+                        {formatJson(trace.sources)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </details>
+      )}
     </div>
   )
 }
