@@ -64,11 +64,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const needsSourcing = resolveNeedsSourcing(parsed.sources, parsed.needsSourcing)
 
     // Ensure clinicianApproved is always a boolean
-    const clinicianApproved =
-      riskLevel === 'HIGH' &&
-      parsed.clinicianApproved === true &&
-      parsed.clinicianApprovedBy &&
-      parsed.clinicianApprovedBy.trim() !== ''
+    // Note: clinicianApprovedBy is a foreign key to User.id, so we use the current user's ID
+    // (the UI sends initials/name, but we need the actual user ID)
+    const clinicianApproved = riskLevel === 'HIGH' && parsed.clinicianApproved === true
 
     const updated = await prisma.dailyDoseCard.update({
       where: { id: card.id },
@@ -92,7 +90,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         publishedBy: null,
         publishedAt: null,
         clinicianApproved,
-        clinicianApprovedBy: clinicianApproved ? parsed.clinicianApprovedBy ?? null : null,
+        clinicianApprovedBy: clinicianApproved ? user.id : null,
         clinicianApprovedAt: clinicianApproved ? new Date() : null,
       },
     })
