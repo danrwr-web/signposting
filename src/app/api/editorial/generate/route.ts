@@ -16,68 +16,71 @@ import { resolveTargetRole } from '@/lib/editorial/roleRouting'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 
-// Force Node.js runtime and dynamic rendering to prevent 502s
+// Force Node.js runtime and prevent edge timeouts
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 const MAX_GENERATIONS_PER_HOUR = 5
 
-// Helper to compute debug enabled (automatic for editors/admins in non-production)
-function isDebugEnabled(user: Awaited<ReturnType<typeof getSessionUser>>, surgeryId: string | null): boolean {
-  if (process.env.NODE_ENV === 'production') return false
-  if (!user || !surgeryId) return false
-  return isDailyDoseAdmin(user, surgeryId)
+// Build partial debug info for early errors (before generation)
+function buildPartialDebug(params: {
+  requestId: string
+  stage: string
+  surgeryId?: string
+  targetRole?: string
+  promptText?: string
+  error?: Error
+}): Partial<EditorialDebugInfo> {
+  return {
+    traceId: params.requestId,
+    toolkitInjected: false,
+    matchedSymptoms: [],
+    toolkitContextLength: 0,
+    promptSystem: '',
+    promptUser: '',
+    ...(params.error
+      ? { error: { name: params.error.name, message: params.error.message, stack: params.error.stack }, stage: params.stage, requestId: params.requestId }
+      : { stage: params.stage, requestId: params.requestId }),
+  }
 }
 
 export async function POST(request: NextRequest) {
   const requestId = randomUUID()
   let debugEnabled = false
-  let debugInfo: Partial<EditorialDebugInfo> & { stage: string; requestId: string } = {
-    stage: 'start',
-    requestId,
-    toolkitInjected: false,
-    matchedSymptoms: [],
-    toolkitContextLength: 0,
-  }
+  let debugInfo: EditorialDebugInfo | null = null
+  let surgeryId: string | null = null
+  let resolvedRole: EditorialRole | null = null
+  let promptText: string | null = null
+  let stage = 'initialization'
+  let user: Awaited<ReturnType<typeof getSessionUser>> = null
 
-  // Top-level try/catch to prevent 502s - always return JSON
+  // Top-level try/catch to prevent 502 errors
   try {
-    const user = await getSessionUser()
+    stage = 'authentication'
+    user = await getSessionUser()
     if (!user) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: { code: 'UNAUTHENTICATED', message: 'Authentication required' },
-          ...(debugEnabled ? { debug: debugInfo } : {}),
-        },
+        { ok: false, error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } },
         { status: 401 }
       )
     }
 
+    stage = 'validation'
     const body = await request.json()
     const parsed = EditorialGenerateRequestZ.parse(body)
-    const surgeryId = resolveSurgeryIdForUser({ requestedId: parsed.surgeryId, user })
-    
+    surgeryId = resolveSurgeryIdForUser({ requestedId: parsed.surgeryId, user })
+    promptText = parsed.promptText
     if (!surgeryId || !isDailyDoseAdmin(user, surgeryId)) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: { code: 'FORBIDDEN', message: 'Admin access required' },
-          ...(debugEnabled ? { debug: debugInfo } : {}),
-        },
+        { ok: false, error: { code: 'FORBIDDEN', message: 'Admin access required' } },
         { status: 403 }
       )
     }
+    // Debug is automatic for editors/admins in non-production
+    debugEnabled = process.env.NODE_ENV !== 'production' && (user.globalRole === 'SUPERUSER' || user.memberships?.some((m: any) => m.role === 'ADMIN'))
 
-    // Compute debug enabled (automatic for editors/admins in non-production)
-    debugEnabled = isDebugEnabled(user, surgeryId)
-    if (debugEnabled) {
-      debugInfo.surgeryId = surgeryId
-      debugInfo.targetRole = parsed.targetRole
-      debugInfo.promptText = parsed.promptText
-    }
-
+    stage = 'rate_limit_check'
     const since = new Date(Date.now() - 60 * 60 * 1000)
     const recentCount = await prisma.dailyDoseGenerationBatch.count({
       where: {
@@ -87,24 +90,16 @@ export async function POST(request: NextRequest) {
     })
     if (recentCount >= MAX_GENERATIONS_PER_HOUR) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: { code: 'RATE_LIMITED', message: 'Generation limit reached. Try again later.' },
-          ...(debugEnabled ? { debug: debugInfo } : {}),
-        },
+        { ok: false, error: { code: 'RATE_LIMITED', message: 'Generation limit reached. Try again later.' } },
         { status: 429 }
       )
     }
 
-    const resolvedRole = resolveTargetRole({
+    stage = 'role_resolution'
+    resolvedRole = resolveTargetRole({
       promptText: parsed.promptText,
       requestedRole: parsed.targetRole,
     })
-    
-    if (debugEnabled) {
-      debugInfo.targetRole = resolvedRole
-      debugInfo.stage = 'toolkit'
-    }
 
     const recordAttempt = async (attempt: GenerationAttemptRecord) => {
       await prisma.dailyDoseGenerationAttempt.create({
@@ -124,10 +119,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (debugEnabled) {
-      debugInfo.stage = 'before_model'
-    }
-
+    stage = 'toolkit_resolve'
     const generated = await generateEditorialBatch({
       surgeryId,
       promptText: parsed.promptText,
@@ -143,13 +135,22 @@ export async function POST(request: NextRequest) {
 
     // Capture debug info if available (for inclusion in response)
     if ('debug' in generated && generated.debug) {
-      debugInfo = { ...debugInfo, ...generated.debug }
-    }
-    
-    if (debugEnabled) {
-      debugInfo.stage = 'after_model'
+      debugInfo = generated.debug
     }
 
+    stage = 'model_call'
+    // Model call is complete, stage will be updated in post-processing
+
+    stage = 'parse_normalise'
+    // Parse and normalise is complete
+
+    stage = 'schema_validation'
+    // Schema validation is complete
+
+    stage = 'safety_validation'
+    // Safety validation happens inside generateEditorialBatch for ADMIN role
+
+    stage = 'database_write'
     const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
     const now = new Date()
 
@@ -169,40 +170,28 @@ export async function POST(request: NextRequest) {
       data: { batchId: batch.id },
     })
 
-    if (debugEnabled) {
-      debugInfo.stage = 'after_parse'
-    }
-
     const cardCreates = generated.cards.slice(0, parsed.count).map((card) => {
-      // Normalize sources: convert empty string/whitespace URLs to null
-      let normalizedSources = card.sources.map((source) => ({
-        ...source,
-        url: source.url && source.url.trim() ? source.url.trim() : null,
-      }))
-
-      // For ADMIN role: ensure sources[0] is Signposting Toolkit (internal) with url null
-      // This prevents random model variance from causing safety validation failures
-      if (resolvedRole === 'ADMIN') {
-        const toolkitSource = {
-          title: 'Signposting Toolkit (internal)',
-          url: null as string | null,
-          publisher: 'Signposting Toolkit',
-        }
-        // Check if first source is already the toolkit source
-        const firstIsToolkit =
-          normalizedSources[0]?.title === toolkitSource.title &&
-          normalizedSources[0]?.url === null
-        if (!firstIsToolkit) {
-          // Replace sources array to ensure toolkit is first
-          normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
-        }
-      }
-
       const combined = JSON.stringify(card)
       const inferredRisk = inferRiskLevel(combined)
       const riskLevel = inferredRisk === 'HIGH' ? 'HIGH' : card.riskLevel
       const reviewByDate = new Date(card.reviewByDate)
       const reviewByDateValid = !Number.isNaN(reviewByDate.getTime())
+      
+      // Post-processing: Force ADMIN sources[0] to be deterministic
+      let normalizedSources = card.sources.map((source) => ({
+        ...source,
+        url: (source.url === '' || (source.url && source.url.trim() === '')) ? null : source.url,
+      }))
+      
+      // For ADMIN role, force sources[0] to be "Signposting Toolkit (internal)" with url: null
+      if (resolvedRole === 'ADMIN' && normalizedSources.length > 0) {
+        normalizedSources[0] = {
+          title: 'Signposting Toolkit (internal)',
+          url: null,
+          publisher: 'Signposting Toolkit',
+        }
+      }
+      
       const needsSourcing = resolveNeedsSourcing(normalizedSources, card.needsSourcing) || !reviewByDateValid
 
       return prisma.dailyDoseCard.create({
@@ -243,10 +232,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    if (debugEnabled) {
-      debugInfo.stage = 'after_safety'
-    }
-
+    stage = 'complete'
     return NextResponse.json({
       ok: true,
       batchId: batch.id,
@@ -254,43 +240,22 @@ export async function POST(request: NextRequest) {
       quizId: quiz.id,
       createdAt: now,
       traceId: generated.traceId,
-      // Include inline debug info (automatic for editors/admins in non-production)
-      ...(debugEnabled ? { debug: debugInfo } : {}),
+      // Include inline debug info (dev-only, when requested)
+      ...(debugEnabled && debugInfo ? { debug: debugInfo } : {}),
     })
   } catch (error) {
-    // Always return JSON - never throw uncaught exceptions (prevents 502s)
-    if (debugEnabled) {
-      debugInfo.stage = 'error'
-      if (error instanceof Error) {
-        debugInfo.error = {
-          name: error.name,
-          message: error.message,
-          stack: error.stack,
-        }
-      }
-    }
-
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.issues },
-          ...(debugEnabled ? { debug: debugInfo } : {}),
-        },
+        { ok: false, error: { code: 'INVALID_INPUT', message: 'Invalid input', details: error.issues } },
         { status: 400 }
       )
     }
-    
     if (error instanceof EditorialAiError) {
       if (error.code === 'SCHEMA_MISMATCH') {
         const details = error.details as
           | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string; traceId?: string; debug?: EditorialDebugInfo }
           | undefined
-        
-        if (debugEnabled && details?.debug) {
-          debugInfo = { ...debugInfo, ...details.debug, schemaErrors: details?.issues }
-        }
-        
+        const includeRawSnippet = process.env.NODE_ENV !== 'production'
         return NextResponse.json(
           {
             ok: false,
@@ -298,15 +263,15 @@ export async function POST(request: NextRequest) {
             requestId: details?.requestId ?? requestId,
             traceId: details?.traceId,
             issues: details?.issues ?? [],
-            rawSnippet: debugEnabled ? details?.rawSnippet : undefined,
+            rawSnippet: includeRawSnippet ? details?.rawSnippet : undefined,
             error: { 
               code: 'SCHEMA_MISMATCH', 
               message: 'Generated output did not match schema. Check Debug panel for details.' 
             },
-            // Include inline debug info (automatic for editors/admins in non-production)
-            ...(debugEnabled ? { debug: debugInfo } : {}),
+            // Include inline debug info (dev-only)
+            ...(debugEnabled && details?.debug ? { debug: details.debug } : {}),
           },
-          { status: 500 }
+          { status: 502 }
         )
       }
 
@@ -314,11 +279,6 @@ export async function POST(request: NextRequest) {
         const details = error.details as
           | { issues?: Array<{ code: string; message: string; cardTitle?: string }>; traceId?: string; debug?: EditorialDebugInfo }
           | undefined
-        
-        if (debugEnabled && details?.debug) {
-          debugInfo = { ...debugInfo, ...details.debug, safetyErrors: details?.issues }
-        }
-        
         return NextResponse.json(
           {
             ok: false,
@@ -329,32 +289,38 @@ export async function POST(request: NextRequest) {
             },
             traceId: details?.traceId ?? undefined,
             requestId,
-            // Include inline debug info (automatic for editors/admins in non-production)
-            ...(debugEnabled ? { debug: debugInfo } : {}),
+            // Include inline debug info (dev-only)
+            ...(debugEnabled && details?.debug ? { debug: details.debug } : {}),
           },
-          { status: 500 }
+          { status: 502 }
         )
       }
 
       return NextResponse.json(
-        {
+        { 
           ok: false,
-          error: { code: error.code, message: error.message, details: error.details },
-          requestId,
-          ...(debugEnabled ? { debug: debugInfo } : {}),
+          error: { code: error.code, message: error.message, details: error.details, requestId },
+          ...(debugEnabled ? { debug: buildPartialDebug({ requestId, stage, surgeryId: surgeryId ?? undefined, targetRole: resolvedRole ?? undefined, promptText: promptText ?? undefined, error: error instanceof Error ? error : new Error(String(error)) }) } : {}),
         },
-        { status: 500 }
+        { status: 502 }
       )
     }
-    
-    // Catch-all for unexpected errors
     console.error('POST /api/editorial/generate error', error)
+    const errorObj = error instanceof Error ? error : new Error(String(error))
     return NextResponse.json(
-      {
+      { 
         ok: false,
         error: { code: 'SERVER_ERROR', message: 'Internal server error' },
-        requestId,
-        ...(debugEnabled ? { debug: debugInfo } : {}),
+        ...(debugEnabled ? { 
+          debug: buildPartialDebug({ 
+            requestId, 
+            stage, 
+            surgeryId: surgeryId ?? undefined, 
+            targetRole: resolvedRole ?? undefined, 
+            promptText: promptText ?? undefined, 
+            error: errorObj 
+          }) 
+        } : {}),
       },
       { status: 500 }
     )

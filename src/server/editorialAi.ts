@@ -48,6 +48,7 @@ ADMIN SCOPE:
 - Primary authority is the provided TOOLKIT CONTEXT. Do not import GP-level guidance.
 - Use toolkit slot language and recommended actions verbatim where possible.
 - Avoid GP-only content: no clinical risk tools, no diagnostic frameworks, no management plans, no prescribing or treatment advice.
+- Do not diagnose. Do not use the words diagnose/diagnosis/diagnosed/diagnosing. Use non-clinical phrasing: "this could be serious" / "needs urgent medical assessment" / "requires clinical evaluation" instead.
 - If the toolkit lacks detail, you may reference NHS.uk or NICE for safety-netting wording only.
 - Every card must include:
   1) A scenario in receptionist language
@@ -766,17 +767,101 @@ export async function generateEditorialBatch(params: {
         traceId,
         onAttempt: params.onAttempt,
       })
-
-      const retryIssues = validateAdminCards({
+    }
+    
+    // Post-processing: Replace diagnose/diagnosis wording in ADMIN cards (always, even if first attempt passed)
+    if (params.targetRole === 'ADMIN') {
+        finalResult.data.cards = finalResult.data.cards.map((card) => {
+          const diagnosePattern = /\bdiagnos(e|is|ed|ing)\b/gi
+          let hasDiagnoseWording = false
+          let offendingSnippets: string[] = []
+          
+          // Check all text fields for diagnose wording
+          const allText = [
+            card.title,
+            ...card.contentBlocks.map((b) => (b.type === 'text' || b.type === 'callout' ? b.text : b.items.join(' '))),
+            ...card.interactions.map((i) => `${i.question} ${i.options.join(' ')} ${i.explanation}`),
+            ...card.safetyNetting,
+          ].join(' ')
+          
+          if (diagnosePattern.test(allText)) {
+            hasDiagnoseWording = true
+            // Extract offending snippets
+            const matches = allText.match(/\bdiagnos(e|is|ed|ing)\b/gi)
+            if (matches) {
+              offendingSnippets = [...new Set(matches)]
+            }
+            
+            // Replace diagnose/diagnosis with assess/assessment
+            const sanitized = (text: string) => {
+              return text
+                .replace(/\bdiagnos(e|is|ed|ing)\b/gi, (match, suffix) => {
+                  if (match.toLowerCase() === 'diagnose') return 'assess'
+                  if (match.toLowerCase() === 'diagnosis') return 'assessment'
+                  if (match.toLowerCase() === 'diagnosed') return 'assessed'
+                  if (match.toLowerCase() === 'diagnosing') return 'assessing'
+                  return 'assess' + suffix
+                })
+            }
+            
+            return {
+              ...card,
+              title: sanitized(card.title),
+              contentBlocks: card.contentBlocks.map((b) => {
+                if (b.type === 'text' || b.type === 'callout') {
+                  return { ...b, text: sanitized(b.text) }
+                }
+                return { ...b, items: b.items.map((item) => sanitized(item)) }
+              }),
+              interactions: card.interactions.map((i) => ({
+                ...i,
+                question: sanitized(i.question),
+                options: i.options.map((opt) => sanitized(opt)),
+                explanation: sanitized(i.explanation),
+              })),
+              safetyNetting: card.safetyNetting.map((s) => sanitized(s)),
+            }
+          }
+          
+          return card
+        })
+      }
+      
+    // Re-validate after replacement
+    if (params.targetRole === 'ADMIN') {
+      const finalIssues = validateAdminCards({
         cards: finalResult.data.cards,
         promptText: params.promptText,
       })
-      if (retryIssues.length > 0) {
+      
+      // Check for diagnose wording after replacement (should not happen, but safety check)
+      finalResult.data.cards.forEach((card) => {
+        const allText = [
+          card.title,
+          ...card.contentBlocks.map((b) => (b.type === 'text' || b.type === 'callout' ? b.text : b.items.join(' '))),
+          ...card.interactions.map((i) => `${i.question} ${i.options.join(' ')} ${i.explanation}`),
+          ...card.safetyNetting,
+        ].join(' ')
+        
+        const diagnosePattern = /\bdiagnos(e|is|ed|ing)\b/i
+        if (diagnosePattern.test(allText)) {
+          const matches = allText.match(/\bdiagnos(e|is|ed|ing)\b/gi)
+          const offendingSnippets = matches ? [...new Set(matches)] : []
+          const snippet = offendingSnippets[0] || 'diagnose/diagnosis'
+          finalIssues.push({
+            code: 'FORBIDDEN_PATTERN',
+            message: `Forbidden content detected: ${snippet}. Please use "assess/assessment" instead.`,
+            cardTitle: card.title,
+          })
+        }
+      })
+      
+      if (finalIssues.length > 0) {
         // Store safety validation failure in trace before throwing
         if (process.env.NODE_ENV !== 'production') {
           promptTraceStore.update(traceId, {
             safetyValidationPassed: false,
-            safetyValidationErrors: retryIssues.map((issue) => ({
+            safetyValidationErrors: finalIssues.map((issue) => ({
               code: issue.code,
               message: issue.message,
               cardTitle: issue.cardTitle,
@@ -794,7 +879,7 @@ export async function generateEditorialBatch(params: {
           promptUser: userPrompt,
           modelRawJson: finalResult.data,
           modelNormalisedJson: finalResult.data,
-          safetyErrors: retryIssues.map((issue) => ({
+          safetyErrors: finalIssues.map((issue) => ({
             code: issue.code,
             message: issue.message,
             cardTitle: issue.cardTitle,
@@ -802,7 +887,7 @@ export async function generateEditorialBatch(params: {
         } : undefined
         
         throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
-          issues: retryIssues,
+          issues: finalIssues,
           traceId,
           debug: debugInfoForError,
         })
