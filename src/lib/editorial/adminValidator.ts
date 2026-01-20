@@ -95,10 +95,11 @@ export function validateAdminCards(params: {
 
     const primarySource = card.sources[0]
     // Accept toolkit source with either:
-    // 1. URL starting with ADMIN_TOOLKIT_SOURCE_BASE_URL (static packs)
-    // 2. URL === null (DB-driven context)
+    // 1. Title is exactly ADMIN_TOOLKIT_SOURCE_TITLE ("Signposting Toolkit (internal)")
+    // 2. Title starts with "Signposting Toolkit" (for surgery-specific: "Signposting Toolkit (Surgery Name)")
+    // URL can be null (DB-driven context) or start with the base URL (static packs)
     const hasToolkitSource =
-      primarySource?.title === ADMIN_TOOLKIT_SOURCE_TITLE &&
+      primarySource?.title?.startsWith('Signposting Toolkit') &&
       (primarySource?.url === null || primarySource?.url?.startsWith(ADMIN_TOOLKIT_SOURCE_BASE_URL))
     if (!hasToolkitSource) {
       issues.push({

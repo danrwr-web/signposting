@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface EditorialGeneratorClientProps {
@@ -9,17 +9,24 @@ interface EditorialGeneratorClientProps {
 
 // Debug info returned inline from the generate API (no separate fetch needed)
 interface DebugInfo {
-  traceId: string
-  toolkitInjected: boolean
-  toolkitSource: { title: string; url: string | null; publisher?: string } | null
-  matchedSymptoms: string[]
-  toolkitContextLength: number
-  promptSystem: string
-  promptUser: string
+  stage?: string
+  requestId?: string
+  surgeryId?: string
+  targetRole?: string
+  promptText?: string
+  traceId?: string
+  toolkitInjected?: boolean
+  toolkitSource?: { title: string; url: string | null; publisher?: string } | null
+  matchedSymptoms?: string[]
+  toolkitContextLength?: number
+  promptSystem?: string
+  promptUser?: string
+  modelRawText?: string
   modelRawJson?: unknown
   modelNormalisedJson?: unknown
   schemaErrors?: Array<{ path: string; message: string }>
   safetyErrors?: Array<{ code: string; message: string; cardTitle?: string }>
+  error?: { name?: string; message?: string; stack?: string }
 }
 
 export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
@@ -34,13 +41,18 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   const [errorDetails, setErrorDetails] = useState<{
     requestId?: string
     traceId?: string
-    issues: Array<{ path: string; message: string }>
+    issues: Array<{ path?: string; code?: string; message: string }>
     rawSnippet?: string
   } | null>(null)
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
-  // Client-side check for dev mode (non-production hostnames)
-  const [isDevMode] = useState(typeof window !== 'undefined' && window.location.hostname !== 'app.signpostingtool.co.uk')
+  // Use effect to avoid hydration mismatch - start false on server, update on client
+  const [isDevMode, setIsDevMode] = useState(false)
+  
+  useEffect(() => {
+    // Only check on client side after mount
+    setIsDevMode(typeof window !== 'undefined' && window.location.hostname !== 'app.signpostingtool.co.uk')
+  }, [])
 
   const handleGenerate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -50,9 +62,8 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setDebugInfo(null)
 
     try {
-      // Add debug query param in dev mode
-      const url = isDevMode ? '/api/editorial/generate?debug=1' : '/api/editorial/generate'
-      const response = await fetch(url, {
+      // Debug is automatic for editors/admins in non-production (no query param needed)
+      const response = await fetch('/api/editorial/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -68,46 +79,34 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         }),
       })
 
-      const payload = await response.json().catch(() => ({}))
+      const payload = await response.json().catch(() => ({ ok: false, error: { code: 'PARSE_ERROR', message: 'Failed to parse response' } }))
       
-      // Capture inline debug info if available (from both success and error responses)
-      if (isDevMode && payload?.debug) {
+      // Capture inline debug info if available (automatic for editors/admins in non-production)
+      // Always capture on any response (success or failure)
+      if (payload?.debug) {
         setDebugInfo(payload.debug as DebugInfo)
       }
       
-      if (!response.ok) {
-        if (payload?.errorCode === 'SCHEMA_MISMATCH') {
-          setError('Generation failed: schema mismatch')
-          setErrorDetails({
-            requestId: payload.requestId,
-            traceId: payload.traceId,
-            issues: Array.isArray(payload.issues) ? payload.issues : [],
-            rawSnippet: payload.rawSnippet,
-          })
-          // Auto-open debug panel on schema mismatch
-          if (isDevMode) {
-            setDebugPanelOpen(true)
-          }
-          return
-        }
+      // Handle any error response (ok: false or !response.ok)
+      if (!response.ok || payload?.ok === false) {
+        const errorCode = payload?.error?.code || payload?.errorCode || 'UNKNOWN_ERROR'
+        const errorMessage = payload?.error?.message || payload?.error?.message || 'Unable to generate drafts'
         
-        // Handle safety validation failures
-        if (payload?.error?.code === 'SAFETY_VALIDATION_FAILED') {
-          setError('Admin output failed safety validation')
-          setErrorDetails({
-            requestId: payload.requestId,
-            traceId: payload.traceId,
-            issues: Array.isArray(payload.error?.details) ? payload.error.details : [],
-          })
-          // Capture debug info from error response
-          if (isDevMode && payload?.debug) {
-            setDebugInfo(payload.debug as DebugInfo)
-            setDebugPanelOpen(true)
-          }
-          return
-        }
+        setError(errorMessage)
+        setErrorDetails({
+          requestId: payload?.requestId || payload?.debug?.requestId,
+          traceId: payload?.traceId || payload?.debug?.traceId,
+          issues: Array.isArray(payload?.error?.details) 
+            ? payload.error.details 
+            : Array.isArray(payload?.issues) 
+              ? payload.issues 
+              : [],
+          rawSnippet: payload?.rawSnippet,
+        })
         
-        throw new Error(payload?.error?.message || 'Unable to generate drafts')
+        // Auto-open debug panel on any error
+        setDebugPanelOpen(true)
+        return
       }
 
       router.push(`/editorial/batches/${payload.batchId}?surgery=${surgeryId}`)
@@ -130,12 +129,25 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setDebugPanelOpen(false)
   }
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text)
+  const formatJson = (obj: unknown): string => {
+    try {
+      if (obj === null || obj === undefined) return ''
+      if (typeof obj === 'string') return obj
+      return JSON.stringify(obj, null, 2)
+    } catch {
+      return String(obj ?? '')
+    }
   }
 
-  const formatJson = (obj: unknown) => {
-    return JSON.stringify(obj, null, 2)
+  const safeString = (value: unknown): string => {
+    if (value === null || value === undefined) return ''
+    if (typeof value === 'string') return value
+    if (typeof value === 'object') return formatJson(value)
+    return String(value)
+  }
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text).catch(() => {})
   }
 
   return (
@@ -159,8 +171,11 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                 {errorDetails.issues.length > 0 && (
                   <ul className="mt-2 list-disc space-y-1 pl-5">
                     {errorDetails.issues.map((issue, index) => (
-                      <li key={`${issue.path}-${index}`}>
-                        <span className="font-semibold">{issue.path}:</span> {issue.message}
+                      <li key={`${issue.path ?? issue.code ?? ''}-${index}`}>
+                        {(issue.path ?? issue.code) && (
+                          <span className="font-semibold">{issue.path ?? issue.code}: </span>
+                        )}
+                        {issue.message}
                       </li>
                     ))}
                   </ul>
@@ -257,36 +272,46 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         </div>
       </form>
 
-      {/* Debug Panel (dev/preview only) */}
+      {/* Debug Panel (automatic for editors/admins in non-production) */}
       {isDevMode && (
         <details
           open={debugPanelOpen}
           className="rounded-lg border border-slate-200 bg-white"
         >
           <summary className="cursor-pointer px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Debug Panel {debugInfo?.traceId && <span className="font-mono text-xs text-slate-500">(Trace: {debugInfo.traceId.slice(0, 8)}…)</span>}
+            Debug Panel{' '}
+            {debugInfo?.traceId && (
+              <span className="font-mono text-xs text-slate-500">
+                ({debugInfo.stage || 'ready'} • Trace: {debugInfo.traceId.slice(0, 8)}…)
+              </span>
+            )}
           </summary>
           <div className="border-t border-slate-200 p-6 space-y-4">
             {!debugInfo && (
-              <div className="text-sm text-slate-500">No debug data yet</div>
+              <div className="text-sm text-slate-500">No debug data yet. Generate cards to see debug information.</div>
             )}
             {debugInfo && (
               <>
                 {/* Debug Summary Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-slate-50 p-3 rounded border">
                   <div>
+                    <strong>Stage:</strong> {safeString(debugInfo.stage || 'unknown')}
+                  </div>
+                  <div>
                     <strong>Toolkit:</strong> {debugInfo.toolkitInjected ? '✓ Injected' : '✗ None'}
                   </div>
                   <div>
                     <strong>Symptoms:</strong>{' '}
-                    {debugInfo.matchedSymptoms.length > 0 ? debugInfo.matchedSymptoms.join(', ') : 'None'}
+                    {Array.isArray(debugInfo.matchedSymptoms) && debugInfo.matchedSymptoms.length > 0
+                      ? debugInfo.matchedSymptoms.join(', ')
+                      : 'None'}
                   </div>
                   <div>
-                    <strong>Context:</strong> {debugInfo.toolkitContextLength.toLocaleString()} chars
-                  </div>
-                  <div>
-                    <strong>Trace:</strong>{' '}
-                    <span className="font-mono text-xs">{debugInfo.traceId.slice(0, 8)}</span>
+                    <strong>Context:</strong>{' '}
+                    {typeof debugInfo.toolkitContextLength === 'number'
+                      ? debugInfo.toolkitContextLength.toLocaleString()
+                      : '0'}{' '}
+                    chars
                   </div>
                 </div>
 
@@ -297,36 +322,57 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                       <strong className="text-sm">System Prompt</strong>
                       <button
                         type="button"
-                        onClick={() => copyToClipboard(String(debugInfo.promptSystem ?? ''))}
+                        onClick={() => copyToClipboard(debugInfo.promptSystem)}
                         className="text-xs text-nhs-blue hover:underline"
                       >
                         Copy
                       </button>
                     </div>
                     <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap break-words">
-                      {String(debugInfo.promptSystem ?? '')}
+                      {safeString(debugInfo.promptSystem)}
                     </pre>
                   </div>
 
                   {/* User Prompt */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <strong className="text-sm">User Prompt</strong>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(String(debugInfo.promptUser ?? ''))}
-                        className="text-xs text-nhs-blue hover:underline"
-                      >
-                        Copy
-                      </button>
+                  {debugInfo.promptUser && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <strong className="text-sm">User Prompt</strong>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(safeString(debugInfo.promptUser))}
+                          className="text-xs text-nhs-blue hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                        {safeString(debugInfo.promptUser)}
+                      </pre>
                     </div>
-                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
-                      {String(debugInfo.promptUser ?? '')}
-                    </pre>
-                  </div>
+                  )}
+
+                  {/* Model Raw Text */}
+                  {debugInfo.modelRawText && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <strong className="text-sm">Raw Model Output (Text)</strong>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(safeString(debugInfo.modelRawText))}
+                          className="text-xs text-nhs-blue hover:underline"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                        {safeString(debugInfo.modelRawText)}
+                      </pre>
+                    </div>
+                  )}
 
                   {/* Model Raw JSON */}
-                  {debugInfo.modelRawJson != null && (
+                  {debugInfo.modelRawJson !== undefined && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <strong className="text-sm">Raw Model Output (JSON)</strong>
@@ -345,7 +391,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                   )}
 
                   {/* Normalised Output */}
-                  {debugInfo.modelNormalisedJson != null && (
+                  {debugInfo.modelNormalisedJson !== undefined && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <strong className="text-sm">Normalised Output</strong>
@@ -379,7 +425,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                   )}
 
                   {/* Safety Validation Errors */}
-                  {debugInfo.safetyErrors && debugInfo.safetyErrors.length > 0 && (
+                  {Array.isArray(debugInfo.safetyErrors) && debugInfo.safetyErrors.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <strong className="text-sm text-red-700">Safety Validation Errors (Failed)</strong>
@@ -392,21 +438,36 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                         </button>
                       </div>
                       <div className="space-y-2">
-                        {debugInfo.safetyErrors.map((err, index) => (
-                          <div key={index} className="bg-red-50 p-3 rounded border border-red-200">
-                            <div className="font-semibold text-sm text-red-900">
-                              {err.code}
-                              {err.cardTitle && <span className="font-normal text-red-700"> – {err.cardTitle}</span>}
+                        {debugInfo.safetyErrors.map((err, index) => {
+                          const code = safeString(err?.code || err || 'UNKNOWN')
+                          const message = safeString(err?.message || '')
+                          const cardTitle = err?.cardTitle ? safeString(err.cardTitle) : null
+                          return (
+                            <div key={index} className="bg-red-50 p-3 rounded border border-red-200">
+                              <div className="font-semibold text-sm text-red-900">
+                                {code}
+                                {cardTitle && <span className="font-normal text-red-700"> – {cardTitle}</span>}
+                              </div>
+                              {message && <div className="text-xs text-red-700 mt-1">{message}</div>}
                             </div>
-                            <div className="text-xs text-red-700 mt-1">{err.message}</div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}
 
+                  {/* Error Object */}
+                  {debugInfo.error && (
+                    <div>
+                      <strong className="text-sm text-red-700">Error Details</strong>
+                      <pre className="text-xs bg-red-50 p-3 rounded border overflow-auto max-h-64 mt-2 whitespace-pre-wrap break-words">
+                        {formatJson(debugInfo.error)}
+                      </pre>
+                    </div>
+                  )}
+
                   {/* Toolkit Source */}
-                  {debugInfo.toolkitSource != null && (
+                  {debugInfo.toolkitSource && (
                     <div>
                       <strong className="text-sm">Toolkit Source</strong>
                       <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 mt-2 whitespace-pre-wrap break-words">

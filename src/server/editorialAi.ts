@@ -48,7 +48,8 @@ ADMIN SCOPE:
 - Primary authority is the provided TOOLKIT CONTEXT. Do not import GP-level guidance.
 - Use toolkit slot language and recommended actions verbatim where possible.
 - Avoid GP-only content: no clinical risk tools, no diagnostic frameworks, no management plans, no prescribing or treatment advice.
-- Do not diagnose. Do not use the words diagnose/diagnosis/diagnosed/diagnosing. Use non-clinical phrasing: "this could be serious" / "needs urgent medical assessment" / "requires clinical evaluation" instead.
+- DO NOT DIAGNOSE. DO NOT use the words "diagnose", "diagnosis", "diagnosed", or "diagnosing".
+  Instead, use non-clinical phrasing: "this could be serious", "needs urgent medical assessment", "should be assessed by a clinician".
 - If the toolkit lacks detail, you may reference NHS.uk or NICE for safety-netting wording only.
 - Every card must include:
   1) A scenario in receptionist language
@@ -723,7 +724,83 @@ export async function generateEditorialBatch(params: {
 
   let finalResult = primaryParsed
 
+  // Post-process ADMIN cards before safety validation:
+  // 1. Force sources[0] to be Signposting Toolkit (internal) with url null
+  // 2. Normalize empty/whitespace URLs to null
+  // 3. Check for forbidden "diagnose/diagnosis" wording
   if (params.targetRole === 'ADMIN') {
+    const toolkitSource = {
+      title: 'Signposting Toolkit (internal)',
+      url: null as string | null,
+      publisher: 'Signposting Toolkit',
+    }
+
+    const diagnosePattern = /\bdiagnos(e|is|ed|ing)\b/i
+    const diagnoseIssues: Array<{ code: string; message: string; cardTitle?: string }> = []
+
+    finalResult.data.cards = finalResult.data.cards.map((card) => {
+      // Normalize sources: convert empty/whitespace URLs to null
+      let normalizedSources = card.sources.map((source) => ({
+        ...source,
+        url: source.url && source.url.trim() ? source.url.trim() : null,
+      }))
+
+      // Force sources[0] to be Signposting Toolkit (internal) with url null
+      const firstIsToolkit =
+        normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === null
+      if (!firstIsToolkit) {
+        normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
+      }
+
+      // Check for forbidden "diagnose/diagnosis" wording
+      const cardText = JSON.stringify(card)
+      if (diagnosePattern.test(cardText)) {
+        // Extract the offending snippet (50 chars around match)
+        const match = cardText.match(diagnosePattern)
+        if (match && match.index !== undefined) {
+          const start = Math.max(0, match.index - 25)
+          const end = Math.min(cardText.length, match.index + match[0].length + 25)
+          const snippet = cardText.slice(start, end).replace(/\s+/g, ' ').trim()
+          diagnoseIssues.push({
+            code: 'FORBIDDEN_PATTERN',
+            message: `Forbidden content detected: diagnose/diagnosis. Offending snippet: "${snippet}"`,
+            cardTitle: card.title,
+          })
+        }
+      }
+
+      return {
+        ...card,
+        sources: normalizedSources,
+      }
+    })
+
+    // If diagnose/diagnosis detected, fail early with clear error
+    if (diagnoseIssues.length > 0) {
+      const debugInfoForError: EditorialDebugInfo | undefined = params.returnDebugInfo
+        ? {
+            stage: 'after_normalise',
+            requestId: params.requestId,
+            traceId,
+            toolkitInjected: !!toolkit,
+            toolkitSource: toolkit?.source || null,
+            matchedSymptoms: matchedSymptomNames,
+            toolkitContextLength: toolkit?.context?.length || 0,
+            promptSystem: systemPrompt,
+            promptUser: userPrompt,
+            modelRawJson: finalResult.data,
+            modelNormalisedJson: finalResult.data,
+            safetyErrors: diagnoseIssues,
+          }
+        : undefined
+
+      throw new EditorialAiError('VALIDATION_FAILED', 'Admin output contains forbidden "diagnose/diagnosis" wording', {
+        issues: diagnoseIssues,
+        traceId,
+        debug: debugInfoForError,
+      })
+    }
+
     const issues = validateAdminCards({ cards: finalResult.data.cards, promptText: params.promptText })
     if (issues.length > 0) {
       // Store initial safety validation failure in trace (before retry)
@@ -767,101 +844,31 @@ export async function generateEditorialBatch(params: {
         traceId,
         onAttempt: params.onAttempt,
       })
-    }
-    
-    // Post-processing: Replace diagnose/diagnosis wording in ADMIN cards (always, even if first attempt passed)
-    if (params.targetRole === 'ADMIN') {
-        finalResult.data.cards = finalResult.data.cards.map((card) => {
-          const diagnosePattern = /\bdiagnos(e|is|ed|ing)\b/gi
-          let hasDiagnoseWording = false
-          let offendingSnippets: string[] = []
-          
-          // Check all text fields for diagnose wording
-          const allText = [
-            card.title,
-            ...card.contentBlocks.map((b) => (b.type === 'text' || b.type === 'callout' ? b.text : b.items.join(' '))),
-            ...card.interactions.map((i) => `${i.question} ${i.options.join(' ')} ${i.explanation}`),
-            ...card.safetyNetting,
-          ].join(' ')
-          
-          if (diagnosePattern.test(allText)) {
-            hasDiagnoseWording = true
-            // Extract offending snippets
-            const matches = allText.match(/\bdiagnos(e|is|ed|ing)\b/gi)
-            if (matches) {
-              offendingSnippets = [...new Set(matches)]
-            }
-            
-            // Replace diagnose/diagnosis with assess/assessment
-            const sanitized = (text: string) => {
-              return text
-                .replace(/\bdiagnos(e|is|ed|ing)\b/gi, (match, suffix) => {
-                  if (match.toLowerCase() === 'diagnose') return 'assess'
-                  if (match.toLowerCase() === 'diagnosis') return 'assessment'
-                  if (match.toLowerCase() === 'diagnosed') return 'assessed'
-                  if (match.toLowerCase() === 'diagnosing') return 'assessing'
-                  return 'assess' + suffix
-                })
-            }
-            
-            return {
-              ...card,
-              title: sanitized(card.title),
-              contentBlocks: card.contentBlocks.map((b) => {
-                if (b.type === 'text' || b.type === 'callout') {
-                  return { ...b, text: sanitized(b.text) }
-                }
-                return { ...b, items: b.items.map((item) => sanitized(item)) }
-              }),
-              interactions: card.interactions.map((i) => ({
-                ...i,
-                question: sanitized(i.question),
-                options: i.options.map((opt) => sanitized(opt)),
-                explanation: sanitized(i.explanation),
-              })),
-              safetyNetting: card.safetyNetting.map((s) => sanitized(s)),
-            }
-          }
-          
-          return card
-        })
-      }
-      
-    // Re-validate after replacement
-    if (params.targetRole === 'ADMIN') {
-      const finalIssues = validateAdminCards({
+
+      // Re-normalise sources after retry (same logic as before retry)
+      finalResult.data.cards = finalResult.data.cards.map((card) => {
+        let normalizedSources = card.sources.map((source) => ({
+          ...source,
+          url: source.url && source.url.trim() ? source.url.trim() : null,
+        }))
+        const firstIsToolkit =
+          normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === null
+        if (!firstIsToolkit) {
+          normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
+        }
+        return { ...card, sources: normalizedSources }
+      })
+
+      const retryIssues = validateAdminCards({
         cards: finalResult.data.cards,
         promptText: params.promptText,
       })
-      
-      // Check for diagnose wording after replacement (should not happen, but safety check)
-      finalResult.data.cards.forEach((card) => {
-        const allText = [
-          card.title,
-          ...card.contentBlocks.map((b) => (b.type === 'text' || b.type === 'callout' ? b.text : b.items.join(' '))),
-          ...card.interactions.map((i) => `${i.question} ${i.options.join(' ')} ${i.explanation}`),
-          ...card.safetyNetting,
-        ].join(' ')
-        
-        const diagnosePattern = /\bdiagnos(e|is|ed|ing)\b/i
-        if (diagnosePattern.test(allText)) {
-          const matches = allText.match(/\bdiagnos(e|is|ed|ing)\b/gi)
-          const offendingSnippets = matches ? [...new Set(matches)] : []
-          const snippet = offendingSnippets[0] || 'diagnose/diagnosis'
-          finalIssues.push({
-            code: 'FORBIDDEN_PATTERN',
-            message: `Forbidden content detected: ${snippet}. Please use "assess/assessment" instead.`,
-            cardTitle: card.title,
-          })
-        }
-      })
-      
-      if (finalIssues.length > 0) {
+      if (retryIssues.length > 0) {
         // Store safety validation failure in trace before throwing
         if (process.env.NODE_ENV !== 'production') {
           promptTraceStore.update(traceId, {
             safetyValidationPassed: false,
-            safetyValidationErrors: finalIssues.map((issue) => ({
+            safetyValidationErrors: retryIssues.map((issue) => ({
               code: issue.code,
               message: issue.message,
               cardTitle: issue.cardTitle,
@@ -879,7 +886,7 @@ export async function generateEditorialBatch(params: {
           promptUser: userPrompt,
           modelRawJson: finalResult.data,
           modelNormalisedJson: finalResult.data,
-          safetyErrors: finalIssues.map((issue) => ({
+          safetyErrors: retryIssues.map((issue) => ({
             code: issue.code,
             message: issue.message,
             cardTitle: issue.cardTitle,
@@ -887,7 +894,7 @@ export async function generateEditorialBatch(params: {
         } : undefined
         
         throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
-          issues: finalIssues,
+          issues: retryIssues,
           traceId,
           debug: debugInfoForError,
         })
