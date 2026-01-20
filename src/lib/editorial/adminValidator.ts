@@ -105,7 +105,7 @@ export function validateAdminCards(params: {
       })
     }
 
-    const hasRcgpSource = card.sources.some((source) => source.url.toLowerCase().includes('rcgp'))
+    const hasRcgpSource = card.sources.some((source) => source.url?.toLowerCase().includes('rcgp'))
     if (hasRcgpSource) {
       issues.push({
         code: 'FORBIDDEN_SOURCE',
