@@ -190,12 +190,31 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     })
   }, [activeCard])
 
-  const canApprove = useMemo(() => {
-    const hasSources = cardForm.sources.filter((source) => source.title && source.url).length > 0
+  // Readiness checklist - detailed requirements for approval
+  const readinessChecks = useMemo(() => {
+    const hasSources = cardForm.sources.filter((source) => source.title?.trim()).length > 0
     const hasInteractions = cardForm.interactions.length > 0
     const hasReviewDate = Boolean(cardForm.reviewByDate)
-    return hasSources && hasInteractions && hasReviewDate && !cardForm.needsSourcing
-  }, [cardForm])
+    const sourcesVerified = !cardForm.needsSourcing
+    const hasContentBlocks = cardForm.blocks.length > 0
+    const hasSafetyNetting = cardForm.safetyNettingText.trim().length > 0
+
+    return {
+      hasContentBlocks,
+      hasSources,
+      sourcesVerified,
+      hasInteractions,
+      hasSafetyNetting,
+      hasReviewDate,
+      isHighRisk: cardForm.riskLevel === 'HIGH',
+      clinicianApproved: activeCard?.clinicianApproved ?? false,
+    }
+  }, [cardForm, activeCard])
+
+  const canApprove = useMemo(() => {
+    const { hasSources, sourcesVerified, hasInteractions, hasReviewDate } = readinessChecks
+    return hasSources && sourcesVerified && hasInteractions && hasReviewDate
+  }, [readinessChecks])
 
   const canPublish = useMemo(() => {
     const baseReady = cardForm.status === 'APPROVED' && canApprove
@@ -565,15 +584,6 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     <option value="HIGH">High</option>
                   </select>
                 </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={cardForm.needsSourcing}
-                    onChange={(event) => setCardForm((prev) => ({ ...prev, needsSourcing: event.target.checked }))}
-                    className="accent-nhs-blue"
-                  />
-                  Needs sourcing
-                </label>
               </div>
 
               <div className="rounded-md border border-slate-200 p-4">
@@ -872,7 +882,10 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
 
               <div className="rounded-md border border-slate-200 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-slate-700">Sources</p>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-700">Sources</p>
+                    <p className="text-xs text-slate-500">At least one source required. URL optional for internal sources.</p>
+                  </div>
                   <button
                     type="button"
                     onClick={() =>
@@ -887,10 +900,13 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                   </button>
                 </div>
                 <div className="mt-3 space-y-3">
+                  {cardForm.sources.length === 0 && (
+                    <p className="text-xs text-slate-500 italic">No sources added yet. Click "Add source" above.</p>
+                  )}
                   {cardForm.sources.map((source, index) => (
                     <div key={`source-${index}`} className="rounded-md border border-slate-200 p-3 text-xs">
                       <div className="flex items-center justify-between">
-                        <span>Source {index + 1}</span>
+                        <span className="font-medium">Source {index + 1}</span>
                         <button
                           type="button"
                           onClick={() =>
@@ -905,93 +921,156 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                         </button>
                       </div>
                       <div className="mt-2 space-y-2">
-                        <input
-                          type="text"
-                          value={source.title}
-                          onChange={(event) =>
-                            setCardForm((prev) => ({
-                              ...prev,
-                              sources: prev.sources.map((item, idx) =>
-                                idx === index ? { ...item, title: event.target.value } : item
-                              ),
-                            }))
-                          }
-                          className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
-                          placeholder="Title"
-                        />
-                        <input
-                          type="url"
-                          value={source.url}
-                          onChange={(event) =>
-                            setCardForm((prev) => ({
-                              ...prev,
-                              sources: prev.sources.map((item, idx) =>
-                                idx === index ? { ...item, url: event.target.value } : item
-                              ),
-                            }))
-                          }
-                          className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
-                          placeholder="URL"
-                        />
-                        <input
-                          type="text"
-                          value={source.publisher}
-                          onChange={(event) =>
-                            setCardForm((prev) => ({
-                              ...prev,
-                              sources: prev.sources.map((item, idx) =>
-                                idx === index ? { ...item, publisher: event.target.value } : item
-                              ),
-                            }))
-                          }
-                          className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
-                          placeholder="Publisher"
-                        />
-                        <input
-                          type="text"
-                          value={source.accessedDate}
-                          onChange={(event) =>
-                            setCardForm((prev) => ({
-                              ...prev,
-                              sources: prev.sources.map((item, idx) =>
-                                idx === index ? { ...item, accessedDate: event.target.value } : item
-                              ),
-                            }))
-                          }
-                          className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
-                          placeholder="Accessed date"
-                        />
+                        <label className="block">
+                          <span className="text-slate-600">Title <span className="text-red-500">*</span></span>
+                          <input
+                            type="text"
+                            value={source.title}
+                            onChange={(event) =>
+                              setCardForm((prev) => ({
+                                ...prev,
+                                sources: prev.sources.map((item, idx) =>
+                                  idx === index ? { ...item, title: event.target.value } : item
+                                ),
+                              }))
+                            }
+                            className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
+                            placeholder="e.g. NHS website, NICE guidelines, Signposting Toolkit"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-slate-600">URL <span className="text-slate-400">(optional)</span></span>
+                          <input
+                            type="text"
+                            value={source.url || ''}
+                            onChange={(event) =>
+                              setCardForm((prev) => ({
+                                ...prev,
+                                sources: prev.sources.map((item, idx) =>
+                                  idx === index ? { ...item, url: event.target.value } : item
+                                ),
+                              }))
+                            }
+                            className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
+                            placeholder="https://... (leave blank for internal sources)"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-slate-600">Publisher <span className="text-slate-400">(optional)</span></span>
+                          <input
+                            type="text"
+                            value={source.publisher || ''}
+                            onChange={(event) =>
+                              setCardForm((prev) => ({
+                                ...prev,
+                                sources: prev.sources.map((item, idx) =>
+                                  idx === index ? { ...item, publisher: event.target.value } : item
+                                ),
+                              }))
+                            }
+                            className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
+                            placeholder="e.g. NHS, NICE"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-slate-600">Accessed date <span className="text-slate-400">(optional)</span></span>
+                          <input
+                            type="text"
+                            value={source.accessedDate || ''}
+                            onChange={(event) =>
+                              setCardForm((prev) => ({
+                                ...prev,
+                                sources: prev.sources.map((item, idx) =>
+                                  idx === index ? { ...item, accessedDate: event.target.value } : item
+                                ),
+                              }))
+                            }
+                            className="mt-1 w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
+                            placeholder="e.g. January 2026"
+                          />
+                        </label>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {cardForm.riskLevel === 'HIGH' && (
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm">
-                  <p className="font-medium text-amber-800">High-risk content — clinician approval required</p>
-                  {activeCard?.clinicianApproved ? (
-                    <p className="mt-2 text-amber-700">
-                      ✓ Approved by{' '}
-                      <span className="font-semibold">
-                        {activeCard.clinicianApprovedBy?.name || activeCard.clinicianApprovedBy?.email || 'Unknown'}
+              {/* Readiness Checklist */}
+              <div className={`rounded-md border p-4 ${canApprove ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-700">
+                    {canApprove ? '✓ Ready for approval' : 'Checklist for approval'}
+                  </p>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    cardForm.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' :
+                    cardForm.status === 'APPROVED' ? 'bg-blue-100 text-blue-700' :
+                    'bg-slate-100 text-slate-600'
+                  }`}>
+                    {cardForm.status}
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2 text-sm">
+                  <div className={`flex items-center gap-2 ${readinessChecks.hasContentBlocks ? 'text-emerald-700' : 'text-slate-500'}`}>
+                    <span>{readinessChecks.hasContentBlocks ? '✓' : '○'}</span>
+                    <span>Content blocks added</span>
+                  </div>
+                  <div className={`flex items-center gap-2 ${readinessChecks.hasInteractions ? 'text-emerald-700' : 'text-slate-500'}`}>
+                    <span>{readinessChecks.hasInteractions ? '✓' : '○'}</span>
+                    <span>At least one question/interaction</span>
+                  </div>
+                  <div className={`flex items-center gap-2 ${readinessChecks.hasSafetyNetting ? 'text-emerald-700' : 'text-slate-500'}`}>
+                    <span>{readinessChecks.hasSafetyNetting ? '✓' : '○'}</span>
+                    <span>Safety netting guidance</span>
+                  </div>
+                  <div className={`flex items-center gap-2 ${readinessChecks.hasSources ? 'text-emerald-700' : 'text-slate-500'}`}>
+                    <span>{readinessChecks.hasSources ? '✓' : '○'}</span>
+                    <span>At least one source</span>
+                  </div>
+                  <div className={`flex items-center gap-2 ${readinessChecks.sourcesVerified ? 'text-emerald-700' : 'text-amber-600'}`}>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!cardForm.needsSourcing}
+                        onChange={(event) => setCardForm((prev) => ({ ...prev, needsSourcing: !event.target.checked }))}
+                        className="accent-emerald-600"
+                      />
+                      <span className={readinessChecks.sourcesVerified ? '' : 'font-medium'}>
+                        Sources verified and accurate
                       </span>
-                      {activeCard.clinicianApprovedAt && (
-                        <span className="text-xs">
-                          {' '}
-                          on {new Date(activeCard.clinicianApprovedAt).toLocaleDateString('en-GB')}
-                        </span>
-                      )}
-                    </p>
-                  ) : (
-                    <p className="mt-2 text-amber-700">
-                      Clicking <strong>Approve</strong> will record your approval as the clinician.
-                    </p>
+                    </label>
+                  </div>
+                  <div className={`flex items-center gap-2 ${readinessChecks.hasReviewDate ? 'text-emerald-700' : 'text-slate-500'}`}>
+                    <span>{readinessChecks.hasReviewDate ? '✓' : '○'}</span>
+                    <span>Review-by date set</span>
+                  </div>
+                  {readinessChecks.isHighRisk && (
+                    <div className={`flex items-center gap-2 ${readinessChecks.clinicianApproved ? 'text-emerald-700' : 'text-amber-600'}`}>
+                      <span>{readinessChecks.clinicianApproved ? '✓' : '⚠'}</span>
+                      <span className={readinessChecks.clinicianApproved ? '' : 'font-medium'}>
+                        Clinician approval (HIGH risk)
+                        {readinessChecks.clinicianApproved && activeCard?.clinicianApprovedBy && (
+                          <span className="font-normal text-slate-500">
+                            {' '}— {activeCard.clinicianApprovedBy.name || activeCard.clinicianApprovedBy.email}
+                          </span>
+                        )}
+                      </span>
+                    </div>
                   )}
                 </div>
-              )}
+                {!canApprove && (
+                  <p className="mt-3 text-xs text-slate-500">
+                    Complete all items above, then click <strong>Save draft</strong> before approving.
+                  </p>
+                )}
+                {readinessChecks.isHighRisk && !readinessChecks.clinicianApproved && canApprove && (
+                  <p className="mt-3 text-xs text-amber-700">
+                    Clicking <strong>Approve</strong> will record your clinician approval for this high-risk content.
+                  </p>
+                )}
+              </div>
 
-              <div className="flex flex-wrap gap-3">
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={saveDraft}
@@ -1004,7 +1083,12 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                   type="button"
                   onClick={approveCard}
                   disabled={saving || !canApprove}
-                  className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-nhs-blue disabled:cursor-not-allowed disabled:opacity-70"
+                  className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                    canApprove
+                      ? 'border border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                      : 'border border-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                  title={canApprove ? 'Approve this card for publishing' : 'Complete all checklist items first'}
                 >
                   Approve
                 </button>
@@ -1012,10 +1096,24 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                   type="button"
                   onClick={publishCard}
                   disabled={saving || !canPublish}
-                  className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-nhs-blue disabled:cursor-not-allowed disabled:opacity-70"
+                  className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+                    canPublish
+                      ? 'border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
+                      : 'border border-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                  title={
+                    cardForm.status !== 'APPROVED'
+                      ? 'Card must be approved before publishing'
+                      : canPublish
+                        ? 'Publish this card'
+                        : 'Cannot publish yet'
+                  }
                 >
                   Publish
                 </button>
+                {cardForm.status === 'APPROVED' && (
+                  <span className="text-xs text-slate-500">Card is approved and ready to publish</span>
+                )}
               </div>
 
               <div className="rounded-md border border-slate-200 p-4">
