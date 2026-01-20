@@ -390,7 +390,7 @@ export default function AdminToolkitAdminClient({
   ])
   const [form, setForm] = useState<PageFormState>(DEFAULT_PAGE_FORM)
   const [showAddAnotherHint, setShowAddAnotherHint] = useState(false)
-  const [editorInstanceKey, setEditorInstanceKey] = useState(0)
+  const [editorInstanceKey, setEditorInstanceKey] = useState(0) // remount TipTap on create resets
   const [newListColumnLabel, setNewListColumnLabel] = useState('')
   const [newListColumnType, setNewListColumnType] = useState<'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'>('TEXT')
 
