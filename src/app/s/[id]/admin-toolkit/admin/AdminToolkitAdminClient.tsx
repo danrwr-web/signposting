@@ -113,6 +113,34 @@ function newClientId(): string {
   return `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+// Separate component to isolate the dynamic key from Next.js RSC compilation issues
+function CreateModePageEditor({
+  editorInstanceKey,
+  form,
+  setForm,
+}: {
+  editorInstanceKey: number
+  form: PageFormState
+  setForm: React.Dispatch<React.SetStateAction<PageFormState>>
+}) {
+  return (
+    <>
+      <label className="block text-sm font-medium text-gray-700">Content</label>
+      <div className="mt-2">
+        <RichTextEditor
+          key={`admin-create-editor-${editorInstanceKey}`}
+          docId="admin-toolkit:create"
+          value={form.contentHtml}
+          onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
+          height={260}
+          placeholder="Write guidance for staff…"
+        />
+      </div>
+      <RoleCardsEditor form={form} setForm={setForm} editorKey="create" />
+    </>
+  )
+}
+
 function RoleCardsEditor({
   form,
   setForm,
@@ -592,6 +620,7 @@ export default function AdminToolkitAdminClient({
           toUtcMidnightIso={toUtcMidnightIso}
           formFromItem={formFromItem}
           focusTitle={focusTitle}
+          editorInstanceKey={editorInstanceKey}
         />
       ) : (
         <StructureSettingsTab
@@ -660,6 +689,7 @@ function ItemsTab({
   toUtcMidnightIso,
   formFromItem,
   focusTitle,
+  editorInstanceKey,
 }: {
   surgeryId: string
   categories: AdminToolkitCategory[]
@@ -683,6 +713,7 @@ function ItemsTab({
   toUtcMidnightIso: (dateOnly: string) => string
   formFromItem: (item: AdminToolkitPageItem) => PageFormState
   focusTitle: () => void
+  editorInstanceKey: number
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'PAGE' | 'LIST'>('ALL')
@@ -1051,21 +1082,11 @@ function ItemsTab({
 
             <div>
               {form.type === 'PAGE' ? (
-                <>
-                  <label className="block text-sm font-medium text-gray-700">Content</label>
-                  <div className="mt-2">
-                    <RichTextEditor
-                      key={`admin-create-editor-${editorInstanceKey}`}
-                      docId={`admin-toolkit:create`}
-                      value={form.contentHtml}
-                      onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-                      height={260}
-                      placeholder="Write guidance for staff…"
-                    />
-                  </div>
-
-                  <RoleCardsEditor form={form} setForm={setForm} editorKey="create" />
-                </>
+                <CreateModePageEditor
+                  editorInstanceKey={editorInstanceKey}
+                  form={form}
+                  setForm={setForm}
+                />
               ) : (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
                   <strong>This is a LIST item.</strong> You can add and edit rows on the item page after creating it.
