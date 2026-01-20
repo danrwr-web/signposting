@@ -7,7 +7,7 @@ import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import type { AdminToolkitCategory, AdminToolkitPageItem, AdminToolkitPinnedPanel } from '@/server/adminToolkit'
 import type { AdminToolkitQuickAccessButton } from '@/lib/adminToolkitQuickAccessShared'
-import { getRoleCardsBlock } from '@/lib/adminToolkitContentBlocksShared'
+import { getRoleCardsBlock, getIntroTextBlock, getFooterTextBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
 import type { RoleCard, RoleCardsColumns, RoleCardsLayout } from '@/lib/adminToolkitContentBlocksShared'
 import {
   createAdminToolkitCategory,
@@ -52,7 +52,9 @@ type PageFormState = {
   title: string
   categoryId: string | null
   warningLevel: string
-  contentHtml: string
+  contentHtml: string // Legacy field, kept for backwards compatibility
+  introHtml: string // New: intro text above role cards
+  footerHtml: string // New: footer text below role cards
   roleCardsEnabled: boolean
   roleCardsBlockId: string
   roleCardsTitle: string
@@ -69,6 +71,8 @@ const DEFAULT_PAGE_FORM: PageFormState = {
   categoryId: null,
   warningLevel: '',
   contentHtml: '',
+  introHtml: '',
+  footerHtml: '',
   roleCardsEnabled: false,
   roleCardsBlockId: '',
   roleCardsTitle: '',
@@ -129,25 +133,184 @@ function CreateModePageEditor({
     setMounted(true)
   }, [])
 
+  const hasIntro = !isHtmlEmpty(form.introHtml)
+  const hasFooter = !isHtmlEmpty(form.footerHtml)
+  const [introOpen, setIntroOpen] = useState(hasIntro)
+  const [footerOpen, setFooterOpen] = useState(hasFooter)
+
+  useEffect(() => {
+    if (hasIntro) setIntroOpen(true)
+  }, [hasIntro])
+  useEffect(() => {
+    if (hasFooter) setFooterOpen(true)
+  }, [hasFooter])
+
   return (
     <>
-      <label className="block text-sm font-medium text-gray-700">Content</label>
-      <div className="mt-2">
-        {mounted ? (
+      <div className="space-y-4">
+        {/* Intro Text Editor */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">Intro text (optional)</label>
+            <button
+              type="button"
+              onClick={() => setIntroOpen(!introOpen)}
+              className="text-sm text-nhs-blue hover:underline"
+            >
+              {introOpen ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+          {introOpen && (
+            <div className="mt-2">
+              {mounted ? (
+                <RichTextEditor
+                  key={`admin-create-intro-${editorInstanceKey}`}
+                  docId="admin-toolkit:create:intro"
+                  value={form.introHtml}
+                  onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
+                  height={200}
+                  placeholder="Text that appears above role cards…"
+                />
+              ) : (
+                <div className="h-[200px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
+              )}
+            </div>
+          )}
+        </div>
+
+        <RoleCardsEditor form={form} setForm={setForm} editorKey="create" />
+
+        {/* Footer Text Editor */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">Additional notes (optional)</label>
+            <button
+              type="button"
+              onClick={() => setFooterOpen(!footerOpen)}
+              className="text-sm text-nhs-blue hover:underline"
+            >
+              {footerOpen ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+          {footerOpen && (
+            <div className="mt-2">
+              {mounted ? (
+                <RichTextEditor
+                  key={`admin-create-footer-${editorInstanceKey}`}
+                  docId="admin-toolkit:create:footer"
+                  value={form.footerHtml}
+                  onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
+                  height={200}
+                  placeholder="Text that appears below role cards…"
+                />
+              ) : (
+                <div className="h-[200px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function PageEditorContent({
+  form,
+  setForm,
+  selectedItemId,
+  hasLegacyContent,
+}: {
+  form: PageFormState
+  setForm: React.Dispatch<React.SetStateAction<PageFormState>>
+  selectedItemId: string
+  hasLegacyContent: boolean
+}) {
+  const hasIntro = !isHtmlEmpty(form.introHtml)
+  const hasFooter = !isHtmlEmpty(form.footerHtml)
+  const [introOpen, setIntroOpen] = useState(hasIntro)
+  const [footerOpen, setFooterOpen] = useState(hasFooter || hasLegacyContent)
+
+  useEffect(() => {
+    if (hasIntro) setIntroOpen(true)
+  }, [hasIntro])
+  useEffect(() => {
+    if (hasFooter || hasLegacyContent) setFooterOpen(true)
+  }, [hasFooter, hasLegacyContent])
+
+  const migrateLegacyContent = () => {
+    if (hasLegacyContent && form.contentHtml) {
+      setForm((prev) => ({
+        ...prev,
+        footerHtml: prev.contentHtml,
+        contentHtml: '', // Clear legacy content after migration
+      }))
+    }
+  }
+
+  return (
+    <div className="mt-2 space-y-4">
+      {/* Intro Text Editor */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">Intro text (optional)</label>
+          <button
+            type="button"
+            onClick={() => setIntroOpen(!introOpen)}
+            className="text-sm text-nhs-blue hover:underline"
+          >
+            {introOpen ? 'Collapse' : 'Expand'}
+          </button>
+        </div>
+        {introOpen && (
           <RichTextEditor
-            key={`admin-create-editor-${editorInstanceKey}`}
-            docId="admin-toolkit:create"
-            value={form.contentHtml}
-            onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-            height={260}
-            placeholder="Write guidance for staff…"
+            docId={`admin-toolkit:item:${selectedItemId}:intro`}
+            value={form.introHtml}
+            onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
+            height={200}
+            placeholder="Text that appears above role cards…"
           />
-        ) : (
-          <div className="h-[260px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
         )}
       </div>
-      <RoleCardsEditor form={form} setForm={setForm} editorKey="create" />
-    </>
+
+      <RoleCardsEditor form={form} setForm={setForm} editorKey={`edit-${selectedItemId}`} />
+
+      {/* Footer Text Editor */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-medium text-gray-700">Additional notes (optional)</label>
+          <button
+            type="button"
+            onClick={() => setFooterOpen(!footerOpen)}
+            className="text-sm text-nhs-blue hover:underline"
+          >
+            {footerOpen ? 'Collapse' : 'Expand'}
+          </button>
+        </div>
+        {hasLegacyContent && !hasFooter && (
+          <div className="mb-2 rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+            <p className="mb-2">
+              <strong>Legacy content detected:</strong> This page currently uses legacy content. Saving here will move it into &apos;Additional notes&apos;.
+            </p>
+            <button
+              type="button"
+              onClick={migrateLegacyContent}
+              className="text-sm font-medium text-yellow-900 hover:text-yellow-700 underline"
+            >
+              Move legacy content to Additional notes
+            </button>
+          </div>
+        )}
+        {footerOpen && (
+          <RichTextEditor
+            docId={`admin-toolkit:item:${selectedItemId}:footer`}
+            value={form.footerHtml}
+            onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
+            height={200}
+            placeholder="Text that appears below role cards…"
+          />
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -455,12 +618,18 @@ export default function AdminToolkitAdminClient({
 
   function formFromItem(item: AdminToolkitPageItem): PageFormState {
     const roleCards = item.type === 'PAGE' ? getRoleCardsBlock(item.contentJson ?? null) : null
+    const introBlock = item.type === 'PAGE' ? getIntroTextBlock(item.contentJson ?? null) : null
+    const footerBlock = item.type === 'PAGE' ? getFooterTextBlock(item.contentJson ?? null) : null
+    // Legacy: if no footer block but contentHtml exists, treat it as footer
+    const hasLegacyContent = item.type === 'PAGE' && item.contentHtml && !footerBlock && !isHtmlEmpty(item.contentHtml)
     return {
       type: item.type,
       title: item.title ?? '',
       categoryId: item.categoryId ?? null,
       warningLevel: item.warningLevel ?? '',
-      contentHtml: item.contentHtml ?? '',
+      contentHtml: hasLegacyContent ? item.contentHtml ?? '' : '', // Keep for migration hint
+      introHtml: introBlock?.html ?? '',
+      footerHtml: footerBlock?.html ?? (hasLegacyContent ? item.contentHtml ?? '' : ''),
       roleCardsEnabled: !!roleCards,
       roleCardsBlockId: roleCards?.id ?? '',
       roleCardsTitle: (roleCards?.title ?? '') || '',
@@ -1164,7 +1333,9 @@ function ItemsTab({
                     type: form.type,
                     title: form.title,
                     categoryId: form.categoryId,
-                    contentHtml: form.type === 'PAGE' ? form.contentHtml : '',
+                    contentHtml: form.type === 'PAGE' ? form.contentHtml : '', // Legacy field
+                    introHtml: form.type === 'PAGE' ? form.introHtml : undefined,
+                    footerHtml: form.type === 'PAGE' ? form.footerHtml : undefined,
                     roleCardsBlock:
                       form.type === 'PAGE'
                         ? form.roleCardsEnabled
@@ -1358,16 +1529,12 @@ function ItemEditFormContent({
           </a>
         </div>
         {selectedItem.type === 'PAGE' ? (
-          <div className="mt-2">
-            <RichTextEditor
-              docId={`admin-toolkit:item:${selectedItem.id}`}
-              value={form.contentHtml}
-              onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-              height={260}
-              placeholder="Write guidance for staff…"
-            />
-            <RoleCardsEditor form={form} setForm={setForm} editorKey={`edit-${selectedItem.id}`} />
-          </div>
+          <PageEditorContent
+            form={form}
+            setForm={setForm}
+            selectedItemId={selectedItem.id}
+            hasLegacyContent={!isHtmlEmpty(form.contentHtml) && isHtmlEmpty(form.footerHtml)}
+          />
         ) : (
           <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
             <strong>LIST item:</strong> rows are managed on the item page. Use the columns section below to configure fields.
@@ -1621,7 +1788,9 @@ function ItemEditFormContent({
               itemId: selectedItem.id,
               title: form.title,
               categoryId: form.categoryId,
-              contentHtml: selectedItem.type === 'PAGE' ? form.contentHtml : undefined,
+              contentHtml: selectedItem.type === 'PAGE' ? form.contentHtml : undefined, // Legacy field
+              introHtml: selectedItem.type === 'PAGE' ? form.introHtml : undefined,
+              footerHtml: selectedItem.type === 'PAGE' ? form.footerHtml : undefined,
               roleCardsBlock:
                 selectedItem.type === 'PAGE'
                   ? form.roleCardsEnabled

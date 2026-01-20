@@ -18,7 +18,7 @@ import {
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
 import AdminToolkitAttachmentsClient from './AdminToolkitAttachmentsClient'
 import AdminToolkitListClient from './AdminToolkitListClient'
-import { getRoleCardsBlock } from '@/lib/adminToolkitContentBlocksShared'
+import { getRoleCardsBlock, getIntroTextBlock, getFooterTextBlock } from '@/lib/adminToolkitContentBlocksShared'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -96,6 +96,10 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     const isEditor = item.editors.some((e) => e.userId === user.id)
     const canEditThisItem = isSuperuser || (canWrite && (!isRestricted || isEditor))
     const roleCardsBlock = item.type === 'PAGE' ? getRoleCardsBlock(item.contentJson ?? null) : null
+    const introTextBlock = item.type === 'PAGE' ? getIntroTextBlock(item.contentJson ?? null) : null
+    const footerTextBlock = item.type === 'PAGE' ? getFooterTextBlock(item.contentJson ?? null) : null
+    // Legacy fallback: if no FOOTER_TEXT block but contentHtml exists, use it as footer
+    const footerHtml = footerTextBlock?.html ?? (item.type === 'PAGE' && item.contentHtml ? item.contentHtml : '')
 
     if (item.type === 'LIST' && isRestricted && !canWrite) {
       return (
@@ -168,11 +172,19 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
           {item.type === 'PAGE' ? (
             <>
               <div className="bg-white rounded-lg shadow-md p-6">
+                {introTextBlock ? (
+                  <div
+                    className="prose max-w-none mb-6"
+                    dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(introTextBlock.html) }}
+                  />
+                ) : null}
                 {roleCardsBlock ? <RoleCardsRendererWithCardStyle block={roleCardsBlock} /> : null}
-                <div
-                  className="prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(item.contentHtml || '') }}
-                />
+                {footerHtml ? (
+                  <div
+                    className={`prose max-w-none ${roleCardsBlock ? 'mt-6' : ''}`}
+                    dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(footerHtml) }}
+                  />
+                ) : null}
               </div>
 
               <section className="mt-6 bg-white rounded-lg shadow-md p-6">

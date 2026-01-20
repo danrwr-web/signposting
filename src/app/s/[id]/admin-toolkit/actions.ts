@@ -7,7 +7,8 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
-import type { RoleCardsColumns, RoleCardsLayout } from '@/lib/adminToolkitContentBlocksShared'
+import type { RoleCardsColumns, RoleCardsLayout, AdminToolkitContentJson } from '@/lib/adminToolkitContentBlocksShared'
+import { upsertBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
 
 type ActionError =
   | { code: 'UNAUTHENTICATED'; message: string }
@@ -340,7 +341,9 @@ const createItemInput = z.object({
   type: z.enum(['PAGE', 'LIST']),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
   categoryId: z.string().min(1).nullable().optional(),
-  contentHtml: z.string().optional().default(''),
+  contentHtml: z.string().optional().default(''), // Legacy field, kept for backwards compatibility
+  introHtml: z.string().optional().default(''),
+  footerHtml: z.string().optional().default(''),
   warningLevel: z.string().trim().max(40).nullable().optional(),
   lastReviewedAt: z.string().datetime().nullable().optional(),
   roleCardsBlock: z
@@ -373,32 +376,52 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
   const gate = await requireAdminToolkitWrite(parsed.data.surgeryId)
   if (!gate.ok) return gate
 
-  const { surgeryId, type, title, categoryId, contentHtml, warningLevel, lastReviewedAt, roleCardsBlock } = parsed.data
+  const { surgeryId, type, title, categoryId, contentHtml, introHtml, footerHtml, warningLevel, lastReviewedAt, roleCardsBlock } = parsed.data
+  
+  // Build contentJson for PAGE items
+  let contentJson: unknown = undefined
+  if (type === 'PAGE') {
+    let json: AdminToolkitContentJson = { blocks: [] }
+    
+    // Add INTRO_TEXT block if present
+    if (introHtml && !isHtmlEmpty(introHtml)) {
+      json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+    }
+    
+    // Add ROLE_CARDS block if present
+    if (roleCardsBlock) {
+      json = upsertBlock(json, {
+        type: 'ROLE_CARDS' as const,
+        id: roleCardsBlock.id ?? randomUUID(),
+        title: roleCardsBlock.title ?? null,
+        layout: (roleCardsBlock.layout ?? 'grid') as RoleCardsLayout,
+        columns: (roleCardsBlock.columns ?? 3) as RoleCardsColumns,
+        cards: (roleCardsBlock.cards ?? [])
+          .slice()
+          .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+          .map((c, idx) => ({
+            id: c.id ?? randomUUID(),
+            title: (c.title ?? '').trim(),
+            body: c.body ?? '',
+            orderIndex: idx,
+          })),
+      })
+    }
+    
+    // Add FOOTER_TEXT block if present, or use legacy contentHtml as fallback
+    const footerContent = footerHtml || (contentHtml && !isHtmlEmpty(contentHtml) ? contentHtml : '')
+    if (footerContent && !isHtmlEmpty(footerContent)) {
+      json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerContent) })
+    }
+    
+    // Only set contentJson if we have blocks
+    if (json.blocks && json.blocks.length > 0) {
+      contentJson = json as any // Prisma JSON type
+    }
+  }
+  
+  // Keep legacy contentHtml for backwards compatibility (fallback rendering)
   const cleanedHtml = type === 'PAGE' ? sanitizeHtml(contentHtml || '') : null
-
-  const contentJson =
-    type === 'PAGE' && roleCardsBlock
-      ? {
-          blocks: [
-            {
-              type: 'ROLE_CARDS' as const,
-              id: roleCardsBlock.id ?? randomUUID(),
-              title: roleCardsBlock.title ?? null,
-              layout: (roleCardsBlock.layout ?? 'grid') as RoleCardsLayout,
-              columns: (roleCardsBlock.columns ?? 3) as RoleCardsColumns,
-              cards: (roleCardsBlock.cards ?? [])
-                .slice()
-                .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
-                .map((c, idx) => ({
-                  id: c.id ?? randomUUID(),
-                  title: (c.title ?? '').trim(),
-                  body: c.body ?? '',
-                  orderIndex: idx,
-                })),
-            },
-          ],
-        }
-      : undefined
 
   const created = await prisma.$transaction(async (tx) => {
     const item = await tx.adminItem.create({
@@ -408,7 +431,7 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
         type,
         title,
         contentHtml: cleanedHtml,
-        contentJson,
+        contentJson: contentJson as any, // Prisma JSON type
         warningLevel: warningLevel ?? null,
         lastReviewedAt: lastReviewedAt ? new Date(lastReviewedAt) : null,
         ownerUserId: gate.data.userId,
@@ -512,7 +535,9 @@ const updateItemInput = z.object({
   itemId: z.string().min(1),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
   categoryId: z.string().min(1).nullable().optional(),
-  contentHtml: z.string().optional(),
+  contentHtml: z.string().optional(), // Legacy field, kept for backwards compatibility
+  introHtml: z.string().optional(),
+  footerHtml: z.string().optional(),
   warningLevel: z.string().trim().max(40).nullable().optional(),
   lastReviewedAt: z.string().datetime().nullable().optional(),
   roleCardsBlock: z
@@ -557,46 +582,89 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
   })
   if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found.' } }
 
+  // Keep legacy contentHtml for backwards compatibility (fallback rendering)
   const nextContentHtml = existing.type === 'PAGE' ? sanitizeHtml(parsed.data.contentHtml ?? existing.contentHtml ?? '') : existing.contentHtml
 
-  const mergeRoleCards = (baseJson: unknown, roleCards: (typeof parsed.data)['roleCardsBlock']): unknown => {
-    if (roleCards === undefined) return baseJson
-    const base =
-      baseJson && typeof baseJson === 'object' && !Array.isArray(baseJson)
-        ? ({ ...(baseJson as Record<string, unknown>) } as Record<string, unknown>)
-        : ({} as Record<string, unknown>)
-    const blocksRaw = Array.isArray(base.blocks) ? base.blocks : []
-    const kept = blocksRaw.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'ROLE_CARDS'))
-
-    if (roleCards === null) {
-      const next = { ...base, blocks: kept }
-      const keys = Object.keys(next).filter((k) => k !== 'blocks')
-      return kept.length === 0 && keys.length === 0 ? null : next
-    }
-
+  // Merge blocks for PAGE items
+  const mergeBlocks = (
+    baseJson: unknown,
+    roleCards: (typeof parsed.data)['roleCardsBlock'],
+    introHtml: string | undefined,
+    footerHtml: string | undefined
+  ): unknown => {
     if (existing.type !== 'PAGE') return baseJson
-
-    const normalisedBlock = {
-      type: 'ROLE_CARDS' as const,
-      id: roleCards.id ?? randomUUID(),
-      title: roleCards.title ?? null,
-      layout: (roleCards.layout ?? 'grid') as RoleCardsLayout,
-      columns: (roleCards.columns ?? 3) as RoleCardsColumns,
-      cards: (roleCards.cards ?? [])
-        .slice()
-        .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
-        .map((c, idx) => ({
-          id: c.id ?? randomUUID(),
-          title: (c.title ?? '').trim(),
-          body: c.body ?? '',
-          orderIndex: idx,
-        })),
+    
+    let json = baseJson && typeof baseJson === 'object' && !Array.isArray(baseJson)
+      ? ({ ...(baseJson as Record<string, unknown>) } as Record<string, unknown>)
+      : ({} as Record<string, unknown>)
+    
+    // Start with existing blocks (will filter out ones we're updating)
+    const blocksRaw = Array.isArray(json.blocks) ? json.blocks : []
+    const kept = blocksRaw.filter(
+      (b) =>
+        !(
+          b &&
+          typeof b === 'object' &&
+          !Array.isArray(b) &&
+          ((b as any).type === 'ROLE_CARDS' ||
+            (b as any).type === 'INTRO_TEXT' ||
+            (b as any).type === 'FOOTER_TEXT')
+        )
+    )
+    
+    // Add INTRO_TEXT block if provided
+    if (introHtml !== undefined) {
+      if (introHtml && !isHtmlEmpty(introHtml)) {
+        json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+      }
     }
-
-    return { ...base, blocks: [...kept, normalisedBlock] }
+    
+    // Add ROLE_CARDS block if provided
+    if (roleCards !== undefined) {
+      if (roleCards === null) {
+        // Remove role cards block
+        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'ROLE_CARDS')) }
+      } else {
+        json = upsertBlock(json, {
+          type: 'ROLE_CARDS' as const,
+          id: roleCards.id ?? randomUUID(),
+          title: roleCards.title ?? null,
+          layout: (roleCards.layout ?? 'grid') as RoleCardsLayout,
+          columns: (roleCards.columns ?? 3) as RoleCardsColumns,
+          cards: (roleCards.cards ?? [])
+            .slice()
+            .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+            .map((c, idx) => ({
+              id: c.id ?? randomUUID(),
+              title: (c.title ?? '').trim(),
+              body: c.body ?? '',
+              orderIndex: idx,
+            })),
+        })
+      }
+    }
+    
+    // Add FOOTER_TEXT block if provided
+    if (footerHtml !== undefined) {
+      if (footerHtml && !isHtmlEmpty(footerHtml)) {
+        json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerHtml) })
+      }
+    }
+    
+    // If no blocks remain, return null
+    const finalBlocks = Array.isArray(json.blocks) ? json.blocks : []
+    if (finalBlocks.length === 0) {
+      const keys = Object.keys(json).filter((k) => k !== 'blocks')
+      return keys.length === 0 ? null : json
+    }
+    
+    return json
   }
 
-  const nextContentJson = existing.type === 'PAGE' ? mergeRoleCards(existing.contentJson, parsed.data.roleCardsBlock) : existing.contentJson
+  const nextContentJson =
+    existing.type === 'PAGE'
+      ? mergeBlocks(existing.contentJson, parsed.data.roleCardsBlock, parsed.data.introHtml, parsed.data.footerHtml)
+      : existing.contentJson
   const next = {
     title: parsed.data.title,
     categoryId: parsed.data.categoryId ?? null,
@@ -607,7 +675,15 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.adminItem.update({ where: { id: itemId }, data: { ...next, updatedByUserId: gate.data.userId } })
+    await tx.adminItem.update({
+      where: { id: itemId },
+      data: {
+        ...next,
+        updatedByUserId: gate.data.userId,
+        // Ensure contentJson is correctly typed for Prisma
+        contentJson: next.contentJson as any, // Ideally use Prisma.InputJsonValue, but fallback to `as any` if type issues persist
+      },
+    });
     await tx.adminHistory.create({
       data: {
         surgeryId,

@@ -6,6 +6,7 @@ A high-level history of major changes.
 
 ## Unreleased
 
+- Admin Toolkit PAGE items now support optional Intro text above Role Cards and Additional notes below.
 - Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
 - Admin Toolkit admin page reorganised into Items / Structure & Settings tabs for clarity.
 - Added **Admin Toolkit** (feature-flagged) for surgery-specific guidance pages, a pinned panel, and a simple “GP taking on” rota.

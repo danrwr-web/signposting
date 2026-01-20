@@ -8,7 +8,7 @@ export type AdminToolkitContentJson = {
   blocks?: AdminToolkitContentBlock[]
 }
 
-export type AdminToolkitContentBlock = RoleCardsBlock | { type: string; [key: string]: unknown }
+export type AdminToolkitContentBlock = RoleCardsBlock | IntroTextBlock | FooterTextBlock | { type: string; [key: string]: unknown }
 
 export type RoleCardsLayout = 'grid' | 'row'
 export type RoleCardsColumns = 2 | 3 | 4
@@ -27,6 +27,16 @@ export type RoleCardsBlock = {
   layout?: RoleCardsLayout | null
   columns?: RoleCardsColumns | null
   cards: RoleCard[]
+}
+
+export type IntroTextBlock = {
+  type: 'INTRO_TEXT'
+  html: string
+}
+
+export type FooterTextBlock = {
+  type: 'FOOTER_TEXT'
+  html: string
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,3 +113,80 @@ export function splitRoleCardBodyToLines(body: string): string[] {
     .filter(Boolean)
 }
 
+/**
+ * Check if HTML content is effectively empty (whitespace, empty tags, etc.)
+ */
+export function isHtmlEmpty(html: string | null | undefined): boolean {
+  if (!html) return true
+  const trimmed = html.trim()
+  if (!trimmed) return true
+  // Remove common empty HTML tags and whitespace
+  const cleaned = trimmed
+    .replace(/<p[^>]*>\s*<\/p>/gi, '')
+    .replace(/<br\s*\/?>/gi, '')
+    .replace(/&nbsp;/gi, '')
+    .replace(/\s+/g, '')
+    .trim()
+  return cleaned.length === 0
+}
+
+/**
+ * Get a block of a specific type from contentJson
+ */
+export function getBlock<T extends AdminToolkitContentBlock>(
+  contentJson: unknown,
+  type: T['type']
+): T | null {
+  if (!isRecord(contentJson)) return null
+  const blocks = Array.isArray(contentJson.blocks) ? contentJson.blocks : []
+
+  for (const b of blocks) {
+    if (!isRecord(b)) continue
+    if (b.type !== type) continue
+    return b as T
+  }
+
+  return null
+}
+
+/**
+ * Get INTRO_TEXT block HTML, or null if not present/empty
+ */
+export function getIntroTextBlock(contentJson: unknown): IntroTextBlock | null {
+  const block = getBlock<IntroTextBlock>(contentJson, 'INTRO_TEXT')
+  if (!block) return null
+  const html = asString(block.html).trim()
+  return isHtmlEmpty(html) ? null : { type: 'INTRO_TEXT', html }
+}
+
+/**
+ * Get FOOTER_TEXT block HTML, or null if not present/empty
+ */
+export function getFooterTextBlock(contentJson: unknown): FooterTextBlock | null {
+  const block = getBlock<FooterTextBlock>(contentJson, 'FOOTER_TEXT')
+  if (!block) return null
+  const html = asString(block.html).trim()
+  return isHtmlEmpty(html) ? null : { type: 'FOOTER_TEXT', html }
+}
+
+/**
+ * Upsert a block in contentJson, replacing existing block of same type
+ */
+export function upsertBlock(
+  contentJson: unknown,
+  block: AdminToolkitContentBlock
+): AdminToolkitContentJson {
+  const base = isRecord(contentJson) ? ({ ...contentJson } as Record<string, unknown>) : {}
+  const blocksRaw = Array.isArray(base.blocks) ? base.blocks : []
+  
+  // Remove existing block of same type
+  const kept = blocksRaw.filter(
+    (b) => !(isRecord(b) && b.type === block.type)
+  )
+  
+  // Add new block
+  return {
+    ...base,
+    blocks: [...kept, block],
+  }
+}
