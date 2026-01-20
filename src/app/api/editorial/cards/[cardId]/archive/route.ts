@@ -4,12 +4,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
-import { EditorialApproveRequestZ } from '@/lib/schemas/editorial'
 import { z } from 'zod'
 
 interface RouteParams {
   params: Promise<{ cardId: string }>
 }
+
+const ArchiveRequestZ = z.object({
+  surgeryId: z.string().optional(),
+})
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
@@ -23,8 +26,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { cardId } = await params
     const body = await request.json().catch(() => ({}))
-    const parsed = EditorialApproveRequestZ.parse({
-      cardId,
+    const parsed = ArchiveRequestZ.parse({
       surgeryId: request.nextUrl.searchParams.get('surgeryId') ?? body?.surgeryId,
     })
 
@@ -37,7 +39,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const card = await prisma.dailyDoseCard.findFirst({
-      where: { id: parsed.cardId, surgeryId },
+      where: { id: cardId, surgeryId },
     })
     if (!card) {
       return NextResponse.json(
@@ -46,40 +48,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    const interactions = Array.isArray(card.interactions) ? card.interactions : []
-    const sources = Array.isArray(card.sources) ? card.sources : []
-
-    if (!card.reviewByDate || sources.length === 0 || interactions.length === 0 || card.needsSourcing) {
+    if (card.status === 'ARCHIVED') {
       return NextResponse.json(
-        {
-          error: {
-            code: 'INVALID_STATE',
-            message: 'Cards require sources, interactions, and a review-by date before approval',
-          },
-        },
+        { error: { code: 'INVALID_STATE', message: 'Card is already archived' } },
         { status: 409 }
       )
     }
 
-    // For HIGH risk cards, also record clinician approval
-    const isHighRisk = card.riskLevel === 'HIGH'
-    
-    const approved = await prisma.dailyDoseCard.update({
+    const archived = await prisma.dailyDoseCard.update({
       where: { id: card.id },
       data: {
-        status: 'APPROVED',
-        approvedBy: user.id,
-        approvedAt: new Date(),
-        // Auto-set clinician approval for HIGH risk cards
-        ...(isHighRisk && {
-          clinicianApproved: true,
-          clinicianApprovedBy: user.id,
-          clinicianApprovedAt: new Date(),
-        }),
+        status: 'ARCHIVED',
       },
     })
 
-    return NextResponse.json({ cardId: approved.id })
+    return NextResponse.json({ cardId: archived.id })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -87,7 +70,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         { status: 400 }
       )
     }
-    console.error('POST /api/editorial/cards/[cardId]/approve error', error)
+    console.error('POST /api/editorial/cards/[cardId]/archive error', error)
     return NextResponse.json(
       { error: { code: 'SERVER_ERROR', message: 'Internal server error' } },
       { status: 500 }

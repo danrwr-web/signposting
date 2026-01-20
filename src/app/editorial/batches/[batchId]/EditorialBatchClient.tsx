@@ -26,7 +26,8 @@ type Card = {
   safetyNetting: string[]
   sources: Array<{ title: string; url: string; publisher?: string; accessedDate?: string }>
   clinicianApproved: boolean
-  clinicianApprovedBy?: string | null
+  clinicianApprovedBy?: { id: string; name: string | null; email: string } | null
+  clinicianApprovedAt?: string | null
 }
 
 type Quiz = {
@@ -104,8 +105,6 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     slotGuidance: [] as Array<{ slot: string; rule: string }>,
     safetyNettingText: '',
     sources: [] as SourceState[],
-    clinicianApproved: false,
-    clinicianApprovedBy: '',
     status: 'DRAFT',
   })
 
@@ -187,8 +186,6 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         publisher: source.publisher ?? '',
         accessedDate: source.accessedDate ?? '',
       })),
-      clinicianApproved: Boolean(activeCard.clinicianApproved),
-      clinicianApprovedBy: activeCard.clinicianApprovedBy ?? '',
       status: activeCard.status,
     })
   }, [activeCard])
@@ -203,10 +200,11 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const canPublish = useMemo(() => {
     const baseReady = cardForm.status === 'APPROVED' && canApprove
     if (cardForm.riskLevel === 'HIGH') {
-      return baseReady && cardForm.clinicianApproved && Boolean(cardForm.clinicianApprovedBy)
+      // For HIGH risk, clinician approval is set automatically when approving
+      return baseReady && activeCard?.clinicianApproved
     }
     return baseReady
-  }, [cardForm, canApprove])
+  }, [cardForm, canApprove, activeCard])
 
   const saveDraft = async () => {
     if (!cardForm.id) return
@@ -258,8 +256,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
           .split('\n')
           .map((item) => item.trim())
           .filter(Boolean),
-        clinicianApproved: cardForm.clinicianApproved,
-        clinicianApprovedBy: cardForm.clinicianApprovedBy || undefined,
+        // Note: clinician approval is handled server-side via the /approve endpoint
       }
 
       const response = await fetch(`/api/editorial/cards/${cardForm.id}?surgeryId=${surgeryId}`, {
@@ -967,26 +964,25 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
 
               {cardForm.riskLevel === 'HIGH' && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm">
-                  <label className="flex items-center gap-2 text-sm text-amber-800">
-                    <input
-                      type="checkbox"
-                      checked={cardForm.clinicianApproved}
-                      onChange={(event) =>
-                        setCardForm((prev) => ({ ...prev, clinicianApproved: event.target.checked }))
-                      }
-                      className="accent-nhs-blue"
-                    />
-                    Clinician approved
-                  </label>
-                  <input
-                    type="text"
-                    value={cardForm.clinicianApprovedBy}
-                    onChange={(event) =>
-                      setCardForm((prev) => ({ ...prev, clinicianApprovedBy: event.target.value }))
-                    }
-                    className="mt-2 w-full rounded-md border border-amber-200 px-3 py-2 text-sm"
-                    placeholder="Clinician name or identifier"
-                  />
+                  <p className="font-medium text-amber-800">High-risk content — clinician approval required</p>
+                  {activeCard?.clinicianApproved ? (
+                    <p className="mt-2 text-amber-700">
+                      ✓ Approved by{' '}
+                      <span className="font-semibold">
+                        {activeCard.clinicianApprovedBy?.name || activeCard.clinicianApprovedBy?.email || 'Unknown'}
+                      </span>
+                      {activeCard.clinicianApprovedAt && (
+                        <span className="text-xs">
+                          {' '}
+                          on {new Date(activeCard.clinicianApprovedAt).toLocaleDateString('en-GB')}
+                        </span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-amber-700">
+                      Clicking <strong>Approve</strong> will record your approval as the clinician.
+                    </p>
+                  )}
                 </div>
               )}
 

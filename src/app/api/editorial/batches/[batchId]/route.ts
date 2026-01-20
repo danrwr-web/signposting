@@ -33,7 +33,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const batch = await prisma.dailyDoseGenerationBatch.findFirst({
       where: { id: batchId, surgeryId },
       include: {
-        cards: { orderBy: { createdAt: 'asc' } },
+        cards: {
+          orderBy: { createdAt: 'asc' },
+          include: {
+            clinicianApprovedByUser: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
         quiz: true,
       },
     })
@@ -45,6 +52,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    // Transform cards to include clinicianApprovedBy as an object
+    const transformedCards = batch.cards.map((card) => ({
+      ...card,
+      clinicianApprovedBy: card.clinicianApprovedByUser,
+      clinicianApprovedByUser: undefined,
+    }))
+
     return NextResponse.json({
       batch: {
         id: batch.id,
@@ -53,7 +67,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         modelUsed: batch.modelUsed,
         createdAt: batch.createdAt,
       },
-      cards: batch.cards,
+      cards: transformedCards,
       quiz: batch.quiz,
     })
   } catch (error) {

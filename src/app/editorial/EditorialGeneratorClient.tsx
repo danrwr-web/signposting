@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 interface EditorialGeneratorClientProps {
   surgeryId: string
@@ -153,10 +154,20 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-slate-200 bg-white p-6">
-        <h1 className="text-2xl font-bold text-nhs-dark-blue">Editorial generator</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          Draft Daily Dose cards with an AI prompt. Review and approve before publishing.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-nhs-dark-blue">Editorial generator</h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Draft Daily Dose cards with an AI prompt. Review and approve before publishing.
+            </p>
+          </div>
+          <Link
+            href={`/editorial/library?surgery=${surgeryId}`}
+            className="rounded-md border border-slate-200 px-4 py-2 text-sm font-medium text-nhs-blue hover:bg-nhs-light-blue"
+          >
+            View Library →
+          </Link>
+        </div>
         {error && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
             {error}

@@ -148,8 +148,7 @@ export const EditorialCardUpdateZ = z.object({
   interactions: z.array(EditorialInteractionZ).min(1),
   slotLanguage: EditorialSlotLanguageZ,
   safetyNetting: z.array(z.string().min(1)).min(1),
-  clinicianApproved: z.boolean().optional(),
-  clinicianApprovedBy: z.string().optional(),
+  // Note: clinician approval is now handled separately via the /approve endpoint
 })
 
 export const EditorialApproveRequestZ = z.object({

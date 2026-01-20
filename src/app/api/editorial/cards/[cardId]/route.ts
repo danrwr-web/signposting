@@ -63,11 +63,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const riskLevel = inferredRisk === 'HIGH' ? 'HIGH' : parsed.riskLevel
     const needsSourcing = resolveNeedsSourcing(parsed.sources, parsed.needsSourcing)
 
-    // Ensure clinicianApproved is always a boolean
-    // Note: clinicianApprovedBy is a foreign key to User.id, so we use the current user's ID
-    // (the UI sends initials/name, but we need the actual user ID)
-    const clinicianApproved = riskLevel === 'HIGH' && parsed.clinicianApproved === true
-
+    // When saving a draft, we clear approval status but preserve existing clinician approval
+    // (Clinician approval is now set separately via the /approve endpoint)
     const updated = await prisma.dailyDoseCard.update({
       where: { id: card.id },
       data: {
@@ -89,9 +86,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         approvedAt: null,
         publishedBy: null,
         publishedAt: null,
-        clinicianApproved,
-        clinicianApprovedBy: clinicianApproved ? user.id : null,
-        clinicianApprovedAt: clinicianApproved ? new Date() : null,
+        // Note: clinician approval is preserved; it's set via the /approve endpoint
       },
     })
 
