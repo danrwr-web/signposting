@@ -425,11 +425,10 @@ async function resolveSignpostingToolkitAdvice(params: {
       // Match against symptom name and briefInstruction
       const relevantSymptoms = allSymptoms
         .filter((symptom) => {
-          const nameMatch = symptom.name.toLowerCase().includes(searchText) || searchText.includes(symptom.name.toLowerCase())
-          const briefMatch = symptom.briefInstruction
-            ? symptom.briefInstruction.toLowerCase().includes(searchText) ||
-              searchText.includes(symptom.briefInstruction.toLowerCase())
-            : false
+          const name = symptom.name?.toLowerCase() || ''
+          const brief = symptom.briefInstruction?.toLowerCase() || ''
+          const nameMatch = name && (name.includes(searchText) || searchText.includes(name))
+          const briefMatch = brief && (brief.includes(searchText) || searchText.includes(brief))
           return nameMatch || briefMatch
         })
         .slice(0, 5) // Cap to top 5 matches
@@ -454,7 +453,9 @@ async function resolveSignpostingToolkitAdvice(params: {
       .filter((s): s is NonNullable<typeof s> => s !== null)
       .map((symptom) => {
         const parts: string[] = []
-        parts.push(`## ${symptom.name}`)
+        if (symptom.name) {
+          parts.push(`## ${symptom.name}`)
+        }
         if (symptom.ageGroup) {
           parts.push(`**Age group:** ${symptom.ageGroup}`)
         }
