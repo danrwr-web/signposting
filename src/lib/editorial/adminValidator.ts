@@ -94,9 +94,12 @@ export function validateAdminCards(params: {
     })
 
     const primarySource = card.sources[0]
+    // Accept toolkit source with either:
+    // 1. URL starting with ADMIN_TOOLKIT_SOURCE_BASE_URL (static packs)
+    // 2. URL === null (DB-driven context)
     const hasToolkitSource =
       primarySource?.title === ADMIN_TOOLKIT_SOURCE_TITLE &&
-      primarySource?.url?.startsWith(ADMIN_TOOLKIT_SOURCE_BASE_URL)
+      (primarySource?.url === null || primarySource?.url?.startsWith(ADMIN_TOOLKIT_SOURCE_BASE_URL))
     if (!hasToolkitSource) {
       issues.push({
         code: 'MISSING_TOOLKIT_SOURCE',

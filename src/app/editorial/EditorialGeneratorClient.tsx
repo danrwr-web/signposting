@@ -9,17 +9,24 @@ interface EditorialGeneratorClientProps {
 
 // Debug info returned inline from the generate API (no separate fetch needed)
 interface DebugInfo {
-  traceId: string
+  stage: string
+  requestId: string
+  surgeryId?: string
+  targetRole?: string
+  promptText?: string
+  traceId?: string
   toolkitInjected: boolean
-  toolkitSource: { title: string; url: string | null; publisher?: string } | null
+  toolkitSource?: { title: string; url: string | null; publisher?: string } | null
   matchedSymptoms: string[]
   toolkitContextLength: number
-  promptSystem: string
-  promptUser: string
+  promptSystem?: string
+  promptUser?: string
+  modelRawText?: string
   modelRawJson?: unknown
   modelNormalisedJson?: unknown
   schemaErrors?: Array<{ path: string; message: string }>
   safetyErrors?: Array<{ code: string; message: string; cardTitle?: string }>
+  error?: { name?: string; message?: string; stack?: string }
 }
 
 export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
@@ -50,9 +57,8 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setDebugInfo(null)
 
     try {
-      // Add debug query param in dev mode
-      const url = isDevMode ? '/api/editorial/generate?debug=1' : '/api/editorial/generate'
-      const response = await fetch(url, {
+      // Debug is automatic for editors/admins in non-production (no query param needed)
+      const response = await fetch('/api/editorial/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,8 +76,8 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
 
       const payload = await response.json().catch(() => ({}))
       
-      // Capture inline debug info if available (from both success and error responses)
-      if (isDevMode && payload?.debug) {
+      // Capture inline debug info if available (automatic for editors/admins in non-production)
+      if (payload?.debug) {
         setDebugInfo(payload.debug as DebugInfo)
       }
       
@@ -85,9 +91,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
             rawSnippet: payload.rawSnippet,
           })
           // Auto-open debug panel on schema mismatch
-          if (isDevMode) {
-            setDebugPanelOpen(true)
-          }
+          setDebugPanelOpen(true)
           return
         }
         
@@ -100,9 +104,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
             issues: Array.isArray(payload.error?.details) ? payload.error.details : [],
           })
           // Auto-open debug panel on safety validation failure
-          if (isDevMode) {
-            setDebugPanelOpen(true)
-          }
+          setDebugPanelOpen(true)
           return
         }
         
@@ -256,14 +258,19 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         </div>
       </form>
 
-      {/* Debug Panel (dev/preview only) */}
+      {/* Debug Panel (automatic for editors/admins in non-production) */}
       {isDevMode && (
         <details
           open={debugPanelOpen}
           className="rounded-lg border border-slate-200 bg-white"
         >
           <summary className="cursor-pointer px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Debug Panel {debugInfo?.traceId && <span className="font-mono text-xs text-slate-500">(Trace: {debugInfo.traceId.slice(0, 8)}…)</span>}
+            Debug Panel{' '}
+            {debugInfo?.traceId && (
+              <span className="font-mono text-xs text-slate-500">
+                ({debugInfo.stage || 'ready'} • Trace: {debugInfo.traceId.slice(0, 8)}…)
+              </span>
+            )}
           </summary>
           <div className="border-t border-slate-200 p-6 space-y-4">
             {!debugInfo && (
@@ -285,7 +292,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                   </div>
                   <div>
                     <strong>Trace:</strong>{' '}
-                    <span className="font-mono text-xs">{debugInfo.traceId.slice(0, 8)}</span>
+                    <span className="font-mono text-xs">{debugInfo.traceId?.slice(0, 8) || 'N/A'}</span>
                   </div>
                 </div>
 
@@ -302,8 +309,8 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                         Copy
                       </button>
                     </div>
-                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap">
-                      {debugInfo.promptSystem}
+                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap break-words">
+                      {debugInfo.promptSystem || '(not available)'}
                     </pre>
                   </div>
 
@@ -313,14 +320,14 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                       <strong className="text-sm">User Prompt</strong>
                       <button
                         type="button"
-                        onClick={() => copyToClipboard(debugInfo.promptUser)}
+                        onClick={() => copyToClipboard(debugInfo.promptUser || '')}
                         className="text-xs text-nhs-blue hover:underline"
                       >
                         Copy
                       </button>
                     </div>
-                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap">
-                      {debugInfo.promptUser}
+                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                      {debugInfo.promptUser || '(not available)'}
                     </pre>
                   </div>
 

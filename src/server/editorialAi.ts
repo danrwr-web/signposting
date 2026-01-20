@@ -89,17 +89,24 @@ export type GenerationAttemptRecord = {
 }
 
 export type EditorialDebugInfo = {
-  traceId: string
+  stage: string
+  requestId: string
+  surgeryId?: string
+  targetRole?: string
+  promptText?: string
+  traceId?: string
   toolkitInjected: boolean
-  toolkitSource: { title: string; url: string | null; publisher?: string } | null
+  toolkitSource?: { title: string; url: string | null; publisher?: string } | null
   matchedSymptoms: string[]
   toolkitContextLength: number
-  promptSystem: string
-  promptUser: string
+  promptSystem?: string
+  promptUser?: string
+  modelRawText?: string
   modelRawJson?: unknown
   modelNormalisedJson?: unknown
   schemaErrors?: Array<{ path: string; message: string }>
   safetyErrors?: Array<{ code: string; message: string; cardTitle?: string }>
+  error?: { name?: string; message?: string; stack?: string }
 }
 
 const ADMIN_TOOLKIT_PACKS: ToolkitPack[] = [
