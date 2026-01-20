@@ -63,8 +63,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const riskLevel = inferredRisk === 'HIGH' ? 'HIGH' : parsed.riskLevel
     const needsSourcing = resolveNeedsSourcing(parsed.sources, parsed.needsSourcing)
 
+    // Ensure clinicianApproved is always a boolean
     const clinicianApproved =
-      riskLevel === 'HIGH' && parsed.clinicianApproved && parsed.clinicianApprovedBy
+      riskLevel === 'HIGH' &&
+      parsed.clinicianApproved === true &&
+      parsed.clinicianApprovedBy &&
+      parsed.clinicianApprovedBy.trim() !== ''
 
     const updated = await prisma.dailyDoseCard.update({
       where: { id: card.id },
