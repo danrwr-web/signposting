@@ -390,6 +390,7 @@ export default function AdminToolkitAdminClient({
   ])
   const [form, setForm] = useState<PageFormState>(DEFAULT_PAGE_FORM)
   const [showAddAnotherHint, setShowAddAnotherHint] = useState(false)
+  const [editorInstanceKey, setEditorInstanceKey] = useState(0)
   const [newListColumnLabel, setNewListColumnLabel] = useState('')
   const [newListColumnType, setNewListColumnType] = useState<'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'>('TEXT')
 
@@ -438,6 +439,7 @@ export default function AdminToolkitAdminClient({
     setSelectedItemId(null)
     setShowAddAnotherHint(false)
     setForm(DEFAULT_PAGE_FORM)
+    setEditorInstanceKey((k) => k + 1)
     setNewListColumnLabel('')
     setNewListColumnType('TEXT')
     focusTitle()
@@ -1053,6 +1055,7 @@ function ItemsTab({
                   <label className="block text-sm font-medium text-gray-700">Content</label>
                   <div className="mt-2">
                     <RichTextEditor
+                      key={`admin-create-editor-${editorInstanceKey}`}
                       docId={`admin-toolkit:create`}
                       value={form.contentHtml}
                       onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
@@ -1111,6 +1114,7 @@ function ItemsTab({
                 onClick={() => {
                   setShowAddAnotherHint(false)
                   setForm(DEFAULT_PAGE_FORM)
+                  setEditorInstanceKey((k) => k + 1)
                   focusTitle()
                 }}
               >
@@ -1181,6 +1185,7 @@ function ItemsTab({
                   // Reset to a blank "Create item" form for adding another.
                   setShowAddAnotherHint(false)
                   setForm(DEFAULT_PAGE_FORM)
+                  setEditorInstanceKey((k) => k + 1)
                   focusTitle()
                   await refresh()
                 }}
