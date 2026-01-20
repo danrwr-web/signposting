@@ -114,6 +114,7 @@ function newClientId(): string {
 }
 
 // Separate component to isolate the dynamic key from Next.js RSC compilation issues
+// Uses mounted state to avoid hydration mismatch with TipTap editor
 function CreateModePageEditor({
   editorInstanceKey,
   form,
@@ -123,18 +124,27 @@ function CreateModePageEditor({
   form: PageFormState
   setForm: React.Dispatch<React.SetStateAction<PageFormState>>
 }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   return (
     <>
       <label className="block text-sm font-medium text-gray-700">Content</label>
       <div className="mt-2">
-        <RichTextEditor
-          key={`admin-create-editor-${editorInstanceKey}`}
-          docId="admin-toolkit:create"
-          value={form.contentHtml}
-          onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
-          height={260}
-          placeholder="Write guidance for staff…"
-        />
+        {mounted ? (
+          <RichTextEditor
+            key={`admin-create-editor-${editorInstanceKey}`}
+            docId="admin-toolkit:create"
+            value={form.contentHtml}
+            onChange={(html) => setForm((prev) => ({ ...prev, contentHtml: sanitizeHtml(html) }))}
+            height={260}
+            placeholder="Write guidance for staff…"
+          />
+        ) : (
+          <div className="h-[260px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
+        )}
       </div>
       <RoleCardsEditor form={form} setForm={setForm} editorKey="create" />
     </>
