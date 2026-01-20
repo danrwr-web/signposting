@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     const generated = await generateEditorialBatch({
+      surgeryId,
       promptText: parsed.promptText,
       targetRole: resolvedRole,
       count: parsed.count,

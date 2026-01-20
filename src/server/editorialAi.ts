@@ -228,13 +228,33 @@ function formatAdminValidationIssues(issues: AdminValidationIssue[]) {
 
 function formatToolkitSection(toolkitContext?: string, toolkitSource?: { title: string; url: string; publisher: string }) {
   if (!toolkitContext || !toolkitSource) return ''
-  return `TOOLKIT CONTEXT (primary authority):
+  
+  // Check if this is the new format with INTERNAL PRACTICE-APPROVED GUIDANCE header
+  const isNewFormat = toolkitContext.includes('INTERNAL PRACTICE-APPROVED GUIDANCE')
+  
+  if (isNewFormat) {
+    // New format already includes usage rules, just add source info
+    return `${toolkitContext.trim()}
+
+TOOLKIT SOURCE (use as sources[0]):
+Title: ${toolkitSource.title}
+URL: ${toolkitSource.url}
+Publisher: ${toolkitSource.publisher}
+
+`
+  }
+  
+  // Legacy format - add emphasis
+  return `INTERNAL PRACTICE-APPROVED GUIDANCE (MUST USE VERBATIM WHERE APPLICABLE)
+
 ${toolkitContext.trim()}
 
 TOOLKIT SOURCE (use as sources[0]):
 Title: ${toolkitSource.title}
 URL: ${toolkitSource.url}
 Publisher: ${toolkitSource.publisher}
+
+CRITICAL: Use the wording above verbatim for slot language, escalation steps, and safety netting. Do not paraphrase or invent beyond what is provided.
 
 `
 }
@@ -334,6 +354,165 @@ async function resolveAdminToolkitContext(params: { promptText: string; tags?: s
   return { context: context.trim() || DEFAULT_ADMIN_TOOLKIT_CONTEXT.trim(), source }
 }
 
+async function resolveSignpostingToolkitAdvice(params: {
+  surgeryId: string
+  promptText: string
+  tags?: string[]
+  targetRole: EditorialRole
+}): Promise<{
+  context: string
+  source: { title: string; url: string; publisher: string }
+} | null> {
+  // Only for ADMIN role
+  if (params.targetRole !== 'ADMIN') {
+    return null
+  }
+
+  try {
+    // Import here to avoid circular dependencies
+    const { getEffectiveSymptoms, getEffectiveSymptomByName } = await import('@/server/effectiveSymptoms')
+    const { prisma } = await import('@/lib/prisma')
+
+    // Get surgery name for source attribution
+    const surgery = await prisma.surgery.findUnique({
+      where: { id: params.surgeryId },
+      select: { name: true },
+    })
+
+    // Normalise search text
+    const searchText = [params.promptText, ...(params.tags || [])].join(' ').toLowerCase()
+
+    // Try to match symptoms - first attempt: direct name lookup
+    // Extract potential symptom names (simple heuristic: common symptom terms)
+    const commonSymptomTerms = [
+      'chest pain',
+      'headache',
+      'abdominal pain',
+      'back pain',
+      'mental health',
+      'anxiety',
+      'depression',
+      'cough',
+      'fever',
+      'rash',
+      'breathing',
+      'diarrhea',
+      'vomiting',
+      'dizziness',
+    ]
+
+    const matchedSymptoms: Array<Awaited<ReturnType<typeof getEffectiveSymptomByName>>> = []
+
+    // Try direct name matches first
+    for (const term of commonSymptomTerms) {
+      if (searchText.includes(term)) {
+        const symptom = await getEffectiveSymptomByName(term, params.surgeryId)
+        if (symptom && !matchedSymptoms.find((s) => s?.id === symptom?.id)) {
+          matchedSymptoms.push(symptom)
+          if (matchedSymptoms.length >= 5) break
+        }
+      }
+    }
+
+    // If no direct matches, load symptom list and do lightweight substring matching
+    if (matchedSymptoms.length === 0) {
+      const allSymptoms = await getEffectiveSymptoms(params.surgeryId, false)
+
+      // Match against symptom name and briefInstruction
+      const relevantSymptoms = allSymptoms
+        .filter((symptom) => {
+          const nameMatch = symptom.name.toLowerCase().includes(searchText) || searchText.includes(symptom.name.toLowerCase())
+          const briefMatch = symptom.briefInstruction
+            ? symptom.briefInstruction.toLowerCase().includes(searchText) ||
+              searchText.includes(symptom.briefInstruction.toLowerCase())
+            : false
+          return nameMatch || briefMatch
+        })
+        .slice(0, 5) // Cap to top 5 matches
+
+      matchedSymptoms.push(...relevantSymptoms.map((s) => s as any))
+    }
+
+    // If still no matches, fall back to existing static toolkit context
+    if (matchedSymptoms.length === 0 || matchedSymptoms.every((s) => !s)) {
+      const existing = await resolveAdminToolkitContext({
+        promptText: params.promptText,
+        tags: params.tags,
+      })
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Editorial AI] No symptom matches, using static toolkit fallback')
+      }
+      return existing
+    }
+
+    // Build context string from effective symptoms
+    const contextItems = matchedSymptoms
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+      .map((symptom) => {
+        const parts: string[] = []
+        parts.push(`## ${symptom.name}`)
+        if (symptom.ageGroup) {
+          parts.push(`**Age group:** ${symptom.ageGroup}`)
+        }
+        if (symptom.briefInstruction) {
+          parts.push(`**Brief instruction:** ${symptom.briefInstruction}`)
+        }
+        if (symptom.instructionsHtml) {
+          // Strip HTML tags for plain text version
+          let plainText = symptom.instructionsHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+          // Truncate to ~1,500 chars per symptom to prevent prompt bloat
+          if (plainText.length > 1500) {
+            plainText = plainText.slice(0, 1500) + '...'
+          }
+          parts.push(`**Full instructions:**\n${plainText}`)
+        } else if (symptom.instructions) {
+          // Truncate legacy markdown too
+          let truncated = symptom.instructions.trim()
+          if (truncated.length > 1500) {
+            truncated = truncated.slice(0, 1500) + '...'
+          }
+          parts.push(`**Full instructions:**\n${truncated}`)
+        }
+        if (symptom.highlightedText) {
+          parts.push(`**Key phrases:** ${symptom.highlightedText}`)
+        }
+        return parts.join('\n\n')
+      })
+
+    const context = `INTERNAL PRACTICE-APPROVED GUIDANCE (MUST USE VERBATIM WHERE APPLICABLE)
+
+This guidance is from ${surgery?.name || 'this practice'}'s approved Signposting Toolkit database. Use this wording exactly as written for workflow phrasing and slot language.
+
+${contextItems.join('\n\n---\n\n')}
+
+USAGE RULES:
+- Use this wording verbatim for slot choices (Red/Orange/Pink-Purple/Green) and escalation steps
+- Do not invent new slot colours or escalation routes
+- Preserve exact phrasing for safety netting and red flags
+- If a symptom is mentioned, use the exact instruction text above
+- If guidance contradicts generic knowledge, prefer the internal guidance`
+
+    const source = {
+      title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
+      url: `https://app.signpostingtool.co.uk/s/${params.surgeryId}`,
+      publisher: 'Signposting Toolkit',
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Editorial AI] Injected toolkit context: ${matchedSymptoms.filter((s) => s).length} symptom(s), ${context.length} chars`)
+    }
+
+    return { context, source }
+  } catch (error) {
+    // On error, fall back to static toolkit context
+    console.warn('[Editorial AI] Error resolving signposting toolkit advice, falling back to static:', error)
+    return await resolveAdminToolkitContext({
+      promptText: params.promptText,
+      tags: params.tags,
+    })
+  }
+}
+
 type GenerationAttemptResult = {
   modelUsed: string
   rawOutput: string
@@ -419,6 +598,7 @@ async function resolveGenerationResult(params: {
 }
 
 export async function generateEditorialBatch(params: {
+  surgeryId: string
   promptText: string
   targetRole: EditorialRole
   count: number
@@ -428,10 +608,12 @@ export async function generateEditorialBatch(params: {
   onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
 }) {
   let attemptIndex = 0
-  const toolkit =
-    params.targetRole === 'ADMIN'
-      ? await resolveAdminToolkitContext({ promptText: params.promptText, tags: params.tags })
-      : null
+  const toolkit = await resolveSignpostingToolkitAdvice({
+    surgeryId: params.surgeryId,
+    promptText: params.promptText,
+    tags: params.tags,
+    targetRole: params.targetRole,
+  })
 
   const userPrompt = buildUserPrompt({
     promptText: params.promptText,
@@ -464,6 +646,7 @@ export async function generateEditorialBatch(params: {
   if (params.targetRole === 'ADMIN') {
     const issues = validateAdminCards({ cards: finalResult.data.cards, promptText: params.promptText })
     if (issues.length > 0) {
+      // Reuse the same toolkit context for retry (no need to refetch)
       const retryPrompt = buildUserPrompt({
         promptText: params.promptText,
         targetRole: params.targetRole,
@@ -509,18 +692,18 @@ export async function generateEditorialBatch(params: {
 }
 
 export async function generateEditorialVariations(params: {
+  surgeryId: string
   sourceCard: z.infer<typeof EditorialLearningCardZ>
   variationsCount: number
   userInstruction?: string
 }) {
   const role = params.sourceCard.targetRole
-  const toolkit =
-    role === 'ADMIN'
-      ? await resolveAdminToolkitContext({
-          promptText: JSON.stringify(params.sourceCard),
-          tags: params.sourceCard.tags,
-        })
-      : null
+  const toolkit = await resolveSignpostingToolkitAdvice({
+    surgeryId: params.surgeryId,
+    promptText: JSON.stringify(params.sourceCard),
+    tags: params.sourceCard.tags,
+    targetRole: role,
+  })
   const toolkitSection = role === 'ADMIN' ? formatToolkitSection(toolkit?.context, toolkit?.source) : ''
 
   const userPrompt = `${toolkitSection}Create ${params.variationsCount} variations of the card below.
@@ -553,18 +736,18 @@ Return ONLY valid JSON. No markdown, no commentary.
 }
 
 export async function regenerateEditorialSection(params: {
+  surgeryId: string
   card: z.infer<typeof EditorialLearningCardZ>
   section: string
   userInstruction?: string
 }) {
   const role = params.card.targetRole
-  const toolkit =
-    role === 'ADMIN'
-      ? await resolveAdminToolkitContext({
-          promptText: JSON.stringify(params.card),
-          tags: params.card.tags,
-        })
-      : null
+  const toolkit = await resolveSignpostingToolkitAdvice({
+    surgeryId: params.surgeryId,
+    promptText: JSON.stringify(params.card),
+    tags: params.card.tags,
+    targetRole: role,
+  })
   const toolkitSection = role === 'ADMIN' ? formatToolkitSection(toolkit?.context, toolkit?.source) : ''
 
   const sectionPrompt = `${toolkitSection}Regenerate ONLY the "${params.section}" section of the card JSON below.

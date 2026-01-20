@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
     }
 
     const regenerated = await regenerateEditorialSection({
+      surgeryId,
       card: cardPayload,
       section: parsed.section,
       userInstruction: parsed.userInstruction,

@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
     })
 
     const generated = await generateEditorialVariations({
+      surgeryId,
       sourceCard,
       variationsCount: parsed.variationsCount,
     })
