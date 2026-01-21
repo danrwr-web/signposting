@@ -3,7 +3,8 @@ import 'server-only'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSurgeryAccess, can } from '@/lib/rbac'
+import { requireSurgeryAccess } from '@/lib/rbac'
+import { canAccessAdminToolkitAdminDashboard } from '@/lib/adminToolkitPermissions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import {
   getAdminToolkitCategories,
@@ -65,27 +66,9 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
       )
     }
 
-    const canWrite = can(user).adminToolkitWrite(surgeryId)
-    if (!canWrite) {
-      return (
-        <div className="min-h-screen bg-white">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-            <div className="mb-6">
-              <Link
-                href={`/s/${surgeryId}/admin-toolkit`}
-                className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-              >
-                ← Back to Admin Toolkit
-              </Link>
-            </div>
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-              <p className="text-sm text-yellow-700">
-                <strong>You have view-only access.</strong> Ask a surgery admin to grant Admin Toolkit write access.
-              </p>
-            </div>
-          </div>
-        </div>
-      )
+    const canManage = canAccessAdminToolkitAdminDashboard(user, surgeryId)
+    if (!canManage) {
+      redirect('/unauthorized')
     }
 
     const todayUtc = getLondonTodayUtc()
@@ -116,7 +99,6 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
     ])
 
     const editorCandidates = members
-      .filter((m) => m.role === 'ADMIN' || m.adminToolkitWrite === true)
       .map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email }))
       .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email))
 
