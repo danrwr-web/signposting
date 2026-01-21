@@ -42,6 +42,9 @@ model User {
   adminItemsCreated AdminItem[] @relation("AdminItemCreatedBy")
   adminItemsUpdated AdminItem[] @relation("AdminItemUpdatedBy")
   adminToolkitHistory AdminHistory[] @relation("AdminToolkitHistoryActor")
+  adminCategoryVisibleUsers AdminCategoryVisibleUser[]
+  adminItemEditGrants AdminItemEditGrant[]
+  adminItemEditGrantsCreated AdminItemEditGrant[] @relation("AdminItemEditGrantCreatedBy")
 
   // Workflow instances
   workflowInstances WorkflowInstance[]
@@ -121,6 +124,8 @@ model Surgery {
   adminDutyRota    AdminDutyRotaEntry[]
   adminOnTakeWeeks AdminOnTakeWeek[]
   adminHistory     AdminHistory[]
+  adminCategoryVisibleUsers AdminCategoryVisibleUser[]
+  adminItemEditGrants AdminItemEditGrant[]
 }
 
 model BaseSymptom {
@@ -467,12 +472,32 @@ model UserFeatureFlag {
 // Admin Toolkit (per-surgery)
 // -----------------------
 
+enum SurgeryRole {
+  ADMIN
+  STANDARD
+}
+
+enum AdminCategoryVisibilityMode {
+  ALL
+  ROLES
+  USERS
+  ROLES_OR_USERS
+}
+
+enum AdminItemEditGrantPrincipalType {
+  USER
+  ROLE
+}
+
 model AdminCategory {
   id             String   @id @default(cuid())
   surgeryId      String
   name           String
   orderIndex     Int      @default(0)
   parentCategoryId String?
+
+  visibilityMode  AdminCategoryVisibilityMode @default(ALL)
+  visibilityRoles SurgeryRole[]               @default([])
 
   deletedAt DateTime?
   createdAt DateTime @default(now())
@@ -482,11 +507,29 @@ model AdminCategory {
   parentCategory AdminCategory?  @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
   subcategories  AdminCategory[] @relation("CategoryHierarchy")
   items          AdminItem[]
+  visibleUsers   AdminCategoryVisibleUser[]
   history        AdminHistory[]
 
   @@index([surgeryId, orderIndex])
   @@index([surgeryId, deletedAt])
   @@index([surgeryId, parentCategoryId])
+}
+
+model AdminCategoryVisibleUser {
+  id              String   @id @default(cuid())
+  surgeryId        String
+  adminCategoryId  String
+  userId           String
+  createdAt        DateTime @default(now())
+
+  surgery   Surgery       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  category  AdminCategory @relation(fields: [adminCategoryId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([adminCategoryId, userId])
+  @@index([surgeryId])
+  @@index([adminCategoryId])
+  @@index([userId])
 }
 
 model AdminItem {
@@ -519,6 +562,7 @@ model AdminItem {
   updatedBy User?          @relation("AdminItemUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   editors     AdminItemEditor[]
+  editGrants  AdminItemEditGrant[]
   listColumns AdminListColumn[]
   listRows    AdminListRow[]
   attachments AdminItemAttachment[]
@@ -541,6 +585,28 @@ model AdminItemEditor {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([adminItemId, userId])
+  @@index([userId])
+}
+
+model AdminItemEditGrant {
+  id            String                        @id @default(cuid())
+  surgeryId     String
+  adminItemId   String
+  principalType AdminItemEditGrantPrincipalType
+  userId        String?
+  role          SurgeryRole?
+  createdByUserId String?
+  createdAt     DateTime                      @default(now())
+
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("AdminItemEditGrantCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([adminItemId, userId])
+  @@unique([adminItemId, role])
+  @@index([surgeryId])
+  @@index([adminItemId])
   @@index([userId])
 }
 
