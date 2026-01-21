@@ -1,5 +1,6 @@
 import 'server-only'
 import { getServerSession } from 'next-auth'
+import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
@@ -211,4 +212,33 @@ export async function requireSurgeryAccess(surgeryId: string): Promise<SessionUs
   }
   
   return user
+}
+
+export async function resolveSurgeryIdFromIdentifier(surgeryIdOrSlug: string): Promise<string | null> {
+  const key = (surgeryIdOrSlug || '').trim()
+  if (!key) return null
+
+  const row = await prisma.surgery.findFirst({
+    where: { OR: [{ id: key }, { slug: key }] },
+    select: { id: true },
+  })
+  return row?.id ?? null
+}
+
+export async function requireSurgeryMembership(
+  surgeryIdOrSlug: string,
+): Promise<{ user: SessionUser; surgeryId: string; surgeryRole: string | null }> {
+  const user = await requireAuth()
+  const resolvedSurgeryId = await resolveSurgeryIdFromIdentifier(surgeryIdOrSlug)
+
+  if (!resolvedSurgeryId) {
+    redirect('/unauthorized')
+  }
+
+  if (user.globalRole !== 'SUPERUSER' && !user.memberships.some((m) => m.surgeryId === resolvedSurgeryId)) {
+    redirect('/unauthorized')
+  }
+
+  const membership = user.memberships.find((m) => m.surgeryId === resolvedSurgeryId) ?? null
+  return { user, surgeryId: resolvedSurgeryId, surgeryRole: membership?.role ?? null }
 }

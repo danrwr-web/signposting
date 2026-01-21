@@ -3,7 +3,7 @@ import 'server-only'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSurgeryAccess } from '@/lib/rbac'
+import { requireSurgeryMembership } from '@/lib/rbac'
 import { canAccessAdminToolkitAdminDashboard } from '@/lib/adminToolkitPermissions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
@@ -28,10 +28,15 @@ interface AdminToolkitLandingPageProps {
 }
 
 export default async function AdminToolkitLandingPage({ params }: AdminToolkitLandingPageProps) {
-  const { id: surgeryId } = await params
+  const { id: surgeryIdOrSlug } = await params
 
   try {
-    const user = await requireSurgeryAccess(surgeryId)
+    const { user, surgeryId } = await requireSurgeryMembership(surgeryIdOrSlug)
+
+    // Canonicalise to ID-based route (slug support is back-compat only).
+    if (surgeryIdOrSlug !== surgeryId) {
+      redirect(`/s/${surgeryId}/admin-toolkit`)
+    }
 
     const [surgery, enabled] = await Promise.all([
       prisma.surgery.findUnique({
