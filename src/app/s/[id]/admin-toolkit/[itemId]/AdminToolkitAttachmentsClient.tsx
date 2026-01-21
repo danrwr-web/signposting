@@ -30,11 +30,21 @@ export default function AdminToolkitAttachmentsClient({
   const [saving, setSaving] = useState(false)
 
   const sorted = useMemo(() => attachments.slice().sort((a, b) => a.label.localeCompare(b.label)), [attachments])
+  const hasAttachments = sorted.length > 0
 
   return (
     <div>
-      {sorted.length === 0 ? (
-        <p className="text-sm text-gray-500">No attachments yet.</p>
+      {!hasAttachments ? (
+        canEditThisItem ? (
+          <p className="text-sm text-gray-700">
+            No attachments yet. You can add PDFs, Word documents, images, or folder links to support this page.
+          </p>
+        ) : (
+          <div className="text-sm text-gray-700">
+            <p>There are no attachments for this page.</p>
+            <p className="mt-2">If you think something should be added, please speak to an administrator.</p>
+          </div>
+        )
       ) : (
         <ul className="space-y-2">
           {sorted.map((a) => (
@@ -122,9 +132,9 @@ export default function AdminToolkitAttachmentsClient({
             </button>
           </div>
         </form>
-      ) : (
-        <p className="mt-3 text-sm text-gray-500">You cannot edit attachments for this item.</p>
-      )}
+      ) : hasAttachments ? (
+        <p className="mt-3 text-sm text-gray-500">If you need to change attachments, please speak to an administrator.</p>
+      ) : null}
     </div>
   )
 }

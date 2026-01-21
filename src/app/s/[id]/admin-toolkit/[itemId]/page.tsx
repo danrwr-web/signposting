@@ -17,7 +17,7 @@ import {
   startOfWeekMondayUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
-import AdminToolkitAttachmentsClient from './AdminToolkitAttachmentsClient'
+import AdminToolkitAttachmentsSectionClient from './AdminToolkitAttachmentsSectionClient'
 import AdminToolkitListClient from './AdminToolkitListClient'
 import { getRoleCardsBlock, getIntroTextBlock, getFooterTextBlock } from '@/lib/adminToolkitContentBlocksShared'
 
@@ -160,18 +160,13 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
                 ) : null}
               </div>
 
-              <section className="mt-6 bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-lg font-semibold text-nhs-dark-blue">Attachments</h2>
-                <p className="mt-1 text-sm text-nhs-grey">Add links to PDFs, Word documents, images, or folders.</p>
-                <div className="mt-4">
-                  <AdminToolkitAttachmentsClient
-                    surgeryId={surgeryId}
-                    itemId={item.id}
-                    canEditThisItem={canEditThisItem}
-                    attachments={item.attachments.map((a) => ({ id: a.id, label: a.label, url: a.url }))}
-                  />
-                </div>
-              </section>
+              <AdminToolkitAttachmentsSectionClient
+                surgeryId={surgeryId}
+                itemId={item.id}
+                canEditThisItem={canEditThisItem}
+                attachments={item.attachments.map((a) => ({ id: a.id, label: a.label, url: a.url }))}
+                defaultOpen={item.attachments.length > 0}
+              />
             </>
           ) : (
             <section className="bg-white rounded-lg shadow-md p-6">
