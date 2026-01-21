@@ -3,6 +3,13 @@ import 'server-only'
 import { prisma } from '@/lib/prisma'
 import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
 import { z } from 'zod'
+import type { SessionUser } from '@/lib/rbac'
+import {
+  canViewAdminItem,
+  computeViewableAdminCategoryIds,
+  filterAdminToolkitCategoriesTree,
+  filterAdminToolkitItemsByViewableCategories,
+} from '@/lib/adminToolkitPermissions'
 
 export type AdminToolkitCategory = {
   id: string
@@ -10,6 +17,9 @@ export type AdminToolkitCategory = {
   orderIndex: number
   parentCategoryId: string | null
   children?: AdminToolkitCategory[]
+  visibilityMode: 'ALL' | 'ROLES' | 'USERS' | 'ROLES_OR_USERS'
+  visibilityRoles: Array<'ADMIN' | 'STANDARD'>
+  visibleUserIds: string[]
 }
 
 export type AdminToolkitPageItem = {
@@ -27,6 +37,7 @@ export type AdminToolkitPageItem = {
   createdBy?: { id: string; name: string | null; email: string } | null
   updatedBy?: { id: string; name: string | null; email: string } | null
   editors: Array<{ userId: string }>
+  editGrants: Array<{ principalType: 'USER' | 'ROLE'; userId: string | null; role: 'ADMIN' | 'STANDARD' | null }>
   attachments: Array<{ id: string; label: string; url: string; orderIndex: number; deletedAt: Date | null }>
   listColumns?: Array<{ id: string; key: string; label: string; fieldType: string; orderIndex: number }>
   listRows?: Array<{ id: string; dataJson: unknown; orderIndex: number }>
@@ -117,7 +128,15 @@ export function getLondonTodayUtc(): Date {
 export async function getAdminToolkitCategories(surgeryId: string): Promise<AdminToolkitCategory[]> {
   const categories = await prisma.adminCategory.findMany({
     where: { surgeryId, deletedAt: null },
-    select: { id: true, name: true, orderIndex: true, parentCategoryId: true },
+    select: {
+      id: true,
+      name: true,
+      orderIndex: true,
+      parentCategoryId: true,
+      visibilityMode: true,
+      visibilityRoles: true,
+      visibleUsers: { select: { userId: true } },
+    },
     orderBy: [{ orderIndex: 'asc' }, { name: 'asc' }],
   })
   
@@ -127,7 +146,16 @@ export async function getAdminToolkitCategories(surgeryId: string): Promise<Admi
   
   // First pass: create all category objects
   for (const cat of categories) {
-    categoryMap.set(cat.id, { ...cat, parentCategoryId: cat.parentCategoryId, children: [] })
+    categoryMap.set(cat.id, {
+      id: cat.id,
+      name: cat.name,
+      orderIndex: cat.orderIndex,
+      parentCategoryId: cat.parentCategoryId,
+      visibilityMode: cat.visibilityMode,
+      visibilityRoles: (cat.visibilityRoles ?? []) as Array<'ADMIN' | 'STANDARD'>,
+      visibleUserIds: (cat.visibleUsers ?? []).map((x) => x.userId),
+      children: [],
+    })
   }
   
   // Second pass: build hierarchy
@@ -180,6 +208,7 @@ export async function getAdminToolkitPageItems(surgeryId: string): Promise<Admin
       createdBy: { select: { id: true, name: true, email: true } },
       updatedBy: { select: { id: true, name: true, email: true } },
       editors: { select: { userId: true } },
+      editGrants: { select: { principalType: true, userId: true, role: true } },
       attachments: {
         where: { deletedAt: null },
         select: { id: true, label: true, url: true, orderIndex: true, deletedAt: true },
@@ -192,11 +221,11 @@ export async function getAdminToolkitPageItems(surgeryId: string): Promise<Admin
     },
     orderBy: [{ updatedAt: 'desc' }],
   })
-  return items
+  return items as unknown as AdminToolkitPageItem[]
 }
 
 export async function getAdminToolkitPageItem(surgeryId: string, itemId: string): Promise<AdminToolkitPageItem | null> {
-  return prisma.adminItem.findFirst({
+  const item = await prisma.adminItem.findFirst({
     where: { id: itemId, surgeryId, deletedAt: null, type: { in: ['PAGE', 'LIST'] } },
     select: {
       id: true,
@@ -213,6 +242,7 @@ export async function getAdminToolkitPageItem(surgeryId: string, itemId: string)
       createdBy: { select: { id: true, name: true, email: true } },
       updatedBy: { select: { id: true, name: true, email: true } },
       editors: { select: { userId: true } },
+      editGrants: { select: { principalType: true, userId: true, role: true } },
       attachments: {
         where: { deletedAt: null },
         select: { id: true, label: true, url: true, orderIndex: true, deletedAt: true },
@@ -229,6 +259,55 @@ export async function getAdminToolkitPageItem(surgeryId: string, itemId: string)
       },
     },
   })
+  return item as unknown as AdminToolkitPageItem | null
+}
+
+export async function getAdminToolkitLibraryForUser(
+  user: SessionUser,
+  surgeryId: string,
+): Promise<{ categories: AdminToolkitCategory[]; items: AdminToolkitPageItem[]; viewableCategoryIds: Set<string> }> {
+  const [categories, items] = await Promise.all([getAdminToolkitCategories(surgeryId), getAdminToolkitPageItems(surgeryId)])
+
+  const flat: Array<{
+    id: string
+    parentCategoryId: string | null
+    visibilityMode: 'ALL' | 'ROLES' | 'USERS' | 'ROLES_OR_USERS'
+    visibilityRoles: Array<'ADMIN' | 'STANDARD'>
+    visibleUserIds: string[]
+  }> = []
+
+  const walk = (cats: AdminToolkitCategory[]) => {
+    for (const c of cats) {
+      flat.push({
+        id: c.id,
+        parentCategoryId: c.parentCategoryId,
+        visibilityMode: c.visibilityMode,
+        visibilityRoles: c.visibilityRoles,
+        visibleUserIds: c.visibleUserIds,
+      })
+      if (c.children && c.children.length > 0) walk(c.children)
+    }
+  }
+  walk(categories)
+
+  const viewableCategoryIds = computeViewableAdminCategoryIds(user, surgeryId, flat)
+  const filteredCategories = filterAdminToolkitCategoriesTree(categories, viewableCategoryIds)
+  const filteredItems = filterAdminToolkitItemsByViewableCategories(items, viewableCategoryIds)
+
+  return { categories: filteredCategories, items: filteredItems, viewableCategoryIds }
+}
+
+export async function getAdminToolkitPageItemForUser(
+  user: SessionUser,
+  surgeryId: string,
+  itemId: string,
+): Promise<AdminToolkitPageItem | null> {
+  const item = await getAdminToolkitPageItem(surgeryId, itemId)
+  if (!item) return null
+
+  const { viewableCategoryIds } = await getAdminToolkitLibraryForUser(user, surgeryId)
+  if (!canViewAdminItem(user, { surgeryId, categoryId: item.categoryId }, viewableCategoryIds)) return null
+  return item
 }
 
 export async function getAdminToolkitPinnedPanel(surgeryId: string): Promise<AdminToolkitPinnedPanel> {
