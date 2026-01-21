@@ -3,14 +3,15 @@ import 'server-only'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSurgeryAccess, can } from '@/lib/rbac'
+import { requireSurgeryAccess } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
+import { canAccessAdminToolkitAdminDashboard, canEditAdminItem } from '@/lib/adminToolkitPermissions'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
 import RoleCardsRendererWithCardStyle from '@/components/admin-toolkit/RoleCardsRendererWithCardStyle'
 import {
   getAdminToolkitOnTakeWeek,
-  getAdminToolkitPageItem,
+  getAdminToolkitPageItemForUser,
   getAdminToolkitPinnedPanel,
   getLondonTodayUtc,
   startOfWeekMondayUtc,
@@ -66,9 +67,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
       )
     }
 
-    const canWrite = can(user).adminToolkitWrite(surgeryId)
-
-    const item = await getAdminToolkitPageItem(surgeryId, itemId)
+    const item = await getAdminToolkitPageItemForUser(user, surgeryId, itemId)
     if (!item) {
       return (
         <div className="min-h-screen bg-white">
@@ -91,37 +90,22 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
       )
     }
 
-    const isSuperuser = user.globalRole === 'SUPERUSER'
-    const isRestricted = item.editors.length > 0
-    const isEditor = item.editors.some((e) => e.userId === user.id)
-    const canEditThisItem = isSuperuser || (canWrite && (!isRestricted || isEditor))
+    const canManage = canAccessAdminToolkitAdminDashboard(user, surgeryId)
+    const canEditThisItem = canEditAdminItem(user, {
+      id: item.id,
+      surgeryId,
+      categoryId: item.categoryId,
+      editGrants: item.editGrants.map((g) => ({
+        principalType: g.principalType,
+        userId: g.userId ?? null,
+        role: (g.role ?? null) as 'ADMIN' | 'STANDARD' | null,
+      })),
+    })
     const roleCardsBlock = item.type === 'PAGE' ? getRoleCardsBlock(item.contentJson ?? null) : null
     const introTextBlock = item.type === 'PAGE' ? getIntroTextBlock(item.contentJson ?? null) : null
     const footerTextBlock = item.type === 'PAGE' ? getFooterTextBlock(item.contentJson ?? null) : null
     // Legacy fallback: if no FOOTER_TEXT block but contentHtml exists, use it as footer
     const footerHtml = footerTextBlock?.html ?? (item.type === 'PAGE' && item.contentHtml ? item.contentHtml : '')
-
-    if (item.type === 'LIST' && isRestricted && !canWrite) {
-      return (
-        <div className="min-h-screen bg-white">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-            <div className="mb-6">
-              <Link
-                href={`/s/${surgeryId}/admin-toolkit`}
-                className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-              >
-                ← Back to Admin Toolkit
-              </Link>
-            </div>
-            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
-              <p className="text-sm text-yellow-700">
-                <strong>This list is restricted.</strong> You need Admin Toolkit write access to view it.
-              </p>
-            </div>
-          </div>
-        </div>
-      )
-    }
 
     const panel = await getAdminToolkitPinnedPanel(surgeryId)
     const todayUtc = getLondonTodayUtc()
@@ -141,9 +125,8 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
             <AdminToolkitItemActionsClient
               surgeryId={surgeryId}
               itemId={item.id}
-              canWrite={canWrite}
+              canManage={canManage}
               canEditThisItem={canEditThisItem}
-              isRestricted={isRestricted}
             />
           </div>
 
@@ -157,16 +140,6 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
               ) : null}
             </div>
             <p className="mt-1 text-nhs-grey">{surgery.name}</p>
-            {isRestricted ? (
-              <p className="mt-2 text-sm text-gray-600">
-                <strong>Restricted item:</strong> only approved editors can make changes.
-              </p>
-            ) : null}
-            {!canEditThisItem && canWrite ? (
-              <p className="mt-2 text-sm text-gray-600">
-                You have Admin Toolkit write access, but this item is restricted to a smaller set of editors.
-              </p>
-            ) : null}
           </header>
 
           {item.type === 'PAGE' ? (
@@ -247,7 +220,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
         <AdminToolkitPinnedPanel
           surgeryId={surgeryId}
-          canWrite={canWrite}
+            canWrite={canManage}
           onTakeWeekCommencingUtc={weekStartUtc}
           onTakeGpName={onTake?.gpName ?? null}
           panel={panel}

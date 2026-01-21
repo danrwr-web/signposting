@@ -14,10 +14,11 @@ import {
   deleteAdminToolkitCategory,
   renameAdminToolkitCategory,
   reorderAdminToolkitCategories,
+  setAdminToolkitCategoryVisibility,
   createAdminToolkitItem,
   updateAdminToolkitItem,
   deleteAdminToolkitItem,
-  setAdminToolkitItemEditors,
+  setAdminToolkitItemEditGrants,
   upsertAdminToolkitPinnedPanel,
   setAdminToolkitOnTakeWeek,
   getAdminToolkitOnTakeWeekValue,
@@ -62,7 +63,8 @@ type PageFormState = {
   roleCardsColumns: RoleCardsColumns
   roleCardsCards: RoleCard[]
   lastReviewedDate: string // YYYY-MM-DD (local input), stored as UTC midnight when saving
-  editorUserIds: string[]
+  additionalEditorUserIds: string[]
+  allowAllStandardUsers: boolean
 }
 
 const DEFAULT_PAGE_FORM: PageFormState = {
@@ -80,7 +82,8 @@ const DEFAULT_PAGE_FORM: PageFormState = {
   roleCardsColumns: 3,
   roleCardsCards: [],
   lastReviewedDate: '',
-  editorUserIds: [],
+  additionalEditorUserIds: [],
+  allowAllStandardUsers: false,
 }
 
 function addDaysIso(weekCommencingIso: string, days: number): string {
@@ -657,7 +660,10 @@ export default function AdminToolkitAdminClient({
       roleCardsColumns: (roleCards?.columns ?? 3) as RoleCardsColumns,
       roleCardsCards: (roleCards?.cards ?? []).slice().sort((a, b) => a.orderIndex - b.orderIndex),
       lastReviewedDate: item.lastReviewedAt ? new Date(item.lastReviewedAt).toISOString().slice(0, 10) : '',
-      editorUserIds: item.editors.map((e) => e.userId),
+      additionalEditorUserIds: (item.editGrants ?? [])
+        .filter((g) => g.principalType === 'USER' && g.userId)
+        .map((g) => g.userId as string),
+      allowAllStandardUsers: (item.editGrants ?? []).some((g) => g.principalType === 'ROLE' && g.role === 'STANDARD'),
     }
   }
 
@@ -827,6 +833,7 @@ export default function AdminToolkitAdminClient({
           surgeryId={surgeryId}
           categories={categories}
           items={items}
+          userCandidates={editorCandidates}
           initialQuickAccessButtons={initialQuickAccessButtons}
           newCategoryName={newCategoryName}
           setNewCategoryName={setNewCategoryName}
@@ -1297,16 +1304,24 @@ function ItemsTab({
             </div>
 
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-              <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
+              <h4 className="text-sm font-semibold text-gray-900">Additional editors (optional)</h4>
               <p className="mt-1 text-sm text-gray-600">
-                You can set restrictions after creating, or tick names now and we'll apply them after the page is created.
+                Choose people who can edit this item from the staff view. Surgery admins and superusers can always edit.
               </p>
+              <label className="mt-3 flex items-center gap-2 text-sm text-gray-800">
+                <input
+                  type="checkbox"
+                  checked={form.allowAllStandardUsers}
+                  onChange={(e) => setForm((prev) => ({ ...prev, allowAllStandardUsers: e.target.checked }))}
+                />
+                <span>All standard users can edit</span>
+              </label>
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {editorCandidates.length === 0 ? (
-                  <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
+                  <p className="text-sm text-gray-500">No users found for this surgery.</p>
                 ) : (
                   editorCandidates.map((u) => {
-                    const checked = form.editorUserIds.includes(u.id)
+                    const checked = form.additionalEditorUserIds.includes(u.id)
                     const label = u.name ? `${u.name} (${u.email})` : u.email
                     return (
                       <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
@@ -1316,9 +1331,9 @@ function ItemsTab({
                           onChange={(e) => {
                             setForm((prev) => {
                               const nextIds = e.target.checked
-                                ? Array.from(new Set([...prev.editorUserIds, u.id]))
-                                : prev.editorUserIds.filter((x) => x !== u.id)
-                              return { ...prev, editorUserIds: nextIds }
+                                ? Array.from(new Set([...prev.additionalEditorUserIds, u.id]))
+                                : prev.additionalEditorUserIds.filter((x) => x !== u.id)
+                              return { ...prev, additionalEditorUserIds: nextIds }
                             })
                           }}
                         />
@@ -1380,12 +1395,13 @@ function ItemsTab({
                     toast.error(res.error.message)
                     return
                   }
-                  // Optional: apply restrictions immediately after create.
-                  if (form.editorUserIds.length > 0) {
-                    const r = await setAdminToolkitItemEditors({
+                  // Optional: apply additional editors immediately after create.
+                  if (form.additionalEditorUserIds.length > 0 || form.allowAllStandardUsers) {
+                    const r = await setAdminToolkitItemEditGrants({
                       surgeryId,
                       itemId: res.data.id,
-                      editorUserIds: form.editorUserIds,
+                      editorUserIds: form.additionalEditorUserIds,
+                      allowAllStandardUsers: form.allowAllStandardUsers,
                     })
                     if (!r.ok) {
                       toast.error(r.error.message)
@@ -1734,16 +1750,24 @@ function ItemEditFormContent({
       ) : null}
 
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
-        <h4 className="text-sm font-semibold text-gray-900">Restricted editors (optional)</h4>
+        <h4 className="text-sm font-semibold text-gray-900">Additional editors (optional)</h4>
         <p className="mt-1 text-sm text-gray-600">
-          If you tick any names, only those people (and superusers) can edit this item. You still need Admin Toolkit write access.
+          Choose people who can edit this item from the staff view. Surgery admins and superusers can always edit.
         </p>
+        <label className="mt-3 flex items-center gap-2 text-sm text-gray-800">
+          <input
+            type="checkbox"
+            checked={form.allowAllStandardUsers}
+            onChange={(e) => setForm((prev) => ({ ...prev, allowAllStandardUsers: e.target.checked }))}
+          />
+          <span>All standard users can edit</span>
+        </label>
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
           {editorCandidates.length === 0 ? (
-            <p className="text-sm text-gray-500">No editor candidates yet. Grant write access first.</p>
+            <p className="text-sm text-gray-500">No users found for this surgery.</p>
           ) : (
             editorCandidates.map((u) => {
-              const checked = form.editorUserIds.includes(u.id)
+              const checked = form.additionalEditorUserIds.includes(u.id)
               const label = u.name ? `${u.name} (${u.email})` : u.email
               return (
                 <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
@@ -1753,9 +1777,9 @@ function ItemEditFormContent({
                     onChange={(e) => {
                       setForm((prev) => {
                         const nextIds = e.target.checked
-                          ? Array.from(new Set([...prev.editorUserIds, u.id]))
-                          : prev.editorUserIds.filter((x) => x !== u.id)
-                        return { ...prev, editorUserIds: nextIds }
+                          ? Array.from(new Set([...prev.additionalEditorUserIds, u.id]))
+                          : prev.additionalEditorUserIds.filter((x) => x !== u.id)
+                        return { ...prev, additionalEditorUserIds: nextIds }
                       })
                     }}
                   />
@@ -1770,10 +1794,11 @@ function ItemEditFormContent({
             type="button"
             className="nhs-button-secondary"
             onClick={async () => {
-              const res = await setAdminToolkitItemEditors({
+              const res = await setAdminToolkitItemEditGrants({
                 surgeryId,
                 itemId: selectedItem.id,
-                editorUserIds: form.editorUserIds,
+                editorUserIds: form.additionalEditorUserIds,
+                allowAllStandardUsers: form.allowAllStandardUsers,
               })
               if (!res.ok) {
                 toast.error(res.error.message)
@@ -1931,6 +1956,7 @@ function StructureSettingsTab({
   surgeryId,
   categories,
   items,
+  userCandidates,
   initialQuickAccessButtons,
   newCategoryName,
   setNewCategoryName,
@@ -1967,6 +1993,7 @@ function StructureSettingsTab({
   surgeryId: string
   categories: AdminToolkitCategory[]
   items: AdminToolkitPageItem[]
+  userCandidates: EditorCandidate[]
   initialQuickAccessButtons: AdminToolkitQuickAccessButton[]
   newCategoryName: string
   setNewCategoryName: React.Dispatch<React.SetStateAction<string>>
@@ -2037,6 +2064,183 @@ function StructureSettingsTab({
       })
       .filter((x): x is AdminToolkitCategory => x !== null)
   }, [categories, categorySearch])
+
+  const userLabelById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const u of userCandidates) {
+      map.set(u.id, u.name ? `${u.name} (${u.email})` : u.email)
+    }
+    return map
+  }, [userCandidates])
+
+  const CategoryVisibilityEditor = ({ category }: { category: AdminToolkitCategory }) => {
+    const [mode, setMode] = useState<AdminToolkitCategory['visibilityMode']>(category.visibilityMode ?? 'ALL')
+    const [roles, setRoles] = useState<Array<'ADMIN' | 'STANDARD'>>((category.visibilityRoles ?? []) as Array<'ADMIN' | 'STANDARD'>)
+    const [visibleUserIds, setVisibleUserIds] = useState<string[]>(category.visibleUserIds ?? [])
+    const [userQuery, setUserQuery] = useState('')
+    const [saving, setSaving] = useState(false)
+
+    useEffect(() => {
+      setMode(category.visibilityMode ?? 'ALL')
+      setRoles((category.visibilityRoles ?? []) as Array<'ADMIN' | 'STANDARD'>)
+      setVisibleUserIds(category.visibleUserIds ?? [])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [category.id, category.visibilityMode, JSON.stringify(category.visibilityRoles ?? []), JSON.stringify(category.visibleUserIds ?? [])])
+
+    const effectiveRoles = mode === 'ROLES' || mode === 'ROLES_OR_USERS' ? roles : ([] as Array<'ADMIN' | 'STANDARD'>)
+    const effectiveUsers = mode === 'USERS' || mode === 'ROLES_OR_USERS' ? visibleUserIds : ([] as string[])
+
+    const summary = useMemo(() => {
+      if (mode === 'ALL') return 'Everyone'
+      if (mode === 'ROLES') return effectiveRoles.length ? `Roles: ${effectiveRoles.join(', ').toLowerCase()}` : 'Roles: none selected'
+      if (mode === 'USERS') return effectiveUsers.length ? `People: ${effectiveUsers.length}` : 'People: none selected'
+      if (mode === 'ROLES_OR_USERS') {
+        const parts: string[] = []
+        parts.push(effectiveRoles.length ? `Roles: ${effectiveRoles.join(', ').toLowerCase()}` : 'Roles: none')
+        parts.push(effectiveUsers.length ? `People: ${effectiveUsers.length}` : 'People: none')
+        return parts.join(' • ')
+      }
+      return 'Everyone'
+    }, [mode, effectiveRoles, effectiveUsers])
+
+    const filteredUsers = useMemo(() => {
+      const q = userQuery.trim().toLowerCase()
+      if (!q) return userCandidates
+      return userCandidates.filter((u) => `${u.name ?? ''} ${u.email}`.toLowerCase().includes(q))
+    }, [userCandidates, userQuery])
+
+    return (
+      <details className="mt-2 rounded-md border border-gray-200 bg-white">
+        <summary className="cursor-pointer select-none px-3 py-2 text-sm text-gray-700">
+          <span className="font-medium">Visible to:</span> <span className="text-gray-600">{summary}</span>
+        </summary>
+        <div className="border-t border-gray-200 px-3 py-3 space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Visibility</label>
+            <select className="nhs-input w-full" value={mode} onChange={(e) => setMode(e.target.value as any)}>
+              <option value="ALL">Everyone</option>
+              <option value="ROLES">Roles</option>
+              <option value="USERS">Specific people</option>
+              <option value="ROLES_OR_USERS">Roles or people</option>
+            </select>
+          </div>
+
+          {mode === 'ROLES' || mode === 'ROLES_OR_USERS' ? (
+            <div>
+              <div className="text-sm font-medium text-gray-700">Roles</div>
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {(['ADMIN', 'STANDARD'] as const).map((r) => (
+                  <label key={r} className="flex items-center gap-2 text-sm text-gray-800">
+                    <input
+                      type="checkbox"
+                      checked={roles.includes(r)}
+                      onChange={(e) => {
+                        setRoles((prev) => (e.target.checked ? Array.from(new Set([...prev, r])) : prev.filter((x) => x !== r)))
+                      }}
+                    />
+                    <span>{r === 'ADMIN' ? 'Admin' : 'Standard'}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {mode === 'USERS' || mode === 'ROLES_OR_USERS' ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">People</label>
+              <input
+                className="nhs-input w-full"
+                value={userQuery}
+                onChange={(e) => setUserQuery(e.target.value)}
+                placeholder="Search people…"
+              />
+
+              {effectiveUsers.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {effectiveUsers
+                    .slice()
+                    .sort((a, b) => (userLabelById.get(a) ?? a).localeCompare(userLabelById.get(b) ?? b))
+                    .map((id) => (
+                      <span key={id} className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-800 border border-gray-200">
+                        <span className="truncate max-w-[240px]">{userLabelById.get(id) ?? id}</span>
+                        <button
+                          type="button"
+                          className="text-gray-600 hover:text-gray-900"
+                          onClick={() => setVisibleUserIds((prev) => prev.filter((x) => x !== id))}
+                          aria-label="Remove person"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-gray-500">No people selected.</p>
+              )}
+
+              <div className="mt-2 max-h-48 overflow-y-auto rounded-md border border-gray-200 bg-gray-50 p-2">
+                {filteredUsers.length === 0 ? (
+                  <div className="text-sm text-gray-500 px-1 py-2">No matches.</div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {filteredUsers.slice(0, 80).map((u) => {
+                      const checked = visibleUserIds.includes(u.id)
+                      const label = u.name ? `${u.name} (${u.email})` : u.email
+                      return (
+                        <label key={u.id} className="flex items-center gap-2 text-sm text-gray-800">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              setVisibleUserIds((prev) =>
+                                e.target.checked ? Array.from(new Set([...prev, u.id])) : prev.filter((x) => x !== u.id),
+                              )
+                            }}
+                          />
+                          <span className="truncate">{label}</span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Showing up to 80 people.</p>
+            </div>
+          ) : null}
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="nhs-button-secondary"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true)
+                try {
+                  const res = await setAdminToolkitCategoryVisibility({
+                    surgeryId,
+                    categoryId: category.id,
+                    visibilityMode: mode,
+                    visibilityRoles: roles,
+                    visibleUserIds,
+                  })
+                  if (!res.ok) {
+                    toast.error(res.error.message)
+                    return
+                  }
+                  toast.success('Category visibility updated')
+                  await refresh()
+                } finally {
+                  setSaving(false)
+                }
+              }}
+            >
+              {saving ? 'Saving…' : 'Save visibility'}
+            </button>
+          </div>
+        </div>
+      </details>
+    )
+  }
 
   const pinnedDirty =
     (panelTaskBuddy ?? '') !== (panelSaved.taskBuddyText ?? '') || (panelPostRoute ?? '') !== (panelSaved.postRouteText ?? '')
@@ -2468,6 +2672,7 @@ function StructureSettingsTab({
                                 </span>
                               </div>
                             )}
+                            <CategoryVisibilityEditor category={parent} />
                           </div>
 
                           {!isParentRenaming ? (
@@ -2648,6 +2853,7 @@ function StructureSettingsTab({
                                         </span>
                                       </div>
                                     )}
+                            <CategoryVisibilityEditor category={child} />
                                   </div>
 
                                   {!isChildRenaming ? (

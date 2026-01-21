@@ -3,13 +3,13 @@ import 'server-only'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSurgeryAccess, can } from '@/lib/rbac'
+import { requireSurgeryAccess } from '@/lib/rbac'
+import { canAccessAdminToolkitAdminDashboard } from '@/lib/adminToolkitPermissions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
 import {
-  getAdminToolkitCategories,
   getAdminToolkitOnTakeWeek,
-  getAdminToolkitPageItems,
+  getAdminToolkitLibraryForUser,
   getAdminToolkitPinnedPanel,
   getLondonTodayUtc,
   readAdminToolkitQuickAccessButtons,
@@ -45,7 +45,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
       redirect('/unauthorized')
     }
 
-    const canWrite = can(user).adminToolkitWrite(surgeryId)
+    const canManage = canAccessAdminToolkitAdminDashboard(user, surgeryId)
 
     // Feature-gated (friendly message rather than 404/notFound)
     if (!enabled) {
@@ -71,9 +71,8 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
       )
     }
 
-    const [categories, items, panel] = await Promise.all([
-      getAdminToolkitCategories(surgeryId),
-      getAdminToolkitPageItems(surgeryId),
+    const [{ categories, items }, panel] = await Promise.all([
+      getAdminToolkitLibraryForUser(user, surgeryId),
       getAdminToolkitPinnedPanel(surgeryId),
     ])
 
@@ -94,7 +93,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
             </Link>
 
             <div className="flex items-center gap-3">
-              {canWrite ? (
+              {canManage ? (
                 <>
                   <Link
                     href={`/s/${surgeryId}/admin-toolkit/admin`}
@@ -120,7 +119,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
 
           <AdminToolkitLibraryClient
             surgeryId={surgeryId}
-            canWrite={canWrite}
+            canWrite={canManage}
             categories={categories}
             items={items}
             quickAccessButtons={quickAccessButtons}
@@ -130,7 +129,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
           <div className="hidden lg:block">
             <AdminToolkitPinnedPanel
               surgeryId={surgeryId}
-              canWrite={canWrite}
+              canWrite={canManage}
               onTakeWeekCommencingUtc={weekStartUtc}
               onTakeGpName={onTake?.gpName ?? null}
               panel={panel}
@@ -142,7 +141,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
           <div className="lg:hidden">
             <AdminToolkitPinnedPanel
               surgeryId={surgeryId}
-              canWrite={canWrite}
+              canWrite={canManage}
               onTakeWeekCommencingUtc={weekStartUtc}
               onTakeGpName={onTake?.gpName ?? null}
               panel={panel}

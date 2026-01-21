@@ -10,45 +10,52 @@ import { deleteAdminToolkitItem } from '../actions'
 interface AdminToolkitItemActionsClientProps {
   surgeryId: string
   itemId: string
-  canWrite: boolean
+  canManage: boolean
   canEditThisItem: boolean
-  isRestricted: boolean
 }
 
 export default function AdminToolkitItemActionsClient({
   surgeryId,
   itemId,
-  canWrite,
+  canManage,
   canEditThisItem,
-  isRestricted,
 }: AdminToolkitItemActionsClientProps) {
   const router = useRouter()
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  if (!canWrite) {
+  if (!canManage && !canEditThisItem) {
     return <span className="text-sm text-gray-500">View only</span>
   }
 
   return (
     <div className="flex items-center gap-3">
-      <Link
-        href={`/s/${surgeryId}/admin-toolkit/admin?item=${encodeURIComponent(itemId)}`}
-        className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
-      >
-        Edit
-      </Link>
+      {canManage ? (
+        <Link
+          href={`/s/${surgeryId}/admin-toolkit/admin?item=${encodeURIComponent(itemId)}`}
+          className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
+        >
+          Manage
+        </Link>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={() => setShowDelete(true)}
-        className="text-sm font-medium text-red-700 hover:text-red-800 underline-offset-2 hover:underline"
-      >
-        Delete
-      </button>
+      {canEditThisItem ? (
+        <Link
+          href={`/s/${surgeryId}/admin-toolkit/item/${encodeURIComponent(itemId)}/edit`}
+          className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
+        >
+          Edit
+        </Link>
+      ) : null}
 
-      {isRestricted && !canEditThisItem ? (
-        <span className="text-xs text-gray-500">(restricted)</span>
+      {canManage ? (
+        <button
+          type="button"
+          onClick={() => setShowDelete(true)}
+          className="text-sm font-medium text-red-700 hover:text-red-800 underline-offset-2 hover:underline"
+        >
+          Delete
+        </button>
       ) : null}
 
       {showDelete && (
@@ -88,8 +95,7 @@ export default function AdminToolkitItemActionsClient({
                   setDeleting(false)
                 }
               }}
-              disabled={deleting || (!canEditThisItem && isRestricted)}
-              title={!canEditThisItem && isRestricted ? 'This item is restricted to approved editors.' : undefined}
+              disabled={deleting}
             >
               {deleting ? 'Deleting…' : 'Delete'}
             </button>
