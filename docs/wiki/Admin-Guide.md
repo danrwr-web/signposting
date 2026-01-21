@@ -65,13 +65,34 @@ We keep a special surgery record, `global-default-buttons`, as the template sour
 
 ### Write access (who can edit)
 
-- Any signed-in member of the surgery can **view** Admin Toolkit pages.
-- Editing requires **Admin Toolkit write access** (separate from full Surgery Admin).
-- Surgery Admins and Superusers can always edit.
+- Any signed-in member of the surgery can **view** Admin Toolkit pages (as long as the category and item are visible to them).
+- **Surgery Admins** and **Superusers** can always edit all Admin Toolkit items and manage settings.
+- Standard users can only edit an item if they have been given an explicit grant for that item.
 
-### Restricted pages (approved editors only)
+### Permissions (visibility and editing)
 
-Admins can optionally restrict an individual page so only approved editors (and superusers) can change it.
+The Admin Toolkit uses two separate controls:
+
+- **Category visibility** (who can see categories and the items inside them)
+  - Everyone
+  - Roles (Admin / Standard)
+  - Specific people
+  - Roles or people
+- **Per-item editing grants** (who can edit a specific item)
+
+#### Category visibility
+
+- Category visibility is set in **Structure & Settings → Categories**.
+- Visibility is enforced server-side:
+  - Restricted categories do not appear in search results.
+  - Restricted items cannot be opened via a direct link unless the user has access.
+
+#### Per-item editing grants (standard users)
+
+- Standard users **cannot access the Admin Toolkit admin dashboard**.
+- To let a standard user edit a specific item, an admin can set **Additional editors** for that item.
+- Admins can also optionally allow **all standard users** to edit a given item.
+- Standard users edit from the staff-facing item page using the **Edit** button (which opens a dedicated edit screen).
 
 ### Pinned panel and rota
 
