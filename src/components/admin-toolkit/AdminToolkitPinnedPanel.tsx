@@ -120,16 +120,16 @@ export default function AdminToolkitPinnedPanel({
         {isExpanded ? (
           <div className="rounded-2xl border border-[#D8E4F0] bg-[#F3F7FB] shadow-sm">
             {/* Header */}
-            <div className="px-4 py-3 border-b border-[#D8E4F0]">
+            <div className="px-4 py-3 bg-nhs-blue rounded-t-2xl">
               <button
                 onClick={toggleExpanded}
                 onKeyDown={handleKeyDown}
-                className="w-full flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                className="w-full flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-nhs-yellow focus:ring-offset-2 focus:ring-offset-nhs-blue rounded"
                 aria-expanded="true"
                 aria-label="Hide practice operational info"
               >
-                <h2 className="text-base font-semibold text-gray-900">Practice operational info</h2>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
+                <h2 className="text-base font-semibold text-white">Practice operational info</h2>
+                <div className="flex items-center gap-2 text-sm text-white">
                   <span>Hide</span>
                   <ChevronDown className="h-5 w-5 rotate-180 transition-transform" />
                 </div>
@@ -187,12 +187,12 @@ export default function AdminToolkitPinnedPanel({
           <button
             onClick={toggleExpanded}
             onKeyDown={handleKeyDown}
-            className="w-full rounded-lg border border-[#D8E4F0] bg-[#F3F7FB] px-4 py-3.5 flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors hover:bg-[#E8F0F7] min-h-[48px]"
+            className="w-full rounded-lg border border-[#D8E4F0] bg-nhs-blue px-4 py-3.5 flex items-center justify-between text-left focus:outline-none focus:ring-2 focus:ring-nhs-yellow focus:ring-offset-2 focus:ring-offset-nhs-blue transition-colors hover:bg-nhs-dark-blue min-h-[48px]"
             aria-expanded="false"
             aria-label="Show practice operational info"
           >
-            <span className="text-base font-medium text-gray-900">Practice operational info</span>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span className="text-base font-medium text-white">Practice operational info</span>
+            <div className="flex items-center gap-2 text-sm text-white">
               <span>Show</span>
               <ChevronDown className="h-5 w-5 transition-transform" />
             </div>
