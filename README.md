@@ -4,6 +4,8 @@
 
 A web-based signposting and care-navigation toolkit for GP reception and care navigation teams. Built within an NHS practice, this toolkit provides structured, clinically-approved guidance to help teams route patients safely and consistently.
 
+<!-- BUMP: 2026-01-20T12:00:00Z -->
+
 ---
 
 ## Overview
@@ -21,6 +23,7 @@ The toolkit provides a structured symptom library, local customisation, AI-assis
 - **AI Instruction Editor** — AI-powered tools to improve instruction clarity (with mandatory clinical review)
 - **AI Suggested Questions** — Generates grouped triage-style questions to help staff gather information safely
 - **Appointment Directory** — Simple, searchable catalogue of local services and appointment types
+- **Admin Toolkit** — Surgery-specific guidance pages with Items and Structure & Settings admin tabs
 - **Workflow Guidance** — Step-by-step workflows for processing common documents (with global defaults and per-surgery customisation)
 - **Clinical Review Workflow** — Every symptom must be clinically approved before going live
 - **Multi-surgery / Tenancy Model** — Complete data isolation between practices with independent configurations

@@ -57,6 +57,14 @@ Each GP surgery has a fully independent configuration, symptom library, governan
 - CSV import for rapid updates.
 - Built for reception staff: plain language, simple filtering, clear rules.
 
+### 🔹 Admin Toolkit (practice guidance)
+- Feature-flagged module for surgery-specific “how-to” pages for admin and reception workflows.
+- Admin settings split into **Items** and **Structure & Settings** tabs for easier editing.
+- Optional restrictions per page (approved editors only).
+- Pinned panel shown on every Admin Toolkit page (task buddy system, post route, and “GP taking on” from a rota).
+- Soft delete + audit history for changes.
+- The Admin Toolkit supports a “global defaults” starter kit (stored in a dedicated surgery record) to help seed new surgeries.
+
 ### 🔹 Workflow Guidance
 
 The Workflow Guidance module provides structured, visual guidance for handling common administrative and clinical document workflows (e.g. discharge summaries, test requests, GP review).
@@ -163,8 +171,9 @@ Feature availability controlled via hierarchical flags:
 Current active flags include:
 
 - `ai_instructions`
-- `ai_questions`
-- `smart_symptom_updates`
+- `ai_training`
+- `workflow_guidance`
+- `admin_toolkit`
 - (future flags can be added via admin panel)
 
 ---

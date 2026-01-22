@@ -1171,6 +1171,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                   Detailed Instructions
                 </label>
                 <RichTextEditor
+                  docId={`symptom:${symptom.id}:instructions`}
                   value={editedInstructions}
                   onChange={setEditedInstructions}
                   placeholder="Enter detailed instructions with formatting..."
@@ -1242,6 +1243,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                           </div>
                           <label className="block text-sm font-medium text-nhs-dark-blue mb-1">Instructions</label>
                           <RichTextEditor
+                            docId={`symptom:${symptom.id}:variant:${vg.key || String(idx)}`}
                             value={vg.instructions}
                             onChange={(html) => {
                               const sanitizedHtml = sanitizeHtml(html)

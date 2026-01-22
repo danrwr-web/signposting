@@ -6,7 +6,26 @@ A high-level history of major changes.
 
 ## Unreleased
 
+- Admin Toolkit: added category visibility controls and per-item editing permissions, so you can safely share sensitive guidance with the right people and let standard users edit specific items without access to the admin dashboard.
+- Admin Toolkit PAGE items now support optional Intro text above Role Cards and Additional notes below.
 - Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
+- Admin Toolkit admin page reorganised into Items / Structure & Settings tabs for clarity.
+- Added **Admin Toolkit** (feature-flagged) for surgery-specific guidance pages, a pinned panel, and a simple “GP taking on” rota.
+- Admin Toolkit: added seeding for the **global defaults** surgery so it can act as a starter-kit template source for new surgeries.
+- Admin Toolkit: when enabled for an empty surgery, a starter kit is now added automatically (pinned panel and rota remain blank).
+- Admin Toolkit: added **LIST** items (simple editable tables) for storing structured information.
+- Admin Toolkit: removed the temporary global-defaults seeding button from the admin dashboard.
+- Admin Toolkit: settings cog moved to page header (consistent with main signposting tool) and opens the shared preferences dialog; blue cards mode now only affects individual item cards, not the surrounding container.
+- Admin Toolkit settings: improved the Items picker with search, type filters, and grouped (collapsible) sections by category.
+- Admin Toolkit settings: the editor now opens ready to create a new item by default (no previous item auto-selected).
+- Admin Toolkit settings: “Structure & Settings” is now laid out as a cleaner settings dashboard with section navigation.
+- Admin Toolkit settings: categories are searchable with clearer hierarchy and controls; pinned panel includes a preview; rota “upcoming weeks” is now collapsible.
+- Admin Toolkit: restored sticky categories sidebar and pinned bottom panel on the front page (with natural page scrolling).
+- Admin Toolkit: improved Quick access buttons with a scalable searchable picker and optional labels (defaults to the target item title).
+- Admin Toolkit settings: Quick access buttons now auto-save changes to avoid an extra “Save” step.
+- Admin Toolkit: Added optional “Role cards” section for guidance pages (static responsibility cards).
+- Admin Toolkit: Role cards now respect blue-cards mode and the editor auto-expands when populated.
+- Admin Toolkit: Fixed Role cards auto-expand when opening via “Edit”, and fixed Quick access button reordering persistence.
 
 ---
 

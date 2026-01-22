@@ -1438,6 +1438,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   Instructions *
                 </label>
                 <RichTextEditor
+                  docId={`admin:symptom:new:instructions`}
                   value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                   onChange={(html) => {
                     const sanitizedHtml = sanitizeHtml(html)
@@ -1562,6 +1563,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                               Variant Instructions
                             </label>
                             <RichTextEditor
+                              docId={`admin:symptom:new:variant:${index}`}
                               value={variant.instructions || ''}
                               onChange={(html) => {
                                 const sanitizedHtml = sanitizeHtml(html)
@@ -1859,6 +1861,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     Instructions
                   </label>
                   <RichTextEditor
+                    docId={`admin:symptom:edit:${editingSymptom?.id || 'none'}:instructions`}
                     value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                     onChange={(html) => {
                       const sanitizedHtml = sanitizeHtml(html)
