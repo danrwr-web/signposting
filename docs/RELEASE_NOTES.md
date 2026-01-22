@@ -6,6 +6,7 @@ A high-level history of major changes.
 
 ## Unreleased
 
+- Admin Toolkit: operational info panel at the bottom of the staff front page is now collapsible (defaults to collapsed). The panel automatically expands when the on-take GP changes, and remembers your preference. Improved layout with asymmetric column widths and a subtle tinted background.
 - Admin Toolkit: added category visibility controls and per-item editing permissions, so you can safely share sensitive guidance with the right people and let standard users edit specific items without access to the admin dashboard.
 - Admin Toolkit PAGE items now support optional Intro text above Role Cards and Additional notes below.
 - Updated the Admin Dashboard **Quick Access** settings to make it simpler to choose up to 6 buttons for the staff home screen.
