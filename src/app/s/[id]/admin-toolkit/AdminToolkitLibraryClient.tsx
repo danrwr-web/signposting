@@ -25,20 +25,11 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
 
   const searchStickyRef = useRef<HTMLDivElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
-  const [categoryListMaxHeightPx, setCategoryListMaxHeightPx] = useState<number | null>(null)
 
   useEffect(() => {
     const measure = () => {
       const searchH = searchStickyRef.current?.getBoundingClientRect().height ?? 0
       setSidebarStickyTopPx(searchH)
-
-      // Allow the category list to scroll within itself only when necessary.
-      // On large screens the pinned panel is fixed at the bottom, so reserve space for it.
-      const reserveForPinnedPanel = window.innerWidth >= 1024 ? 220 : 0
-      const reserveForPadding = 24
-      const reserveForCategoryHeader = 56
-      const max = Math.max(160, window.innerHeight - searchH - reserveForPinnedPanel - reserveForPadding - reserveForCategoryHeader)
-      setCategoryListMaxHeightPx(max)
     }
 
     measure()
@@ -183,8 +174,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Categories</h2>
             </div>
             <nav
-              className="px-2 pb-4 md:overflow-y-auto"
-              style={categoryListMaxHeightPx ? { maxHeight: categoryListMaxHeightPx } : undefined}
+              className="px-2 pb-4"
               aria-label="Admin Toolkit categories"
             >
             <button
