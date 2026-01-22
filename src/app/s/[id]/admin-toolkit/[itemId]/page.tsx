@@ -15,6 +15,7 @@ import {
   getAdminToolkitPinnedPanel,
   getLondonTodayUtc,
   startOfWeekMondayUtc,
+  addDaysUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
 import AdminToolkitAttachmentsSectionClient from './AdminToolkitAttachmentsSectionClient'
@@ -110,6 +111,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     const panel = await getAdminToolkitPinnedPanel(surgeryId)
     const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
+    const weekEndUtc = addDaysUtc(weekStartUtc, 6)
     const onTake = await getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc)
 
     return (
@@ -215,8 +217,9 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
         <AdminToolkitPinnedPanel
           surgeryId={surgeryId}
-            canWrite={canManage}
+          canWrite={canManage}
           onTakeWeekCommencingUtc={weekStartUtc}
+          onTakeWeekEndUtc={weekEndUtc}
           onTakeGpName={onTake?.gpName ?? null}
           panel={panel}
           variant="inline"

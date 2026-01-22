@@ -14,6 +14,7 @@ import {
   getLondonTodayUtc,
   readAdminToolkitQuickAccessButtons,
   startOfWeekMondayUtc,
+  addDaysUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitLibraryClient from './AdminToolkitLibraryClient'
 import AdminToolkitHeaderActions from './AdminToolkitHeaderActions'
@@ -83,6 +84,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
 
     const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
+    const weekEndUtc = addDaysUtc(weekStartUtc, 6)
     const onTake = await getAdminToolkitOnTakeWeek(surgeryId, weekStartUtc)
     const quickAccessButtons = readAdminToolkitQuickAccessButtons(surgery.uiConfig)
 
@@ -136,6 +138,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
               surgeryId={surgeryId}
               canWrite={canManage}
               onTakeWeekCommencingUtc={weekStartUtc}
+              onTakeWeekEndUtc={weekEndUtc}
               onTakeGpName={onTake?.gpName ?? null}
               panel={panel}
               variant="fixed"
@@ -148,6 +151,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
               surgeryId={surgeryId}
               canWrite={canManage}
               onTakeWeekCommencingUtc={weekStartUtc}
+              onTakeWeekEndUtc={weekEndUtc}
               onTakeGpName={onTake?.gpName ?? null}
               panel={panel}
               variant="inline"
