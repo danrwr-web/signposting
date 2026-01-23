@@ -19,7 +19,8 @@
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "migrate:instructions": "tsx scripts/migrateInstructionsToHtml.ts",
-    "seed:admin-toolkit-global-defaults": "tsx scripts/seed-admin-toolkit-global-defaults.ts"
+    "seed:admin-toolkit-global-defaults": "tsx scripts/seed-admin-toolkit-global-defaults.ts",
+    "check:app-shell": "node scripts/check-app-shell.js"
   },
   "dependencies": {
     "@next-auth/prisma-adapter": "^1.0.7",
