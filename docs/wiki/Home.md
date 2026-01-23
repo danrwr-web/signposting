@@ -17,6 +17,8 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [User Guide](User-Guide)
 
+- [Day-to-day use](Day-to-day-use)
+
 - [Symptom Library](Symptom-Library)
 
 - [Clinical Governance](Clinical-Governance)
