@@ -17,7 +17,6 @@ import {
   addDaysUtc,
 } from '@/server/adminToolkit'
 import AdminToolkitLibraryClient from './AdminToolkitLibraryClient'
-import AdminToolkitHeaderActions from './AdminToolkitHeaderActions'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -101,7 +100,6 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
               ) : (
                 <span className="text-sm text-gray-500">View only</span>
               )}
-              <AdminToolkitHeaderActions />
             </div>
           </header>
 

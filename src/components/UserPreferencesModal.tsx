@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { useSession } from 'next-auth/react'
 import ToggleSwitch from './ToggleSwitch'
 import ChangePasswordDialog from './ChangePasswordDialog'
-import { CardStyle, HeaderLayout, HighRiskStyle, useCardStyle } from '@/context/CardStyleContext'
+import { CardStyle, useCardStyle } from '@/context/CardStyleContext'
 import toast from 'react-hot-toast'
 
 interface UserPreferencesModalProps {
@@ -67,10 +67,6 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
     setCardStyle,
     isSimplified,
     setIsSimplified,
-    headerLayout,
-    setHeaderLayout,
-    highRiskStyle,
-    setHighRiskStyle,
     resetPrefs
   } = useCardStyle()
 
@@ -80,8 +76,6 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
 
   const headingId = useId()
   const appearanceId = useId()
-  const headerId = useId()
-  const highRiskId = useId()
 
   const handleClose = useCallback(() => {
     onClose()
@@ -153,16 +147,6 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
 
   const handleSimplifiedChange = (value: boolean) => {
     setIsSimplified(value)
-    showSavedToast()
-  }
-
-  const handleHeaderLayoutChange = (value: HeaderLayout) => {
-    setHeaderLayout(value)
-    showSavedToast()
-  }
-
-  const handleHighRiskStyleChange = (value: string) => {
-    setHighRiskStyle(value as HighRiskStyle)
     showSavedToast()
   }
 
@@ -270,56 +254,6 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
                     onChange={handleSimplifiedChange}
                     label="Quick-scan cards"
                     description="Show only the symptom name and age badge. Ideal for fast scanning."
-                  />
-                </fieldset>
-
-                {/* Header & filters */}
-                <fieldset aria-describedby={`${headerId}-help`} className="space-y-3">
-                  <legend className="text-sm font-semibold text-slate-700">Header & filters</legend>
-                  <p id={`${headerId}-help`} className="text-xs text-slate-600">
-                    Change how the search area and high-risk buttons are arranged.
-                  </p>
-                  <RadioCard
-                    name="headerLayout"
-                    value="classic"
-                    checked={headerLayout === 'classic'}
-                    onChange={handleHeaderLayoutChange}
-                    title="Classic"
-                    help="Search and filters arranged in a single toolbar."
-                  />
-                  <RadioCard
-                    name="headerLayout"
-                    value="split"
-                    checked={headerLayout === 'split'}
-                    onChange={handleHeaderLayoutChange}
-                    title="Split (filters left, high-risk right)"
-                    help="Puts filters under search and high-risk buttons in a right panel."
-                  />
-                </fieldset>
-
-                {/* High-risk button style */}
-                <fieldset aria-describedby={`${highRiskId}-help`} className="space-y-3 lg:col-span-2">
-                  <legend className="text-sm font-semibold text-slate-700">High-risk button style</legend>
-                  <p id={`${highRiskId}-help`} className="text-xs text-slate-600">
-                    Choose how the red high-risk buttons look. The same style is used in both header layouts.
-                  </p>
-                  <RadioCard
-                    name="highRiskStyle"
-                    value="pill"
-                    checked={(highRiskStyle ?? 'pill') === 'pill'}
-                    onChange={handleHighRiskStyleChange}
-                    title="Pill (default)"
-                    help="Rounded pills."
-                    preview={<div className="h-3 w-6 rounded-full bg-red-600" />}
-                  />
-                  <RadioCard
-                    name="highRiskStyle"
-                    value="tile"
-                    checked={highRiskStyle === 'tile'}
-                    onChange={handleHighRiskStyleChange}
-                    title="Tile"
-                    help="Squared tiles with a subtle border."
-                    preview={<div className="h-3 w-6 rounded-lg bg-red-600" />}
                   />
                 </fieldset>
               </div>

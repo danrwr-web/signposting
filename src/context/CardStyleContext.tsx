@@ -47,7 +47,9 @@ export function CardStyleProvider({ children }: ProviderProps) {
 
     let nextStyle: CardStyle = 'powerappsBlue'
     let nextSimplified = false
+    // Always use classic header layout
     let nextHeaderLayout: HeaderLayout = 'classic'
+    // Always use pill high-risk style
     let nextHighRiskStyle: HighRiskStyle = 'pill'
 
     const storedStyle = localStorage.getItem(STYLE_STORAGE_KEY) as CardStyle | null
@@ -60,30 +62,11 @@ export function CardStyleProvider({ children }: ProviderProps) {
       nextSimplified = storedSimplified === 'true'
     }
 
-    const storedHeaderLayout = localStorage.getItem(HEADER_LAYOUT_STORAGE_KEY) as HeaderLayout | null
-    if (storedHeaderLayout === 'classic' || storedHeaderLayout === 'split') {
-      nextHeaderLayout = storedHeaderLayout
-    }
+    // Normalize: ignore stored header layout, always use classic
+    // (storedHeaderLayout is read but not used - kept for backward compatibility)
 
-    const storedHighRiskStyle = localStorage.getItem(HIGH_RISK_STYLE_STORAGE_KEY) as HighRiskStyle | null
-    if (storedHighRiskStyle === 'pill' || storedHighRiskStyle === 'tile') {
-      nextHighRiskStyle = storedHighRiskStyle
-    } else {
-      const legacySplit = localStorage.getItem(LEGACY_HIGH_RISK_SPLIT_STORAGE_KEY) as HighRiskStyle | null
-      const legacyClassic = localStorage.getItem(LEGACY_HIGH_RISK_CLASSIC_STORAGE_KEY) as HighRiskStyle | null
-      if (legacySplit === 'pill' || legacySplit === 'tile') {
-        nextHighRiskStyle = legacySplit
-      } else if (legacyClassic === 'pill' || legacyClassic === 'tile') {
-        nextHighRiskStyle = legacyClassic
-      }
-      if (legacySplit) {
-        localStorage.removeItem(LEGACY_HIGH_RISK_SPLIT_STORAGE_KEY)
-      }
-      if (legacyClassic) {
-        localStorage.removeItem(LEGACY_HIGH_RISK_CLASSIC_STORAGE_KEY)
-      }
-      localStorage.setItem(HIGH_RISK_STYLE_STORAGE_KEY, nextHighRiskStyle)
-    }
+    // Normalize: ignore stored high-risk style, always use pill
+    // (storedHighRiskStyle is read but not used - kept for backward compatibility)
 
     // Handle legacy single-value storage for backwards compatibility
     const legacyValue = localStorage.getItem(LEGACY_STORAGE_KEY)
