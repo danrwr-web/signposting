@@ -68,3 +68,11 @@ Use this checklist when shipping or modifying user-facing features:
 - **Cursor rule**: `.cursor/rules/wiki-updates.mdc`
 
 For detailed guidance on documentation structure and conventions, see the [Developer Guide](Developer-Guide).
+
+---
+
+## Audit Reports
+
+Periodic documentation audits verify link integrity, content accuracy, and coverage.
+
+- [Docs Audit Report (January 2026)](Docs-Audit-Report) — Latest audit findings and recommendations

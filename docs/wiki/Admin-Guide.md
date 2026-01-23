@@ -1,24 +1,30 @@
 # Admin Guide
 
-[Home](Home)
+## Navigation
 
-[Getting Started](Getting-Started)
+- [Home](Home)
 
-[User Guide](User-Guide)
+- [Getting Started](Getting-Started)
 
-[Symptom Library](Symptom-Library)
+- [User Guide](User-Guide)
 
-[Clinical Governance](Clinical-Governance)
+- [Symptom Library](Symptom-Library)
 
-[AI Features](AI-Features)
+- [Clinical Governance](Clinical-Governance)
 
-[Appointment Directory](Appointment-Directory)
+- [AI Features](AI-Features)
 
-[High-Risk & Highlighting](High-Risk-&-Highlighting)
+- [Appointment Directory](Appointment-Directory)
 
-[Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+- [Workflow Guidance](Workflow-Guidance)
 
-[Developer Guide](Developer-Guide)
+- [High-Risk & Highlighting](High-Risk-&-Highlighting)
+
+- [Multi-Surgery & RBAC](Multi-Surgery-&-RBAC)
+
+- [Admin Guide](Admin-Guide)
+
+- [Developer Guide](Developer-Guide)
 
 ---
 
@@ -47,7 +53,9 @@ The **Quick Access** tab in the Admin Dashboard controls the optional quick acce
 
 ## Practice Handbook
 
-The **Practice Handbook** is an optional module for storing surgery-specific guidance pages for admin and reception workflows (for example: “how we process documents”, “post route”, or “task buddy system”).
+> *Previously referred to as the "Admin Toolkit". The user-facing name is now "Practice Handbook".*
+
+The **Practice Handbook** is an optional module for storing surgery-specific guidance pages for admin and reception workflows (for example: "how we process documents", "post route", or "task buddy system").
 
 The Practice Handbook admin page is split into **Items** (day-to-day content editing) and **Structure & Settings** (categories, pinned panel, and rota) tabs for clarity.
 
@@ -102,3 +110,4 @@ Practice Handbook pages show an always-visible pinned panel at the bottom, inclu
 - **Task buddy system** (editable text)
 - **Post route** (editable text)
 
+The operational info panel is collapsible and remembers your preference. It automatically expands when the on-take GP changes.

@@ -49,18 +49,11 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 
 ## What's New
 
-The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
+Recent highlights from the latest release. For full details, see the versioned Release Notes.
 
-- **v1.2 — Jan 2026**
-  - Added Workflow Guidance (visual, governed workflows to guide staff through common processes)
-  - Improved admin and navigation experience across the app and docs
-
-- **v1.1 — Dec 2025**
-  - Added AI Suggested Questions (with clinical review safeguards)
-  - Improved symptom library, filters, and admin dashboard layout
-
-- **v1.0 — Oct–Nov 2025**
-  - First full web release with multi-surgery support, clinical governance, and engagement tracking
+- **v1.3 — Jan 2026**: Practice Handbook improvements, Workflow Guidance refinements, and routing updates
+- **v1.2 — Jan 2026**: Added Workflow Guidance module and redesigned marketing site
+- **v1.1 — Dec 2025**: Added AI Suggested Questions and introduced preferences system
 
 See: [Release Notes](../RELEASE_NOTES)
 
@@ -136,5 +129,5 @@ For onboarding, demos, or pricing enquiries, contact:
 
 ---
 
-_Last updated: December 2025_
+_Last updated: January 2026_
 
