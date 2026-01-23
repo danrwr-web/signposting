@@ -344,7 +344,7 @@ export default function AdminToolkitItemEditClient({
         </>
       ) : (
         <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-          <strong>This is a LIST item.</strong> You can edit list rows on the item page.
+          <strong>This is a LIST page.</strong> You can edit list rows on the page.
         </div>
       )}
 
@@ -406,7 +406,7 @@ export default function AdminToolkitItemEditClient({
                 toast.error(res.error.message)
                 return
               }
-              toast.success('Item updated')
+              toast.success('Page updated')
               router.push(`/s/${surgeryId}/admin-toolkit/${itemId}`)
               router.refresh()
             } finally {

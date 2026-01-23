@@ -136,7 +136,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       {/* Header zone */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
         <div className="text-sm text-gray-600" aria-live="polite">
-          {itemsSorted.length} item{itemsSorted.length === 1 ? '' : 's'}
+          {itemsSorted.length} page{itemsSorted.length === 1 ? '' : 's'}
         </div>
         {canWrite ? null : <span className="text-sm text-gray-500">You have view-only access.</span>}
       </div>
@@ -160,18 +160,22 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       ) : null}
 
       <div ref={searchStickyRef} className="sticky top-0 z-20 border-b border-gray-200 bg-white">
-        <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Practice Handbook…" debounceMs={150} />
+        <AdminSearchBar value={search} onChange={setSearch} placeholder="Search handbook…" debounceMs={150} />
       </div>
 
       {/* Main content zone (normal page scroll) */}
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside
-            className="border-b md:border-b-0 md:border-r border-gray-200 bg-gray-50 md:sticky md:self-start"
+            className={`border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
+              isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
+            }`}
             style={sidebarStickyTopPx ? { top: sidebarStickyTopPx } : undefined}
           >
             <div className="px-4 py-4">
-              <h2 className="text-xs font-medium text-gray-500 uppercase tracking-wide">Categories</h2>
+              <h2 className={`text-xs font-medium uppercase tracking-wide ${
+                isBlueCards ? 'text-white' : 'text-gray-500'
+              }`}>Categories</h2>
             </div>
             <nav
               className="px-2 pb-4"
@@ -181,12 +185,24 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               type="button"
               onClick={() => setSelectedCategoryId('ALL')}
               className={[
-                'w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
-                selectedCategoryId === 'ALL' ? 'bg-white border border-gray-200' : 'hover:bg-white/70',
+                'w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between transition-colors',
+                isBlueCards
+                  ? selectedCategoryId === 'ALL'
+                    ? 'bg-nhs-light-blue text-nhs-dark-blue'
+                    : 'text-white hover:bg-white/20'
+                  : selectedCategoryId === 'ALL'
+                    ? 'bg-white border border-gray-200'
+                    : 'hover:bg-white/70',
               ].join(' ')}
             >
-              <span className="text-gray-900">All</span>
-              <span className="text-xs text-gray-500">{items.length}</span>
+              <span className={isBlueCards && selectedCategoryId !== 'ALL' ? 'text-white' : isBlueCards ? 'text-nhs-dark-blue' : 'text-gray-900'}>All</span>
+              <span className={`text-xs ${
+                isBlueCards
+                  ? selectedCategoryId === 'ALL'
+                    ? 'text-nhs-dark-blue'
+                    : 'text-white/80'
+                  : 'text-gray-500'
+              }`}>{items.length}</span>
             </button>
 
             {categories.map((cat) => {
@@ -198,12 +214,30 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                     type="button"
                     onClick={() => setSelectedCategoryId(cat.id)}
                     className={[
-                      'mt-1 w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between',
-                      isSelected ? 'bg-white border border-gray-200' : 'hover:bg-white/70',
+                      'mt-1 w-full text-left rounded-md px-3 py-2 text-sm flex items-center justify-between transition-colors',
+                      isBlueCards
+                        ? isSelected
+                          ? 'bg-nhs-light-blue text-nhs-dark-blue'
+                          : 'text-white hover:bg-white/20'
+                        : isSelected
+                          ? 'bg-white border border-gray-200'
+                          : 'hover:bg-white/70',
                     ].join(' ')}
                   >
-                    <span className="text-gray-900 font-medium">{cat.name}</span>
-                    <span className="text-xs text-gray-500">{count}</span>
+                    <span className={
+                      isBlueCards
+                        ? isSelected
+                          ? 'text-nhs-dark-blue font-medium'
+                          : 'text-white font-medium'
+                        : 'text-gray-900 font-medium'
+                    }>{cat.name}</span>
+                    <span className={`text-xs ${
+                      isBlueCards
+                        ? isSelected
+                          ? 'text-nhs-dark-blue'
+                          : 'text-white/80'
+                        : 'text-gray-500'
+                    }`}>{count}</span>
                   </button>
                   {cat.children && cat.children.length > 0 && (
                     <div className="pl-4 mt-1 space-y-1">
@@ -216,12 +250,30 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                             type="button"
                             onClick={() => setSelectedCategoryId(child.id)}
                             className={[
-                              'w-full text-left rounded-md px-3 py-1.5 text-sm flex items-center justify-between',
-                              isChildSelected ? 'bg-white border border-gray-200' : 'hover:bg-white/70',
+                              'w-full text-left rounded-md px-3 py-1.5 text-sm flex items-center justify-between transition-colors',
+                              isBlueCards
+                                ? isChildSelected
+                                  ? 'bg-nhs-light-blue text-nhs-dark-blue'
+                                  : 'text-white/90 hover:bg-white/20'
+                                : isChildSelected
+                                  ? 'bg-white border border-gray-200'
+                                  : 'hover:bg-white/70',
                             ].join(' ')}
                           >
-                            <span className="text-gray-700 text-sm">↳ {child.name}</span>
-                            <span className="text-xs text-gray-500">{childCount}</span>
+                            <span className={`text-sm ${
+                              isBlueCards
+                                ? isChildSelected
+                                  ? 'text-nhs-dark-blue'
+                                  : 'text-white/90'
+                                : 'text-gray-700'
+                            }`}>↳ {child.name}</span>
+                            <span className={`text-xs ${
+                              isBlueCards
+                                ? isChildSelected
+                                  ? 'text-nhs-dark-blue'
+                                  : 'text-white/70'
+                                : 'text-gray-500'
+                            }`}>{childCount}</span>
                           </button>
                         )
                       })}
@@ -233,11 +285,11 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
             </nav>
           </aside>
 
-          {/* Main: items */}
+          {/* Main: pages */}
           <section className="p-4 lg:pb-64">
             {itemsSorted.length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-500">
-                {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
+                {normalisedSearch ? 'No pages match your search.' : 'No pages yet.'}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
