@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import SimpleHeader from '@/components/SimpleHeader'
 import { SessionUser } from '@/lib/rbac'
 import { EffectiveSymptom, AppointmentModelConfig } from '@/lib/api-contracts'
 import Link from 'next/link'
@@ -214,7 +213,6 @@ export default function AISetupClient({
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader title="AI Surgery Customisation (Beta)" />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h1 className="text-2xl font-bold text-nhs-dark-blue mb-2">
