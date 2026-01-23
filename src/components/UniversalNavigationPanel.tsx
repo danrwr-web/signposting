@@ -50,6 +50,9 @@ export default function UniversalNavigationPanel() {
   const activeModule = getActiveModule()
 
   // Fetch enabled features for the current surgery
+  // Also depend on session status to re-fetch when session becomes available after login
+  const sessionStatus = session?.user ? 'authenticated' : 'loading'
+  
   useEffect(() => {
     if (!surgeryId) {
       // No surgery selected yet - keep loading state true to avoid showing "Not enabled"
@@ -62,29 +65,68 @@ export default function UniversalNavigationPanel() {
       return
     }
 
-    // If we've already fetched for this surgery, don't re-fetch
-    if (lastFetchedSurgeryId === surgeryId) {
+    // If we've already fetched for this surgery (and session is authenticated), don't re-fetch
+    if (lastFetchedSurgeryId === surgeryId && sessionStatus === 'authenticated') {
       return
     }
 
+    let isCancelled = false
+    let retryCount = 0
+    const maxRetries = 3
+    const retryDelay = 500 // ms
+
     const fetchFeatures = async () => {
       setFeaturesLoading(true)
-      try {
-        const response = await fetch(`/api/surgeries/${surgeryId}/features`)
-        if (response.ok) {
-          const data = await response.json()
-          setEnabledFeatures(data.features || {})
-          setLastFetchedSurgeryId(surgeryId)
+      
+      while (retryCount < maxRetries && !isCancelled) {
+        try {
+          const response = await fetch(`/api/surgeries/${surgeryId}/features`)
+          
+          if (response.ok) {
+            const data = await response.json()
+            if (!isCancelled) {
+              setEnabledFeatures(data.features || {})
+              setLastFetchedSurgeryId(surgeryId)
+              setFeaturesLoading(false)
+            }
+            return // Success - exit the retry loop
+          }
+          
+          // If 401/403, session might not be ready yet - retry after delay
+          if (response.status === 401 || response.status === 403) {
+            retryCount++
+            if (retryCount < maxRetries && !isCancelled) {
+              await new Promise(resolve => setTimeout(resolve, retryDelay))
+              continue
+            }
+          }
+          
+          // Other error - don't retry
+          break
+        } catch (error) {
+          console.error('Error fetching surgery features:', error)
+          retryCount++
+          if (retryCount < maxRetries && !isCancelled) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay))
+          }
         }
-      } catch (error) {
-        console.error('Error fetching surgery features:', error)
-      } finally {
-        setFeaturesLoading(false)
+      }
+      
+      // If we exhausted retries or got a non-auth error, still set loading to false
+      // but keep featuresLoading true if we never got a successful response
+      // This way modules remain clickable
+      if (!isCancelled && lastFetchedSurgeryId !== surgeryId) {
+        // We failed to fetch - keep modules enabled (loading state)
+        // Don't set featuresLoading to false so isModuleEnabled returns true
       }
     }
 
     fetchFeatures()
-  }, [surgeryId, lastFetchedSurgeryId])
+    
+    return () => {
+      isCancelled = true
+    }
+  }, [surgeryId, lastFetchedSurgeryId, sessionStatus])
 
   // Handle escape key to close
   useEffect(() => {
