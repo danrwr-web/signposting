@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useSession } from 'next-auth/react'
@@ -14,6 +14,7 @@ interface SurgerySelectorProps {
 
 export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }: SurgerySelectorProps) {
   const router = useRouter()
+  const pathname = usePathname()
   const { clearSurgery, surgery } = useSurgery()
   const { data: session } = useSession()
   // Use surgery from context as source of truth, fallback to currentSurgeryId prop
@@ -65,9 +66,21 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
       }))
     }
 
-    // Navigate to the selected surgery's page
-    // The new page will pick up the surgery from URL/cookie
-    router.push(`/s/${surgeryId}`)
+    // Navigate to the same page but for the new surgery
+    // Replace the surgery ID in the current path: /s/[oldId]/... -> /s/[newId]/...
+    let newPath = `/s/${surgeryId}`
+    if (pathname && pathname.startsWith('/s/')) {
+      // Extract the path after /s/[surgeryId]
+      const pathParts = pathname.split('/')
+      // pathParts = ['', 's', 'surgery-id', 'workflow', ...]
+      if (pathParts.length > 3) {
+        // Keep everything after the surgery ID
+        const remainingPath = pathParts.slice(3).join('/')
+        newPath = `/s/${surgeryId}/${remainingPath}`
+      }
+    }
+    
+    router.push(newPath)
     onClose?.()
   }
 
