@@ -1,8 +1,6 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { signOut } from 'next-auth/react'
-import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import { Surgery } from '@prisma/client'
@@ -43,15 +41,6 @@ export default function AdminDashboardClient({
     ? (user.memberships.find(m => m.role === 'ADMIN')?.surgeryId || user.defaultSurgeryId)
     : user.defaultSurgeryId
 
-  const handleLogout = async () => {
-    try {
-      await signOut({ callbackUrl: '/' })
-    } catch (error) {
-      console.error('Logout error:', error)
-      toast.error('Failed to logout')
-    }
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -73,18 +62,10 @@ export default function AdminDashboardClient({
                 Settings
               </h1>
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">
-                Welcome, {user.name || user.email}
-                {isSuperuser && ' (System admin)'}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Sign Out
-              </button>
-            </div>
+            <span className="text-sm text-gray-500">
+              {user.name || user.email}
+              {isSuperuser && ' (System admin)'}
+            </span>
           </div>
         </div>
       </header>

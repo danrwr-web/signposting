@@ -2,7 +2,6 @@ import { getSessionUser, requireSurgeryAccess } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import AppointmentsPageClient from './AppointmentsPageClient'
-import { isFeatureEnabledForSurgery } from '@/lib/features'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -71,8 +70,6 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
     const membership = user.memberships.find(m => m.surgeryId === surgeryId)
     const isAdmin = user.globalRole === 'SUPERUSER' || membership?.role === 'ADMIN'
 
-    const adminToolkitEnabled = await isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit')
-
     return (
       <AppointmentsPageClient 
         surgeryId={surgeryId}
@@ -80,7 +77,6 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
         isAdmin={isAdmin}
         surgeries={surgeries}
         initialStaffTypes={staffTypes}
-        adminToolkitEnabled={adminToolkitEnabled}
       />
     )
   } catch (error) {
