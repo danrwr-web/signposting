@@ -67,21 +67,75 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
     }
 
     // Navigate to the same page but for the new surgery
-    // Replace the surgery ID in the current path: /s/[oldId]/... -> /s/[newId]/...
-    let newPath = `/s/${surgeryId}`
-    if (pathname && pathname.startsWith('/s/')) {
-      // Extract the path after /s/[surgeryId]
-      const pathParts = pathname.split('/')
-      // pathParts = ['', 's', 'surgery-id', 'workflow', ...]
-      if (pathParts.length > 3) {
-        // Keep everything after the surgery ID
-        const remainingPath = pathParts.slice(3).join('/')
-        newPath = `/s/${surgeryId}/${remainingPath}`
-      }
-    }
+    // Use safe path matching to avoid navigating to surgery-specific item pages
+    const newPath = getSafePathForSurgery(pathname, surgeryId)
     
     router.push(newPath)
     onClose?.()
+  }
+
+  /**
+   * Determines a safe path to navigate to when switching surgeries.
+   * 
+   * Some paths contain surgery-specific IDs (e.g., workflow template IDs, handbook item IDs)
+   * that won't exist in another surgery. This function finds the nearest "safe" parent path.
+   * 
+   * Safe paths are routes that exist for all surgeries (e.g., /workflow, /admin-toolkit).
+   * Unsafe paths contain dynamic IDs that are surgery-specific.
+   */
+  function getSafePathForSurgery(currentPath: string | null, newSurgeryId: string): string {
+    const basePath = `/s/${newSurgeryId}`
+    
+    if (!currentPath || !currentPath.startsWith('/s/')) {
+      return basePath
+    }
+
+    // Extract the path after /s/[surgeryId]
+    const pathParts = currentPath.split('/')
+    // pathParts = ['', 's', 'surgery-id', 'workflow', 'templates', 'abc123', 'view']
+    if (pathParts.length <= 3) {
+      return basePath
+    }
+
+    const remainingParts = pathParts.slice(3) // ['workflow', 'templates', 'abc123', 'view']
+
+    // Define safe route patterns (paths that exist for all surgeries)
+    // These are the "list" or "landing" pages, not item-specific pages
+    const safePatterns = [
+      // Exact matches - these paths are always safe
+      'workflow',
+      'workflow/templates',
+      'workflow/start',
+      'workflow/admin',
+      'workflow/admin/styles',
+      'admin-toolkit',
+      'admin-toolkit/admin',
+      'appointments',
+      'clinical-review',
+      'admin',
+      'admin/users',
+      'admin/ai-setup',
+      'admin/onboarding',
+    ]
+
+    // Build the remaining path and find the longest safe prefix
+    let safePath = ''
+    let currentCheck = ''
+    
+    for (const part of remainingParts) {
+      const nextCheck = currentCheck ? `${currentCheck}/${part}` : part
+      
+      // Check if this path is in our safe patterns
+      if (safePatterns.includes(nextCheck)) {
+        safePath = nextCheck
+        currentCheck = nextCheck
+      } else {
+        // This part might be a dynamic ID - stop here
+        break
+      }
+    }
+
+    return safePath ? `${basePath}/${safePath}` : basePath
   }
 
   // If not superuser, just show the surgery name
