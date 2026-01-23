@@ -99,17 +99,9 @@ export default function TemplatesClient({ surgeryId, templates, isSuperuser }: T
   return (
     <>
       <div className="mb-6 flex justify-between items-start">
-        <div>
-          <Link
-            href={`/s/${surgeryId}/workflow`}
-            className="text-blue-600 hover:text-blue-800 underline mb-2 inline-block"
-          >
-            ← Back to Workflow Guidance
-          </Link>
-          <h1 className="text-2xl font-bold text-gray-900 mt-2">
-            Manage Workflow Templates
-          </h1>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Manage Workflow Templates
+        </h1>
         <button
           type="button"
           onClick={() => setShowCreateModal(true)}

@@ -9,6 +9,7 @@ import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
 import { canAccessAdminToolkitAdminDashboard, canEditAdminItem } from '@/lib/adminToolkitPermissions'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
 import RoleCardsRendererWithCardStyle from '@/components/admin-toolkit/RoleCardsRendererWithCardStyle'
+import SimpleHeader from '@/components/SimpleHeader'
 import {
   getAdminToolkitOnTakeWeek,
   getAdminToolkitPageItemForUser,
@@ -37,9 +38,10 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
   try {
     const user = await requireSurgeryAccess(surgeryId)
-    const [enabled, surgery] = await Promise.all([
+    const [enabled, surgery, surgeries] = await Promise.all([
       isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
       prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true, name: true } }),
+      prisma.surgery.findMany({ orderBy: { name: 'asc' } }),
     ])
 
     if (!surgery) {
@@ -116,13 +118,15 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
     return (
       <div className="min-h-screen bg-white">
+        <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} adminToolkitEnabled={true} />
+        
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <div className="mb-6 flex items-center justify-between gap-4">
             <Link
               href={`/s/${surgeryId}/admin-toolkit`}
               className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
-              ← Back to Admin Toolkit
+              ← Back to Practice Handbook
             </Link>
             <AdminToolkitItemActionsClient
               surgeryId={surgeryId}

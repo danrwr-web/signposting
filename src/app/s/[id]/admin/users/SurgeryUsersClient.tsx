@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
+import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
+import LogoSizeControl from '@/components/LogoSizeControl'
 
 interface Surgery {
   id: string
@@ -246,40 +248,56 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
     }
   }
 
+  const logoHref = `/s/${surgery.id}`
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      {/* Header - consistent with SimpleHeader */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex items-center justify-between h-16">
+            {/* Navigation Trigger + Logo */}
             <div className="flex items-center">
-              <Link
-                href="/admin"
-                className="text-blue-600 hover:text-blue-500 mr-4"
-              >
-                ← Back to Settings
+              <NavigationPanelTrigger className="mr-3" />
+              <Link href={logoHref} className="flex items-center">
+                <img
+                  src="/images/signposting_logo_head.png"
+                  alt="Signposting"
+                  style={{ height: 'var(--logo-height, 58px)' }}
+                  className="w-auto"
+                />
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">
-                User & access management — {surgery.name}
-              </h1>
+              <LogoSizeControl />
             </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Add User
-            </button>
+
+            {/* Surgery name */}
+            <span className="text-sm text-nhs-grey font-medium">
+              {surgery.name}
+            </span>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            User & access management — {surgery.name}
+          </h1>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Add User
+          </button>
+        </div>
+
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+            <h2 className="text-lg leading-6 font-medium text-gray-900">
               Surgery Members
-            </h3>
+            </h2>
             <p className="mt-1 max-w-2xl text-sm text-gray-500">
               Manage user access and roles within {surgery.name}.
             </p>
