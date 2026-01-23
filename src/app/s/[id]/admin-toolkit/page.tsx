@@ -7,7 +7,7 @@ import { requireSurgeryMembership } from '@/lib/rbac'
 import { canAccessAdminToolkitAdminDashboard } from '@/lib/adminToolkitPermissions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
-import NavigationMinimalHeader from '@/components/NavigationMinimalHeader'
+import SimpleHeader from '@/components/SimpleHeader'
 import {
   getAdminToolkitOnTakeWeek,
   getAdminToolkitLibraryForUser,
@@ -58,9 +58,8 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
     if (!enabled) {
       return (
         <div className="min-h-screen bg-white">
+          <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-            <NavigationMinimalHeader backHref={`/s/${surgeryId}`} backLabel="Back to Signposting" />
-
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <p className="text-sm text-yellow-700">
                 <strong>Practice Handbook is not enabled for {surgery.name}.</strong> Please contact an administrator if you need access.
@@ -84,29 +83,31 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
 
     return (
       <div className="min-h-screen bg-white">
+        <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
         <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-          <NavigationMinimalHeader backHref={`/s/${surgeryId}`} backLabel="Back to Signposting">
-            {canManage ? (
-              <>
-                <Link
-                  href={`/s/${surgeryId}/admin-toolkit/admin`}
-                  className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
-                >
-                  Edit Handbook
-                </Link>
-                <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
-                  Add item
-                </Link>
-              </>
-            ) : (
-              <span className="text-sm text-gray-500">View only</span>
-            )}
-            <AdminToolkitHeaderActions />
-          </NavigationMinimalHeader>
-
-          <header className="mb-6">
-            <h1 className="text-3xl font-bold text-nhs-dark-blue">Practice Handbook</h1>
-            <p className="mt-1 text-nhs-grey">{surgery.name}</p>
+          <header className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-nhs-dark-blue">Practice Handbook</h1>
+              <p className="mt-1 text-nhs-grey">{surgery.name}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {canManage ? (
+                <>
+                  <Link
+                    href={`/s/${surgeryId}/admin-toolkit/admin`}
+                    className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
+                  >
+                    Edit Handbook
+                  </Link>
+                  <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
+                    Add item
+                  </Link>
+                </>
+              ) : (
+                <span className="text-sm text-gray-500">View only</span>
+              )}
+              <AdminToolkitHeaderActions />
+            </div>
           </header>
 
           <AdminToolkitLibraryClient

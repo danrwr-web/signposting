@@ -6,30 +6,46 @@ import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
 import LogoSizeControl from './LogoSizeControl'
 import NavigationPanelTrigger from './NavigationPanelTrigger'
+import { useSurgery } from '@/context/SurgeryContext'
 
 interface SimpleHeaderProps {
-  surgeries: Surgery[]
+  /** Optional list of surgeries for the dropdown selector */
+  surgeries?: Surgery[]
+  /** Current surgery ID (used with surgeries prop) */
   currentSurgeryId?: string
+  /** Surgery name to display (alternative to surgeries prop) */
+  surgeryName?: string
+  /** Surgery ID for logo link (used with surgeryName prop) */
+  surgeryId?: string
 }
 
+/**
+ * Universal app header used across all modules.
+ * Shows: hamburger menu, logo, and surgery name/selector.
+ */
 export default function SimpleHeader({
   surgeries,
   currentSurgeryId,
+  surgeryName,
+  surgeryId: propSurgeryId,
 }: SimpleHeaderProps) {
   const pathname = usePathname()
   const params = useParams()
   const searchParams = useSearchParams()
+  const { surgery: contextSurgery } = useSurgery()
 
-  // `params.id` is ambiguous: it is the surgery id on `/s/[id]/...`, but it is the symptom id on `/symptom/[id]`.
-  // Use the pathname to decide which value is safe to treat as a surgery id.
-  const surgeryId =
+  // Determine surgery ID from props, URL params, or context
+  const surgeryIdFromUrl =
     pathname.startsWith('/s/')
       ? ((params as Record<string, string | string[] | undefined>)?.id as string | undefined)
       : pathname.startsWith('/symptom/')
         ? (searchParams.get('surgery') || undefined)
         : undefined
 
-  const logoHref = surgeryId ? `/s/${surgeryId}` : '/s'
+  const effectiveSurgeryId = propSurgeryId || surgeryIdFromUrl || currentSurgeryId || contextSurgery?.id
+  const effectiveSurgeryName = surgeryName || contextSurgery?.name
+
+  const logoHref = effectiveSurgeryId ? `/s/${effectiveSurgeryId}` : '/s'
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -49,12 +65,18 @@ export default function SimpleHeader({
             <LogoSizeControl />
           </div>
 
-          {/* Surgery Selector */}
+          {/* Surgery Selector or Name Display */}
           <div className="flex items-center">
-            <SurgerySelector 
-              surgeries={surgeries} 
-              currentSurgeryId={currentSurgeryId}
-            />
+            {surgeries && surgeries.length > 0 ? (
+              <SurgerySelector 
+                surgeries={surgeries} 
+                currentSurgeryId={currentSurgeryId}
+              />
+            ) : effectiveSurgeryName ? (
+              <span className="text-sm text-nhs-grey font-medium">
+                {effectiveSurgeryName}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
