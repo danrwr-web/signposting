@@ -77,11 +77,12 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
   /**
    * Determines a safe path to navigate to when switching surgeries.
    * 
-   * Some paths contain surgery-specific IDs (e.g., workflow template IDs, handbook item IDs)
-   * that won't exist in another surgery. This function finds the nearest "safe" parent path.
+   * When switching surgeries, we navigate to module landing pages that are accessible
+   * to all surgery members, avoiding:
+   * - Surgery-specific item pages (template IDs, handbook item IDs)
+   * - Admin sub-pages that may have different RBAC rules per surgery
    * 
-   * Safe paths are routes that exist for all surgeries (e.g., /workflow, /admin-toolkit).
-   * Unsafe paths contain dynamic IDs that are surgery-specific.
+   * This ensures the user lands on a page they have access to.
    */
   function getSafePathForSurgery(currentPath: string | null, newSurgeryId: string): string {
     const basePath = `/s/${newSurgeryId}`
@@ -97,45 +98,27 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
       return basePath
     }
 
-    const remainingParts = pathParts.slice(3) // ['workflow', 'templates', 'abc123', 'view']
+    // Get the first segment after /s/[surgeryId] - this is the module
+    const module = pathParts[3]
 
-    // Define safe route patterns (paths that exist for all surgeries)
-    // These are the "list" or "landing" pages, not item-specific pages
-    const safePatterns = [
-      // Exact matches - these paths are always safe
-      'workflow',
-      'workflow/templates',
-      'workflow/start',
-      'workflow/admin',
-      'workflow/admin/styles',
-      'admin-toolkit',
-      'admin-toolkit/admin',
-      'appointments',
-      'clinical-review',
-      'admin',
-      'admin/users',
-      'admin/ai-setup',
-      'admin/onboarding',
-    ]
-
-    // Build the remaining path and find the longest safe prefix
-    let safePath = ''
-    let currentCheck = ''
-    
-    for (const part of remainingParts) {
-      const nextCheck = currentCheck ? `${currentCheck}/${part}` : part
-      
-      // Check if this path is in our safe patterns
-      if (safePatterns.includes(nextCheck)) {
-        safePath = nextCheck
-        currentCheck = nextCheck
-      } else {
-        // This part might be a dynamic ID - stop here
-        break
-      }
+    // Map modules to their safe landing pages
+    // These are accessible to all surgery members (not admin-only)
+    const moduleLandingPages: Record<string, string> = {
+      'workflow': 'workflow',
+      'admin-toolkit': 'admin-toolkit',
+      'appointments': 'appointments',
+      'clinical-review': 'clinical-review',
+      'admin': '', // Fall back to surgery root for admin pages
     }
 
-    return safePath ? `${basePath}/${safePath}` : basePath
+    // Navigate to the module landing page if we recognize the module
+    if (module && module in moduleLandingPages) {
+      const landingPage = moduleLandingPages[module]
+      return landingPage ? `${basePath}/${landingPage}` : basePath
+    }
+
+    // Unknown module - fall back to surgery root
+    return basePath
   }
 
   // If not superuser, just show the surgery name
