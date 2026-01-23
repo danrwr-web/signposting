@@ -23,24 +23,21 @@ export default async function SurgeryLayout({
 }) {
   const { id: surgeryId } = await params
 
-  // Fetch surgery name for the header
-  // SimpleHeader will use SurgeryContext if surgery data is not provided,
-  // but we fetch it here for consistency and to ensure it's available
-  let surgeryName: string | undefined
+  // Fetch all surgeries for the header selector (enables surgery switching for superusers)
+  // and find the current surgery for display
+  let surgeries: { id: string; slug: string | null; name: string }[] = []
   try {
-    const surgery = await prisma.surgery.findUnique({
-      where: { id: surgeryId },
-      select: { name: true },
+    surgeries = await prisma.surgery.findMany({
+      select: { id: true, slug: true, name: true },
+      orderBy: { name: 'asc' },
     })
-    surgeryName = surgery?.name
   } catch (error) {
-    // If DB query fails, SimpleHeader will fall back to SurgeryContext
-    console.error('Error loading surgery in layout:', error)
+    console.error('Error loading surgeries in layout:', error)
   }
 
   return (
     <>
-      <SimpleHeader surgeryId={surgeryId} surgeryName={surgeryName} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} />
       {children}
     </>
   )
