@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import Link from 'next/link'
 import WorkflowDiagramClientWrapper from '@/components/workflow/WorkflowDiagramClientWrapper'
+import SimpleHeader from '@/components/SimpleHeader'
 import {
   updateWorkflowNodePosition,
   createWorkflowNodeForTemplate,
@@ -124,14 +125,19 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
   try {
     const user = await requireSurgeryAccess(surgeryId)
 
-    // Get surgery details
-    const surgery = await prisma.surgery.findUnique({
-      where: { id: surgeryId },
-      select: {
-        id: true,
-        name: true,
-      }
-    })
+    // Get surgery details and all surgeries for header
+    const [surgery, surgeries] = await Promise.all([
+      prisma.surgery.findUnique({
+        where: { id: surgeryId },
+        select: {
+          id: true,
+          name: true,
+        }
+      }),
+      prisma.surgery.findMany({
+        orderBy: { name: 'asc' }
+      })
+    ])
 
     if (!surgery) {
       redirect('/unauthorized')
@@ -306,10 +312,12 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
 
     return (
       <div className="min-h-screen bg-gray-50 w-full">
+        <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} />
+        
         <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header - Visually grouped */}
+          {/* Back link and content header */}
           <div className="mb-8">
-            {/* Quiet context */}
+            {/* Back link */}
             <div className="mb-4">
               <Link
                 href={`/s/${surgeryId}/workflow`}
@@ -320,8 +328,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                 </svg>
                 Back to Workflow Guidance
               </Link>
-              <span className="text-sm text-gray-400 mx-2">·</span>
-              <span className="text-sm text-gray-500">{surgery.name}</span>
             </div>
             
             {/* Strong workflow title + description */}
