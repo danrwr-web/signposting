@@ -6,7 +6,6 @@ import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { canAccessAdminToolkitAdminDashboard } from '@/lib/adminToolkitPermissions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
-import SimpleHeader from '@/components/SimpleHeader'
 import {
   getAdminToolkitCategories,
   getAdminToolkitOnTakeWeek,
@@ -48,7 +47,6 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
     if (!enabled) {
       return (
         <div className="min-h-screen bg-white">
-          <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <p className="text-sm text-yellow-700">
@@ -100,7 +98,6 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
 
     return (
       <div className="min-h-screen bg-white">
-        <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <header className="mb-6 flex items-start justify-between gap-4">
             <div>
