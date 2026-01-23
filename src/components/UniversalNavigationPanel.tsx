@@ -23,7 +23,7 @@ export default function UniversalNavigationPanel() {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [disabledModalInfo, setDisabledModalInfo] = useState<ModuleDisabledInfo | null>(null)
   const [enabledFeatures, setEnabledFeatures] = useState<Record<string, boolean>>({})
-  const [featuresLoading, setFeaturesLoading] = useState(false)
+  const [featuresLoading, setFeaturesLoading] = useState(true) // Start as loading to avoid flash of "not enabled"
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
 
   const surgeryId = surgery?.id
@@ -50,7 +50,12 @@ export default function UniversalNavigationPanel() {
 
   // Fetch enabled features for the current surgery
   useEffect(() => {
-    if (!surgeryId) return
+    if (!surgeryId) {
+      // No surgery selected - nothing to load, clear loading state
+      setFeaturesLoading(false)
+      setEnabledFeatures({})
+      return
+    }
 
     const fetchFeatures = async () => {
       setFeaturesLoading(true)
@@ -106,11 +111,13 @@ export default function UniversalNavigationPanel() {
   }, [])
 
   // Check if a module is enabled
+  // During loading, treat modules as enabled so they're clickable
   const isModuleEnabled = useCallback((module: ModuleItem): boolean => {
     if (module.alwaysEnabled) return true
     if (!module.featureKey) return true
+    if (featuresLoading) return true // Allow navigation while loading
     return enabledFeatures[module.featureKey] ?? false
-  }, [enabledFeatures])
+  }, [enabledFeatures, featuresLoading])
 
   // Handle module click
   const handleModuleClick = useCallback((e: React.MouseEvent, module: ModuleItem) => {

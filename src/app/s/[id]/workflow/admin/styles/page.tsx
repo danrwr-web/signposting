@@ -4,7 +4,6 @@ import { requireSurgeryAccess, getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
-import SimpleHeader from '@/components/SimpleHeader'
 import TemplateStyleDefaultsEditor from '@/components/workflow/TemplateStyleDefaultsEditor'
 import SurgeryStyleDefaultsEditor from '@/components/workflow/SurgeryStyleDefaultsEditor'
 import TemplateSelector from '@/components/workflow/TemplateSelector'
@@ -110,7 +109,6 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
 
     return (
       <div className="min-h-screen bg-gray-50">
-        <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
