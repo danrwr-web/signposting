@@ -24,6 +24,7 @@ export default function UniversalNavigationPanel() {
   const [disabledModalInfo, setDisabledModalInfo] = useState<ModuleDisabledInfo | null>(null)
   const [enabledFeatures, setEnabledFeatures] = useState<Record<string, boolean>>({})
   const [featuresLoading, setFeaturesLoading] = useState(true) // Start as loading to avoid flash of "not enabled"
+  const [lastFetchedSurgeryId, setLastFetchedSurgeryId] = useState<string | null>(null) // Track which surgery we've fetched for
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
 
   const surgeryId = surgery?.id
@@ -51,9 +52,18 @@ export default function UniversalNavigationPanel() {
   // Fetch enabled features for the current surgery
   useEffect(() => {
     if (!surgeryId) {
-      // No surgery selected - nothing to load, clear loading state
-      setFeaturesLoading(false)
-      setEnabledFeatures({})
+      // No surgery selected yet - keep loading state true to avoid showing "Not enabled"
+      // Only clear features if we previously fetched for a different surgery
+      if (lastFetchedSurgeryId !== null) {
+        setEnabledFeatures({})
+        setLastFetchedSurgeryId(null)
+      }
+      // Don't set featuresLoading to false - keep it true until we have a surgeryId to fetch
+      return
+    }
+
+    // If we've already fetched for this surgery, don't re-fetch
+    if (lastFetchedSurgeryId === surgeryId) {
       return
     }
 
@@ -64,6 +74,7 @@ export default function UniversalNavigationPanel() {
         if (response.ok) {
           const data = await response.json()
           setEnabledFeatures(data.features || {})
+          setLastFetchedSurgeryId(surgeryId)
         }
       } catch (error) {
         console.error('Error fetching surgery features:', error)
@@ -73,7 +84,7 @@ export default function UniversalNavigationPanel() {
     }
 
     fetchFeatures()
-  }, [surgeryId])
+  }, [surgeryId, lastFetchedSurgeryId])
 
   // Handle escape key to close
   useEffect(() => {
