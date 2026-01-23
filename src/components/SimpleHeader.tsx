@@ -5,7 +5,7 @@ import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import SurgerySelector from './SurgerySelector'
 import { Surgery } from '@prisma/client'
 import LogoSizeControl from './LogoSizeControl'
-import NavigationPanelTrigger from './NavigationPanelTrigger'
+import NavigationTriggerWithTooltip from './NavigationTriggerWithTooltip'
 import { useSurgery } from '@/context/SurgeryContext'
 
 interface SimpleHeaderProps {
@@ -53,7 +53,7 @@ export default function SimpleHeader({
         <div className="flex items-center justify-between h-16">
           {/* Navigation Trigger + Logo */}
           <div className="flex items-center">
-            <NavigationPanelTrigger className="mr-3" />
+            <NavigationTriggerWithTooltip className="mr-3" />
             <Link href={logoHref} className="flex items-center">
               <img
                 src="/images/signposting_logo_head.png"
