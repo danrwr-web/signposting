@@ -195,6 +195,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
     <div className="min-h-screen bg-nhs-light-grey">
       {/* Compact Toolbar */}
       <CompactToolbar
+        variant="toolbar"
         surgeries={surgeries}
         currentSurgeryId={surgeryId}
         searchTerm={searchTerm}
