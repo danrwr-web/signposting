@@ -192,7 +192,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   )
 
   return (
-    <div className="min-h-screen bg-nhs-light-grey pt-3">
+    <div className="min-h-screen bg-nhs-light-grey">
       {/* Compact Toolbar */}
       <CompactToolbar
         variant="toolbar"

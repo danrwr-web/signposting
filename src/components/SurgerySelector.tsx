@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useSession } from 'next-auth/react'
@@ -12,7 +13,8 @@ interface SurgerySelectorProps {
 }
 
 export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }: SurgerySelectorProps) {
-  const { setSurgery, clearSurgery, surgery } = useSurgery()
+  const router = useRouter()
+  const { clearSurgery, surgery } = useSurgery()
   const { data: session } = useSession()
   // Use surgery from context as source of truth, fallback to currentSurgeryId prop
   const actualSurgeryId = surgery?.id || currentSurgeryId || ''
@@ -36,21 +38,36 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
   }, [])
 
   const handleSurgeryChange = (surgeryId: string) => {
-    setSelectedId(surgeryId)
-    
-    if (surgeryId) {
-      const selectedSurgery = surgeries.find(s => s.id === surgeryId)
-      if (selectedSurgery) {
-        setSurgery({ 
-          id: selectedSurgery.id, 
-          name: selectedSurgery.name,
-          slug: selectedSurgery.slug || selectedSurgery.id 
-        })
-      }
-    } else {
+    if (!surgeryId) {
       clearSurgery()
+      onClose?.()
+      return
     }
-    
+
+    const selectedSurgery = surgeries.find(s => s.id === surgeryId)
+    if (!selectedSurgery) {
+      onClose?.()
+      return
+    }
+
+    // Update local state immediately for responsive UI
+    setSelectedId(surgeryId)
+
+    // Write to cookie/localStorage for persistence (without triggering context navigation)
+    if (typeof document !== 'undefined') {
+      document.cookie = `surgery=${encodeURIComponent(surgeryId)}; Path=/; Max-Age=${60 * 60 * 24 * 180}; SameSite=Lax`
+    }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('surgery_state', JSON.stringify({
+        id: selectedSurgery.id,
+        name: selectedSurgery.name,
+        slug: selectedSurgery.slug || selectedSurgery.id
+      }))
+    }
+
+    // Navigate to the selected surgery's page
+    // The new page will pick up the surgery from URL/cookie
+    router.push(`/s/${surgeryId}`)
     onClose?.()
   }
 
