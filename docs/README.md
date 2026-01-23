@@ -94,6 +94,7 @@ The full documentation is organised into the following sections:
 
 - [Getting Started](wiki/Getting-Started) – Step-by-step onboarding guide for new surgeries
 - [User Guide](wiki/User-Guide) – Practical guide for reception and care-navigation staff
+- [Day-to-day use](wiki/Day-to-day-use) – Task-first guide for common situations
 - [Symptom Library](wiki/Symptom-Library) – How symptoms, overrides, and custom symptoms work
 - [Clinical Governance](wiki/Clinical-Governance) – Review workflow, approval states, and safety principles
 - [Appointment Directory](wiki/Appointment-Directory) – Configuring appointment types and local services
