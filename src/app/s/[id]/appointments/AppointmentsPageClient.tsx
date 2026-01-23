@@ -2,13 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Surgery } from '@prisma/client'
 import AppointmentCsvUpload from '@/components/appointments/AppointmentCsvUpload'
 import AppointmentCard from '@/components/appointments/AppointmentCard'
 import AppointmentEditModal from '@/components/appointments/AppointmentEditModal'
 import StaffTypesManager from '@/components/appointments/StaffTypesManager'
 import Modal from '@/components/appointments/Modal'
-import SimpleHeader from '@/components/SimpleHeader'
 import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
 
 interface AppointmentType {
@@ -25,7 +23,6 @@ interface AppointmentsPageClientProps {
   surgeryId: string
   surgeryName: string
   isAdmin: boolean
-  surgeries: Surgery[]
   initialStaffTypes: StaffTypeResponse[]
 }
 
@@ -33,7 +30,6 @@ export default function AppointmentsPageClient({
   surgeryId, 
   surgeryName,
   isAdmin,
-  surgeries,
   initialStaffTypes,
 }: AppointmentsPageClientProps) {
   const [appointments, setAppointments] = useState<AppointmentType[]>([])
@@ -226,10 +222,6 @@ export default function AppointmentsPageClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SimpleHeader
-        surgeries={surgeries}
-        currentSurgeryId={surgeryId}
-      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-6">

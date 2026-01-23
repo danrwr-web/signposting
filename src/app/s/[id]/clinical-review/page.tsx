@@ -2,7 +2,6 @@ import { requireSurgeryAdmin } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import ClinicalReviewPanel from '@/components/ClinicalReviewPanel'
-import SimpleHeader from '@/components/SimpleHeader'
 
 interface ClinicalReviewPageProps {
   params: Promise<{
@@ -31,7 +30,6 @@ export default async function ClinicalReviewPage({ params }: ClinicalReviewPageP
 
     return (
       <div className="min-h-screen bg-gray-50">
-        <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">
             Clinical Review — {surgery.name}
