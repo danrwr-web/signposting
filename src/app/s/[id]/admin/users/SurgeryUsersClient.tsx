@@ -1,12 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
-import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
-import LogoSizeControl from '@/components/LogoSizeControl'
 
 interface Surgery {
   id: string
@@ -248,36 +245,8 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
     }
   }
 
-  const logoHref = `/s/${surgery.id}`
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - consistent with SimpleHeader */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Navigation Trigger + Logo */}
-            <div className="flex items-center">
-              <NavigationPanelTrigger className="mr-3" />
-              <Link href={logoHref} className="flex items-center">
-                <img
-                  src="/images/signposting_logo_head.png"
-                  alt="Signposting"
-                  style={{ height: 'var(--logo-height, 58px)' }}
-                  className="w-auto"
-                />
-              </Link>
-              <LogoSizeControl />
-            </div>
-
-            {/* Surgery name */}
-            <span className="text-sm text-nhs-grey font-medium">
-              {surgery.name}
-            </span>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page header */}
