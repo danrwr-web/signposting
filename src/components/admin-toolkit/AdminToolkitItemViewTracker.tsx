@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { recordAdminToolkitItemView } from '@/app/s/[id]/admin-toolkit/actions'
 
 interface AdminToolkitItemViewTrackerProps {
   surgeryId: string
@@ -44,11 +43,15 @@ export default function AdminToolkitItemViewTracker({
       return
     }
 
-    // Record the view
+    // Record the view via API
     hasRecorded.current = true
-    recordAdminToolkitItemView({ surgeryId, itemId })
-      .then((result) => {
-        if (result.ok) {
+    fetch('/api/admin-toolkit/record-view', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ surgeryId, itemId }),
+    })
+      .then((res) => {
+        if (res.ok) {
           // Update sessionStorage with the new view time
           viewTimes[itemId] = now
           // Clean up old entries (older than debounce duration)

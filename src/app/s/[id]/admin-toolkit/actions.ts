@@ -1621,3 +1621,59 @@ export async function removeAdminToolkitAttachment(input: unknown): Promise<Acti
   return { ok: true, data: { id: attachmentId } }
 }
 
+// ---------------------------------------------------------------------------
+// Engagement tracking for Admin Toolkit item views
+// ---------------------------------------------------------------------------
+
+const recordItemViewInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+})
+
+/**
+ * Record an Admin Toolkit item view event.
+ * This should be called when a user opens an Admin Toolkit item detail page.
+ * Client-side debouncing is expected (e.g. once per item per session or per X minutes).
+ */
+export async function recordAdminToolkitItemView(input: unknown): Promise<ActionResult<{ recorded: boolean }>> {
+  const parsed = recordItemViewInput.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) },
+    }
+  }
+
+  try {
+    const user = await requireSurgeryAccess(parsed.data.surgeryId)
+    const enabled = await isFeatureEnabledForSurgery(parsed.data.surgeryId, 'admin_toolkit')
+    if (!enabled) {
+      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Practice Handbook is not enabled for this surgery.' } }
+    }
+
+    const { surgeryId, itemId } = parsed.data
+
+    // Verify the item exists
+    const item = await prisma.adminItem.findFirst({
+      where: { id: itemId, surgeryId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!item) {
+      return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found.' } }
+    }
+
+    // Record the engagement event
+    await prisma.adminToolkitEngagementEvent.create({
+      data: {
+        surgeryId,
+        adminItemId: itemId,
+        userId: user.id,
+        event: 'view_item',
+      },
+    })
+
+    return { ok: true, data: { recorded: true } }
+  } catch {
+    return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'You must be signed in.' } }
+  }
+}
