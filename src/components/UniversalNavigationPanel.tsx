@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
 import { useSurgery } from '@/context/SurgeryContext'
 import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from '@/navigation/modules'
+import UserPreferencesModal from './UserPreferencesModal'
 
 interface ModuleDisabledInfo {
   moduleName: string
@@ -22,7 +23,8 @@ export default function UniversalNavigationPanel() {
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [disabledModalInfo, setDisabledModalInfo] = useState<ModuleDisabledInfo | null>(null)
   const [enabledFeatures, setEnabledFeatures] = useState<Record<string, boolean>>({})
-  const [featuresLoading, setFeaturesLoading] = useState(false)
+  const [featuresLoading, setFeaturesLoading] = useState(true) // Start as loading to avoid flash of "not enabled"
+  const [showPreferencesModal, setShowPreferencesModal] = useState(false)
 
   const surgeryId = surgery?.id
   const surgeryName = surgery?.name || 'No surgery selected'
@@ -48,7 +50,12 @@ export default function UniversalNavigationPanel() {
 
   // Fetch enabled features for the current surgery
   useEffect(() => {
-    if (!surgeryId) return
+    if (!surgeryId) {
+      // No surgery selected - nothing to load, clear loading state
+      setFeaturesLoading(false)
+      setEnabledFeatures({})
+      return
+    }
 
     const fetchFeatures = async () => {
       setFeaturesLoading(true)
@@ -104,11 +111,13 @@ export default function UniversalNavigationPanel() {
   }, [])
 
   // Check if a module is enabled
+  // During loading, treat modules as enabled so they're clickable
   const isModuleEnabled = useCallback((module: ModuleItem): boolean => {
     if (module.alwaysEnabled) return true
     if (!module.featureKey) return true
+    if (featuresLoading) return true // Allow navigation while loading
     return enabledFeatures[module.featureKey] ?? false
-  }, [enabledFeatures])
+  }, [enabledFeatures, featuresLoading])
 
   // Handle module click
   const handleModuleClick = useCallback((e: React.MouseEvent, module: ModuleItem) => {
@@ -298,8 +307,32 @@ export default function UniversalNavigationPanel() {
           )}
         </div>
 
-        {/* Sign Out - Fixed at bottom */}
-        <div className="border-t border-gray-200 p-4 flex-shrink-0">
+        {/* Preferences & Sign Out - Fixed at bottom */}
+        <div className="border-t border-gray-200 p-4 flex-shrink-0 space-y-2">
+          {/* Preferences Button */}
+          <button
+            onClick={() => {
+              close()
+              setShowPreferencesModal(true)
+            }}
+            className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-nhs-grey border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-5 h-5 mr-2"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Preferences
+          </button>
+
+          {/* Sign Out Button */}
           <button
             onClick={handleSignOut}
             className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-nhs-grey border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
@@ -319,6 +352,12 @@ export default function UniversalNavigationPanel() {
           </button>
         </div>
       </aside>
+
+      {/* User Preferences Modal */}
+      <UserPreferencesModal 
+        isOpen={showPreferencesModal}
+        onClose={() => setShowPreferencesModal(false)}
+      />
 
       {/* Disabled Module Modal */}
       {disabledModalInfo && (
