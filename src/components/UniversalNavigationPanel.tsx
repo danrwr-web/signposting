@@ -6,40 +6,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
 import { useSurgery } from '@/context/SurgeryContext'
-
-interface ModuleItem {
-  id: string
-  label: string
-  href: string
-  featureKey?: string // Feature flag key for this module
-  alwaysEnabled?: boolean // If true, module is always visible/enabled
-}
-
-interface ManagementItem {
-  id: string
-  label: string
-  href: string
-}
+import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from '@/navigation/modules'
 
 interface ModuleDisabledInfo {
   moduleName: string
   isAdmin: boolean
 }
-
-const MODULES: ModuleItem[] = [
-  { id: 'signposting', label: 'Signposting', href: '/s/{surgeryId}', alwaysEnabled: true },
-  { id: 'workflow', label: 'Workflow Guidance', href: '/s/{surgeryId}/workflow', featureKey: 'workflow_guidance' },
-  { id: 'handbook', label: 'Practice Handbook', href: '/s/{surgeryId}/admin-toolkit', featureKey: 'admin_toolkit' },
-  { id: 'appointments', label: 'Appointments Directory', href: '/s/{surgeryId}/appointments', alwaysEnabled: true },
-  { id: 'help', label: 'Help & Documentation', href: 'https://docs.signpostingtool.co.uk/', alwaysEnabled: true },
-]
-
-const MANAGEMENT_ITEMS: ManagementItem[] = [
-  { id: 'edit-handbook', label: 'Edit Handbook', href: '/s/{surgeryId}/admin-toolkit/admin' },
-  { id: 'signposting-settings', label: 'Signposting settings', href: '/admin' },
-  { id: 'workflow-editor', label: 'Workflow editor', href: '/s/{surgeryId}/workflow/templates' },
-  { id: 'user-management', label: 'User & access management', href: '/s/{surgeryId}/admin/users' },
-]
 
 export default function UniversalNavigationPanel() {
   const { isOpen, close } = useNavigationPanel()

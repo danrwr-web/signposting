@@ -269,7 +269,145 @@ The system supports:
 
 ---
 
-## 12. Local Testing Accounts
+## 12. Adding a New Module (e.g., "Daily Dose")
+
+When adding a new top-level module to the app (like Signposting, Workflow Guidance, or Practice Handbook), follow this checklist:
+
+### Step 1: Register the Module
+
+Add an entry to the navigation registry:
+
+**`src/navigation/modules.ts`**
+
+```typescript
+export const MODULES: ModuleItem[] = [
+  // ... existing modules ...
+  { 
+    id: 'daily-dose', 
+    label: 'Daily Dose', 
+    href: '/s/{surgeryId}/daily-dose', 
+    featureKey: 'daily_dose' // Optional: if module is feature-flagged
+  },
+]
+```
+
+**Notes:**
+- Use `{surgeryId}` placeholder in the `href` — it will be replaced at runtime
+- Set `alwaysEnabled: true` if the module should always be visible
+- Set `featureKey` if the module should be gated by a feature flag
+
+### Step 2: Create the Route Structure
+
+Create your module pages under:
+
+**`src/app/s/[id]/your-module/`**
+
+Example:
+```
+src/app/s/[id]/daily-dose/
+  ├── page.tsx              # Landing page
+  └── [itemId]/
+      └── page.tsx          # Detail page
+```
+
+### Step 3: Use the Shared Layout
+
+**Do NOT** import `SimpleHeader` in your pages. The shared layout (`src/app/s/[id]/layout.tsx`) automatically provides:
+
+- `SimpleHeader` (with hamburger menu and surgery context)
+- `UniversalNavigationPanel` (from root layout)
+
+Your pages should focus on content only:
+
+```typescript
+// ✅ Correct: No header needed
+export default async function DailyDosePage({ params }: Props) {
+  const { id: surgeryId } = await params
+  // ... your logic ...
+  
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1>Daily Dose</h1>
+      {/* Your content */}
+    </div>
+  )
+}
+
+// ❌ Wrong: Don't import SimpleHeader
+import SimpleHeader from '@/components/SimpleHeader'
+```
+
+### Step 4: Update Active Module Detection (if needed)
+
+If your module route doesn't match the standard pattern, update the active module detection in:
+
+**`src/components/UniversalNavigationPanel.tsx`**
+
+Look for the `getActiveModule` function and add your route pattern.
+
+### Step 5: Add Feature Flag (if applicable)
+
+If your module uses a feature flag:
+
+1. Add the flag key to your module entry in `src/navigation/modules.ts`
+2. Ensure the feature flag is checked in your page (using `isFeatureEnabledForSurgery`)
+3. The navigation panel will automatically show/hide the module based on the flag
+
+### Step 6: Verify App Shell Enforcement
+
+Run the check script to ensure you haven't bypassed the app shell:
+
+```bash
+npm run check:app-shell
+```
+
+This script verifies:
+- Pages under `/s/[id]/...` don't import `SimpleHeader` directly
+- The layout file exists and includes `SimpleHeader`
+
+### Step 7: Update Documentation
+
+- Add your module to the user-facing documentation in `/docs/wiki`
+- Update navigation blocks in wiki pages if needed
+- Add screenshots to `/docs/wiki/images/` if applicable
+
+### Example: Complete Module Addition
+
+```typescript
+// 1. src/navigation/modules.ts
+{ 
+  id: 'daily-dose', 
+  label: 'Daily Dose', 
+  href: '/s/{surgeryId}/daily-dose', 
+  featureKey: 'daily_dose' 
+}
+
+// 2. src/app/s/[id]/daily-dose/page.tsx
+import 'server-only'
+import { requireSurgeryAccess } from '@/lib/rbac'
+import { isFeatureEnabledForSurgery } from '@/lib/features'
+
+export default async function DailyDosePage({ params }: Props) {
+  const { id: surgeryId } = await params
+  await requireSurgeryAccess(surgeryId)
+  
+  const enabled = await isFeatureEnabledForSurgery(surgeryId, 'daily_dose')
+  if (!enabled) {
+    return <div>Module not enabled</div>
+  }
+  
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1>Daily Dose</h1>
+      {/* Content */}
+    </div>
+  )
+}
+```
+
+---
+
+## 13. Local Testing Accounts
 
 The seed scripts automatically generate test users, including:
 

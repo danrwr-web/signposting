@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import SimpleHeader from '@/components/SimpleHeader'
 import { SessionUser } from '@/lib/rbac'
 import { SurgeryOnboardingProfileJson } from '@/lib/api-contracts'
 
@@ -361,7 +360,6 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
   if (loading) {
     return (
       <div className="min-h-screen bg-nhs-light-grey">
-        <SimpleHeader surgeries={[]} currentSurgeryId={surgeryId} />
         <main className="max-w-4xl mx-auto px-4 py-8">
           <div className="text-center">Loading...</div>
         </main>
@@ -371,7 +369,6 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={[]} currentSurgeryId={surgeryId} />
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h1 className="text-3xl font-bold text-nhs-dark-blue mb-2">

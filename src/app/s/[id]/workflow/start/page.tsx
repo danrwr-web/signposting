@@ -2,7 +2,6 @@ import 'server-only'
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import SimpleHeader from '@/components/SimpleHeader'
 import { startWorkflowInstance } from '../actions'
 import StartWorkflowClient from './StartWorkflowClient'
 
@@ -53,7 +52,6 @@ export default async function StartWorkflowPage({ params, searchParams }: StartW
 
     return (
       <div className="min-h-screen bg-gray-50">
-        <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
         <StartWorkflowClient
           surgeryId={surgeryId}
           surgeryName={surgery.name}

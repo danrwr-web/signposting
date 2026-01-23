@@ -32,6 +32,11 @@ interface CompactToolbarProps {
   onShowSurgerySelector: (show: boolean) => void
   symptoms?: EffectiveSymptom[]
   commonReasonsItems?: CommonReasonsResolvedItem[]
+  /**
+   * 'full' (default): Renders complete header with logo, hamburger, surgery selector
+   * 'toolbar': Renders only search/filter toolbar (use when layout provides header)
+   */
+  variant?: 'full' | 'toolbar'
 }
 
 export default function CompactToolbar({
@@ -49,6 +54,7 @@ export default function CompactToolbar({
   onShowSurgerySelector,
   symptoms,
   commonReasonsItems,
+  variant = 'full',
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const pathname = usePathname() || ''
@@ -95,65 +101,67 @@ export default function CompactToolbar({
   const logoHref = surgeryId ? `/s/${surgeryId}` : '/s'
 
   return (
-    <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-      {/* Row 1: Logo, Surgery Selector */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
-          {/* Navigation Trigger + Logo */}
-          <div className="flex items-center">
-            <NavigationTriggerWithTooltip className="mr-3" />
-            <Link href={logoHref} className="flex items-center">
-              <img
-                src="/images/signposting_logo_head.png"
-                alt="Signposting"
-                style={{ height: 'var(--logo-height, 58px)' }}
-                className="w-auto"
-              />
-            </Link>
-            <LogoSizeControl />
-          </div>
-
-          {/* Surgery Selector and Preferences */}
-          <div className="flex items-center space-x-4">
-            {isSuperuser ? (
-              // Superusers can change surgery
-              showSurgerySelector ? (
-                <SurgerySelector 
-                  surgeries={surgeries} 
-                  currentSurgeryId={surgery?.id || currentSurgeryId}
-                  onClose={() => onShowSurgerySelector(false)}
+    <div className={`${variant === 'full' ? 'sticky top-0 z-50' : 'pt-3'} bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm`}>
+      {/* Row 1: Logo, Surgery Selector - only shown in 'full' variant */}
+      {variant === 'full' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            {/* Navigation Trigger + Logo */}
+            <div className="flex items-center">
+              <NavigationTriggerWithTooltip className="mr-3" />
+              <Link href={logoHref} className="flex items-center">
+                <img
+                  src="/images/signposting_logo_head.png"
+                  alt="Signposting"
+                  style={{ height: 'var(--logo-height, 58px)' }}
+                  className="w-auto"
                 />
-              ) : (
-                <button
-                  onClick={() => onShowSurgerySelector(true)}
-                  className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
-                  aria-label="Change surgery"
-                >
-                  {surgery ? `${surgery.name} — Change` : 'Select Surgery'}
-                </button>
-              )
-            ) : (
-              // Non-superusers just see their surgery name
-              <span className="text-sm text-nhs-grey font-medium">
-                {surgery ? surgery.name : 'No surgery selected'}
-              </span>
-            )}
+              </Link>
+              <LogoSizeControl />
+            </div>
 
-            {/* Settings Gear Icon - personal preferences */}
-            <button
-              onClick={() => setShowPreferencesModal(true)}
-              className="p-2 text-nhs-grey hover:text-nhs-blue transition-colors"
-              title="Open preferences"
-              aria-label="Open preferences"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
+            {/* Surgery Selector and Preferences */}
+            <div className="flex items-center space-x-4">
+              {isSuperuser ? (
+                // Superusers can change surgery
+                showSurgerySelector ? (
+                  <SurgerySelector 
+                    surgeries={surgeries} 
+                    currentSurgeryId={surgery?.id || currentSurgeryId}
+                    onClose={() => onShowSurgerySelector(false)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => onShowSurgerySelector(true)}
+                    className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
+                    aria-label="Change surgery"
+                  >
+                    {surgery ? `${surgery.name} — Change` : 'Select Surgery'}
+                  </button>
+                )
+              ) : (
+                // Non-superusers just see their surgery name
+                <span className="text-sm text-nhs-grey font-medium">
+                  {surgery ? surgery.name : 'No surgery selected'}
+                </span>
+              )}
+
+              {/* Settings Gear Icon - personal preferences */}
+              <button
+                onClick={() => setShowPreferencesModal(true)}
+                className="p-2 text-nhs-grey hover:text-nhs-blue transition-colors"
+                title="Open preferences"
+                aria-label="Open preferences"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <SurgeryFiltersHeader
         searchTerm={searchTerm}

@@ -38,10 +38,6 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
       redirect('/unauthorized')
     }
 
-    const surgeries = await prisma.surgery.findMany({
-      orderBy: { name: 'asc' }
-    })
-
     const staffTypeRecords = await prisma.appointmentStaffType.findMany({
       where: {
         OR: [
@@ -75,7 +71,6 @@ export default async function AppointmentsPage({ params }: AppointmentsPageProps
         surgeryId={surgeryId}
         surgeryName={surgery.name}
         isAdmin={isAdmin}
-        surgeries={surgeries}
         initialStaffTypes={staffTypes}
       />
     )
