@@ -161,7 +161,7 @@ export default function CompactToolbar({
                 href="/admin" 
                 className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
               >
-                Admin
+                Settings
               </Link>
             )}
 
@@ -185,17 +185,17 @@ export default function CompactToolbar({
               </Link>
             )}
 
-            {/* Admin Toolkit Link - only when enabled for this surgery */}
+            {/* Practice Handbook Link - only when enabled for this surgery */}
             {currentSurgeryId && adminToolkitEnabled && (
               <Link
                 href={`/s/${currentSurgeryId}/admin-toolkit`}
                 className="text-sm font-medium text-slate-700 hover:text-sky-700"
               >
-                Admin Toolkit
+                Practice Handbook
               </Link>
             )}
 
-            {/* Documentation Link - admin and superuser only */}
+            {/* Help & Documentation Link - admin and superuser only */}
             {canAccessAdmin && (
               <a
                 href="https://docs.signpostingtool.co.uk/"
@@ -203,7 +203,7 @@ export default function CompactToolbar({
                 rel="noreferrer noopener"
                 className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors underline-offset-2 hover:underline"
               >
-                Docs
+                Help & Documentation
               </a>
             )}
 

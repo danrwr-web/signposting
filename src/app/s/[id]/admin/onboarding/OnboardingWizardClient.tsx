@@ -417,7 +417,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                       href="/admin?tab=setup-checklist"
                       className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
                     >
-                      Return to Admin Dashboard
+                      Return to Settings
                     </a>
                   </div>
                 </div>

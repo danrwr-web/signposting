@@ -68,13 +68,13 @@ export default function AdminDashboardClient({
                 ← Back to Signposting Tool
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">
-                Admin Dashboard
+                Settings
               </h1>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">
                 Welcome, {user.name || user.email}
-                {isSuperuser && ' (Superuser)'}
+                {isSuperuser && ' (System admin)'}
               </span>
               <button
                 onClick={handleLogout}
@@ -153,7 +153,7 @@ export default function AdminDashboardClient({
                     <div className="bg-purple-50 p-6 rounded-lg">
                       <h3 className="text-lg font-medium text-purple-900">Role</h3>
                       <p className="text-lg font-bold text-purple-600 mt-2">
-                        {isSuperuser ? 'Superuser' : 'Surgery Admin'}
+                        {isSuperuser ? 'System admin' : 'Practice admin'}
                       </p>
                       <p className="text-sm text-purple-700 mt-1">
                         {isSuperuser ? 'Full system access' : 'Surgery-level access'}

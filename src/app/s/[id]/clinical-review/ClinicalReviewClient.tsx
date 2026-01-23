@@ -218,7 +218,7 @@ export default function ClinicalReviewClient({
                 href={`/admin`}
                 className="text-blue-600 hover:text-blue-500 mr-4"
               >
-                ← Back to Admin Dashboard
+                ← Back to Settings
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">
                 Clinical Review - {surgery.name}

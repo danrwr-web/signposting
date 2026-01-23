@@ -111,7 +111,7 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
 
       {columns.length === 0 ? (
         <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-          <strong>No columns yet.</strong> Ask an Admin Toolkit writer to add columns in Admin Toolkit settings.
+          <strong>No columns yet.</strong> Ask a Practice Handbook editor to add columns in Practice Handbook settings.
         </div>
       ) : (
         <div className="mt-6 overflow-x-auto rounded-lg border border-gray-200">

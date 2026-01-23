@@ -84,27 +84,27 @@ export default function SimpleHeader({
               </Link>
             )}
 
-            {/* Admin Toolkit Link - visible when enabled for this surgery */}
+            {/* Practice Handbook Link - visible when enabled for this surgery */}
             {currentSurgeryId && adminToolkitEnabled && (
               <Link
                 href={`/s/${currentSurgeryId}/admin-toolkit`}
                 prefetch={false}
                 className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
               >
-                Admin Toolkit
+                Practice Handbook
               </Link>
             )}
             
-            {/* Admin Link */}
+            {/* Settings Link */}
             <Link 
               href="/admin" 
               prefetch={false}
               className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
             >
-              Admin
+              Settings
             </Link>
             
-            {/* Documentation Link for admins and superusers */}
+            {/* Help & Documentation Link for admins and superusers */}
             {canSeeDocsLink && (
               <a
                 href="https://docs.signpostingtool.co.uk/"
@@ -112,7 +112,7 @@ export default function SimpleHeader({
                 rel="noreferrer noopener"
                 className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors underline-offset-2 hover:underline"
               >
-                Docs
+                Help & Documentation
               </a>
             )}
           </div>
