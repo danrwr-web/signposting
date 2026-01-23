@@ -184,7 +184,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
             role="dialog"
             aria-modal="true"
             aria-labelledby={headingId}
-            className="relative top-16 mx-auto w-full max-w-2xl rounded-lg bg-white shadow-xl focus:outline-none"
+            className="relative top-16 mx-auto w-full max-w-lg rounded-lg bg-white shadow-xl focus:outline-none"
           >
             <div className="max-h-[calc(100vh-6rem)] overflow-y-auto px-6 py-6">
               <div className="flex items-start justify-between gap-4 mb-6">
