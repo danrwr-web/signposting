@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getEffectiveWorkflows } from '@/server/effectiveWorkflows'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { CustomiseWorkflowButton } from '@/components/workflow/CustomiseWorkflowButton'
+import NavigationMinimalHeader from '@/components/NavigationMinimalHeader'
 import WorkflowLandingClient, { type WorkflowLandingItem } from './WorkflowLandingClient'
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
@@ -148,14 +149,7 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <div className="mb-6">
-            <Link
-              href={`/s/${surgeryId}`}
-              className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
-            >
-              ← Back to Signposting
-            </Link>
-          </div>
+          <NavigationMinimalHeader backHref={`/s/${surgeryId}`} backLabel="Back to Signposting" />
           {/* Admin warning if workflows not enabled */}
           {isAdmin && !workflowsEnabled && (
             <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">

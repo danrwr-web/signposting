@@ -4,9 +4,11 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { SurgeryProvider } from '@/context/SurgeryContext'
 import { CardStyleProvider } from '@/context/CardStyleContext'
+import { NavigationPanelProvider } from '@/context/NavigationPanelContext'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import Providers from '@/components/Providers'
+import UniversalNavigationPanel from '@/components/UniversalNavigationPanel'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -65,7 +67,10 @@ export default async function RootLayout({
         <Providers>
           <CardStyleProvider>
             <SurgeryProvider initialSurgery={initialSurgery} availableSurgeries={surgeries}>
-              {children}
+              <NavigationPanelProvider>
+                <UniversalNavigationPanel />
+                {children}
+              </NavigationPanelProvider>
             </SurgeryProvider>
           </CardStyleProvider>
         </Providers>

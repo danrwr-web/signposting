@@ -11,6 +11,7 @@ import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
 import LogoSizeControl from './LogoSizeControl'
+import NavigationPanelTrigger from './NavigationPanelTrigger'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 
@@ -117,8 +118,9 @@ export default function CompactToolbar({
       {/* Row 1: Logo, Surgery Selector, Admin Link */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
-          {/* Logo */}
+          {/* Navigation Trigger + Logo */}
           <div className="flex items-center">
+            <NavigationPanelTrigger className="mr-3" />
             <Link href={logoHref} className="flex items-center">
               <img
                 src="/images/signposting_logo_head.png"

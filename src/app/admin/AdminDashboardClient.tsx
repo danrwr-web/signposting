@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import { Surgery } from '@prisma/client'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 
 interface SurgeryWithPendingCount extends Surgery {
   pendingReviewCount?: number
@@ -58,6 +59,7 @@ export default function AdminDashboardClient({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
+              <NavigationPanelTrigger className="mr-3" />
               <Link
                 href={`/s/${user.defaultSurgeryId}`}
                 prefetch

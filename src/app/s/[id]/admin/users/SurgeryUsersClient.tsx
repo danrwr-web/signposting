@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
+import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 
 interface Surgery {
   id: string
@@ -253,6 +254,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
+              <NavigationPanelTrigger className="mr-3" />
               <Link
                 href="/admin"
                 className="text-blue-600 hover:text-blue-500 mr-4"
