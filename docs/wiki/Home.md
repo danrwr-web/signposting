@@ -111,6 +111,8 @@ See: [Workflow Guidance →](Workflow-Guidance)
 4. **AI Tools** — AI Instruction Editor and AI Suggested Questions to improve clarity and safety.
 5. **Built-in Governance** — Clinical Review workflow ensures every symptom is signed off before going live.
 6. **Audit, Access & Safety** — Role-based access, no patient data stored, activity tracking & suggestions.
+7. **Practice Handbook** — Internal guidance pages for operational procedures and staff information.
+8. **Workflow Guidance** — Visual workflows for common document and administrative processes.
 
 ---
 
