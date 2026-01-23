@@ -21,20 +21,24 @@ Use this site if you are:
 
 ---
 
-## What’s New
+## What's New
 
 The latest released changes are listed below. For full details, see the versioned Release Notes.
 
+- **v1.3 — Jan 2026**
+  - Practice Handbook: collapsible operational info panel, category visibility controls, and per-item editing permissions
+  - Practice Handbook: added LIST items for structured information and improved admin interface
+  - Workflow Guidance: improved diagram viewer and interface refinements
+  - Various UI improvements and bug fixes
+
 - **v1.2 — Jan 2026**
   - Added **Workflow Guidance** (visual, governed workflows to guide staff through common processes)
-  - Introduced a **universal navigation system** with a shared app header and slide-out menu
+  - Redesigned marketing landing page and added FAQs page
 
 - **v1.1 — Dec 2025**
   - Added AI Suggested Questions (with clinical review safeguards)
   - Improved symptom library, filters, and admin experience
-
-- **v1.0 — Oct–Nov 2025**
-  - First full web release with multi-surgery support, clinical governance, and engagement tracking
+  - Introduced preferences system for card styles and display options
 
 See: [Release Notes](RELEASE_NOTES)
 
