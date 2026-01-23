@@ -197,17 +197,17 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
             </div>
           )}
 
-          {/* Admin Tools - Visually Quiet */}
+          {/* Management - Visually Quiet */}
           {isAdmin && (
             <section className="mt-14 pt-8 border-t border-gray-200" aria-labelledby="admin-tools-heading">
               <div className="flex items-baseline justify-between gap-4 mb-4">
                 <h2 id="admin-tools-heading" className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Admin Tools
+                  Management
                 </h2>
                 <span className="text-xs text-gray-400">Admin only</span>
               </div>
               <p className="text-sm text-gray-500 mb-3">
-                These links are for managing workflows and defaults.
+                These options are for managing workflows and defaults.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link
