@@ -2,6 +2,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, can } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { ensureFeatures } from '@/lib/ensureFeatures'
 
 interface RouteContext {
   params: Promise<{ surgeryId: string }>
@@ -25,6 +26,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     if (!can(user).viewSurgery(surgeryId)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+
+    // Ensure features are up-to-date (upserts by key, so safe to call repeatedly)
+    await ensureFeatures()
 
     // Get all features
     const allFeatures = await prisma.feature.findMany({
