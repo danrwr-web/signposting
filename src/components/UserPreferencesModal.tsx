@@ -75,7 +75,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const headingId = useId()
-  const appearanceId = useId()
+  const themeId = useId()
 
   const handleClose = useCallback(() => {
     onClose()
@@ -193,7 +193,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
                     Preferences
                   </h2>
                   <p className="mt-1 text-sm text-slate-600">
-                    These settings apply to this browser.
+                    These settings apply only to this browser.
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -218,11 +218,14 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Appearance */}
-                <fieldset aria-describedby={`${appearanceId}-help`} className="space-y-3">
-                  <legend className="text-sm font-semibold text-slate-700">Appearance</legend>
-                  <p id={`${appearanceId}-help`} className="text-xs text-slate-600">
-                    Choose the overall look of the cards and whether to show a quick-scan view.
+                {/* Theme */}
+                <fieldset aria-describedby={`${themeId}-help`} className="space-y-3">
+                  <legend className="text-sm font-semibold text-slate-700">Theme</legend>
+                  <p id={`${themeId}-help`} className="text-xs text-slate-600">
+                    Choose the overall visual style of the Handbook and Signposting screens.
+                  </p>
+                  <p className="text-xs text-slate-500 -mt-1">
+                    Applies to cards, categories, and overall styling.
                   </p>
                   <div className="space-y-2">
                     <RadioCard
