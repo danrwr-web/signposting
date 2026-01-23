@@ -60,13 +60,13 @@ export default function AdminToolkitItemActionsClient({
 
       {showDelete && (
         <Modal
-          title="Delete item"
-          description="This hides the item from the library. You can restore it later (superuser only)."
+          title="Delete page"
+          description="This hides the page from the library. You can restore it later (superuser only)."
           onClose={() => setShowDelete(false)}
           widthClassName="max-w-lg"
         >
           <p className="text-sm text-nhs-grey">
-            Are you sure you want to delete this item? Staff will no longer be able to find it.
+            Are you sure you want to delete this page? Staff will no longer be able to find it.
           </p>
           <div className="mt-6 flex justify-end gap-3">
             <button
@@ -88,7 +88,7 @@ export default function AdminToolkitItemActionsClient({
                     toast.error(res.error.message)
                     return
                   }
-                  toast.success('Item deleted')
+                  toast.success('Page deleted')
                   router.push(`/s/${surgeryId}/admin-toolkit`)
                   router.refresh()
                 } finally {

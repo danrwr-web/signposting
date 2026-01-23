@@ -95,7 +95,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
                     Edit Handbook
                   </Link>
                   <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
-                    Add item
+                    Add page
                   </Link>
                 </>
               ) : (

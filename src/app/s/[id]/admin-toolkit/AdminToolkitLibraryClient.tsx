@@ -136,7 +136,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       {/* Header zone */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
         <div className="text-sm text-gray-600" aria-live="polite">
-          {itemsSorted.length} item{itemsSorted.length === 1 ? '' : 's'}
+          {itemsSorted.length} page{itemsSorted.length === 1 ? '' : 's'}
         </div>
         {canWrite ? null : <span className="text-sm text-gray-500">You have view-only access.</span>}
       </div>
@@ -160,7 +160,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       ) : null}
 
       <div ref={searchStickyRef} className="sticky top-0 z-20 border-b border-gray-200 bg-white">
-        <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Practice Handbook…" debounceMs={150} />
+        <AdminSearchBar value={search} onChange={setSearch} placeholder="Search handbook…" debounceMs={150} />
       </div>
 
       {/* Main content zone (normal page scroll) */}
@@ -285,11 +285,11 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
             </nav>
           </aside>
 
-          {/* Main: items */}
+          {/* Main: pages */}
           <section className="p-4 lg:pb-64">
             {itemsSorted.length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-500">
-                {normalisedSearch ? 'No items match your search.' : 'No items yet.'}
+                {normalisedSearch ? 'No pages match your search.' : 'No pages yet.'}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
