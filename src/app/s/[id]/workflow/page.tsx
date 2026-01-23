@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import { getEffectiveWorkflows } from '@/server/effectiveWorkflows'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
-import SimpleHeader from '@/components/SimpleHeader'
 import WorkflowLandingClient, { type WorkflowLandingItem } from './WorkflowLandingClient'
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
@@ -59,7 +58,6 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
     if (!workflowsEnabled && !isAdmin) {
       return (
         <div className="min-h-screen bg-white">
-          <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
               <div className="flex">
@@ -148,7 +146,6 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
 
     return (
       <div className="min-h-screen bg-white">
-        <SimpleHeader surgeryId={surgeryId} surgeryName={surgery.name} />
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           {/* Admin warning if workflows not enabled */}
           {isAdmin && !workflowsEnabled && (
