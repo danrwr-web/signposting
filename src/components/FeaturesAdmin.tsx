@@ -125,12 +125,12 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
       if (featureMeta?.key === 'admin_toolkit' && enabled === true) {
         const seedStatus = json?.seedResult?.status
         if (seedStatus === 'seeded') {
-          toast.success('Admin Toolkit enabled and starter kit added')
+          toast.success('Practice Handbook enabled and starter kit added')
         } else {
-          toast.success('Admin Toolkit enabled')
+          toast.success('Practice Handbook enabled')
         }
       } else if (featureMeta?.key === 'admin_toolkit' && enabled === false) {
-        toast.success('Admin Toolkit disabled')
+        toast.success('Practice Handbook disabled')
       } else {
         toast.success('Surgery feature updated')
       }

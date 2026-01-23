@@ -36,10 +36,10 @@ async function requireAdminToolkitWrite(surgeryId: string): Promise<ActionResult
     const user = await requireSurgeryAccess(surgeryId)
     const enabled = await isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit')
     if (!enabled) {
-      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Admin Toolkit is not enabled for this surgery.' } }
+      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Practice Handbook is not enabled for this surgery.' } }
     }
     if (!canAccessAdminToolkitAdminDashboard(user, surgeryId)) {
-      return { ok: false, error: { code: 'FORBIDDEN', message: 'You do not have access to manage Admin Toolkit.' } }
+      return { ok: false, error: { code: 'FORBIDDEN', message: 'You do not have access to manage Practice Handbook.' } }
     }
     return { ok: true, data: { surgeryId, userId: user.id, isSuperuser: user.globalRole === 'SUPERUSER' } }
   } catch {
@@ -52,7 +52,7 @@ async function requireAdminToolkitView(surgeryId: string): Promise<ActionResult<
     await requireSurgeryAccess(surgeryId)
     const enabled = await isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit')
     if (!enabled) {
-      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Admin Toolkit is not enabled for this surgery.' } }
+      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Practice Handbook is not enabled for this surgery.' } }
     }
     return { ok: true, data: { surgeryId } }
   } catch {
@@ -68,7 +68,7 @@ async function requireAdminToolkitItemEdit(
     const user = await requireSurgeryAccess(surgeryId)
     const enabled = await isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit')
     if (!enabled) {
-      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Admin Toolkit is not enabled for this surgery.' } }
+      return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Practice Handbook is not enabled for this surgery.' } }
     }
 
     const canManage = canAccessAdminToolkitAdminDashboard(user, surgeryId)

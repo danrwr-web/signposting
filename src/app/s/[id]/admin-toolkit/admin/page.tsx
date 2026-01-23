@@ -58,7 +58,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
             </div>
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <p className="text-sm text-yellow-700">
-                <strong>Admin Toolkit is not enabled for {surgery.name}.</strong>
+                <strong>Practice Handbook is not enabled for {surgery.name}.</strong>
               </p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
               href={`/s/${surgeryId}/admin-toolkit`}
               className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
-              ← Back to Admin Toolkit
+              ← Back to Practice Handbook
             </Link>
             <Link
               href={`/s/${surgeryId}/admin/users`}
@@ -123,7 +123,7 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
           </div>
 
           <header className="mb-6">
-            <h1 className="text-3xl font-bold text-nhs-dark-blue">Admin Toolkit settings</h1>
+            <h1 className="text-3xl font-bold text-nhs-dark-blue">Practice Handbook settings</h1>
             <p className="mt-1 text-nhs-grey">{surgery.name}</p>
           </header>
 

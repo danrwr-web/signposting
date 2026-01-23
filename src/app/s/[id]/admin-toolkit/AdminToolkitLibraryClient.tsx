@@ -160,7 +160,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       ) : null}
 
       <div ref={searchStickyRef} className="sticky top-0 z-20 border-b border-gray-200 bg-white">
-        <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Admin Toolkit…" debounceMs={150} />
+        <AdminSearchBar value={search} onChange={setSearch} placeholder="Search Practice Handbook…" debounceMs={150} />
       </div>
 
       {/* Main content zone (normal page scroll) */}
@@ -175,7 +175,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
             </div>
             <nav
               className="px-2 pb-4"
-              aria-label="Admin Toolkit categories"
+              aria-label="Practice Handbook categories"
             >
             <button
               type="button"

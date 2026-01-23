@@ -42,7 +42,7 @@ export default async function AdminToolkitItemEditPage({ params }: AdminToolkitI
             </div>
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <p className="text-sm text-yellow-700">
-                <strong>Admin Toolkit is not enabled for {surgery.name}.</strong>
+                <strong>Practice Handbook is not enabled for {surgery.name}.</strong>
               </p>
             </div>
           </div>
@@ -60,7 +60,7 @@ export default async function AdminToolkitItemEditPage({ params }: AdminToolkitI
                 href={`/s/${surgeryId}/admin-toolkit`}
                 className="text-sm font-medium text-gray-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               >
-                ← Back to Admin Toolkit
+                ← Back to Practice Handbook
               </Link>
             </div>
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
@@ -121,10 +121,10 @@ export default async function AdminToolkitItemEditPage({ params }: AdminToolkitI
           <header className="mb-6">
             <h1 className="text-3xl font-bold text-nhs-dark-blue">Edit item</h1>
             <p className="mt-1 text-nhs-grey">
-              {surgery.name} • Admin Toolkit
+              {surgery.name} • Practice Handbook
             </p>
             <p className="mt-2 text-sm text-gray-600">
-              This editor is for updating the content of this item only. For categories, quick access buttons, and the pinned panel, use the Admin Toolkit admin page.
+              This editor is for updating the content of this item only. For categories, quick access buttons, and the pinned panel, use the Practice Handbook settings page.
             </p>
           </header>
 

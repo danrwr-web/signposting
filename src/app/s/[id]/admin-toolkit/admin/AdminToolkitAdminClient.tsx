@@ -1220,7 +1220,7 @@ function ItemsTab({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold text-nhs-dark-blue">Create item</h3>
-                <p className="mt-1 text-sm text-nhs-grey">Add a new Admin Toolkit item. After saving, you can add another straight away.</p>
+                <p className="mt-1 text-sm text-nhs-grey">Add a new Practice Handbook item. After saving, you can add another straight away.</p>
               </div>
             </div>
 
@@ -1904,7 +1904,7 @@ function PinnedPanelPreview({ taskBuddyText, postRouteText }: { taskBuddyText: s
           <div className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{post || 'Nothing set yet.'}</div>
         </div>
       </div>
-      <p className="mt-3 text-xs text-gray-500">This is a simple mock-up of the pinned panel at the bottom of the Admin Toolkit main page.</p>
+      <p className="mt-3 text-xs text-gray-500">This is a simple mock-up of the pinned panel at the bottom of the Practice Handbook main page.</p>
     </div>
   )
 }
@@ -2568,7 +2568,7 @@ function StructureSettingsTab({
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-nhs-dark-blue">Categories</h2>
-                <p className="mt-1 text-sm text-nhs-grey">Create and organise categories for Admin Toolkit items.</p>
+                <p className="mt-1 text-sm text-nhs-grey">Create and organise categories for Practice Handbook items.</p>
               </div>
               <div className="w-full md:w-auto flex flex-col md:flex-row gap-2">
                 <input
@@ -2948,7 +2948,7 @@ function StructureSettingsTab({
               <div className="min-w-0">
                 <h2 className="text-lg font-semibold text-nhs-dark-blue">Quick access buttons</h2>
                 <p className="mt-1 text-sm text-nhs-grey">
-                  These buttons appear on the Admin Toolkit main page and open a specific item. Colours here are always respected (including in blue cards mode).
+                  These buttons appear on the Practice Handbook main page and open a specific item. Colours here are always respected (including in blue cards mode).
                 </p>
               </div>
               <div className="shrink-0 text-sm text-gray-500" aria-live="polite">
@@ -3207,7 +3207,7 @@ function StructureSettingsTab({
         <section id="settings-pinned-panel" className="bg-white rounded-lg shadow-md border border-gray-200 scroll-mt-6">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-nhs-dark-blue">Pinned panel</h2>
-            <p className="mt-1 text-sm text-nhs-grey">This appears at the bottom of the Admin Toolkit main page.</p>
+            <p className="mt-1 text-sm text-nhs-grey">This appears at the bottom of the Practice Handbook main page.</p>
           </div>
           <div className="p-6 grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
             <div className="space-y-4">

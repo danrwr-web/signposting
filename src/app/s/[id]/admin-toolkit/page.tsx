@@ -69,7 +69,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
 
             <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
               <p className="text-sm text-yellow-700">
-                <strong>Admin Toolkit is not enabled for {surgery.name}.</strong> Please contact an administrator if you need access.
+                <strong>Practice Handbook is not enabled for {surgery.name}.</strong> Please contact an administrator if you need access.
               </p>
             </div>
           </div>
@@ -106,7 +106,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
                     href={`/s/${surgeryId}/admin-toolkit/admin`}
                     className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
                   >
-                    Manage Admin Toolkit
+                    Edit Handbook
                   </Link>
                   <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
                     Add item
@@ -120,7 +120,7 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
           </div>
 
           <header className="mb-6">
-            <h1 className="text-3xl font-bold text-nhs-dark-blue">Admin Toolkit</h1>
+            <h1 className="text-3xl font-bold text-nhs-dark-blue">Practice Handbook</h1>
             <p className="mt-1 text-nhs-grey">{surgery.name}</p>
           </header>
 

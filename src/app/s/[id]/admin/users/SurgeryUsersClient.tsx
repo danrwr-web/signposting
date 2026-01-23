@@ -180,11 +180,11 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
         window.location.reload()
       } else {
         const error = await response.json()
-        alert(`Failed to update Admin Toolkit write access: ${error.error}`)
+                        alert(`Failed to update Practice Handbook write access: ${error.error}`)
       }
     } catch (error) {
       console.error('Error updating admin toolkit write:', error)
-      alert('Failed to update Admin Toolkit write access')
+      alert('Failed to update Practice Handbook write access')
     }
   }
 
@@ -257,10 +257,10 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                 href="/admin"
                 className="text-blue-600 hover:text-blue-500 mr-4"
               >
-                ← Back to Admin Dashboard
+                ← Back to Settings
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">
-                Users in {surgery.name}
+                User & access management — {surgery.name}
               </h1>
             </div>
             <button
@@ -329,7 +329,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                           : 'bg-blue-50 text-blue-700 border border-blue-100'
                       }`}
                     >
-                      {membership.role === 'ADMIN' ? 'ADMIN' : 'STANDARD'}
+                      {membership.role === 'ADMIN' ? 'Practice admin' : 'STANDARD'}
                     </span>
                     {membership.user.defaultSurgeryId === surgery.id && (
                       <span className="text-xs text-gray-400">(Default)</span>
@@ -338,7 +338,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                 ),
               },
               {
-                header: 'Admin Toolkit write',
+                header: 'Practice Handbook write',
                 key: 'adminToolkitWrite',
                 render: (membership) => {
                   const isSurgeryAdmin = membership.role === 'ADMIN'
@@ -352,8 +352,8 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                           enabled ? 'bg-nhs-green' : 'bg-gray-300'
                         } ${isSurgeryAdmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                        aria-label={`Toggle Admin Toolkit write for ${membership.user.name || membership.user.email}`}
-                        title={isSurgeryAdmin ? 'Surgery admins can always edit Admin Toolkit.' : undefined}
+                        aria-label={`Toggle Practice Handbook write for ${membership.user.name || membership.user.email}`}
+                        title={isSurgeryAdmin ? 'Practice admins can always edit Practice Handbook.' : undefined}
                       >
                         <span
                           className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -362,7 +362,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                         />
                       </button>
                       <span className="text-xs text-gray-500">
-                        {isSurgeryAdmin ? 'Admin' : enabled ? 'Yes' : 'No'}
+                        {isSurgeryAdmin ? 'Practice admin' : enabled ? 'Yes' : 'No'}
                       </span>
                     </div>
                   )
@@ -479,7 +479,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="STANDARD">Standard User</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="ADMIN">Practice admin</option>
                   </select>
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -551,7 +551,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="STANDARD">Standard User</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="ADMIN">Practice admin</option>
                   </select>
                 </div>
                 <div className="flex justify-end space-x-3">
