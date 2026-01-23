@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
@@ -43,7 +43,7 @@ interface AdminToolkitAdminClientProps {
   editorCandidates: EditorCandidate[]
   initialQuickAccessButtons: AdminToolkitQuickAccessButton[]
   initialItemId?: string
-  initialTab?: 'items' | 'settings'
+  initialTab?: 'items' | 'settings' | 'engagement' | 'audit'
 }
 
 type PageEditorMode = 'create' | 'edit'
@@ -585,12 +585,14 @@ export default function AdminToolkitAdminClient({
   const titleInputRef = useRef<HTMLInputElement>(null)
   
   // Tab state with URL query param persistence
-  const [activeTab, setActiveTab] = useState<'items' | 'settings'>(() => {
+  type TabId = 'items' | 'settings' | 'engagement' | 'audit'
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
     const tabParam = searchParams.get('tab')
-    return tabParam === 'items' || tabParam === 'settings' ? tabParam : initialTab
+    const validTabs: TabId[] = ['items', 'settings', 'engagement', 'audit']
+    return validTabs.includes(tabParam as TabId) ? (tabParam as TabId) : initialTab
   })
   
-  const handleTabChange = (tab: 'items' | 'settings') => {
+  const handleTabChange = (tab: TabId) => {
     setActiveTab(tab)
     const params = new URLSearchParams(searchParams.toString())
     params.set('tab', tab)
@@ -783,10 +785,12 @@ export default function AdminToolkitAdminClient({
             {[
               { id: 'items', label: 'Items' },
               { id: 'settings', label: 'Structure & Settings' },
+              { id: 'engagement', label: 'Engagement' },
+              { id: 'audit', label: 'Audit' },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => handleTabChange(tab.id as 'items' | 'settings')}
+                onClick={() => handleTabChange(tab.id as TabId)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
                   activeTab === tab.id
                     ? 'border-nhs-blue text-nhs-blue'
@@ -801,7 +805,7 @@ export default function AdminToolkitAdminClient({
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'items' ? (
+      {activeTab === 'items' && (
         <ItemsTab
           surgeryId={surgeryId}
           categories={categories}
@@ -828,7 +832,8 @@ export default function AdminToolkitAdminClient({
           editorInstanceKey={editorInstanceKey}
           setEditorInstanceKey={setEditorInstanceKey}
         />
-      ) : (
+      )}
+      {activeTab === 'settings' && (
         <StructureSettingsTab
           surgeryId={surgeryId}
           categories={categories}
@@ -867,6 +872,341 @@ export default function AdminToolkitAdminClient({
           weekStartMondayIso={weekStartMondayIso}
           formatLondonDateNoWeekday={formatLondonDateNoWeekday}
         />
+      )}
+      {activeTab === 'engagement' && <EngagementTab surgeryId={surgeryId} />}
+      {activeTab === 'audit' && <AuditTab surgeryId={surgeryId} />}
+    </div>
+  )
+}
+
+// Engagement Tab Component
+function EngagementTab({ surgeryId }: { surgeryId: string }) {
+  const [timeWindow, setTimeWindow] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [data, setData] = useState<{
+    topItems: Array<{ id: string; title: string; type: string; categoryName: string; views: number }>
+    topUsers: Array<{ id: string; name: string; views: number }>
+  } | null>(null)
+
+  useEffect(() => {
+    setLoading(true)
+    setError(null)
+    fetch(`/api/admin-toolkit/engagement?surgeryId=${surgeryId}&timeWindow=${timeWindow}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch engagement data')
+        return res.json()
+      })
+      .then((d) => {
+        setData(d)
+        setLoading(false)
+      })
+      .catch((e) => {
+        setError(e.message)
+        setLoading(false)
+      })
+  }, [surgeryId, timeWindow])
+
+  const timeWindowOptions = [
+    { value: '7d', label: 'Last 7 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: '90d', label: 'Last 90 days' },
+    { value: 'all', label: 'All time' },
+  ] as const
+
+  return (
+    <div className="space-y-6">
+      {/* Time window selector */}
+      <div className="flex items-center gap-4">
+        <label htmlFor="engagement-time-window" className="text-sm font-medium text-gray-700">
+          Time period:
+        </label>
+        <select
+          id="engagement-time-window"
+          value={timeWindow}
+          onChange={(e) => setTimeWindow(e.target.value as typeof timeWindow)}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-nhs-blue focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+        >
+          {timeWindowOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nhs-blue mx-auto" />
+          <p className="mt-2 text-sm text-gray-500">Loading engagement data...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Most viewed items */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Most viewed items</h3>
+            </div>
+            <div className="p-4">
+              {data?.topItems && data.topItems.length > 0 ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 font-medium text-gray-600">Item title</th>
+                      <th className="text-left py-2 font-medium text-gray-600">Category</th>
+                      <th className="text-right py-2 font-medium text-gray-600">Views</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.topItems.map((item, idx) => (
+                      <tr key={item.id} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                        <td className="py-2 pr-2">{item.title}</td>
+                        <td className="py-2 pr-2 text-gray-500">{item.categoryName}</td>
+                        <td className="py-2 text-right font-medium">{item.views}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No item views recorded yet.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Most active users */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">Most active users</h3>
+            </div>
+            <div className="p-4">
+              {data?.topUsers && data.topUsers.length > 0 ? (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 font-medium text-gray-600">Staff name</th>
+                      <th className="text-right py-2 font-medium text-gray-600">Views</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.topUsers.map((user, idx) => (
+                      <tr key={user.id} className={idx % 2 === 0 ? 'bg-gray-50' : ''}>
+                        <td className="py-2">{user.name}</td>
+                        <td className="py-2 text-right font-medium">{user.views}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-sm text-gray-500 text-center py-4">No user activity recorded yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Audit Tab Component
+function AuditTab({ surgeryId }: { surgeryId: string }) {
+  const [timeWindow, setTimeWindow] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
+  const [entityType, setEntityType] = useState<'all' | 'ADMIN_ITEM' | 'CATEGORY' | 'QUICK_ACCESS' | 'ROTA' | 'OP_PANEL'>('all')
+  const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [events, setEvents] = useState<Array<{
+    id: string
+    action: string
+    actionLabel: string
+    entityType: string
+    targetName: string | null
+    targetId: string | null
+    targetDeleted: boolean
+    actorName: string
+    actorId: string
+    createdAt: string
+  }>>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(false)
+
+  const loadEvents = useCallback(async (cursor?: string) => {
+    const isLoadMore = !!cursor
+    if (isLoadMore) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+      setError(null)
+    }
+
+    try {
+      const url = `/api/admin-toolkit/audit?surgeryId=${surgeryId}&timeWindow=${timeWindow}&entityType=${entityType}${cursor ? `&cursor=${cursor}` : ''}`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('Failed to fetch audit data')
+      const data = await res.json()
+
+      if (isLoadMore) {
+        setEvents((prev) => [...prev, ...data.events])
+      } else {
+        setEvents(data.events)
+      }
+      setNextCursor(data.nextCursor)
+      setHasMore(data.hasMore)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'An error occurred')
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }, [surgeryId, timeWindow, entityType])
+
+  useEffect(() => {
+    loadEvents()
+  }, [loadEvents])
+
+  const timeWindowOptions = [
+    { value: '7d', label: 'Last 7 days' },
+    { value: '30d', label: 'Last 30 days' },
+    { value: '90d', label: 'Last 90 days' },
+    { value: 'all', label: 'All time' },
+  ] as const
+
+  const entityTypeOptions = [
+    { value: 'all', label: 'All types' },
+    { value: 'ADMIN_ITEM', label: 'Items' },
+    { value: 'CATEGORY', label: 'Categories' },
+    { value: 'QUICK_ACCESS', label: 'Quick Access' },
+    { value: 'ROTA', label: 'Rota' },
+    { value: 'OP_PANEL', label: 'Operational panel' },
+  ] as const
+
+  const formatRelativeTime = (isoDate: string) => {
+    const date = new Date(isoDate)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label htmlFor="audit-time-window" className="text-sm font-medium text-gray-700">
+            Time period:
+          </label>
+          <select
+            id="audit-time-window"
+            value={timeWindow}
+            onChange={(e) => setTimeWindow(e.target.value as typeof timeWindow)}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-nhs-blue focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+          >
+            {timeWindowOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="audit-entity-type" className="text-sm font-medium text-gray-700">
+            Type:
+          </label>
+          <select
+            id="audit-entity-type"
+            value={entityType}
+            onChange={(e) => setEntityType(e.target.value as typeof entityType)}
+            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:border-nhs-blue focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+          >
+            {entityTypeOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nhs-blue mx-auto" />
+          <p className="mt-2 text-sm text-gray-500">Loading audit history...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          {events.length > 0 ? (
+            <>
+              <ul className="divide-y divide-gray-200">
+                {events.map((event) => (
+                  <li key={event.id} className="p-4 hover:bg-gray-50">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {event.actionLabel}
+                          {event.targetName && (
+                            <>
+                              {' '}
+                              {event.targetId && !event.targetDeleted ? (
+                                <a
+                                  href={`/s/${surgeryId}/admin-toolkit/admin?tab=items&item=${event.targetId}`}
+                                  className="text-nhs-blue hover:underline"
+                                >
+                                  &ldquo;{event.targetName}&rdquo;
+                                </a>
+                              ) : (
+                                <span className={event.targetDeleted ? 'text-gray-400 line-through' : ''}>
+                                  &ldquo;{event.targetName}&rdquo;
+                                </span>
+                              )}
+                            </>
+                          )}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                          by <span className="font-medium">{event.actorName}</span>
+                        </p>
+                      </div>
+                      <div className="text-right text-sm text-gray-500 whitespace-nowrap">
+                        <span title={new Date(event.createdAt).toLocaleString('en-GB')}>
+                          {formatRelativeTime(event.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {hasMore && (
+                <div className="p-4 border-t border-gray-200 text-center">
+                  <button
+                    onClick={() => nextCursor && loadEvents(nextCursor)}
+                    disabled={loadingMore}
+                    className="text-sm font-medium text-nhs-blue hover:underline disabled:opacity-50"
+                  >
+                    {loadingMore ? 'Loading...' : 'Load more'}
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="p-8 text-center">
+              <p className="text-sm text-gray-500">No audit events found for the selected filters.</p>
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

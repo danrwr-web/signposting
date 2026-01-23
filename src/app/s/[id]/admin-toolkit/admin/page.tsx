@@ -31,7 +31,8 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
   const { id: surgeryId } = await params
   const sp = (await searchParams) ?? {}
   const initialItemId = typeof sp.item === 'string' ? sp.item : undefined
-  const initialTab = typeof sp.tab === 'string' && (sp.tab === 'items' || sp.tab === 'settings') ? sp.tab : 'items'
+  const validTabs = ['items', 'settings', 'engagement', 'audit'] as const
+  const initialTab = typeof sp.tab === 'string' && validTabs.includes(sp.tab as typeof validTabs[number]) ? sp.tab as typeof validTabs[number] : 'items'
 
   try {
     const user = await requireSurgeryAccess(surgeryId)

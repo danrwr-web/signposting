@@ -27,6 +27,8 @@ The following core capabilities are established and available to all surgeries:
 
 ### ✨ New
 
+- Practice Handbook: added **Engagement** tab showing most viewed items and most active users, filterable by time period (7d / 30d / 90d / all time) — helps admins understand what content is being used.
+- Practice Handbook: added **Audit** tab showing a chronological feed of recent changes (who changed what, when), filterable by time period and change type — supports governance and troubleshooting.
 - Practice Handbook (formerly Admin Toolkit): operational info panel at the bottom of the staff front page is now collapsible (defaults to collapsed). The panel automatically expands when the on-take GP changes, and remembers your preference.
 - Practice Handbook: added category visibility controls and per-item editing permissions, so you can safely share sensitive guidance with the right people and let standard users edit specific items without access to the admin dashboard.
 - Practice Handbook: PAGE items now support optional Intro text above Role Cards and Additional notes below.

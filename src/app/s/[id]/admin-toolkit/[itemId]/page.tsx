@@ -20,6 +20,7 @@ import {
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
 import AdminToolkitAttachmentsSectionClient from './AdminToolkitAttachmentsSectionClient'
 import AdminToolkitListClient from './AdminToolkitListClient'
+import AdminToolkitItemViewTracker from '@/components/admin-toolkit/AdminToolkitItemViewTracker'
 import { getRoleCardsBlock, getIntroTextBlock, getFooterTextBlock } from '@/lib/adminToolkitContentBlocksShared'
 
 export const dynamic = 'force-dynamic'
@@ -116,6 +117,9 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
     return (
       <div className="min-h-screen bg-white">
+        {/* Track item view for engagement analytics */}
+        <AdminToolkitItemViewTracker surgeryId={surgeryId} itemId={item.id} />
+
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <div className="mb-6 flex items-center justify-between gap-4">
             <Link

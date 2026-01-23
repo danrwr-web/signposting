@@ -184,6 +184,8 @@ export async function createAdminToolkitCategory(input: unknown): Promise<Action
         adminCategoryId: category.id,
         action: 'CATEGORY_CREATE',
         actorUserId: gate.data.userId,
+        entityType: 'CATEGORY',
+        summary: `Created category "${name}"`,
         diffJson: { name, parentCategoryId: parentCategoryId ?? null },
       },
     })
@@ -226,6 +228,8 @@ export async function renameAdminToolkitCategory(input: unknown): Promise<Action
         adminCategoryId: categoryId,
         action: 'CATEGORY_UPDATE',
         actorUserId: gate.data.userId,
+        entityType: 'CATEGORY',
+        summary: `Renamed category to "${name}"`,
         diffJson: { before: { name: before.name }, after: { name } },
       },
     })
@@ -309,6 +313,8 @@ export async function setAdminToolkitCategoryVisibility(input: unknown): Promise
         adminCategoryId: categoryId,
         action: 'CATEGORY_VISIBILITY_SET',
         actorUserId: gate.data.userId,
+        entityType: 'CATEGORY',
+        summary: `Updated category visibility`,
         diffJson: { before, after },
       },
     })
@@ -356,6 +362,8 @@ export async function reorderAdminToolkitCategories(input: unknown): Promise<Act
         surgeryId,
         action: 'CATEGORY_REORDER',
         actorUserId: gate.data.userId,
+        entityType: 'CATEGORY',
+        summary: `Reordered categories`,
         diffJson: { orderedCategoryIds },
       },
     })
@@ -412,6 +420,8 @@ export async function deleteAdminToolkitCategory(input: unknown): Promise<Action
         adminCategoryId: categoryId,
         action: 'CATEGORY_DELETE',
         actorUserId: gate.data.userId,
+        entityType: 'CATEGORY',
+        summary: `Deleted category "${category.name}"`,
         diffJson: { name: category.name },
       },
     })
@@ -467,6 +477,8 @@ export async function createAdminToolkitPageItem(input: unknown): Promise<Action
         adminItemId: item.id,
         action: 'ITEM_CREATE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Created PAGE "${title}"`,
         diffJson: { type: 'PAGE', title, categoryId: categoryId ?? null },
       },
     })
@@ -586,6 +598,8 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
         adminItemId: item.id,
         action: 'ITEM_CREATE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Created ${type} "${title}"`,
         diffJson: { type, title, categoryId: categoryId ?? null },
       },
     })
@@ -644,6 +658,8 @@ export async function updateAdminToolkitPageItem(input: unknown): Promise<Action
         adminItemId: itemId,
         action: 'ITEM_UPDATE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Updated PAGE "${parsed.data.title}"`,
         diffJson: {
           before: {
             title: existing.title,
@@ -820,6 +836,8 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
         adminItemId: itemId,
         action: 'ITEM_UPDATE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Updated ${existing.type} "${parsed.data.title}"`,
         diffJson: {
           before: {
             title: existing.title,
@@ -897,6 +915,8 @@ export async function createAdminToolkitListColumn(input: unknown): Promise<Acti
         adminItemId: itemId,
         action: 'LIST_COLUMN_CREATE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Added column "${label}" to list`,
         diffJson: { key, label, fieldType, orderIndex: nextOrder },
       },
     })
@@ -935,6 +955,8 @@ export async function updateAdminToolkitListColumn(input: unknown): Promise<Acti
         adminItemId: itemId,
         action: 'LIST_COLUMN_UPDATE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Updated column "${label}" in list`,
         diffJson: { before: { label: existing.label, fieldType: existing.fieldType }, after: { label, fieldType } },
       },
     })
@@ -970,6 +992,8 @@ export async function deleteAdminToolkitListColumn(input: unknown): Promise<Acti
         adminItemId: itemId,
         action: 'LIST_COLUMN_DELETE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Deleted column "${existing.label}" from list`,
         diffJson: { key: existing.key, label: existing.label },
       },
     })
@@ -1004,7 +1028,7 @@ export async function reorderAdminToolkitListColumns(input: unknown): Promise<Ac
     }
     await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
-      data: { surgeryId, adminItemId: itemId, action: 'LIST_COLUMN_REORDER', actorUserId: gate.data.userId, diffJson: { orderedColumnIds } },
+      data: { surgeryId, adminItemId: itemId, action: 'LIST_COLUMN_REORDER', actorUserId: gate.data.userId, entityType: 'ADMIN_ITEM', summary: 'Reordered list columns', diffJson: { orderedColumnIds } },
     })
   })
 
@@ -1035,7 +1059,7 @@ export async function createAdminToolkitListRow(input: unknown): Promise<ActionR
     const row = await tx.adminListRow.create({ data: { adminItemId: itemId, dataJson: {}, orderIndex: nextOrder }, select: { id: true } })
     await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
-      data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_CREATE', actorUserId: gate.data.userId, diffJson: { orderIndex: nextOrder } },
+      data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_CREATE', actorUserId: gate.data.userId, entityType: 'ADMIN_ITEM', summary: 'Added row to list', diffJson: { orderIndex: nextOrder } },
     })
     return row
   })
@@ -1066,7 +1090,7 @@ export async function updateAdminToolkitListRow(input: unknown): Promise<ActionR
     await tx.adminListRow.update({ where: { id: rowId }, data: { dataJson: data } })
     await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
     await tx.adminHistory.create({
-      data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_UPDATE', actorUserId: gate.data.userId, diffJson: { before: existing.dataJson, after: data } },
+      data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_UPDATE', actorUserId: gate.data.userId, entityType: 'ADMIN_ITEM', summary: 'Updated list row', diffJson: { before: existing.dataJson, after: data } },
     })
   })
 
@@ -1094,7 +1118,7 @@ export async function deleteAdminToolkitListRow(input: unknown): Promise<ActionR
   await prisma.$transaction(async (tx) => {
     await tx.adminListRow.update({ where: { id: rowId }, data: { deletedAt: new Date() } })
     await tx.adminItem.update({ where: { id: itemId }, data: { updatedByUserId: gate.data.userId } })
-    await tx.adminHistory.create({ data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_DELETE', actorUserId: gate.data.userId } })
+    await tx.adminHistory.create({ data: { surgeryId, adminItemId: itemId, action: 'LIST_ROW_DELETE', actorUserId: gate.data.userId, entityType: 'ADMIN_ITEM', summary: 'Deleted list row' } })
   })
 
   return { ok: true, data: { id: rowId } }
@@ -1133,6 +1157,8 @@ export async function deleteAdminToolkitItem(input: unknown): Promise<ActionResu
         adminItemId: itemId,
         action: 'ITEM_DELETE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Deleted ${item.type} "${item.title}"`,
         diffJson: { title: item.title, type: item.type },
       },
     })
@@ -1183,6 +1209,8 @@ export async function setAdminToolkitItemEditors(input: unknown): Promise<Action
         adminItemId: itemId,
         action: 'ITEM_EDITORS_SET',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: 'Updated item editors',
         diffJson: { before, after },
       },
     })
@@ -1277,6 +1305,8 @@ export async function setAdminToolkitItemEditGrants(input: unknown): Promise<Act
         adminItemId: itemId,
         action: 'ITEM_EDIT_GRANTS_SET',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: 'Updated item edit permissions',
         diffJson: { before, after },
       },
     })
@@ -1316,6 +1346,8 @@ export async function upsertAdminToolkitPinnedPanel(input: unknown): Promise<Act
         surgeryId,
         action: 'PINNED_PANEL_UPDATE',
         actorUserId: gate.data.userId,
+        entityType: 'OP_PANEL',
+        summary: 'Updated operational panel',
         diffJson: { taskBuddyText: taskBuddyText ?? null, postRouteText: postRouteText ?? null },
       },
     })
@@ -1414,6 +1446,8 @@ export async function setAdminToolkitQuickAccessButtons(
         surgeryId,
         action: 'QUICK_ACCESS_SET',
         actorUserId: gate.data.userId,
+        entityType: 'QUICK_ACCESS',
+        summary: 'Updated Quick Access buttons',
         diffJson: { buttons: normalised },
       },
     })
@@ -1460,6 +1494,8 @@ export async function setAdminToolkitOnTakeWeek(input: unknown): Promise<ActionR
         surgeryId,
         action: 'ON_TAKE_WEEK_SET',
         actorUserId: gate.data.userId,
+        entityType: 'ROTA',
+        summary: name ? `Set on-take GP for week ${weekCommencingIso} to "${name}"` : `Cleared on-take GP for week ${weekCommencingIso}`,
         diffJson: { weekCommencing: weekCommencingIso, gpName: name || null },
       },
     })
@@ -1532,6 +1568,8 @@ export async function addAdminToolkitAttachmentLink(input: unknown): Promise<Act
         adminItemId: itemId,
         action: 'ATTACHMENT_ADD',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Added attachment "${label}"`,
         diffJson: { label, url },
       },
     })
@@ -1573,6 +1611,8 @@ export async function removeAdminToolkitAttachment(input: unknown): Promise<Acti
         adminItemId: itemId,
         action: 'ATTACHMENT_REMOVE',
         actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Removed attachment "${existing.label}"`,
         diffJson: { label: existing.label, url: existing.url },
       },
     })

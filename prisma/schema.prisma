@@ -37,14 +37,15 @@ model User {
   userFeatureFlags UserFeatureFlag[]
 
   // Admin Toolkit
-  adminItemEditors AdminItemEditor[]
-  adminItemOwnership AdminItem[] @relation("AdminItemOwner")
-  adminItemsCreated AdminItem[] @relation("AdminItemCreatedBy")
-  adminItemsUpdated AdminItem[] @relation("AdminItemUpdatedBy")
-  adminToolkitHistory AdminHistory[] @relation("AdminToolkitHistoryActor")
-  adminCategoryVisibleUsers AdminCategoryVisibleUser[]
-  adminItemEditGrants AdminItemEditGrant[]
-  adminItemEditGrantsCreated AdminItemEditGrant[] @relation("AdminItemEditGrantCreatedBy")
+  adminItemEditors             AdminItemEditor[]
+  adminItemOwnership           AdminItem[]                   @relation("AdminItemOwner")
+  adminItemsCreated            AdminItem[]                   @relation("AdminItemCreatedBy")
+  adminItemsUpdated            AdminItem[]                   @relation("AdminItemUpdatedBy")
+  adminToolkitHistory          AdminHistory[]                @relation("AdminToolkitHistoryActor")
+  adminCategoryVisibleUsers    AdminCategoryVisibleUser[]
+  adminItemEditGrants          AdminItemEditGrant[]
+  adminItemEditGrantsCreated   AdminItemEditGrant[]          @relation("AdminItemEditGrantCreatedBy")
+  adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
 
   // Workflow instances
   workflowInstances WorkflowInstance[]
@@ -61,14 +62,14 @@ model User {
 }
 
 model UserSurgery {
-  id        String  @id @default(cuid())
-  userId    String
-  surgeryId String
-  role      String  @default("STANDARD") // "STANDARD" | "ADMIN"
+  id                String  @id @default(cuid())
+  userId            String
+  surgeryId         String
+  role              String  @default("STANDARD") // "STANDARD" | "ADMIN"
   // Admin Toolkit module write permission (separate from surgery ADMIN role)
   adminToolkitWrite Boolean @default(false)
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  surgery   Surgery @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery           Surgery @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, surgeryId])
 }
@@ -98,7 +99,7 @@ model Surgery {
   enableDefaultHighRisk            Boolean                           @default(true) // Enable/disable default high-risk buttons
   enableBuiltInHighlights          Boolean                           @default(true) // Enable/disable built-in highlight rules
   enableImageIcons                 Boolean                           @default(true) // Enable/disable image icons on symptom cards
-  uiConfig                         Json?                            // UI configuration (common reasons, etc.)
+  uiConfig                         Json? // UI configuration (common reasons, etc.)
   highRiskLinks                    HighRiskLink[]
   defaultHighRiskButtons           DefaultHighRiskButtonConfig[]
   highlightRules                   HighlightRule[]
@@ -117,15 +118,16 @@ model Surgery {
   workflowNodeStyleDefaultsSurgery WorkflowNodeStyleDefaultSurgery[]
 
   // Admin Toolkit
-  adminCategories  AdminCategory[]
-  adminItems       AdminItem[]
-  adminItemAttachments AdminItemAttachment[]
-  adminPinnedPanel AdminPinnedPanel?
-  adminDutyRota    AdminDutyRotaEntry[]
-  adminOnTakeWeeks AdminOnTakeWeek[]
-  adminHistory     AdminHistory[]
-  adminCategoryVisibleUsers AdminCategoryVisibleUser[]
-  adminItemEditGrants AdminItemEditGrant[]
+  adminCategories              AdminCategory[]
+  adminItems                   AdminItem[]
+  adminItemAttachments         AdminItemAttachment[]
+  adminPinnedPanel             AdminPinnedPanel?
+  adminDutyRota                AdminDutyRotaEntry[]
+  adminOnTakeWeeks             AdminOnTakeWeek[]
+  adminHistory                 AdminHistory[]
+  adminCategoryVisibleUsers    AdminCategoryVisibleUser[]
+  adminItemEditGrants          AdminItemEditGrant[]
+  adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
 }
 
 model BaseSymptom {
@@ -490,22 +492,22 @@ enum AdminItemEditGrantPrincipalType {
 }
 
 model AdminCategory {
-  id             String   @id @default(cuid())
-  surgeryId      String
-  name           String
-  orderIndex     Int      @default(0)
+  id               String  @id @default(cuid())
+  surgeryId        String
+  name             String
+  orderIndex       Int     @default(0)
   parentCategoryId String?
 
   visibilityMode  AdminCategoryVisibilityMode @default(ALL)
   visibilityRoles SurgeryRole[]               @default([])
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  surgery        Surgery         @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  parentCategory AdminCategory?  @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
-  subcategories  AdminCategory[] @relation("CategoryHierarchy")
+  surgery        Surgery                    @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  parentCategory AdminCategory?             @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  subcategories  AdminCategory[]            @relation("CategoryHierarchy")
   items          AdminItem[]
   visibleUsers   AdminCategoryVisibleUser[]
   history        AdminHistory[]
@@ -517,14 +519,14 @@ model AdminCategory {
 
 model AdminCategoryVisibleUser {
   id              String   @id @default(cuid())
-  surgeryId        String
-  adminCategoryId  String
-  userId           String
-  createdAt        DateTime @default(now())
+  surgeryId       String
+  adminCategoryId String
+  userId          String
+  createdAt       DateTime @default(now())
 
-  surgery   Surgery       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  category  AdminCategory @relation(fields: [adminCategoryId], references: [id], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery  Surgery       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  category AdminCategory @relation(fields: [adminCategoryId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([adminCategoryId, userId])
   @@index([surgeryId])
@@ -545,28 +547,29 @@ model AdminItem {
   // Optional extra metadata (future-proofing)
   contentJson Json?
 
-  warningLevel   String?
-  ownerUserId    String?
+  warningLevel    String?
+  ownerUserId     String?
   createdByUserId String?
   updatedByUserId String?
-  lastReviewedAt DateTime?
-  deletedAt      DateTime?
+  lastReviewedAt  DateTime?
+  deletedAt       DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   surgery   Surgery        @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  category AdminCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  owner    User?           @relation("AdminItemOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  category  AdminCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  owner     User?          @relation("AdminItemOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   createdBy User?          @relation("AdminItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
   updatedBy User?          @relation("AdminItemUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
-  editors     AdminItemEditor[]
-  editGrants  AdminItemEditGrant[]
-  listColumns AdminListColumn[]
-  listRows    AdminListRow[]
-  attachments AdminItemAttachment[]
-  history     AdminHistory[]
+  editors          AdminItemEditor[]
+  editGrants       AdminItemEditGrant[]
+  listColumns      AdminListColumn[]
+  listRows         AdminListRow[]
+  attachments      AdminItemAttachment[]
+  history          AdminHistory[]
+  engagementEvents AdminToolkitEngagementEvent[]
 
   @@index([surgeryId, deletedAt])
   @@index([surgeryId, categoryId])
@@ -589,14 +592,14 @@ model AdminItemEditor {
 }
 
 model AdminItemEditGrant {
-  id            String                        @id @default(cuid())
-  surgeryId     String
-  adminItemId   String
-  principalType AdminItemEditGrantPrincipalType
-  userId        String?
-  role          SurgeryRole?
+  id              String                          @id @default(cuid())
+  surgeryId       String
+  adminItemId     String
+  principalType   AdminItemEditGrantPrincipalType
+  userId          String?
+  role            SurgeryRole?
   createdByUserId String?
-  createdAt     DateTime                      @default(now())
+  createdAt       DateTime                        @default(now())
 
   surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
@@ -611,12 +614,12 @@ model AdminItemEditGrant {
 }
 
 model AdminListColumn {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   adminItemId String
   key         String
   label       String
-  orderIndex  Int      @default(0)
-  fieldType   String   @default("TEXT")
+  orderIndex  Int    @default(0)
+  fieldType   String @default("TEXT")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -628,14 +631,14 @@ model AdminListColumn {
 }
 
 model AdminListRow {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   adminItemId String
   dataJson    Json
-  orderIndex  Int      @default(0)
+  orderIndex  Int    @default(0)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
 
@@ -644,18 +647,18 @@ model AdminListRow {
 }
 
 model AdminItemAttachment {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   surgeryId   String
   adminItemId String
   label       String
   url         String
-  orderIndex  Int      @default(0)
+  orderIndex  Int    @default(0)
 
   deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  surgery   Surgery  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
 
   @@index([adminItemId, orderIndex])
@@ -665,7 +668,7 @@ model AdminItemAttachment {
 model AdminPinnedPanel {
   id String @id @default(cuid())
 
-  surgeryId String @unique
+  surgeryId String  @unique
   surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   taskBuddyText String?
@@ -720,17 +723,38 @@ model AdminHistory {
 
   action      String
   actorUserId String
+  summary     String? // Human-readable summary for audit display
+  entityType  String? // Entity type for filtering: ADMIN_ITEM, CATEGORY, QUICK_ACCESS, ROTA, OP_PANEL
   diffJson    Json?
 
   createdAt DateTime @default(now())
 
   adminItem     AdminItem?     @relation(fields: [adminItemId], references: [id], onDelete: SetNull)
   adminCategory AdminCategory? @relation(fields: [adminCategoryId], references: [id], onDelete: SetNull)
-  actorUser     User          @relation("AdminToolkitHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  actorUser     User           @relation("AdminToolkitHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([surgeryId, createdAt])
   @@index([adminItemId])
   @@index([adminCategoryId])
+  @@index([surgeryId, entityType])
+}
+
+// Admin Toolkit engagement event for tracking item views
+model AdminToolkitEngagementEvent {
+  id          String   @id @default(cuid())
+  surgeryId   String
+  adminItemId String
+  userId      String
+  event       String   @default("view_item") // Event type: "view_item"
+  createdAt   DateTime @default(now())
+
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([surgeryId, createdAt])
+  @@index([adminItemId])
+  @@index([userId])
 }
 
 model AppointmentType {
