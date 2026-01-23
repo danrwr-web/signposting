@@ -21,6 +21,14 @@ Use this site if you are:
 
 ---
 
+## About this documentation
+
+This documentation describes a live, actively maintained system used in real NHS practice. The toolkit is developed within a working GP surgery and serves multiple practices with ongoing support and updates.
+
+Core platform behaviour is stable and documented under the "Baseline Platform" section in the [Release Notes](RELEASE_NOTES). Newer changes are incremental improvements logged transparently in versioned releases. All AI features are optional, controlled via feature flags, and subject to mandatory clinical review before publication. For details on the safety model, see [Clinical Governance](wiki/Clinical-Governance).
+
+---
+
 ## What's New
 
 Recent highlights from the latest release. For complete details, see the [Release Notes](RELEASE_NOTES).
