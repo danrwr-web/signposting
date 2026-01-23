@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
 import { useSurgery } from '@/context/SurgeryContext'
 
@@ -44,6 +45,7 @@ export default function UniversalNavigationPanel() {
   const { isOpen, close } = useNavigationPanel()
   const { surgery, canManageSurgery, isSuperuser } = useSurgery()
   const { data: session } = useSession()
+  const pathname = usePathname()
   const panelRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const [disabledModalInfo, setDisabledModalInfo] = useState<ModuleDisabledInfo | null>(null)
@@ -54,6 +56,23 @@ export default function UniversalNavigationPanel() {
   const surgeryName = surgery?.name || 'No surgery selected'
   const isAdmin = surgeryId ? canManageSurgery(surgeryId) : false
   const canSeeManagement = isAdmin || isSuperuser
+
+  // Determine active module based on current route
+  const getActiveModule = useCallback((): string | null => {
+    if (!pathname || !surgeryId) return null
+    
+    const surgeryPrefix = `/s/${surgeryId}`
+    
+    // Check module routes (order matters - more specific first)
+    if (pathname.startsWith(`${surgeryPrefix}/workflow`)) return 'workflow'
+    if (pathname.startsWith(`${surgeryPrefix}/admin-toolkit`)) return 'handbook'
+    if (pathname.startsWith(`${surgeryPrefix}/appointments`)) return 'appointments'
+    if (pathname === surgeryPrefix || pathname === `${surgeryPrefix}/`) return 'signposting'
+    
+    return null
+  }, [pathname, surgeryId])
+
+  const activeModule = getActiveModule()
 
   // Fetch enabled features for the current surgery
   useEffect(() => {
@@ -210,6 +229,7 @@ export default function UniversalNavigationPanel() {
                 const enabled = isModuleEnabled(module)
                 const href = module.id === 'help' ? module.href : resolveHref(module.href)
                 const isExternal = module.id === 'help'
+                const isActive = activeModule === module.id
 
                 return (
                   <li key={module.id}>
@@ -238,16 +258,19 @@ export default function UniversalNavigationPanel() {
                       <Link
                         href={enabled ? href : '#'}
                         onClick={(e) => handleModuleClick(e, module)}
-                        className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset ${
-                          enabled
-                            ? 'text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue'
-                            : 'text-gray-400 cursor-not-allowed'
+                        className={`flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset ${
+                          !enabled
+                            ? 'text-gray-400 cursor-not-allowed font-medium'
+                            : isActive
+                              ? 'bg-nhs-light-blue text-nhs-blue font-semibold'
+                              : 'text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue font-medium'
                         }`}
                         aria-disabled={!enabled}
+                        aria-current={isActive ? 'page' : undefined}
                       >
                         {module.label}
                         {!enabled && !featuresLoading && (
-                          <span className="ml-2 text-xs text-gray-400 italic">
+                          <span className="ml-2 text-xs text-gray-400 italic font-normal">
                             Not enabled
                           </span>
                         )}
@@ -261,7 +284,7 @@ export default function UniversalNavigationPanel() {
 
           {/* Management Section - Only visible to admins */}
           {canSeeManagement && surgeryId && (
-            <nav aria-label="Management" className="mt-6">
+            <nav aria-label="Management" className="mt-8 pt-6 border-t border-gray-100">
               <h3 className="px-5 text-xs font-semibold text-nhs-grey uppercase tracking-wider mb-2">
                 Management
               </h3>
