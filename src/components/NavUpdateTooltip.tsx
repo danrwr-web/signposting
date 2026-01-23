@@ -17,8 +17,18 @@ interface NavUpdateTooltipProps {
 export default function NavUpdateTooltip({ triggerRef }: NavUpdateTooltipProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const { isOpen: isPanelOpen } = useNavigationPanel()
+
+  // Check for reduced motion preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setPrefersReducedMotion(
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      )
+    }
+  }, [])
 
   // Check if user has already seen the tooltip
   useEffect(() => {
@@ -108,17 +118,6 @@ export default function NavUpdateTooltip({ triggerRef }: NavUpdateTooltipProps) 
   }, [isVisible, dismiss, triggerRef])
 
   if (!isVisible) return null
-
-  // Check for reduced motion preference
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
-  
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setPrefersReducedMotion(
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      )
-    }
-  }, [])
 
   return (
     <>
