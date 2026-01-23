@@ -28,6 +28,8 @@
 
 - [Developer Guide](Developer-Guide)
 
+- [Docs Maintenance](Docs-Maintenance)
+
 ---
 
 ## 1. Overview
@@ -488,6 +490,8 @@ DNS is managed entirely via Cloudflare, not Fasthosts.
 - Follow RBAC rules — never use email checks for permissions.
 
 - Never commit `.env.local` or any other secrets.
+
+- **Documentation maintenance**: When shipping user-facing features, follow the [Documentation Maintenance Checklist](Docs-Maintenance) to keep docs current.
 
 ---
 

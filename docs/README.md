@@ -96,6 +96,7 @@ The full documentation is organised into the following sections:
 - [Multi-Surgery & RBAC](wiki/Multi-Surgery-&-RBAC) – Multi-site configuration and role-based access control
 - [Admin Guide](wiki/Admin-Guide) – Managing surgery configuration and governance
 - [Developer Guide](wiki/Developer-Guide) – Architecture, local setup, and contribution guidelines
+- [Docs Maintenance](wiki/Docs-Maintenance) – Checklist for keeping documentation current
 
 ---
 
