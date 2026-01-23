@@ -35,7 +35,7 @@ const MODULES: ModuleItem[] = [
 
 const MANAGEMENT_ITEMS: ManagementItem[] = [
   { id: 'edit-handbook', label: 'Edit Handbook', href: '/s/{surgeryId}/admin-toolkit/admin' },
-  { id: 'signposting-settings', label: 'Signposting settings', href: '/s/{surgeryId}/clinical-review' },
+  { id: 'signposting-settings', label: 'Signposting settings', href: '/admin' },
   { id: 'workflow-editor', label: 'Workflow editor', href: '/s/{surgeryId}/workflow/templates' },
   { id: 'user-management', label: 'User & access management', href: '/s/{surgeryId}/admin/users' },
 ]
