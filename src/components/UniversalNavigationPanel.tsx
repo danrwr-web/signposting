@@ -151,7 +151,7 @@ export default function UniversalNavigationPanel() {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[60] transition-opacity duration-200 ${
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         style={{ backgroundColor: 'rgba(66, 85, 99, 0.4)' }}
@@ -166,12 +166,13 @@ export default function UniversalNavigationPanel() {
         aria-modal="true"
         aria-label="Navigation menu"
         aria-hidden={!isOpen}
-        className={`fixed top-0 left-0 z-50 h-full w-80 bg-white shadow-xl transform transition-transform duration-200 ease-out flex flex-col ${
+        className={`fixed top-0 left-0 z-[70] w-80 bg-white shadow-xl transform transition-transform duration-200 ease-out flex flex-col h-screen ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ height: '100dvh' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 flex-shrink-0">
           <div className="flex-1 min-w-0">
             <h2 className="text-base font-semibold text-nhs-grey truncate">
               {surgeryName}
@@ -303,7 +304,7 @@ export default function UniversalNavigationPanel() {
         </div>
 
         {/* Sign Out - Fixed at bottom */}
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-gray-200 p-4 flex-shrink-0">
           <button
             onClick={handleSignOut}
             className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-nhs-grey border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
@@ -327,7 +328,7 @@ export default function UniversalNavigationPanel() {
       {/* Disabled Module Modal */}
       {disabledModalInfo && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(66, 85, 99, 0.5)' }}
           onClick={closeDisabledModal}
         >
