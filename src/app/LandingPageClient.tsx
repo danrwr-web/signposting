@@ -182,7 +182,8 @@ export default function LandingPageClient() {
           
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3 max-w-5xl mx-auto">
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Signposting Toolkit (core module)</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">Signposting Toolkit</h3>
+              <p className="text-sm text-gray-600 mb-4">The foundation of the platform</p>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start gap-2">
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -200,7 +201,7 @@ export default function LandingPageClient() {
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-sm">Age-aware routing and faster navigation</span>
+                  <span className="text-sm">Structured, age-aware routing for faster navigation</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -212,7 +213,8 @@ export default function LandingPageClient() {
             </div>
 
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Practice Handbook (internal guidance)</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">Practice Handbook</h3>
+              <p className="text-sm text-gray-600 mb-4">Internal practice guidance</p>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start gap-2">
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -224,7 +226,7 @@ export default function LandingPageClient() {
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-sm">Reduces interruptions and &quot;quick questions&quot;</span>
+                  <span className="text-sm">Reduces interruptions and ad-hoc queries</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -236,13 +238,14 @@ export default function LandingPageClient() {
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-sm">Review dates and restricted editing where needed</span>
+                  <span className="text-sm">Clear review dates and restricted editing where needed</span>
                 </li>
               </ul>
             </div>
 
             <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Workflow Guidance (step-by-step support)</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">Workflow Guidance</h3>
+              <p className="text-sm text-gray-600 mb-4">Step-by-step workflow support</p>
               <ul className="space-y-3 text-gray-700">
                 <li className="flex items-start gap-2">
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -266,7 +269,7 @@ export default function LandingPageClient() {
                   <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
                   </svg>
-                  <span className="text-sm">Governed in the same way as your core content</span>
+                  <span className="text-sm">Governed in the same way as core platform content</span>
                 </li>
               </ul>
             </div>
