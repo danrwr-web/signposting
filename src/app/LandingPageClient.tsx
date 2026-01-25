@@ -60,6 +60,9 @@ export default function LandingPageClient() {
             <p className="text-lg sm:text-xl text-gray-700 mt-6 md:mt-8 max-w-3xl mx-auto leading-relaxed px-2">
               Over 200 locally governed symptoms with clear, consistent guidance your reception team can use confidently from day one.
             </p>
+            <p className="text-base sm:text-lg text-gray-600 mt-4 md:mt-6 max-w-3xl mx-auto leading-relaxed px-2">
+              Now part of a modular platform. Alongside symptom signposting, the Signposting Toolkit can also support practice teams with internal guidance (Practice Handbook) and step-by-step workflow support (Workflow Guidance) — all inside the same calm, governed interface.
+            </p>
             <div className="mt-8 md:mt-12 flex flex-col gap-3 sm:gap-4 justify-center items-center px-2">
               <Link
                 href={appEntryUrl}
@@ -164,6 +167,117 @@ export default function LandingPageClient() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* What's in the platform */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold text-gray-900">What&apos;s in the platform</h2>
+            <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">
+              The Signposting Toolkit has grown into a modular platform — practices can use everything together or focus on the areas that help most.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3 max-w-5xl mx-auto">
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">Signposting Toolkit</h3>
+              <p className="text-sm text-gray-600 mb-4">The foundation of the platform</p>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Structured symptom guidance in plain English</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">High-risk highlighting and escalation prompts</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Structured, age-aware routing for faster navigation</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Local customisation with clinical governance</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">Practice Handbook</h3>
+              <p className="text-sm text-gray-600 mb-4">Internal practice guidance</p>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">A single source of truth for practice processes and policies</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Reduces interruptions and ad-hoc queries</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Owned and updated by the practice team</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Clear review dates and restricted editing where needed</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+              <h3 className="text-xl font-semibold text-gray-900 mb-1">Workflow Guidance</h3>
+              <p className="text-sm text-gray-600 mb-4">Step-by-step workflow support</p>
+              <ul className="space-y-3 text-gray-700">
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Visual workflows for complex or high-risk admin processes</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Helps newer staff build confidence quickly</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Reduces variation and unnecessary escalation</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-5 w-5 flex-shrink-0 text-blue-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.414l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5A1 1 0 015.704 9.29l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-sm">Governed in the same way as core platform content</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <p className="mt-8 text-center text-sm text-gray-600 max-w-3xl mx-auto">
+            All modules share the same navigation, permissions, and governance model — so teams only learn one system.
+          </p>
         </div>
       </section>
 
@@ -332,6 +446,9 @@ export default function LandingPageClient() {
 
                 <p className="mt-6 text-sm text-gray-600">
                   Future pricing will be reviewed once the early adopter phase is complete.
+                </p>
+                <p className="mt-4 text-sm text-gray-600">
+                  The platform currently includes core modules during early rollout. As additional modules and learning features are introduced, ongoing use may be priced as an optional add-on.
                 </p>
 
                 <div className="mt-8">
@@ -567,6 +684,18 @@ export default function LandingPageClient() {
                 Stay current with centrally maintained content and automatic improvements as new guidance evolves.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Coming soon: Daily Dose */}
+      <section className="py-12 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-sm border border-slate-200">
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">Coming soon: Daily Dose</h3>
+            <p className="text-gray-700">
+              Short, role-appropriate learning cards built from real practice workflows — designed to support confidence and consistency. Daily Dose will be offered as an optional module.
+            </p>
           </div>
         </div>
       </section>
