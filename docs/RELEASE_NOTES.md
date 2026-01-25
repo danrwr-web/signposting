@@ -4,6 +4,14 @@ A high-level history of major changes.
 
 ---
 
+## Unreleased
+
+### 🧹 Updated
+
+- Navigation: **Help & Documentation** now opens an in-app help panel with quick links and search; the full docs site still opens in a new tab.
+
+---
+
 ## Baseline Platform (as of January 2026)
 
 The following core capabilities are established and available to all surgeries:

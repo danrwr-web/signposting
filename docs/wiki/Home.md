@@ -37,7 +37,7 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [Developer Guide](Developer-Guide)
 
-Admins and superusers can open the public Docs site from the top navigation and from the Documentation tab inside the Admin Dashboard (both open in a new tab).
+Use **Help & Documentation** in the slide-out menu to open the in-app Help panel with quick links and search. The full docs site still opens in a new tab, and admins/superusers can also use the Documentation tab inside the Admin Dashboard.
 
 ---
 

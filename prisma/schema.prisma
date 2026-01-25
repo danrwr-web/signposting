@@ -233,6 +233,7 @@ model EngagementEvent {
   base    BaseSymptom @relation(fields: [baseId], references: [id], onDelete: Cascade)
 }
 
+
 model HighlightRule {
   id        String   @id @default(cuid())
   // If null => global rule (applies to all unless overridden/disabled per surgery later)

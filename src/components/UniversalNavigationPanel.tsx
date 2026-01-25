@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
 import { useSurgery } from '@/context/SurgeryContext'
 import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from '@/navigation/modules'
+import HelpPanel, { HELP_PANEL_ID } from './HelpPanel'
 import UserPreferencesModal from './UserPreferencesModal'
 
 interface ModuleDisabledInfo {
@@ -26,6 +27,7 @@ export default function UniversalNavigationPanel() {
   const [featuresLoading, setFeaturesLoading] = useState(true) // Start as loading to avoid flash of "not enabled"
   const [lastFetchedSurgeryId, setLastFetchedSurgeryId] = useState<string | null>(null) // Track which surgery we've fetched for
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
+  const [showHelpPanel, setShowHelpPanel] = useState(false)
 
   const surgeryId = surgery?.id
   const surgeryName = surgery?.name || 'No surgery selected'
@@ -131,14 +133,14 @@ export default function UniversalNavigationPanel() {
   // Handle escape key to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape' && isOpen && !showHelpPanel) {
         close()
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, close])
+  }, [isOpen, close, showHelpPanel])
 
   // Focus trap and initial focus
   useEffect(() => {
@@ -261,33 +263,23 @@ export default function UniversalNavigationPanel() {
             <ul className="space-y-1 px-3">
               {MODULES.map((module) => {
                 const enabled = isModuleEnabled(module)
-                const href = module.id === 'help' ? module.href : resolveHref(module.href)
-                const isExternal = module.id === 'help'
+                const isHelp = module.id === 'help'
+                const href = isHelp ? module.href : resolveHref(module.href)
                 const isActive = activeModule === module.id
 
                 return (
                   <li key={module.id}>
-                    {isExternal ? (
-                      <a
-                        href={href}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        onClick={() => close()}
-                        className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                    {isHelp ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowHelpPanel(true)}
+                        aria-haspopup="dialog"
+                        aria-expanded={showHelpPanel}
+                        aria-controls={HELP_PANEL_ID}
+                        className="flex w-full items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
                       >
                         {module.label}
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          strokeWidth={1.5}
-                          stroke="currentColor"
-                          className="w-4 h-4 ml-2"
-                          aria-hidden="true"
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                        </svg>
-                      </a>
+                      </button>
                     ) : (
                       <Link
                         href={enabled ? href : '#'}
@@ -410,6 +402,11 @@ export default function UniversalNavigationPanel() {
       <UserPreferencesModal 
         isOpen={showPreferencesModal}
         onClose={() => setShowPreferencesModal(false)}
+      />
+
+      <HelpPanel
+        isOpen={showHelpPanel}
+        onClose={() => setShowHelpPanel(false)}
       />
 
       {/* Disabled Module Modal */}

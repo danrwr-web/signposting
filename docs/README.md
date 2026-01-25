@@ -45,7 +45,6 @@ Recent highlights from the latest release. For complete details, see the [Releas
 ---
 
 ### Recently Shipped
-
 - Practice Handbook: operational info panel is now collapsible and remembers your preference
 - Practice Handbook: added category visibility controls and per-item editing permissions
 - Practice Handbook: PAGE items support optional Intro text and Additional notes around Role Cards
