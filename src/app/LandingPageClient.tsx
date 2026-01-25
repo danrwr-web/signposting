@@ -848,6 +848,23 @@ export default function LandingPageClient() {
         </div>
       </section>
 
+      {/* Inside the platform link */}
+      <section className="py-12 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <Link
+              href="/inside-the-platform"
+              className="text-base text-gray-600 hover:text-blue-600 font-medium underline inline-flex items-center gap-1"
+            >
+              See what the platform looks like
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Trust section */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
