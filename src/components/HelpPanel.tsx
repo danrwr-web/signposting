@@ -109,29 +109,12 @@ const HELP_LINKS: HelpLink[] = [
   },
 ]
 
-type HelpEventPayload = {
-  event: 'open_help_panel' | 'click_help_link'
-  surgeryId?: string
-  title?: string
-  url?: string
-}
-
-const trackHelpEvent = (payload: HelpEventPayload) => {
-  void fetch('/api/engagement/help', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    keepalive: true,
-  }).catch(() => {})
-}
-
 interface HelpPanelProps {
   isOpen: boolean
   onClose: () => void
-  surgeryId?: string | null
 }
 
-export default function HelpPanel({ isOpen, onClose, surgeryId }: HelpPanelProps) {
+export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -148,11 +131,6 @@ export default function HelpPanel({ isOpen, onClose, surgeryId }: HelpPanelProps
 
     previousFocusRef.current = document.activeElement as HTMLElement | null
     searchInputRef.current?.focus()
-
-    trackHelpEvent({
-      event: 'open_help_panel',
-      surgeryId: surgeryId || undefined,
-    })
 
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
@@ -207,7 +185,7 @@ export default function HelpPanel({ isOpen, onClose, surgeryId }: HelpPanelProps
         previousFocusRef.current.focus()
       }
     }
-  }, [isOpen, onClose, surgeryId])
+  }, [isOpen, onClose])
 
   const query = search.trim().toLowerCase()
   const quickLinks = useMemo(
@@ -243,13 +221,7 @@ export default function HelpPanel({ isOpen, onClose, surgeryId }: HelpPanelProps
 
   const totalResults = filteredQuickLinks.length + filteredDocsLinks.length
 
-  const handleLinkClick = (link: HelpLink) => {
-    trackHelpEvent({
-      event: 'click_help_link',
-      surgeryId: surgeryId || undefined,
-      title: link.title,
-      url: link.url,
-    })
+  const handleLinkClick = () => {
     onClose()
   }
 
@@ -354,7 +326,7 @@ export default function HelpPanel({ isOpen, onClose, surgeryId }: HelpPanelProps
                         href={link.url}
                         target="_blank"
                         rel="noreferrer noopener"
-                        onClick={() => handleLinkClick(link)}
+                        onClick={handleLinkClick}
                         className="group flex h-full flex-col justify-between rounded-lg border border-gray-200 bg-white p-4 text-left transition hover:border-nhs-blue hover:bg-nhs-light-grey focus:outline-none focus:ring-2 focus:ring-nhs-blue"
                       >
                         <div>
@@ -403,7 +375,7 @@ export default function HelpPanel({ isOpen, onClose, surgeryId }: HelpPanelProps
                         href={link.url}
                         target="_blank"
                         rel="noreferrer noopener"
-                        onClick={() => handleLinkClick(link)}
+                        onClick={handleLinkClick}
                         className="text-sm font-semibold text-nhs-blue hover:text-nhs-dark-blue underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
                       >
                         {link.title}
@@ -427,15 +399,7 @@ export default function HelpPanel({ isOpen, onClose, surgeryId }: HelpPanelProps
                 href={DOCS_BASE_URL}
                 target="_blank"
                 rel="noreferrer noopener"
-                onClick={() =>
-                  handleLinkClick({
-                    id: 'docs-home',
-                    title: 'Open full documentation site',
-                    url: DOCS_BASE_URL,
-                    keywords: [],
-                    section: 'docs',
-                  })
-                }
+                onClick={handleLinkClick}
                 className="mt-2 inline-flex items-center text-sm font-semibold text-nhs-blue hover:text-nhs-dark-blue underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded"
               >
                 Open full documentation site

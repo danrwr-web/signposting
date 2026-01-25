@@ -53,9 +53,9 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 
 Recent highlights from the latest release. For full details, see the versioned Release Notes.
 
-- **Unreleased — Jan 2026**: In-app Help panel with quick links and search
 - **v1.3 — Jan 2026**: Practice Handbook improvements, Workflow Guidance refinements, and routing updates
 - **v1.2 — Jan 2026**: Added Workflow Guidance module and redesigned marketing site
+- **v1.1 — Dec 2025**: Added AI Suggested Questions and introduced preferences system
 
 See: [Release Notes](../RELEASE_NOTES)
 

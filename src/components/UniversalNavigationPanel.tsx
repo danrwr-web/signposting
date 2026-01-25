@@ -407,7 +407,6 @@ export default function UniversalNavigationPanel() {
       <HelpPanel
         isOpen={showHelpPanel}
         onClose={() => setShowHelpPanel(false)}
-        surgeryId={surgeryId}
       />
 
       {/* Disabled Module Modal */}

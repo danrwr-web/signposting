@@ -28,7 +28,6 @@ The toolkit provides a structured symptom library, local customisation, AI-assis
 - **Clinical Review Workflow** — Every symptom must be clinically approved before going live
 - **Multi-surgery / Tenancy Model** — Complete data isolation between practices with independent configurations
 - **Role-based Access Control** — Three-level hierarchy: Superuser / Surgery Admin / Standard user
-- **Help & Documentation Panel** — In-app help drawer with quick links and search (full docs open in a new tab)
 
 ---
 

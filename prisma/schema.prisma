@@ -107,7 +107,6 @@ model Surgery {
   customSymptoms                   SurgeryCustomSymptom[]
   suggestions                      Suggestion[]
   events                           EngagementEvent[]
-  helpEngagementEvents             HelpEngagementEvent[]
   symptomReviews                   SymptomReviewStatus[]
   symptomStatuses                  SurgerySymptomStatus[]
   surgeryFeatureFlags              SurgeryFeatureFlag[]
@@ -234,21 +233,6 @@ model EngagementEvent {
   base    BaseSymptom @relation(fields: [baseId], references: [id], onDelete: Cascade)
 }
 
-model HelpEngagementEvent {
-  id        String   @id @default(cuid())
-  surgeryId String?
-  userEmail String?
-  event     String
-  linkTitle String?
-  linkUrl   String?
-  createdAt DateTime @default(now())
-
-  surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: SetNull)
-
-  @@index([surgeryId, createdAt])
-  @@index([event, createdAt])
-  @@index([userEmail])
-}
 
 model HighlightRule {
   id        String   @id @default(cuid())
