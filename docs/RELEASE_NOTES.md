@@ -4,14 +4,6 @@ A high-level history of major changes.
 
 ---
 
-## Unreleased
-
-### 🧹 Updated
-
-- Navigation: **Help & Documentation** now opens an in-app help panel with quick links and search; the full docs site still opens in a new tab.
-
----
-
 ## Baseline Platform (as of January 2026)
 
 The following core capabilities are established and available to all surgeries:
@@ -44,6 +36,7 @@ The following core capabilities are established and available to all surgeries:
 
 ### 🧹 Updated
 
+- Navigation: **Help & Documentation** now opens an in-app Help panel with quick links and simple search, designed for task-focused, in-the-moment support. The full documentation site remains available via a clear external link (opens in a new tab).
 - Practice Handbook: updated Quick Access settings to make it simpler to choose up to 6 buttons for the staff home screen.
 - Practice Handbook: admin page reorganised into Items / Structure & Settings tabs for clarity.
 - Practice Handbook: settings cog moved to page header (consistent with main signposting tool) and opens the shared preferences dialog; blue cards mode now only affects individual item cards, not the surrounding container.
