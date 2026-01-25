@@ -68,6 +68,7 @@ A practical guide for reception and care-navigation teams using the Signposting 
 - Ask a surgery admin if wording looks wrong or local services have changed.
 - Admins can request clinical review or edit local instructions; superusers can make wider changes.
 - Use the in-app “Suggest a change” option (if enabled) to log feedback for review.
+- Use **Help & Documentation** in the menu to open quick links and search the guides (the full docs open in a new tab).
 
 ## 8. Staying up to date
 - The toolkit shows a banner if content needs clinical review; follow the guidance but confirm with a clinician if worried.

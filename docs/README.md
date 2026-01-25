@@ -38,14 +38,15 @@ Looking for help using the app? Use the links below.
 
 Recent highlights from the latest release. For complete details, see the [Release Notes](RELEASE_NOTES).
 
+- **Unreleased — Jan 2026**: In-app Help panel with quick links and search
 - **v1.3 — Jan 2026**: Practice Handbook improvements, Workflow Guidance refinements, and routing updates
 - **v1.2 — Jan 2026**: Added Workflow Guidance module and redesigned marketing site
-- **v1.1 — Dec 2025**: Added AI Suggested Questions and introduced preferences system
 
 ---
 
 ### Recently Shipped
 
+- Navigation: **Help & Documentation** now opens an in-app help panel with quick links and search
 - Practice Handbook: operational info panel is now collapsible and remembers your preference
 - Practice Handbook: added category visibility controls and per-item editing permissions
 - Practice Handbook: PAGE items support optional Intro text and Additional notes around Role Cards

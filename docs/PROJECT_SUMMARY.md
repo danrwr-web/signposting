@@ -26,6 +26,7 @@ The application uses a **single, shared app shell** across all in-app routes.
 - The **universal slide-out navigation panel** is the *primary* navigation mechanism
 - A **standard header** (logo, surgery context, menu trigger) is always present
 - Modules are accessed via the navigation panel, not via bespoke page-level navigation
+- **Help & Documentation** opens an in-app help panel with quick links and search, while the full docs site opens in a new tab
 
 ### Rule (non-negotiable)
 > **Any page under `/s/[id]/…` must render inside the shared app shell (standard header + universal navigation panel).**  
