@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import MarketingHeader from '@/components/marketing/MarketingHeader'
 import MarketingFooter from '@/components/marketing/MarketingFooter'
 
@@ -40,8 +41,15 @@ export default function InsideThePlatformClient() {
             </p>
           </div>
           <div className="mt-12 flex justify-center">
-            <div className="w-full max-w-4xl bg-gray-100 rounded-lg aspect-video flex items-center justify-center border border-gray-200">
-              <p className="text-gray-500 text-sm">Screenshot placeholder</p>
+            <div className="w-full max-w-4xl relative">
+              <Image
+                src="/images/symptom-page.png"
+                alt="Screenshot showing clear, structured signposting with plain-English instructions"
+                width={1200}
+                height={800}
+                className="w-full h-auto rounded-lg"
+                priority={false}
+              />
             </div>
           </div>
         </div>
@@ -59,8 +67,15 @@ export default function InsideThePlatformClient() {
             </p>
           </div>
           <div className="mt-12 flex justify-center">
-            <div className="w-full max-w-4xl bg-gray-100 rounded-lg aspect-video flex items-center justify-center border border-gray-200">
-              <p className="text-gray-500 text-sm">Screenshot placeholder</p>
+            <div className="w-full max-w-4xl relative">
+              <Image
+                src="/images/practice-handbook.png"
+                alt="Screenshot showing internal guidance and practice policies"
+                width={1200}
+                height={800}
+                className="w-full h-auto rounded-lg"
+                priority={false}
+              />
             </div>
           </div>
         </div>
@@ -78,8 +93,15 @@ export default function InsideThePlatformClient() {
             </p>
           </div>
           <div className="mt-12 flex justify-center">
-            <div className="w-full max-w-4xl bg-gray-100 rounded-lg aspect-video flex items-center justify-center border border-gray-200">
-              <p className="text-gray-500 text-sm">Screenshot placeholder</p>
+            <div className="w-full max-w-4xl relative">
+              <Image
+                src="/images/workflow-guidance.png"
+                alt="Screenshot showing step-by-step visual workflow support"
+                width={1200}
+                height={800}
+                className="w-full h-auto rounded-lg"
+                priority={false}
+              />
             </div>
           </div>
         </div>
