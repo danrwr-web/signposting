@@ -283,8 +283,9 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
           />
 
           {/* Table */}
-          <AdminTable
-            columns={[
+          <div className="max-h-[65vh] overflow-auto rounded-lg border border-gray-200">
+            <AdminTable
+              columns={[
               {
                 header: 'Name',
                 key: 'name',
@@ -413,8 +414,9 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
             ]}
             rows={filteredUsers}
             emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found. Add your first user to get started.'}
-            rowKey={(membership) => membership.id}
-          />
+              rowKey={(membership) => membership.id}
+            />
+          </div>
         </div>
       </main>
 

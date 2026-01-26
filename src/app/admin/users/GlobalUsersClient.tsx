@@ -417,10 +417,11 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
           />
 
           {/* Table */}
-          <AdminTable
-            colWidths={["220px", "230px", "280px", "120px", "180px"]}
-            cellPadding="px-4"
-            columns={[
+          <div className="max-h-[65vh] overflow-auto rounded-lg border border-gray-200">
+            <AdminTable
+              colWidths={["220px", "230px", "280px", "120px", "180px"]}
+              cellPadding="px-4"
+              columns={[
               {
                 header: 'Name',
                 key: 'name',
@@ -532,8 +533,9 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
             ]}
             rows={filteredUsers}
             emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found.'}
-            rowKey={(user) => user.id}
-          />
+              rowKey={(user) => user.id}
+            />
+          </div>
         </div>
       </main>
 
