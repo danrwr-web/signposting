@@ -426,6 +426,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
               {
                 header: 'Name',
                 key: 'name',
+                stickyLeft: true,
                 render: (user) => (
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-900">

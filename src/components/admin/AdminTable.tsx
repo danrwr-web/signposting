@@ -9,6 +9,8 @@ interface Column<T> {
   render?: (row: T) => React.ReactNode
   /** If true, this column will be sticky to the right edge of the table */
   sticky?: boolean
+  /** If true, this column will be sticky to the left edge of the table */
+  stickyLeft?: boolean
 }
 
 interface AdminTableProps<T> {
@@ -85,9 +87,12 @@ export default function AdminTable<T>({
             {columns.map((column) => {
               const hasTextRight = column.className?.includes('text-right')
               // Sticky column styling for header
-              const stickyClasses = column.sticky
-                ? 'sticky right-0 z-20 bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
-                : ''
+              let stickyClasses = ''
+              if (column.sticky) {
+                stickyClasses = 'sticky right-0 z-20 bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+              } else if (column.stickyLeft) {
+                stickyClasses = 'sticky left-0 z-20 bg-gray-50 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+              }
               return (
                 <th
                   key={column.key}
@@ -117,9 +122,12 @@ export default function AdminTable<T>({
               >
                 {columns.map((column) => {
                   // Sticky column styling for body cells
-                  const stickyClasses = column.sticky
-                    ? 'sticky right-0 z-10 bg-white group-hover:bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
-                    : ''
+                  let stickyClasses = ''
+                  if (column.sticky) {
+                    stickyClasses = 'sticky right-0 z-10 bg-white group-hover:bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                  } else if (column.stickyLeft) {
+                    stickyClasses = 'sticky left-0 z-10 bg-white group-hover:bg-gray-50 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                  }
                   return (
                     <td
                       key={column.key}
