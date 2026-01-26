@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import DailyDoseNavigation from '@/components/daily-dose/DailyDoseNavigation'
 
 interface DailyDoseHomeClientProps {
   surgeryId: string
@@ -97,6 +98,7 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
 
   return (
     <div className="space-y-6">
+      <DailyDoseNavigation surgeryId={surgeryId} />
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <h1 className="text-2xl font-bold text-nhs-dark-blue">
           Welcome back{userName ? `, ${userName}` : ''}
