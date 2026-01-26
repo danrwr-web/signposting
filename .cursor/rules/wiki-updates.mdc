@@ -22,6 +22,14 @@ wiki:
       - "When wiki pages are added, removed, or renamed"
       - "When RELEASE_NOTES.md is edited (new release added or existing release updated)"
     
+    maintenanceChecklist:
+      description: "When shipping or modifying a user-facing feature, update: Release Notes, README 'Recently shipped', and any affected wiki pages"
+      requiredActions:
+        - "Update Release Notes: Add user-visible changes to /docs/RELEASE_NOTES.md under the appropriate version section"
+        - "Update README 'Recently shipped': Add 1–2 short bullets to /docs/README.md for the most visible improvements"
+        - "Update affected wiki pages: Review and update relevant pages in /docs/wiki to reflect changes"
+      reference: "See /docs/wiki/Docs-Maintenance.md for the complete maintenance checklist"
+    
     updateProcess:
       steps:
         - "Identify which documentation page(s) in /docs/wiki are affected"

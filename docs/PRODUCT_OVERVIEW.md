@@ -168,6 +168,18 @@ Different users see different tools:
 
 ---
 
+### 8. Practice Handbook
+
+An internal knowledge base for storing surgery-specific guidance pages, operational procedures, and staff information. Practices can create structured content with categories, role cards, and a pinned operational panel. Supports category visibility controls and per-item editing permissions to share sensitive guidance safely.
+
+---
+
+### 9. Workflow Guidance
+
+Visual workflow diagrams to guide staff through common internal processes such as processing documents, handling test results, and managing referrals. Includes global default workflows with per-surgery customisation, and operates under the same draft/approved governance lifecycle as symptom content.
+
+---
+
 ## Who is it for?
 
 - GP reception teams  

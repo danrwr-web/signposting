@@ -36,6 +36,17 @@ model User {
   // Feature flags
   userFeatureFlags UserFeatureFlag[]
 
+  // Admin Toolkit
+  adminItemEditors             AdminItemEditor[]
+  adminItemOwnership           AdminItem[]                   @relation("AdminItemOwner")
+  adminItemsCreated            AdminItem[]                   @relation("AdminItemCreatedBy")
+  adminItemsUpdated            AdminItem[]                   @relation("AdminItemUpdatedBy")
+  adminToolkitHistory          AdminHistory[]                @relation("AdminToolkitHistoryActor")
+  adminCategoryVisibleUsers    AdminCategoryVisibleUser[]
+  adminItemEditGrants          AdminItemEditGrant[]
+  adminItemEditGrantsCreated   AdminItemEditGrant[]          @relation("AdminItemEditGrantCreatedBy")
+  adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
+
   // Workflow instances
   workflowInstances WorkflowInstance[]
 
@@ -50,27 +61,29 @@ model User {
   sessions      Session[]
 
   // Daily Dose relationships
-  dailyDoseProfiles       DailyDoseProfile[]
-  dailyDoseSessions       DailyDoseSession[]
-  dailyDoseCardStates     DailyDoseUserCardState[]
-  dailyDoseCardsCreated   DailyDoseCard[]        @relation("DailyDoseCardCreatedBy")
-  dailyDoseCardsApproved  DailyDoseCard[]        @relation("DailyDoseCardApprovedBy")
-  dailyDoseCardsPublished DailyDoseCard[]        @relation("DailyDoseCardPublishedBy")
-  dailyDoseCardsClinicianApproved DailyDoseCard[] @relation("DailyDoseCardClinicianApprovedBy")
-  dailyDoseCardVersions   DailyDoseCardVersion[] @relation("DailyDoseCardVersionCreatedBy")
-  dailyDoseFlags          DailyDoseFlaggedContent[]
-  dailyDoseFlagsResolved  DailyDoseFlaggedContent[] @relation("DailyDoseFlagResolvedBy")
-  dailyDoseBatchesCreated DailyDoseGenerationBatch[] @relation("DailyDoseBatchCreatedBy")
-  dailyDoseGenerationAttempts DailyDoseGenerationAttempt[] @relation("DailyDoseAttemptCreatedBy")
+  dailyDoseProfiles               DailyDoseProfile[]
+  dailyDoseSessions               DailyDoseSession[]
+  dailyDoseCardStates             DailyDoseUserCardState[]
+  dailyDoseCardsCreated           DailyDoseCard[]              @relation("DailyDoseCardCreatedBy")
+  dailyDoseCardsApproved          DailyDoseCard[]              @relation("DailyDoseCardApprovedBy")
+  dailyDoseCardsPublished         DailyDoseCard[]              @relation("DailyDoseCardPublishedBy")
+  dailyDoseCardsClinicianApproved DailyDoseCard[]              @relation("DailyDoseCardClinicianApprovedBy")
+  dailyDoseCardVersions           DailyDoseCardVersion[]       @relation("DailyDoseCardVersionCreatedBy")
+  dailyDoseFlags                  DailyDoseFlaggedContent[]
+  dailyDoseFlagsResolved          DailyDoseFlaggedContent[]    @relation("DailyDoseFlagResolvedBy")
+  dailyDoseBatchesCreated         DailyDoseGenerationBatch[]   @relation("DailyDoseBatchCreatedBy")
+  dailyDoseGenerationAttempts     DailyDoseGenerationAttempt[] @relation("DailyDoseAttemptCreatedBy")
 }
 
 model UserSurgery {
-  id        String  @id @default(cuid())
-  userId    String
-  surgeryId String
-  role      String  @default("STANDARD") // "STANDARD" | "ADMIN"
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  surgery   Surgery @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  surgeryId         String
+  role              String  @default("STANDARD") // "STANDARD" | "ADMIN"
+  // Admin Toolkit module write permission (separate from surgery ADMIN role)
+  adminToolkitWrite Boolean @default(false)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery           Surgery @relation("SurgeryUsers", fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, surgeryId])
 }
@@ -100,7 +113,7 @@ model Surgery {
   enableDefaultHighRisk            Boolean                           @default(true) // Enable/disable default high-risk buttons
   enableBuiltInHighlights          Boolean                           @default(true) // Enable/disable built-in highlight rules
   enableImageIcons                 Boolean                           @default(true) // Enable/disable image icons on symptom cards
-  uiConfig                         Json?                            // UI configuration (common reasons, etc.)
+  uiConfig                         Json? // UI configuration (common reasons, etc.)
   highRiskLinks                    HighRiskLink[]
   defaultHighRiskButtons           DefaultHighRiskButtonConfig[]
   highlightRules                   HighlightRule[]
@@ -121,26 +134,42 @@ model Surgery {
   // Daily Dose configuration
   analyticsGuardrailMinN Int @default(10)
 
-  dailyDoseProfiles   DailyDoseProfile[]
-  dailyDoseTopics     DailyDoseTopic[]
-  dailyDoseCards      DailyDoseCard[]
-  dailyDoseSessions   DailyDoseSession[]
-  dailyDoseCardStates DailyDoseUserCardState[]
-  dailyDoseFlags      DailyDoseFlaggedContent[]
-  dailyDoseBatches    DailyDoseGenerationBatch[]
-  dailyDoseQuizzes    DailyDoseQuiz[]
+  dailyDoseProfiles           DailyDoseProfile[]
+  dailyDoseTopics             DailyDoseTopic[]
+  dailyDoseCards              DailyDoseCard[]
+  dailyDoseSessions           DailyDoseSession[]
+  dailyDoseCardStates         DailyDoseUserCardState[]
+  dailyDoseFlags              DailyDoseFlaggedContent[]
+  dailyDoseBatches            DailyDoseGenerationBatch[]
+  dailyDoseQuizzes            DailyDoseQuiz[]
   dailyDoseGenerationAttempts DailyDoseGenerationAttempt[]
+
+  // Admin Toolkit
+  adminCategories              AdminCategory[]
+  adminItems                   AdminItem[]
+  adminItemAttachments         AdminItemAttachment[]
+  adminPinnedPanel             AdminPinnedPanel?
+  adminDutyRota                AdminDutyRotaEntry[]
+  adminOnTakeWeeks             AdminOnTakeWeek[]
+  adminHistory                 AdminHistory[]
+  adminCategoryVisibleUsers    AdminCategoryVisibleUser[]
+  adminItemEditGrants          AdminItemEditGrant[]
+  adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
 }
 
+// -----------------------
+// Daily Dose Models
+// -----------------------
+
 model DailyDoseProfile {
-  id                   String  @id @default(cuid())
-  userId               String
-  surgeryId            String
-  role                 String // "GP" | "NURSE" | "ADMIN"
-  onboardingCompleted  Boolean @default(false)
-  preferences          Json?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String
+  surgeryId           String
+  role                String // "GP" | "NURSE" | "ADMIN"
+  onboardingCompleted Boolean  @default(false)
+  preferences         Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
@@ -150,16 +179,16 @@ model DailyDoseProfile {
 }
 
 model DailyDoseTopic {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
   surgeryId String?
   name      String
   roleScope Json
-  ordering  Int     @default(0)
-  isActive  Boolean @default(true)
+  ordering  Int      @default(0)
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery?        @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   cards   DailyDoseCard[]
 
   @@index([surgeryId])
@@ -167,47 +196,47 @@ model DailyDoseTopic {
 }
 
 model DailyDoseCard {
-  id            String   @id @default(cuid())
-  batchId       String?
-  surgeryId     String?
-  targetRole    String   @default("ADMIN") // "ADMIN" | "GP" | "NURSE"
-  title         String
-  roleScope     Json
-  topicId       String
-  contentBlocks Json
-  interactions  Json     @default("[]")
-  slotLanguage  Json?
-  safetyNetting Json     @default("[]")
-  sources       Json
-  estimatedTimeMinutes Int @default(5)
-  version       Int      @default(1)
-  status        String   @default("DRAFT") // "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "ARCHIVED" | "RETIRED"
-  riskLevel     String   @default("LOW") // "LOW" | "MED" | "HIGH"
-  needsSourcing Boolean  @default(false)
-  createdBy     String?
-  approvedBy    String?
-  approvedAt    DateTime?
-  publishedBy   String?
-  publishedAt   DateTime?
-  clinicianApproved   Boolean  @default(false)
-  clinicianApprovedBy String?
-  clinicianApprovedAt DateTime?
-  reviewByDate  DateTime?
-  tags          Json?
-  generatedFrom Json?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  batchId              String?
+  surgeryId            String?
+  targetRole           String    @default("ADMIN") // "ADMIN" | "GP" | "NURSE"
+  title                String
+  roleScope            Json
+  topicId              String
+  contentBlocks        Json
+  interactions         Json      @default("[]")
+  slotLanguage         Json?
+  safetyNetting        Json      @default("[]")
+  sources              Json
+  estimatedTimeMinutes Int       @default(5)
+  version              Int       @default(1)
+  status               String    @default("DRAFT") // "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "ARCHIVED" | "RETIRED"
+  riskLevel            String    @default("LOW") // "LOW" | "MED" | "HIGH"
+  needsSourcing        Boolean   @default(false)
+  createdBy            String?
+  approvedBy           String?
+  approvedAt           DateTime?
+  publishedBy          String?
+  publishedAt          DateTime?
+  clinicianApproved    Boolean   @default(false)
+  clinicianApprovedBy  String?
+  clinicianApprovedAt  DateTime?
+  reviewByDate         DateTime?
+  tags                 Json?
+  generatedFrom        Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
-  topic          DailyDoseTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  surgery        Surgery?       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  batch          DailyDoseGenerationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  createdByUser  User?          @relation("DailyDoseCardCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  approvedByUser User?          @relation("DailyDoseCardApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
-  publishedByUser User?         @relation("DailyDoseCardPublishedBy", fields: [publishedBy], references: [id], onDelete: SetNull)
-  clinicianApprovedByUser User? @relation("DailyDoseCardClinicianApprovedBy", fields: [clinicianApprovedBy], references: [id], onDelete: SetNull)
-  versions       DailyDoseCardVersion[]
-  userStates     DailyDoseUserCardState[]
-  flags          DailyDoseFlaggedContent[]
+  topic                   DailyDoseTopic            @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  surgery                 Surgery?                  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  batch                   DailyDoseGenerationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  createdByUser           User?                     @relation("DailyDoseCardCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  approvedByUser          User?                     @relation("DailyDoseCardApprovedBy", fields: [approvedBy], references: [id], onDelete: SetNull)
+  publishedByUser         User?                     @relation("DailyDoseCardPublishedBy", fields: [publishedBy], references: [id], onDelete: SetNull)
+  clinicianApprovedByUser User?                     @relation("DailyDoseCardClinicianApprovedBy", fields: [clinicianApprovedBy], references: [id], onDelete: SetNull)
+  versions                DailyDoseCardVersion[]
+  userStates              DailyDoseUserCardState[]
+  flags                   DailyDoseFlaggedContent[]
 
   @@index([batchId])
   @@index([topicId])
@@ -216,13 +245,13 @@ model DailyDoseCard {
 }
 
 model DailyDoseCardVersion {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   cardId      String
   version     Int
   snapshot    Json
   publishedAt DateTime?
   createdBy   String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   card          DailyDoseCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
   createdByUser User?         @relation("DailyDoseCardVersionCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -232,18 +261,18 @@ model DailyDoseCardVersion {
 }
 
 model DailyDoseSession {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   userId             String
   surgeryId          String
-  sessionDate        DateTime @default(now())
+  sessionDate        DateTime  @default(now())
   cardIds            Json
   cardResults        Json?
-  questionsAttempted Int      @default(0)
-  correctCount       Int      @default(0)
-  xpEarned           Int      @default(0)
+  questionsAttempted Int       @default(0)
+  correctCount       Int       @default(0)
+  xpEarned           Int       @default(0)
   completedAt        DateTime?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
@@ -253,22 +282,22 @@ model DailyDoseSession {
 }
 
 model DailyDoseGenerationBatch {
-  id          String   @id @default(cuid())
-  surgeryId   String
-  createdBy   String?
-  promptText  String
-  targetRole  String
-  modelUsed   String?
-  status      String   @default("DRAFT") // "DRAFT" | "READY" | "PUBLISHED"
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  surgeryId  String
+  createdBy  String?
+  promptText String
+  targetRole String
+  modelUsed  String?
+  status     String   @default("DRAFT") // "DRAFT" | "READY" | "PUBLISHED"
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  surgery      Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  createdByUser User? @relation("DailyDoseBatchCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
-  cards        DailyDoseCard[]
-  quiz         DailyDoseQuiz?
-  attempts     DailyDoseGenerationAttempt[]
+  surgery       Surgery                      @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  createdByUser User?                        @relation("DailyDoseBatchCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  cards         DailyDoseCard[]
+  quiz          DailyDoseQuiz?
+  attempts      DailyDoseGenerationAttempt[]
 
   @@index([surgeryId])
   @@index([createdBy])
@@ -291,9 +320,9 @@ model DailyDoseGenerationAttempt {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  batch          DailyDoseGenerationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
-  surgery        Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
-  createdByUser  User? @relation("DailyDoseAttemptCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  batch         DailyDoseGenerationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  surgery       Surgery?                  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  createdByUser User?                     @relation("DailyDoseAttemptCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([requestId])
   @@index([batchId])
@@ -311,28 +340,28 @@ model DailyDoseQuiz {
   updatedAt DateTime @updatedAt
 
   batch   DailyDoseGenerationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  surgery Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery                  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@index([surgeryId])
 }
 
 model DailyDoseUserCardState {
-  id             String   @id @default(cuid())
-  userId         String
-  cardId         String
-  surgeryId      String
-  box            Int      @default(1)
-  intervalDays   Int      @default(1)
-  dueAt          DateTime
-  lastReviewedAt DateTime?
-  correctStreak  Int      @default(0)
-  incorrectStreak Int     @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String    @id @default(cuid())
+  userId          String
+  cardId          String
+  surgeryId       String
+  box             Int       @default(1)
+  intervalDays    Int       @default(1)
+  dueAt           DateTime
+  lastReviewedAt  DateTime?
+  correctStreak   Int       @default(0)
+  incorrectStreak Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   card    DailyDoseCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  surgery Surgery      @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  surgery Surgery       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, cardId])
   @@index([userId, dueAt])
@@ -340,17 +369,17 @@ model DailyDoseUserCardState {
 }
 
 model DailyDoseFlaggedContent {
-  id          String   @id @default(cuid())
-  userId      String
-  cardId      String
-  surgeryId   String
-  reason      String
-  freeText    String?
-  status      String   @default("OPEN") // "OPEN" | "RESOLVED"
-  resolvedBy  String?
-  resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String    @id @default(cuid())
+  userId     String
+  cardId     String
+  surgeryId  String
+  reason     String
+  freeText   String?
+  status     String    @default("OPEN") // "OPEN" | "RESOLVED"
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   card           DailyDoseCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
@@ -699,6 +728,293 @@ model UserFeatureFlag {
   feature Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
 
   @@unique([userId, featureId])
+}
+
+// -----------------------
+// Admin Toolkit (per-surgery)
+// -----------------------
+
+enum SurgeryRole {
+  ADMIN
+  STANDARD
+}
+
+enum AdminCategoryVisibilityMode {
+  ALL
+  ROLES
+  USERS
+  ROLES_OR_USERS
+}
+
+enum AdminItemEditGrantPrincipalType {
+  USER
+  ROLE
+}
+
+model AdminCategory {
+  id               String  @id @default(cuid())
+  surgeryId        String
+  name             String
+  orderIndex       Int     @default(0)
+  parentCategoryId String?
+
+  visibilityMode  AdminCategoryVisibilityMode @default(ALL)
+  visibilityRoles SurgeryRole[]               @default([])
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  surgery        Surgery                    @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  parentCategory AdminCategory?             @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  subcategories  AdminCategory[]            @relation("CategoryHierarchy")
+  items          AdminItem[]
+  visibleUsers   AdminCategoryVisibleUser[]
+  history        AdminHistory[]
+
+  @@index([surgeryId, orderIndex])
+  @@index([surgeryId, deletedAt])
+  @@index([surgeryId, parentCategoryId])
+}
+
+model AdminCategoryVisibleUser {
+  id              String   @id @default(cuid())
+  surgeryId       String
+  adminCategoryId String
+  userId          String
+  createdAt       DateTime @default(now())
+
+  surgery  Surgery       @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  category AdminCategory @relation(fields: [adminCategoryId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([adminCategoryId, userId])
+  @@index([surgeryId])
+  @@index([adminCategoryId])
+  @@index([userId])
+}
+
+model AdminItem {
+  id         String  @id @default(cuid())
+  surgeryId  String
+  categoryId String?
+
+  type  String // "PAGE" | "LIST" | "RESPONSIBILITY_TABLE"
+  title String
+
+  // PAGE content (stored as HTML to match existing instruction tooling)
+  contentHtml String?
+  // Optional extra metadata (future-proofing)
+  contentJson Json?
+
+  warningLevel    String?
+  ownerUserId     String?
+  createdByUserId String?
+  updatedByUserId String?
+  lastReviewedAt  DateTime?
+  deletedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  surgery   Surgery        @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  category  AdminCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  owner     User?          @relation("AdminItemOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdBy User?          @relation("AdminItemCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  updatedBy User?          @relation("AdminItemUpdatedBy", fields: [updatedByUserId], references: [id], onDelete: SetNull)
+
+  editors          AdminItemEditor[]
+  editGrants       AdminItemEditGrant[]
+  listColumns      AdminListColumn[]
+  listRows         AdminListRow[]
+  attachments      AdminItemAttachment[]
+  history          AdminHistory[]
+  engagementEvents AdminToolkitEngagementEvent[]
+
+  @@index([surgeryId, deletedAt])
+  @@index([surgeryId, categoryId])
+  @@index([surgeryId, title])
+  @@index([createdByUserId])
+  @@index([updatedByUserId])
+}
+
+model AdminItemEditor {
+  id          String   @id @default(cuid())
+  adminItemId String
+  userId      String
+  createdAt   DateTime @default(now())
+
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([adminItemId, userId])
+  @@index([userId])
+}
+
+model AdminItemEditGrant {
+  id              String                          @id @default(cuid())
+  surgeryId       String
+  adminItemId     String
+  principalType   AdminItemEditGrantPrincipalType
+  userId          String?
+  role            SurgeryRole?
+  createdByUserId String?
+  createdAt       DateTime                        @default(now())
+
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("AdminItemEditGrantCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([adminItemId, userId])
+  @@unique([adminItemId, role])
+  @@index([surgeryId])
+  @@index([adminItemId])
+  @@index([userId])
+}
+
+model AdminListColumn {
+  id          String @id @default(cuid())
+  adminItemId String
+  key         String
+  label       String
+  orderIndex  Int    @default(0)
+  fieldType   String @default("TEXT")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+
+  @@unique([adminItemId, key])
+  @@index([adminItemId, orderIndex])
+}
+
+model AdminListRow {
+  id          String @id @default(cuid())
+  adminItemId String
+  dataJson    Json
+  orderIndex  Int    @default(0)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+
+  @@index([adminItemId, orderIndex])
+  @@index([adminItemId, deletedAt])
+}
+
+model AdminItemAttachment {
+  id          String @id @default(cuid())
+  surgeryId   String
+  adminItemId String
+  label       String
+  url         String
+  orderIndex  Int    @default(0)
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+
+  @@index([adminItemId, orderIndex])
+  @@index([surgeryId])
+}
+
+model AdminPinnedPanel {
+  id String @id @default(cuid())
+
+  surgeryId String  @unique
+  surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  taskBuddyText String?
+  postRouteText String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AdminDutyRotaEntry {
+  id String @id @default(cuid())
+
+  surgeryId String
+  surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  // Store date as DateTime; treat as day-level in queries (UTC)
+  date DateTime
+  name String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([surgeryId, date])
+  @@index([surgeryId, date])
+}
+
+model AdminOnTakeWeek {
+  id String @id @default(cuid())
+
+  surgeryId String
+  surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  // Monday for the week, stored as DATE (Europe/London semantics in app)
+  weekCommencing DateTime @db.Date
+  gpName         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([surgeryId, weekCommencing])
+  @@index([surgeryId, weekCommencing])
+}
+
+model AdminHistory {
+  id String @id @default(cuid())
+
+  surgeryId String
+  surgery   Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+
+  adminItemId     String?
+  adminCategoryId String?
+
+  action      String
+  actorUserId String
+  summary     String? // Human-readable summary for audit display
+  entityType  String? // Entity type for filtering: ADMIN_ITEM, CATEGORY, QUICK_ACCESS, ROTA, OP_PANEL
+  diffJson    Json?
+
+  createdAt DateTime @default(now())
+
+  adminItem     AdminItem?     @relation(fields: [adminItemId], references: [id], onDelete: SetNull)
+  adminCategory AdminCategory? @relation(fields: [adminCategoryId], references: [id], onDelete: SetNull)
+  actorUser     User           @relation("AdminToolkitHistoryActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([surgeryId, createdAt])
+  @@index([adminItemId])
+  @@index([adminCategoryId])
+  @@index([surgeryId, entityType])
+}
+
+// Admin Toolkit engagement event for tracking item views
+model AdminToolkitEngagementEvent {
+  id          String   @id @default(cuid())
+  surgeryId   String
+  adminItemId String
+  userId      String
+  event       String   @default("view_item") // Event type: "view_item"
+  createdAt   DateTime @default(now())
+
+  surgery   Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([surgeryId, createdAt])
+  @@index([adminItemId])
+  @@index([userId])
 }
 
 model AppointmentType {

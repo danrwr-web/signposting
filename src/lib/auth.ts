@@ -68,7 +68,8 @@ export const authOptions: NextAuthOptions = {
               symptomsUsed: user.symptomsUsed,
               memberships: user.memberships.map(m => ({
                 surgeryId: m.surgeryId,
-                role: m.role
+                role: m.role,
+                adminToolkitWrite: m.adminToolkitWrite,
               }))
             }
           }
@@ -104,7 +105,7 @@ export const authOptions: NextAuthOptions = {
         session.user.isTestUser = token.isTestUser as boolean
         session.user.symptomUsageLimit = token.symptomUsageLimit as number | null
         session.user.symptomsUsed = token.symptomsUsed as number
-        session.user.memberships = token.memberships as Array<{ surgeryId: string; role: string }>
+        session.user.memberships = token.memberships as Array<{ surgeryId: string; role: string; adminToolkitWrite?: boolean }>
       }
       return session
     }

@@ -1,5 +1,6 @@
 import 'server-only'
 import { getServerSession } from 'next-auth'
+import { redirect } from 'next/navigation'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
@@ -17,6 +18,7 @@ export interface SessionUser {
   memberships: Array<{
     surgeryId: string
     role: string
+    adminToolkitWrite?: boolean
   }>
 }
 
@@ -34,6 +36,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       include: {
         memberships: {
           include: {
+            // include the membership fields used for permission checks
             surgery: {
               select: {
                 id: true,
@@ -74,7 +77,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       symptomsUsed: user.symptomsUsed,
       memberships: user.memberships.map(m => ({
         surgeryId: m.surgeryId,
-        role: m.role
+        role: m.role,
+        adminToolkitWrite: m.adminToolkitWrite,
       }))
     }
   } catch (error) {
@@ -118,6 +122,16 @@ export class PermissionChecker {
 
     const membership = this.user.memberships.find(m => m.surgeryId === surgeryId)
     return membership?.role === 'ADMIN'
+  }
+
+  adminToolkitWrite(surgeryId: string): boolean {
+    if (this.user.globalRole === 'SUPERUSER') {
+      return true
+    }
+    const membership = this.user.memberships.find((m) => m.surgeryId === surgeryId)
+    if (!membership) return false
+    // Surgery admins can always write; otherwise require explicit flag.
+    return membership.role === 'ADMIN' || membership.adminToolkitWrite === true
   }
 
   getSurgeryRole(surgeryId: string): string | null {
@@ -198,4 +212,33 @@ export async function requireSurgeryAccess(surgeryId: string): Promise<SessionUs
   }
   
   return user
+}
+
+export async function resolveSurgeryIdFromIdentifier(surgeryIdOrSlug: string): Promise<string | null> {
+  const key = (surgeryIdOrSlug || '').trim()
+  if (!key) return null
+
+  const row = await prisma.surgery.findFirst({
+    where: { OR: [{ id: key }, { slug: key }] },
+    select: { id: true },
+  })
+  return row?.id ?? null
+}
+
+export async function requireSurgeryMembership(
+  surgeryIdOrSlug: string,
+): Promise<{ user: SessionUser; surgeryId: string; surgeryRole: string | null }> {
+  const user = await requireAuth()
+  const resolvedSurgeryId = await resolveSurgeryIdFromIdentifier(surgeryIdOrSlug)
+
+  if (!resolvedSurgeryId) {
+    redirect('/unauthorized')
+  }
+
+  if (user.globalRole !== 'SUPERUSER' && !user.memberships.some((m) => m.surgeryId === resolvedSurgeryId)) {
+    redirect('/unauthorized')
+  }
+
+  const membership = user.memberships.find((m) => m.surgeryId === resolvedSurgeryId) ?? null
+  return { user, surgeryId: resolvedSurgeryId, surgeryRole: membership?.role ?? null }
 }

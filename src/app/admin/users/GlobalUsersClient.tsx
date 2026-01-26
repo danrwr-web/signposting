@@ -4,6 +4,10 @@ import { useState } from 'react'
 import Link from 'next/link'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
+import KebabMenu from '@/components/admin/KebabMenu'
+import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
+import LogoSizeControl from '@/components/LogoSizeControl'
+import { formatRelativeDate } from '@/lib/formatRelativeDate'
 
 interface User {
   id: string
@@ -37,6 +41,7 @@ interface Surgery {
 interface GlobalUsersClientProps {
   users: User[]
   surgeries: Surgery[]
+  lastActiveData: Record<string, string | null>
 }
 
 // Helper function to get user initials
@@ -51,7 +56,7 @@ function getUserInitials(name: string | null, email: string): string {
   return email.charAt(0).toUpperCase()
 }
 
-export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClientProps) {
+export default function GlobalUsersClient({ users, surgeries, lastActiveData }: GlobalUsersClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -358,38 +363,47 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      {/* Header - consistent with SimpleHeader */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex items-center justify-between h-16">
+            {/* Navigation Trigger + Logo */}
             <div className="flex items-center">
-              <Link
-                href="/admin"
-                className="text-blue-600 hover:text-blue-500 mr-4"
-              >
-                ← Back to Admin
+              <NavigationPanelTrigger className="mr-3" />
+              <Link href="/s" className="flex items-center">
+                <img
+                  src="/images/signposting_logo_head.png"
+                  alt="Signposting"
+                  style={{ height: 'var(--logo-height, 58px)' }}
+                  className="w-auto"
+                />
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Global Users
-              </h1>
+              <LogoSizeControl />
             </div>
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Create User
-            </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            Global Users
+          </h1>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Create User
+          </button>
+        </div>
+
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+            <h2 className="text-lg leading-6 font-medium text-gray-900">
               All Users
-            </h3>
+            </h2>
             <p className="mt-1 max-w-2xl text-sm text-gray-500">
               Manage user accounts and their global roles across the system.
             </p>
@@ -403,104 +417,108 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
             debounceMs={0}
           />
 
-          {/* Table */}
+          {/* Table - scroll container with always-visible scrollbar */}
           <AdminTable
-            colWidths={["220px", "230px", "320px", "180px"]}
-            cellPadding="px-4"
+            cellPadding="px-3"
+            scrollContainerClassName="max-h-[65vh] overflow-y-auto"
             columns={[
               {
-                header: 'Name',
-                key: 'name',
+                header: 'User',
+                key: 'user',
+                stickyLeft: true,
                 render: (user) => (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-900">
-                      {user.name || 'No name set'}
-                    </span>
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        user.globalRole === 'SUPERUSER'
-                          ? 'bg-purple-50 text-purple-700 border border-purple-100'
-                          : 'bg-gray-50 text-gray-700 border border-gray-100'
-                      }`}
-                    >
-                      {user.globalRole === 'SUPERUSER' ? 'SUPERUSER' : 'USER'}
-                    </span>
-                  </div>
-                ),
-              },
-              {
-                header: 'Email',
-                key: 'email',
-                render: (user) => (
-                  <span className="block overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-500" title={user.email}>
-                    {user.email}
-                  </span>
-                ),
-              },
-              {
-                header: 'Surgery Memberships',
-                key: 'memberships',
-                className: 'align-top whitespace-normal',
-                render: (user) => (
-                  <div className="flex flex-col gap-0.5 text-sm text-gray-900">
-                    {user.memberships.length === 0 ? (
-                      <span className="text-gray-400 italic">No memberships</span>
-                    ) : (
-                      user.memberships.map((membership) => (
-                        <span key={membership.id}>
-                          {membership.surgery.name} ({membership.role})
-                        </span>
-                      ))
-                    )}
-                  </div>
-                ),
-              },
-              {
-                header: 'Actions',
-                key: 'actions',
-                className: 'text-right whitespace-nowrap',
-                render: (user) => (
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      className="text-blue-600 hover:text-blue-900"
-                      onClick={() => handleEditUser(user)}
-                    >
-                      Edit
-                    </button>
-                    <span className="text-gray-300">|</span>
-                    <button
-                      className="text-orange-600 hover:text-orange-900"
-                      onClick={() => setResettingPasswordFor(user)}
-                    >
-                      Reset
-                    </button>
-                    <span className="text-gray-300">|</span>
-                    <button
-                      className="text-blue-600 hover:text-blue-900"
-                      onClick={() => handleManageMemberships(user)}
-                    >
-                      Memberships
-                    </button>
-                    {user.isTestUser && (
-                      <>
-                        <span className="text-gray-300">|</span>
-                        <button
-                          className="text-gray-600 hover:text-gray-900"
-                          onClick={() => handleResetTestUserUsage(user.id)}
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">
+                      {getUserInitials(user.name, user.email)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">
+                        {user.name || 'No name set'}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            user.globalRole === 'SUPERUSER'
+                              ? 'bg-purple-50 text-purple-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
                         >
-                          Reset Usage
-                        </button>
-                      </>
-                    )}
-                    <span className="text-gray-300">|</span>
-                    <button
-                      className="text-red-600 hover:text-red-900"
-                      onClick={() => handleDeleteUser(user.id, user.email)}
-                    >
-                      Delete
-                    </button>
+                          {user.globalRole === 'SUPERUSER' ? 'System admin' : 'User'}
+                        </span>
+                        {user.isTestUser && (
+                          <span className="text-xs text-amber-600">Test</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5 truncate">
+                        {user.email}
+                      </div>
+                    </div>
                   </div>
                 ),
+              },
+              {
+                header: 'Surgeries',
+                key: 'memberships',
+                className: 'align-top',
+                render: (user) => (
+                  <div className="py-1">
+                    {user.memberships.length === 0 ? (
+                      <span className="text-xs text-gray-300 italic">None</span>
+                    ) : (
+                      <div className="flex flex-col gap-0.5">
+                        {user.memberships.slice(0, 3).map((membership) => (
+                          <span key={membership.id} className="text-xs text-gray-500">
+                            {membership.surgery.name}
+                            <span className="text-gray-300 ml-1">
+                              {membership.role === 'ADMIN' ? '(admin)' : ''}
+                            </span>
+                          </span>
+                        ))}
+                        {user.memberships.length > 3 && (
+                          <span className="text-xs text-gray-400">
+                            +{user.memberships.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                header: 'Last active',
+                key: 'lastActive',
+                render: (user) => {
+                  const lastActiveIso = lastActiveData[user.id]
+                  const lastActiveDate = lastActiveIso ? new Date(lastActiveIso) : null
+                  return (
+                    <span className="text-sm text-gray-400">
+                      {formatRelativeDate(lastActiveDate)}
+                    </span>
+                  )
+                },
+              },
+              {
+                header: '',
+                key: 'actions',
+                sticky: true,
+                className: 'w-12',
+                render: (user) => {
+                  const menuItems = [
+                    { label: 'Edit user', onClick: () => handleEditUser(user) },
+                    { label: 'Reset password', onClick: () => setResettingPasswordFor(user) },
+                    { label: 'Manage surgeries', onClick: () => handleManageMemberships(user) },
+                    ...(user.isTestUser
+                      ? [{ label: 'Reset usage count', onClick: () => handleResetTestUserUsage(user.id) }]
+                      : []),
+                    { label: 'Delete user', onClick: () => handleDeleteUser(user.id, user.email), variant: 'danger' as const },
+                  ]
+                  return (
+                    <KebabMenu
+                      items={menuItems}
+                      ariaLabel={`Actions for ${user.name || user.email}`}
+                    />
+                  )
+                },
               },
             ]}
             rows={filteredUsers}
@@ -571,7 +589,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="USER">User</option>
-                    <option value="SUPERUSER">Superuser</option>
+                    <option value="SUPERUSER">System admin</option>
                   </select>
                 </div>
                 <div className="mb-4">
@@ -722,7 +740,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="USER">Standard User</option>
-                    <option value="SUPERUSER">Superuser</option>
+                    <option value="SUPERUSER">System admin</option>
                   </select>
                 </div>
                 <div className="mb-6">

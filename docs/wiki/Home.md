@@ -17,6 +17,8 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [User Guide](User-Guide)
 
+- [Day-to-day use](Day-to-day-use)
+
 - [Symptom Library](Symptom-Library)
 
 - [Clinical Governance](Clinical-Governance)
@@ -37,7 +39,7 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [Developer Guide](Developer-Guide)
 
-Admins and superusers can open the public Docs site from the top navigation and from the Documentation tab inside the Admin Dashboard (both open in a new tab).
+Use **Help & Documentation** in the slide-out menu to open the in-app Help panel with quick links and search. The full docs site still opens in a new tab, and admins/superusers can also use the Documentation tab inside the Admin Dashboard.
 
 ---
 
@@ -51,25 +53,15 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 
 ## What's New
 
-The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
+Recent highlights from the latest release. For full details, see the versioned Release Notes.
 
 - **Unreleased — In progress**
-  - Added AI-assisted Daily Dose editorial drafting (batch review, variations, clinician sign-off for high-risk content)
-  - Admin Daily Dose drafts now follow toolkit slot language, scripts, and escalation boundaries
-  - Daily Dose AI generation now auto-repairs schema issues and shows diagnostics for editors
-  - Added Daily Dose learning sessions with approvals and sources
-  - Simplified the Admin Dashboard Quick Access setup
+  - Added Daily Dose learning sessions with role-based micro-learning and editorial approval workflow
+  - AI-assisted Daily Dose editorial drafting with batch review, variations, and clinician sign-off for high-risk content
 
-- **v1.2 — Jan 2026**
-  - Added Workflow Guidance (visual, governed workflows to guide staff through common processes)
-  - Improved admin and navigation experience across the app and docs
-
-- **v1.1 — Dec 2025**
-  - Added AI Suggested Questions (with clinical review safeguards)
-  - Improved symptom library, filters, and admin dashboard layout
-
-- **v1.0 — Oct–Nov 2025**
-  - First full web release with multi-surgery support, clinical governance, and engagement tracking
+- **v1.3 — Jan 2026**: Practice Handbook improvements, Workflow Guidance refinements, and routing updates
+- **v1.2 — Jan 2026**: Added Workflow Guidance module and redesigned marketing site
+- **v1.1 — Dec 2025**: Added AI Suggested Questions and introduced preferences system
 
 See: [Release Notes](../RELEASE_NOTES)
 
@@ -127,10 +119,12 @@ See: [Workflow Guidance →](Workflow-Guidance)
 1. **Comprehensive Symptom Library** — 200+ pre-loaded symptoms, all editable and clinically structured.
 2. **Local Customisation** — Surgeries adapt wording, instructions, appointment types, and highlight rules.
 3. **Appointment Directory** — A simple catalogue of local services and appointment types.
-4. **Daily Dose** — Short learning sessions for whole-practice staff, with approval gates and sources.
-5. **AI Tools** — AI Instruction Editor and AI Suggested Questions to improve clarity and safety.
-6. **Built-in Governance** — Clinical Review workflow ensures every symptom is signed off before going live.
-7. **Audit, Access & Safety** — Role-based access, no patient data stored, activity tracking & suggestions.
+4. **AI Tools** — AI Instruction Editor and AI Suggested Questions to improve clarity and safety.
+5. **Built-in Governance** — Clinical Review workflow ensures every symptom is signed off before going live.
+6. **Audit, Access & Safety** — Role-based access, no patient data stored, activity tracking & suggestions.
+7. **Practice Handbook** — Internal guidance pages for operational procedures and staff information.
+8. **Workflow Guidance** — Visual workflows for common document and administrative processes.
+9. **Daily Dose** — Short learning sessions for whole-practice staff, with approval gates and sources.
 
 ---
 
@@ -149,5 +143,5 @@ For onboarding, demos, or pricing enquiries, contact:
 
 ---
 
-_Last updated: December 2025_
+_Last updated: January 2026_
 

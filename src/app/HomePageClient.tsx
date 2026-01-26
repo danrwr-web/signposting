@@ -20,11 +20,10 @@ interface HomePageClientProps {
   surgeryId?: string
   requiresClinicalReview?: boolean
   surgeryName?: string
-  workflowGuidanceEnabled?: boolean
   commonReasonsItems?: CommonReasonsResolvedItem[]
 }
 
-function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId, workflowGuidanceEnabled, commonReasonsItems }: HomePageClientProps) {
+function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId, commonReasonsItems }: HomePageClientProps) {
   const { surgery, currentSurgeryId, setSurgery } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
@@ -196,6 +195,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
     <div className="min-h-screen bg-nhs-light-grey">
       {/* Compact Toolbar */}
       <CompactToolbar
+        variant="toolbar"
         surgeries={surgeries}
         currentSurgeryId={surgeryId}
         searchTerm={searchTerm}
@@ -208,7 +208,6 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         totalCount={initialSymptoms.length}
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
-        workflowGuidanceEnabled={workflowGuidanceEnabled}
         symptoms={symptoms}
         commonReasonsItems={commonReasonsItems}
       />

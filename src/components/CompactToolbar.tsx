@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
-import { signOut } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import SurgeryFiltersHeader from './SurgeryFiltersHeader'
 import UserPreferencesModal from './UserPreferencesModal'
@@ -11,6 +10,7 @@ import { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
 import LogoSizeControl from './LogoSizeControl'
+import NavigationTriggerWithTooltip from './NavigationTriggerWithTooltip'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 
@@ -30,9 +30,13 @@ interface CompactToolbarProps {
   totalCount: number
   showSurgerySelector: boolean
   onShowSurgerySelector: (show: boolean) => void
-  workflowGuidanceEnabled?: boolean
   symptoms?: EffectiveSymptom[]
   commonReasonsItems?: CommonReasonsResolvedItem[]
+  /**
+   * 'full' (default): Renders complete header with logo, hamburger, surgery selector
+   * 'toolbar': Renders only search/filter toolbar (use when layout provides header)
+   */
+  variant?: 'full' | 'toolbar'
 }
 
 export default function CompactToolbar({
@@ -48,9 +52,9 @@ export default function CompactToolbar({
   totalCount,
   showSurgerySelector,
   onShowSurgerySelector,
-  workflowGuidanceEnabled,
   symptoms,
   commonReasonsItems,
+  variant = 'full',
 }: CompactToolbarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const pathname = usePathname() || ''
@@ -62,20 +66,6 @@ export default function CompactToolbar({
   
   // Check if user is a superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
-  
-  // Check if user can access admin features
-  const canAccessAdmin = session?.user && (
-    isSuperuser ||
-    (session.user as any).memberships?.some((m: any) => m.role === 'ADMIN')
-  )
-
-  const handleLogout = async () => {
-    try {
-      await signOut({ callbackUrl: '/' })
-    } catch (error) {
-      console.error('Logout error:', error)
-    }
-  }
 
   // Keyboard shortcuts: / to focus search, Esc to clear
   useEffect(() => {
@@ -111,118 +101,67 @@ export default function CompactToolbar({
   const logoHref = surgeryId ? `/s/${surgeryId}` : '/s'
 
   return (
-    <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-      {/* Row 1: Logo, Surgery Selector, Admin Link */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link href={logoHref} className="flex items-center">
-              <img
-                src="/images/signposting_logo_head.png"
-                alt="Signposting"
-                style={{ height: 'var(--logo-height, 58px)' }}
-                className="w-auto"
-              />
-            </Link>
-            <LogoSizeControl />
-          </div>
-
-          {/* Surgery Selector and Admin Link */}
-          <div className="flex items-center space-x-4">
-            {isSuperuser ? (
-              // Superusers can change surgery
-              showSurgerySelector ? (
-                <SurgerySelector 
-                  surgeries={surgeries} 
-                  currentSurgeryId={surgery?.id || currentSurgeryId}
-                  onClose={() => onShowSurgerySelector(false)}
+    <div className={`${variant === 'full' ? 'sticky top-0 z-50' : 'pt-3'} bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm`}>
+      {/* Row 1: Logo, Surgery Selector - only shown in 'full' variant */}
+      {variant === 'full' && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            {/* Navigation Trigger + Logo */}
+            <div className="flex items-center">
+              <NavigationTriggerWithTooltip className="mr-3" />
+              <Link href={logoHref} className="flex items-center">
+                <img
+                  src="/images/signposting_logo_head.png"
+                  alt="Signposting"
+                  style={{ height: 'var(--logo-height, 58px)' }}
+                  className="w-auto"
                 />
+              </Link>
+              <LogoSizeControl />
+            </div>
+
+            {/* Surgery Selector and Preferences */}
+            <div className="flex items-center space-x-4">
+              {isSuperuser ? (
+                // Superusers can change surgery
+                showSurgerySelector ? (
+                  <SurgerySelector 
+                    surgeries={surgeries} 
+                    currentSurgeryId={surgery?.id || currentSurgeryId}
+                    onClose={() => onShowSurgerySelector(false)}
+                  />
+                ) : (
+                  <button
+                    onClick={() => onShowSurgerySelector(true)}
+                    className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
+                    aria-label="Change surgery"
+                  >
+                    {surgery ? `${surgery.name} — Change` : 'Select Surgery'}
+                  </button>
+                )
               ) : (
-                <button
-                  onClick={() => onShowSurgerySelector(true)}
-                  className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
-                  aria-label="Change surgery"
-                >
-                  {surgery ? `You're viewing: ${surgery.name} — Change` : 'Select Surgery'}
-                </button>
-              )
-            ) : (
-              // Non-superusers just see their surgery name
-              <span className="text-sm text-nhs-grey font-medium">
-                {surgery ? surgery.name : 'No surgery selected'}
-              </span>
-            )}
-            
-            {canAccessAdmin && (
-              <Link 
-                href="/admin" 
-                className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
+                // Non-superusers just see their surgery name
+                <span className="text-sm text-nhs-grey font-medium">
+                  {surgery ? surgery.name : 'No surgery selected'}
+                </span>
+              )}
+
+              {/* Settings Gear Icon - personal preferences */}
+              <button
+                onClick={() => setShowPreferencesModal(true)}
+                className="p-2 text-nhs-grey hover:text-nhs-blue transition-colors"
+                title="Open preferences"
+                aria-label="Open preferences"
               >
-                Admin
-              </Link>
-            )}
-
-            {/* Appointment Directory Link - visible to all logged-in surgery users */}
-            {currentSurgeryId && (
-              <Link
-                href={`/s/${currentSurgeryId}/appointments`}
-                className="text-sm font-medium text-slate-700 hover:text-sky-700"
-              >
-                Appointment Directory
-              </Link>
-            )}
-
-            <Link
-              href={currentSurgeryId ? `/daily-dose?surgery=${currentSurgeryId}` : '/daily-dose'}
-              className="text-sm font-medium text-slate-700 hover:text-sky-700"
-            >
-              Daily Dose
-            </Link>
-
-            {/* Workflow Guidance Link - only when enabled for this surgery */}
-            {currentSurgeryId && workflowGuidanceEnabled && (
-              <Link
-                href={`/s/${currentSurgeryId}/workflow`}
-                className="text-sm font-medium text-slate-700 hover:text-sky-700"
-              >
-                Workflow guidance
-              </Link>
-            )}
-
-            {/* Documentation Link - admin and superuser only */}
-            {canAccessAdmin && (
-              <a
-                href="https://docs.signpostingtool.co.uk/"
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors underline-offset-2 hover:underline"
-              >
-                Docs
-              </a>
-            )}
-
-            {/* Settings Gear Icon */}
-            <button
-              onClick={() => setShowPreferencesModal(true)}
-              className="p-2 text-nhs-grey hover:text-nhs-blue transition-colors"
-              title="Open preferences"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </button>
-            
-            <button
-              onClick={handleLogout}
-              className="text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
-            >
-              Sign Out
-            </button>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <SurgeryFiltersHeader
         searchTerm={searchTerm}

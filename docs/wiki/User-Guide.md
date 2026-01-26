@@ -8,6 +8,8 @@
 
 - [User Guide](User-Guide)
 
+- [Day-to-day use](Day-to-day-use)
+
 - [Symptom Library](Symptom-Library)
 
 - [Clinical Governance](Clinical-Governance)
@@ -31,6 +33,8 @@
 ---
 
 A practical guide for reception and care-navigation teams using the Signposting Toolkit.
+
+**Quick start:** For a task-first guide to common day-to-day situations, see [Using the toolkit day to day](Day-to-day-use).
 
 ## 1. Getting started each day
 - Open the Signposting Toolkit and log in if prompted.

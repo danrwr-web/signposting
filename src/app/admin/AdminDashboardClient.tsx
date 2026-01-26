@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { signOut } from 'next-auth/react'
-import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import { Surgery } from '@prisma/client'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
+import LogoSizeControl from '@/components/LogoSizeControl'
 
 interface SurgeryWithPendingCount extends Surgery {
   pendingReviewCount?: number
@@ -42,47 +42,33 @@ export default function AdminDashboardClient({
     ? (user.memberships.find(m => m.role === 'ADMIN')?.surgeryId || user.defaultSurgeryId)
     : user.defaultSurgeryId
 
-  const handleLogout = async () => {
-    try {
-      await signOut({ callbackUrl: '/' })
-    } catch (error) {
-      console.error('Logout error:', error)
-      toast.error('Failed to logout')
-    }
-  }
+  const logoHref = user.defaultSurgeryId ? `/s/${user.defaultSurgeryId}` : '/s'
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      {/* Header - consistent with SimpleHeader */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex items-center justify-between h-16">
+            {/* Navigation Trigger + Logo */}
             <div className="flex items-center">
-              <Link
-                href={`/s/${user.defaultSurgeryId}`}
-                prefetch
-                onMouseEnter={() => warmupSymptoms(user.defaultSurgeryId)}
-                onFocus={() => warmupSymptoms(user.defaultSurgeryId)}
-                className="text-blue-600 hover:text-blue-500 mr-4"
-              >
-                ← Back to Signposting Tool
+              <NavigationPanelTrigger className="mr-3" />
+              <Link href={logoHref} className="flex items-center">
+                <img
+                  src="/images/signposting_logo_head.png"
+                  alt="Signposting"
+                  style={{ height: 'var(--logo-height, 58px)' }}
+                  className="w-auto"
+                />
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Admin Dashboard
-              </h1>
+              <LogoSizeControl />
             </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">
-                Welcome, {user.name || user.email}
-                {isSuperuser && ' (Superuser)'}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Sign Out
-              </button>
-            </div>
+
+            {/* User info */}
+            <span className="text-sm text-nhs-grey font-medium">
+              {user.name || user.email}
+              {isSuperuser && ' (System admin)'}
+            </span>
           </div>
         </div>
       </header>
@@ -153,7 +139,7 @@ export default function AdminDashboardClient({
                     <div className="bg-purple-50 p-6 rounded-lg">
                       <h3 className="text-lg font-medium text-purple-900">Role</h3>
                       <p className="text-lg font-bold text-purple-600 mt-2">
-                        {isSuperuser ? 'Superuser' : 'Surgery Admin'}
+                        {isSuperuser ? 'System admin' : 'Practice admin'}
                       </p>
                       <p className="text-sm text-purple-700 mt-1">
                         {isSuperuser ? 'Full system access' : 'Surgery-level access'}

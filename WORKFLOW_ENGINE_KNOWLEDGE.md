@@ -1,29 +1,56 @@
 # Workflow Engine – Architecture & Behaviour Guide
 
-This document captures the current design, constraints, and learned behaviours of the workflow engine used in the Signposting Toolkit.  
-It exists to prevent regressions, explain non-obvious decisions, and provide context for future development.
+This document captures the **design, constraints, and hard-learned behaviours**
+of the Workflow Engine used in the Signposting Toolkit.
+
+It exists to:
+- prevent regressions
+- explain non-obvious technical decisions
+- document constraints imposed by React Flow
+- provide context for future development and refactoring
+
+This is **not** an introductory guide.  
+It is a reference for developers working on or around the workflow canvas.
+
+---
+
+## 0. Application context (important)
+
+Workflow Guidance is a **first-class module** within the Signposting Toolkit.
+
+All workflow pages:
+- render inside the **shared app shell**
+- use the standard header (logo, surgery context, navigation trigger)
+- rely on the **universal slide-out navigation panel** for global navigation
+
+The workflow canvas itself is *not* a standalone application.
+Any future work must preserve the assumption that users can always:
+- identify where they are in the app
+- switch context via the navigation panel
+- return to other modules without losing orientation
 
 ---
 
 ## 1. Core Concepts
 
 ### Node Types
-The workflow engine is built on React Flow and supports the following node types:
+The workflow engine is built on **React Flow** and supports the following node types:
 
 - **INSTRUCTION** – informational step, no branching
-- **QUESTION** – decision point with Yes/No (or multiple) answers (rendered as diamond shape)
+- **QUESTION** – decision point with Yes/No (or multiple) answers (rendered as a diamond)
 - **OUTCOME / END** – terminal action (e.g. Forward to GP, File without forwarding)
-- **PANEL** – resizable container grouping a sub-workflow (background grouping, not connectable)
-- **REFERENCE** – non-connectable informational list (e.g. "Letters which can be filed without forwarding")
+- **PANEL** – resizable container grouping a sub-workflow (background grouping only)
+- **REFERENCE** – non-connectable informational list  
+  (e.g. “Letters which can be filed without forwarding”)
 
 Each node type has a dedicated React component and styling rules.
 
 ### Node Type → React Flow Component Mapping
-- `INSTRUCTION` → `instructionNode` component
-- `QUESTION` → `decisionNode` component  
-- `END` → `outcomeNode` component
-- `PANEL` → `panelNode` component
-- `REFERENCE` → `referenceNode` component
+- `INSTRUCTION` → `instructionNode`
+- `QUESTION` → `decisionNode`
+- `END` → `outcomeNode`
+- `PANEL` → `panelNode`
+- `REFERENCE` → `referenceNode`
 
 ---
 
@@ -35,12 +62,13 @@ Each node type has a dedicated React component and styling rules.
 - Do **not** create alternate positioning contexts around the canvas
 
 ❗ Past bugs showed that even `position: relative` (with no offset) on the edges container causes:
-- Edge anchor offsets
-- Handles not aligning with visible nodes
-- Zoom-related drift
+- edge anchor offsets
+- handles not aligning with visible nodes
+- zoom-related drift
 
 **Rule:**  
-Let React Flow own positioning. Only use `z-index` for layering.
+Let React Flow own positioning.  
+Only use `z-index` for layering.
 
 ---
 
@@ -48,36 +76,46 @@ Let React Flow own positioning. Only use `z-index` for layering.
 
 ### Behaviour
 - PANEL nodes are resizable by the user
-- Width/height is persisted to the database
-- Other node types must NOT persist width/height
-- **Minimum dimensions**: 300px width × 200px height (enforced on load and resize)
-- **PANEL nodes are NOT connectable** — they have no handles and cannot be used as connection points
+- Width and height are persisted to the database
+- Other node types must **not** persist width/height
+- **Minimum dimensions**: 300px width × 200px height
+- PANEL nodes are **not connectable**
+  - no handles
+  - cannot be used as connection points
 
 ### Persistence Rules
-- Dimensions must be stored in **both** `node.width`/`node.height` AND `node.style.width`/`node.style.height`
-- This dual storage prevents React Flow from treating PANEL nodes as auto-sized
-- During active resize sessions, local dimensions are preserved to prevent server refreshes from overwriting user changes
+- Dimensions must be stored in **both**:
+  - `node.width` / `node.height`
+  - `node.style.width` / `node.style.height`
+
+This dual storage prevents React Flow from treating PANEL nodes as auto-sized.
+
+During active resize sessions:
+- local dimensions are preserved
+- server refreshes must not overwrite in-progress user changes
 
 ### Key Rule
-- **Only PANEL nodes may have explicit width/height**
-- All other nodes must rely on DOM measurement by React Flow
+> **Only PANEL nodes may have explicit width/height.**
 
-Violating this causes:
-- Handle misalignment
-- Edge anchoring errors
-- Zoom drift
+Violating this rule causes:
+- handle misalignment
+- edge anchoring errors
+- zoom drift
 
 ---
 
 ## 4. Node Sizing Rules (Non-PANEL)
 
-- Use `minWidth` / `minHeight`, **not** `width` / `height`
+- Use `minWidth` / `minHeight`
+- Do **not** set explicit `width` / `height`
 - Allow content to define final size
 - React Flow will measure the DOM correctly when this rule is followed
 
 ### Special Cases
-- **QUESTION nodes** have fixed dimensions: 240px × 160px (required for diamond shape SVG)
-- **REFERENCE nodes** have minimum width: 320px (enforced via `minWidth` style)
+- **QUESTION nodes**  
+  Fixed size: 240px × 160px (required for diamond SVG)
+- **REFERENCE nodes**  
+  Minimum width: 320px (via `minWidth`)
 
 ---
 
@@ -85,18 +123,19 @@ Violating this causes:
 
 ### Behaviour
 - The Details panel:
-  - Pushes the canvas (does NOT overlay)
-  - Opens when:
-    - Any node is clicked
-    - ℹ️ info badge is clicked
+  - pushes the canvas (does **not** overlay)
+  - opens when:
+    - any node is clicked
+    - the ℹ️ info badge is clicked
 - Panel open/close triggers:
   - `fitView()` on React Flow
   - `resize` events to force recalculation
 
 ### Important Insight
-The canvas *is not actually overlapping* — it was visually misleading because React Flow retained its previous viewport width.
+The canvas was never actually overlapping.
+React Flow simply retained its previous viewport width.
 
-**Solution:**  
+**Rule:**  
 Always call `fitView()` when the panel opens or closes.
 
 ---
@@ -104,18 +143,18 @@ Always call `fitView()` when the panel opens or closes.
 ## 6. ℹ️ Info Badge Logic
 
 ### When ℹ️ Should Appear
-ℹ️ is shown **only when the node has additional information**, such as:
+The ℹ️ badge appears **only when the node has additional information**, such as:
 
-- Reference content (lists, extra info)
-- Linked workflows
-- Additional body/description not shown on the node face
+- reference content (lists, extra info)
+- linked workflows
+- body/description text not visible on the node face
 
-ℹ️ must NOT appear when the Details panel would simply repeat what is already visible.
+The badge must **not** appear if the Details panel would simply repeat visible content.
 
 ### Implementation Rule
 - Badge visibility is computed client-side
-- Functions must **not** be stored in the database
-- If needed, compute `showInfoBadge` during flowNodes mapping
+- Functions must **never** be stored in the database
+- Compute `showInfoBadge` during `flowNodes` mapping if needed
 
 ---
 
@@ -123,8 +162,8 @@ Always call `fitView()` when the panel opens or closes.
 
 - Clicking **anywhere on a node** opens the Details panel
 - ℹ️ is optional and supplementary
-- Dragging still works normally
-- Clicking handles does NOT open Details
+- Dragging nodes works normally
+- Clicking handles does **not** open Details
 
 This avoids fiddly interaction and improves accessibility.
 
@@ -133,11 +172,11 @@ This avoids fiddly interaction and improves accessibility.
 ## 8. Node → Details Communication
 
 ### Critical Pattern
-Node components only receive `NodeProps`.
+Node components receive only `NodeProps`.
 
 To trigger external behaviour:
-- Functions (e.g. `openDetailsForNode`) must be passed via `node.data`
-- Never via props on `nodeTypes`
+- functions (e.g. `openDetailsForNode`) must be passed via `node.data`
+- never via `nodeTypes` props
 
 Example:
 ```ts
@@ -145,114 +184,130 @@ data: {
   ...existingData,
   onInfoClick: (nodeId) => openDetailsForNode(nodeId),
 }
-```
+Info Badge Visibility Rules
+shouldShowInfoBadge() evaluates:
 
-### Info Badge Visibility Rules
-The `shouldShowInfoBadge()` function determines badge visibility based on:
-1. **Linked workflows**: Shows if `linkedWorkflowsCount > 0` or `workflowLinks` array has items
-2. **REFERENCE content**: Shows if reference items exist with non-empty text or info fields
-3. **Body content**: Shows if node has body/description/details text that isn't visible on the node face
+Linked workflows present
 
-Badge is hidden when Details panel would only show content already visible on the node.
+REFERENCE content with non-empty text or info
 
----
+Body/description text not visible on node face
 
-## 9. Debugging Tools
+If Details would only repeat visible content, the badge is hidden.
 
-### Layout Diagnostics (Dev-only)
-A `window.__layoutDiag()` helper exists to log:
-- Bounding boxes
-- Offset parent chains
-- Canvas vs panel width
-- Overlap detection
+9. Debugging Tools
+Layout Diagnostics (Dev-only)
+window.__layoutDiag() logs:
 
-Use this before making layout changes.
+bounding boxes
 
-### React Flow Debug (Dev-only)
-A `window.__debugRF()` helper exists when `debugRF=1` is in the URL query string (non-production only).
+offset parent chains
 
-It logs:
-- Template positions (from server)
-- FlowNodes mapped positions (what we pass to React Flow)
-- React Flow live positions (current state)
-- Edge anchor diagnostics
-- Position mismatches
-- Handle center points
-- Dimension comparisons
+canvas vs panel width
 
-Use this to diagnose coordinate space and sizing issues.
+overlap detection
 
----
+Use before making layout changes.
 
-## 10. Special Behaviours & Constraints
+React Flow Debug (Dev-only)
+window.__debugRF() (enabled with ?debugRF=1) logs:
 
-### Edge Handle Normalization
-- Legacy handle IDs (e.g., `"source"`, `"target"`) are automatically normalized to standard format (`"source-bottom"`, `"target-top"`)
-- Standard format: `{source|target}-{top|right|bottom|left}`
-- Unknown handle IDs fall back to defaults (undefined) to let React Flow choose
+server positions
 
-### Edge Rendering
-- Edges use React Flow type `'step'` but are rendered via custom `WorkflowOrthogonalEdge` component
-- Edges draw orthogonally (vertical, horizontal, or one-bend paths)
-- Edge labels are styled with: fontSize 12, fontWeight 600, color #0b4670, white background with border
+mapped flow node positions
 
-### Node Positioning & Movement
-- **Axis locking**: Hold Shift while dragging to lock movement to X or Y axis (locks to dominant axis after 6px threshold)
-- **Position persistence**: Node position updates are debounced by 400ms to reduce database writes
-- **PANEL resize persistence**: Panel resize-end events are debounced by 500ms and tracked via active session state
+live React Flow positions
 
-### Non-Connectable Node Types
-- **REFERENCE nodes**: No handles, cannot be connected (informational only)
-- **PANEL nodes**: No handles, cannot be connected (container background only)
+edge anchor diagnostics
 
-### REFERENCE Node Storage
-- REFERENCE nodes store their data in `style.reference` object (not in `body` field)
-- Structure: `style.reference = { title?: string, items?: Array<{ text: string; info?: string }> }`
-- The `body` field is set to `null` for REFERENCE nodes
-- When editing, newline-separated text is converted to items array; existing item `info` fields are preserved by matching text
+handle centre points
 
-### END/OUTCOME Node Logic
-- END nodes display an "Outcome" footer only if:
-  - The node has an `actionKey` set, AND
-  - The node has no outgoing edges
-- This distinguishes terminal outcomes from intermediate END nodes
+dimension comparisons
 
-### Z-Index Layering System
-- CSS-based z-index system ensures proper stacking:
-  - Panel nodes: `z-index: 0` (behind everything)
-  - Normal nodes: `z-index: 1` (above panels)
-  - Edges container: `z-index: 2` (above nodes)
-- Uses `.react-flow-panels-below` class selector
-- Panel backgrounds use `pointer-events: none` to avoid blocking interactions
+This is essential for diagnosing coordinate-space issues.
 
----
+10. Special Behaviours & Constraints
+Edge Handle Normalisation
+Legacy IDs ("source", "target") are normalised to:
 
-## 11. Known Pitfalls (Hard-Learned)
+source-bottom
 
+target-top
+
+Unknown IDs fall back to defaults
+
+Edge Rendering
+Base type: React Flow 'step'
+
+Rendered via custom WorkflowOrthogonalEdge
+
+Labels:
+
+fontSize: 12
+
+fontWeight: 600
+
+colour: #0b4670
+
+white background with border
+
+Node Positioning & Movement
+Axis locking: hold Shift while dragging
+
+Lock engages after 6px movement threshold
+
+Position updates debounced (400ms)
+
+PANEL resize persistence debounced (500ms)
+
+Non-Connectable Nodes
+REFERENCE – informational only
+
+PANEL – background grouping only
+
+REFERENCE Node Storage
+Stored in style.reference, not body
+
+Structure:
+
+style.reference = {
+  title?: string,
+  items?: Array<{ text: string; info?: string }>
+}
+END / OUTCOME Logic
+“Outcome” footer shown only if:
+
+actionKey is set
+
+no outgoing edges exist
+
+Z-Index Layering
+PANEL nodes: z-index: 0
+
+Normal nodes: z-index: 1
+
+Edges: z-index: 2
+
+Panel backgrounds use pointer-events: none
+
+11. Known Pitfalls (Hard-Learned)
 ❌ position: relative on .react-flow__edges
-
 ❌ Explicit width/height on non-PANEL nodes
-
 ❌ Passing functions through Prisma / DB
-
-❌ Assuming React Flow resizes automatically on layout changes
-
+❌ Assuming React Flow auto-resizes on layout change
 ❌ Relying on ℹ️ as the only way to open Details
+❌ Storing PANEL dimensions in only one place
 
-❌ Setting width/height on PANEL nodes in only one place (must be in both `node.width/height` AND `style.width/height`)
-
----
-
-## 12. Design Philosophy
-
+12. Design Philosophy
 Prefer predictable behaviour over clever layouts
 
-Let React Flow do geometry
+Let React Flow own geometry
 
-Make interaction forgiving (click anywhere, not tiny targets)
+Make interaction forgiving
 
 Persist only what must be persisted
 
 Diagnose before fixing
 
-Last updated: Jan 2026
+Last updated: January 2026
+Primary intent: stable, predictable workflow editing with minimal cognitive overhead

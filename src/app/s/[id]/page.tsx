@@ -1,9 +1,8 @@
-import { getSessionUser, requireSurgeryAccess } from '@/lib/rbac'
+import { requireSurgeryAccess } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import HomePageClient from '@/app/HomePageClient'
-import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
 
 // Disable caching for this page to ensure fresh requiresClinicalReview data
@@ -20,7 +19,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
   const { id: surgeryId } = await params
   
   try {
-    const user = await requireSurgeryAccess(surgeryId)
+    await requireSurgeryAccess(surgeryId)
     
     // Get surgery details including clinical review status and UI config
     const surgery = await prisma.surgery.findUnique({
@@ -52,15 +51,12 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       symptoms
     )
 
-    const workflowGuidanceEnabled = await isFeatureEnabledForSurgery(surgeryId, 'workflow_guidance')
-
     return (
       <HomePageClient
         surgeries={surgeries}
         symptoms={symptoms}
         requiresClinicalReview={surgery.requiresClinicalReview}
         surgeryName={surgery.name}
-        workflowGuidanceEnabled={workflowGuidanceEnabled}
         surgeryId={surgeryId}
         commonReasonsItems={commonReasonsItems}
       />

@@ -44,5 +44,8 @@ next-env.d.ts
 .vscode/
 .idea/
 
+# Cursor ephemeral metadata (keep .cursor/rules/ tracked)
+.cursor/worktrees.json
+
 # OS
 Thumbs.db

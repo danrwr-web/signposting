@@ -5,6 +5,10 @@ interface Column<T> {
   key: string
   className?: string
   render?: (row: T) => React.ReactNode
+  /** If true, this column will be sticky to the right edge of the table */
+  sticky?: boolean
+  /** If true, this column will be sticky to the left edge of the table */
+  stickyLeft?: boolean
 }
 
 interface AdminTableProps<T> {
@@ -15,6 +19,8 @@ interface AdminTableProps<T> {
   onRowClick?: (row: T) => void
   colWidths?: string[] // CSS width strings, e.g. ["180px", "220px", ...]
   cellPadding?: string // Horizontal padding for cells, e.g. "px-4" or "px-6" (default: "px-6")
+  /** Additional classes for the scroll container (e.g., max-h for vertical scroll) */
+  scrollContainerClassName?: string
 }
 
 export default function AdminTable<T>({
@@ -25,9 +31,10 @@ export default function AdminTable<T>({
   onRowClick,
   colWidths,
   cellPadding = 'px-6',
+  scrollContainerClassName = '',
 }: AdminTableProps<T>) {
   return (
-    <div className="max-sm:overflow-x-auto">
+    <div className={scrollContainerClassName}>
       <table className={`w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed' : ''}`}>
         {colWidths && colWidths.length === columns.length && (
           <colgroup>
@@ -40,10 +47,17 @@ export default function AdminTable<T>({
           <tr>
             {columns.map((column) => {
               const hasTextRight = column.className?.includes('text-right')
+              // Sticky column styling for header
+              let stickyClasses = ''
+              if (column.sticky) {
+                stickyClasses = 'sticky right-0 z-20 bg-gray-50'
+              } else if (column.stickyLeft) {
+                stickyClasses = 'sticky left-0 z-20 bg-gray-50'
+              }
               return (
                 <th
                   key={column.key}
-                  className={`${cellPadding} py-3 ${hasTextRight ? 'text-right' : 'text-left'} text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                  className={`${cellPadding} py-3 ${hasTextRight ? 'text-right' : 'text-left'} text-xs font-medium text-gray-500 uppercase tracking-wider ${stickyClasses} ${
                     column.className || ''
                   }`}
                 >
@@ -65,16 +79,25 @@ export default function AdminTable<T>({
               <tr
                 key={rowKey(row)}
                 onClick={() => onRowClick?.(row)}
-                className={onRowClick ? 'hover:bg-gray-50 transition-colors cursor-pointer' : 'hover:bg-gray-50 transition-colors'}
+                className={onRowClick ? 'hover:bg-gray-50/70 cursor-pointer group' : 'hover:bg-gray-50/70 group'}
               >
-                {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className={`${cellPadding} py-4 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${column.className || ''}`}
-                  >
-                    {column.render ? column.render(row) : (row as any)[column.key]}
-                  </td>
-                ))}
+                {columns.map((column) => {
+                  // Sticky column styling for body cells - must transition with row
+                  let stickyClasses = ''
+                  if (column.sticky) {
+                    stickyClasses = 'sticky right-0 z-10 bg-white group-hover:bg-gray-50/70 transition-colors duration-150'
+                  } else if (column.stickyLeft) {
+                    stickyClasses = 'sticky left-0 z-10 bg-white group-hover:bg-gray-50/70 transition-colors duration-150'
+                  }
+                  return (
+                    <td
+                      key={column.key}
+                      className={`${cellPadding} py-4 transition-colors duration-150 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${stickyClasses} ${column.className || ''}`}
+                    >
+                      {column.render ? column.render(row) : (row as any)[column.key]}
+                    </td>
+                  )
+                })}
               </tr>
             ))
           )}
@@ -83,4 +106,3 @@ export default function AdminTable<T>({
     </div>
   )
 }
-

@@ -6,93 +6,124 @@
   </a>
 </p>
 
-<p align="center"><strong>Helping admin teams in primary care</strong><br/>
-Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
+<p align="center">
+  <strong>Helping admin teams in primary care</strong><br/>
+  Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a>
+</p>
 
-This site contains documentation for the **Signposting Toolkit** – a web-based symptom signposting and care-navigation tool designed for GP reception and care-navigation teams.
+## Start here
 
-Use this site if you are:
+Looking for help using the app? Use the links below.
 
-- A **practice / PCN** evaluating the toolkit
-
-- A **clinical lead** responsible for review and governance
-
-- A **developer** running or contributing to the project
+<div class="callout">
+  <ul>
+    <li><a href="wiki/Getting-Started">Getting Started</a></li>
+    <li><a href="wiki/User-Guide">User Guide</a></li>
+    <li><a href="wiki/Symptom-Library">Symptom Library</a></li>
+    <li><a href="wiki/Clinical-Governance">Clinical Governance</a></li>
+    <li><a href="wiki/Appointment-Directory">Appointment Directory</a></li>
+    <li><a href="wiki/Workflow-Guidance">Workflow Guidance</a></li>
+    <li><a href="wiki/Admin-Guide#practice-handbook">Practice Handbook</a></li>
+    <li><a href="wiki/AI-Features">AI Features</a></li>
+    <li><a href="wiki/High-Risk-&amp;-Highlighting">High-Risk &amp; Highlighting</a></li>
+    <li><a href="wiki/Multi-Surgery-&amp;-RBAC">Multi-Surgery &amp; RBAC</a></li>
+    <li><a href="wiki/Admin-Guide">Admin Guide</a></li>
+    <li><a href="wiki/Developer-Guide">Developer Guide</a></li>
+  </ul>
+</div>
 
 ---
 
 ## What's New
 
-The latest released changes are listed below. For full details, see the versioned Release Notes on this page.
+Recent highlights from the latest release. For complete details, see the [Release Notes](RELEASE_NOTES).
 
 - **Unreleased — In progress**
-  - Added AI-assisted Daily Dose editorial drafting (batch review, variations, clinician sign-off for high-risk content)
-  - Admin Daily Dose drafts now follow toolkit slot language, scripts, and escalation boundaries
-  - Daily Dose AI generation now auto-repairs schema issues and shows diagnostics for editors
-  - Added Daily Dose learning sessions with approvals and sources
-  - Simplified the Admin Dashboard Quick Access setup
+  - Added Daily Dose learning sessions with role-based micro-learning and editorial approval workflow
+  - AI-assisted Daily Dose editorial drafting with batch review, variations, and clinician sign-off for high-risk content
 
-- **v1.2 — Jan 2026**
-  - Added Workflow Guidance (visual, governed workflows to guide staff through common processes)
-  - Improved admin and navigation experience across the app and docs
-
-- **v1.1 — Dec 2025**
-  - Added AI Suggested Questions (with clinical review safeguards)
-  - Improved symptom library, filters, and admin dashboard layout
-
-- **v1.0 — Oct–Nov 2025**
-  - First full web release with multi-surgery support, clinical governance, and engagement tracking
-
-See: [Release Notes](RELEASE_NOTES)
+- **v1.3 — Jan 2026**: Practice Handbook improvements, Workflow Guidance refinements, and routing updates
+- **v1.2 — Jan 2026**: Added Workflow Guidance module and redesigned marketing site
+- **v1.1 — Dec 2025**: Added AI Suggested Questions and introduced preferences system
 
 ---
 
-## Documentation
-
-The full documentation is organised into the following sections:
-
-- [Getting Started](wiki/Getting-Started) – Step-by-step onboarding guide for new surgeries
-
-- [User Guide](wiki/User-Guide) – Practical guide for reception and care-navigation staff using the toolkit
-
-- [Symptom Library](wiki/Symptom-Library) – How symptoms, overrides, and custom symptoms work
-
-- [Clinical Governance](wiki/Clinical-Governance) – Review workflow, approval states, and safety principles
-
-- [Appointment Directory](wiki/Appointment-Directory) – Configuring appointment types, teams, and local services
-
-- [Daily Dose](wiki/Daily-Dose) – Daily micro-learning for whole-practice teams
-
-- [Workflow Guidance](wiki/Workflow-Guidance) – Visual workflows to guide staff through common document and administrative processes
-
-- [AI Features](wiki/AI-Features) – Instruction Editor and Suggested Questions (with clinical review safeguards)
-
-- [High-Risk & Highlighting](wiki/High-Risk-&-Highlighting) – Colour rules, high-risk buttons, and highlighting behaviour
-
-- [Multi-Surgery & RBAC](wiki/Multi-Surgery-&-RBAC) – Multi-site configuration and role-based access control
-
-- [Admin Guide](wiki/Admin-Guide) – Managing surgery configuration and governance features
-
-- [Developer Guide](wiki/Developer-Guide) – Architecture, local setup, and contribution guidelines
+### Recently Shipped
+- Practice Handbook: operational info panel is now collapsible and remembers your preference
+- Practice Handbook: added category visibility controls and per-item editing permissions
+- Practice Handbook: PAGE items support optional Intro text and Additional notes around Role Cards
+- Practice Handbook: added LIST items for storing structured information
+- Workflow Guidance: diagram details panel can be collapsed for more diagram space
+- Improved routing: logo click keeps you within your current surgery using `/s` entry route
+- Marketing and app domains separated for clearer navigation
 
 ---
 
-## Quick links
+## About this documentation
+
+This site contains documentation for the **Signposting Toolkit** – a clinically led, web-based platform designed to support GP reception, care-navigation, and wider practice teams with safe, consistent processes.
+
+Use this site if you are:
+
+- A **practice / PCN** evaluating the toolkit
+- A **clinical lead** responsible for review and governance
+- A **developer** running or contributing to the project
+
+This documentation describes a live, actively maintained system used in real NHS practice. The toolkit is developed within a working GP surgery and serves multiple practices with ongoing support and updates.
+
+Core platform behaviour is stable and documented under the "Baseline Platform" section in the [Release Notes](RELEASE_NOTES). Newer changes are incremental improvements logged transparently in versioned releases. All AI features are optional, controlled via feature flags, and subject to mandatory clinical review before publication. For details on the safety model, see [Clinical Governance](wiki/Clinical-Governance).
+
+### Application Structure & Navigation
+
+<!-- NEW: developer-facing guardrail -->
+
+#### Shared App Shell (Foundational)
+
+All in-app pages use a **single shared application shell**, providing:
+
+- a standard header (logo, surgery context, menu trigger)
+- a **universal slide-out navigation panel**
+- consistent layout and spacing across modules
+
+This shell applies to **all routes under**:
+
+/s/[id]/…
+
+The navigation panel is the **primary navigation mechanism** for switching between modules.
+
+#### Core Modules
+
+The toolkit currently includes:
+
+- **Signposting Toolkit** – symptom signposting and care navigation
+- **Workflow Guidance** – visual workflows for internal processes
+- **Practice Handbook** (formerly “Admin Toolkit”) – internal guidance, advice, and policies
+
+Future modules (e.g. *Daily Dose* micro-learning) will integrate into the same navigation and app shell.
+
+#### Navigation Rule (Important)
+
+> **Any page under `/s/[id]/…` must render inside the shared app shell (standard header + universal navigation panel).**  
+> Exceptions must be explicitly justified (e.g. true full-screen editors).
+
+This rule prevents UX drift and ensures new features integrate cleanly.
+
+For maintainers: [Docs Maintenance](wiki/Docs-Maintenance).
+
+---
+
+## Quick Links
 
 - **Product overview** – what the toolkit does and who it is for  
-
   → [Product Overview](PRODUCT_OVERVIEW)
 
 - **Technical summary** – stack, architecture, APIs, and database  
-
   → [Technical Summary](PROJECT_SUMMARY)
 
 - **Release notes** – changes between versions  
-
   → [Release Notes](RELEASE_NOTES)
 
 - **Roadmap** – planned and in-progress features  
-
   → [Roadmap](ROADMAP)
 
 ---

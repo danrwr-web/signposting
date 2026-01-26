@@ -46,7 +46,7 @@ export default function MarketingHeader({ appEntryUrl }: MarketingHeaderProps) {
               rel="noreferrer noopener"
               className="text-base font-medium text-gray-700 hover:text-blue-600 transition-colors"
             >
-              Docs
+              Help & Documentation
             </a>
             <Link
               href="/demo-request"

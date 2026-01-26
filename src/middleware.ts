@@ -46,8 +46,13 @@ const authMiddleware = withAuth(
     }
 
     // Surgery admin routes - accessible by surgery admins or superusers
-    if (pathname.match(/^\/s\/[^\/]+\/admin/)) {
-      const surgeryIdMatch = pathname.match(/^\/s\/([^\/]+)\/admin/)
+    // Match /s/[id]/admin (and /s/[id]/admin/*) but NOT /s/[id]/admin-toolkit
+    // Also match /s/[id]/admin-toolkit/admin (admin dashboard for Admin Toolkit)
+    const isSurgeryAdminRoute = pathname.match(/^\/s\/[^\/]+\/admin(\/|$)/)
+    const isAdminToolkitAdminRoute = pathname.match(/^\/s\/[^\/]+\/admin-toolkit\/admin(\/|$)/)
+    
+    if (isSurgeryAdminRoute || isAdminToolkitAdminRoute) {
+      const surgeryIdMatch = pathname.match(/^\/s\/([^\/]+)\//)
       if (surgeryIdMatch) {
         const surgeryId = surgeryIdMatch[1]
         

@@ -823,10 +823,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-nhs-dark-blue">
-              Admin Dashboard
+              Settings
             </h1>
             <p className="text-nhs-grey mt-1">
-              Logged in as {session.email} ({session.type === 'surgery' ? 'Surgery Admin' : 'Superuser'})
+              Logged in as {session.email} ({session.type === 'surgery' ? 'Practice admin' : 'System admin'})
               {session.surgerySlug && ` • ${session.surgerySlug}`}
             </p>
           </div>
@@ -864,7 +864,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true
                     ? [{ id: 'setup-checklist', label: 'Setup Checklist', badge: setupChecklistBadge }]
                     : []),
-                  ...(session.type === 'surgery' ? [{ id: 'users', label: 'User Management' }] : []),
+                  ...(session.type === 'surgery' ? [{ id: 'users', label: 'User & access management' }] : []),
                   ...(session.type === 'superuser'
                     ? [
                         { id: 'system', label: 'System Management' },
@@ -1072,11 +1072,11 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               </div>
             )}
 
-            {/* User Management Tab - Only for Surgery Admins */}
+            {/* User & access management Tab - Only for Surgery Admins */}
             {activeTab === 'users' && session.type === 'surgery' && (
               <div>
                 <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  User Management
+                  User & access management
                 </h2>
                 <p className="text-nhs-grey mb-6">
                   Manage users for your surgery. Add new users, change roles, and set default surgeries.
@@ -1084,7 +1084,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
                 <div className="bg-white p-6 rounded-lg border border-gray-200">
                   <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Surgery User Management
+                    Surgery User & access management
                   </h3>
                   <p className="text-sm text-gray-600 mb-4">
                     Manage users who have access to your surgery. You can add new users, 
@@ -1438,6 +1438,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   Instructions *
                 </label>
                 <RichTextEditor
+                  docId={`admin:symptom:new:instructions`}
                   value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                   onChange={(html) => {
                     const sanitizedHtml = sanitizeHtml(html)
@@ -1562,6 +1563,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                               Variant Instructions
                             </label>
                             <RichTextEditor
+                              docId={`admin:symptom:new:variant:${index}`}
                               value={variant.instructions || ''}
                               onChange={(html) => {
                                 const sanitizedHtml = sanitizeHtml(html)
@@ -1859,6 +1861,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     Instructions
                   </label>
                   <RichTextEditor
+                    docId={`admin:symptom:edit:${editingSymptom?.id || 'none'}:instructions`}
                     value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                     onChange={(html) => {
                       const sanitizedHtml = sanitizeHtml(html)

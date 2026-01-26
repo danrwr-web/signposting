@@ -4,6 +4,7 @@ export const revalidate = 0
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getLastActiveForUsers } from '@/lib/lastActive'
 import GlobalUsersClient from './GlobalUsersClient'
 
 export default async function GlobalUsersPage() {
@@ -32,6 +33,16 @@ export default async function GlobalUsersPage() {
     }
   })
 
+  // Fetch last active data for all users
+  const userIds = users.map(u => u.id)
+  const lastActiveMap = await getLastActiveForUsers(userIds)
+  
+  // Convert Map to a plain object for serialisation to client
+  const lastActiveData: Record<string, string | null> = {}
+  for (const [userId, date] of lastActiveMap.entries()) {
+    lastActiveData[userId] = date ? date.toISOString() : null
+  }
+
   // Get all surgeries for default surgery selection
   const surgeries = await prisma.surgery.findMany({
     select: {
@@ -43,5 +54,5 @@ export default async function GlobalUsersPage() {
     }
   })
 
-  return <GlobalUsersClient users={users} surgeries={surgeries} />
+  return <GlobalUsersClient users={users} surgeries={surgeries} lastActiveData={lastActiveData} />
 }

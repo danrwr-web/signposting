@@ -307,9 +307,9 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
     return (
       <div className="min-h-screen bg-gray-50 w-full">
         <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header - Visually grouped */}
+          {/* Back link and content header */}
           <div className="mb-8">
-            {/* Quiet context */}
+            {/* Back link */}
             <div className="mb-4">
               <Link
                 href={`/s/${surgeryId}/workflow`}
@@ -320,8 +320,6 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                 </svg>
                 Back to Workflow Guidance
               </Link>
-              <span className="text-sm text-gray-400 mx-2">·</span>
-              <span className="text-sm text-gray-500">{surgery.name}</span>
             </div>
             
             {/* Strong workflow title + description */}

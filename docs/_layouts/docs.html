@@ -29,6 +29,32 @@
         border-top: 1px solid #e5e7eb;
         margin: 2rem 0;
       }
+      .callout {
+        border: 1px solid #e5e7eb;
+        background: #f9fafb;
+        border-radius: 12px;
+        padding: 1rem 1.25rem;
+        margin: 1rem 0 2rem;
+      }
+      .callout p {
+        margin: 0 0 0.75rem;
+      }
+      .callout ul {
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+      .callout li {
+        margin: 0 0 0.5rem;
+      }
+      @media (min-width: 720px) {
+        .callout ul {
+          columns: 2;
+          column-gap: 2rem;
+        }
+        .callout li {
+          break-inside: avoid;
+        }
+      }
     </style>
   </head>
   <body>

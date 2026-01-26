@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
+import KebabMenu from '@/components/admin/KebabMenu'
+import { formatRelativeDate } from '@/lib/formatRelativeDate'
 
 interface Surgery {
   id: string
@@ -13,6 +14,7 @@ interface Surgery {
   users: Array<{
     id: string
     role: string
+    adminToolkitWrite?: boolean
     user: {
       id: string
       email: string
@@ -25,6 +27,7 @@ interface Surgery {
 interface SurgeryUsersClientProps {
   surgery: Surgery
   user: SessionUser
+  lastActiveData: Record<string, string | null>
 }
 
 // Helper function to get user initials
@@ -39,7 +42,7 @@ function getUserInitials(name: string | null, email: string): string {
   return email.charAt(0).toUpperCase()
 }
 
-export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClientProps) {
+export default function SurgeryUsersClient({ surgery, user, lastActiveData }: SurgeryUsersClientProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; name: string | null; role: string } | null>(null)
   const [resettingPasswordFor, setResettingPasswordFor] = useState<{ id: string; email: string } | null>(null)
@@ -163,6 +166,30 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
     setEditingUser(null)
   }
 
+  const handleToggleAdminToolkitWrite = async (userId: string, nextValue: boolean) => {
+    try {
+      const response = await fetch(`/api/s/${surgery.id}/members/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          adminToolkitWrite: nextValue,
+        }),
+      })
+
+      if (response.ok) {
+        window.location.reload()
+      } else {
+        const error = await response.json()
+                        alert(`Failed to update Practice Handbook write access: ${error.error}`)
+      }
+    } catch (error) {
+      console.error('Error updating admin toolkit write:', error)
+      alert('Failed to update Practice Handbook write access')
+    }
+  }
+
   const handleSetDefaultSurgery = async (userId: string) => {
     try {
       const response = await fetch(`/api/s/${surgery.id}/members/${userId}`, {
@@ -223,38 +250,26 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div className="flex items-center">
-              <Link
-                href="/admin"
-                className="text-blue-600 hover:text-blue-500 mr-4"
-              >
-                ← Back to Admin Dashboard
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">
-                Users in {surgery.name}
-              </h1>
-            </div>
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Add User
-            </button>
-          </div>
-        </div>
-      </header>
-
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            User & access management — {surgery.name}
+          </h1>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            Add User
+          </button>
+        </div>
+
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <div className="px-4 py-5 sm:px-6">
-            <h3 className="text-lg leading-6 font-medium text-gray-900">
+            <h2 className="text-lg leading-6 font-medium text-gray-900">
               Surgery Members
-            </h3>
+            </h2>
             <p className="mt-1 max-w-2xl text-sm text-gray-500">
               Manage user access and roles within {surgery.name}.
             </p>
@@ -268,88 +283,111 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
             debounceMs={0}
           />
 
-          {/* Table */}
+          {/* Table - scroll container with always-visible scrollbar */}
           <AdminTable
+            scrollContainerClassName="max-h-[65vh] overflow-y-auto"
+            cellPadding="px-3"
             columns={[
               {
-                header: 'Name',
-                key: 'name',
+                header: 'User',
+                key: 'user',
+                stickyLeft: true,
                 render: (membership) => (
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-sm font-medium text-gray-700">
+                  <div className="flex items-center gap-3 py-1">
+                    <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">
                       {getUserInitials(membership.user.name, membership.user.email)}
                     </div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {membership.user.name || 'No name set'}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">
+                        {membership.user.name || 'No name set'}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            membership.role === 'ADMIN'
+                              ? 'bg-green-50 text-green-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}
+                        >
+                          {membership.role === 'ADMIN' ? 'Practice admin' : 'Standard'}
+                        </span>
+                        {membership.user.defaultSurgeryId === surgery.id && (
+                          <span className="text-xs text-gray-400">Default</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-0.5 truncate">
+                        {membership.user.email}
+                      </div>
                     </div>
                   </div>
                 ),
               },
               {
-                header: 'Email',
-                key: 'email',
-                render: (membership) => (
-                  <div className="text-sm text-gray-500">{membership.user.email}</div>
-                ),
+                header: 'Permissions',
+                key: 'permissions',
+                render: (membership) => {
+                  const isSurgeryAdmin = membership.role === 'ADMIN'
+                  const enabled = isSurgeryAdmin || membership.adminToolkitWrite === true
+                  return (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAdminToolkitWrite(membership.user.id, !enabled)}
+                        disabled={isSurgeryAdmin}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                          enabled ? 'bg-nhs-green' : 'bg-gray-200'
+                        } ${isSurgeryAdmin ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                        aria-label={`Toggle Practice Handbook write for ${membership.user.name || membership.user.email}`}
+                        title={isSurgeryAdmin ? 'Practice admins can always edit.' : 'Practice Handbook write access'}
+                      >
+                        <span
+                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                            enabled ? 'translate-x-4.5' : 'translate-x-0.5'
+                          }`}
+                          style={{ transform: enabled ? 'translateX(18px)' : 'translateX(2px)' }}
+                        />
+                      </button>
+                      <span className="text-xs text-gray-400">
+                        Handbook
+                      </span>
+                    </div>
+                  )
+                },
               },
               {
-                header: 'Role',
-                key: 'role',
-                render: (membership) => (
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        membership.role === 'ADMIN'
-                          ? 'bg-green-50 text-green-700 border border-green-100'
-                          : 'bg-blue-50 text-blue-700 border border-blue-100'
-                      }`}
-                    >
-                      {membership.role === 'ADMIN' ? 'ADMIN' : 'STANDARD'}
+                header: 'Last active',
+                key: 'lastActive',
+                render: (membership) => {
+                  const lastActiveIso = lastActiveData[membership.user.id]
+                  const lastActiveDate = lastActiveIso ? new Date(lastActiveIso) : null
+                  return (
+                    <span className="text-sm text-gray-400">
+                      {formatRelativeDate(lastActiveDate)}
                     </span>
-                    {membership.user.defaultSurgeryId === surgery.id && (
-                      <span className="text-xs text-gray-400">(Default)</span>
-                    )}
-                  </div>
-                ),
+                  )
+                },
               },
               {
-                header: 'Actions',
+                header: '',
                 key: 'actions',
-                render: (membership) => (
-                  <div className="flex gap-2">
-                    <button
-                      className="text-blue-600 hover:text-blue-900"
-                      onClick={() => handleEditUser(membership)}
-                    >
-                      Edit
-                    </button>
-                    <span className="text-gray-300">|</span>
-                    <button
-                      className="text-orange-600 hover:text-orange-900"
-                      onClick={() => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email })}
-                    >
-                      Reset
-                    </button>
-                    {membership.user.defaultSurgeryId !== surgery.id && (
-                      <>
-                        <span className="text-gray-300">|</span>
-                        <button
-                          className="text-blue-600 hover:text-blue-900"
-                          onClick={() => handleSetDefaultSurgery(membership.user.id)}
-                        >
-                          Set Default
-                        </button>
-                      </>
-                    )}
-                    <span className="text-gray-300">|</span>
-                    <button
-                      className="text-red-600 hover:text-red-900"
-                      onClick={() => handleRemoveUser(membership.user.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ),
+                sticky: true,
+                className: 'w-12',
+                render: (membership) => {
+                  const menuItems = [
+                    { label: 'Edit user', onClick: () => handleEditUser(membership) },
+                    { label: 'Reset password', onClick: () => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email }) },
+                    ...(membership.user.defaultSurgeryId !== surgery.id
+                      ? [{ label: 'Set as default surgery', onClick: () => handleSetDefaultSurgery(membership.user.id) }]
+                      : []),
+                    { label: 'Remove access', onClick: () => handleRemoveUser(membership.user.id), variant: 'danger' as const },
+                  ]
+                  return (
+                    <KebabMenu
+                      items={menuItems}
+                      ariaLabel={`Actions for ${membership.user.name || membership.user.email}`}
+                    />
+                  )
+                },
               },
             ]}
             rows={filteredUsers}
@@ -423,7 +461,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="STANDARD">Standard User</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="ADMIN">Practice admin</option>
                   </select>
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -495,7 +533,7 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="STANDARD">Standard User</option>
-                    <option value="ADMIN">Admin</option>
+                    <option value="ADMIN">Practice admin</option>
                   </select>
                 </div>
                 <div className="flex justify-end space-x-3">

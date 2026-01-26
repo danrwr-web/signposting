@@ -14,6 +14,7 @@ declare module 'next-auth' {
       memberships: Array<{
         surgeryId: string
         role: string
+        adminToolkitWrite?: boolean
       }>
     }
   }
@@ -30,6 +31,7 @@ declare module 'next-auth' {
     memberships: Array<{
       surgeryId: string
       role: string
+      adminToolkitWrite?: boolean
     }>
   }
 }
@@ -44,6 +46,7 @@ declare module 'next-auth/jwt' {
     memberships: Array<{
       surgeryId: string
       role: string
+      adminToolkitWrite?: boolean
     }>
   }
 }

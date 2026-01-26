@@ -2,7 +2,6 @@ import 'server-only'
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import Link from 'next/link'
 import { startWorkflowInstance } from '../actions'
 import StartWorkflowClient from './StartWorkflowClient'
 
@@ -52,13 +51,15 @@ export default async function StartWorkflowPage({ params, searchParams }: StartW
     })
 
     return (
-      <StartWorkflowClient
-        surgeryId={surgeryId}
-        surgeryName={surgery.name}
-        templates={templates}
-        startAction={startWorkflowInstance.bind(null, surgeryId)}
-        initialError={error}
-      />
+      <div className="min-h-screen bg-gray-50">
+        <StartWorkflowClient
+          surgeryId={surgeryId}
+          surgeryName={surgery.name}
+          templates={templates}
+          startAction={startWorkflowInstance.bind(null, surgeryId)}
+          initialError={error}
+        />
+      </div>
     )
   } catch (error) {
     redirect('/unauthorized')
