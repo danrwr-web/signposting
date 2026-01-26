@@ -283,10 +283,10 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
           />
 
           {/* Table - scroll container with always-visible scrollbar */}
-          <div className="max-h-[65vh] overflow-y-auto overflow-x-scroll rounded-lg border border-gray-200">
-            <AdminTable
-              showHorizontalScrollHint
-              columns={[
+          <AdminTable
+            showHorizontalScrollHint
+            scrollContainerClassName="max-h-[65vh] overflow-y-auto overflow-x-scroll rounded-lg border border-gray-200"
+            columns={[
               {
                 header: 'Name',
                 key: 'name',
@@ -415,9 +415,8 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
             ]}
             rows={filteredUsers}
             emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found. Add your first user to get started.'}
-              rowKey={(membership) => membership.id}
-            />
-          </div>
+            rowKey={(membership) => membership.id}
+          />
         </div>
       </main>
 

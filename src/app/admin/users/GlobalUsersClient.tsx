@@ -417,12 +417,12 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
           />
 
           {/* Table - scroll container with always-visible scrollbar */}
-          <div className="max-h-[65vh] overflow-y-auto overflow-x-scroll rounded-lg border border-gray-200">
-            <AdminTable
-              colWidths={["220px", "230px", "280px", "120px", "180px"]}
-              cellPadding="px-4"
-              showHorizontalScrollHint
-              columns={[
+          <AdminTable
+            colWidths={["220px", "230px", "280px", "120px", "180px"]}
+            cellPadding="px-4"
+            showHorizontalScrollHint
+            scrollContainerClassName="max-h-[65vh] overflow-y-auto overflow-x-scroll rounded-lg border border-gray-200"
+            columns={[
               {
                 header: 'Name',
                 key: 'name',
@@ -534,9 +534,8 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
             ]}
             rows={filteredUsers}
             emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found.'}
-              rowKey={(user) => user.id}
-            />
-          </div>
+            rowKey={(user) => user.id}
+          />
         </div>
       </main>
 

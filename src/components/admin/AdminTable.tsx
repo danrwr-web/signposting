@@ -21,6 +21,8 @@ interface AdminTableProps<T> {
   cellPadding?: string // Horizontal padding for cells, e.g. "px-4" or "px-6" (default: "px-6")
   /** If true, shows a hint when the table has horizontal overflow */
   showHorizontalScrollHint?: boolean
+  /** Additional classes for the scroll container (e.g., max-h, border) */
+  scrollContainerClassName?: string
 }
 
 export default function AdminTable<T>({
@@ -32,6 +34,7 @@ export default function AdminTable<T>({
   colWidths,
   cellPadding = 'px-6',
   showHorizontalScrollHint = false,
+  scrollContainerClassName = '',
 }: AdminTableProps<T>) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false)
@@ -61,14 +64,14 @@ export default function AdminTable<T>({
 
   return (
     <>
-      {/* Horizontal scroll hint */}
+      {/* Horizontal scroll hint - rendered ABOVE the scroll container */}
       {showHorizontalScrollHint && hasHorizontalOverflow && (
         <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
           <span>Scroll horizontally to see more columns</span>
           <span aria-hidden="true">→</span>
         </p>
       )}
-      <div ref={scrollContainerRef} className="overflow-x-auto">
+      <div ref={scrollContainerRef} className={`overflow-x-auto ${scrollContainerClassName}`}>
       <table className={`min-w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed w-max' : ''}`}>
         {colWidths && colWidths.length === columns.length && (
           <colgroup>
