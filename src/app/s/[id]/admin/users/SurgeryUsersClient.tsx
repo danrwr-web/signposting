@@ -285,8 +285,7 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
 
           {/* Table - scroll container with always-visible scrollbar */}
           <AdminTable
-            showHorizontalScrollHint
-            scrollContainerClassName="max-h-[65vh] overflow-y-auto overflow-x-scroll"
+            scrollContainerClassName="max-h-[65vh] overflow-y-auto"
             cellPadding="px-3"
             columns={[
               {

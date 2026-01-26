@@ -420,8 +420,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
           {/* Table - scroll container with always-visible scrollbar */}
           <AdminTable
             cellPadding="px-3"
-            showHorizontalScrollHint
-            scrollContainerClassName="max-h-[65vh] overflow-y-auto overflow-x-scroll"
+            scrollContainerClassName="max-h-[65vh] overflow-y-auto"
             columns={[
               {
                 header: 'User',

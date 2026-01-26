@@ -1,7 +1,5 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
-
 interface Column<T> {
   header: string
   key: string
@@ -21,9 +19,7 @@ interface AdminTableProps<T> {
   onRowClick?: (row: T) => void
   colWidths?: string[] // CSS width strings, e.g. ["180px", "220px", ...]
   cellPadding?: string // Horizontal padding for cells, e.g. "px-4" or "px-6" (default: "px-6")
-  /** If true, shows a hint when the table has horizontal overflow */
-  showHorizontalScrollHint?: boolean
-  /** Additional classes for the scroll container (e.g., max-h, border) */
+  /** Additional classes for the scroll container (e.g., max-h for vertical scroll) */
   scrollContainerClassName?: string
 }
 
@@ -35,46 +31,11 @@ export default function AdminTable<T>({
   onRowClick,
   colWidths,
   cellPadding = 'px-6',
-  showHorizontalScrollHint = false,
   scrollContainerClassName = '',
 }: AdminTableProps<T>) {
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false)
-
-  // Detect horizontal overflow on mount, resize, and when rows change
-  useEffect(() => {
-    if (!showHorizontalScrollHint) return
-
-    const checkOverflow = () => {
-      const el = scrollContainerRef.current
-      if (el) {
-        setHasHorizontalOverflow(el.scrollWidth > el.clientWidth)
-      }
-    }
-
-    // Check on mount
-    checkOverflow()
-
-    // Check on resize
-    const resizeObserver = new ResizeObserver(checkOverflow)
-    if (scrollContainerRef.current) {
-      resizeObserver.observe(scrollContainerRef.current)
-    }
-
-    return () => resizeObserver.disconnect()
-  }, [showHorizontalScrollHint, rows.length, columns.length])
-
   return (
-    <>
-      {/* Horizontal scroll hint - rendered ABOVE the scroll container */}
-      {showHorizontalScrollHint && hasHorizontalOverflow && (
-        <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
-          <span>Scroll horizontally to see more columns</span>
-          <span aria-hidden="true">→</span>
-        </p>
-      )}
-      <div ref={scrollContainerRef} className={`overflow-x-auto ${scrollContainerClassName}`}>
-      <table className={`min-w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed w-max' : ''}`}>
+    <div className={scrollContainerClassName}>
+      <table className={`w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed' : ''}`}>
         {colWidths && colWidths.length === columns.length && (
           <colgroup>
             {colWidths.map((width, index) => (
@@ -89,9 +50,9 @@ export default function AdminTable<T>({
               // Sticky column styling for header
               let stickyClasses = ''
               if (column.sticky) {
-                stickyClasses = 'sticky right-0 z-20 bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                stickyClasses = 'sticky right-0 z-20 bg-gray-50'
               } else if (column.stickyLeft) {
-                stickyClasses = 'sticky left-0 z-20 bg-gray-50 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                stickyClasses = 'sticky left-0 z-20 bg-gray-50'
               }
               return (
                 <th
@@ -124,9 +85,9 @@ export default function AdminTable<T>({
                   // Sticky column styling for body cells
                   let stickyClasses = ''
                   if (column.sticky) {
-                    stickyClasses = 'sticky right-0 z-10 bg-white group-hover:bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                    stickyClasses = 'sticky right-0 z-10 bg-white group-hover:bg-gray-50'
                   } else if (column.stickyLeft) {
-                    stickyClasses = 'sticky left-0 z-10 bg-white group-hover:bg-gray-50 shadow-[4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                    stickyClasses = 'sticky left-0 z-10 bg-white group-hover:bg-gray-50'
                   }
                   return (
                     <td
@@ -143,7 +104,5 @@ export default function AdminTable<T>({
         </tbody>
       </table>
     </div>
-    </>
   )
 }
-
