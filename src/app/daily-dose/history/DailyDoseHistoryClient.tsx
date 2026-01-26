@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import DailyDoseNavigation from '@/components/daily-dose/DailyDoseNavigation'
 
 type HistoryResponse = {
   totalXp: number
@@ -85,7 +84,6 @@ export default function DailyDoseHistoryClient({ surgeryId }: { surgeryId: strin
 
   return (
     <div className="space-y-6">
-      <DailyDoseNavigation surgeryId={surgeryId} />
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <h1 className="text-2xl font-bold text-nhs-dark-blue">Your progress</h1>
         <div className="mt-4 grid gap-4 md:grid-cols-3">

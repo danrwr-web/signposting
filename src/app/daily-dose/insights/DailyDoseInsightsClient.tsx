@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import DailyDoseNavigation from '@/components/daily-dose/DailyDoseNavigation'
 
 type EngagementByRole = {
   role: string
@@ -106,7 +105,6 @@ export default function DailyDoseInsightsClient({ surgeryId }: { surgeryId: stri
 
   return (
     <div className="space-y-6">
-      <DailyDoseNavigation surgeryId={surgeryId} />
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <h1 className="text-2xl font-bold text-nhs-dark-blue">Daily Dose insights</h1>
         <p className="mt-2 text-sm text-slate-600">
