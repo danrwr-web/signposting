@@ -29,8 +29,8 @@ export default function AdminTable<T>({
   cellPadding = 'px-6',
 }: AdminTableProps<T>) {
   return (
-    <div className="max-sm:overflow-x-auto">
-      <table className={`w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed' : ''}`}>
+    <div className="overflow-x-auto">
+      <table className={`min-w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed w-max' : ''}`}>
         {colWidths && colWidths.length === columns.length && (
           <colgroup>
             {colWidths.map((width, index) => (
