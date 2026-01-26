@@ -1,5 +1,7 @@
 'use client'
 
+import { useRef, useState, useEffect } from 'react'
+
 interface Column<T> {
   header: string
   key: string
@@ -17,6 +19,8 @@ interface AdminTableProps<T> {
   onRowClick?: (row: T) => void
   colWidths?: string[] // CSS width strings, e.g. ["180px", "220px", ...]
   cellPadding?: string // Horizontal padding for cells, e.g. "px-4" or "px-6" (default: "px-6")
+  /** If true, shows a hint when the table has horizontal overflow */
+  showHorizontalScrollHint?: boolean
 }
 
 export default function AdminTable<T>({
@@ -27,9 +31,44 @@ export default function AdminTable<T>({
   onRowClick,
   colWidths,
   cellPadding = 'px-6',
+  showHorizontalScrollHint = false,
 }: AdminTableProps<T>) {
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [hasHorizontalOverflow, setHasHorizontalOverflow] = useState(false)
+
+  // Detect horizontal overflow on mount, resize, and when rows change
+  useEffect(() => {
+    if (!showHorizontalScrollHint) return
+
+    const checkOverflow = () => {
+      const el = scrollContainerRef.current
+      if (el) {
+        setHasHorizontalOverflow(el.scrollWidth > el.clientWidth)
+      }
+    }
+
+    // Check on mount
+    checkOverflow()
+
+    // Check on resize
+    const resizeObserver = new ResizeObserver(checkOverflow)
+    if (scrollContainerRef.current) {
+      resizeObserver.observe(scrollContainerRef.current)
+    }
+
+    return () => resizeObserver.disconnect()
+  }, [showHorizontalScrollHint, rows.length, columns.length])
+
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* Horizontal scroll hint */}
+      {showHorizontalScrollHint && hasHorizontalOverflow && (
+        <p className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+          <span>Scroll horizontally to see more columns</span>
+          <span aria-hidden="true">→</span>
+        </p>
+      )}
+      <div ref={scrollContainerRef} className="overflow-x-auto">
       <table className={`min-w-full divide-y divide-gray-200 ${colWidths ? 'table-fixed w-max' : ''}`}>
         {colWidths && colWidths.length === columns.length && (
           <colgroup>
@@ -93,6 +132,7 @@ export default function AdminTable<T>({
         </tbody>
       </table>
     </div>
+    </>
   )
 }
 

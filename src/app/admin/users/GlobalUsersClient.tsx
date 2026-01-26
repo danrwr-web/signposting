@@ -421,6 +421,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
             <AdminTable
               colWidths={["220px", "230px", "280px", "120px", "180px"]}
               cellPadding="px-4"
+              showHorizontalScrollHint
               columns={[
               {
                 header: 'Name',
