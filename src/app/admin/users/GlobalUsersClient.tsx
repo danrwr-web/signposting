@@ -6,6 +6,7 @@ import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 import LogoSizeControl from '@/components/LogoSizeControl'
+import { formatRelativeDate } from '@/lib/formatRelativeDate'
 
 interface User {
   id: string
@@ -39,6 +40,7 @@ interface Surgery {
 interface GlobalUsersClientProps {
   users: User[]
   surgeries: Surgery[]
+  lastActiveData: Record<string, string | null>
 }
 
 // Helper function to get user initials
@@ -53,7 +55,7 @@ function getUserInitials(name: string | null, email: string): string {
   return email.charAt(0).toUpperCase()
 }
 
-export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClientProps) {
+export default function GlobalUsersClient({ users, surgeries, lastActiveData }: GlobalUsersClientProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -416,7 +418,7 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
 
           {/* Table */}
           <AdminTable
-            colWidths={["220px", "230px", "320px", "180px"]}
+            colWidths={["220px", "230px", "280px", "120px", "180px"]}
             cellPadding="px-4"
             columns={[
               {
@@ -465,6 +467,19 @@ export default function GlobalUsersClient({ users, surgeries }: GlobalUsersClien
                     )}
                   </div>
                 ),
+              },
+              {
+                header: 'Last active',
+                key: 'lastActive',
+                render: (user) => {
+                  const lastActiveIso = lastActiveData[user.id]
+                  const lastActiveDate = lastActiveIso ? new Date(lastActiveIso) : null
+                  return (
+                    <span className="text-sm text-gray-500">
+                      {formatRelativeDate(lastActiveDate)}
+                    </span>
+                  )
+                },
               },
               {
                 header: 'Actions',

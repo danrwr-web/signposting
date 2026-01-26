@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { SessionUser } from '@/lib/rbac'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
+import { formatRelativeDate } from '@/lib/formatRelativeDate'
 
 interface Surgery {
   id: string
@@ -25,6 +26,7 @@ interface Surgery {
 interface SurgeryUsersClientProps {
   surgery: Surgery
   user: SessionUser
+  lastActiveData: Record<string, string | null>
 }
 
 // Helper function to get user initials
@@ -39,7 +41,7 @@ function getUserInitials(name: string | null, email: string): string {
   return email.charAt(0).toUpperCase()
 }
 
-export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClientProps) {
+export default function SurgeryUsersClient({ surgery, user, lastActiveData }: SurgeryUsersClientProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; name: string | null; role: string } | null>(null)
   const [resettingPasswordFor, setResettingPasswordFor] = useState<{ id: string; email: string } | null>(null)
@@ -352,6 +354,19 @@ export default function SurgeryUsersClient({ surgery, user }: SurgeryUsersClient
                         {isSurgeryAdmin ? 'Practice admin' : enabled ? 'Yes' : 'No'}
                       </span>
                     </div>
+                  )
+                },
+              },
+              {
+                header: 'Last active',
+                key: 'lastActive',
+                render: (membership) => {
+                  const lastActiveIso = lastActiveData[membership.user.id]
+                  const lastActiveDate = lastActiveIso ? new Date(lastActiveIso) : null
+                  return (
+                    <span className="text-sm text-gray-500">
+                      {formatRelativeDate(lastActiveDate)}
+                    </span>
                   )
                 },
               },
