@@ -51,10 +51,26 @@ Prevent UX drift as modules expand:
 ---
 
 ### ⭐ Analytics & Engagement (v2)
-Build on existing tracking:
-- clearer dashboards
-- high-risk usage visibility
-- confidence metrics for admin teams  
+Build on existing engagement tracking to improve visibility, confidence, and governance across the platform.
+
+**Phase 1 foundations**
+- Surface last login timestamps on the Users & Access Management page
+- Add an engagement panel to Workflow Guidance, consistent with Signposting Toolkit and Practice Handbook
+
+**Phase 2 evolution**
+- Introduce a unified Analytics page covering all enabled modules:
+  - Signposting Toolkit
+  - Workflow Guidance
+  - Practice Handbook
+- Provide aggregated, practice-level usage insights by default
+- Allow optional, admin-only drill-down to individual users for support and onboarding purposes
+
+**Design principles**
+- Visibility over surveillance
+- Aggregated insights by default
+- No performance ranking or league tables
+- Analytics must support governance, confidence, and training — not monitoring
+
 **Effort:** Medium
 
 ---
