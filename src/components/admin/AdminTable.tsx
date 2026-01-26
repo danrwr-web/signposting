@@ -79,20 +79,20 @@ export default function AdminTable<T>({
               <tr
                 key={rowKey(row)}
                 onClick={() => onRowClick?.(row)}
-                className={onRowClick ? 'hover:bg-gray-50 transition-colors cursor-pointer group' : 'hover:bg-gray-50 transition-colors group'}
+                className={onRowClick ? 'hover:bg-gray-50/70 cursor-pointer group' : 'hover:bg-gray-50/70 group'}
               >
                 {columns.map((column) => {
-                  // Sticky column styling for body cells
+                  // Sticky column styling for body cells - must transition with row
                   let stickyClasses = ''
                   if (column.sticky) {
-                    stickyClasses = 'sticky right-0 z-10 bg-white group-hover:bg-gray-50'
+                    stickyClasses = 'sticky right-0 z-10 bg-white group-hover:bg-gray-50/70 transition-colors duration-150'
                   } else if (column.stickyLeft) {
-                    stickyClasses = 'sticky left-0 z-10 bg-white group-hover:bg-gray-50'
+                    stickyClasses = 'sticky left-0 z-10 bg-white group-hover:bg-gray-50/70 transition-colors duration-150'
                   }
                   return (
                     <td
                       key={column.key}
-                      className={`${cellPadding} py-4 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${stickyClasses} ${column.className || ''}`}
+                      className={`${cellPadding} py-4 transition-colors duration-150 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${stickyClasses} ${column.className || ''}`}
                     >
                       {column.render ? column.render(row) : (row as any)[column.key]}
                     </td>
