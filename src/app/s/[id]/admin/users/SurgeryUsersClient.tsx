@@ -373,6 +373,7 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
               {
                 header: 'Actions',
                 key: 'actions',
+                sticky: true,
                 render: (membership) => (
                   <div className="flex gap-2">
                     <button

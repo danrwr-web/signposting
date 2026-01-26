@@ -485,6 +485,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
                 header: 'Actions',
                 key: 'actions',
                 className: 'text-right whitespace-nowrap',
+                sticky: true,
                 render: (user) => (
                   <div className="flex gap-2 justify-end">
                     <button

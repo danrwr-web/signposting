@@ -5,6 +5,8 @@ interface Column<T> {
   key: string
   className?: string
   render?: (row: T) => React.ReactNode
+  /** If true, this column will be sticky to the right edge of the table */
+  sticky?: boolean
 }
 
 interface AdminTableProps<T> {
@@ -40,10 +42,14 @@ export default function AdminTable<T>({
           <tr>
             {columns.map((column) => {
               const hasTextRight = column.className?.includes('text-right')
+              // Sticky column styling for header
+              const stickyClasses = column.sticky
+                ? 'sticky right-0 z-20 bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                : ''
               return (
                 <th
                   key={column.key}
-                  className={`${cellPadding} py-3 ${hasTextRight ? 'text-right' : 'text-left'} text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                  className={`${cellPadding} py-3 ${hasTextRight ? 'text-right' : 'text-left'} text-xs font-medium text-gray-500 uppercase tracking-wider ${stickyClasses} ${
                     column.className || ''
                   }`}
                 >
@@ -65,16 +71,22 @@ export default function AdminTable<T>({
               <tr
                 key={rowKey(row)}
                 onClick={() => onRowClick?.(row)}
-                className={onRowClick ? 'hover:bg-gray-50 transition-colors cursor-pointer' : 'hover:bg-gray-50 transition-colors'}
+                className={onRowClick ? 'hover:bg-gray-50 transition-colors cursor-pointer group' : 'hover:bg-gray-50 transition-colors group'}
               >
-                {columns.map((column) => (
-                  <td
-                    key={column.key}
-                    className={`${cellPadding} py-4 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${column.className || ''}`}
-                  >
-                    {column.render ? column.render(row) : (row as any)[column.key]}
-                  </td>
-                ))}
+                {columns.map((column) => {
+                  // Sticky column styling for body cells
+                  const stickyClasses = column.sticky
+                    ? 'sticky right-0 z-10 bg-white group-hover:bg-gray-50 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.1)]'
+                    : ''
+                  return (
+                    <td
+                      key={column.key}
+                      className={`${cellPadding} py-4 ${column.className?.includes('whitespace-nowrap') ? '' : 'whitespace-nowrap'} ${stickyClasses} ${column.className || ''}`}
+                    >
+                      {column.render ? column.render(row) : (row as any)[column.key]}
+                    </td>
+                  )
+                })}
               </tr>
             ))
           )}
