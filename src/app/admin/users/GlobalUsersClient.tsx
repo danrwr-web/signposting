@@ -416,8 +416,8 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
             debounceMs={0}
           />
 
-          {/* Table */}
-          <div className="max-h-[65vh] overflow-auto rounded-lg border border-gray-200">
+          {/* Table - scroll container with always-visible scrollbar */}
+          <div className="max-h-[65vh] overflow-y-auto overflow-x-scroll rounded-lg border border-gray-200">
             <AdminTable
               colWidths={["220px", "230px", "280px", "120px", "180px"]}
               cellPadding="px-4"

@@ -282,8 +282,8 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
             debounceMs={0}
           />
 
-          {/* Table */}
-          <div className="max-h-[65vh] overflow-auto rounded-lg border border-gray-200">
+          {/* Table - scroll container with always-visible scrollbar */}
+          <div className="max-h-[65vh] overflow-y-auto overflow-x-scroll rounded-lg border border-gray-200">
             <AdminTable
               columns={[
               {
