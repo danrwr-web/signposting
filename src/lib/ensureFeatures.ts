@@ -33,6 +33,11 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
     name: 'Admin Toolkit',
     description: 'Enable the Admin Toolkit module (practice guidance pages, lists, rota and pinned panel).',
   },
+  {
+    key: 'daily_dose',
+    name: 'Daily Dose',
+    description: 'Enable Daily Dose micro-learning sessions for staff training and knowledge retention.',
+  },
 ]
 
 /**

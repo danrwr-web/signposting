@@ -14,6 +14,21 @@ export interface ModuleItem {
   href: string
   featureKey?: string // Feature flag key for this module (e.g., 'workflow_guidance')
   alwaysEnabled?: boolean // If true, module is always visible/enabled
+  newBadgeUntil?: Date // If set, show "New" badge until this date
+}
+
+/**
+ * "New" badge expiry dates for modules.
+ * After the date passes, the badge will no longer render.
+ */
+export const DAILY_DOSE_NEW_BADGE_UNTIL = new Date('2026-02-09T23:59:59Z') // 14 days from launch
+
+/**
+ * Check if a module's "New" badge should be displayed.
+ */
+export function shouldShowNewBadge(module: ModuleItem): boolean {
+  if (!module.newBadgeUntil) return false
+  return new Date() < module.newBadgeUntil
 }
 
 export interface ManagementItem {
@@ -44,6 +59,13 @@ export const MODULES: ModuleItem[] = [
     label: 'Practice Handbook', 
     href: '/s/{surgeryId}/admin-toolkit', 
     featureKey: 'admin_toolkit' 
+  },
+  { 
+    id: 'daily-dose', 
+    label: 'Daily Dose', 
+    href: '/s/{surgeryId}/daily-dose', 
+    featureKey: 'daily_dose',
+    newBadgeUntil: DAILY_DOSE_NEW_BADGE_UNTIL
   },
   { 
     id: 'appointments', 

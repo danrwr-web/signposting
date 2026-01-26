@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
 import { useSurgery } from '@/context/SurgeryContext'
-import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from '@/navigation/modules'
+import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem, shouldShowNewBadge } from '@/navigation/modules'
 import HelpPanel, { HELP_PANEL_ID } from './HelpPanel'
 import UserPreferencesModal from './UserPreferencesModal'
 
@@ -43,6 +43,7 @@ export default function UniversalNavigationPanel() {
     // Check module routes (order matters - more specific first)
     if (pathname.startsWith(`${surgeryPrefix}/workflow`)) return 'workflow'
     if (pathname.startsWith(`${surgeryPrefix}/admin-toolkit`)) return 'handbook'
+    if (pathname.startsWith(`${surgeryPrefix}/daily-dose`)) return 'daily-dose'
     if (pathname.startsWith(`${surgeryPrefix}/appointments`)) return 'appointments'
     if (pathname === surgeryPrefix || pathname === `${surgeryPrefix}/`) return 'signposting'
     
@@ -295,6 +296,11 @@ export default function UniversalNavigationPanel() {
                         aria-current={isActive ? 'page' : undefined}
                       >
                         {module.label}
+                        {shouldShowNewBadge(module) && enabled && (
+                          <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-700">
+                            New
+                          </span>
+                        )}
                         {!enabled && !featuresLoading && (
                           <span className="ml-2 text-xs text-gray-400 italic font-normal">
                             Not enabled
