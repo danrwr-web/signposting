@@ -1,6 +1,7 @@
 import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { getLastActiveForSurgeryUsers } from '@/lib/lastActive'
 import SurgeryUsersClient from './SurgeryUsersClient'
 
 interface SurgeryUsersPageProps {
@@ -31,7 +32,17 @@ export default async function SurgeryUsersPage({ params }: SurgeryUsersPageProps
       redirect('/unauthorized')
     }
 
-    return <SurgeryUsersClient surgery={surgery} user={user} />
+    // Fetch last active data for surgery users
+    const userIds = surgery.users.map(u => u.user.id)
+    const lastActiveMap = await getLastActiveForSurgeryUsers(surgeryId, userIds)
+    
+    // Convert Map to a plain object for serialisation to client
+    const lastActiveData: Record<string, string | null> = {}
+    for (const [userId, date] of lastActiveMap.entries()) {
+      lastActiveData[userId] = date ? date.toISOString() : null
+    }
+
+    return <SurgeryUsersClient surgery={surgery} user={user} lastActiveData={lastActiveData} />
   } catch (error) {
     redirect('/unauthorized')
   }
