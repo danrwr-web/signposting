@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import Link from 'next/link'
 import WorkflowDiagramClientWrapper from '@/components/workflow/WorkflowDiagramClientWrapper'
+import WorkflowViewTracker from '@/components/workflow/WorkflowViewTracker'
 import {
   updateWorkflowNodePosition,
   createWorkflowNodeForTemplate,
@@ -306,6 +307,9 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
 
     return (
       <div className="min-h-screen bg-gray-50 w-full">
+        {/* Track workflow views for engagement analytics */}
+        <WorkflowViewTracker surgeryId={surgeryId} templateId={templateId} />
+        
         <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-8">
           {/* Back link and content header */}
           <div className="mb-8">
