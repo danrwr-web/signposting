@@ -84,4 +84,9 @@ export const MANAGEMENT_ITEMS: ManagementItem[] = [
     label: 'User & access management', 
     href: '/s/{surgeryId}/admin/users' 
   },
+  { 
+    id: 'analytics', 
+    label: 'Analytics', 
+    href: '/s/{surgeryId}/analytics' 
+  },
 ]
