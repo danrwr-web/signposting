@@ -48,7 +48,8 @@ model User {
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
 
   // Workflow instances
-  workflowInstances WorkflowInstance[]
+  workflowInstances        WorkflowInstance[]
+  workflowEngagementEvents WorkflowEngagementEvent[]
 
   // Workflow governance
   workflowApprovals WorkflowTemplate[] @relation("WorkflowApprovals")
@@ -116,6 +117,7 @@ model Surgery {
   workflowTemplates                WorkflowTemplate[]
   workflowInstances                WorkflowInstance[]
   workflowNodeStyleDefaultsSurgery WorkflowNodeStyleDefaultSurgery[]
+  workflowEngagementEvents         WorkflowEngagementEvent[]
 
   // Admin Toolkit
   adminCategories              AdminCategory[]
@@ -232,7 +234,6 @@ model EngagementEvent {
   surgery Surgery?    @relation(fields: [surgeryId], references: [id])
   base    BaseSymptom @relation(fields: [baseId], references: [id], onDelete: Cascade)
 }
-
 
 model HighlightRule {
   id        String   @id @default(cuid())
@@ -838,10 +839,11 @@ model WorkflowTemplate {
   lastEditedAt     DateTime?
   lastEditedByUser User?     @relation("WorkflowEdits", fields: [lastEditedBy], references: [id])
 
-  nodes           WorkflowNodeTemplate[]
-  linkedFromNodes WorkflowNodeLink[]         @relation("LinkedWorkflow")
-  instances       WorkflowInstance[]
-  styleDefaults   WorkflowNodeStyleDefault[]
+  nodes            WorkflowNodeTemplate[]
+  linkedFromNodes  WorkflowNodeLink[]         @relation("LinkedWorkflow")
+  instances        WorkflowInstance[]
+  styleDefaults    WorkflowNodeStyleDefault[]
+  engagementEvents WorkflowEngagementEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -996,6 +998,24 @@ model WorkflowNodeStyleDefaultSurgery {
 
   @@unique([surgeryId, nodeType])
   @@index([surgeryId])
+}
+
+// Workflow engagement event for tracking workflow template views
+model WorkflowEngagementEvent {
+  id         String   @id @default(cuid())
+  surgeryId  String
+  templateId String
+  userId     String
+  event      String   @default("view_workflow") // Event type: "view_workflow"
+  createdAt  DateTime @default(now())
+
+  surgery  Surgery          @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  template WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([surgeryId, createdAt])
+  @@index([templateId])
+  @@index([userId])
 }
 
 enum WorkflowNodeType {
