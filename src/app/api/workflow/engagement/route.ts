@@ -127,11 +127,45 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Get usage by staff (30 days) - group by userId, then fetch user details
+    const userViewsGrouped = await prisma.workflowEngagementEvent.groupBy({
+      by: ['userId'],
+      where: {
+        surgeryId,
+        event: 'view_workflow',
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      _count: { userId: true },
+      _max: { createdAt: true },
+    })
+
+    // Fetch user details in a single query to avoid N+1
+    const userIds = userViewsGrouped.map((item) => item.userId)
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, name: true, email: true },
+    })
+
+    // Build byUser30d list, sorted alphabetically by name to avoid ranking feel
+    const byUser30d = userViewsGrouped
+      .map((item) => {
+        const user = users.find((u) => u.id === item.userId)
+        return {
+          userId: item.userId,
+          name: user?.name ?? user?.email ?? 'Unknown user',
+          email: user?.email ?? null,
+          views: item._count.userId,
+          lastViewedAt: item._max.createdAt?.toISOString() ?? now.toISOString(),
+        }
+      })
+      .sort((a, b) => a.name.localeCompare(b.name))
+
     return NextResponse.json({
       totalViews7d,
       totalViews30d,
       topWorkflows,
       recentWorkflows,
+      byUser30d,
     })
   } catch (error) {
     console.error('Error fetching workflow engagement data:', error)

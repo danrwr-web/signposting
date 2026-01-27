@@ -16,6 +16,13 @@ interface EngagementData {
     name: string
     lastViewedAt: string
   }>
+  byUser30d: Array<{
+    userId: string
+    name: string
+    email: string | null
+    views: number
+    lastViewedAt: string
+  }>
 }
 
 interface WorkflowEngagementClientProps {
@@ -161,6 +168,53 @@ export default function WorkflowEngagementClient({ surgeryId }: WorkflowEngageme
         </div>
       </div>
 
+      {/* Usage by Staff */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="text-lg font-medium text-gray-900">Usage by staff</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Last 30 days</p>
+        </div>
+        <div className="p-5">
+          {data.byUser30d && data.byUser30d.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 pr-4 font-medium text-gray-600">Staff member</th>
+                    <th className="text-right py-2 px-4 font-medium text-gray-600">Views</th>
+                    <th className="text-right py-2 pl-4 font-medium text-gray-600">Last viewed</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {data.byUser30d.map((user) => (
+                    <tr key={user.userId}>
+                      <td className="py-3 pr-4">
+                        <div>
+                          <span className="font-medium text-gray-900">{user.name}</span>
+                          {user.email && user.email !== user.name && (
+                            <span className="block text-xs text-gray-500 mt-0.5">{user.email}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right tabular-nums text-gray-700">
+                        {user.views.toLocaleString()}
+                      </td>
+                      <td className="py-3 pl-4 text-right text-gray-500">
+                        {formatRelativeDate(new Date(user.lastViewedAt))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500 text-center py-4">
+              No workflow usage recorded yet.
+            </p>
+          )}
+        </div>
+      </div>
+
       {/* Information Note */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-start gap-3">
@@ -170,8 +224,9 @@ export default function WorkflowEngagementClient({ surgeryId }: WorkflowEngageme
           <div>
             <p className="text-sm font-medium text-blue-900">About this data</p>
             <p className="text-sm text-blue-800 mt-1">
-              This shows aggregated workflow usage across your surgery. Data is collected when staff view workflow guidance pages.
-              No individual user activity is tracked or displayed.
+              Workflow views are recorded when staff open guidance pages. This data helps with onboarding support, 
+              identifying training needs, and understanding which workflows are most useful. 
+              Usage by staff is shown to help admins support their team and ensure everyone has access to the guidance they need.
             </p>
           </div>
         </div>
