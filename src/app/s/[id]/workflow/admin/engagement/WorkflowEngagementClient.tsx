@@ -224,9 +224,9 @@ export default function WorkflowEngagementClient({ surgeryId }: WorkflowEngageme
           <div>
             <p className="text-sm font-medium text-blue-900">About this data</p>
             <p className="text-sm text-blue-800 mt-1">
-              Workflow views are recorded when staff open guidance pages. This data helps with onboarding support, 
-              identifying training needs, and understanding which workflows are most useful. 
-              Usage by staff is shown to help admins support their team and ensure everyone has access to the guidance they need.
+              Workflow views are recorded when staff open guidance pages. This information helps with onboarding new team members, 
+              identifying where additional support may be helpful, and understanding which workflows are most useful. 
+              Usage by staff is shown to help admins provide targeted support and ensure everyone can access the guidance they need.
             </p>
           </div>
         </div>

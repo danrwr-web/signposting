@@ -54,14 +54,14 @@ export default async function WorkflowEngagementPage({ params }: WorkflowEngagem
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-gray-900 mb-2 tracking-tight">
-              Workflow Engagement
+            <h1 className="text-3xl font-semibold text-gray-900 mb-1 tracking-tight">
+              Engagement
             </h1>
+            <p className="text-sm text-gray-500 mb-3">
+              Workflow Guidance • {surgery.name}
+            </p>
             <p className="text-base text-gray-600 leading-relaxed">
               See how workflows are being used across your surgery. This helps identify which guidance is most helpful to staff.
-            </p>
-            <p className="mt-2 text-sm text-gray-500">
-              Surgery: <span className="font-medium text-gray-700">{surgery.name}</span>
             </p>
           </div>
 
