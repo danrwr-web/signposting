@@ -73,10 +73,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Initialise "What's changed" baseline dates to today.
+    // This establishes a "go-live baseline" so newly created surgeries
+    // don't see historical/migrated content as recent changes.
+    // Super Admins can override these dates later via surgery settings.
+    const todayIso = new Date().toISOString()
+    const initialUiConfig = {
+      signposting: {
+        changesBaselineDate: todayIso,
+      },
+      practiceHandbook: {
+        changesBaselineDate: todayIso,
+      },
+    }
+
     const surgery = await prisma.surgery.create({
       data: {
         name,
-        slug: slug || null
+        slug: slug || null,
+        uiConfig: initialUiConfig,
       },
       include: {
         users: {
