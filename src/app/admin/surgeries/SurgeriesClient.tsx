@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
@@ -27,6 +27,11 @@ interface Surgery {
   }
 }
 
+interface BaselineDates {
+  signpostingBaseline: string | null
+  practiceHandbookBaseline: string | null
+}
+
 interface SurgeriesClientProps {
   surgeries: Surgery[]
 }
@@ -41,6 +46,84 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
   const [editingSurgery, setEditingSurgery] = useState<Surgery | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  
+  // Baseline dates state
+  const [baselineDates, setBaselineDates] = useState<BaselineDates>({
+    signpostingBaseline: null,
+    practiceHandbookBaseline: null,
+  })
+  const [isLoadingBaselines, setIsLoadingBaselines] = useState(false)
+  const [isSavingBaselines, setIsSavingBaselines] = useState(false)
+
+  // Fetch baseline dates when editing a surgery
+  const fetchBaselineDates = useCallback(async (surgeryId: string) => {
+    setIsLoadingBaselines(true)
+    try {
+      const res = await fetch(`/api/admin/surgeries/${surgeryId}/baselines`)
+      if (res.ok) {
+        const data = await res.json()
+        setBaselineDates({
+          signpostingBaseline: data.signpostingBaseline ? data.signpostingBaseline.split('T')[0] : null,
+          practiceHandbookBaseline: data.practiceHandbookBaseline ? data.practiceHandbookBaseline.split('T')[0] : null,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching baseline dates:', error)
+    } finally {
+      setIsLoadingBaselines(false)
+    }
+  }, [])
+
+  // Fetch baselines when editingSurgery changes
+  useEffect(() => {
+    if (editingSurgery) {
+      fetchBaselineDates(editingSurgery.id)
+    } else {
+      setBaselineDates({ signpostingBaseline: null, practiceHandbookBaseline: null })
+    }
+  }, [editingSurgery, fetchBaselineDates])
+
+  // Show toast helper
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  // Save baseline dates
+  const handleSaveBaselines = async () => {
+    if (!editingSurgery) return
+    
+    setIsSavingBaselines(true)
+    try {
+      const res = await fetch(`/api/admin/surgeries/${editingSurgery.id}/baselines`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signpostingBaseline: baselineDates.signpostingBaseline || null,
+          practiceHandbookBaseline: baselineDates.practiceHandbookBaseline || null,
+        }),
+      })
+      
+      if (res.ok) {
+        showToast('Baseline dates saved successfully', 'success')
+      } else {
+        const error = await res.json()
+        showToast(`Error: ${error.error || 'Failed to save'}`, 'error')
+      }
+    } catch (error) {
+      console.error('Error saving baseline dates:', error)
+      showToast('Failed to save baseline dates', 'error')
+    } finally {
+      setIsSavingBaselines(false)
+    }
+  }
+
+  // Set baseline to today helper
+  const setBaselineToToday = (field: 'signpostingBaseline' | 'practiceHandbookBaseline') => {
+    const today = new Date().toISOString().split('T')[0]
+    setBaselineDates(prev => ({ ...prev, [field]: today }))
+  }
   
   // Sort surgeries alphabetically by name
   const sortedSurgeries = [...surgeries].sort((a, b) => {
@@ -320,7 +403,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
       {/* Edit Surgery Modal */}
       {editingSurgery && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-10 mx-auto p-5 border w-[480px] max-w-[95vw] shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Edit Surgery
@@ -381,8 +464,116 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                   </button>
                 </div>
               </form>
+
+              {/* Change awareness baselines section */}
+              <div className="mt-8 pt-6 border-t border-gray-200">
+                <h4 className="text-md font-medium text-gray-900 mb-2">
+                  Change awareness baselines
+                </h4>
+                <p className="text-sm text-gray-500 mb-4">
+                  Set baseline dates to filter out initial import/migration noise from &quot;What&apos;s changed&quot; feeds.
+                  Changes before these dates will not appear.
+                </p>
+
+                {isLoadingBaselines ? (
+                  <div className="text-sm text-gray-500 py-4 text-center">Loading baseline dates...</div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Symptom Library baseline */}
+                    <div>
+                      <label htmlFor="signposting-baseline" className="block text-sm font-medium text-gray-700 mb-1">
+                        Symptom Library changes from
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          id="signposting-baseline"
+                          value={baselineDates.signpostingBaseline || ''}
+                          onChange={(e) => setBaselineDates(prev => ({ ...prev, signpostingBaseline: e.target.value || null }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setBaselineToToday('signpostingBaseline')}
+                          className="px-2 py-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                          title="Set to today"
+                        >
+                          Today
+                        </button>
+                        {baselineDates.signpostingBaseline && (
+                          <button
+                            type="button"
+                            onClick={() => setBaselineDates(prev => ({ ...prev, signpostingBaseline: null }))}
+                            className="px-2 py-2 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                            title="Clear"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Practice Handbook baseline */}
+                    <div>
+                      <label htmlFor="handbook-baseline" className="block text-sm font-medium text-gray-700 mb-1">
+                        Practice Handbook changes from
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          id="handbook-baseline"
+                          value={baselineDates.practiceHandbookBaseline || ''}
+                          onChange={(e) => setBaselineDates(prev => ({ ...prev, practiceHandbookBaseline: e.target.value || null }))}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setBaselineToToday('practiceHandbookBaseline')}
+                          className="px-2 py-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded"
+                          title="Set to today"
+                        >
+                          Today
+                        </button>
+                        {baselineDates.practiceHandbookBaseline && (
+                          <button
+                            type="button"
+                            onClick={() => setBaselineDates(prev => ({ ...prev, practiceHandbookBaseline: null }))}
+                            className="px-2 py-2 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                            title="Clear"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Save baselines button */}
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveBaselines}
+                        disabled={isSavingBaselines}
+                        className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+                      >
+                        {isSavingBaselines ? 'Saving...' : 'Save Baselines'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-4 right-4 px-4 py-3 rounded-md shadow-lg z-50 ${
+            toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+          }`}
+        >
+          {toast.message}
         </div>
       )}
     </div>
