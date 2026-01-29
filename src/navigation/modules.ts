@@ -62,6 +62,9 @@ export const MODULES: ModuleItem[] = [
 /**
  * Management/admin navigation items visible only to practice admins and superusers.
  * The href should use {surgeryId} placeholder which will be replaced at runtime.
+ * 
+ * Note: "Practice admin" links to /admin which shows practice-scoped settings.
+ * Super Admins also have access to /admin/system for platform governance.
  */
 export const MANAGEMENT_ITEMS: ManagementItem[] = [
   { 
@@ -70,8 +73,8 @@ export const MANAGEMENT_ITEMS: ManagementItem[] = [
     href: '/s/{surgeryId}/admin-toolkit/admin' 
   },
   { 
-    id: 'signposting-settings', 
-    label: 'Signposting settings', 
+    id: 'practice-admin', 
+    label: 'Practice admin', 
     href: '/admin' 
   },
   { 

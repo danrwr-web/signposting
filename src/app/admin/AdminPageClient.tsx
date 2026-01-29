@@ -323,7 +323,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   // Initialize active tab from URL params
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'aiUsage', 'setup-checklist']
+    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'setup-checklist']
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam)
     }
@@ -823,10 +823,12 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-nhs-dark-blue">
-              Settings
+              Practice admin
             </h1>
             <p className="text-nhs-grey mt-1">
-              Logged in as {session.email} ({session.type === 'surgery' ? 'Practice admin' : 'System admin'})
+              {session.type === 'surgery' 
+                ? `Practice-level settings for your surgery`
+                : `Practice-level settings (logged in as System admin)`}
               {session.surgerySlug && ` • ${session.surgerySlug}`}
             </p>
           </div>
@@ -865,11 +867,9 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     ? [{ id: 'setup-checklist', label: 'Setup Checklist', badge: setupChecklistBadge }]
                     : []),
                   ...(session.type === 'surgery' ? [{ id: 'users', label: 'User & access management' }] : []),
+                  // System Management: visible to Super Admins only, links to /admin/system
                   ...(session.type === 'superuser'
-                    ? [
-                        { id: 'system', label: 'System Management' },
-                        { id: 'aiUsage', label: 'AI usage / cost' },
-                      ]
+                    ? [{ id: 'system', label: 'System Management' }]
                     : []),
                 ].map((tab) => (
                 <button
@@ -1132,76 +1132,31 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               </div>
             )}
 
-            {/* System Management Tab - Only for Superusers */}
+            {/* System Management Tab - Only for Superusers - Links to /admin/system */}
             {activeTab === 'system' && session.type === 'superuser' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
+              <div className="text-center py-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-nhs-light-blue rounded-full mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-nhs-blue">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-2">
                   System Management
                 </h2>
-                <p className="text-nhs-grey mb-6">
-                  Global, cross-surgery, and platform-wide configuration. These settings affect all surgeries.
+                <p className="text-nhs-grey mb-6 max-w-md mx-auto">
+                  Platform governance, cross-surgery configuration, AI usage monitoring, and global defaults 
+                  are now managed in the dedicated System Management dashboard.
                 </p>
-
-                {/* Link to dedicated System Management dashboard */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-start gap-3">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-nhs-blue flex-shrink-0 mt-0.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                      </svg>
-                      <div>
-                        <h3 className="text-sm font-medium text-nhs-dark-blue">
-                          Full System Management dashboard available
-                        </h3>
-                        <p className="text-sm text-nhs-grey mt-1">
-                          For comprehensive platform governance including change awareness, global defaults, 
-                          AI usage monitoring, and feature rollouts.
-                        </p>
-                      </div>
-                    </div>
-                    <a
-                      href="/admin/system"
-                      className="inline-flex items-center px-4 py-2 bg-nhs-blue text-white rounded-md hover:bg-nhs-dark-blue transition-colors whitespace-nowrap ml-4"
-                    >
-                      Open Dashboard
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 ml-2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                      </svg>
-                    </a>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Global User Management
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Manage all users across the system, create new users, and assign roles.
-                    </p>
-                    <a
-                      href="/admin/users"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      Manage Users
-                    </a>
-                  </div>
-
-                  <div className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Surgery Management
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Create new surgeries, manage surgery settings, and assign administrators.
-                    </p>
-                    <a
-                      href="/admin/surgeries"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      Manage Surgeries
-                    </a>
-                  </div>
-                </div>
+                <a
+                  href="/admin/system"
+                  className="inline-flex items-center px-6 py-3 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors font-medium"
+                >
+                  Open System Management
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 ml-2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                  </svg>
+                </a>
               </div>
             )}
 
@@ -1247,167 +1202,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               </div>
             )}
 
-            {/* AI Usage / Cost Tab - Only for Superusers */}
-            {activeTab === 'aiUsage' && session.type === 'superuser' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  AI Usage / Cost Dashboard
-                </h2>
-                <p className="text-nhs-grey mb-6">
-                  Monitor AI usage and estimated costs across the system.
-                </p>
-
-                {aiUsageLoading && (
-                  <div className="text-center py-8">
-                    <p className="text-nhs-grey">Loading usage data...</p>
-                  </div>
-                )}
-
-                {aiUsageError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                    <p className="text-red-800">{aiUsageError}</p>
-                  </div>
-                )}
-
-                {!aiUsageLoading && !aiUsageError && aiUsageData && (
-                  <div className="space-y-6">
-                    {/* Last 7 Days */}
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                      <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-                        Last 7 days
-                      </h3>
-                      <div className="mb-4">
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-nhs-grey">Total Calls</p>
-                            <p className="text-xl font-semibold">{aiUsageData.last7days.overall.calls}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-nhs-grey">Estimated Cost</p>
-                            <p className="text-xl font-semibold">£{aiUsageData.last7days.overall.costGbp.toFixed(2)}</p>
-                          </div>
-                        </div>
-                      </div>
-                      {aiUsageData.last7days.byRoute.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Route
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Calls
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens In
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens Out
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Estimated Cost
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {aiUsageData.last7days.byRoute.map((routeData) => (
-                                <tr key={routeData.route}>
-                                  <td className="px-4 py-3 text-sm text-gray-900">
-                                    {routeData.route === 'improveInstruction' ? 'Improve wording' : routeData.route === 'explainInstruction' ? 'Explain rule' : routeData.route}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.calls}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.promptTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.completionTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    £{routeData.costGbp.toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="text-nhs-grey text-sm">No usage data for this period.</p>
-                      )}
-                    </div>
-
-                    {/* Last 30 Days */}
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                      <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-                        Last 30 days
-                      </h3>
-                      <div className="mb-4">
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-nhs-grey">Total Calls</p>
-                            <p className="text-xl font-semibold">{aiUsageData.last30days.overall.calls}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-nhs-grey">Estimated Cost</p>
-                            <p className="text-xl font-semibold">£{aiUsageData.last30days.overall.costGbp.toFixed(2)}</p>
-                          </div>
-                        </div>
-                      </div>
-                      {aiUsageData.last30days.byRoute.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Route
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Calls
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens In
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens Out
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Estimated Cost
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {aiUsageData.last30days.byRoute.map((routeData) => (
-                                <tr key={routeData.route}>
-                                  <td className="px-4 py-3 text-sm text-gray-900">
-                                    {routeData.route === 'improveInstruction' ? 'Improve wording' : routeData.route === 'explainInstruction' ? 'Explain rule' : routeData.route}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.calls}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.promptTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.completionTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    £{routeData.costGbp.toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="text-nhs-grey text-sm">No usage data for this period.</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </main>
