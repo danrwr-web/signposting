@@ -69,7 +69,7 @@ export default function HandbookWhatsChangedClient({
       {/* Page header */}
       <h1 className="text-2xl font-bold text-gray-900 mb-2">What&apos;s changed</h1>
       <p className="text-sm text-gray-600 mb-6">
-        Showing changes from the last {windowDays} days
+        Showing changes since 23 January 2026
       </p>
 
       {/* Filter chips */}
