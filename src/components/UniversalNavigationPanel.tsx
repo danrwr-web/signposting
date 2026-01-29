@@ -347,6 +347,18 @@ export default function UniversalNavigationPanel() {
                     </Link>
                   </li>
                 )}
+                {/* System management - only for superusers */}
+                {isSuperuser && (
+                  <li>
+                    <Link
+                      href="/admin/system"
+                      onClick={() => close()}
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                    >
+                      System management
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
           )}
