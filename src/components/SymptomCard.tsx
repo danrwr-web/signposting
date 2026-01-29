@@ -8,12 +8,18 @@ import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 
+export interface SymptomChangeInfo {
+  changeType: 'new' | 'updated'
+  approvedAt: Date
+}
+
 interface SymptomCardProps {
   symptom: EffectiveSymptom
   surgeryId?: string
+  changeInfo?: SymptomChangeInfo
 }
 
-function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
+function SymptomCard({ symptom, surgeryId, changeInfo }: SymptomCardProps) {
   const { currentSurgeryId } = useSurgery()
   const { cardStyle, isSimplified } = useCardStyle()
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
@@ -154,6 +160,21 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
     return source || 'base'
   }
 
+  // Render change badge (New/Updated) if applicable
+  const renderChangeBadge = () => {
+    if (!changeInfo) return null
+    
+    const badgeColors = changeInfo.changeType === 'new'
+      ? 'bg-green-100 text-green-800'
+      : 'bg-amber-100 text-amber-800'
+    
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${badgeColors}`}>
+        {changeInfo.changeType === 'new' ? 'New' : 'Updated'}
+      </span>
+    )
+  }
+
   const highlightText = (text: string) => {
     return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
   }
@@ -180,9 +201,12 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
         className={`group block ${linkRadiusClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
       >
         <div className={simplifiedContainerClasses}>
-          <h3 className="text-center text-2xl font-semibold leading-snug">
-            {symptom.name || 'Unknown Symptom'}
-          </h3>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <h3 className="text-center text-2xl font-semibold leading-snug">
+              {symptom.name || 'Unknown Symptom'}
+            </h3>
+            {renderChangeBadge()}
+          </div>
           {symptom.briefInstruction && (
             <p
               className="sr-only"
@@ -238,10 +262,11 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
       <div className={cardClasses}>
         {/* Header with title and badges */}
         <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 flex-1 flex-wrap">
             <h3 className={titleClasses}>
               {symptom.name || 'Unknown Symptom'}
             </h3>
+            {renderChangeBadge()}
           </div>
           <div className="flex flex-col gap-1 flex-shrink-0">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgeGroupColor(symptom.ageGroup || 'Adult')}`}>

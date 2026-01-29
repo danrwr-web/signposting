@@ -1,6 +1,7 @@
 'use client'
 
-import { RefObject } from 'react'
+import { RefObject, useState, useEffect } from 'react'
+import Link from 'next/link'
 import SearchBox from './SearchBox'
 import AgeFilter from './AgeFilter'
 import HighRiskButtons from './HighRiskButtons'
@@ -73,6 +74,29 @@ export default function SurgeryFiltersHeader({
 }: SurgeryFiltersHeaderProps) {
   const { headerLayout, highRiskStyle } = useCardStyle()
   const activeLayout = headerLayout ?? 'split'
+  const [changesCount, setChangesCount] = useState<number | null>(null)
+
+  // Fetch the count of recently changed symptoms
+  useEffect(() => {
+    if (!currentSurgeryId) return
+
+    const fetchChangesCount = async () => {
+      try {
+        const response = await fetch(
+          `/api/symptoms/changes?surgeryId=${currentSurgeryId}&countOnly=true`,
+          { cache: 'no-store' }
+        )
+        if (response.ok) {
+          const data = await response.json()
+          setChangesCount(data.count ?? 0)
+        }
+      } catch (error) {
+        console.error('Failed to fetch changes count:', error)
+      }
+    }
+
+    fetchChangesCount()
+  }, [currentSurgeryId])
 
   if (activeLayout === 'classic') {
     return (
@@ -100,10 +124,32 @@ export default function SurgeryFiltersHeader({
             </div>
           </div>
 
-          {/* count on the same row, right aligned */}
-          <div className="text-sm text-nhs-grey shrink-0" aria-live="polite">
-            {resultsCount} of {totalCount}
-            {selectedLetter !== 'All' && ` (${selectedLetter})`}
+          {/* count and What's changed link, right aligned */}
+          <div className="flex items-center shrink-0">
+            <span className="text-sm text-nhs-grey" aria-live="polite">
+              {resultsCount} of {totalCount}
+              {selectedLetter !== 'All' && ` (${selectedLetter})`}
+            </span>
+            {currentSurgeryId && (
+              <>
+                <span className="mx-2.5 text-gray-300" aria-hidden="true">•</span>
+                <Link
+                  href={`/s/${currentSurgeryId}/signposting/changes`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded-md transition-colors ${
+                    changesCount && changesCount > 0
+                      ? 'font-medium text-nhs-blue hover:bg-blue-50 hover:underline'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  What&apos;s changed
+                  {changesCount !== null && changesCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-blue-100 text-blue-900 rounded-full">
+                      {changesCount}
+                    </span>
+                  )}
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -153,7 +199,7 @@ export default function SurgeryFiltersHeader({
       <div className="lg:flex lg:items-start lg:gap-6">
         <div className="flex-1">
           <div className="max-w-2xl w-full mx-auto lg:mx-0">
-            {/* row 1: search + count on the same line */}
+            {/* row 1: search + count + What's changed on the same line */}
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <SearchBox
@@ -164,9 +210,31 @@ export default function SurgeryFiltersHeader({
                   debounceMs={250}
                 />
               </div>
-              <div className="text-sm text-nhs-grey shrink-0" aria-live="polite">
-                {resultsCount} of {totalCount}
-                {selectedLetter !== 'All' && ` (${selectedLetter})`}
+              <div className="flex items-center shrink-0">
+                <span className="text-sm text-nhs-grey" aria-live="polite">
+                  {resultsCount} of {totalCount}
+                  {selectedLetter !== 'All' && ` (${selectedLetter})`}
+                </span>
+                {currentSurgeryId && (
+                  <>
+                    <span className="mx-2.5 text-gray-300" aria-hidden="true">•</span>
+                    <Link
+                      href={`/s/${currentSurgeryId}/signposting/changes`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded-md transition-colors ${
+                        changesCount && changesCount > 0
+                          ? 'font-medium text-nhs-blue hover:bg-blue-50 hover:underline'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      What&apos;s changed
+                      {changesCount !== null && changesCount > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-blue-100 text-blue-900 rounded-full">
+                          {changesCount}
+                        </span>
+                      )}
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
 

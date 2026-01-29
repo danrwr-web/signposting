@@ -20,11 +20,28 @@ interface AdminToolkitLibraryClientProps {
 export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items, quickAccessButtons }: AdminToolkitLibraryClientProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
+  const [changesCount, setChangesCount] = useState<number | null>(null)
   const { cardStyle } = useCardStyle()
   const isBlueCards = cardStyle === 'powerappsBlue'
 
   const searchStickyRef = useRef<HTMLDivElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
+
+  // Fetch recent changes count for the badge
+  useEffect(() => {
+    async function fetchChangesCount() {
+      try {
+        const res = await fetch(`/api/admin-toolkit/changes?surgeryId=${surgeryId}&countOnly=true`)
+        if (res.ok) {
+          const data = await res.json()
+          setChangesCount(data.count ?? 0)
+        }
+      } catch {
+        // Silently fail - badge just won't show
+      }
+    }
+    fetchChangesCount()
+  }, [surgeryId])
 
   useEffect(() => {
     const measure = () => {
@@ -135,8 +152,24 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     <div className="bg-white rounded-lg shadow-md border border-gray-200">
       {/* Header zone */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-        <div className="text-sm text-gray-600" aria-live="polite">
-          {itemsSorted.length} page{itemsSorted.length === 1 ? '' : 's'}
+        <div className="flex items-center gap-2 text-sm text-gray-600" aria-live="polite">
+          <span>{itemsSorted.length} page{itemsSorted.length === 1 ? '' : 's'}</span>
+          <span className="text-gray-300">•</span>
+          <Link
+            href={`/s/${surgeryId}/admin-toolkit/changes`}
+            className={`px-2.5 py-1 rounded-md text-sm transition-colors ${
+              changesCount !== null && changesCount > 0
+                ? 'text-nhs-blue font-medium hover:bg-blue-50 hover:underline'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            What&apos;s changed
+            {changesCount !== null && changesCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-900">
+                {changesCount}
+              </span>
+            )}
+          </Link>
         </div>
         {canWrite ? null : <span className="text-sm text-gray-500">You have view-only access.</span>}
       </div>

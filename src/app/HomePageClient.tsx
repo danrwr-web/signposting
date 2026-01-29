@@ -8,6 +8,7 @@ import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 import { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
+import { SymptomChangeInfo } from '@/components/SymptomCard'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -31,6 +32,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   const [showSurgerySelector, setShowSurgerySelector] = useState(false)
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>(initialSymptoms)
   const [isLoadingSymptoms, setIsLoadingSymptoms] = useState(false)
+  const [changesMap, setChangesMap] = useState<Map<string, SymptomChangeInfo>>(new Map())
   const symptomCache = useRef<Record<string, EffectiveSymptom[]>>({})
   const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -58,7 +60,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 
   // Use the canonical surgery identifier used in `/s/[id]` routes.
   // Avoid using the human-readable `surgery.slug` so we don't generate inconsistent `?surgery=` links.
-  const surgeryId = routeSurgeryId || currentSurgeryId
+  const surgeryId = routeSurgeryId || currentSurgeryId || undefined
 
   const getCacheKey = useCallback((id: string) => `signposting:symptoms:${id}`, [])
 
@@ -145,6 +147,47 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   useEffect(() => {
     localStorage.setItem('selectedAge', selectedAge)
   }, [selectedAge])
+
+  // Fetch recently changed symptoms for badge display
+  useEffect(() => {
+    if (!surgeryId || symptoms.length === 0) {
+      setChangesMap(new Map())
+      return
+    }
+
+    const fetchChanges = async () => {
+      try {
+        // Get all symptom IDs
+        const symptomIds = symptoms.map(s => s.id).join(',')
+        const response = await fetch(
+          `/api/symptoms/changes?surgeryId=${surgeryId}&symptomIds=${encodeURIComponent(symptomIds)}`,
+          { cache: 'no-store' }
+        )
+        
+        if (response.ok) {
+          const data = await response.json()
+          const newMap = new Map<string, SymptomChangeInfo>()
+          
+          if (data.changes) {
+            for (const [id, info] of Object.entries(data.changes)) {
+              const changeInfo = info as { changeType: 'new' | 'updated'; approvedAt: string }
+              newMap.set(id, {
+                changeType: changeInfo.changeType,
+                approvedAt: new Date(changeInfo.approvedAt)
+              })
+            }
+          }
+          
+          setChangesMap(newMap)
+        }
+      } catch (error) {
+        console.error('Failed to fetch symptom changes:', error)
+        setChangesMap(new Map())
+      }
+    }
+
+    fetchChanges()
+  }, [surgeryId, symptoms])
 
   // Filter symptoms based on search, age group, and letter with useMemo for performance
   const lowerSearch = useMemo(() => deferredSearchTerm.trim().toLowerCase(), [deferredSearchTerm])
@@ -263,6 +306,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
               md: 2,
               sm: 1
             }}
+            changesMap={changesMap}
           />
         ) : (
           <div className="text-center py-12">
