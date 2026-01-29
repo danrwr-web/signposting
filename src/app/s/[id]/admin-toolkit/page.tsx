@@ -90,8 +90,9 @@ export default async function AdminToolkitLandingPage({ params }: AdminToolkitLa
                   <Link
                     href={`/s/${surgeryId}/admin-toolkit/admin`}
                     className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue underline-offset-2 hover:underline"
+                    aria-label="Manage handbook settings"
                   >
-                    Edit Handbook
+                    Manage handbook
                   </Link>
                   <Link href={`/s/${surgeryId}/admin-toolkit/admin`} className="nhs-button">
                     Add page
