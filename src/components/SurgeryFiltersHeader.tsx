@@ -135,15 +135,15 @@ export default function SurgeryFiltersHeader({
                 <span className="mx-2.5 text-gray-300" aria-hidden="true">•</span>
                 <Link
                   href={`/s/${currentSurgeryId}/signposting/changes`}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium rounded-md transition-colors ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded-md transition-colors ${
                     changesCount && changesCount > 0
-                      ? 'text-nhs-blue hover:bg-blue-50'
+                      ? 'font-medium text-nhs-blue hover:bg-blue-50 hover:underline'
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   What&apos;s changed
                   {changesCount !== null && changesCount > 0 && (
-                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-blue-100 text-blue-900 rounded-full">
                       {changesCount}
                     </span>
                   )}
@@ -220,15 +220,15 @@ export default function SurgeryFiltersHeader({
                     <span className="mx-2.5 text-gray-300" aria-hidden="true">•</span>
                     <Link
                       href={`/s/${currentSurgeryId}/signposting/changes`}
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium rounded-md transition-colors ${
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm rounded-md transition-colors ${
                         changesCount && changesCount > 0
-                          ? 'text-nhs-blue hover:bg-blue-50'
+                          ? 'font-medium text-nhs-blue hover:bg-blue-50 hover:underline'
                           : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       What&apos;s changed
                       {changesCount !== null && changesCount > 0 && (
-                        <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                        <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-blue-100 text-blue-900 rounded-full">
                           {changesCount}
                         </span>
                       )}
