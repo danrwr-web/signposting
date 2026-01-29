@@ -2974,22 +2974,33 @@ export default function WorkflowDiagramClient({
                         return (
                           <div key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded border border-gray-200">
                             <div className="flex-1 space-y-2">
-                              <select
-                                value={link.toTemplateId}
-                                onChange={(e) => {
-                                  const updated = [...editingLinkedWorkflows]
-                                  updated[index] = { ...updated[index], toTemplateId: e.target.value }
-                                  setEditingLinkedWorkflows(updated)
-                                }}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="">Select workflow...</option>
-                                {availableTemplates.map((t) => (
-                                  <option key={t.id} value={t.id}>
-                                    {t.name}
-                                  </option>
-                                ))}
-                              </select>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={link.toTemplateId}
+                                  onChange={(e) => {
+                                    const updated = [...editingLinkedWorkflows]
+                                    updated[index] = { ...updated[index], toTemplateId: e.target.value }
+                                    setEditingLinkedWorkflows(updated)
+                                  }}
+                                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="">Select workflow...</option>
+                                  {availableTemplates.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                      {t.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {link.toTemplateId && (
+                                  <Link
+                                    href={`/s/${surgeryId}/workflow/templates/${link.toTemplateId}/view`}
+                                    className="px-2 py-2 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    title="Open linked workflow"
+                                  >
+                                    Open ↗
+                                  </Link>
+                                )}
+                              </div>
                               <input
                                 type="text"
                                 value={link.label}
