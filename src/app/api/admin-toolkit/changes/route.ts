@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/session'
+import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import {
   getRecentlyChangedHandbookItems,
@@ -58,8 +58,8 @@ async function resolveSurgeryId(identifier: string): Promise<string | null> {
  */
 export async function GET(req: NextRequest) {
   try {
-    const session = await getSession()
-    if (!session?.user) {
+    const user = await getSessionUser()
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -88,20 +88,20 @@ export async function GET(req: NextRequest) {
     }
 
     // Verify user has access to this surgery
-    const membership = session.user.memberships.find((m) => m.surgeryId === surgeryId)
-    const isSuperuser = session.user.globalRole === 'SUPERUSER'
+    const membership = user.memberships.find((m) => m.surgeryId === surgeryId)
+    const isSuperuser = user.globalRole === 'SUPERUSER'
     if (!membership && !isSuperuser) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // If countOnly requested, return just the count
     if (countOnly === 'true') {
-      const count = await getRecentlyChangedHandbookItemsCount(session.user, surgeryId, windowDays)
+      const count = await getRecentlyChangedHandbookItemsCount(user, surgeryId, windowDays)
       return NextResponse.json({ count })
     }
 
     // Return full list of recently changed items
-    const changes = await getRecentlyChangedHandbookItems(session.user, surgeryId, windowDays)
+    const changes = await getRecentlyChangedHandbookItems(user, surgeryId, windowDays)
     const count = changes.length
 
     // Serialize dates to ISO strings
