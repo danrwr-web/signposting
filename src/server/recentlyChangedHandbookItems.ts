@@ -43,7 +43,7 @@ async function fetchCategoriesForPermissions(surgeryId: string): Promise<AdminTo
       parentCategoryId: true,
       visibilityMode: true,
       visibilityRoles: true,
-      visibleUserIds: true,
+      visibleUsers: { select: { userId: true } },
     },
   })
 
@@ -52,7 +52,7 @@ async function fetchCategoriesForPermissions(surgeryId: string): Promise<AdminTo
     parentCategoryId: c.parentCategoryId,
     visibilityMode: c.visibilityMode as 'ALL' | 'ROLES' | 'USERS' | 'ROLES_OR_USERS',
     visibilityRoles: c.visibilityRoles as ('ADMIN' | 'STANDARD')[],
-    visibleUserIds: c.visibleUserIds,
+    visibleUserIds: (c.visibleUsers ?? []).map((u) => u.userId),
   }))
 }
 
