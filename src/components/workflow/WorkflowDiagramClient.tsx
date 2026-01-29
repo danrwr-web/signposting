@@ -3183,22 +3183,21 @@ export default function WorkflowDiagramClient({
                       {detailsNode.workflowLinks.map((link) => {
                         const linkHref = `/s/${surgeryId}/workflow/templates/${link.templateId}/view`
                         return (
-                          <Link
+                          <button
                             key={link.id}
-                            href={linkHref}
-                            onClick={(e) => {
-                              console.log('[DEBUG] Link onClick fired', { linkHref, target: e.target, currentTarget: e.currentTarget })
+                            type="button"
+                            onClick={() => {
+                              console.log('[DEBUG] Button onClick fired, navigating to:', linkHref)
+                              router.push(linkHref)
                             }}
                             onMouseDown={(e) => {
-                              console.log('[DEBUG] Link onMouseDown fired', { linkHref, target: e.target })
+                              console.log('[DEBUG] Button onMouseDown fired', { linkHref, target: e.target })
                             }}
-                            className="block w-full px-4 py-3 text-sm text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                            className="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer text-left"
                           >
-                            <span className="flex items-center justify-between">
-                              <span className="font-medium">{link.label}</span>
-                              <span className="text-gray-400">↗</span>
-                            </span>
-                          </Link>
+                            <span className="font-medium">{link.label}</span>
+                            <span className="text-gray-400">↗</span>
+                          </button>
                         )
                       })}
                     </div>
