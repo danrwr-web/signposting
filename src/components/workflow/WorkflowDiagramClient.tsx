@@ -2634,16 +2634,17 @@ export default function WorkflowDiagramClient({
           </div>
         </div>
 
-        {/* Right column: details panel (in layout flow) */}
+        {/* Right column: details panel — ensure it stacks above React Flow pane and receives pointer events */}
         <div
           data-testid="workflow-details-panel"
-          className={`shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out ${
-            isDetailsOpen ? 'w-[420px] border-l border-gray-200 bg-white' : 'w-0'
+          className={`shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out relative z-10 bg-white ${
+            isDetailsOpen ? 'w-[420px] border-l border-gray-200' : 'w-0'
           }`}
+          style={{ pointerEvents: isDetailsOpen ? 'auto' : 'none' }}
           aria-hidden={!isDetailsOpen}
         >
           {isDetailsOpen && (
-            <div className="h-full px-4 py-4">
+            <div className="h-full px-4 py-4 overflow-y-auto">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-gray-900">Details</h2>
                 <button
