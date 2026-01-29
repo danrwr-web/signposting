@@ -5,6 +5,7 @@
 
 import 'server-only'
 import { prisma } from '@/lib/prisma'
+import { computeEffectiveCutoffDate } from './whatsChangedBaseline'
 
 /**
  * Represents a recently changed symptom with metadata about the change type.
@@ -30,14 +31,15 @@ export const DEFAULT_CHANGE_WINDOW_DAYS = 14
  * 
  * @param surgeryId - The surgery to scope the query to
  * @param windowDays - Number of days to look back (default: 14)
+ * @param baselineDate - Surgery-specific baseline date (optional)
  * @returns Array of recently changed symptoms, sorted by approval date (most recent first)
  */
 export async function getRecentlyChangedSymptoms(
   surgeryId: string,
-  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS
+  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS,
+  baselineDate: Date | null = null
 ): Promise<RecentlyChangedSymptom[]> {
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - windowDays)
+  const cutoffDate = computeEffectiveCutoffDate(windowDays, baselineDate)
 
   // Get all approved symptom review statuses within the window
   const recentReviews = await prisma.symptomReviewStatus.findMany({
@@ -207,14 +209,15 @@ export async function getRecentlyChangedSymptoms(
  * 
  * @param surgeryId - The surgery to scope the query to
  * @param windowDays - Number of days to look back (default: 14)
+ * @param baselineDate - Surgery-specific baseline date (optional)
  * @returns Count of recently changed symptoms
  */
 export async function getRecentlyChangedSymptomsCount(
   surgeryId: string,
-  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS
+  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS,
+  baselineDate: Date | null = null
 ): Promise<number> {
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - windowDays)
+  const cutoffDate = computeEffectiveCutoffDate(windowDays, baselineDate)
 
   const count = await prisma.symptomReviewStatus.count({
     where: {
@@ -236,15 +239,16 @@ export async function getRecentlyChangedSymptomsCount(
  * @param surgeryId - The surgery to scope the query to
  * @param symptomId - The symptom ID to check
  * @param windowDays - Number of days to look back (default: 14)
+ * @param baselineDate - Surgery-specific baseline date (optional)
  * @returns Object with isRecentlyChanged flag and changeType if applicable
  */
 export async function checkSymptomRecentlyChanged(
   surgeryId: string,
   symptomId: string,
-  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS
+  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS,
+  baselineDate: Date | null = null
 ): Promise<{ isRecentlyChanged: boolean; changeType?: 'new' | 'updated'; approvedAt?: Date }> {
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - windowDays)
+  const cutoffDate = computeEffectiveCutoffDate(windowDays, baselineDate)
 
   const review = await prisma.symptomReviewStatus.findFirst({
     where: {
@@ -292,15 +296,16 @@ export async function checkSymptomRecentlyChanged(
  * @param surgeryId - The surgery to scope the query to
  * @param symptomIds - Array of symptom IDs to check
  * @param windowDays - Number of days to look back (default: 14)
+ * @param baselineDate - Surgery-specific baseline date (optional)
  * @returns Map of symptom ID to change info
  */
 export async function batchCheckSymptomsRecentlyChanged(
   surgeryId: string,
   symptomIds: string[],
-  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS
+  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS,
+  baselineDate: Date | null = null
 ): Promise<Map<string, { changeType: 'new' | 'updated'; approvedAt: Date }>> {
-  const cutoffDate = new Date()
-  cutoffDate.setDate(cutoffDate.getDate() - windowDays)
+  const cutoffDate = computeEffectiveCutoffDate(windowDays, baselineDate)
 
   const reviews = await prisma.symptomReviewStatus.findMany({
     where: {

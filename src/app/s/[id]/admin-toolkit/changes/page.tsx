@@ -8,6 +8,11 @@ import {
   getRecentlyChangedHandbookItems,
   DEFAULT_CHANGE_WINDOW_DAYS,
 } from '@/server/recentlyChangedHandbookItems'
+import {
+  getChangesBaselineDate,
+  isBaselineActive,
+  formatBaselineDate,
+} from '@/server/whatsChangedBaseline'
 import HandbookWhatsChangedClient from './HandbookWhatsChangedClient'
 
 export const dynamic = 'force-dynamic'
@@ -30,12 +35,13 @@ export default async function HandbookChangesPage({ params }: HandbookChangesPag
       redirect(`/s/${surgeryId}/admin-toolkit/changes`)
     }
 
-    const [surgery, enabled] = await Promise.all([
+    const [surgery, enabled, baselineDate] = await Promise.all([
       prisma.surgery.findUnique({
         where: { id: surgeryId },
         select: { id: true, name: true },
       }),
       isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
+      getChangesBaselineDate(surgeryId, 'practiceHandbook'),
     ])
 
     if (!surgery) {
@@ -50,7 +56,8 @@ export default async function HandbookChangesPage({ params }: HandbookChangesPag
     const recentChanges = await getRecentlyChangedHandbookItems(
       user,
       surgeryId,
-      DEFAULT_CHANGE_WINDOW_DAYS
+      DEFAULT_CHANGE_WINDOW_DAYS,
+      baselineDate
     )
 
     // Serialize for client
@@ -59,11 +66,17 @@ export default async function HandbookChangesPage({ params }: HandbookChangesPag
       changedAt: change.changedAt.toISOString(),
     }))
 
+    // Determine helper text
+    const baselineIsActive = isBaselineActive(DEFAULT_CHANGE_WINDOW_DAYS, baselineDate)
+    const baselineDateFormatted = baselineDate ? formatBaselineDate(baselineDate) : null
+
     return (
       <HandbookWhatsChangedClient
         surgery={{ id: surgery.id, name: surgery.name }}
         changes={serialisedChanges}
         windowDays={DEFAULT_CHANGE_WINDOW_DAYS}
+        baselineDate={baselineDateFormatted}
+        baselineIsActive={baselineIsActive}
       />
     )
   } catch {

@@ -21,6 +21,8 @@ interface HandbookWhatsChangedClientProps {
   surgery: Surgery
   changes: RecentChange[]
   windowDays: number
+  baselineDate?: string | null
+  baselineIsActive?: boolean
 }
 
 type FilterType = 'all' | 'new' | 'updated'
@@ -29,6 +31,8 @@ export default function HandbookWhatsChangedClient({
   surgery,
   changes,
   windowDays,
+  baselineDate,
+  baselineIsActive,
 }: HandbookWhatsChangedClientProps) {
   const [filter, setFilter] = useState<FilterType>('all')
 
@@ -69,7 +73,9 @@ export default function HandbookWhatsChangedClient({
       {/* Page header */}
       <h1 className="text-2xl font-bold text-gray-900 mb-2">What&apos;s changed</h1>
       <p className="text-sm text-gray-600 mb-6">
-        Showing changes since 23 January 2026
+        {baselineIsActive && baselineDate
+          ? `Showing changes since ${baselineDate}`
+          : `Showing changes from the last ${windowDays} days`}
       </p>
 
       {/* Filter chips */}

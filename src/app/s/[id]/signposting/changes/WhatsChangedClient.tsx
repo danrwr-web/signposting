@@ -22,6 +22,8 @@ interface WhatsChangedClientProps {
   surgery: Surgery
   changes: RecentChange[]
   windowDays: number
+  baselineDate?: string | null
+  baselineIsActive?: boolean
 }
 
 type FilterType = 'all' | 'new' | 'updated'
@@ -29,7 +31,9 @@ type FilterType = 'all' | 'new' | 'updated'
 export default function WhatsChangedClient({
   surgery,
   changes,
-  windowDays
+  windowDays,
+  baselineDate,
+  baselineIsActive,
 }: WhatsChangedClientProps) {
   const [filter, setFilter] = useState<FilterType>('all')
 
@@ -98,7 +102,9 @@ export default function WhatsChangedClient({
         What&apos;s changed
       </h1>
       <p className="text-sm text-gray-600 mb-6">
-        Showing approved changes from the last {windowDays} days
+        {baselineIsActive && baselineDate
+          ? `Showing approved changes since ${baselineDate}`
+          : `Showing approved changes from the last ${windowDays} days`}
       </p>
 
       {/* Filter chips */}

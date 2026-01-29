@@ -11,6 +11,7 @@ import {
   filterAdminToolkitItemsByViewableCategories,
   type AdminToolkitCategoryVisibility,
 } from '@/lib/adminToolkitPermissions'
+import { computeEffectiveCutoffDate } from './whatsChangedBaseline'
 
 /**
  * Represents a recently changed handbook item with metadata about the change type.
@@ -28,13 +29,6 @@ export interface RecentlyChangedHandbookItem {
  * Default time window for "recently changed" items (14 days).
  */
 export const DEFAULT_CHANGE_WINDOW_DAYS = 14
-
-/**
- * Baseline cutoff date for Practice Handbook changes.
- * Only changes on or after this date will be shown in "What's changed".
- * This ignores initial import/migration noise from before this feature went live.
- */
-export const PRACTICE_HANDBOOK_CHANGES_EFFECTIVE_FROM = new Date('2026-01-23T00:00:00Z')
 
 /**
  * Fetches categories for permission checking.
@@ -75,14 +69,10 @@ async function fetchCategoriesForPermissions(surgeryId: string): Promise<AdminTo
 export async function getRecentlyChangedHandbookItems(
   user: SessionUser,
   surgeryId: string,
-  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS
+  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS,
+  baselineDate: Date | null = null
 ): Promise<RecentlyChangedHandbookItem[]> {
-  const windowCutoff = new Date()
-  windowCutoff.setDate(windowCutoff.getDate() - windowDays)
-  // Use the later of: rolling window cutoff OR the baseline effective-from date
-  const cutoffDate = windowCutoff > PRACTICE_HANDBOOK_CHANGES_EFFECTIVE_FROM 
-    ? windowCutoff 
-    : PRACTICE_HANDBOOK_CHANGES_EFFECTIVE_FROM
+  const cutoffDate = computeEffectiveCutoffDate(windowDays, baselineDate)
 
   // Fetch categories for permission checking
   const categories = await fetchCategoriesForPermissions(surgeryId)
@@ -154,14 +144,10 @@ export async function getRecentlyChangedHandbookItems(
 export async function getRecentlyChangedHandbookItemsCount(
   user: SessionUser,
   surgeryId: string,
-  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS
+  windowDays: number = DEFAULT_CHANGE_WINDOW_DAYS,
+  baselineDate: Date | null = null
 ): Promise<number> {
-  const windowCutoff = new Date()
-  windowCutoff.setDate(windowCutoff.getDate() - windowDays)
-  // Use the later of: rolling window cutoff OR the baseline effective-from date
-  const cutoffDate = windowCutoff > PRACTICE_HANDBOOK_CHANGES_EFFECTIVE_FROM 
-    ? windowCutoff 
-    : PRACTICE_HANDBOOK_CHANGES_EFFECTIVE_FROM
+  const cutoffDate = computeEffectiveCutoffDate(windowDays, baselineDate)
 
   // Fetch categories for permission checking
   const categories = await fetchCategoriesForPermissions(surgeryId)

@@ -12,6 +12,11 @@ import {
   getRecentlyChangedHandbookItemsCount,
   DEFAULT_CHANGE_WINDOW_DAYS,
 } from '@/server/recentlyChangedHandbookItems'
+import {
+  readChangesBaselineDate,
+  isBaselineActive,
+  formatBaselineDate,
+} from '@/server/whatsChangedBaseline'
 import { z } from 'zod'
 
 export const runtime = 'nodejs'
@@ -24,22 +29,22 @@ const querySchema = z.object({
 })
 
 /**
- * Resolves a surgery identifier (ID or slug) to the actual database ID.
+ * Resolves a surgery identifier (ID or slug) to the actual database ID and uiConfig.
  */
-async function resolveSurgeryId(identifier: string): Promise<string | null> {
+async function resolveSurgery(identifier: string): Promise<{ id: string; uiConfig: unknown } | null> {
   // Try by ID first
   const byId = await prisma.surgery.findUnique({
     where: { id: identifier },
-    select: { id: true },
+    select: { id: true, uiConfig: true },
   })
-  if (byId) return byId.id
+  if (byId) return byId
 
   // Try by slug
   const bySlug = await prisma.surgery.findUnique({
     where: { slug: identifier },
-    select: { id: true },
+    select: { id: true, uiConfig: true },
   })
-  return bySlug?.id ?? null
+  return bySlug ?? null
 }
 
 /**
@@ -82,10 +87,11 @@ export async function GET(req: NextRequest) {
     const { surgeryId: surgeryIdentifier, windowDays = DEFAULT_CHANGE_WINDOW_DAYS, countOnly } = parsed.data
 
     // Resolve surgery ID or slug to actual database ID
-    const surgeryId = await resolveSurgeryId(surgeryIdentifier)
-    if (!surgeryId) {
+    const surgery = await resolveSurgery(surgeryIdentifier)
+    if (!surgery) {
       return NextResponse.json({ error: 'Surgery not found' }, { status: 404 })
     }
+    const surgeryId = surgery.id
 
     // Verify user has access to this surgery
     const membership = user.memberships.find((m) => m.surgeryId === surgeryId)
@@ -94,14 +100,19 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Get baseline date for this surgery
+    const baselineDate = readChangesBaselineDate(surgery.uiConfig, 'practiceHandbook')
+    const baselineIsActive = isBaselineActive(windowDays, baselineDate)
+    const baselineDateFormatted = baselineDate ? formatBaselineDate(baselineDate) : null
+
     // If countOnly requested, return just the count
     if (countOnly === 'true') {
-      const count = await getRecentlyChangedHandbookItemsCount(user, surgeryId, windowDays)
-      return NextResponse.json({ count })
+      const count = await getRecentlyChangedHandbookItemsCount(user, surgeryId, windowDays, baselineDate)
+      return NextResponse.json({ count, baselineDate: baselineDateFormatted, baselineIsActive })
     }
 
     // Return full list of recently changed items
-    const changes = await getRecentlyChangedHandbookItems(user, surgeryId, windowDays)
+    const changes = await getRecentlyChangedHandbookItems(user, surgeryId, windowDays, baselineDate)
     const count = changes.length
 
     // Serialize dates to ISO strings
@@ -110,7 +121,12 @@ export async function GET(req: NextRequest) {
       changedAt: change.changedAt.toISOString(),
     }))
 
-    return NextResponse.json({ changes: serialisedChanges, count })
+    return NextResponse.json({
+      changes: serialisedChanges,
+      count,
+      baselineDate: baselineDateFormatted,
+      baselineIsActive,
+    })
   } catch (error) {
     console.error('Error fetching recently changed handbook items:', error)
     return NextResponse.json({ error: 'Failed to fetch recently changed items' }, { status: 500 })

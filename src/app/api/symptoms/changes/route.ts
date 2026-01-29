@@ -13,6 +13,11 @@ import {
   batchCheckSymptomsRecentlyChanged,
   DEFAULT_CHANGE_WINDOW_DAYS
 } from '@/server/recentlyChangedSymptoms'
+import {
+  readChangesBaselineDate,
+  isBaselineActive,
+  formatBaselineDate,
+} from '@/server/whatsChangedBaseline'
 import { z } from 'zod'
 
 export const runtime = 'nodejs'
@@ -26,22 +31,22 @@ const querySchema = z.object({
 })
 
 /**
- * Resolves a surgery identifier (ID or slug) to the actual database ID.
+ * Resolves a surgery identifier (ID or slug) to the actual database ID and uiConfig.
  */
-async function resolveSurgeryId(identifier: string): Promise<string | null> {
+async function resolveSurgery(identifier: string): Promise<{ id: string; uiConfig: unknown } | null> {
   // Try by ID first
   const byId = await prisma.surgery.findUnique({
     where: { id: identifier },
-    select: { id: true }
+    select: { id: true, uiConfig: true }
   })
-  if (byId) return byId.id
+  if (byId) return byId
 
   // Try by slug
   const bySlug = await prisma.surgery.findUnique({
     where: { slug: identifier },
-    select: { id: true }
+    select: { id: true, uiConfig: true }
   })
-  return bySlug?.id ?? null
+  return bySlug ?? null
 }
 
 /**
@@ -80,21 +85,27 @@ export async function GET(req: NextRequest) {
     const { surgeryId: surgeryIdentifier, windowDays = DEFAULT_CHANGE_WINDOW_DAYS, countOnly, symptomIds } = parsed.data
 
     // Resolve surgery ID or slug to actual database ID
-    const surgeryId = await resolveSurgeryId(surgeryIdentifier)
-    if (!surgeryId) {
+    const surgery = await resolveSurgery(surgeryIdentifier)
+    if (!surgery) {
       return NextResponse.json(
         { error: 'Surgery not found' },
         { status: 404 }
       )
     }
+    const surgeryId = surgery.id
 
     // Verify user has access to this surgery
     await requireSurgeryAccess(surgeryId)
 
+    // Get baseline date for this surgery
+    const baselineDate = readChangesBaselineDate(surgery.uiConfig, 'signposting')
+    const baselineIsActive = isBaselineActive(windowDays, baselineDate)
+    const baselineDateFormatted = baselineDate ? formatBaselineDate(baselineDate) : null
+
     // If countOnly requested, return just the count
     if (countOnly === 'true') {
-      const count = await getRecentlyChangedSymptomsCount(surgeryId, windowDays)
-      return NextResponse.json({ count })
+      const count = await getRecentlyChangedSymptomsCount(surgeryId, windowDays, baselineDate)
+      return NextResponse.json({ count, baselineDate: baselineDateFormatted, baselineIsActive })
     }
 
     // If symptomIds provided, return batch check results
@@ -104,7 +115,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ changes: {} })
       }
 
-      const changesMap = await batchCheckSymptomsRecentlyChanged(surgeryId, ids, windowDays)
+      const changesMap = await batchCheckSymptomsRecentlyChanged(surgeryId, ids, windowDays, baselineDate)
       
       // Convert Map to plain object for JSON serialization
       const changes: Record<string, { changeType: 'new' | 'updated'; approvedAt: string }> = {}
@@ -119,7 +130,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Return full list of recently changed symptoms
-    const changes = await getRecentlyChangedSymptoms(surgeryId, windowDays)
+    const changes = await getRecentlyChangedSymptoms(surgeryId, windowDays, baselineDate)
     const count = changes.length
 
     // Serialize dates to ISO strings
@@ -128,7 +139,12 @@ export async function GET(req: NextRequest) {
       approvedAt: change.approvedAt.toISOString()
     }))
 
-    return NextResponse.json({ changes: serialisedChanges, count })
+    return NextResponse.json({
+      changes: serialisedChanges,
+      count,
+      baselineDate: baselineDateFormatted,
+      baselineIsActive,
+    })
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
