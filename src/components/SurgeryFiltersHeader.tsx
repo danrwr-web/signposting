@@ -125,23 +125,30 @@ export default function SurgeryFiltersHeader({
           </div>
 
           {/* count and What's changed link, right aligned */}
-          <div className="flex items-center gap-4 shrink-0">
-            <div className="text-sm text-nhs-grey" aria-live="polite">
+          <div className="flex items-center shrink-0">
+            <span className="text-sm text-nhs-grey" aria-live="polite">
               {resultsCount} of {totalCount}
               {selectedLetter !== 'All' && ` (${selectedLetter})`}
-            </div>
+            </span>
             {currentSurgeryId && (
-              <Link
-                href={`/s/${currentSurgeryId}/signposting/changes`}
-                className="text-sm text-nhs-grey hover:text-nhs-blue hover:underline transition-colors"
-              >
-                What&apos;s changed
-                {changesCount !== null && changesCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
-                    {changesCount}
-                  </span>
-                )}
-              </Link>
+              <>
+                <span className="mx-2.5 text-gray-300" aria-hidden="true">•</span>
+                <Link
+                  href={`/s/${currentSurgeryId}/signposting/changes`}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium rounded-md transition-colors ${
+                    changesCount && changesCount > 0
+                      ? 'text-nhs-blue hover:bg-blue-50'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  What&apos;s changed
+                  {changesCount !== null && changesCount > 0 && (
+                    <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                      {changesCount}
+                    </span>
+                  )}
+                </Link>
+              </>
             )}
           </div>
         </div>
@@ -203,23 +210,30 @@ export default function SurgeryFiltersHeader({
                   debounceMs={250}
                 />
               </div>
-              <div className="flex items-center gap-4 shrink-0">
-                <div className="text-sm text-nhs-grey" aria-live="polite">
+              <div className="flex items-center shrink-0">
+                <span className="text-sm text-nhs-grey" aria-live="polite">
                   {resultsCount} of {totalCount}
                   {selectedLetter !== 'All' && ` (${selectedLetter})`}
-                </div>
+                </span>
                 {currentSurgeryId && (
-                  <Link
-                    href={`/s/${currentSurgeryId}/signposting/changes`}
-                    className="text-sm text-nhs-grey hover:text-nhs-blue hover:underline transition-colors"
-                  >
-                    What&apos;s changed
-                    {changesCount !== null && changesCount > 0 && (
-                      <span className="ml-1.5 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
-                        {changesCount}
-                      </span>
-                    )}
-                  </Link>
+                  <>
+                    <span className="mx-2.5 text-gray-300" aria-hidden="true">•</span>
+                    <Link
+                      href={`/s/${currentSurgeryId}/signposting/changes`}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-sm font-medium rounded-md transition-colors ${
+                        changesCount && changesCount > 0
+                          ? 'text-nhs-blue hover:bg-blue-50'
+                          : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      What&apos;s changed
+                      {changesCount !== null && changesCount > 0 && (
+                        <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
+                          {changesCount}
+                        </span>
+                      )}
+                    </Link>
+                  </>
                 )}
               </div>
             </div>
