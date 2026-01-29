@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-import { getSessionUser, can } from '@/lib/rbac'
+import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import PracticeSettingsClient from './PracticeSettingsClient'
@@ -64,11 +64,36 @@ export default async function PracticeSettingsPage() {
   // Get feature flags for the primary surgery
   let enabledFeatures: Record<string, boolean> = {}
   if (primarySurgeryId) {
-    const features = await prisma.surgeryFeature.findMany({
-      where: { surgeryId: primarySurgeryId },
-      select: { key: true, enabled: true },
+    // Get all features
+    const allFeatures = await prisma.feature.findMany({
+      select: {
+        id: true,
+        key: true,
+      },
     })
-    enabledFeatures = Object.fromEntries(features.map(f => [f.key, f.enabled]))
+
+    // Get surgery-level flags for this surgery
+    const surgeryFlags = await prisma.surgeryFeatureFlag.findMany({
+      where: { surgeryId: primarySurgeryId },
+      select: {
+        featureId: true,
+        enabled: true,
+      },
+    })
+
+    // Create a map of featureId -> enabled
+    const flagsMap = new Map<string, boolean>()
+    for (const flag of surgeryFlags) {
+      flagsMap.set(flag.featureId, flag.enabled)
+    }
+
+    // Combine features with their enabled status
+    enabledFeatures = Object.fromEntries(
+      allFeatures.map(feature => [
+        feature.key,
+        flagsMap.get(feature.id) || false,
+      ])
+    )
   }
 
   return (
