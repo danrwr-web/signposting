@@ -315,16 +315,8 @@ export default function UniversalNavigationPanel() {
                 Management
               </h3>
               <ul className="space-y-1 px-3">
-                {/* Only show Edit Handbook if admin_toolkit is enabled */}
-                {MANAGEMENT_ITEMS.filter(item => {
-                  if (item.id === 'edit-handbook') {
-                    return enabledFeatures['admin_toolkit'] ?? false
-                  }
-                  if (item.id === 'workflow-editor') {
-                    return enabledFeatures['workflow_guidance'] ?? false
-                  }
-                  return true
-                }).map((item) => (
+                {/* Practice settings and Signposting settings links */}
+                {MANAGEMENT_ITEMS.map((item) => (
                   <li key={item.id}>
                     <Link
                       href={resolveHref(item.href)}

@@ -65,7 +65,7 @@ export default function SystemManagementClient({
       id: 'features',
       title: 'Feature rollouts',
       description: 'Manage global and per-surgery feature enablement. Control which features are available to which surgeries.',
-      href: '/admin?tab=features',
+      href: '/admin/system/features',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5" />
@@ -86,8 +86,8 @@ export default function SystemManagementClient({
     },
     {
       id: 'global-defaults',
-      title: 'Global defaults',
-      description: 'System-wide defaults that apply unless overridden at surgery level. Includes default recent changes window and other platform-wide settings.',
+      title: 'Current global defaults',
+      description: 'View system-wide default values that apply unless overridden at surgery level. Includes the recent changes window and other platform-wide settings.',
       href: '/admin/system/defaults',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
@@ -105,13 +105,6 @@ export default function SystemManagementClient({
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page header */}
         <div className="mb-8">
-          <nav className="text-sm text-nhs-grey mb-2">
-            <Link href="/admin" className="hover:text-nhs-blue">
-              Settings
-            </Link>
-            <span className="mx-2">/</span>
-            <span>System management</span>
-          </nav>
           <h1 className="text-3xl font-bold text-nhs-dark-blue">
             System management
           </h1>

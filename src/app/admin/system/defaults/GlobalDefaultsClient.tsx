@@ -31,18 +31,28 @@ export default function GlobalDefaultsClient({
             <span>Global defaults</span>
           </nav>
           <h1 className="text-3xl font-bold text-nhs-dark-blue">
-            Global defaults
+            Current global defaults
           </h1>
           <p className="text-nhs-grey mt-2">
-            System-wide default settings that apply to all surgeries unless overridden at the surgery level.
+            These are the system-wide default values that apply to all surgeries unless overridden at the surgery level.
+            Global defaults are currently read-only and defined in the codebase.
           </p>
         </div>
 
         {/* Defaults section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-            Current defaults
-          </h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-nhs-dark-blue">
+              Default values
+            </h2>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3.5 h-3.5 mr-1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Read-only
+            </span>
+          </div>
 
           <div className="space-y-6">
             {/* Recent changes window */}

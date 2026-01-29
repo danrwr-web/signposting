@@ -65,15 +65,14 @@ export const MODULES: ModuleItem[] = [
  * 
  * Navigation structure:
  * - Practice settings (/admin/practice): Surgery-level administration across modules
+ *   (includes Users & access, Module access, Practice Handbook admin, Workflow Guidance)
  * - Signposting settings (/admin): Module-specific Signposting configuration
  * - System management (/admin/system): Super Admin only, platform governance
+ * 
+ * Note: Practice Handbook admin is accessed via Practice settings, NOT directly from
+ * the hamburger menu. This keeps configuration tasks in one place.
  */
 export const MANAGEMENT_ITEMS: ManagementItem[] = [
-  { 
-    id: 'edit-handbook', 
-    label: 'Edit Handbook', 
-    href: '/s/{surgeryId}/admin-toolkit/admin' 
-  },
   { 
     id: 'practice-settings', 
     label: 'Practice settings', 
@@ -83,10 +82,5 @@ export const MANAGEMENT_ITEMS: ManagementItem[] = [
     id: 'signposting-settings', 
     label: 'Signposting settings', 
     href: '/admin' 
-  },
-  { 
-    id: 'workflow-editor', 
-    label: 'Workflow editor', 
-    href: '/s/{surgeryId}/workflow/templates' 
   },
 ]
