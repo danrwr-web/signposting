@@ -15,7 +15,6 @@ import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
 import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
-import FeaturesAdmin from '@/components/FeaturesAdmin'
 import SetupChecklistClient from '@/app/s/[id]/admin/setup-checklist/SetupChecklistClient'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
@@ -323,7 +322,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   // Initialize active tab from URL params
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'setup-checklist']
+    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'setup-checklist', 'front-page']
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam)
     }
@@ -823,12 +822,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-nhs-dark-blue">
-              Practice admin
+              Signposting settings
             </h1>
             <p className="text-nhs-grey mt-1">
-              {session.type === 'surgery' 
-                ? `Practice-level settings for your surgery`
-                : `Practice-level settings (logged in as System admin)`}
+              Configure symptom library, clinical review, highlights, and other Signposting module settings.
               {session.surgerySlug && ` • ${session.surgerySlug}`}
             </p>
           </div>
@@ -847,29 +844,22 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
                 {[
-                  // Symptom Library first; visible to superusers and surgery admins
+                  // Signposting module settings only
                   { id: 'library', label: 'Symptom Library' },
                   // Clinical Review: visible to superusers and surgery admins
                   ...((session.type === 'superuser' || session.type === 'surgery')
                     ? [{ id: 'clinical-review', label: 'Clinical Review', badge: clinicalReviewBadge }]
                     : []),
-                  // Data Management is superuser-only
+                  // Data Management is superuser-only (for symptom database imports)
                   ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
                   { id: 'highlights', label: 'Highlight Config' },
                   { id: 'highrisk', label: 'High-Risk Buttons' },
                   ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'front-page', label: 'Quick Access' }] : []),
                   { id: 'engagement', label: 'Engagement' },
                   { id: 'suggestions', label: 'Suggestions', badge: suggestionsBadge },
-                  // Features: visible to SUPERUSER and PRACTICE_ADMIN
-                  ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'features', label: 'Features' }] : []),
                   // Setup Checklist: only visible if ai_surgery_customisation feature flag is enabled
                   ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true
                     ? [{ id: 'setup-checklist', label: 'Setup Checklist', badge: setupChecklistBadge }]
-                    : []),
-                  ...(session.type === 'surgery' ? [{ id: 'users', label: 'User & access management' }] : []),
-                  // System Management: visible to Super Admins only, links to /admin/system
-                  ...(session.type === 'superuser'
-                    ? [{ id: 'system', label: 'System Management' }]
                     : []),
                 ].map((tab) => (
                 <button
@@ -1034,19 +1024,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               <SuggestionsAnalytics session={session} />
             )}
 
-            {/* Features Tab */}
-            {activeTab === 'features' && (session.type === 'superuser' || session.type === 'surgery') && (
-              <FeaturesAdmin
-                currentUser={{
-                  id: session.id,
-                  email: session.email,
-                  globalRole: session.type === 'superuser' ? 'SUPERUSER' : 'USER',
-                  surgeryId: session.surgeryId
-                }}
-                selectedSurgeryId={selectedSurgery || session.surgeryId || null}
-              />
-            )}
-
             {/* Setup Checklist Tab - Only for Surgery Admins with feature flag enabled */}
             {activeTab === 'setup-checklist' && session.type === 'surgery' && featureFlags.ai_surgery_customisation === true && (
               <div>
@@ -1069,94 +1046,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     <p className="text-nhs-grey">Failed to load setup checklist data.</p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* User & access management Tab - Only for Surgery Admins */}
-            {activeTab === 'users' && session.type === 'surgery' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  User & access management
-                </h2>
-                <p className="text-nhs-grey mb-6">
-                  Manage users for your surgery. Add new users, change roles, and set default surgeries.
-                </p>
-
-                <div className="bg-white p-6 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Surgery User & access management
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Manage users who have access to your surgery. You can add new users, 
-                    change their roles, and set their default surgery.
-                  </p>
-                  
-                  <div className="flex gap-4 flex-wrap">
-                    <a
-                      href={`/s/${session.surgeryId}/admin/users`}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      Manage Users
-                    </a>
-                  </div>
-                  </div>
-
-                {/* Optional: Cross-link to Setup Checklist tab if feature flag enabled */}
-                {featureFlags.ai_surgery_customisation === true && (() => {
-                  const currentSurgery = surgeries.find(s => s.id === session.surgeryId)
-                  const onboardingCompleted = currentSurgery?.onboardingProfile?.completed ?? false
-                  const completedAt = currentSurgery?.onboardingProfile?.completedAt
-                  
-                  if (onboardingCompleted && completedAt) {
-                    return (
-                      <div className="mt-6 text-sm text-gray-600">
-                        Onboarding: Completed on {new Date(completedAt).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}.{' '}
-                        <button
-                          onClick={() => {
-                            setActiveTab('setup-checklist')
-                            router.push('/admin?tab=setup-checklist', { scroll: false })
-                          }}
-                          className="text-nhs-blue hover:underline"
-                        >
-                          View in Setup Checklist tab
-                        </button>
-                      </div>
-                    )
-                  }
-                  return null
-                })()}
-              </div>
-            )}
-
-            {/* System Management Tab - Only for Superusers - Links to /admin/system */}
-            {activeTab === 'system' && session.type === 'superuser' && (
-              <div className="text-center py-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-nhs-light-blue rounded-full mb-4">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8 text-nhs-blue">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-2">
-                  System Management
-                </h2>
-                <p className="text-nhs-grey mb-6 max-w-md mx-auto">
-                  Platform governance, cross-surgery configuration, AI usage monitoring, and global defaults 
-                  are now managed in the dedicated System Management dashboard.
-                </p>
-                <a
-                  href="/admin/system"
-                  className="inline-flex items-center px-6 py-3 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors font-medium"
-                >
-                  Open System Management
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 ml-2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                  </svg>
-                </a>
               </div>
             )}
 

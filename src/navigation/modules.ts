@@ -63,8 +63,10 @@ export const MODULES: ModuleItem[] = [
  * Management/admin navigation items visible only to practice admins and superusers.
  * The href should use {surgeryId} placeholder which will be replaced at runtime.
  * 
- * Note: "Practice admin" links to /admin which shows practice-scoped settings.
- * Super Admins also have access to /admin/system for platform governance.
+ * Navigation structure:
+ * - Practice settings (/admin/practice): Surgery-level administration across modules
+ * - Signposting settings (/admin): Module-specific Signposting configuration
+ * - System management (/admin/system): Super Admin only, platform governance
  */
 export const MANAGEMENT_ITEMS: ManagementItem[] = [
   { 
@@ -73,23 +75,18 @@ export const MANAGEMENT_ITEMS: ManagementItem[] = [
     href: '/s/{surgeryId}/admin-toolkit/admin' 
   },
   { 
-    id: 'practice-admin', 
-    label: 'Practice admin', 
+    id: 'practice-settings', 
+    label: 'Practice settings', 
+    href: '/admin/practice' 
+  },
+  { 
+    id: 'signposting-settings', 
+    label: 'Signposting settings', 
     href: '/admin' 
   },
   { 
     id: 'workflow-editor', 
     label: 'Workflow editor', 
     href: '/s/{surgeryId}/workflow/templates' 
-  },
-  { 
-    id: 'user-management', 
-    label: 'User & access management', 
-    href: '/s/{surgeryId}/admin/users' 
-  },
-  { 
-    id: 'analytics', 
-    label: 'Analytics', 
-    href: '/s/{surgeryId}/analytics' 
   },
 ]
