@@ -61,11 +61,12 @@ async function resolveSurgeryId(identifier: string): Promise<string | null> {
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url)
+    // Convert null to undefined so Zod's .optional() handles missing params correctly
     const params = {
-      surgeryId: url.searchParams.get('surgeryId'),
-      windowDays: url.searchParams.get('windowDays'),
-      countOnly: url.searchParams.get('countOnly'),
-      symptomIds: url.searchParams.get('symptomIds')
+      surgeryId: url.searchParams.get('surgeryId') ?? undefined,
+      windowDays: url.searchParams.get('windowDays') ?? undefined,
+      countOnly: url.searchParams.get('countOnly') ?? undefined,
+      symptomIds: url.searchParams.get('symptomIds') ?? undefined
     }
 
     const parsed = querySchema.safeParse(params)
