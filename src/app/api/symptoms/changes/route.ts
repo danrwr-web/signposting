@@ -6,6 +6,7 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSurgeryAccess } from '@/lib/rbac'
+import { prisma } from '@/lib/prisma'
 import { 
   getRecentlyChangedSymptoms, 
   getRecentlyChangedSymptomsCount,
@@ -25,10 +26,29 @@ const querySchema = z.object({
 })
 
 /**
+ * Resolves a surgery identifier (ID or slug) to the actual database ID.
+ */
+async function resolveSurgeryId(identifier: string): Promise<string | null> {
+  // Try by ID first
+  const byId = await prisma.surgery.findUnique({
+    where: { id: identifier },
+    select: { id: true }
+  })
+  if (byId) return byId.id
+
+  // Try by slug
+  const bySlug = await prisma.surgery.findUnique({
+    where: { slug: identifier },
+    select: { id: true }
+  })
+  return bySlug?.id ?? null
+}
+
+/**
  * GET /api/symptoms/changes
  * 
  * Query parameters:
- * - surgeryId (required): The surgery to scope the query to
+ * - surgeryId (required): The surgery to scope the query to (accepts ID or slug)
  * - windowDays (optional): Number of days to look back (default: 14, max: 365)
  * - countOnly (optional): If 'true', returns only the count
  * - symptomIds (optional): Comma-separated list of symptom IDs for batch check
@@ -56,7 +76,16 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const { surgeryId, windowDays = DEFAULT_CHANGE_WINDOW_DAYS, countOnly, symptomIds } = parsed.data
+    const { surgeryId: surgeryIdentifier, windowDays = DEFAULT_CHANGE_WINDOW_DAYS, countOnly, symptomIds } = parsed.data
+
+    // Resolve surgery ID or slug to actual database ID
+    const surgeryId = await resolveSurgeryId(surgeryIdentifier)
+    if (!surgeryId) {
+      return NextResponse.json(
+        { error: 'Surgery not found' },
+        { status: 404 }
+      )
+    }
 
     // Verify user has access to this surgery
     await requireSurgeryAccess(surgeryId)
