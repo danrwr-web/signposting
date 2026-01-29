@@ -37,12 +37,32 @@ interface ModuleAccessClientProps {
   currentUserEmail: string
 }
 
+// Core modules - practice-wide only, no user-level control
+const CORE_MODULE_KEYS = ['workflow_guidance', 'admin_toolkit']
+
+// AI features - support user-level overrides
+const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation']
+
+// Display name override for admin_toolkit
+function getDisplayName(feature: Feature): string {
+  if (feature.key === 'admin_toolkit') {
+    return 'Practice Handbook'
+  }
+  return feature.name
+}
+
+// Get description override
+function getDisplayDescription(feature: Feature): string | null {
+  if (feature.key === 'admin_toolkit') {
+    return 'Enable the Practice Handbook module (practice guidance pages, lists, rota and pinned panel).'
+  }
+  return feature.description || null
+}
+
 export default function ModuleAccessClient({
   surgeries,
   primarySurgeryId,
   isSuperuser,
-  currentUserId,
-  currentUserEmail,
 }: ModuleAccessClientProps) {
   const [selectedSurgeryId, setSelectedSurgeryId] = useState<string>(
     primarySurgeryId || surgeries[0]?.id || ''
@@ -53,6 +73,11 @@ export default function ModuleAccessClient({
   const [loading, setLoading] = useState(false)
 
   const selectedSurgery = surgeries.find(s => s.id === selectedSurgeryId)
+
+  // Separate features into core modules and AI features
+  const coreModules = surgeryFeatures.filter(f => CORE_MODULE_KEYS.includes(f.key))
+  const aiFeatures = surgeryFeatures.filter(f => AI_FEATURE_KEYS.includes(f.key))
+  const aiFeaturesList = features.filter(f => AI_FEATURE_KEYS.includes(f.key))
 
   // Load features, surgery features, and user features
   const loadData = useCallback(async () => {
@@ -120,14 +145,14 @@ export default function ModuleAccessClient({
       } else if (featureMeta?.key === 'admin_toolkit' && enabled === false) {
         toast.success('Practice Handbook disabled')
       } else {
-        toast.success('Surgery feature updated')
+        toast.success('Feature updated')
       }
       
       // Reload data
       await loadData()
     } catch (error) {
       console.error('Error toggling surgery feature:', error)
-      toast.error(error instanceof Error ? error.message : 'Failed to update surgery feature')
+      toast.error(error instanceof Error ? error.message : 'Failed to update feature')
     }
   }
 
@@ -175,8 +200,8 @@ export default function ModuleAccessClient({
     try {
       // Get surgery feature to check if it's enabled
       const surgeryFeature = surgeryFeatures.find(f => f.id === featureId)
-      if (!isSuperuser && (!surgeryFeature || !surgeryFeature.enabled)) {
-        toast.error('This feature is not enabled for this surgery')
+      if (!surgeryFeature || !surgeryFeature.enabled) {
+        toast.error('This feature must be enabled at practice level first')
         return
       }
 
@@ -195,26 +220,14 @@ export default function ModuleAccessClient({
 
       const results = await Promise.allSettled(promises)
       
-      // Count successes and failures
       let successCount = 0
-      let failureCount = 0
-      
       results.forEach((result) => {
         if (result.status === 'fulfilled' && result.value.ok) {
           successCount++
-        } else {
-          failureCount++
         }
       })
 
-      if (failureCount === 0) {
-        toast.success(`Enabled for all ${successCount} users`)
-      } else if (successCount > 0) {
-        toast.success(`Enabled for ${successCount} users, ${failureCount} failed`)
-      } else {
-        toast.error('Failed to enable for users')
-        return
-      }
+      toast.success(`Enabled for ${successCount} ${successCount === 1 ? 'user' : 'users'}`)
 
       // Reload data
       await loadData()
@@ -247,8 +260,7 @@ export default function ModuleAccessClient({
             Module access
           </h1>
           <p className="text-nhs-grey mt-2">
-            Control which modules and features are enabled for {selectedSurgery?.name || 'this surgery'}, 
-            and manage user-level access.
+            Control which modules and features are available for {selectedSurgery?.name || 'this surgery'}.
           </p>
         </div>
 
@@ -283,41 +295,46 @@ export default function ModuleAccessClient({
             <p className="text-nhs-grey">Loading features...</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Section A: Practice-wide controls */}
+          <div className="space-y-8">
+            {/* Section A: Core modules (practice-wide) */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-nhs-dark-blue">
-                  Practice-wide features
+                  Core modules
                 </h2>
                 <p className="text-sm text-nhs-grey mt-1">
-                  {isSuperuser
-                    ? 'Enable or disable features for this surgery. These settings apply to all users unless overridden below.'
-                    : 'View which features are enabled for your surgery. Only super admins can change practice-wide settings.'}
+                  Core modules are enabled for the whole practice. When a module is on, all users with access to this surgery can use it.
                 </p>
               </div>
 
-              {surgeryFeatures.length === 0 ? (
-                <p className="text-nhs-grey">No features found</p>
+              {coreModules.length === 0 ? (
+                <p className="text-nhs-grey">No core modules found.</p>
               ) : (
                 <div className="space-y-4">
-                  {surgeryFeatures.map(feature => (
+                  {coreModules.map(feature => (
                     <div key={feature.id} className="border border-gray-100 rounded-lg p-4 bg-gray-50">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-nhs-dark-blue">{feature.name}</h3>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              feature.enabled 
-                                ? 'bg-green-100 text-green-800' 
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {feature.enabled ? 'Enabled for practice' : 'Disabled'}
-                            </span>
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-medium text-nhs-dark-blue">
+                              {getDisplayName(feature)}
+                            </h3>
+                            {feature.enabled ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5 mr-1">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                </svg>
+                                Enabled for all users
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                                Disabled for this practice
+                              </span>
+                            )}
                           </div>
-                          {feature.description && (
-                            <p className="text-sm text-nhs-grey mt-1">{feature.description}</p>
-                          )}
+                          <p className="text-sm text-nhs-grey mt-1">
+                            {getDisplayDescription(feature)}
+                          </p>
                         </div>
                         <div className="flex items-center ml-4">
                           <button
@@ -328,7 +345,8 @@ export default function ModuleAccessClient({
                                 ? 'bg-nhs-green'
                                 : 'bg-gray-300'
                             } ${!isSuperuser ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                            aria-label={`Toggle ${feature.name}`}
+                            aria-label={`Toggle ${getDisplayName(feature)}`}
+                            title={!isSuperuser ? 'Only super admins can change practice-wide settings' : undefined}
                           >
                             <span
                               className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -342,129 +360,189 @@ export default function ModuleAccessClient({
                   ))}
                 </div>
               )}
+
+              {!isSuperuser && (
+                <p className="text-xs text-nhs-grey mt-4 italic">
+                  Only super admins can enable or disable core modules.
+                </p>
+              )}
             </div>
 
-            {/* Section B: User-level overrides */}
+            {/* Section B: AI & advanced features */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold text-nhs-dark-blue">
-                  User-level access
+                  AI & advanced features
                 </h2>
                 <p className="text-sm text-nhs-grey mt-1">
-                  Override feature access for individual users. A feature can only be enabled for a user if it is 
-                  first enabled at the practice level above.
+                  AI features can be enabled for individual users once switched on for the practice. 
+                  A feature must be enabled at practice level before it can be given to users.
                 </p>
               </div>
 
-              {/* Enable for All dropdown */}
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <label className="text-sm font-medium text-nhs-dark-blue">
-                    Quick action:
-                  </label>
-                  <select
-                    onChange={e => {
-                      if (e.target.value) {
-                        handleEnableForAll(e.target.value)
-                        e.target.value = ''
-                      }
-                    }}
-                    className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
-                  >
-                    <option value="">Enable a feature for all users...</option>
-                    {features.filter(f => isSurgeryFeatureEnabled(f.id)).map(feature => (
-                      <option key={feature.id} value={feature.id}>
-                        {feature.name}
-                      </option>
+              {/* Practice-level AI feature toggles */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-nhs-dark-blue mb-3">
+                  Practice-level access
+                </h3>
+                {aiFeatures.length === 0 ? (
+                  <p className="text-nhs-grey">No AI features found.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {aiFeatures.map(feature => (
+                      <div key={feature.id} className="flex items-center justify-between border border-gray-100 rounded-lg p-3 bg-gray-50">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-nhs-dark-blue text-sm">
+                              {getDisplayName(feature)}
+                            </span>
+                            {feature.enabled ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                                Available
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-500">
+                                Off
+                              </span>
+                            )}
+                          </div>
+                          {feature.description && (
+                            <p className="text-xs text-nhs-grey mt-0.5">{feature.description}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleSurgeryFeatureToggle(feature.id, !feature.enabled)}
+                          disabled={!isSuperuser}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            feature.enabled
+                              ? 'bg-nhs-green'
+                              : 'bg-gray-300'
+                          } ${!isSuperuser ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          aria-label={`Toggle ${getDisplayName(feature)}`}
+                          title={!isSuperuser ? 'Only super admins can change practice-wide settings' : undefined}
+                        >
+                          <span
+                            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                              feature.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                            }`}
+                          />
+                        </button>
+                      </div>
                     ))}
-                  </select>
-                </div>
+                  </div>
+                )}
               </div>
 
-              {users.length === 0 ? (
-                <p className="text-nhs-grey">No users found for this surgery</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          User
-                        </th>
-                        {features.map(feature => (
-                          <th
-                            key={feature.id}
-                            className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase"
-                          >
-                            <div className="flex flex-col items-center gap-1">
-                              <span>{feature.name}</span>
-                              {!isSurgeryFeatureEnabled(feature.id) && (
-                                <span className="text-red-500 text-[10px] normal-case">
-                                  (disabled at practice)
-                                </span>
-                              )}
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {users.map(user => (
-                        <tr key={user.id}>
-                          <td className="px-4 py-3 text-sm">
-                            <div>
-                              <div className="font-medium text-nhs-dark-blue">{user.name || 'Unknown'}</div>
-                              <div className="text-nhs-grey text-xs">{user.email}</div>
-                            </div>
-                          </td>
-                          {features.map(feature => {
-                            const userFeature = user.features.find(f => f.featureId === feature.id)
-                            const enabled = userFeature?.enabled || false
-                            const surgeryEnabled = isSurgeryFeatureEnabled(feature.id)
-                            const canToggle = surgeryEnabled
+              {/* User-level AI feature overrides */}
+              <div className="border-t border-gray-200 pt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-medium text-nhs-dark-blue">
+                    User-level access
+                  </h3>
+                  {/* Enable for all dropdown */}
+                  {aiFeaturesList.some(f => isSurgeryFeatureEnabled(f.id)) && (
+                    <select
+                      onChange={e => {
+                        if (e.target.value) {
+                          handleEnableForAll(e.target.value)
+                          e.target.value = ''
+                        }
+                      }}
+                      className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-nhs-blue"
+                    >
+                      <option value="">Enable for all users...</option>
+                      {aiFeaturesList.filter(f => isSurgeryFeatureEnabled(f.id)).map(feature => (
+                        <option key={feature.id} value={feature.id}>
+                          {getDisplayName(feature)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
 
+                {users.length === 0 ? (
+                  <p className="text-sm text-nhs-grey">No users found for this surgery.</p>
+                ) : aiFeaturesList.length === 0 ? (
+                  <p className="text-sm text-nhs-grey">No AI features available.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                            User
+                          </th>
+                          {aiFeaturesList.map(feature => {
+                            const practiceEnabled = isSurgeryFeatureEnabled(feature.id)
                             return (
-                              <td key={feature.id} className="px-2 py-3 text-center">
-                                <button
-                                  onClick={() => {
-                                    if (canToggle) {
-                                      handleUserFeatureToggle(user.id, feature.id, !enabled)
-                                    }
-                                  }}
-                                  disabled={!canToggle}
-                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                    enabled && surgeryEnabled
-                                      ? 'bg-nhs-green'
-                                      : 'bg-gray-300'
-                                  } ${
-                                    !canToggle
-                                      ? 'opacity-30 cursor-not-allowed'
-                                      : 'cursor-pointer'
-                                  }`}
-                                  title={
-                                    !surgeryEnabled
-                                      ? 'This feature is disabled for this surgery.'
-                                      : enabled
-                                        ? 'Enabled for this user'
-                                        : 'Disabled for this user'
-                                  }
-                                  aria-label={`Toggle ${feature.name} for ${user.name || user.email}`}
-                                >
-                                  <span
-                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                      enabled && surgeryEnabled ? 'translate-x-6' : 'translate-x-1'
-                                    }`}
-                                  />
-                                </button>
-                              </td>
+                              <th
+                                key={feature.id}
+                                className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase"
+                              >
+                                <div className="flex flex-col items-center gap-1">
+                                  <span>{getDisplayName(feature)}</span>
+                                  {!practiceEnabled && (
+                                    <span className="text-red-500 text-[10px] normal-case font-normal">
+                                      (off for practice)
+                                    </span>
+                                  )}
+                                </div>
+                              </th>
                             )
                           })}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {users.map(user => (
+                          <tr key={user.id}>
+                            <td className="px-4 py-3 text-sm">
+                              <div>
+                                <div className="font-medium text-nhs-dark-blue">{user.name || 'Unknown'}</div>
+                                <div className="text-nhs-grey text-xs">{user.email}</div>
+                              </div>
+                            </td>
+                            {aiFeaturesList.map(feature => {
+                              const userFeature = user.features.find(f => f.featureId === feature.id)
+                              const enabled = userFeature?.enabled || false
+                              const practiceEnabled = isSurgeryFeatureEnabled(feature.id)
+
+                              return (
+                                <td key={feature.id} className="px-3 py-3 text-center">
+                                  {practiceEnabled ? (
+                                    <button
+                                      onClick={() => handleUserFeatureToggle(user.id, feature.id, !enabled)}
+                                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors cursor-pointer ${
+                                        enabled ? 'bg-nhs-green' : 'bg-gray-300'
+                                      }`}
+                                      title={enabled ? 'Enabled for this user' : 'Disabled for this user'}
+                                      aria-label={`Toggle ${getDisplayName(feature)} for ${user.name || user.email}`}
+                                    >
+                                      <span
+                                        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                          enabled ? 'translate-x-5' : 'translate-x-0.5'
+                                        }`}
+                                      />
+                                    </button>
+                                  ) : (
+                                    <span 
+                                      className="inline-flex items-center justify-center w-9 h-5 text-gray-300"
+                                      title="Enable this feature at practice level first"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                                      </svg>
+                                    </span>
+                                  )}
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Info panel */}
@@ -478,9 +556,9 @@ export default function ModuleAccessClient({
                     How module access works
                   </h3>
                   <ul className="text-sm text-nhs-grey mt-1 list-disc list-inside space-y-1">
-                    <li><strong>Practice-wide:</strong> Enable a module for the entire surgery. All users can then access it.</li>
-                    <li><strong>User-level:</strong> Restrict or enable specific features for individual users within the practice.</li>
-                    <li><strong>Constraint:</strong> A user cannot access a feature that is disabled at the practice level.</li>
+                    <li><strong>Core modules</strong> are practice-wide: on means everyone can use it.</li>
+                    <li><strong>AI features</strong> need to be switched on for the practice first, then enabled for individual users.</li>
+                    <li>A locked icon (<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3 inline"><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>) means the feature is off for the whole practice.</li>
                   </ul>
                 </div>
               </div>

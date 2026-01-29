@@ -24,6 +24,18 @@ interface FeatureRolloutsClientProps {
   flagsMap: Record<string, Record<string, boolean>>
 }
 
+// Display name override for admin_toolkit
+function getDisplayName(feature: Feature): string {
+  if (feature.key === 'admin_toolkit') {
+    return 'Practice Handbook'
+  }
+  return feature.name
+}
+
+// Core modules vs AI features
+const CORE_MODULE_KEYS = ['workflow_guidance', 'admin_toolkit']
+const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation']
+
 export default function FeatureRolloutsClient({
   surgeries,
   features,
@@ -31,6 +43,10 @@ export default function FeatureRolloutsClient({
 }: FeatureRolloutsClientProps) {
   const [flagsMap, setFlagsMap] = useState(initialFlagsMap)
   const [updating, setUpdating] = useState<string | null>(null)
+
+  // Separate features into core modules and AI features
+  const coreModules = features.filter(f => CORE_MODULE_KEYS.includes(f.key))
+  const aiFeatures = features.filter(f => AI_FEATURE_KEYS.includes(f.key))
 
   const handleToggle = async (surgeryId: string, featureId: string, enabled: boolean) => {
     const key = `${surgeryId}-${featureId}`
@@ -108,7 +124,7 @@ export default function FeatureRolloutsClient({
         return newMap
       })
 
-      toast.success(`${feature.name} enabled for ${successCount} surgeries`)
+      toast.success(`${getDisplayName(feature)} enabled for ${successCount} surgeries`)
     } catch (error) {
       console.error('Error enabling for all:', error)
       toast.error('Failed to enable for all surgeries')
@@ -153,7 +169,7 @@ export default function FeatureRolloutsClient({
         return newMap
       })
 
-      toast.success(`${feature.name} disabled for ${successCount} surgeries`)
+      toast.success(`${getDisplayName(feature)} disabled for ${successCount} surgeries`)
     } catch (error) {
       console.error('Error disabling for all:', error)
       toast.error('Failed to disable for all surgeries')
@@ -187,48 +203,104 @@ export default function FeatureRolloutsClient({
           </p>
         </div>
 
-        {/* Feature overview cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-          {features.map(feature => {
-            const enabledCount = getEnabledCount(feature.id)
-            const percentage = surgeries.length > 0 
-              ? Math.round((enabledCount / surgeries.length) * 100) 
-              : 0
+        {/* Core modules section */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-nhs-dark-blue mb-4">Core modules</h2>
+          <p className="text-sm text-nhs-grey mb-4">
+            Core modules are practice-wide. When enabled, all users in a surgery can access the module.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {coreModules.map(feature => {
+              const enabledCount = getEnabledCount(feature.id)
+              const percentage = surgeries.length > 0 
+                ? Math.round((enabledCount / surgeries.length) * 100) 
+                : 0
 
-            return (
-              <div key={feature.id} className="bg-white rounded-lg border border-gray-200 p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-medium text-nhs-dark-blue">{feature.name}</h3>
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${
-                    percentage === 100 
-                      ? 'bg-green-100 text-green-800' 
-                      : percentage === 0 
-                        ? 'bg-gray-100 text-gray-600'
-                        : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {enabledCount}/{surgeries.length}
-                  </span>
+              return (
+                <div key={feature.id} className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-medium text-nhs-dark-blue">{getDisplayName(feature)}</h3>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      percentage === 100 
+                        ? 'bg-green-100 text-green-800' 
+                        : percentage === 0 
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {enabledCount}/{surgeries.length}
+                    </span>
+                  </div>
+                  {feature.description && (
+                    <p className="text-xs text-nhs-grey mb-3">{feature.description}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEnableForAll(feature.id)}
+                      className="flex-1 text-xs px-2 py-1 bg-nhs-green text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                      Enable all
+                    </button>
+                    <button
+                      onClick={() => handleDisableForAll(feature.id)}
+                      className="flex-1 text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                    >
+                      Disable all
+                    </button>
+                  </div>
                 </div>
-                {feature.description && (
-                  <p className="text-xs text-nhs-grey mb-3">{feature.description}</p>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEnableForAll(feature.id)}
-                    className="flex-1 text-xs px-2 py-1 bg-nhs-green text-white rounded hover:bg-green-700 transition-colors"
-                  >
-                    Enable all
-                  </button>
-                  <button
-                    onClick={() => handleDisableForAll(feature.id)}
-                    className="flex-1 text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                  >
-                    Disable all
-                  </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* AI features section */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-nhs-dark-blue mb-4">AI & advanced features</h2>
+          <p className="text-sm text-nhs-grey mb-4">
+            AI features require practice-level enablement first, then can be assigned to individual users.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {aiFeatures.map(feature => {
+              const enabledCount = getEnabledCount(feature.id)
+              const percentage = surgeries.length > 0 
+                ? Math.round((enabledCount / surgeries.length) * 100) 
+                : 0
+
+              return (
+                <div key={feature.id} className="bg-white rounded-lg border border-gray-200 p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-medium text-nhs-dark-blue">{getDisplayName(feature)}</h3>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      percentage === 100 
+                        ? 'bg-green-100 text-green-800' 
+                        : percentage === 0 
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {enabledCount}/{surgeries.length}
+                    </span>
+                  </div>
+                  {feature.description && (
+                    <p className="text-xs text-nhs-grey mb-3">{feature.description}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEnableForAll(feature.id)}
+                      className="flex-1 text-xs px-2 py-1 bg-nhs-green text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                      Enable all
+                    </button>
+                    <button
+                      onClick={() => handleDisableForAll(feature.id)}
+                      className="flex-1 text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                    >
+                      Disable all
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
 
         {/* Detailed surgery x feature matrix */}
@@ -252,7 +324,7 @@ export default function FeatureRolloutsClient({
                         key={feature.id}
                         className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase"
                       >
-                        {feature.name}
+                        {getDisplayName(feature)}
                       </th>
                     ))}
                   </tr>
@@ -277,7 +349,7 @@ export default function FeatureRolloutsClient({
                                   ? 'bg-nhs-green'
                                   : 'bg-gray-300'
                               } ${isUpdating ? 'opacity-50' : 'cursor-pointer'}`}
-                              aria-label={`Toggle ${feature.name} for ${surgery.name}`}
+                              aria-label={`Toggle ${getDisplayName(feature)} for ${surgery.name}`}
                             >
                               <span
                                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
