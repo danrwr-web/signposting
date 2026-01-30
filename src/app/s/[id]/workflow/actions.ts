@@ -1083,10 +1083,17 @@ export async function updateWorkflowNodeForDiagram(
 
     // Validate linked workflows if provided
     if (linkedWorkflows !== undefined) {
-      // Check all linked templates belong to same surgery and no self-links
+      const GLOBAL_SURGERY_ID = 'global-default-buttons'
+      // Check all linked templates belong to same surgery, global surgery, and no self-links
       for (const link of linkedWorkflows) {
         const linkedTemplate = await prisma.workflowTemplate.findFirst({
-          where: { id: link.toTemplateId, surgeryId },
+          where: {
+            id: link.toTemplateId,
+            OR: [
+              { surgeryId },
+              { surgeryId: GLOBAL_SURGERY_ID },
+            ],
+          },
         })
 
         if (!linkedTemplate) {
@@ -1270,9 +1277,16 @@ export async function createWorkflowNodeLink(
       }
     }
 
-    // Verify linked template belongs to same surgery
+    // Verify linked template belongs to same surgery or global surgery
+    const GLOBAL_SURGERY_ID = 'global-default-buttons'
     const linkedTemplate = await prisma.workflowTemplate.findFirst({
-      where: { id: linkedTemplateId, surgeryId },
+      where: {
+        id: linkedTemplateId,
+        OR: [
+          { surgeryId },
+          { surgeryId: GLOBAL_SURGERY_ID },
+        ],
+      },
     })
 
     if (!linkedTemplate) {
