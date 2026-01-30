@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import SimpleHeader from '@/components/SimpleHeader'
 
@@ -27,7 +27,16 @@ interface SettingsCard {
   href: string
   icon: React.ReactNode
   stats?: string
+  badge?: number
   requiresFeature?: string
+}
+
+interface SetupChecklistData {
+  onboardingCompleted: boolean
+  appointmentModelConfigured: boolean
+  aiCustomisationOccurred: boolean
+  pendingCount: number
+  setupChecklistOutstandingCount: number
 }
 
 export default function PracticeSettingsClient({
@@ -39,8 +48,70 @@ export default function PracticeSettingsClient({
   const [selectedSurgeryId, setSelectedSurgeryId] = useState<string>(
     primarySurgeryId || surgeries[0]?.id || ''
   )
+  const [setupChecklistData, setSetupChecklistData] = useState<SetupChecklistData | null>(null)
+  const [setupChecklistLoading, setSetupChecklistLoading] = useState(false)
+  // Track enabled features per surgery (for dynamic feature checks)
+  const [currentEnabledFeatures, setCurrentEnabledFeatures] = useState<Record<string, boolean>>(enabledFeatures)
 
   const selectedSurgery = surgeries.find(s => s.id === selectedSurgeryId)
+
+  // Fetch setup checklist data when surgery changes
+  useEffect(() => {
+    if (!selectedSurgeryId) return
+
+    // Reset data when surgery changes
+    setSetupChecklistData(null)
+    setSetupChecklistLoading(true)
+
+    // Fetch setup checklist data
+    fetch(`/api/admin/setup-checklist?surgeryId=${selectedSurgeryId}`)
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json()
+          // Calculate outstanding count
+          let outstandingCount = 0
+          if (!data.onboardingCompleted) outstandingCount += 1
+          if (!data.appointmentModelConfigured) outstandingCount += 1
+          if (!data.aiCustomisationOccurred) outstandingCount += 1
+          if (data.pendingCount > 0) outstandingCount += 1
+
+          setSetupChecklistData({
+            onboardingCompleted: data.onboardingCompleted,
+            appointmentModelConfigured: data.appointmentModelConfigured,
+            aiCustomisationOccurred: data.aiCustomisationOccurred,
+            pendingCount: data.pendingCount,
+            setupChecklistOutstandingCount: outstandingCount,
+          })
+        }
+      })
+      .catch(err => {
+        console.error('Error loading setup checklist data:', err)
+      })
+      .finally(() => {
+        setSetupChecklistLoading(false)
+      })
+  }, [selectedSurgeryId])
+
+  // Fetch enabled features when surgery changes (for non-primary surgeries)
+  useEffect(() => {
+    if (!selectedSurgeryId) return
+    // Only fetch if this is not the primary surgery (whose features we already have)
+    if (selectedSurgeryId === primarySurgeryId) {
+      setCurrentEnabledFeatures(enabledFeatures)
+      return
+    }
+
+    fetch(`/api/surgeries/${selectedSurgeryId}/features`)
+      .then(async (res) => {
+        if (res.ok) {
+          const data = await res.json()
+          setCurrentEnabledFeatures(data.features || {})
+        }
+      })
+      .catch(err => {
+        console.error('Error loading surgery features:', err)
+      })
+  }, [selectedSurgeryId, primarySurgeryId, enabledFeatures])
 
   // Build cards based on selected surgery
   const buildCards = (): SettingsCard[] => {
@@ -72,8 +143,29 @@ export default function PracticeSettingsClient({
       },
     ]
 
+    // Add Setup & onboarding if ai_surgery_customisation feature is enabled
+    if (currentEnabledFeatures['ai_surgery_customisation']) {
+      const outstandingCount = setupChecklistData?.setupChecklistOutstandingCount ?? 0
+      const isComplete = outstandingCount === 0 && setupChecklistData !== null
+      cards.push({
+        id: 'setup-onboarding',
+        title: 'Setup & onboarding',
+        description: isComplete
+          ? 'Setup complete. Review or update your surgery configuration.'
+          : 'Complete your surgery setup to get started.',
+        href: `/s/${selectedSurgeryId}/admin/setup-checklist`,
+        badge: !setupChecklistLoading && outstandingCount > 0 ? outstandingCount : undefined,
+        stats: setupChecklistLoading ? 'Loading...' : (isComplete ? 'Complete' : undefined),
+        icon: (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z" />
+          </svg>
+        ),
+      })
+    }
+
     // Add Practice Handbook admin if enabled
-    if (enabledFeatures['admin_toolkit']) {
+    if (currentEnabledFeatures['admin_toolkit']) {
       cards.push({
         id: 'handbook',
         title: 'Practice Handbook admin',
@@ -88,7 +180,7 @@ export default function PracticeSettingsClient({
     }
 
     // Add Workflow Guidance admin if enabled
-    if (enabledFeatures['workflow_guidance']) {
+    if (currentEnabledFeatures['workflow_guidance']) {
       cards.push({
         id: 'workflow',
         title: 'Workflow Guidance admin',
@@ -170,8 +262,14 @@ export default function PracticeSettingsClient({
               <Link
                 key={card.id}
                 href={card.href}
-                className="bg-white rounded-lg border border-gray-200 p-6 hover:border-nhs-blue hover:shadow-md transition-all group"
+                className="bg-white rounded-lg border border-gray-200 p-6 hover:border-nhs-blue hover:shadow-md transition-all group relative"
               >
+                {/* Badge indicator for outstanding items */}
+                {card.badge !== undefined && card.badge > 0 && (
+                  <span className="absolute top-3 right-3 inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                    {card.badge} to do
+                  </span>
+                )}
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 p-3 bg-nhs-light-blue rounded-lg text-nhs-blue group-hover:bg-nhs-blue group-hover:text-white transition-colors">
                     {card.icon}
