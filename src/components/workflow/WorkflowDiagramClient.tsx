@@ -447,10 +447,13 @@ interface WorkflowDiagramClientProps {
   template: WorkflowTemplate
   isAdmin?: boolean
   isSuperuser?: boolean
+  canCustomise?: boolean
+  isGlobalTemplate?: boolean
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
   templateId: string
   publishWorkflowAction?: () => Promise<{ success: boolean; error?: string }>
+  createOverrideAction?: () => Promise<{ success: boolean; error?: string; templateId?: string }>
   surgeryDefaults?: Array<{
     nodeType: WorkflowNodeType
     bgColor: string | null
@@ -547,10 +550,13 @@ export default function WorkflowDiagramClient({
   template,
   isAdmin = false,
   isSuperuser = false,
+  canCustomise = false,
+  isGlobalTemplate = false,
   allTemplates = [],
   surgeryId,
   templateId,
   publishWorkflowAction,
+  createOverrideAction,
   surgeryDefaults = [],
   updatePositionAction,
   createNodeAction,
@@ -673,6 +679,7 @@ export default function WorkflowDiagramClient({
   const [approvalStatus, setApprovalStatus] = useState<string>(template.approvalStatus ?? 'APPROVED')
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isCustomising, setIsCustomising] = useState(false)
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
@@ -952,6 +959,33 @@ export default function WorkflowDiagramClient({
   const canShowPublish =
     effectiveAdmin && approvalStatus === 'DRAFT' && typeof publishWorkflowAction === 'function'
   const publishDisabled = isPublishing
+  
+  // Customise button: shown when viewing a global template as a surgery admin
+  const canShowCustomise = canCustomise && typeof createOverrideAction === 'function'
+  
+  // Handler for creating a customised copy of a global template
+  const handleCustomise = useCallback(async () => {
+    if (!createOverrideAction || isCustomising) return
+    
+    setIsCustomising(true)
+    try {
+      const result = await createOverrideAction()
+      if (!result.success) {
+        toast.error(result.error || 'Could not create customised version')
+        return
+      }
+      if (result.templateId) {
+        toast.success('Customised version created')
+        // Redirect to the new surgery-specific template
+        router.push(`/s/${surgeryId}/workflow/templates/${result.templateId}/view`)
+      }
+    } catch (error) {
+      console.error('Error creating override:', error)
+      toast.error('Could not create customised version')
+    } finally {
+      setIsCustomising(false)
+    }
+  }, [createOverrideAction, isCustomising, router, surgeryId])
 
   // Find selected node data
   const selectedNode = useMemo(() => {
@@ -2573,6 +2607,27 @@ export default function WorkflowDiagramClient({
       <div className="flex h-full w-full items-stretch">
         {/* Left column: diagram */}
         <div data-testid="workflow-left-col" className="flex-1 min-w-0 relative overflow-hidden flex flex-col gap-2">
+          {/* Global template info banner - shown when viewing a default template that can be customised */}
+          {canShowCustomise && (
+            <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  This is a default template
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  Create a customised version for your surgery to make changes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCustomise}
+                disabled={isCustomising}
+                className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {isCustomising ? 'Creating…' : 'Customise'}
+              </button>
+            </div>
+          )}
           {/* Subtle editing mode banner */}
           {editingMode && isAdmin && (
             <div className="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md">
@@ -2634,16 +2689,17 @@ export default function WorkflowDiagramClient({
           </div>
         </div>
 
-        {/* Right column: details panel (in layout flow) */}
+        {/* Right column: details panel — ensure it stacks above React Flow pane and receives pointer events */}
         <div
           data-testid="workflow-details-panel"
-          className={`shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out ${
-            isDetailsOpen ? 'w-[420px] border-l border-gray-200 bg-white' : 'w-0'
+          className={`shrink-0 overflow-hidden transition-[width] duration-200 ease-in-out relative z-10 bg-white ${
+            isDetailsOpen ? 'w-[420px] border-l border-gray-200' : 'w-0'
           }`}
+          style={{ pointerEvents: isDetailsOpen ? 'auto' : 'none' }}
           aria-hidden={!isDetailsOpen}
         >
           {isDetailsOpen && (
-            <div className="h-full px-4 py-4">
+            <div className="h-full px-4 py-4 overflow-y-auto">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-semibold text-gray-900">Details</h2>
                 <button
@@ -2965,31 +3021,55 @@ export default function WorkflowDiagramClient({
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">
                       Linked workflows
                     </h3>
+                    {/* Warning if no templates available */}
+                    {(!allTemplates || allTemplates.length <= 1) && (
+                      <p className="text-xs text-amber-600 mb-2">
+                        No other workflow templates available to link to. Create more templates first.
+                      </p>
+                    )}
                     {/* Repeatable list editor */}
                     <div className="space-y-3">
                       {editingLinkedWorkflows.map((link, index) => {
+                        // Filter to templates that aren't the current one and aren't already selected elsewhere
                         const availableTemplates = allTemplates?.filter(
                           (t) => t.id !== template.id && !editingLinkedWorkflows.some((l, i) => i !== index && l.toTemplateId === t.id)
                         ) || []
+                        // Also include the currently selected template so dropdown shows correct value
+                        const currentSelection = allTemplates?.find((t) => t.id === link.toTemplateId)
+                        const dropdownOptions = currentSelection && !availableTemplates.some((t) => t.id === currentSelection.id)
+                          ? [currentSelection, ...availableTemplates]
+                          : availableTemplates
                         return (
-                          <div key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded border border-gray-200">
-                            <div className="flex-1 space-y-2">
-                              <select
-                                value={link.toTemplateId}
-                                onChange={(e) => {
-                                  const updated = [...editingLinkedWorkflows]
-                                  updated[index] = { ...updated[index], toTemplateId: e.target.value }
-                                  setEditingLinkedWorkflows(updated)
-                                }}
-                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                              >
-                                <option value="">Select workflow...</option>
-                                {availableTemplates.map((t) => (
-                                  <option key={t.id} value={t.id}>
-                                    {t.name}
-                                  </option>
-                                ))}
-                              </select>
+                          <div key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded border border-gray-200 overflow-hidden">
+                            <div className="flex-1 min-w-0 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={link.toTemplateId}
+                                  onChange={(e) => {
+                                    const updated = [...editingLinkedWorkflows]
+                                    updated[index] = { ...updated[index], toTemplateId: e.target.value }
+                                    setEditingLinkedWorkflows(updated)
+                                  }}
+                                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="">Select workflow...</option>
+                                  {dropdownOptions.map((t) => (
+                                    <option key={t.id} value={t.id}>
+                                      {t.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                {link.toTemplateId && (
+                                  <button
+                                    type="button"
+                                    onClick={() => router.push(`/s/${surgeryId}/workflow/templates/${link.toTemplateId}/view`)}
+                                    className="px-2 py-2 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    title="Open linked workflow"
+                                  >
+                                    Open ↗
+                                  </button>
+                                )}
+                              </div>
                               <input
                                 type="text"
                                 value={link.label}
@@ -3167,17 +3247,37 @@ export default function WorkflowDiagramClient({
                     <p className="text-xs text-gray-600 mb-3">
                       Select the most appropriate pathway to continue.
                     </p>
-                    <div className="space-y-2">
-                      {detailsNode.workflowLinks.map((link) => (
-                        <Link
-                          key={link.id}
-                          href={`/s/${surgeryId}/workflow/templates/${link.templateId}/view`}
-                          className="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-                        >
-                          <span className="font-medium">{link.label}</span>
-                          <span className="text-gray-400">↗</span>
-                        </Link>
-                      ))}
+                    <div className="space-y-2" role="list" aria-label="Linked workflows">
+                      {detailsNode.workflowLinks.map((link) => {
+                        const targetTemplateId = link.template.id
+                        const linkHref = `/s/${surgeryId}/workflow/templates/${targetTemplateId}/view`
+                        // Warn if link points to current template (data issue)
+                        const isSelfLink = targetTemplateId === template.id
+                        return (
+                          <button
+                            key={link.id}
+                            type="button"
+                            role="listitem"
+                            onClick={() => router.push(linkHref)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                router.push(linkHref)
+                              }
+                            }}
+                            className={`flex items-center justify-between w-full px-4 py-3 text-sm text-gray-900 bg-white border rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer text-left ${
+                              isSelfLink ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            }`}
+                            title={isSelfLink ? 'Warning: This link points to the current workflow. Please edit to fix.' : `Navigate to ${link.template.name}`}
+                          >
+                            <span className="font-medium">{link.label}</span>
+                            <span className="flex items-center gap-1">
+                              {isSelfLink && <span className="text-red-500 text-xs">(self-link)</span>}
+                              <span className="text-gray-400" aria-hidden="true">↗</span>
+                            </span>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 )}

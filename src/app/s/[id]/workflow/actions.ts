@@ -13,6 +13,9 @@ export interface ActionResult {
   error?: string
 }
 
+/** Global surgery ID used for shared/default workflow templates */
+const GLOBAL_SURGERY_ID = 'global-default-buttons'
+
 export async function createWorkflowTemplate(
   surgeryId: string,
   formData: FormData
@@ -909,7 +912,7 @@ export async function deleteWorkflowAnswerOptionById(
   try {
     await requireSurgeryAdmin(surgeryId)
 
-    // Verify template belongs to surgery
+    // Verify template belongs to surgery or global surgery
     const template = await prisma.workflowTemplate.findFirst({
       where: { id: templateId, surgeryId },
     })
@@ -1083,10 +1086,10 @@ export async function updateWorkflowNodeForDiagram(
 
     // Validate linked workflows if provided
     if (linkedWorkflows !== undefined) {
-      // Check all linked templates belong to same surgery and no self-links
+      // Check all linked templates belong to same surgery, global surgery, and no self-links
       for (const link of linkedWorkflows) {
         const linkedTemplate = await prisma.workflowTemplate.findFirst({
-          where: { id: link.toTemplateId, surgeryId },
+          where: { id: link.toTemplateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
         })
 
         if (!linkedTemplate) {
@@ -1270,9 +1273,9 @@ export async function createWorkflowNodeLink(
       }
     }
 
-    // Verify linked template belongs to same surgery
+    // Verify linked template belongs to same surgery or global surgery
     const linkedTemplate = await prisma.workflowTemplate.findFirst({
-      where: { id: linkedTemplateId, surgeryId },
+      where: { id: linkedTemplateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
     })
 
     if (!linkedTemplate) {
@@ -1723,10 +1726,6 @@ export async function createWorkflowOverride(
 ): Promise<ActionResult & { templateId?: string }> {
   try {
     await requireSurgeryAdmin(surgeryId)
-
-    // Global Default surgery ID - stores shared workflow templates
-    // These are inherited by all surgeries and can be overridden per-surgery
-    const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
     // Verify global template exists and belongs to Global Default surgery
     const globalTemplate = await prisma.workflowTemplate.findFirst({
