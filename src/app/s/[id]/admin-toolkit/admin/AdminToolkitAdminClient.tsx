@@ -585,12 +585,9 @@ export default function AdminToolkitAdminClient({
   const titleInputRef = useRef<HTMLInputElement>(null)
   
   // Tab state with URL query param persistence
+  // Use initialTab prop from server to avoid hydration mismatch with useSearchParams()
   type TabId = 'items' | 'settings' | 'engagement' | 'audit'
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
-    const tabParam = searchParams.get('tab')
-    const validTabs: TabId[] = ['items', 'settings', 'engagement', 'audit']
-    return validTabs.includes(tabParam as TabId) ? (tabParam as TabId) : initialTab
-  })
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab)
