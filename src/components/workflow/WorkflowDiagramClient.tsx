@@ -3182,13 +3182,27 @@ export default function WorkflowDiagramClient({
                     </p>
                     <div className="space-y-2" role="list" aria-label="Linked workflows">
                       {detailsNode.workflowLinks.map((link) => {
-                        const linkHref = `/s/${surgeryId}/workflow/templates/${link.templateId}/view`
+                        // Use template.id from the included relation (more reliable than FK)
+                        const targetTemplateId = link.template.id
+                        const linkHref = `/s/${surgeryId}/workflow/templates/${targetTemplateId}/view`
+                        console.log('[DEBUG] Linked workflow:', {
+                          linkId: link.id,
+                          label: link.label,
+                          templateId_FK: link.templateId,
+                          templateId_Relation: link.template.id,
+                          templateName: link.template.name,
+                          targetHref: linkHref,
+                          currentTemplateId: template.id,
+                        })
                         return (
                           <button
                             key={link.id}
                             type="button"
                             role="listitem"
-                            onClick={() => router.push(linkHref)}
+                            onClick={() => {
+                              console.log('[DEBUG] Navigating to:', linkHref)
+                              router.push(linkHref)
+                            }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault()
