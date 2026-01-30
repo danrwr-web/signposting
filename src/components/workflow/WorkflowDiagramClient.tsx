@@ -2985,8 +2985,8 @@ export default function WorkflowDiagramClient({
                           ? [currentSelection, ...availableTemplates]
                           : availableTemplates
                         return (
-                          <div key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded border border-gray-200">
-                            <div className="flex-1 space-y-2">
+                          <div key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded border border-gray-200 overflow-hidden">
+                            <div className="flex-1 min-w-0 space-y-2">
                               <div className="flex items-center gap-2">
                                 <select
                                   value={link.toTemplateId}
@@ -2995,7 +2995,7 @@ export default function WorkflowDiagramClient({
                                     updated[index] = { ...updated[index], toTemplateId: e.target.value }
                                     setEditingLinkedWorkflows(updated)
                                   }}
-                                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
                                   <option value="">Select workflow...</option>
                                   {dropdownOptions.map((t) => (
