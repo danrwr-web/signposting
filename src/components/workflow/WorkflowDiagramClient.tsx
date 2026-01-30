@@ -3182,37 +3182,32 @@ export default function WorkflowDiagramClient({
                     </p>
                     <div className="space-y-2" role="list" aria-label="Linked workflows">
                       {detailsNode.workflowLinks.map((link) => {
-                        // Use template.id from the included relation (more reliable than FK)
                         const targetTemplateId = link.template.id
                         const linkHref = `/s/${surgeryId}/workflow/templates/${targetTemplateId}/view`
-                        console.log('[DEBUG] Linked workflow:', {
-                          linkId: link.id,
-                          label: link.label,
-                          templateId_FK: link.templateId,
-                          templateId_Relation: link.template.id,
-                          templateName: link.template.name,
-                          targetHref: linkHref,
-                          currentTemplateId: template.id,
-                        })
+                        // Warn if link points to current template (data issue)
+                        const isSelfLink = targetTemplateId === template.id
                         return (
                           <button
                             key={link.id}
                             type="button"
                             role="listitem"
-                            onClick={() => {
-                              console.log('[DEBUG] Navigating to:', linkHref)
-                              router.push(linkHref)
-                            }}
+                            onClick={() => router.push(linkHref)}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' || e.key === ' ') {
                                 e.preventDefault()
                                 router.push(linkHref)
                               }
                             }}
-                            className="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer text-left"
+                            className={`flex items-center justify-between w-full px-4 py-3 text-sm text-gray-900 bg-white border rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer text-left ${
+                              isSelfLink ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                            }`}
+                            title={isSelfLink ? 'Warning: This link points to the current workflow. Please edit to fix.' : `Navigate to ${link.template.name}`}
                           >
                             <span className="font-medium">{link.label}</span>
-                            <span className="text-gray-400" aria-hidden="true">↗</span>
+                            <span className="flex items-center gap-1">
+                              {isSelfLink && <span className="text-red-500 text-xs">(self-link)</span>}
+                              <span className="text-gray-400" aria-hidden="true">↗</span>
+                            </span>
                           </button>
                         )
                       })}
