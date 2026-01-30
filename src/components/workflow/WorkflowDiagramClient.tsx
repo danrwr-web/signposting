@@ -2966,12 +2966,24 @@ export default function WorkflowDiagramClient({
                     <h3 className="text-sm font-semibold text-gray-900 mb-3">
                       Linked workflows
                     </h3>
+                    {/* Warning if no templates available */}
+                    {(!allTemplates || allTemplates.length <= 1) && (
+                      <p className="text-xs text-amber-600 mb-2">
+                        No other workflow templates available to link to. Create more templates first.
+                      </p>
+                    )}
                     {/* Repeatable list editor */}
                     <div className="space-y-3">
                       {editingLinkedWorkflows.map((link, index) => {
+                        // Filter to templates that aren't the current one and aren't already selected elsewhere
                         const availableTemplates = allTemplates?.filter(
                           (t) => t.id !== template.id && !editingLinkedWorkflows.some((l, i) => i !== index && l.toTemplateId === t.id)
                         ) || []
+                        // Also include the currently selected template so dropdown shows correct value
+                        const currentSelection = allTemplates?.find((t) => t.id === link.toTemplateId)
+                        const dropdownOptions = currentSelection && !availableTemplates.some((t) => t.id === currentSelection.id)
+                          ? [currentSelection, ...availableTemplates]
+                          : availableTemplates
                         return (
                           <div key={index} className="flex items-start gap-2 p-3 bg-gray-50 rounded border border-gray-200">
                             <div className="flex-1 space-y-2">
@@ -2986,7 +2998,7 @@ export default function WorkflowDiagramClient({
                                   className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
                                   <option value="">Select workflow...</option>
-                                  {availableTemplates.map((t) => (
+                                  {dropdownOptions.map((t) => (
                                     <option key={t.id} value={t.id}>
                                       {t.name}
                                     </option>

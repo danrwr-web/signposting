@@ -257,15 +257,20 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       redirect('/unauthorized')
     }
 
-    // Get all active templates for the template owner surgery (for linked workflow dropdown)
+    // Get all active templates for linked workflow dropdown
+    // Include both surgery-specific templates AND global templates
     const allTemplates = isAdmin ? await prisma.workflowTemplate.findMany({
       where: {
-        surgeryId: templateOwnerSurgeryId,
+        OR: [
+          { surgeryId: templateOwnerSurgeryId },
+          { surgeryId: GLOBAL_SURGERY_ID },
+        ],
         isActive: true,
       },
       select: {
         id: true,
         name: true,
+        surgeryId: true, // Include to help identify source
       },
       orderBy: {
         name: 'asc',
