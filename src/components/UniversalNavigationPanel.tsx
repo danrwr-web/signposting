@@ -28,6 +28,9 @@ export default function UniversalNavigationPanel() {
   const [lastFetchedSurgeryId, setLastFetchedSurgeryId] = useState<string | null>(null) // Track which surgery we've fetched for
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showHelpPanel, setShowHelpPanel] = useState(false)
+  // Onboarding completion state for "Finish setup" link
+  const [onboardingIncomplete, setOnboardingIncomplete] = useState(false)
+  const [onboardingFetched, setOnboardingFetched] = useState(false)
 
   const surgeryId = surgery?.id
   const surgeryName = surgery?.name || 'No surgery selected'
@@ -129,6 +132,52 @@ export default function UniversalNavigationPanel() {
       isCancelled = true
     }
   }, [surgeryId, lastFetchedSurgeryId, sessionStatus])
+
+  // Fetch onboarding completion status for "Finish setup" link
+  useEffect(() => {
+    if (!surgeryId || !isAdmin) {
+      setOnboardingIncomplete(false)
+      setOnboardingFetched(false)
+      return
+    }
+
+    // Only fetch if ai_surgery_customisation feature is enabled
+    if (!enabledFeatures['ai_surgery_customisation']) {
+      setOnboardingIncomplete(false)
+      setOnboardingFetched(true)
+      return
+    }
+
+    let isCancelled = false
+
+    const fetchOnboardingStatus = async () => {
+      try {
+        const response = await fetch(`/api/admin/setup-checklist?surgeryId=${surgeryId}`)
+        if (response.ok && !isCancelled) {
+          const data = await response.json()
+          // Calculate if onboarding is incomplete (any step not done)
+          const isIncomplete = 
+            !data.onboardingCompleted ||
+            !data.appointmentModelConfigured ||
+            !data.aiCustomisationOccurred ||
+            data.pendingCount > 0
+          setOnboardingIncomplete(isIncomplete)
+          setOnboardingFetched(true)
+        }
+      } catch (error) {
+        console.error('Error fetching onboarding status:', error)
+        if (!isCancelled) {
+          setOnboardingFetched(true)
+        }
+      }
+    }
+
+    fetchOnboardingStatus()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [surgeryId, isAdmin, enabledFeatures])
 
   // Handle escape key to close
   useEffect(() => {
@@ -327,6 +376,19 @@ export default function UniversalNavigationPanel() {
                     </Link>
                   </li>
                 ))}
+                {/* Finish setup - conditional link for incomplete onboarding */}
+                {isAdmin && onboardingFetched && onboardingIncomplete && enabledFeatures['ai_surgery_customisation'] && (
+                  <li>
+                    <Link
+                      href={`/s/${surgeryId}/admin/setup-checklist`}
+                      onClick={() => close()}
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-inset"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-amber-500 mr-2 flex-shrink-0" aria-hidden="true" />
+                      Finish setup
+                    </Link>
+                  </li>
+                )}
                 {/* System management - only for superusers */}
                 {isSuperuser && (
                   <li>

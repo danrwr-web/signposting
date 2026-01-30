@@ -33,6 +33,8 @@ A simple step-by-step guide to help practices set up and begin using the Signpos
 
 This onboarding process usually takes **30–60 minutes** for an admin lead + a clinical lead.
 
+**Tip:** If your surgery has the onboarding features enabled, you can track your progress using the **Setup & onboarding** section in **Practice settings**. This shows which steps are complete and what remains to be done.
+
 ---
 
 ## 1. Create Surgery Admin Users
