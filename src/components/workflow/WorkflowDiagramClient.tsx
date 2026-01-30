@@ -2993,13 +2993,14 @@ export default function WorkflowDiagramClient({
                                   ))}
                                 </select>
                                 {link.toTemplateId && (
-                                  <Link
-                                    href={`/s/${surgeryId}/workflow/templates/${link.toTemplateId}/view`}
+                                  <button
+                                    type="button"
+                                    onClick={() => router.push(`/s/${surgeryId}/workflow/templates/${link.toTemplateId}/view`)}
                                     className="px-2 py-2 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     title="Open linked workflow"
                                   >
                                     Open ↗
-                                  </Link>
+                                  </button>
                                 )}
                               </div>
                               <input
@@ -3179,24 +3180,25 @@ export default function WorkflowDiagramClient({
                     <p className="text-xs text-gray-600 mb-3">
                       Select the most appropriate pathway to continue.
                     </p>
-                    <div className="space-y-2">
+                    <div className="space-y-2" role="list" aria-label="Linked workflows">
                       {detailsNode.workflowLinks.map((link) => {
                         const linkHref = `/s/${surgeryId}/workflow/templates/${link.templateId}/view`
                         return (
                           <button
                             key={link.id}
                             type="button"
-                            onClick={() => {
-                              console.log('[DEBUG] Button onClick fired, navigating to:', linkHref)
-                              router.push(linkHref)
-                            }}
-                            onMouseDown={(e) => {
-                              console.log('[DEBUG] Button onMouseDown fired', { linkHref, target: e.target })
+                            role="listitem"
+                            onClick={() => router.push(linkHref)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                router.push(linkHref)
+                              }
                             }}
                             className="flex items-center justify-between w-full px-4 py-3 text-sm text-gray-900 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors cursor-pointer text-left"
                           >
                             <span className="font-medium">{link.label}</span>
-                            <span className="text-gray-400">↗</span>
+                            <span className="text-gray-400" aria-hidden="true">↗</span>
                           </button>
                         )
                       })}
