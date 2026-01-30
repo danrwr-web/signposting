@@ -447,10 +447,13 @@ interface WorkflowDiagramClientProps {
   template: WorkflowTemplate
   isAdmin?: boolean
   isSuperuser?: boolean
+  canCustomise?: boolean
+  isGlobalTemplate?: boolean
   allTemplates?: Array<{ id: string; name: string }>
   surgeryId: string
   templateId: string
   publishWorkflowAction?: () => Promise<{ success: boolean; error?: string }>
+  createOverrideAction?: () => Promise<{ success: boolean; error?: string; templateId?: string }>
   surgeryDefaults?: Array<{
     nodeType: WorkflowNodeType
     bgColor: string | null
@@ -547,10 +550,13 @@ export default function WorkflowDiagramClient({
   template,
   isAdmin = false,
   isSuperuser = false,
+  canCustomise = false,
+  isGlobalTemplate = false,
   allTemplates = [],
   surgeryId,
   templateId,
   publishWorkflowAction,
+  createOverrideAction,
   surgeryDefaults = [],
   updatePositionAction,
   createNodeAction,
@@ -673,6 +679,7 @@ export default function WorkflowDiagramClient({
   const [approvalStatus, setApprovalStatus] = useState<string>(template.approvalStatus ?? 'APPROVED')
   const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isCustomising, setIsCustomising] = useState(false)
   
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
@@ -952,6 +959,33 @@ export default function WorkflowDiagramClient({
   const canShowPublish =
     effectiveAdmin && approvalStatus === 'DRAFT' && typeof publishWorkflowAction === 'function'
   const publishDisabled = isPublishing
+  
+  // Customise button: shown when viewing a global template as a surgery admin
+  const canShowCustomise = canCustomise && typeof createOverrideAction === 'function'
+  
+  // Handler for creating a customised copy of a global template
+  const handleCustomise = useCallback(async () => {
+    if (!createOverrideAction || isCustomising) return
+    
+    setIsCustomising(true)
+    try {
+      const result = await createOverrideAction()
+      if (!result.success) {
+        toast.error(result.error || 'Could not create customised version')
+        return
+      }
+      if (result.templateId) {
+        toast.success('Customised version created')
+        // Redirect to the new surgery-specific template
+        router.push(`/s/${surgeryId}/workflow/templates/${result.templateId}/view`)
+      }
+    } catch (error) {
+      console.error('Error creating override:', error)
+      toast.error('Could not create customised version')
+    } finally {
+      setIsCustomising(false)
+    }
+  }, [createOverrideAction, isCustomising, router, surgeryId])
 
   // Find selected node data
   const selectedNode = useMemo(() => {
@@ -2573,6 +2607,27 @@ export default function WorkflowDiagramClient({
       <div className="flex h-full w-full items-stretch">
         {/* Left column: diagram */}
         <div data-testid="workflow-left-col" className="flex-1 min-w-0 relative overflow-hidden flex flex-col gap-2">
+          {/* Global template info banner - shown when viewing a default template that can be customised */}
+          {canShowCustomise && (
+            <div className="px-4 py-3 bg-amber-50 border border-amber-200 rounded-md flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-amber-800">
+                  This is a default template
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  Create a customised version for your surgery to make changes.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleCustomise}
+                disabled={isCustomising}
+                className="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {isCustomising ? 'Creating…' : 'Customise'}
+              </button>
+            </div>
+          )}
           {/* Subtle editing mode banner */}
           {editingMode && isAdmin && (
             <div className="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-md">

@@ -95,7 +95,7 @@ export async function updateWorkflowTemplate(
 
     // Verify template belongs to surgery
     const existing = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!existing) {
@@ -209,7 +209,7 @@ export async function createWorkflowNode(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
       include: { nodes: true },
     })
 
@@ -289,7 +289,7 @@ export async function updateWorkflowNode(
 
     // Verify template and node belong to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -375,7 +375,7 @@ export async function deleteWorkflowNode(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -416,7 +416,7 @@ export async function createWorkflowAnswerOption(
 
     // Verify template and node belong to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -497,7 +497,7 @@ export async function updateWorkflowAnswerOption(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -630,7 +630,7 @@ export async function createWorkflowNodeForTemplate(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
       include: { nodes: true },
     })
 
@@ -734,7 +734,7 @@ export async function createWorkflowAnswerOptionForDiagram(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -843,7 +843,7 @@ export async function updateWorkflowAnswerOptionLabel(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -914,7 +914,7 @@ export async function deleteWorkflowAnswerOptionById(
 
     // Verify template belongs to surgery or global surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -962,7 +962,7 @@ export async function deleteWorkflowNodeById(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -1059,7 +1059,7 @@ export async function updateWorkflowNodeForDiagram(
 
     // Verify template and node belong to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -1252,7 +1252,7 @@ export async function createWorkflowNodeLink(
 
     // Verify template and node belong to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -1345,7 +1345,7 @@ export async function deleteWorkflowNodeLink(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -1398,7 +1398,7 @@ export async function updateWorkflowNodePosition(
 
     // Verify template and node belong to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -1449,7 +1449,7 @@ export async function bulkUpdateWorkflowNodePositions(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -1524,7 +1524,7 @@ export async function deleteWorkflowAnswerOption(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -1571,7 +1571,7 @@ export async function deleteWorkflowTemplate(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
       include: {
         nodes: {
           include: {
@@ -1669,7 +1669,7 @@ export async function approveWorkflowTemplate(
 
     // Verify template belongs to surgery
     const existing = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!existing) {
@@ -2185,7 +2185,7 @@ export async function upsertTemplateStyleDefault(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
@@ -2239,7 +2239,7 @@ export async function resetTemplateStyleDefaults(
 
     // Verify template belongs to surgery
     const template = await prisma.workflowTemplate.findFirst({
-      where: { id: templateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
+      where: { id: templateId, surgeryId },
     })
 
     if (!template) {
