@@ -685,7 +685,9 @@ const updateItemInput = z.object({
   surgeryId: z.string().min(1),
   itemId: z.string().min(1),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
-  categoryId: z.string().min(1).nullable().optional(),
+  // NOTE: categoryId is intentionally NOT accepted by this action.
+  // The item edit page is for content only; category changes use the settings page.
+  // Any categoryId in the payload will be ignored and logged as a warning.
   contentHtml: z.string().optional(), // Legacy field, kept for backwards compatibility
   introHtml: z.string().optional(),
   footerHtml: z.string().optional(),
@@ -719,6 +721,29 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
   }
   const { surgeryId, itemId } = parsed.data
+
+  // GUARDRAIL: Reject any attempt to pass categoryId through this action.
+  // This action is for content editing only; category changes must use the admin settings page.
+  const rawInput = input as Record<string, unknown>
+  if ('categoryId' in rawInput) {
+    console.warn(
+      `[updateAdminToolkitItem] BLOCKED: Attempt to modify categoryId for item ${itemId} in surgery ${surgeryId}. ` +
+      `Payload included categoryId=${JSON.stringify(rawInput.categoryId)}. ` +
+      `This action does not support category changes. categoryId will be preserved.`
+    )
+    // We don't reject the request, but we completely ignore categoryId.
+    // If someone explicitly tries to set categoryId to null/empty, this is a bug or attack.
+    if (rawInput.categoryId === null || rawInput.categoryId === '') {
+      return {
+        ok: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Cannot clear category through the item edit page. Use the Practice Handbook settings to move items between categories.',
+        },
+      }
+    }
+  }
+
   const gate = await requireAdminToolkitItemEdit(surgeryId, itemId)
   if (!gate.ok) return gate
 
@@ -731,8 +756,11 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
   // Keep legacy contentHtml for backwards compatibility (fallback rendering)
   const nextContentHtml = existing.type === 'PAGE' ? sanitizeHtml(parsed.data.contentHtml ?? existing.contentHtml ?? '') : existing.contentHtml
 
-  // Merge blocks for PAGE items
-  const mergeBlocks = (
+  // Merge blocks for PAGE items - NON-DESTRUCTIVE approach:
+  // - undefined = not provided, PRESERVE existing block
+  // - null = explicitly clear this block (for roleCardsBlock only)
+  // - empty string = treat as "clear" only if explicitly allowed, otherwise preserve
+  const mergeBlocksNonDestructive = (
     baseJson: unknown,
     roleCards: (typeof parsed.data)['roleCardsBlock'],
     introHtml: string | undefined,
@@ -744,33 +772,36 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
       ? ({ ...(baseJson as Record<string, unknown>) } as Record<string, unknown>)
       : ({} as Record<string, unknown>)
     
-    // Start with existing blocks (will filter out ones we're updating)
+    // Start with ALL existing blocks - we'll selectively update only the ones provided
     const blocksRaw = Array.isArray(json.blocks) ? json.blocks : []
-    const kept = blocksRaw.filter(
-      (b) =>
-        !(
-          b &&
-          typeof b === 'object' &&
-          !Array.isArray(b) &&
-          ((b as any).type === 'ROLE_CARDS' ||
-            (b as any).type === 'INTRO_TEXT' ||
-            (b as any).type === 'FOOTER_TEXT')
-        )
-    )
     
-    // Add INTRO_TEXT block if provided
+    // Handle INTRO_TEXT block
     if (introHtml !== undefined) {
+      // Filter out existing INTRO_TEXT block (we'll replace it)
+      const withoutIntro = blocksRaw.filter(
+        (b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'INTRO_TEXT')
+      )
+      json = { ...json, blocks: withoutIntro }
+      
+      // Only add new intro block if it has meaningful content
       if (introHtml && !isHtmlEmpty(introHtml)) {
         json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
       }
+      // If introHtml is empty, we intentionally leave the block removed (user cleared it)
     }
+    // If introHtml is undefined, existing INTRO_TEXT block is preserved (not touched)
     
-    // Add ROLE_CARDS block if provided
+    // Handle ROLE_CARDS block
     if (roleCards !== undefined) {
-      if (roleCards === null) {
-        // Remove role cards block
-        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'ROLE_CARDS')) }
-      } else {
+      // Filter out existing ROLE_CARDS block
+      const currentBlocks = Array.isArray(json.blocks) ? json.blocks : blocksRaw
+      const withoutRoleCards = currentBlocks.filter(
+        (b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'ROLE_CARDS')
+      )
+      json = { ...json, blocks: withoutRoleCards }
+      
+      if (roleCards !== null) {
+        // Add/update role cards block
         json = upsertBlock(json, {
           type: 'ROLE_CARDS' as const,
           id: roleCards.id ?? randomUUID(),
@@ -788,16 +819,28 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
             })),
         })
       }
+      // If roleCards === null, block stays removed (user disabled role cards)
     }
+    // If roleCards is undefined, existing ROLE_CARDS block is preserved
     
-    // Add FOOTER_TEXT block if provided
+    // Handle FOOTER_TEXT block
     if (footerHtml !== undefined) {
+      // Filter out existing FOOTER_TEXT block
+      const currentBlocks = Array.isArray(json.blocks) ? json.blocks : blocksRaw
+      const withoutFooter = currentBlocks.filter(
+        (b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'FOOTER_TEXT')
+      )
+      json = { ...json, blocks: withoutFooter }
+      
+      // Only add new footer block if it has meaningful content
       if (footerHtml && !isHtmlEmpty(footerHtml)) {
         json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerHtml) })
       }
+      // If footerHtml is empty, we intentionally leave the block removed (user cleared it)
     }
+    // If footerHtml is undefined, existing FOOTER_TEXT block is preserved
     
-    // If no blocks remain, return null
+    // If no blocks remain, return null (but preserve other json properties if any)
     const finalBlocks = Array.isArray(json.blocks) ? json.blocks : []
     if (finalBlocks.length === 0) {
       const keys = Object.keys(json).filter((k) => k !== 'blocks')
@@ -809,11 +852,14 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
 
   const nextContentJson =
     existing.type === 'PAGE'
-      ? mergeBlocks(existing.contentJson, parsed.data.roleCardsBlock, parsed.data.introHtml, parsed.data.footerHtml)
+      ? mergeBlocksNonDestructive(existing.contentJson, parsed.data.roleCardsBlock, parsed.data.introHtml, parsed.data.footerHtml)
       : existing.contentJson
+
+  // CRITICAL: categoryId is ALWAYS preserved from existing record.
+  // This action does not support category changes.
   const next = {
     title: parsed.data.title,
-    categoryId: gate.data.canManage ? (parsed.data.categoryId ?? null) : existing.categoryId,
+    categoryId: existing.categoryId, // ALWAYS preserve - never touch categoryId in this action
     warningLevel: parsed.data.warningLevel ?? null,
     lastReviewedAt: parsed.data.lastReviewedAt ? new Date(parsed.data.lastReviewedAt) : null,
     contentHtml: nextContentHtml,
@@ -847,7 +893,7 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
           },
           after: {
             title: next.title,
-            categoryId: next.categoryId,
+            categoryId: next.categoryId, // Will always be same as before.categoryId
             warningLevel: next.warningLevel,
             lastReviewedAt: next.lastReviewedAt,
           },
