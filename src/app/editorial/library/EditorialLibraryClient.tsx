@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
+import Modal from '@/components/appointments/Modal'
 
 type Card = {
   id: string
@@ -19,9 +21,15 @@ type Card = {
   clinicianApprovedAt?: string | null
 }
 
+function isPublishedOrHighRisk(card: Card): boolean {
+  return card.status === 'PUBLISHED' || card.riskLevel === 'HIGH'
+}
+
 interface EditorialLibraryClientProps {
   surgeryId: string
   userName: string
+  /** When true, show delete (single + bulk) actions. Same gating as other editorial actions (SUPERUSER or ADMIN for surgery). */
+  canAdmin: boolean
 }
 
 const statusStyles: Record<string, string> = {
@@ -43,11 +51,17 @@ const roleLabels: Record<string, string> = {
   NURSE: 'Nurse',
 }
 
-export default function EditorialLibraryClient({ surgeryId, userName }: EditorialLibraryClientProps) {
+export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }: EditorialLibraryClientProps) {
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [deleteConfirm, setDeleteConfirm] = useState<
+    null | { type: 'single'; card: Card } | { type: 'bulk'; count: number }
+  >(null)
+  const [typeDeleteValue, setTypeDeleteValue] = useState('')
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -107,6 +121,102 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
     }
   }
 
+  const handleDeleteSingle = async (cardId: string) => {
+    setActionLoading(cardId)
+    setError(null)
+    try {
+      const response = await fetch(`/api/editorial/cards/${cardId}?surgeryId=${surgeryId}`, {
+        method: 'DELETE',
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || 'Failed to delete card')
+      }
+      toast.success('Card deleted')
+      await loadCards()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete card'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setActionLoading(null)
+      setDeleteConfirm(null)
+      setTypeDeleteValue('')
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkDeleteLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/editorial/cards/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardIds: Array.from(selectedIds), surgeryId }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || 'Failed to delete cards')
+      }
+      const deletedCount = payload?.deletedCount ?? 0
+      const requested = selectedIds.size
+      if (deletedCount < requested) {
+        toast.error(`Deleted ${deletedCount} of ${requested} cards. Some could not be deleted. You can try again.`)
+        await loadCards()
+      } else {
+        toast.success(`Deleted ${deletedCount} card${deletedCount !== 1 ? 's' : ''}`)
+        setSelectedIds(new Set())
+        await loadCards()
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete cards'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setBulkDeleteLoading(false)
+      setDeleteConfirm(null)
+      setTypeDeleteValue('')
+    }
+  }
+
+  const onRequestDeleteSingle = (card: Card) => {
+    if (isPublishedOrHighRisk(card)) {
+      setDeleteConfirm({ type: 'single', card })
+      setTypeDeleteValue('')
+    } else if (typeof window !== 'undefined' && window.confirm('Delete this card permanently? This cannot be undone.')) {
+      void handleDeleteSingle(card.id)
+    }
+  }
+
+  const onRequestBulkDelete = () => {
+    const selectedCards = filteredCards.filter((c) => selectedIds.has(c.id))
+    const anyHighRisk = selectedCards.some(isPublishedOrHighRisk)
+    if (anyHighRisk) {
+      setDeleteConfirm({ type: 'bulk', count: selectedIds.size })
+      setTypeDeleteValue('')
+    } else if (typeof window !== 'undefined' && window.confirm(`Delete ${selectedIds.size} card${selectedIds.size !== 1 ? 's' : ''} permanently? This cannot be undone.`)) {
+      void handleBulkDelete()
+    }
+  }
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const selectAllOnPage = () => {
+    setSelectedIds(new Set(filteredCards.map((c) => c.id)))
+  }
+
+  const clearSelection = () => {
+    setSelectedIds(new Set())
+  }
+
   const filteredCards = cards
 
   const formatDate = (dateStr: string | null) => {
@@ -120,6 +230,15 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
 
   return (
     <div className="space-y-6">
+      {process.env.NODE_ENV !== 'production' && (
+        <div
+          className="rounded-lg border-2 border-amber-400 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-900"
+          role="status"
+          aria-live="polite"
+        >
+          LIBRARY UI VERSION: delete-enabled
+        </div>
+      )}
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -228,6 +347,37 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
         </div>
       </div>
 
+      {/* Bulk actions bar (only for SUPERUSER / ADMIN) */}
+      {canAdmin && !loading && filteredCards.length > 0 && selectedIds.size > 0 && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-slate-700">
+            {selectedIds.size} selected
+          </span>
+          <button
+            type="button"
+            onClick={selectAllOnPage}
+            className="text-sm text-nhs-blue hover:underline"
+          >
+            Select all on page
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="text-sm text-slate-600 hover:underline"
+          >
+            Clear selection
+          </button>
+          <button
+            type="button"
+            onClick={onRequestBulkDelete}
+            disabled={bulkDeleteLoading}
+            className="text-sm font-medium text-red-700 hover:text-red-800 disabled:opacity-50"
+          >
+            {bulkDeleteLoading ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
+          </button>
+        </div>
+      )}
+
       {/* Cards Table */}
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
         {loading ? (
@@ -241,6 +391,21 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
+                  {canAdmin && (
+                    <th className="px-4 py-3 text-left w-10" scope="col">
+                      <label className="sr-only">Select</label>
+                      <input
+                        type="checkbox"
+                        checked={filteredCards.length > 0 && selectedIds.size === filteredCards.length}
+                        onChange={(e) => {
+                          if (e.target.checked) selectAllOnPage()
+                          else clearSelection()
+                        }}
+                        aria-label="Select all on page"
+                        className="rounded border-slate-300"
+                      />
+                    </th>
+                  )}
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Title</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Risk</th>
@@ -256,9 +421,22 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
                   const canPublish = card.status === 'APPROVED' || (card.status === 'DRAFT' && card.riskLevel !== 'HIGH')
                   const canArchive = card.status !== 'ARCHIVED'
                   const needsClinicianApproval = card.riskLevel === 'HIGH' && !card.clinicianApproved
+                  const isDeleting = actionLoading === card.id
 
                   return (
                     <tr key={card.id} className="hover:bg-slate-50">
+                      {canAdmin && (
+                        <td className="px-4 py-3">
+                          <label className="sr-only">Select card {card.title}</label>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(card.id)}
+                            onChange={() => toggleSelection(card.id)}
+                            aria-label={`Select ${card.title}`}
+                            className="rounded border-slate-300"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3">
                         <Link
                           href={`/editorial/batches/${card.batchId}?surgery=${surgeryId}&card=${card.id}`}
@@ -289,7 +467,7 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
                       <td className="px-4 py-3 text-slate-600">{formatDate(card.reviewByDate)}</td>
                       <td className="px-4 py-3 text-slate-600">{formatDate(card.createdAt)}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Link
                             href={`/editorial/batches/${card.batchId}?surgery=${surgeryId}&card=${card.id}`}
                             className="text-xs text-nhs-blue hover:underline"
@@ -327,6 +505,17 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
                               {actionLoading === card.id ? '…' : 'Archive'}
                             </button>
                           )}
+                          {canAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => onRequestDeleteSingle(card)}
+                              disabled={isDeleting}
+                              className="text-xs text-red-700 hover:underline disabled:opacity-50 font-medium"
+                              title="Delete card permanently"
+                            >
+                              {isDeleting ? '…' : 'Delete'}
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -337,6 +526,67 @@ export default function EditorialLibraryClient({ surgeryId, userName }: Editoria
           </div>
         )}
       </div>
+
+      {/* Delete confirmation modal (Type DELETE for published/high-risk) */}
+      {deleteConfirm && (
+        <Modal
+          title={deleteConfirm.type === 'single' ? 'Delete card permanently?' : `Delete ${deleteConfirm.count} cards permanently?`}
+          onClose={() => {
+            setDeleteConfirm(null)
+            setTypeDeleteValue('')
+          }}
+          description={
+            deleteConfirm.type === 'single'
+              ? 'This card is published or high-risk. Type DELETE below to confirm.'
+              : 'One or more selected cards are published or high-risk. Type DELETE below to confirm.'
+          }
+        >
+          <div className="space-y-4">
+            <label htmlFor="type-delete-confirm" className="block text-sm font-medium text-slate-700">
+              Type DELETE to confirm
+            </label>
+            <input
+              id="type-delete-confirm"
+              type="text"
+              value={typeDeleteValue}
+              onChange={(e) => setTypeDeleteValue(e.target.value)}
+              placeholder="DELETE"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              autoComplete="off"
+              aria-describedby="type-delete-hint"
+            />
+            <p id="type-delete-hint" className="text-sm text-slate-500">
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirm(null)
+                  setTypeDeleteValue('')
+                }}
+                className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={typeDeleteValue !== 'DELETE'}
+                onClick={() => {
+                  if (deleteConfirm.type === 'single') {
+                    void handleDeleteSingle(deleteConfirm.card.id)
+                  } else {
+                    void handleBulkDelete()
+                  }
+                }}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Delete permanently
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Summary */}
       {!loading && filteredCards.length > 0 && (

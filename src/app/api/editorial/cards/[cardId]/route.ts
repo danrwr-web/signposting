@@ -1,16 +1,19 @@
 import 'server-only'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { EditorialCardUpdateZ } from '@/lib/schemas/editorial'
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
+import { deleteCard } from '@/server/editorial/deleteCards'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 interface RouteParams {
   params: Promise<{ cardId: string }>
 }
+
+const CardIdZ = z.string().min(1, 'Card ID is required')
 
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
@@ -109,6 +112,52 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
     console.error('PUT /api/editorial/cards/[cardId] error', error)
+    return NextResponse.json(
+      { error: { code: 'SERVER_ERROR', message: 'Internal server error' } },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  try {
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json(
+        { error: { code: 'UNAUTHENTICATED', message: 'Authentication required' } },
+        { status: 401 }
+      )
+    }
+
+    const { cardId } = await params
+    const parsedId = CardIdZ.safeParse(cardId)
+    if (!parsedId.success) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'Invalid card ID', details: parsedId.error.issues } },
+        { status: 400 }
+      )
+    }
+
+    const surgeryIdParam = request.nextUrl.searchParams.get('surgeryId')
+    const surgeryId = resolveSurgeryIdForUser({ requestedId: surgeryIdParam ?? undefined, user })
+    if (!surgeryId || !isDailyDoseAdmin(user, surgeryId)) {
+      return NextResponse.json(
+        { error: { code: 'FORBIDDEN', message: 'Admin access required' } },
+        { status: 403 }
+      )
+    }
+
+    const result = await deleteCard(parsedId.data, surgeryId)
+    if (!result) {
+      return NextResponse.json(
+        { error: { code: 'NOT_FOUND', message: 'Card not found' } },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('DELETE /api/editorial/cards/[cardId] error', error)
     return NextResponse.json(
       { error: { code: 'SERVER_ERROR', message: 'Internal server error' } },
       { status: 500 }

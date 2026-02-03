@@ -38,5 +38,11 @@ export default async function EditorialLibraryPage({ searchParams }: EditorialLi
     redirect('/unauthorized')
   }
 
-  return <EditorialLibraryClient surgeryId={surgeryId} userName={user.name ?? user.email} />
+  return (
+    <EditorialLibraryClient
+      surgeryId={surgeryId}
+      userName={user.name ?? user.email}
+      canAdmin={canAdmin}
+    />
+  )
 }
