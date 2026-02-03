@@ -1,6 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import LearningCardPreview from '@/components/daily-dose/LearningCardPreview'
+import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
 type Batch = {
   id: string
@@ -495,12 +497,12 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
           )}
         </aside>
 
-        <section className="rounded-lg border border-slate-200 bg-white p-6">
+        <section className="flex flex-col gap-6">
           {activeType === 'quiz' && quiz ? (
-            <div className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold text-nhs-dark-blue">Quiz</h2>
               <p className="text-sm text-slate-600">{quiz.title}</p>
-              <ol className="space-y-3 text-sm text-slate-700">
+              <ol className="mt-3 space-y-3 text-sm text-slate-700">
                 {quiz.questions.map((question, index) => (
                   <li key={`${quiz.id}-${index}`} className="rounded-md border border-slate-200 p-3">
                     <p className="font-semibold">{question.question}</p>
@@ -517,12 +519,82 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
               </ol>
             </div>
           ) : activeCard ? (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-nhs-dark-blue">{activeCard.title}</h2>
-                <span className={`rounded-full px-3 py-1 text-xs ${riskBadgeStyles[cardForm.riskLevel] || 'bg-slate-100 text-slate-600'}`}>
-                  {cardForm.riskLevel} risk
-                </span>
+            <>
+              <div className="flex flex-col items-center">
+                <PhoneFrame
+                  alignActions={false}
+                  actions={
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={saveDraft}
+                        disabled={saving}
+                        className="rounded-xl bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+                      >
+                        {saving ? 'Saving…' : 'Save draft'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={approveCard}
+                        disabled={saving || !canApprove}
+                        className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                          canApprove
+                            ? 'border border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            : 'border border-slate-200 text-slate-400 cursor-not-allowed'
+                        }`}
+                        title={canApprove ? 'Approve this card for publishing' : 'Complete all checklist items first'}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        type="button"
+                        onClick={publishCard}
+                        disabled={saving || !canPublish}
+                        className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                          canPublish
+                            ? 'border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
+                            : 'border border-slate-200 text-slate-400 cursor-not-allowed'
+                        }`}
+                        title={
+                          cardForm.status !== 'APPROVED'
+                            ? 'Card must be approved before publishing'
+                            : canPublish
+                              ? 'Publish this card'
+                              : 'Cannot publish yet'
+                        }
+                      >
+                        Publish
+                      </button>
+                      {cardForm.status === 'APPROVED' && (
+                        <span className="self-center text-xs text-slate-500">Ready to publish</span>
+                      )}
+                    </div>
+                  }
+                >
+                  <LearningCardPreview
+                    title={cardForm.title}
+                    headerText={`${cardForm.targetRole} · ${cardForm.riskLevel} risk`}
+                    contentBlocks={cardForm.blocks.map((b) => {
+                      if (b.type === 'steps' || b.type === 'do-dont') {
+                        return {
+                          type: b.type,
+                          items: b.itemsText.split('\n').filter(Boolean),
+                        }
+                      }
+                      return { type: b.type, text: b.text }
+                    })}
+                    interactions={cardForm.interactions.map((i) => ({
+                      question: i.question,
+                      options: i.optionsText.split('\n').filter(Boolean),
+                    }))}
+                    sources={cardForm.sources.filter((s) => s.title?.trim()).map((s) => ({
+                      title: s.title,
+                      url: s.url || '#',
+                      publisher: s.publisher,
+                    }))}
+                    reviewByDate={cardForm.reviewByDate || null}
+                  />
+                </PhoneFrame>
               </div>
 
               {cardForm.riskLevel === 'HIGH' && (
@@ -531,15 +603,17 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 </div>
               )}
 
-              <label className="block text-sm">
-                Title
-                <input
-                  type="text"
-                  value={cardForm.title}
-                  onChange={(event) => setCardForm((prev) => ({ ...prev, title: event.target.value }))}
-                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-                />
-              </label>
+              <div className="rounded-lg border border-slate-200 bg-white p-6">
+                <h3 className="text-lg font-semibold text-nhs-dark-blue">Edit card</h3>
+                <label className="mt-4 block text-sm">
+                  Title
+                  <input
+                    type="text"
+                    value={cardForm.title}
+                    onChange={(event) => setCardForm((prev) => ({ ...prev, title: event.target.value }))}
+                    className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </label>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <label className="block text-sm">
@@ -1088,54 +1162,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={saveDraft}
-                  disabled={saving}
-                  className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {saving ? 'Saving…' : 'Save draft'}
-                </button>
-                <button
-                  type="button"
-                  onClick={approveCard}
-                  disabled={saving || !canApprove}
-                  className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                    canApprove
-                      ? 'border border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                      : 'border border-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                  title={canApprove ? 'Approve this card for publishing' : 'Complete all checklist items first'}
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  onClick={publishCard}
-                  disabled={saving || !canPublish}
-                  className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                    canPublish
-                      ? 'border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
-                      : 'border border-slate-200 text-slate-400 cursor-not-allowed'
-                  }`}
-                  title={
-                    cardForm.status !== 'APPROVED'
-                      ? 'Card must be approved before publishing'
-                      : canPublish
-                        ? 'Publish this card'
-                        : 'Cannot publish yet'
-                  }
-                >
-                  Publish
-                </button>
-                {cardForm.status === 'APPROVED' && (
-                  <span className="text-xs text-slate-500">Card is approved and ready to publish</span>
-                )}
-              </div>
-
-              <div className="rounded-md border border-slate-200 p-4">
+              <div className="mt-6 rounded-md border border-slate-200 p-4">
                 <p className="text-sm font-semibold text-slate-700">AI tools</p>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
                   <button

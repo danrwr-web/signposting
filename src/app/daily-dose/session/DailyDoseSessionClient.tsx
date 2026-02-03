@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { DailyDoseContentBlock, DailyDoseQuizQuestion } from '@/lib/daily-dose/types'
 import LearningCardOptionCard from '@/components/daily-dose/LearningCardOptionCard'
+import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
 interface DailyDoseSessionClientProps {
   surgeryId: string
@@ -353,11 +354,8 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
 
   if (summary) {
     return (
-      <div className="flex justify-center p-4">
-        <div
-          className="flex w-full max-w-[400px] flex-col items-center justify-center rounded-[2.5rem] border-[14px] border-slate-800 bg-white p-6 text-center shadow-2xl"
-          style={{ height: 'calc(100dvh - 140px)', minHeight: 500 }}
-        >
+      <PhoneFrame>
+        <div className="flex h-full flex-col items-center justify-center p-6 text-center">
           <h1 className="text-2xl font-bold text-nhs-dark-blue">Session complete</h1>
           <p className="mt-3 text-slate-600">
             You earned <strong>{summary.xpEarned} XP</strong> and answered {summary.correctCount} of{' '}
@@ -378,7 +376,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
             </Link>
           </div>
         </div>
-      </div>
+      </PhoneFrame>
     )
   }
 
@@ -650,23 +648,12 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
   const currentStep = steps[Math.min(stepIndex, steps.length - 1)]
 
   return (
-    <div className="flex justify-center p-4">
-      <div
-        className="relative w-full max-w-[400px] overflow-hidden rounded-[2.5rem] border-[14px] border-slate-800 bg-slate-800 shadow-2xl"
-        style={{
-          height: 'calc(100dvh - 140px)',
-          minHeight: 500,
-          maxHeight: 720,
-        }}
-      >
-        <div className="h-full overflow-hidden bg-white">
-          {currentStep && (
-            <div key={stepIndex} className="flex h-full flex-col">
-              {renderStep()}
-            </div>
-          )}
+    <PhoneFrame>
+      {currentStep && (
+        <div key={stepIndex} className="flex h-full flex-col">
+          {renderStep()}
         </div>
-      </div>
-    </div>
+      )}
+    </PhoneFrame>
   )
 }

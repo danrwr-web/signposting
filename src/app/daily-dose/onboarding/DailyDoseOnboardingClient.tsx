@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
 type Topic = {
   id: string
@@ -118,14 +119,28 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-6" aria-live="polite">
-        <p className="text-slate-600">Loading onboarding…</p>
-      </div>
+      <PhoneFrame>
+        <div className="flex h-full items-center justify-center p-6" aria-live="polite">
+          <p className="text-slate-600">Loading onboarding…</p>
+        </div>
+      </PhoneFrame>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-slate-200 bg-white p-6">
+    <PhoneFrame
+      actions={
+        <button
+          type="submit"
+          form="daily-dose-onboarding-form"
+          disabled={saving}
+          className="inline-flex items-center rounded-xl bg-nhs-blue px-6 py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {saving ? 'Saving…' : 'Save and continue'}
+        </button>
+      }
+    >
+      <form id="daily-dose-onboarding-form" onSubmit={handleSubmit} className="flex h-full flex-col overflow-auto p-6">
       <div>
         <h1 className="text-2xl font-bold text-nhs-dark-blue">Daily Dose onboarding</h1>
         <p className="mt-2 text-slate-600">
@@ -141,7 +156,7 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
 
       <fieldset>
         <legend className="text-sm font-semibold text-slate-700">Your role</legend>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-3 space-y-2">
           {roles.map((item) => (
             <label
               key={item.value}
@@ -166,7 +181,7 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
       <fieldset>
         <legend className="text-sm font-semibold text-slate-700">Focus areas (optional)</legend>
         <p className="mt-1 text-sm text-slate-500">Choose the topics you want to prioritise.</p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 space-y-2">
           {roleFilteredTopics.length === 0 ? (
             <p className="text-sm text-slate-500">No topics available for this role yet.</p>
           ) : (
@@ -188,7 +203,7 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
         </div>
       </fieldset>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="space-y-4">
         <label className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
           <input
             type="checkbox"
@@ -213,13 +228,6 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
         </label>
       </div>
 
-      <button
-        type="submit"
-        disabled={saving}
-        className="inline-flex items-center rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
-      >
-        {saving ? 'Saving…' : 'Save and continue'}
-      </button>
     </form>
   )
 }
