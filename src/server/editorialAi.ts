@@ -1043,35 +1043,50 @@ async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: strin
   }
 
   const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': apiKey,
-    },
-    body: JSON.stringify({
-      temperature: DEFAULT_TEMPERATURE,
-      messages: [
-        { role: 'system', content: params.systemPrompt.trim() },
-        { role: 'user', content: params.userPrompt.trim() },
-      ],
-    }),
-  })
+  
+  // Add timeout controller for long-running requests
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 240000) // 4 minute timeout
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': apiKey,
+      },
+      body: JSON.stringify({
+        temperature: DEFAULT_TEMPERATURE,
+        messages: [
+          { role: 'system', content: params.systemPrompt.trim() },
+          { role: 'user', content: params.userPrompt.trim() },
+        ],
+      }),
+      signal: controller.signal,
+    })
+    clearTimeout(timeoutId)
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new EditorialAiError('LLM_FAILED', `AI request failed: ${response.status}`, errorText)
-  }
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new EditorialAiError('LLM_FAILED', `AI request failed: ${response.status}`, errorText)
+    }
 
-  const data = await response.json()
-  const content = data?.choices?.[0]?.message?.content
-  if (!content) {
-    throw new EditorialAiError('LLM_EMPTY', 'AI returned empty content')
-  }
+    const data = await response.json()
+    const content = data?.choices?.[0]?.message?.content
+    if (!content) {
+      throw new EditorialAiError('LLM_EMPTY', 'AI returned empty content')
+    }
 
-  return {
-    content: content as string,
-    modelUsed: data?.model ?? deployment,
+    return {
+      content: content as string,
+      modelUsed: data?.model ?? deployment,
+    }
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new EditorialAiError('LLM_TIMEOUT', 'AI request timed out after 4 minutes')
+    }
+    throw error
   }
 }
 
