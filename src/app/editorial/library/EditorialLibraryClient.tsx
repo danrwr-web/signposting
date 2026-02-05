@@ -1,9 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Modal from '@/components/appointments/Modal'
+import { playNotificationSound } from '@/lib/notificationSound'
 
 type Card = {
   id: string
@@ -31,6 +33,8 @@ interface EditorialLibraryClientProps {
   userName: string
   /** When true, show delete (single + bulk) actions. Same gating as other editorial actions (SUPERUSER or ADMIN for surgery). */
   canAdmin: boolean
+  /** When present, poll for job completion and notify when ready. */
+  initialJobId?: string
 }
 
 const statusStyles: Record<string, string> = {
@@ -52,7 +56,11 @@ const roleLabels: Record<string, string> = {
   NURSE: 'Nurse',
 }
 
-export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }: EditorialLibraryClientProps) {
+const POLL_INTERVAL_MS = 3000
+
+export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, initialJobId }: EditorialLibraryClientProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +71,8 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
     null | { type: 'single'; card: Card } | { type: 'bulk'; count: number }
   >(null)
   const [typeDeleteValue, setTypeDeleteValue] = useState('')
+  const [activeJobId, setActiveJobId] = useState<string | null>(initialJobId ?? null)
+  const pollAbortRef = useRef<AbortController | null>(null)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -100,6 +110,65 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
   useEffect(() => {
     loadCards()
   }, [loadCards])
+
+  // Poll for background generation job completion
+  useEffect(() => {
+    const jobId = activeJobId ?? searchParams.get('jobId')
+    if (!jobId) return
+
+    if (!activeJobId) setActiveJobId(jobId)
+
+    // Request notification permission when user has a background job (for when tab is in background)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      void Notification.requestPermission()
+    }
+
+    const clearJobFromUrl = () => {
+      const nextParams = new URLSearchParams(searchParams.toString())
+      nextParams.delete('jobId')
+      const qs = nextParams.toString()
+      router.replace(qs ? `?${qs}` : window.location.pathname, { scroll: false })
+      setActiveJobId(null)
+    }
+
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/editorial/generate/status/${jobId}`, { cache: 'no-store' })
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload?.ok) return
+
+        if (payload.status === 'COMPLETE') {
+          playNotificationSound()
+          toast.success('New batch ready! You can review the cards below.', { duration: 5000, icon: '✨' })
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('Daily Dose', {
+              body: 'Your new cards are ready to review.',
+              icon: '/favicon.ico',
+            })
+          }
+          await loadCards()
+          clearJobFromUrl()
+          return
+        }
+
+        if (payload.status === 'FAILED') {
+          toast.error(payload.errorMessage || 'Generation failed')
+          clearJobFromUrl()
+          return
+        }
+      } catch {
+        // Ignore poll errors; will retry
+      }
+    }
+
+    poll()
+    const interval = setInterval(poll, POLL_INTERVAL_MS)
+
+    return () => {
+      clearInterval(interval)
+      pollAbortRef.current?.abort()
+    }
+  }, [activeJobId, searchParams, router, loadCards])
 
   const handleAction = async (cardId: string, action: 'approve' | 'publish' | 'archive') => {
     setActionLoading(cardId)
@@ -296,6 +365,17 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
         {error && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
             {error}
+          </div>
+        )}
+
+        {(activeJobId ?? searchParams.get('jobId')) && (
+          <div
+            className="mt-4 flex items-center gap-2 rounded-md border border-nhs-blue bg-nhs-light-blue/30 px-4 py-3 text-sm text-nhs-dark-blue"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-nhs-blue" aria-hidden />
+            Generating cards in the background… You can review published cards below. We will notify you when ready.
           </div>
         )}
       </div>

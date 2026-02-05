@@ -73,6 +73,7 @@ model User {
   dailyDoseFlagsResolved          DailyDoseFlaggedContent[]    @relation("DailyDoseFlagResolvedBy")
   dailyDoseBatchesCreated         DailyDoseGenerationBatch[]   @relation("DailyDoseBatchCreatedBy")
   dailyDoseGenerationAttempts     DailyDoseGenerationAttempt[] @relation("DailyDoseAttemptCreatedBy")
+  dailyDoseGenerationJobs         DailyDoseGenerationJob[]     @relation("DailyDoseGenerationJobCreatedBy")
 }
 
 model UserSurgery {
@@ -143,6 +144,7 @@ model Surgery {
   dailyDoseBatches            DailyDoseGenerationBatch[]
   dailyDoseQuizzes            DailyDoseQuiz[]
   dailyDoseGenerationAttempts DailyDoseGenerationAttempt[]
+  dailyDoseGenerationJobs     DailyDoseGenerationJob[]
 
   // Admin Toolkit
   adminCategories              AdminCategory[]
@@ -300,9 +302,35 @@ model DailyDoseGenerationBatch {
   cards         DailyDoseCard[]
   quiz          DailyDoseQuiz?
   attempts      DailyDoseGenerationAttempt[]
+  generationJob DailyDoseGenerationJob?
 
   @@index([surgeryId])
   @@index([createdBy])
+}
+
+model DailyDoseGenerationJob {
+  id           String   @id @default(cuid())
+  surgeryId   String
+  createdBy   String?
+  status      String   @default("PENDING") // PENDING | RUNNING | COMPLETE | FAILED
+  batchId     String?
+  promptText  String
+  targetRole  String
+  count       Int      @default(5)
+  tags        Json     @default("[]") // string[]
+  interactiveFirst Boolean @default(true)
+  errorMessage String?
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  surgery       Surgery                      @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  createdByUser User?                        @relation("DailyDoseGenerationJobCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+  batch         DailyDoseGenerationBatch?    @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@unique([batchId])
+  @@index([surgeryId])
+  @@index([createdBy])
+  @@index([status])
 }
 
 model DailyDoseGenerationAttempt {

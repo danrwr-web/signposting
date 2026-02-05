@@ -38,6 +38,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   const [tags, setTags] = useState('')
   const [interactiveFirst, setInteractiveFirst] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [generateInBackground, setGenerateInBackground] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<{
     requestId?: string
@@ -62,33 +63,46 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setErrorDetails(null)
     setDebugInfo(null)
 
+    const requestBody = {
+      surgeryId,
+      promptText,
+      targetRole,
+      count,
+      tags: tags
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+      interactiveFirst,
+    }
+
     try {
-      // Debug is automatic for editors/admins in non-production (no query param needed)
+      if (generateInBackground) {
+        const response = await fetch('/api/editorial/generate/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        })
+        const payload = await response.json().catch(() => ({ ok: false, error: { message: 'Failed to parse response' } }))
+        if (!response.ok || payload?.ok === false) {
+          setError(payload?.error?.message || 'Unable to start generation')
+          return
+        }
+        router.push(`/editorial/library?surgery=${surgeryId}&jobId=${payload.jobId}`)
+        return
+      }
+
       const response = await fetch('/api/editorial/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          surgeryId,
-          promptText,
-          targetRole,
-          count,
-          tags: tags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-          interactiveFirst,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const payload = await response.json().catch(() => ({ ok: false, error: { code: 'PARSE_ERROR', message: 'Failed to parse response' } }))
       
-      // Capture inline debug info if available (automatic for editors/admins in non-production)
-      // Always capture on any response (success or failure)
       if (payload?.debug) {
         setDebugInfo(payload.debug as DebugInfo)
       }
       
-      // Handle any error response (ok: false or !response.ok)
       if (!response.ok || payload?.ok === false) {
         const errorCode = payload?.error?.code || payload?.errorCode || 'UNKNOWN_ERROR'
         const errorMessage = payload?.error?.message || payload?.error?.message || 'Unable to generate drafts'
@@ -104,8 +118,6 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
               : [],
           rawSnippet: payload?.rawSnippet,
         })
-        
-        // Auto-open debug panel on any error
         setDebugPanelOpen(true)
         return
       }
@@ -261,6 +273,16 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                 className="accent-nhs-blue"
               />
               Interactive-first (default on)
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={generateInBackground}
+                onChange={(event) => setGenerateInBackground(event.target.checked)}
+                className="accent-nhs-blue"
+              />
+              Run in background (continue reviewing cards while generating; you will be notified when ready)
             </label>
           </div>
         </div>
