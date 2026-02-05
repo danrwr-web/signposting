@@ -139,6 +139,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     }
   }, [surgeryId])
 
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const steps = useMemo((): Step[] => {
     if (!session) return []
     const out: Step[] = []
@@ -435,6 +436,42 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     }
   }
 
+  // Get current step (must be before conditional returns)
+  const currentStep = useMemo(() => {
+    if (!steps.length) return undefined
+    return steps[Math.min(stepIndex, steps.length - 1)]
+  }, [steps, stepIndex])
+
+  // Get current card from session (support both old and new format)
+  // Don't depend on currentStep to avoid circular dependencies
+  const currentCard = useMemo(() => {
+    if (!session) return null
+    const cards = session.sessionCards || (session.coreCard ? [session.coreCard] : [])
+    if (cards.length === 0) return null
+    
+    // Look backwards from current stepIndex for intro step
+    for (let i = Math.min(stepIndex, steps.length - 1); i >= 0; i--) {
+      const step = steps[i]
+      if (step && step.type === 'intro' && 'card' in step && step.card) {
+        return step.card
+      }
+      if (step && step.type === 'sources' && 'card' in step && step.card) {
+        return step.card
+      }
+    }
+    
+    // Fallback to first card
+    return cards[0] || null
+  }, [session, steps, stepIndex])
+
+  const allEmbeddedAnswered = useMemo(() => {
+    if (!currentCard) return false
+    const embeddedCount = (currentCard.interactions ?? []).length + currentCard.contentBlocks.filter((b) => b.type === 'question').length
+    const answeredCount = Object.keys(questionResults).filter((k) => k.startsWith(`embed:${currentCard.id}:`)).length
+    return embeddedCount === answeredCount
+  }, [currentCard, questionResults])
+
+  // NOW we can do conditional returns
   if (loading) {
     return (
       <div className="flex min-h-[calc(100dvh-140px)] items-center justify-center" aria-live="polite">
@@ -495,38 +532,6 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
       </PhoneFrame>
     )
   }
-
-  // Get current step
-  const currentStep = useMemo(() => {
-    return steps[Math.min(stepIndex, steps.length - 1)]
-  }, [steps, stepIndex])
-
-  // Get current card from session (support both old and new format)
-  // Don't depend on currentStep to avoid circular dependencies
-  const currentCard = useMemo(() => {
-    if (!session) return null
-    const cards = session.sessionCards || (session.coreCard ? [session.coreCard] : [])
-    if (cards.length === 0) return null
-    
-    // Look backwards from current stepIndex for intro step
-    for (let i = Math.min(stepIndex, steps.length - 1); i >= 0; i--) {
-      const step = steps[i]
-      if (step && step.type === 'intro' && 'card' in step && step.card) {
-        return step.card
-      }
-      if (step && step.type === 'sources' && 'card' in step && step.card) {
-        return step.card
-      }
-    }
-    
-    // Fallback to first card
-    return cards[0] || null
-  }, [session, steps, stepIndex])
-
-  const allEmbeddedAnswered = currentCard
-    ? (currentCard.interactions ?? []).length + currentCard.contentBlocks.filter((b) => b.type === 'question').length ===
-        Object.keys(questionResults).filter((k) => k.startsWith(`embed:${currentCard.id}:`)).length
-    : false
 
   const renderStep = () => {
     if (!currentStep) return null
