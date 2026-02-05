@@ -121,6 +121,43 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
     }
   }
 
+  const handleApproveAndPublish = async (cardId: string) => {
+    setActionLoading(cardId)
+    setError(null)
+    try {
+      // First approve
+      const approveResponse = await fetch(`/api/editorial/cards/${cardId}/approve?surgeryId=${surgeryId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surgeryId }),
+      })
+      const approvePayload = await approveResponse.json().catch(() => ({}))
+      if (!approveResponse.ok) {
+        throw new Error(approvePayload?.error?.message || 'Unable to approve card')
+      }
+
+      // Then publish
+      const publishResponse = await fetch(`/api/editorial/cards/${cardId}/publish?surgeryId=${surgeryId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surgeryId }),
+      })
+      const publishPayload = await publishResponse.json().catch(() => ({}))
+      if (!publishResponse.ok) {
+        throw new Error(publishPayload?.error?.message || 'Unable to publish card')
+      }
+
+      toast.success('Card approved and published')
+      await loadCards()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong'
+      setError(msg)
+      toast.error(msg)
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const handleDeleteSingle = async (cardId: string) => {
     setActionLoading(cardId)
     setError(null)
@@ -421,6 +458,7 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
                   const canPublish = card.status === 'APPROVED' || (card.status === 'DRAFT' && card.riskLevel !== 'HIGH')
                   const canArchive = card.status !== 'ARCHIVED'
                   const needsClinicianApproval = card.riskLevel === 'HIGH' && !card.clinicianApproved
+                  const canApproveAndPublish = canApprove && !needsClinicianApproval
                   const isDeleting = actionLoading === card.id
 
                   return (
@@ -474,7 +512,18 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
                           >
                             Edit
                           </Link>
-                          {canApprove && (
+                          {canApproveAndPublish && (
+                            <button
+                              type="button"
+                              onClick={() => handleApproveAndPublish(card.id)}
+                              disabled={actionLoading === card.id}
+                              className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-50"
+                              title="Approve and publish in one step"
+                            >
+                              {actionLoading === card.id ? '…' : 'Approve & publish'}
+                            </button>
+                          )}
+                          {canApprove && !canApproveAndPublish && (
                             <button
                               type="button"
                               onClick={() => handleAction(card.id, 'approve')}
@@ -485,7 +534,7 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
                               {actionLoading === card.id ? '…' : 'Approve'}
                             </button>
                           )}
-                          {canPublish && !needsClinicianApproval && (
+                          {canPublish && !needsClinicianApproval && card.status === 'APPROVED' && (
                             <button
                               type="button"
                               onClick={() => handleAction(card.id, 'publish')}
