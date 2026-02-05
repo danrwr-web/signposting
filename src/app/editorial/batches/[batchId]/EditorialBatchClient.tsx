@@ -1210,6 +1210,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 </div>
               </div>
             </div>
+            </>
           ) : (
             <p className="text-sm text-slate-600">Select a card to edit.</p>
           )}
