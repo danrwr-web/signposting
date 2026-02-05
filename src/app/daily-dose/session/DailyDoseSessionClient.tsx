@@ -711,7 +711,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                 onClick={goNext}
                 className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
               >
-                Next question
+                Continue to quiz
               </button>
             ) : (
               <button
