@@ -100,9 +100,12 @@ export async function POST(request: NextRequest) {
       const storedCardIds = Array.isArray(recentSession.cardIds)
         ? (recentSession.cardIds as string[])
         : []
-      const cards = await prisma.dailyDoseCard.findMany({
-        where: { id: { in: storedCardIds } },
-        select: {
+        const cards = await prisma.dailyDoseCard.findMany({
+          where: { 
+            id: { in: storedCardIds },
+            isActive: true,
+          },
+          select: {
           id: true,
           title: true,
           topicId: true,
@@ -183,6 +186,7 @@ export async function POST(request: NextRequest) {
     const cards = await prisma.dailyDoseCard.findMany({
       where: {
         status: 'PUBLISHED',
+        isActive: true,
         topicId: { in: focusTopicIds },
         OR: [{ surgeryId }, { surgeryId: null }],
       },

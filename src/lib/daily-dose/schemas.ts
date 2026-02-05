@@ -86,6 +86,7 @@ export const DailyDoseCardInputZ = z.object({
   reviewByDate: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
   status: DailyDoseStatusZ.optional(),
+  isActive: z.boolean().optional(),
 })
 
 export const DailyDoseCardUpdateZ = DailyDoseCardInputZ.partial()

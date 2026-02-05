@@ -19,6 +19,7 @@ type Card = {
   clinicianApproved: boolean
   clinicianApprovedBy?: { id: string; name: string | null; email: string } | null
   clinicianApprovedAt?: string | null
+  isActive: boolean
 }
 
 function isPublishedOrHighRisk(card: Card): boolean {
@@ -443,6 +444,7 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
                       />
                     </th>
                   )}
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Active</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Title</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Risk</th>
@@ -475,6 +477,35 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
                           />
                         </td>
                       )}
+                      <td className="px-4 py-3">
+                        <label className="sr-only">Active</label>
+                        <input
+                          type="checkbox"
+                          checked={card.isActive}
+                          onChange={async () => {
+                            setActionLoading(card.id)
+                            try {
+                              const response = await fetch(`/api/editorial/cards/${card.id}/toggle-active`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ surgeryId, isActive: !card.isActive }),
+                              })
+                              if (!response.ok) {
+                                throw new Error('Unable to update active status')
+                              }
+                              await loadCards()
+                              toast.success(`Card ${card.isActive ? 'deactivated' : 'activated'}`)
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : 'Unable to update active status')
+                            } finally {
+                              setActionLoading(null)
+                            }
+                          }}
+                          disabled={actionLoading === card.id}
+                          className="rounded border-slate-300 disabled:opacity-50"
+                          aria-label={`${card.isActive ? 'Deactivate' : 'Activate'} ${card.title}`}
+                        />
+                      </td>
                       <td className="px-4 py-3">
                         <Link
                           href={`/editorial/batches/${card.batchId}?surgery=${surgeryId}&card=${card.id}`}

@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
         reviewByDate: parsed.reviewByDate ? new Date(parsed.reviewByDate) : null,
         tags: parsed.tags ?? [],
         status: parsed.status ?? 'DRAFT',
+        isActive: parsed.isActive ?? true,
         createdBy: user.id,
       },
       include: { topic: true },

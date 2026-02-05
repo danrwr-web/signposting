@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         clinicianApproved: true,
         clinicianApprovedAt: true,
+        isActive: true,
         clinicianApprovedByUser: {
           select: {
             id: true,
@@ -114,6 +115,7 @@ export async function GET(request: NextRequest) {
       clinicianApproved: card.clinicianApproved,
       clinicianApprovedBy: card.clinicianApprovedByUser,
       clinicianApprovedAt: card.clinicianApprovedAt?.toISOString() ?? null,
+      isActive: card.isActive,
     }))
 
     return NextResponse.json({ cards: transformedCards })

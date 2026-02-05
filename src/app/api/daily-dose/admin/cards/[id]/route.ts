@@ -105,6 +105,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         reviewByDate,
         tags: parsed.tags ?? existing.tags,
         status: parsed.status ?? existing.status,
+        isActive: parsed.isActive ?? existing.isActive,
         approvedBy: isApproving ? user.id : isRevertingApproval ? null : existing.approvedBy,
         approvedAt: isApproving ? new Date() : isRevertingApproval ? null : existing.approvedAt,
       },

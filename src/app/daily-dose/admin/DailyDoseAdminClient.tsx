@@ -22,6 +22,7 @@ type Card = {
   contentBlocks: Array<Record<string, any>>
   sources: Array<Record<string, any>>
   tags?: string[]
+  isActive: boolean
 }
 
 type Flag = {
@@ -308,6 +309,26 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
     }
   }
 
+  const toggleCardActive = async (cardId: string, isActive: boolean) => {
+    setSaving(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/daily-dose/admin/cards/${cardId}?surgeryId=${surgeryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive }),
+      })
+      if (!response.ok) {
+        throw new Error('Unable to update card')
+      }
+      loadData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-6" aria-live="polite">
@@ -419,11 +440,23 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
             {cards.map((card) => (
               <div key={card.id} className="rounded-md border border-slate-200 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-semibold">{card.title}</p>
-                    <p className="text-xs text-slate-500">
-                      {card.topic?.name ?? 'Topic'} • {card.status} • v{card.version}
-                    </p>
+                  <div className="flex items-center gap-3 flex-1">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={card.isActive}
+                        onChange={(e) => toggleCardActive(card.id, e.target.checked)}
+                        className="accent-nhs-blue"
+                        aria-label={`${card.isActive ? 'Deactivate' : 'Activate'} ${card.title}`}
+                      />
+                      <span className="text-xs text-slate-600 font-medium">Active</span>
+                    </label>
+                    <div>
+                      <p className="font-semibold">{card.title}</p>
+                      <p className="text-xs text-slate-500">
+                        {card.topic?.name ?? 'Topic'} • {card.status} • v{card.version}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2 text-xs">
                     <button

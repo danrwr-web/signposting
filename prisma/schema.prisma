@@ -211,6 +211,7 @@ model DailyDoseCard {
   estimatedTimeMinutes Int       @default(5)
   version              Int       @default(1)
   status               String    @default("DRAFT") // "DRAFT" | "IN_REVIEW" | "APPROVED" | "PUBLISHED" | "ARCHIVED" | "RETIRED"
+  isActive             Boolean   @default(true)
   riskLevel            String    @default("LOW") // "LOW" | "MED" | "HIGH"
   needsSourcing        Boolean   @default(false)
   createdBy            String?
@@ -242,6 +243,7 @@ model DailyDoseCard {
   @@index([topicId])
   @@index([surgeryId])
   @@index([status])
+  @@index([isActive])
 }
 
 model DailyDoseCardVersion {
