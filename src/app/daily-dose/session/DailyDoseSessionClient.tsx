@@ -490,23 +490,35 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     )
   }
 
+  // Get current step
+  const currentStep = useMemo(() => {
+    return steps[Math.min(stepIndex, steps.length - 1)]
+  }, [steps, stepIndex])
+
   // Get current card from session (support both old and new format)
   const currentCard = useMemo(() => {
     const cards = session.sessionCards || (session.coreCard ? [session.coreCard] : [])
     if (cards.length === 0) return null
     
     // Find card for current step by looking backwards for intro step
-    const currentStepValue = steps[Math.min(stepIndex, steps.length - 1)]
-    if (currentStepValue && currentStepValue.type === 'intro' && 'card' in currentStepValue && currentStepValue.card) {
-      return currentStepValue.card
+    if (currentStep && currentStep.type === 'intro' && 'card' in currentStep && currentStep.card) {
+      return currentStep.card
     }
-    if (currentStepValue && currentStepValue.type === 'sources' && 'card' in currentStepValue) {
-      return currentStepValue.card
+    if (currentStep && currentStep.type === 'sources' && 'card' in currentStep) {
+      return currentStep.card
+    }
+    
+    // Look backwards for intro step
+    for (let i = stepIndex; i >= 0; i--) {
+      const step = steps[i]
+      if (step && step.type === 'intro' && 'card' in step && step.card) {
+        return step.card
+      }
     }
     
     // Fallback to first card
     return cards[0] || null
-  }, [session, steps, stepIndex])
+  }, [session, steps, stepIndex, currentStep])
 
   const allEmbeddedAnswered = currentCard
     ? (currentCard.interactions ?? []).length + currentCard.contentBlocks.filter((b) => b.type === 'question').length ===
