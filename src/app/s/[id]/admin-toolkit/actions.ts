@@ -728,10 +728,15 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
   })
   if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found.' } }
 
-  // Keep legacy contentHtml for backwards compatibility (fallback rendering)
-  const nextContentHtml = existing.type === 'PAGE' ? sanitizeHtml(parsed.data.contentHtml ?? existing.contentHtml ?? '') : existing.contentHtml
+  // PATCH-safe: Build update data object, only including fields that are explicitly provided
+  // Check if content fields were explicitly provided (not just undefined/empty defaults)
+  const hasContentHtmlUpdate = parsed.data.contentHtml !== undefined
+  const hasIntroHtmlUpdate = parsed.data.introHtml !== undefined
+  const hasFooterHtmlUpdate = parsed.data.footerHtml !== undefined
+  const hasRoleCardsUpdate = parsed.data.roleCardsBlock !== undefined
+  const hasContentBlocksUpdate = hasIntroHtmlUpdate || hasFooterHtmlUpdate || hasRoleCardsUpdate
 
-  // Merge blocks for PAGE items
+  // Merge blocks for PAGE items (only if content blocks were explicitly provided)
   const mergeBlocks = (
     baseJson: unknown,
     roleCards: (typeof parsed.data)['roleCardsBlock'],
@@ -762,6 +767,9 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     if (introHtml !== undefined) {
       if (introHtml && !isHtmlEmpty(introHtml)) {
         json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+      } else {
+        // Explicitly empty - remove the block
+        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'INTRO_TEXT')) }
       }
     }
     
@@ -794,6 +802,9 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     if (footerHtml !== undefined) {
       if (footerHtml && !isHtmlEmpty(footerHtml)) {
         json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerHtml) })
+      } else {
+        // Explicitly empty - remove the block
+        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'FOOTER_TEXT')) }
       }
     }
     
@@ -807,28 +818,73 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     return json
   }
 
-  const nextContentJson =
-    existing.type === 'PAGE'
-      ? mergeBlocks(existing.contentJson, parsed.data.roleCardsBlock, parsed.data.introHtml, parsed.data.footerHtml)
-      : existing.contentJson
-  const next = {
+  // Only merge content blocks if they were explicitly provided
+  const nextContentJson = existing.type === 'PAGE' && hasContentBlocksUpdate
+    ? mergeBlocks(existing.contentJson, parsed.data.roleCardsBlock, parsed.data.introHtml, parsed.data.footerHtml)
+    : undefined // Don't update if not provided
+
+  // Handle contentHtml: only update if explicitly provided
+  // Guard: don't wipe existing content unless explicitly cleared
+  let nextContentHtml: string | undefined = undefined
+  if (hasContentHtmlUpdate && existing.type === 'PAGE') {
+    // Only update if provided AND non-empty, OR if explicitly null/empty to clear legacy content
+    // If existing has content (html or json blocks), don't wipe it with empty string
+    const hasExistingContent = existing.contentHtml && !isHtmlEmpty(existing.contentHtml)
+    const hasExistingBlocks = existing.contentJson && typeof existing.contentJson === 'object' && !Array.isArray(existing.contentJson) && Array.isArray((existing.contentJson as any).blocks) && (existing.contentJson as any).blocks.length > 0
+    
+    if (parsed.data.contentHtml && !isHtmlEmpty(parsed.data.contentHtml)) {
+      // Non-empty content provided - update it
+      nextContentHtml = sanitizeHtml(parsed.data.contentHtml)
+    } else if (!hasExistingContent && !hasExistingBlocks) {
+      // No existing content, empty string is fine
+      nextContentHtml = ''
+    }
+    // Otherwise: has existing content and empty string provided - don't update (preserve existing)
+  }
+
+  // Build update data object - only include fields that should be updated
+  const updateData: {
+    title: string
+    categoryId?: string | null
+    warningLevel?: string | null
+    lastReviewedAt?: Date | null
+    contentHtml?: string
+    contentJson?: any // Prisma JSON type
+    updatedByUserId: string
+  } = {
     title: parsed.data.title,
-    categoryId: gate.data.canManage ? (parsed.data.categoryId ?? null) : existing.categoryId,
-    warningLevel: parsed.data.warningLevel ?? null,
-    lastReviewedAt: parsed.data.lastReviewedAt ? new Date(parsed.data.lastReviewedAt) : null,
-    contentHtml: nextContentHtml,
-    contentJson: nextContentJson,
+    updatedByUserId: gate.data.userId,
+  }
+
+  // Only include categoryId if user can manage (or if it changed)
+  if (gate.data.canManage) {
+    updateData.categoryId = parsed.data.categoryId ?? null
+  }
+
+  // Only include warningLevel if provided
+  if (parsed.data.warningLevel !== undefined) {
+    updateData.warningLevel = parsed.data.warningLevel || null
+  }
+
+  // Only include lastReviewedAt if provided
+  if (parsed.data.lastReviewedAt !== undefined) {
+    updateData.lastReviewedAt = parsed.data.lastReviewedAt ? new Date(parsed.data.lastReviewedAt) : null
+  }
+
+  // Only include contentHtml if it should be updated
+  if (nextContentHtml !== undefined) {
+    updateData.contentHtml = nextContentHtml
+  }
+
+  // Only include contentJson if it should be updated
+  if (nextContentJson !== undefined) {
+    updateData.contentJson = nextContentJson as any
   }
 
   await prisma.$transaction(async (tx) => {
     await tx.adminItem.update({
       where: { id: itemId },
-      data: {
-        ...next,
-        updatedByUserId: gate.data.userId,
-        // Ensure contentJson is correctly typed for Prisma
-        contentJson: next.contentJson as any, // Ideally use Prisma.InputJsonValue, but fallback to `as any` if type issues persist
-      },
+      data: updateData,
     });
     await tx.adminHistory.create({
       data: {
@@ -844,12 +900,16 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
             categoryId: existing.categoryId,
             warningLevel: existing.warningLevel,
             lastReviewedAt: existing.lastReviewedAt,
+            contentHtml: existing.contentHtml,
+            contentJson: existing.contentJson,
           },
           after: {
-            title: next.title,
-            categoryId: next.categoryId,
-            warningLevel: next.warningLevel,
-            lastReviewedAt: next.lastReviewedAt,
+            title: updateData.title,
+            categoryId: updateData.categoryId ?? existing.categoryId,
+            warningLevel: updateData.warningLevel ?? existing.warningLevel,
+            lastReviewedAt: updateData.lastReviewedAt ?? existing.lastReviewedAt,
+            contentHtml: updateData.contentHtml ?? existing.contentHtml,
+            contentJson: updateData.contentJson ?? existing.contentJson,
           },
         },
       },

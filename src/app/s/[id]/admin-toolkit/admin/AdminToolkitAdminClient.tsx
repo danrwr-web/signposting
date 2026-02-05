@@ -2174,16 +2174,34 @@ function ItemEditFormContent({
           type="button"
           className="nhs-button"
           onClick={async () => {
+            // Get original values to compare against
+            const originalForm = formFromItem(selectedItem)
+            
+            // Only include content fields if they've changed from original
+            const contentHtmlChanged = selectedItem.type === 'PAGE' && form.contentHtml !== originalForm.contentHtml
+            const introHtmlChanged = selectedItem.type === 'PAGE' && form.introHtml !== originalForm.introHtml
+            const footerHtmlChanged = selectedItem.type === 'PAGE' && form.footerHtml !== originalForm.footerHtml
+            
+            // Check if role cards changed
+            const roleCardsChanged = selectedItem.type === 'PAGE' && (
+              form.roleCardsEnabled !== originalForm.roleCardsEnabled ||
+              form.roleCardsTitle !== originalForm.roleCardsTitle ||
+              form.roleCardsLayout !== originalForm.roleCardsLayout ||
+              form.roleCardsColumns !== originalForm.roleCardsColumns ||
+              JSON.stringify(form.roleCardsCards) !== JSON.stringify(originalForm.roleCardsCards)
+            )
+            
             const res = await updateAdminToolkitItem({
               surgeryId,
               itemId: selectedItem.id,
               title: form.title,
               categoryId: form.categoryId,
-              contentHtml: selectedItem.type === 'PAGE' ? form.contentHtml : undefined, // Legacy field
-              introHtml: selectedItem.type === 'PAGE' ? form.introHtml : undefined,
-              footerHtml: selectedItem.type === 'PAGE' ? form.footerHtml : undefined,
+              // Only send content fields if they changed
+              contentHtml: contentHtmlChanged ? form.contentHtml : undefined,
+              introHtml: introHtmlChanged ? form.introHtml : undefined,
+              footerHtml: footerHtmlChanged ? form.footerHtml : undefined,
               roleCardsBlock:
-                selectedItem.type === 'PAGE'
+                roleCardsChanged
                   ? form.roleCardsEnabled
                     ? {
                         id: form.roleCardsBlockId || undefined,
