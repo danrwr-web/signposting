@@ -409,7 +409,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           surgeryId,
-          cardId: session.coreCard.id,
+          cardId: currentCard?.id || session.sessionCards?.[0]?.id || session.coreCard?.id || '',
           reason: 'Content needs review',
           freeText: 'Flagged during Daily Dose session.',
         }),
@@ -490,9 +490,28 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     )
   }
 
-  const card = session.coreCard
-  const allEmbeddedAnswered = (card.interactions ?? []).length + card.contentBlocks.filter((b) => b.type === 'question').length ===
-    Object.keys(questionResults).filter((k) => k.startsWith('embed:')).length
+  // Get current card from session (support both old and new format)
+  const currentCard = useMemo(() => {
+    const cards = session.sessionCards || (session.coreCard ? [session.coreCard] : [])
+    if (cards.length === 0) return null
+    
+    // Find card for current step by looking backwards for intro step
+    const currentStepValue = steps[Math.min(stepIndex, steps.length - 1)]
+    if (currentStepValue && currentStepValue.type === 'intro' && 'card' in currentStepValue && currentStepValue.card) {
+      return currentStepValue.card
+    }
+    if (currentStepValue && currentStepValue.type === 'sources' && 'card' in currentStepValue) {
+      return currentStepValue.card
+    }
+    
+    // Fallback to first card
+    return cards[0] || null
+  }, [session, steps, stepIndex])
+
+  const allEmbeddedAnswered = currentCard
+    ? (currentCard.interactions ?? []).length + currentCard.contentBlocks.filter((b) => b.type === 'question').length ===
+        Object.keys(questionResults).filter((k) => k.startsWith(`embed:${currentCard.id}:`)).length
+    : false
 
   const renderStep = () => {
     if (!currentStep) return null
