@@ -1,8 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import LearningCardPreview from '@/components/daily-dose/LearningCardPreview'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
+import Modal from '@/components/appointments/Modal'
 
 type Batch = {
   id: string
@@ -81,6 +83,7 @@ const sectionOptions = [
 ]
 
 export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: string; surgeryId: string }) {
+  const router = useRouter()
   const [batch, setBatch] = useState<Batch | null>(null)
   const [cards, setCards] = useState<Card[]>([])
   const [quiz, setQuiz] = useState<Quiz | null>(null)
@@ -91,6 +94,8 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [error, setError] = useState<string | null>(null)
   const [regenSection, setRegenSection] = useState('mcq')
   const [regenNote, setRegenNote] = useState('')
+  const [showCompletionModal, setShowCompletionModal] = useState(false)
+  const [nextBatchId, setNextBatchId] = useState<string | null>(null)
 
   const [cardForm, setCardForm] = useState({
     id: '',
@@ -110,34 +115,39 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     status: 'DRAFT',
   })
 
-  const loadBatch = useCallback(() => {
+  const loadBatch = useCallback(async (onComplete?: (cards: Card[]) => void) => {
     setLoading(true)
     setError(null)
-    fetch(`/api/editorial/batches/${batchId}?surgeryId=${surgeryId}`, { cache: 'no-store' })
-      .then(async (res) => {
-        const payload = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          throw new Error(payload?.error?.message || 'Unable to load batch')
-        }
-        setBatch(payload.batch)
-        const normalisedCards = (payload.cards || []).map((card: Card) => ({
-          ...card,
-          tags: Array.isArray(card.tags) ? card.tags : [],
-          contentBlocks: Array.isArray(card.contentBlocks) ? card.contentBlocks : [],
-          interactions: Array.isArray(card.interactions) ? card.interactions : [],
-          safetyNetting: Array.isArray(card.safetyNetting) ? card.safetyNetting : [],
-          sources: Array.isArray(card.sources) ? card.sources : [],
-          slotLanguage: card.slotLanguage ?? { relevant: false, guidance: [] },
-        }))
-        setCards(normalisedCards)
-        setQuiz(payload.quiz || null)
-        if (normalisedCards.length && !activeId) {
-          setActiveId(normalisedCards[0].id)
-          setActiveType('card')
-        }
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Something went wrong'))
-      .finally(() => setLoading(false))
+    try {
+      const res = await fetch(`/api/editorial/batches/${batchId}?surgeryId=${surgeryId}`, { cache: 'no-store' })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(payload?.error?.message || 'Unable to load batch')
+      }
+      setBatch(payload.batch)
+      const normalisedCards = (payload.cards || []).map((card: Card) => ({
+        ...card,
+        tags: Array.isArray(card.tags) ? card.tags : [],
+        contentBlocks: Array.isArray(card.contentBlocks) ? card.contentBlocks : [],
+        interactions: Array.isArray(card.interactions) ? card.interactions : [],
+        safetyNetting: Array.isArray(card.safetyNetting) ? card.safetyNetting : [],
+        sources: Array.isArray(card.sources) ? card.sources : [],
+        slotLanguage: card.slotLanguage ?? { relevant: false, guidance: [] },
+      }))
+      setCards(normalisedCards)
+      setQuiz(payload.quiz || null)
+      if (normalisedCards.length && !activeId) {
+        setActiveId(normalisedCards[0].id)
+        setActiveType('card')
+      }
+      if (onComplete) {
+        onComplete(normalisedCards)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
   }, [batchId, surgeryId, activeId])
 
   useEffect(() => {
@@ -328,11 +338,51 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         throw new Error(publishPayload?.error?.message || 'Unable to publish card')
       }
 
-      await loadBatch()
+      // Reload batch to get updated card statuses
+      await loadBatch((updatedCards) => {
+        // Check if there are any unpublished cards
+        const unpublishedCards = updatedCards.filter((card) => card.status !== 'PUBLISHED')
+        if (unpublishedCards.length === 0) {
+          // All cards published - find next batch with unpublished cards
+          findNextUnapprovedBatch()
+        } else {
+          // Move to next unpublished card
+          const currentIndex = updatedCards.findIndex((card) => card.id === cardForm.id)
+          const nextUnpublished = updatedCards.slice(currentIndex + 1).find((card) => card.status !== 'PUBLISHED')
+          if (nextUnpublished) {
+            setActiveId(nextUnpublished.id)
+            setActiveType('card')
+          } else {
+            // No more unpublished cards in this batch
+            findNextUnapprovedBatch()
+          }
+        }
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const findNextUnapprovedBatch = async () => {
+    try {
+      // Fetch library to find batches with unpublished cards
+      const response = await fetch(`/api/editorial/library?surgeryId=${surgeryId}&status=DRAFT`, {
+        cache: 'no-store',
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (response.ok && payload.cards && payload.cards.length > 0) {
+        // Find first batch ID that's not the current batch
+        const nextBatch = payload.cards.find((card: Card) => card.batchId !== batchId)
+        if (nextBatch) {
+          setNextBatchId(nextBatch.batchId)
+        }
+      }
+      setShowCompletionModal(true)
+    } catch (err) {
+      // If we can't find next batch, still show modal
+      setShowCompletionModal(true)
     }
   }
 
@@ -1210,6 +1260,54 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
           )}
         </section>
       </div>
+
+      {showCompletionModal && (
+        <Modal
+          title="All cards published!"
+          onClose={() => setShowCompletionModal(false)}
+          widthClassName="max-w-md"
+        >
+          <div className="space-y-4">
+            <p className="text-slate-700">
+              All cards in this batch have been published. What would you like to do next?
+            </p>
+            <div className="flex flex-col gap-3">
+              {nextBatchId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCompletionModal(false)
+                    router.push(`/editorial/batches/${nextBatchId}?surgery=${surgeryId}`)
+                  }}
+                  className="w-full rounded-xl bg-nhs-blue px-4 py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
+                >
+                  Review next unapproved batch
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCompletionModal(false)
+                  router.push(`/editorial?surgery=${surgeryId}`)
+                }}
+                className="w-full rounded-xl border border-nhs-blue bg-white px-4 py-3 text-sm font-semibold text-nhs-blue hover:bg-nhs-blue hover:text-white"
+              >
+                Create a new batch
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCompletionModal(false)
+                  router.push(`/daily-dose/session?surgery=${surgeryId}`)
+                }}
+                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Start a learning session
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
