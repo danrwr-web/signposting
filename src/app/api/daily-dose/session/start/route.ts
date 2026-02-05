@@ -101,24 +101,50 @@ export async function POST(request: NextRequest) {
         : []
       const cards = await prisma.dailyDoseCard.findMany({
         where: { id: { in: storedCardIds } },
-        include: { topic: true },
+        select: {
+          id: true,
+          title: true,
+          topicId: true,
+          topic: { select: { name: true } },
+          roleScope: true,
+          contentBlocks: true,
+          interactions: true,
+          sources: true,
+          reviewByDate: true,
+          version: true,
+          status: true,
+          tags: true,
+          batchId: true,
+        },
       })
 
       const cardMap = new Map(cards.map((card) => [card.id, toCardPayload(card)]))
       const orderedCards = storedCardIds.map((id) => cardMap.get(id)).filter(Boolean) as DailyDoseCardPayload[]
 
       if (orderedCards.length > 0) {
-        const coreCard = orderedCards[0]
-        const recallCards = orderedCards.slice(1)
-        const quizQuestions = buildQuizQuestions({
-          coreCard,
-          recallCards,
-          extraCards: [],
+        // For resumed sessions, treat all cards as session cards
+        const sessionCards = orderedCards
+        const warmupQuestions: DailyDoseQuizQuestion[] = []
+        
+        // Get recent question IDs for exclusion
+        const recentQuestionIds = await getRecentQuestionIds({
+          userId: user.id,
+          surgeryId,
+          excludeLastNSessions: DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
+        })
+
+        // Build session-end quiz
+        const quizQuestions = buildSessionQuiz({
+          sessionCards,
+          recallCards: [],
+          recentQuestionIds,
+          targetLength: DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
         })
 
         return NextResponse.json({
           sessionId: recentSession.id,
-          coreCard,
+          sessionCards,
+          warmupQuestions,
           quizQuestions,
           resumed: true,
         })
