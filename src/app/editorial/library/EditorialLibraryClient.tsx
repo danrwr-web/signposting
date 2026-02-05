@@ -444,7 +444,37 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
                       />
                     </th>
                   )}
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Active</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">
+                    <label className="sr-only">Toggle all active</label>
+                    <input
+                      type="checkbox"
+                      checked={filteredCards.length > 0 && filteredCards.every((c) => c.isActive)}
+                      onChange={async (e) => {
+                        const newActiveState = e.target.checked
+                        setActionLoading('bulk-active')
+                        try {
+                          // Toggle all cards on current page
+                          const promises = filteredCards.map((card) =>
+                            fetch(`/api/editorial/cards/${card.id}/toggle-active`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ surgeryId, isActive: newActiveState }),
+                            })
+                          )
+                          await Promise.all(promises)
+                          await loadCards()
+                          toast.success(`All cards ${newActiveState ? 'activated' : 'deactivated'}`)
+                        } catch (err) {
+                          toast.error('Unable to update active status')
+                        } finally {
+                          setActionLoading(null)
+                        }
+                      }}
+                      disabled={actionLoading === 'bulk-active' || filteredCards.length === 0}
+                      className="rounded border-slate-300 disabled:opacity-50"
+                      aria-label={`${filteredCards.every((c) => c.isActive) ? 'Deactivate' : 'Activate'} all cards`}
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Title</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Risk</th>
