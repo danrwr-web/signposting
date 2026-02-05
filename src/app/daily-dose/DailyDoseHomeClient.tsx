@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
 interface DailyDoseHomeClientProps {
   surgeryId: string
   userName?: string
+  canAdmin?: boolean
 }
 
 type ProfileResponse = {
@@ -23,7 +25,7 @@ type HistoryResponse = {
   reviewQueue: Array<{ cardId: string }>
 }
 
-export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHomeClientProps) {
+export default function DailyDoseHomeClient({ surgeryId, userName, canAdmin = false }: DailyDoseHomeClientProps) {
   const [profile, setProfile] = useState<ProfileResponse['profile'] | null>(null)
   const [history, setHistory] = useState<HistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -105,10 +107,39 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
     )
   }
 
+  const pathname = usePathname()
+  // Determine active tab based on current pathname
+  const activeTab = pathname?.includes('/editorial/library') ? 'library' : 'home'
+
   return (
     <PhoneFrame
       actions={
         <div className="flex w-full flex-col items-center gap-3">
+          {/* Tabs */}
+          {canAdmin && (
+            <div className="flex w-full max-w-[400px] gap-1 rounded-lg border border-slate-200 bg-slate-50 p-1">
+              <Link
+                href={`/daily-dose?surgery=${surgeryId}`}
+                className={`flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors ${
+                  activeTab === 'home'
+                    ? 'bg-white text-nhs-blue shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Home
+              </Link>
+              <Link
+                href={`/editorial/library?surgery=${surgeryId}`}
+                className={`flex-1 rounded-md px-4 py-2 text-center text-sm font-medium transition-colors ${
+                  activeTab === 'library'
+                    ? 'bg-white text-nhs-blue shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Library
+              </Link>
+            </div>
+          )}
           <div className="flex flex-wrap justify-center gap-2">
             <Link
               href={`/daily-dose/session?surgery=${surgeryId}`}
