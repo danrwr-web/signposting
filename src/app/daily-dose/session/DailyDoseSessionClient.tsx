@@ -247,7 +247,13 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     }
 
     return out
-  }, [session])
+  }, [
+    session?.sessionId,
+    session?.sessionCards?.length,
+    session?.coreCard?.id,
+    session?.warmupQuestions?.length,
+    session?.quizQuestions?.length,
+  ])
 
   const handleAnswer = async (params: {
     cardId: string
