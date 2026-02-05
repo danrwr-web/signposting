@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     const cardStates = await prisma.dailyDoseUserCardState.findMany({
       where: { userId: user.id, surgeryId },
-      select: { cardId: true, dueAt: true },
+      select: { cardId: true, dueAt: true, incorrectStreak: true },
     })
 
     const stateMap = new Map(cardStates.map((state) => [state.cardId, state]))
@@ -186,12 +186,57 @@ export async function POST(request: NextRequest) {
 
     const newCards = eligibleCards.filter((card) => !stateMap.has(card.id))
 
-    const coreCard = pickCoreCard({ dueCards, newCards })
+    // If no due or new cards, allow selecting from all cards, prioritizing those with incorrect answers
+    let coreCard = pickCoreCard({ dueCards, newCards })
     if (!coreCard) {
-      return NextResponse.json({ error: 'No Daily Dose cards are ready yet' }, { status: 404 })
+      // All cards have been viewed - prioritize cards with incorrect answers
+      const cardsWithIncorrectAnswers = eligibleCards
+        .filter((card) => {
+          const state = stateMap.get(card.id)
+          return state && state.incorrectStreak > 0
+        })
+        .sort((a, b) => {
+          const aStreak = stateMap.get(a.id)?.incorrectStreak ?? 0
+          const bStreak = stateMap.get(b.id)?.incorrectStreak ?? 0
+          // Higher incorrect streak = higher priority
+          return bStreak - aStreak
+        })
+
+      if (cardsWithIncorrectAnswers.length > 0) {
+        coreCard = cardsWithIncorrectAnswers[0]
+      } else {
+        // Fall back to any card, sorted by most recently reviewed (oldest first)
+        const allViewedCards = eligibleCards
+          .filter((card) => stateMap.has(card.id))
+          .sort((a, b) => {
+            const aDue = stateMap.get(a.id)?.dueAt?.getTime() ?? 0
+            const bDue = stateMap.get(b.id)?.dueAt?.getTime() ?? 0
+            return aDue - bDue
+          })
+        coreCard = allViewedCards[0] ?? null
+      }
     }
 
-    const recallCards = dueCards.filter((card) => card.id !== coreCard.id).slice(0, 2)
+    if (!coreCard) {
+      return NextResponse.json({ error: 'No Daily Dose cards available for this role yet' }, { status: 404 })
+    }
+
+    // Select recall cards: prefer due cards, but if none available, use cards with incorrect answers
+    let recallCards = dueCards.filter((card) => card.id !== coreCard.id).slice(0, 2)
+    if (recallCards.length < 2) {
+      const cardsWithIncorrectAnswers = eligibleCards
+        .filter((card) => {
+          const state = stateMap.get(card.id)
+          return card.id !== coreCard.id && state && state.incorrectStreak > 0
+        })
+        .sort((a, b) => {
+          const aStreak = stateMap.get(a.id)?.incorrectStreak ?? 0
+          const bStreak = stateMap.get(b.id)?.incorrectStreak ?? 0
+          return bStreak - aStreak
+        })
+      const needed = 2 - recallCards.length
+      recallCards = [...recallCards, ...cardsWithIncorrectAnswers.slice(0, needed)]
+    }
     const extraCards = eligibleCards.filter(
       (card) => card.id !== coreCard.id && !recallCards.some((recall) => recall.id === card.id)
     )
