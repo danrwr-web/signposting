@@ -19,7 +19,7 @@ import { randomUUID } from 'node:crypto'
 // Force Node.js runtime and prevent edge timeouts
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+export const maxDuration = 300 // 5 minutes for generating multiple cards
 
 const MAX_GENERATIONS_PER_HOUR = 5
 
