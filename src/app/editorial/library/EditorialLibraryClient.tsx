@@ -455,10 +455,10 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
               <tbody className="divide-y divide-slate-100">
                 {filteredCards.map((card) => {
                   const canApprove = card.status === 'DRAFT'
-                  const canPublish = card.status === 'APPROVED' || (card.status === 'DRAFT' && card.riskLevel !== 'HIGH')
                   const canArchive = card.status !== 'ARCHIVED'
-                  const needsClinicianApproval = card.riskLevel === 'HIGH' && !card.clinicianApproved
-                  const canApproveAndPublish = canApprove && !needsClinicianApproval
+                  // Editors with access to the editorial section are clinical approvers by default.
+                  // Therefore, all DRAFT cards can be approved and published in one step.
+                  const canApproveAndPublish = canApprove
                   const isDeleting = actionLoading === card.id
 
                   return (
@@ -521,27 +521,6 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin }
                               title="Approve and publish in one step"
                             >
                               {actionLoading === card.id ? '…' : 'Approve & publish'}
-                            </button>
-                          )}
-                          {canApprove && !canApproveAndPublish && (
-                            <button
-                              type="button"
-                              onClick={() => handleAction(card.id, 'approve')}
-                              disabled={actionLoading === card.id}
-                              className="text-xs text-blue-600 hover:underline disabled:opacity-50"
-                              title={needsClinicianApproval ? 'Will record clinician approval' : undefined}
-                            >
-                              {actionLoading === card.id ? '…' : 'Approve'}
-                            </button>
-                          )}
-                          {canPublish && !needsClinicianApproval && card.status === 'APPROVED' && (
-                            <button
-                              type="button"
-                              onClick={() => handleAction(card.id, 'publish')}
-                              disabled={actionLoading === card.id}
-                              className="text-xs text-emerald-600 hover:underline disabled:opacity-50"
-                            >
-                              {actionLoading === card.id ? '…' : 'Publish'}
                             </button>
                           )}
                           {canArchive && (

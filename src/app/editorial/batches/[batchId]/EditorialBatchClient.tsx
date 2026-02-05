@@ -218,14 +218,9 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     return hasSources && sourcesVerified && hasInteractions && hasReviewDate
   }, [readinessChecks])
 
-  const canPublish = useMemo(() => {
-    const baseReady = cardForm.status === 'APPROVED' && canApprove
-    if (cardForm.riskLevel === 'HIGH') {
-      // For HIGH risk, clinician approval is set automatically when approving
-      return baseReady && activeCard?.clinicianApproved
-    }
-    return baseReady
-  }, [cardForm, canApprove, activeCard])
+  // Note: canPublish is no longer used since we have a single "Approve and publish" button.
+  // Editors with access to the editorial section are clinical approvers by default,
+  // so clinician approval is not a gate for publishing.
 
   // Build the save payload from current form state
   const buildSavePayload = () => ({
@@ -1132,13 +1127,13 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     <span>Review-by date set</span>
                   </div>
                   {readinessChecks.isHighRisk && (
-                    <div className={`flex items-center gap-2 ${readinessChecks.clinicianApproved ? 'text-emerald-700' : 'text-amber-600'}`}>
-                      <span>{readinessChecks.clinicianApproved ? '✓' : '⚠'}</span>
-                      <span className={readinessChecks.clinicianApproved ? '' : 'font-medium'}>
-                        Clinician approval (HIGH risk)
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <span>ℹ</span>
+                      <span className="text-xs">
+                        HIGH risk card — clinician approval will be set automatically when you approve
                         {readinessChecks.clinicianApproved && activeCard?.clinicianApprovedBy && (
-                          <span className="font-normal text-slate-500">
-                            {' '}— {activeCard.clinicianApprovedBy.name || activeCard.clinicianApprovedBy.email}
+                          <span className="text-slate-400">
+                            {' '}(approved by {activeCard.clinicianApprovedBy.name || activeCard.clinicianApprovedBy.email})
                           </span>
                         )}
                       </span>
@@ -1147,12 +1142,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 </div>
                 {!canApprove && (
                   <p className="mt-3 text-xs text-slate-500">
-                    Complete all items above, then click <strong>Save draft</strong> before approving.
-                  </p>
-                )}
-                {readinessChecks.isHighRisk && !readinessChecks.clinicianApproved && canApprove && (
-                  <p className="mt-3 text-xs text-amber-700">
-                    Clicking <strong>Approve</strong> will record your clinician approval for this high-risk content.
+                    Complete all required items above, then click <strong>Approve and publish</strong>.
                   </p>
                 )}
               </div>

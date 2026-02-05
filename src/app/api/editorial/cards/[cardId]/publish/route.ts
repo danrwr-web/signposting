@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { EditorialPublishRequestZ } from '@/lib/schemas/editorial'
-import { shouldRequireClinicianApproval } from '@/lib/editorial/guards'
 import { z } from 'zod'
 
 interface RouteParams {
@@ -78,19 +77,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    if (shouldRequireClinicianApproval(card.riskLevel as any)) {
-      if (!card.clinicianApproved || !card.clinicianApprovedBy) {
-        return NextResponse.json(
-          {
-            error: {
-              code: 'CLINICIAN_REQUIRED',
-              message: 'Clinician approval is required for high-risk content. Please approve the card first.',
-            },
-          },
-          { status: 409 }
-        )
-      }
-    }
+    // Note: Editors with access to the editorial section are clinical approvers by default.
+    // If the card is HIGH risk and hasn't been approved yet, we'll set clinician approval
+    // during the approve step (which happens before publish in the approve+publish flow).
+    // For direct publish (if status is already APPROVED), we trust that the editor
+    // has the authority to publish without a separate clinician approval gate.
 
     const nextVersion = card.version + 1
     const snapshot = {
