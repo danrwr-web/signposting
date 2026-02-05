@@ -282,6 +282,7 @@ function PageEditorContent({
                 : 'Main guidance text for this page.'}
             </p>
             <RichTextEditor
+              key={`admin-edit-intro-${selectedItemId}`}
               docId={`admin-toolkit:item:${selectedItemId}:intro`}
               value={form.introHtml}
               onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
@@ -324,6 +325,7 @@ function PageEditorContent({
           <>
             <p className="mb-2 text-xs text-gray-500">Optional extra guidance shown below role cards.</p>
             <RichTextEditor
+              key={`admin-edit-footer-${selectedItemId}`}
               docId={`admin-toolkit:item:${selectedItemId}:footer`}
               value={form.footerHtml}
               onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
@@ -714,7 +716,11 @@ export default function AdminToolkitAdminClient({
       return
     }
 
-    setForm(formFromItem(item))
+    // Update form immediately when item changes to prevent stale content
+    const newForm = formFromItem(item)
+    setForm(newForm)
+    // Increment editor key to force remount of rich text editors
+    setEditorInstanceKey((k) => k + 1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selectedItemId, items])
 
