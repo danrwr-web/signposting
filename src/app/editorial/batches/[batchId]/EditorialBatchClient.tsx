@@ -300,41 +300,39 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     }
   }
 
-  const saveDraft = async () => {
+  const handleApproveAndPublish = async () => {
     if (!cardForm.id) return
     setSaving(true)
     setError(null)
     try {
-      const success = await doSave()
-      if (success) {
-        await loadBatch()
-      }
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const approveCard = async () => {
-    if (!cardForm.id) return
-    setSaving(true)
-    setError(null)
-    try {
-      // First, save the current form state to persist any changes (like "Sources verified")
+      // First, save the current form state to persist any changes
       const saveSuccess = await doSave()
       if (!saveSuccess) {
         return // Error already set by doSave
       }
 
       // Then approve
-      const response = await fetch(`/api/editorial/cards/${cardForm.id}/approve?surgeryId=${surgeryId}`, {
+      const approveResponse = await fetch(`/api/editorial/cards/${cardForm.id}/approve?surgeryId=${surgeryId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ surgeryId }),
       })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(payload?.error?.message || 'Unable to approve card')
+      const approvePayload = await approveResponse.json().catch(() => ({}))
+      if (!approveResponse.ok) {
+        throw new Error(approvePayload?.error?.message || 'Unable to approve card')
       }
+
+      // Then publish
+      const publishResponse = await fetch(`/api/editorial/cards/${cardForm.id}/publish?surgeryId=${surgeryId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surgeryId }),
+      })
+      const publishPayload = await publishResponse.json().catch(() => ({}))
+      if (!publishResponse.ok) {
+        throw new Error(publishPayload?.error?.message || 'Unable to publish card')
+      }
+
       await loadBatch()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -343,21 +341,31 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     }
   }
 
-  const publishCard = async () => {
+  const handleDelete = async () => {
     if (!cardForm.id) return
+    if (!window.confirm('Delete this card permanently? This cannot be undone.')) {
+      return
+    }
     setSaving(true)
     setError(null)
     try {
-      const response = await fetch(`/api/editorial/cards/${cardForm.id}/publish?surgeryId=${surgeryId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ surgeryId }),
+      const response = await fetch(`/api/editorial/cards/${cardForm.id}?surgeryId=${surgeryId}`, {
+        method: 'DELETE',
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) {
-        throw new Error(payload?.error?.message || 'Unable to publish card')
+        throw new Error(payload?.error?.message || 'Failed to delete card')
       }
+      // Navigate back or reload batch
       await loadBatch()
+      // Clear active card if it was deleted
+      const remainingCards = cards.filter((c) => c.id !== cardForm.id)
+      if (remainingCards.length > 0) {
+        setActiveId(remainingCards[0].id)
+        setActiveType('card')
+      } else {
+        setActiveId(null)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -525,49 +533,30 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                   alignActions={false}
                   actions={
                     <div className="flex flex-wrap justify-center gap-2">
-                      <button
-                        type="button"
-                        onClick={saveDraft}
-                        disabled={saving}
-                        className="rounded-xl bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {saving ? 'Saving…' : 'Save draft'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={approveCard}
-                        disabled={saving || !canApprove}
-                        className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                          canApprove
-                            ? 'border border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            : 'border border-slate-200 text-slate-400 cursor-not-allowed'
-                        }`}
-                        title={canApprove ? 'Approve this card for publishing' : 'Complete all checklist items first'}
-                      >
-                        Approve
-                      </button>
-                      <button
-                        type="button"
-                        onClick={publishCard}
-                        disabled={saving || !canPublish}
-                        className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                          canPublish
-                            ? 'border border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700'
-                            : 'border border-slate-200 text-slate-400 cursor-not-allowed'
-                        }`}
-                        title={
-                          cardForm.status !== 'APPROVED'
-                            ? 'Card must be approved before publishing'
-                            : canPublish
-                              ? 'Publish this card'
-                              : 'Cannot publish yet'
-                        }
-                      >
-                        Publish
-                      </button>
-                      {cardForm.status === 'APPROVED' && (
-                        <span className="self-center text-xs text-slate-500">Ready to publish</span>
+                      {cardForm.status !== 'PUBLISHED' && (
+                        <button
+                          type="button"
+                          onClick={handleApproveAndPublish}
+                          disabled={saving || !canApprove}
+                          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                            canApprove
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                          title={canApprove ? 'Approve and publish this card' : 'Complete all checklist items first'}
+                        >
+                          {saving ? 'Processing…' : 'Approve and publish'}
+                        </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={saving}
+                        className="rounded-xl border border-red-600 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                        title="Delete this card permanently"
+                      >
+                        Delete
+                      </button>
                     </div>
                   }
                 >
