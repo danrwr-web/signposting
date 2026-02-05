@@ -229,7 +229,8 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         }
       }
 
-      // Sources are now shown on the answer feedback page, not as a separate step
+      // Sources step (for flag button and navigation) - sources themselves are shown on answer pages
+      out.push({ type: 'sources', card, cardProgress })
     }
 
     // 3. Session-end quiz
@@ -705,27 +706,12 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
       }
 
       case 'sources': {
+        // Sources are now shown on answer pages, but we still need this step for flag button and navigation
         const c = currentStep.card
         const hasQuiz = session.quizQuestions.length > 0
         return (
           <div className="flex h-full flex-col justify-between p-6">
-            <div className="space-y-3 overflow-hidden">
-              <p className="font-semibold text-slate-700">Sources</p>
-              <ul className="space-y-1 text-sm text-slate-600">
-                {c.sources.map((source) => (
-                  <li key={source.url}>
-                    <a
-                      href={source.url}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      className="text-nhs-blue underline-offset-2 hover:underline"
-                    >
-                      {source.title} ({source.org ?? source.publisher ?? 'UK source'})
-                    </a>
-                  </li>
-                ))}
-              </ul>
-              {c.reviewByDate && <p className="text-xs text-slate-500">Review due: {c.reviewByDate}</p>}
+            <div className="space-y-3">
               <button
                 type="button"
                 onClick={handleFlag}
