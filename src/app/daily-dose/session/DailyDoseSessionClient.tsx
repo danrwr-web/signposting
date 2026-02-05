@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { DailyDoseContentBlock, DailyDoseQuizQuestion } from '@/lib/daily-dose/types'
+import { getQuestionId } from '@/lib/daily-dose/questionId'
 import LearningCardOptionCard from '@/components/daily-dose/LearningCardOptionCard'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
@@ -29,7 +30,9 @@ type CoreCard = {
 
 type SessionStartResponse = {
   sessionId: string
-  coreCard: CoreCard
+  coreCard?: CoreCard // Legacy field for backward compatibility
+  sessionCards?: CoreCard[] // New: multiple cards for learning block
+  warmupQuestions?: DailyDoseQuizQuestion[] // New: 0-2 warm-up recall questions
   quizQuestions: DailyDoseQuizQuestion[]
   resumed?: boolean
 }
@@ -37,17 +40,19 @@ type SessionStartResponse = {
 type QuestionResult = {
   key: string
   cardId: string
+  questionId?: string
   correct: boolean
   correctAnswer: string
   rationale: string
 }
 
 type Step =
-  | { type: 'intro'; title: string; headerText: string }
+  | { type: 'intro'; title: string; headerText: string; cardProgress?: { current: number; total: number } }
   | {
       type: 'content'
       block: DailyDoseContentBlock
       index: number
+      cardProgress?: { current: number; total: number }
     }
   | {
       type: 'question'
@@ -56,6 +61,8 @@ type Step =
       key: string
       blockIndex: number
       source: 'interaction' | 'content'
+      cardProgress?: { current: number; total: number }
+      questionId?: string
     }
   | {
       type: 'feedback'
@@ -71,10 +78,14 @@ type Step =
   | {
       type: 'sources'
       card: CoreCard
+      cardProgress?: { current: number; total: number }
     }
   | {
       type: 'quiz'
       question: DailyDoseQuizQuestion
+      quizProgress?: { current: number; total: number }
+      isWarmup?: boolean
+      questionId?: string
     }
 
 export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionClientProps) {
@@ -129,52 +140,110 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
   }, [surgeryId])
 
   const steps = useMemo((): Step[] => {
-    if (!session?.coreCard) return []
-    const card = session.coreCard
-    const roleLabel = card.roleScope?.[0] ?? 'Staff'
-    const topicLabel = card.topicName ?? ''
-    const headerText = topicLabel ? `${roleLabel} · ${topicLabel}` : roleLabel
+    if (!session) return []
     const out: Step[] = []
 
-    out.push({ type: 'intro', title: card.title, headerText })
+    // Support both old format (coreCard) and new format (sessionCards)
+    const cards = session.sessionCards || (session.coreCard ? [session.coreCard] : [])
 
-    const interactions = card.interactions ?? []
-    for (let i = 0; i < interactions.length; i++) {
-      const interaction = interactions[i]
-      const key = `embed:${card.id}:interaction:${i}`
-      out.push({
-        type: 'question',
-        prompt: interaction.question,
-        options: interaction.options,
-        key,
-        blockIndex: i,
-        source: 'interaction',
-      })
-    }
+    if (cards.length === 0) return []
 
-    for (let i = 0; i < card.contentBlocks.length; i++) {
-      const block = card.contentBlocks[i]
-      if (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout' || block.type === 'steps' || block.type === 'do-dont') {
-        out.push({ type: 'content', block, index: i })
-      } else if (block.type === 'question') {
-        const key = `embed:${card.id}:content:${i}`
+    // 1. Warm-up recall questions (0-2 questions at start)
+    if (session.warmupQuestions && session.warmupQuestions.length > 0) {
+      const totalWarmup = session.warmupQuestions.length
+      for (let i = 0; i < session.warmupQuestions.length; i++) {
+        const question = session.warmupQuestions[i]
         out.push({
-          type: 'question',
-          prompt: block.prompt,
-          options: block.options,
-          key,
-          blockIndex: i,
-          source: 'content',
+          type: 'quiz',
+          question,
+          quizProgress: { current: i + 1, total: totalWarmup },
+          isWarmup: true,
+          questionId: question.questionId,
         })
-      } else if (block.type === 'reveal') {
-        out.push({ type: 'reveal', text: block.text })
       }
     }
 
-    out.push({ type: 'sources', card })
+    // 2. Learning block: show 3-5 cards sequentially
+    const totalCards = cards.length
+    for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {
+      const card = cards[cardIndex]
+      const roleLabel = card.roleScope?.[0] ?? 'Staff'
+      const topicLabel = card.topicName ?? ''
+      const headerText = topicLabel ? `${roleLabel} · ${topicLabel}` : roleLabel
+      const cardProgress = { current: cardIndex + 1, total: totalCards }
 
-    for (let i = 0; i < session.quizQuestions.length; i++) {
-      out.push({ type: 'quiz', question: session.quizQuestions[i] })
+      // Card intro
+      out.push({ type: 'intro', title: card.title, headerText, cardProgress })
+
+      // Embedded interactions (questions within the card)
+      const interactions = card.interactions ?? []
+      for (let i = 0; i < interactions.length; i++) {
+        const interaction = interactions[i]
+        const key = `embed:${card.id}:interaction:${i}`
+        // Generate questionId for tracking
+        const questionId = getQuestionId({
+          prompt: interaction.question,
+          options: interaction.options,
+          correctAnswer: interaction.options[interaction.correctIndex ?? 0] ?? interaction.options[0] ?? '',
+          questionType: 'multiple-choice',
+        })
+        out.push({
+          type: 'question',
+          prompt: interaction.question,
+          options: interaction.options,
+          key,
+          blockIndex: i,
+          source: 'interaction',
+          cardProgress,
+          questionId,
+        })
+      }
+
+      // Content blocks
+      for (let i = 0; i < card.contentBlocks.length; i++) {
+        const block = card.contentBlocks[i]
+        if (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout' || block.type === 'steps' || block.type === 'do-dont') {
+          out.push({ type: 'content', block, index: i, cardProgress })
+        } else if (block.type === 'question') {
+          const key = `embed:${card.id}:content:${i}`
+          // Generate questionId for tracking
+          const questionId = getQuestionId({
+            prompt: block.prompt,
+            options: block.options,
+            correctAnswer: block.correctAnswer,
+            questionType: block.questionType,
+          })
+          out.push({
+            type: 'question',
+            prompt: block.prompt,
+            options: block.options,
+            key,
+            blockIndex: i,
+            source: 'content',
+            cardProgress,
+            questionId,
+          })
+        } else if (block.type === 'reveal') {
+          out.push({ type: 'reveal', text: block.text })
+        }
+      }
+
+      // Sources for this card
+      out.push({ type: 'sources', card, cardProgress })
+    }
+
+    // 3. Session-end quiz
+    if (session.quizQuestions && session.quizQuestions.length > 0) {
+      const totalQuizQuestions = session.quizQuestions.length
+      for (let i = 0; i < session.quizQuestions.length; i++) {
+        const question = session.quizQuestions[i]
+        out.push({
+          type: 'quiz',
+          question,
+          quizProgress: { current: i + 1, total: totalQuizQuestions },
+          questionId: question.questionId,
+        })
+      }
     }
 
     return out
@@ -212,11 +281,16 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
       rationale: string
     }
 
+    // Find the questionId from the current step
+    const currentQuestionStep = steps.find((s) => s.type === 'question' && s.key === key)
+    const questionId = currentQuestionStep?.type === 'question' ? currentQuestionStep.questionId : undefined
+
     setQuestionResults((prev) => ({
       ...prev,
       [key]: {
         key,
         cardId: params.cardId,
+        questionId,
         correct: result.correct,
         correctAnswer: result.correctAnswer,
         rationale: result.rationale,
@@ -226,6 +300,11 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
 
   const handleQuizAnswer = async (question: DailyDoseQuizQuestion, answer: string) => {
     try {
+      const quizKey = `quiz:${question.cardId}:${question.source}:${question.blockIndex}`
+      // Find the questionId from the current step
+      const currentQuizStep = steps.find((s) => s.type === 'quiz' && s.question === question)
+      const questionId = currentQuizStep?.type === 'quiz' ? (currentQuizStep.questionId ?? question.questionId) : question.questionId
+
       await handleAnswer({
         cardId: question.cardId,
         blockIndex: question.blockIndex,
@@ -233,6 +312,23 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         keyPrefix: 'quiz',
         source: question.source,
       })
+
+      // Update questionId in the result if it wasn't set
+      if (questionId) {
+        setQuestionResults((prev) => {
+          const existing = prev[quizKey]
+          if (existing && !existing.questionId) {
+            return {
+              ...prev,
+              [quizKey]: {
+                ...existing,
+                questionId,
+              },
+            }
+          }
+          return prev
+        })
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to record answer')
     }
@@ -244,11 +340,21 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     setError(null)
 
     try {
-      const cardResultsMap = new Map<string, { correctCount: number; questionCount: number }>()
+      const cardResultsMap = new Map<
+        string,
+        { correctCount: number; questionCount: number; questionIds: string[] }
+      >()
       Object.values(questionResults).forEach((result) => {
-        const entry = cardResultsMap.get(result.cardId) ?? { correctCount: 0, questionCount: 0 }
+        const entry = cardResultsMap.get(result.cardId) ?? {
+          correctCount: 0,
+          questionCount: 0,
+          questionIds: [],
+        }
         entry.questionCount += 1
         if (result.correct) entry.correctCount += 1
+        if (result.questionId && !entry.questionIds.includes(result.questionId)) {
+          entry.questionIds.push(result.questionId)
+        }
         cardResultsMap.set(result.cardId, entry)
       })
 
@@ -256,10 +362,14 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         cardId,
         correctCount: counts.correctCount,
         questionCount: counts.questionCount,
+        questionIds: counts.questionIds.length > 0 ? counts.questionIds : undefined,
       }))
 
       if (cardResults.length === 0) {
-        cardResults = [{ cardId: session.coreCard.id, correctCount: 0, questionCount: 0 }]
+        const fallbackCardId = session.sessionCards?.[0]?.id ?? session.coreCard?.id
+        if (fallbackCardId) {
+          cardResults = [{ cardId: fallbackCardId, correctCount: 0, questionCount: 0 }]
+        }
       }
 
       const response = await fetch('/api/daily-dose/session/complete', {
@@ -392,7 +502,14 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         return (
           <div className="flex h-full flex-col justify-between p-6">
             <div>
-              <p className="text-xs text-slate-500">{currentStep.headerText}</p>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-slate-500">{currentStep.headerText}</p>
+                {currentStep.cardProgress && (
+                  <p className="text-xs text-slate-500">
+                    Card {currentStep.cardProgress.current} of {currentStep.cardProgress.total}
+                  </p>
+                )}
+              </div>
               <h1 className="mt-2 text-2xl font-bold leading-tight text-nhs-dark-blue">{currentStep.title}</h1>
             </div>
             <button
@@ -575,6 +692,11 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
           return (
             <div className="flex h-full flex-col justify-between p-6">
               <div>
+              {currentStep.quizProgress && (
+                <p className="mb-2 text-xs text-slate-500">
+                  {currentStep.isWarmup ? 'Warm-up' : 'Quiz'} Q {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
+                </p>
+              )}
                 <p className="text-sm font-semibold text-slate-700">{q.prompt}</p>
                 <div className="mt-4 rounded-lg bg-slate-100 p-4">
                   <p className="text-sm text-slate-600">
@@ -621,9 +743,15 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         return (
           <div className="flex h-full flex-col justify-between p-6">
             <div>
-              <p className="text-xs text-slate-500">
-                Question {currentQuizIndex + 1} of {session.quizQuestions.length}
-              </p>
+              {currentStep.quizProgress ? (
+                <p className="text-xs text-slate-500">
+                  {currentStep.isWarmup ? 'Warm-up' : 'Quiz'} Q {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Question {currentQuizIndex + 1} of {session.quizQuestions.length}
+                </p>
+              )}
               <p className="mt-2 text-sm font-semibold text-slate-700">{q.prompt}</p>
               <div className="mt-4 space-y-2">
                 {q.options.map((option) => (

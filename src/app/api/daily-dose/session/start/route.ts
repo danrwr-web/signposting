@@ -6,8 +6,16 @@ import { getSessionUser } from '@/lib/rbac'
 import { resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { DailyDoseSessionStartZ } from '@/lib/daily-dose/schemas'
 import { buildQuizQuestions } from '@/lib/daily-dose/questions'
-import { pickCoreCard } from '@/lib/daily-dose/selection'
+import { buildSessionQuiz } from '@/lib/daily-dose/buildSessionQuiz'
+import { selectSessionCards, selectWarmupRecallCards } from '@/lib/daily-dose/sessionSelection'
+import { getRecentQuestionIds } from '@/lib/daily-dose/questionExclusion'
+import { extractQuestionsFromBlocks, extractQuestionsFromInteractions } from '@/lib/daily-dose/questions'
 import { normaliseRoleScope, uniqueBy } from '@/lib/daily-dose/utils'
+import {
+  DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
+  DAILY_DOSE_WARMUP_RECALL_MAX,
+  DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
+} from '@/lib/daily-dose/constants'
 import { z } from 'zod'
 import type { DailyDoseCardPayload } from '@/lib/daily-dose/types'
 
@@ -26,7 +34,8 @@ function toCardPayload(card: {
   version: number
   status: string
   tags: unknown
-}): DailyDoseCardPayload {
+  batchId?: string | null
+}): DailyDoseCardPayload & { batchId?: string | null } {
   return {
     id: card.id,
     title: card.title,
@@ -42,6 +51,7 @@ function toCardPayload(card: {
     version: card.version,
     status: card.status,
     tags: Array.isArray(card.tags) ? (card.tags as string[]) : undefined,
+    batchId: card.batchId ?? null,
   }
 }
 
@@ -150,6 +160,21 @@ export async function POST(request: NextRequest) {
         OR: [{ surgeryId }, { surgeryId: null }],
       },
       include: { topic: true },
+      select: {
+        id: true,
+        title: true,
+        topicId: true,
+        topic: { select: { name: true } },
+        roleScope: true,
+        contentBlocks: true,
+        interactions: true,
+        sources: true,
+        reviewByDate: true,
+        version: true,
+        status: true,
+        tags: true,
+        batchId: true,
+      },
       orderBy: { updatedAt: 'desc' },
     })
 
@@ -169,86 +194,63 @@ export async function POST(request: NextRequest) {
 
     const cardStates = await prisma.dailyDoseUserCardState.findMany({
       where: { userId: user.id, surgeryId },
-      select: { cardId: true, dueAt: true, incorrectStreak: true },
+      select: { cardId: true, dueAt: true, incorrectStreak: true, lastReviewedAt: true },
     })
 
-    const stateMap = new Map(cardStates.map((state) => [state.cardId, state]))
-    const dueCards = eligibleCards
-      .filter((card) => {
-        const state = stateMap.get(card.id)
-        return state ? state.dueAt <= now : false
-      })
-      .sort((a, b) => {
-        const aDue = stateMap.get(a.id)?.dueAt?.getTime() ?? 0
-        const bDue = stateMap.get(b.id)?.dueAt?.getTime() ?? 0
-        return aDue - bDue
-      })
+    // Build state map with proper Date objects
+    const stateMap = new Map(
+      cardStates.map((state) => [
+        state.cardId,
+        {
+          dueAt: state.dueAt,
+          incorrectStreak: state.incorrectStreak,
+          lastReviewedAt: state.lastReviewedAt,
+        },
+      ])
+    )
 
-    const newCards = eligibleCards.filter((card) => !stateMap.has(card.id))
+    // Select warm-up recall cards (0-2 questions at start)
+    const warmupRecallCards = selectWarmupRecallCards({
+      eligibleCards,
+      cardStates: stateMap,
+      maxCount: DAILY_DOSE_WARMUP_RECALL_MAX,
+      now,
+    })
 
-    // If no due or new cards, allow selecting from all cards, prioritizing those with incorrect answers
-    let coreCard = pickCoreCard({ dueCards, newCards })
-    if (!coreCard) {
-      // All cards have been viewed - prioritize cards with incorrect answers
-      const cardsWithIncorrectAnswers = eligibleCards
-        .filter((card) => {
-          const state = stateMap.get(card.id)
-          return state && state.incorrectStreak > 0
-        })
-        .sort((a, b) => {
-          const aStreak = stateMap.get(a.id)?.incorrectStreak ?? 0
-          const bStreak = stateMap.get(b.id)?.incorrectStreak ?? 0
-          // Higher incorrect streak = higher priority
-          return bStreak - aStreak
-        })
+    // Select 3-5 cards for the learning block (prefer same batch/learning unit)
+    const sessionCards = selectSessionCards({
+      eligibleCards,
+      cardStates: stateMap,
+      targetCount: DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
+      now,
+    })
 
-      if (cardsWithIncorrectAnswers.length > 0) {
-        coreCard = cardsWithIncorrectAnswers[0]
-      } else {
-        // Fall back to any card, sorted by most recently reviewed (oldest first)
-        const allViewedCards = eligibleCards
-          .filter((card) => stateMap.has(card.id))
-          .sort((a, b) => {
-            const aDue = stateMap.get(a.id)?.dueAt?.getTime() ?? 0
-            const bDue = stateMap.get(b.id)?.dueAt?.getTime() ?? 0
-            return aDue - bDue
-          })
-        coreCard = allViewedCards[0] ?? null
-      }
-    }
-
-    if (!coreCard) {
+    if (sessionCards.length === 0) {
       return NextResponse.json({ error: 'No Daily Dose cards available for this role yet' }, { status: 404 })
     }
 
-    // Select recall cards: prefer due cards, but if none available, use cards with incorrect answers
-    let recallCards = dueCards.filter((card) => card.id !== coreCard.id).slice(0, 2)
-    if (recallCards.length < 2) {
-      const cardsWithIncorrectAnswers = eligibleCards
-        .filter((card) => {
-          const state = stateMap.get(card.id)
-          return card.id !== coreCard.id && state && state.incorrectStreak > 0
-        })
-        .sort((a, b) => {
-          const aStreak = stateMap.get(a.id)?.incorrectStreak ?? 0
-          const bStreak = stateMap.get(b.id)?.incorrectStreak ?? 0
-          return bStreak - aStreak
-        })
-      const needed = 2 - recallCards.length
-      recallCards = [...recallCards, ...cardsWithIncorrectAnswers.slice(0, needed)]
-    }
-    const extraCards = eligibleCards.filter(
-      (card) => card.id !== coreCard.id && !recallCards.some((recall) => recall.id === card.id)
-    )
-
-    const quizQuestions = buildQuizQuestions({
-      coreCard,
-      recallCards,
-      extraCards,
+    // Get recent question IDs for exclusion
+    const recentQuestionIds = await getRecentQuestionIds({
+      userId: user.id,
+      surgeryId,
+      excludeLastNSessions: DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
     })
 
+    // Build session-end quiz (primarily from session cards, max 1 recall question)
+    const quizQuestions = buildSessionQuiz({
+      sessionCards,
+      recallCards: warmupRecallCards,
+      recentQuestionIds,
+      targetLength: DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
+    })
+
+    // Collect all card IDs for session tracking
     const sessionCardIds = uniqueBy(
-      [coreCard.id, ...quizQuestions.map((question) => question.cardId)],
+      [
+        ...sessionCards.map((card) => card.id),
+        ...warmupRecallCards.map((card) => card.id),
+        ...quizQuestions.map((question) => question.cardId),
+      ],
       (value) => value
     )
 
@@ -260,10 +262,26 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Extract warm-up questions from warm-up recall cards
+    const warmupQuestions: DailyDoseQuizQuestion[] = []
+    for (const card of warmupRecallCards) {
+      const questions = [
+        ...extractQuestionsFromBlocks(card),
+        ...extractQuestionsFromInteractions(card),
+      ]
+      if (questions.length > 0) {
+        warmupQuestions.push({
+          ...questions[0],
+          order: warmupQuestions.length + 1,
+        })
+      }
+    }
+
     return NextResponse.json({
       sessionId: session.id,
-      coreCard,
-      quizQuestions,
+      sessionCards, // Multiple cards for learning block
+      warmupQuestions, // 0-2 questions for warm-up recall
+      quizQuestions, // Session-end quiz
       resumed: false,
     })
   } catch (error) {

@@ -19,6 +19,17 @@ export const DAILY_DOSE_QUIZ_MIN_QUESTIONS = 3
 export const DAILY_DOSE_QUIZ_MAX_QUESTIONS = 6
 export const DAILY_DOSE_DEFAULT_STREAK_WEEKDAY_ONLY = true
 
+// Session flow configuration
+export const DAILY_DOSE_CARDS_PER_SESSION_MIN = 3
+export const DAILY_DOSE_CARDS_PER_SESSION_MAX = 5
+export const DAILY_DOSE_CARDS_PER_SESSION_DEFAULT = 4
+export const DAILY_DOSE_QUIZ_LENGTH_DEFAULT = 5
+export const DAILY_DOSE_QUIZ_LENGTH_MIN = 4
+export const DAILY_DOSE_QUIZ_LENGTH_MAX = 6
+export const DAILY_DOSE_WARMUP_RECALL_MAX = 2
+export const DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW = 3 // Exclude questions from last N sessions
+export const DAILY_DOSE_RECALL_ELIGIBILITY_DAYS = 7 // Days before a card/question is eligible for recall
+
 export const DAILY_DOSE_XP = {
   sessionBase: 10,
   perCorrect: 5,

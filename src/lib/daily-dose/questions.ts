@@ -9,6 +9,7 @@ import type {
   DailyDoseQuestion,
   DailyDoseQuizQuestion,
 } from './types'
+import { getQuestionId } from './questionId'
 
 export function extractQuestionsFromBlocks(card: DailyDoseCardPayload): DailyDoseQuestion[] {
   const blocks = card.contentBlocks || []
@@ -16,7 +17,7 @@ export function extractQuestionsFromBlocks(card: DailyDoseCardPayload): DailyDos
 
   blocks.forEach((block: DailyDoseContentBlock, index) => {
     if (block.type !== 'question') return
-    questions.push({
+    const question: DailyDoseQuestion = {
       cardId: card.id,
       topicId: card.topicId,
       questionType: block.questionType,
@@ -27,7 +28,9 @@ export function extractQuestionsFromBlocks(card: DailyDoseCardPayload): DailyDos
       difficulty: block.difficulty,
       blockIndex: index,
       source: 'content',
-    })
+    }
+    question.questionId = getQuestionId(question)
+    questions.push(question)
   })
 
   return questions
@@ -37,7 +40,7 @@ export function extractQuestionsFromInteractions(card: DailyDoseCardPayload): Da
   const interactions = card.interactions ?? []
   return interactions.map((interaction: DailyDoseInteraction, index) => {
     const correctAnswer = interaction.options[interaction.correctIndex] ?? interaction.options[0] ?? ''
-    return {
+    const question: DailyDoseQuestion = {
       cardId: card.id,
       topicId: card.topicId,
       questionType:
@@ -53,6 +56,8 @@ export function extractQuestionsFromInteractions(card: DailyDoseCardPayload): Da
       blockIndex: index,
       source: 'interaction',
     }
+    question.questionId = getQuestionId(question)
+    return question
   })
 }
 

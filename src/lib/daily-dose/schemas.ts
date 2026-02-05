@@ -98,6 +98,7 @@ export const DailyDoseCardResultZ = z.object({
   cardId: z.string(),
   correctCount: z.number().int().min(0),
   questionCount: z.number().int().min(0),
+  questionIds: z.array(z.string()).optional(), // Question IDs answered in this session
 })
 
 export const DailyDoseSessionCompleteZ = z.object({

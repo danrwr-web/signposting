@@ -78,6 +78,7 @@ export type DailyDoseQuestion = {
   difficulty?: number
   blockIndex: number
   source: 'content' | 'interaction'
+  questionId?: string // Deterministic ID for tracking
 }
 
 export type DailyDoseQuizQuestion = DailyDoseQuestion & {
@@ -88,4 +89,5 @@ export type DailyDoseCardResult = {
   cardId: string
   correctCount: number
   questionCount: number
+  questionIds?: string[] // Question IDs answered in this session
 }

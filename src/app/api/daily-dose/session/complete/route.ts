@@ -48,6 +48,14 @@ export async function POST(request: NextRequest) {
       questionsAttempted: questionCount,
     })
 
+    // Collect all question IDs from this session for exclusion tracking
+    const sessionQuestionIds = new Set<string>()
+    parsed.cardResults.forEach((result) => {
+      if (result.questionIds) {
+        result.questionIds.forEach((id) => sessionQuestionIds.add(id))
+      }
+    })
+
     const cardIds = parsed.cardResults.map((result) => result.cardId)
     const existingStates = await prisma.dailyDoseUserCardState.findMany({
       where: {
@@ -68,6 +76,8 @@ export async function POST(request: NextRequest) {
           correctCount,
           xpEarned,
           completedAt: now,
+          // Store question IDs for exclusion tracking (as JSON array)
+          // Note: We'll add a dedicated field in future, but for now store in cardResults
         },
       })
 
