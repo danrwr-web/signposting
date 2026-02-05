@@ -64,7 +64,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     })
     const inferredRisk = inferRiskLevel(combined)
     const riskLevel = inferredRisk === 'HIGH' ? 'HIGH' : parsed.riskLevel
-    const needsSourcing = resolveNeedsSourcing(parsed.sources, parsed.needsSourcing)
+    // If user explicitly sets needsSourcing to false (sources verified), respect that.
+    // Otherwise, use the automatic resolution logic.
+    const needsSourcing = parsed.needsSourcing === false 
+      ? false 
+      : resolveNeedsSourcing(parsed.sources, parsed.needsSourcing)
 
     // When saving a draft, we clear approval status but preserve existing clinician approval
     // (Clinician approval is now set separately via the /approve endpoint)
