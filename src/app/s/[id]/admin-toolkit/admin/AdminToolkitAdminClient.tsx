@@ -587,12 +587,9 @@ export default function AdminToolkitAdminClient({
   const titleInputRef = useRef<HTMLInputElement>(null)
   
   // Tab state with URL query param persistence
+  // Use initialTab prop from server to avoid hydration mismatch with useSearchParams()
   type TabId = 'items' | 'settings' | 'engagement' | 'audit'
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
-    const tabParam = searchParams.get('tab')
-    const validTabs: TabId[] = ['items', 'settings', 'engagement', 'audit']
-    return validTabs.includes(tabParam as TabId) ? (tabParam as TabId) : initialTab
-  })
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab)
@@ -1354,35 +1351,45 @@ function ItemsTab({
   }, [filteredItems, topLevelIdForCategoryId, categoryById])
 
   const expandedStorageKey = useMemo(() => `adminToolkitItemsPickerExpanded:${surgeryId}`, [surgeryId])
-  const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set<string>()
+  // Initialize with empty Set to avoid hydration mismatch (localStorage not available during SSR)
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set())
+  const [expandedInitialized, setExpandedInitialized] = useState(false)
+
+  // Hydrate expanded state from localStorage after mount (client-only)
+  useEffect(() => {
+    if (expandedInitialized) return
     try {
       const raw = window.localStorage.getItem(expandedStorageKey)
-      if (!raw) return new Set<string>()
-      const parsed = JSON.parse(raw) as unknown
-      if (!Array.isArray(parsed)) return new Set<string>()
-      return new Set(parsed.filter((x) => typeof x === 'string'))
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown
+        if (Array.isArray(parsed)) {
+          const restored = new Set(parsed.filter((x) => typeof x === 'string'))
+          if (restored.size > 0) {
+            setExpandedGroupKeys(restored)
+            setExpandedInitialized(true)
+            return
+          }
+        }
+      }
     } catch {
-      return new Set<string>()
+      // ignore localStorage errors
     }
-  })
+    // No stored state - expand all groups by default
+    if (groups.length > 0) {
+      setExpandedGroupKeys(new Set(groups.map((g) => g.key)))
+    }
+    setExpandedInitialized(true)
+  }, [expandedStorageKey, groups, expandedInitialized])
 
+  // Persist expanded state to localStorage
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (!expandedInitialized) return
     try {
       window.localStorage.setItem(expandedStorageKey, JSON.stringify(Array.from(expandedGroupKeys)))
     } catch {
       // ignore
     }
-  }, [expandedGroupKeys, expandedStorageKey])
-
-  // If no stored state yet, default to expanding all visible groups.
-  useEffect(() => {
-    if (expandedGroupKeys.size > 0) return
-    if (groups.length === 0) return
-    setExpandedGroupKeys(new Set(groups.map((g) => g.key)))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups.length])
+  }, [expandedGroupKeys, expandedStorageKey, expandedInitialized])
 
   const toggleGroup = (key: string) => {
     setExpandedGroupKeys((prev) => {
