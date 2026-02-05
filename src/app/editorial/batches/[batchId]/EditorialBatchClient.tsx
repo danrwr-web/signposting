@@ -527,31 +527,46 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 <PhoneFrame
                   alignActions={false}
                   actions={
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {cardForm.status !== 'PUBLISHED' && (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {cardForm.status !== 'PUBLISHED' && (
+                          <button
+                            type="button"
+                            onClick={handleApproveAndPublish}
+                            disabled={saving || !canApprove}
+                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                              canApprove
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                            } disabled:cursor-not-allowed disabled:opacity-70`}
+                            title={canApprove ? 'Approve and publish this card' : 'Complete all checklist items first'}
+                          >
+                            {saving ? 'Processing…' : 'Approve and publish'}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={handleApproveAndPublish}
-                          disabled={saving || !canApprove}
-                          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-                            canApprove
-                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                          } disabled:cursor-not-allowed disabled:opacity-70`}
-                          title={canApprove ? 'Approve and publish this card' : 'Complete all checklist items first'}
+                          onClick={handleDelete}
+                          disabled={saving}
+                          className="rounded-xl border border-red-600 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                          title="Delete this card permanently"
                         >
-                          {saving ? 'Processing…' : 'Approve and publish'}
+                          Delete
                         </button>
+                      </div>
+                      {cardForm.status !== 'PUBLISHED' && (
+                        <label className="flex items-center gap-2 cursor-pointer text-sm">
+                          <input
+                            type="checkbox"
+                            checked={!cardForm.needsSourcing}
+                            onChange={(event) => setCardForm((prev) => ({ ...prev, needsSourcing: !event.target.checked }))}
+                            className="accent-emerald-600"
+                          />
+                          <span className={readinessChecks.sourcesVerified ? 'text-slate-700' : 'text-slate-600 font-medium'}>
+                            Sources verified and accurate
+                          </span>
+                        </label>
                       )}
-                      <button
-                        type="button"
-                        onClick={handleDelete}
-                        disabled={saving}
-                        className="rounded-xl border border-red-600 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
-                        title="Delete this card permanently"
-                      >
-                        Delete
-                      </button>
                     </div>
                   }
                 >
