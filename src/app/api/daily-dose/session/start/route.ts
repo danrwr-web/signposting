@@ -186,7 +186,6 @@ export async function POST(request: NextRequest) {
         topicId: { in: focusTopicIds },
         OR: [{ surgeryId }, { surgeryId: null }],
       },
-      include: { topic: true },
       select: {
         id: true,
         title: true,
