@@ -15,6 +15,7 @@ import {
   DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
   DAILY_DOSE_WARMUP_RECALL_MAX,
   DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
+  DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
 } from '@/lib/daily-dose/constants'
 import { z } from 'zod'
 import type { DailyDoseCardPayload } from '@/lib/daily-dose/types'
