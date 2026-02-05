@@ -229,8 +229,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         }
       }
 
-      // Sources for this card
-      out.push({ type: 'sources', card, cardProgress })
+      // Sources are now shown on the answer feedback page, not as a separate step
     }
 
     // 3. Session-end quiz
@@ -600,6 +599,18 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
       case 'question': {
         const result = questionResults[currentStep.key]
         if (result) {
+          // Get the card for this question to show sources
+          const questionCard = currentCard || (() => {
+            // Fallback: find card from steps
+            for (let i = stepIndex; i >= 0; i--) {
+              const step = steps[i]
+              if (step && step.type === 'intro' && 'card' in step && step.card) {
+                return step.card
+              }
+            }
+            return null
+          })()
+          
           return (
             <div className="flex h-full flex-col justify-between p-6">
               <div>
@@ -609,6 +620,25 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                     {result.correct ? 'Correct.' : 'Not quite.'} {result.rationale}
                   </p>
                 </div>
+                {questionCard && questionCard.sources && questionCard.sources.length > 0 && (
+                  <div className="mt-4 border-t border-slate-200 pt-3">
+                    <p className="mb-2 text-xs font-semibold text-slate-500">Sources</p>
+                    <ul className="space-y-1 text-xs text-slate-600">
+                      {questionCard.sources.map((source) => (
+                        <li key={source.url}>
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="text-nhs-blue underline-offset-2 hover:underline"
+                          >
+                            {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
