@@ -620,6 +620,12 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
             </div>
           )
         }
+        
+        // Extract cardId from the step key or use currentCard
+        const cardId = currentStep.key.includes(':') 
+          ? currentStep.key.split(':')[1] 
+          : (currentCard?.id || '')
+        
         return (
           <div className="flex h-full flex-col justify-between p-6">
             <div>
@@ -631,7 +637,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                     label={option}
                     onClick={async () => {
                       await handleAnswer({
-                        cardId: card.id,
+                        cardId,
                         blockIndex: currentStep.blockIndex,
                         answer: option,
                         keyPrefix: 'embed',
