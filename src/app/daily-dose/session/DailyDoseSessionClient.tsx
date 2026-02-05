@@ -804,8 +804,6 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     }
   }
 
-  const currentStep = steps[Math.min(stepIndex, steps.length - 1)]
-
   return (
     <PhoneFrame>
       {currentStep && (
