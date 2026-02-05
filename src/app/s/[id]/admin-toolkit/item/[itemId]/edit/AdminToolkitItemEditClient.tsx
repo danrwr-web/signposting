@@ -376,14 +376,26 @@ export default function AdminToolkitItemEditClient({
           onClick={async () => {
             setSaving(true)
             try {
+              // Only send content fields if they've changed from initial values
+              const introHtmlChanged = isPage && form.introHtml !== initialForm.introHtml
+              const footerHtmlChanged = isPage && form.footerHtml !== initialForm.footerHtml
+              const roleCardsChanged = isPage && (
+                form.roleCardsEnabled !== initialForm.roleCardsEnabled ||
+                form.roleCardsTitle !== initialForm.roleCardsTitle ||
+                form.roleCardsLayout !== initialForm.roleCardsLayout ||
+                form.roleCardsColumns !== initialForm.roleCardsColumns ||
+                JSON.stringify(form.roleCardsCards) !== JSON.stringify(initialForm.roleCardsCards)
+              )
+              
               const res = await updateAdminToolkitItem({
                 surgeryId,
                 itemId,
                 title: form.title,
-                // Category changes are blocked server-side for non-admins.
-                introHtml: isPage ? form.introHtml : undefined,
-                footerHtml: isPage ? form.footerHtml : undefined,
-                roleCardsBlock: isPage
+                // Don't send categoryId - preserve existing category
+                // Only send content fields if they changed
+                introHtml: introHtmlChanged ? form.introHtml : undefined,
+                footerHtml: footerHtmlChanged ? form.footerHtml : undefined,
+                roleCardsBlock: roleCardsChanged
                   ? form.roleCardsEnabled
                     ? {
                         id: form.roleCardsBlockId || undefined,

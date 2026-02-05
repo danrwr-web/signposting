@@ -856,8 +856,9 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     updatedByUserId: gate.data.userId,
   }
 
-  // Only include categoryId if user can manage (or if it changed)
-  if (gate.data.canManage) {
+  // Only include categoryId if user can manage AND it's explicitly provided
+  // Don't wipe categoryId if it's not provided in the request
+  if (gate.data.canManage && parsed.data.categoryId !== undefined) {
     updateData.categoryId = parsed.data.categoryId ?? null
   }
 
