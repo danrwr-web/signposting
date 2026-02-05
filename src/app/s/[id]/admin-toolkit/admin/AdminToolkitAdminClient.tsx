@@ -1591,7 +1591,10 @@ function ItemsTab({
                 <select
                   className="w-full nhs-input"
                   value={form.categoryId ?? ''}
-                  onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
+                  onChange={(e) => {
+                    const selectedValue = e.target.value
+                    setForm((prev) => ({ ...prev, categoryId: selectedValue ? selectedValue : null }))
+                  }}
                 >
                   <option value="">Uncategorised</option>
                   {categories.map((c) => (
@@ -1854,7 +1857,10 @@ function ItemEditFormContent({
           <select
             className="w-full nhs-input"
             value={form.categoryId ?? ''}
-            onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
+            onChange={(e) => {
+              const selectedValue = e.target.value
+              setForm((prev) => ({ ...prev, categoryId: selectedValue ? selectedValue : null }))
+            }}
           >
             <option value="">Uncategorised</option>
             {categories.map((c) => (

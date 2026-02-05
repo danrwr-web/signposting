@@ -433,7 +433,7 @@ export async function deleteAdminToolkitCategory(input: unknown): Promise<Action
 const createPageItemInput = z.object({
   surgeryId: z.string().min(1),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
-  categoryId: z.string().min(1).nullable().optional(),
+  categoryId: z.union([z.string().min(1), z.null()]).optional(),
   contentHtml: z.string().optional().default(''),
   warningLevel: z.string().trim().max(40).nullable().optional(),
   lastReviewedAt: z.string().datetime().nullable().optional(),
@@ -492,7 +492,7 @@ const createItemInput = z.object({
   surgeryId: z.string().min(1),
   type: z.enum(['PAGE', 'LIST']),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
-  categoryId: z.string().min(1).nullable().optional(),
+  categoryId: z.union([z.string().min(1), z.null()]).optional(),
   contentHtml: z.string().optional().default(''), // Legacy field, kept for backwards compatibility
   introHtml: z.string().optional().default(''),
   footerHtml: z.string().optional().default(''),
@@ -685,7 +685,7 @@ const updateItemInput = z.object({
   surgeryId: z.string().min(1),
   itemId: z.string().min(1),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
-  categoryId: z.string().min(1).nullable().optional(),
+  categoryId: z.union([z.string().min(1), z.null()]).optional(),
   contentHtml: z.string().optional(), // Legacy field, kept for backwards compatibility
   introHtml: z.string().optional(),
   footerHtml: z.string().optional(),
