@@ -579,10 +579,16 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                         return {
                           type: b.type,
                           items: b.itemsText.split('\n').filter(Boolean),
-                        }
+                        } as { type: 'steps' | 'do-dont'; items: string[] }
                       }
-                      return { type: b.type, text: b.text }
-                    })}
+                      if (b.type === 'text' || b.type === 'callout') {
+                        return {
+                          type: b.type,
+                          text: b.text,
+                        } as { type: 'text' | 'callout'; text: string }
+                      }
+                      return null
+                    }).filter((b): b is { type: 'steps' | 'do-dont'; items: string[] } | { type: 'text' | 'callout'; text: string } => b !== null)}
                     interactions={cardForm.interactions.map((i) => ({
                       question: i.question,
                       options: i.optionsText.split('\n').filter(Boolean),

@@ -227,7 +227,7 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
           <span className="text-xs text-slate-500">Level {baselineConfidence} of 5</span>
         </label>
       </div>
-
-    </form>
+      </form>
+    </PhoneFrame>
   )
 }
