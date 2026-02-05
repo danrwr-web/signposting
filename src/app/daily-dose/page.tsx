@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { getSessionUser } from '@/lib/rbac'
-import { isDailyDoseAdmin } from '@/lib/daily-dose/access'
 import { redirect } from 'next/navigation'
 import DailyDoseHomeClient from './DailyDoseHomeClient'
 
@@ -26,7 +25,5 @@ export default async function DailyDoseHomePage() {
     )
   }
 
-  const canAdmin = isDailyDoseAdmin(user, surgeryId)
-
-  return <DailyDoseHomeClient surgeryId={surgeryId} userName={user.name ?? undefined} canAdmin={canAdmin} />
+  return <DailyDoseHomeClient surgeryId={surgeryId} userName={user.name ?? undefined} />
 }

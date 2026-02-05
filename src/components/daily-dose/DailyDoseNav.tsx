@@ -31,6 +31,7 @@ export default function DailyDoseNav({ currentSurgeryId }: DailyDoseNavProps) {
   const adminItems = isSuperuser || isAdmin
     ? [
         { href: '/editorial', label: 'Editorial' },
+        { href: '/editorial/library', label: 'Library' },
         { href: '/daily-dose/insights', label: 'Insights' },
       ]
     : []
