@@ -85,13 +85,16 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
         select: {
           role: true,
           adminToolkitWrite: true,
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, globalRole: true } },
         },
         orderBy: [{ role: 'desc' }],
       }),
     ])
 
+    // Only show standard users as additional editor candidates.
+    // Surgery admins and superusers can always edit, so they don't need to be listed.
     const editorCandidates = members
+      .filter((m) => m.role === 'STANDARD' && m.user.globalRole !== 'SUPERUSER')
       .map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email }))
       .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email))
 

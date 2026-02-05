@@ -67,7 +67,9 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-nhs-dark-blue">List</h2>
-          <p className="mt-1 text-sm text-nhs-grey">Search, add, and update rows.</p>
+          <p className="mt-1 text-sm text-nhs-grey">
+            {canEditThisItem ? 'Search, add, and update rows.' : 'Search rows.'}
+          </p>
         </div>
         {canEditThisItem ? (
           <button
@@ -123,15 +125,17 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
                     {c.label}
                   </th>
                 ))}
-                <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">
-                  Actions
-                </th>
+                {canEditThisItem ? (
+                  <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Actions
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td className="px-4 py-6 text-sm text-gray-500" colSpan={columns.length + 1}>
+                  <td className="px-4 py-6 text-sm text-gray-500" colSpan={columns.length + (canEditThisItem ? 1 : 0)}>
                     {normalisedQuery ? 'No rows match your search.' : 'No rows yet.'}
                   </td>
                 </tr>
@@ -143,41 +147,41 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
                         {r.data[c.key] || ''}
                       </td>
                     ))}
-                    <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          className="nhs-button-secondary"
-                          disabled={!canEditThisItem}
-                          onClick={() => {
-                            const nextDraft: Record<string, string> = {}
-                            for (const c of columns) nextDraft[c.key] = r.data[c.key] || ''
-                            setEditingRow(r)
-                            setDraft(nextDraft)
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="nhs-button-secondary"
-                          disabled={!canEditThisItem}
-                          onClick={async () => {
-                            const ok = confirm('Delete this row?')
-                            if (!ok) return
-                            const res = await deleteAdminToolkitListRow({ surgeryId, itemId, rowId: r.id })
-                            if (!res.ok) {
-                              toast.error(res.error.message)
-                              return
-                            }
-                            toast.success('Row deleted')
-                            router.refresh()
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
+                    {canEditThisItem ? (
+                      <td className="px-4 py-3 text-sm text-right whitespace-nowrap">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            type="button"
+                            className="nhs-button-secondary"
+                            onClick={() => {
+                              const nextDraft: Record<string, string> = {}
+                              for (const c of columns) nextDraft[c.key] = r.data[c.key] || ''
+                              setEditingRow(r)
+                              setDraft(nextDraft)
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="nhs-button-secondary"
+                            onClick={async () => {
+                              const ok = confirm('Delete this row?')
+                              if (!ok) return
+                              const res = await deleteAdminToolkitListRow({ surgeryId, itemId, rowId: r.id })
+                              if (!res.ok) {
+                                toast.error(res.error.message)
+                                return
+                              }
+                              toast.success('Row deleted')
+                              router.refresh()
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    ) : null}
                   </tr>
                 ))
               )}
@@ -241,7 +245,7 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
               <button type="button" className="nhs-button-secondary" disabled={saving} onClick={() => setEditingRow(null)}>
                 Cancel
               </button>
-              <button type="submit" className="nhs-button" disabled={saving || !canEditThisItem}>
+              <button type="submit" className="nhs-button" disabled={saving}>
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>

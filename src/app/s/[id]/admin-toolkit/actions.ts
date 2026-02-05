@@ -433,7 +433,7 @@ export async function deleteAdminToolkitCategory(input: unknown): Promise<Action
 const createPageItemInput = z.object({
   surgeryId: z.string().min(1),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
-  categoryId: z.string().min(1).nullable().optional(),
+  categoryId: z.union([z.string().min(1), z.null()]).optional(),
   contentHtml: z.string().optional().default(''),
   warningLevel: z.string().trim().max(40).nullable().optional(),
   lastReviewedAt: z.string().datetime().nullable().optional(),
@@ -492,7 +492,7 @@ const createItemInput = z.object({
   surgeryId: z.string().min(1),
   type: z.enum(['PAGE', 'LIST']),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
-  categoryId: z.string().min(1).nullable().optional(),
+  categoryId: z.union([z.string().min(1), z.null()]).optional(),
   contentHtml: z.string().optional().default(''), // Legacy field, kept for backwards compatibility
   introHtml: z.string().optional().default(''),
   footerHtml: z.string().optional().default(''),
@@ -753,14 +753,16 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
   })
   if (!existing) return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found.' } }
 
-  // Keep legacy contentHtml for backwards compatibility (fallback rendering)
-  const nextContentHtml = existing.type === 'PAGE' ? sanitizeHtml(parsed.data.contentHtml ?? existing.contentHtml ?? '') : existing.contentHtml
+  // PATCH-safe: Build update data object, only including fields that are explicitly provided
+  // Check if content fields were explicitly provided (not just undefined/empty defaults)
+  const hasContentHtmlUpdate = parsed.data.contentHtml !== undefined
+  const hasIntroHtmlUpdate = parsed.data.introHtml !== undefined
+  const hasFooterHtmlUpdate = parsed.data.footerHtml !== undefined
+  const hasRoleCardsUpdate = parsed.data.roleCardsBlock !== undefined
+  const hasContentBlocksUpdate = hasIntroHtmlUpdate || hasFooterHtmlUpdate || hasRoleCardsUpdate
 
-  // Merge blocks for PAGE items - NON-DESTRUCTIVE approach:
-  // - undefined = not provided, PRESERVE existing block
-  // - null = explicitly clear this block (for roleCardsBlock only)
-  // - empty string = treat as "clear" only if explicitly allowed, otherwise preserve
-  const mergeBlocksNonDestructive = (
+  // Merge blocks for PAGE items (only if content blocks were explicitly provided)
+  const mergeBlocks = (
     baseJson: unknown,
     roleCards: (typeof parsed.data)['roleCardsBlock'],
     introHtml: string | undefined,
@@ -786,6 +788,9 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
       // Only add new intro block if it has meaningful content
       if (introHtml && !isHtmlEmpty(introHtml)) {
         json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+      } else {
+        // Explicitly empty - remove the block
+        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'INTRO_TEXT')) }
       }
       // If introHtml is empty, we intentionally leave the block removed (user cleared it)
     }
@@ -835,6 +840,9 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
       // Only add new footer block if it has meaningful content
       if (footerHtml && !isHtmlEmpty(footerHtml)) {
         json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerHtml) })
+      } else {
+        // Explicitly empty - remove the block
+        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'FOOTER_TEXT')) }
       }
       // If footerHtml is empty, we intentionally leave the block removed (user cleared it)
     }
@@ -850,31 +858,74 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     return json
   }
 
-  const nextContentJson =
-    existing.type === 'PAGE'
-      ? mergeBlocksNonDestructive(existing.contentJson, parsed.data.roleCardsBlock, parsed.data.introHtml, parsed.data.footerHtml)
-      : existing.contentJson
+  // Only merge content blocks if they were explicitly provided
+  const nextContentJson = existing.type === 'PAGE' && hasContentBlocksUpdate
+    ? mergeBlocks(existing.contentJson, parsed.data.roleCardsBlock, parsed.data.introHtml, parsed.data.footerHtml)
+    : undefined // Don't update if not provided
 
-  // CRITICAL: categoryId is ALWAYS preserved from existing record.
-  // This action does not support category changes.
-  const next = {
+  // Handle contentHtml: only update if explicitly provided
+  // Guard: don't wipe existing content unless explicitly cleared
+  let nextContentHtml: string | undefined = undefined
+  if (hasContentHtmlUpdate && existing.type === 'PAGE') {
+    // Only update if provided AND non-empty, OR if explicitly null/empty to clear legacy content
+    // If existing has content (html or json blocks), don't wipe it with empty string
+    const hasExistingContent = existing.contentHtml && !isHtmlEmpty(existing.contentHtml)
+    const hasExistingBlocks = existing.contentJson && typeof existing.contentJson === 'object' && !Array.isArray(existing.contentJson) && Array.isArray((existing.contentJson as any).blocks) && (existing.contentJson as any).blocks.length > 0
+    
+    if (parsed.data.contentHtml && !isHtmlEmpty(parsed.data.contentHtml)) {
+      // Non-empty content provided - update it
+      nextContentHtml = sanitizeHtml(parsed.data.contentHtml)
+    } else if (!hasExistingContent && !hasExistingBlocks) {
+      // No existing content, empty string is fine
+      nextContentHtml = ''
+    }
+    // Otherwise: has existing content and empty string provided - don't update (preserve existing)
+  }
+
+  // Build update data object - only include fields that should be updated
+  const updateData: {
+    title: string
+    categoryId?: string | null
+    warningLevel?: string | null
+    lastReviewedAt?: Date | null
+    contentHtml?: string
+    contentJson?: any // Prisma JSON type
+    updatedByUserId: string
+  } = {
     title: parsed.data.title,
-    categoryId: existing.categoryId, // ALWAYS preserve - never touch categoryId in this action
-    warningLevel: parsed.data.warningLevel ?? null,
-    lastReviewedAt: parsed.data.lastReviewedAt ? new Date(parsed.data.lastReviewedAt) : null,
-    contentHtml: nextContentHtml,
-    contentJson: nextContentJson,
+    updatedByUserId: gate.data.userId,
+  }
+
+  // Only include categoryId if user can manage AND it's explicitly provided
+  // Don't wipe categoryId if it's not provided in the request
+  if (gate.data.canManage && parsed.data.categoryId !== undefined) {
+    updateData.categoryId = parsed.data.categoryId ?? null
+  }
+
+  // Only include warningLevel if provided
+  if (parsed.data.warningLevel !== undefined) {
+    updateData.warningLevel = parsed.data.warningLevel || null
+  }
+
+  // Only include lastReviewedAt if provided
+  if (parsed.data.lastReviewedAt !== undefined) {
+    updateData.lastReviewedAt = parsed.data.lastReviewedAt ? new Date(parsed.data.lastReviewedAt) : null
+  }
+
+  // Only include contentHtml if it should be updated
+  if (nextContentHtml !== undefined) {
+    updateData.contentHtml = nextContentHtml
+  }
+
+  // Only include contentJson if it should be updated
+  if (nextContentJson !== undefined) {
+    updateData.contentJson = nextContentJson as any
   }
 
   await prisma.$transaction(async (tx) => {
     await tx.adminItem.update({
       where: { id: itemId },
-      data: {
-        ...next,
-        updatedByUserId: gate.data.userId,
-        // Ensure contentJson is correctly typed for Prisma
-        contentJson: next.contentJson as any, // Ideally use Prisma.InputJsonValue, but fallback to `as any` if type issues persist
-      },
+      data: updateData,
     });
     await tx.adminHistory.create({
       data: {
@@ -890,12 +941,16 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
             categoryId: existing.categoryId,
             warningLevel: existing.warningLevel,
             lastReviewedAt: existing.lastReviewedAt,
+            contentHtml: existing.contentHtml,
+            contentJson: existing.contentJson,
           },
           after: {
-            title: next.title,
-            categoryId: next.categoryId, // Will always be same as before.categoryId
-            warningLevel: next.warningLevel,
-            lastReviewedAt: next.lastReviewedAt,
+            title: updateData.title,
+            categoryId: updateData.categoryId ?? existing.categoryId,
+            warningLevel: updateData.warningLevel ?? existing.warningLevel,
+            lastReviewedAt: updateData.lastReviewedAt ?? existing.lastReviewedAt,
+            contentHtml: updateData.contentHtml ?? existing.contentHtml,
+            contentJson: updateData.contentJson ?? existing.contentJson,
           },
         },
       },
