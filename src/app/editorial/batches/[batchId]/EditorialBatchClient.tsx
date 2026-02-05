@@ -342,20 +342,14 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       await loadBatch((updatedCards) => {
         // Check if there are any unpublished cards
         const unpublishedCards = updatedCards.filter((card) => card.status !== 'PUBLISHED')
+        
         if (unpublishedCards.length === 0) {
           // All cards published - find next batch with unpublished cards
           findNextUnapprovedBatch()
         } else {
-          // Move to next unpublished card
-          const currentIndex = updatedCards.findIndex((card) => card.id === cardForm.id)
-          const nextUnpublished = updatedCards.slice(currentIndex + 1).find((card) => card.status !== 'PUBLISHED')
-          if (nextUnpublished) {
-            setActiveId(nextUnpublished.id)
-            setActiveType('card')
-          } else {
-            // No more unpublished cards in this batch
-            findNextUnapprovedBatch()
-          }
+          // Move to the first unpublished card
+          setActiveId(unpublishedCards[0].id)
+          setActiveType('card')
         }
       })
     } catch (err) {
