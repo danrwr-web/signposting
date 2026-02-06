@@ -77,6 +77,13 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
+    const allowPromptOverrides = process.env.NODE_ENV !== 'production' && user.globalRole === 'SUPERUSER'
+    if (parsed.promptOverrides && !allowPromptOverrides) {
+      return NextResponse.json(
+        { ok: false, error: { code: 'FORBIDDEN', message: 'Prompt overrides are only available to super admins in non-production.' } },
+        { status: 403 }
+      )
+    }
     // Debug is automatic for editors/admins in non-production
     debugEnabled = process.env.NODE_ENV !== 'production' && (user.globalRole === 'SUPERUSER' || user.memberships?.some((m: any) => m.role === 'ADMIN'))
 
@@ -127,6 +134,7 @@ export async function POST(request: NextRequest) {
       count: parsed.count,
       tags: parsed.tags,
       interactiveFirst: parsed.interactiveFirst,
+      promptOverrides: allowPromptOverrides ? parsed.promptOverrides : undefined,
       requestId,
       userId: user.id,
       onAttempt: recordAttempt,

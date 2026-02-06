@@ -6,6 +6,7 @@ import Link from 'next/link'
 
 interface EditorialGeneratorClientProps {
   surgeryId: string
+  isSuperAdmin: boolean
 }
 
 // Debug info returned inline from the generate API (no separate fetch needed)
@@ -30,7 +31,7 @@ interface DebugInfo {
   error?: { name?: string; message?: string; stack?: string }
 }
 
-export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
+export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: EditorialGeneratorClientProps) {
   const router = useRouter()
   const [promptText, setPromptText] = useState('')
   const [targetRole, setTargetRole] = useState('ADMIN')
@@ -48,6 +49,11 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   } | null>(null)
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
+  const [systemPromptOverride, setSystemPromptOverride] = useState('')
+  const [userPromptOverride, setUserPromptOverride] = useState('')
+  const [toolkitContextOverride, setToolkitContextOverride] = useState('')
+  const [toolkitReference, setToolkitReference] = useState('')
+  const [disableToolkit, setDisableToolkit] = useState(false)
   // Use effect to avoid hydration mismatch - start false on server, update on client
   const [isDevMode, setIsDevMode] = useState(false)
   
@@ -63,6 +69,26 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setErrorDetails(null)
     setDebugInfo(null)
 
+    const promptOverrides = isDevMode && isSuperAdmin
+      ? {
+          systemPrompt: systemPromptOverride.trim() || undefined,
+          userPrompt: userPromptOverride.trim() || undefined,
+          toolkitContext: toolkitContextOverride.trim() || undefined,
+          toolkitReference: toolkitReference.trim() || undefined,
+          disableToolkit: disableToolkit || undefined,
+        }
+      : undefined
+
+    const hasPromptOverrides =
+      !!promptOverrides &&
+      Object.values(promptOverrides).some((value) => value !== undefined)
+
+    if (generateInBackground && hasPromptOverrides) {
+      setError('Prompt overrides are not supported for background generation. Please run in foreground.')
+      setLoading(false)
+      return
+    }
+
     const requestBody = {
       surgeryId,
       promptText,
@@ -73,6 +99,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         .map((tag) => tag.trim())
         .filter(Boolean),
       interactiveFirst,
+      ...(hasPromptOverrides ? { promptOverrides } : {}),
     }
 
     try {
@@ -140,6 +167,11 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setErrorDetails(null)
     setDebugInfo(null)
     setDebugPanelOpen(false)
+    setSystemPromptOverride('')
+    setUserPromptOverride('')
+    setToolkitContextOverride('')
+    setToolkitReference('')
+    setDisableToolkit(false)
   }
 
   const formatJson = (obj: unknown): string => {
@@ -286,6 +318,66 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
             </label>
           </div>
         </div>
+
+        {isDevMode && isSuperAdmin && (
+          <details className="mt-6 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm">
+            <summary className="cursor-pointer font-semibold text-slate-700">Super admin prompt controls (dev/test only)</summary>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="block text-sm">
+                Toolkit reference (ID, slug, or URL)
+                <input
+                  type="text"
+                  value={toolkitReference}
+                  onChange={(event) => setToolkitReference(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. headache or https://..."
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={disableToolkit}
+                  onChange={(event) => setDisableToolkit(event.target.checked)}
+                  className="accent-nhs-blue"
+                />
+                Disable toolkit injection
+              </label>
+              <label className="block text-sm md:col-span-2">
+                Toolkit context override
+                <textarea
+                  rows={4}
+                  value={toolkitContextOverride}
+                  onChange={(event) => setToolkitContextOverride(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs"
+                  placeholder="Paste custom toolkit guidance to inject verbatim"
+                />
+              </label>
+              <label className="block text-sm md:col-span-2">
+                System prompt override
+                <textarea
+                  rows={4}
+                  value={systemPromptOverride}
+                  onChange={(event) => setSystemPromptOverride(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs"
+                  placeholder="Override the system prompt"
+                />
+              </label>
+              <label className="block text-sm md:col-span-2">
+                User prompt override
+                <textarea
+                  rows={5}
+                  value={userPromptOverride}
+                  onChange={(event) => setUserPromptOverride(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs"
+                  placeholder="Override the user prompt"
+                />
+              </label>
+              <p className="text-xs text-slate-500 md:col-span-2">
+                Prompt overrides are disabled for background runs and are only respected for super admins in dev/test environments.
+              </p>
+            </div>
+          </details>
+        )}
 
         <div className="mt-6 flex flex-wrap gap-3">
           <button

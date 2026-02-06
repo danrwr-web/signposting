@@ -28,6 +28,12 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const parsed = EditorialGenerateRequestZ.parse(body)
+    if (parsed.promptOverrides) {
+      return NextResponse.json(
+        { ok: false, error: { code: 'UNSUPPORTED', message: 'Prompt overrides are not supported for background generation.' } },
+        { status: 400 }
+      )
+    }
     const surgeryId = resolveSurgeryIdForUser({ requestedId: parsed.surgeryId, user })
     if (!surgeryId || !isDailyDoseAdmin(user, surgeryId)) {
       return NextResponse.json(

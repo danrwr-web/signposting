@@ -353,6 +353,89 @@ function findToolkitPack(text: string) {
   return ADMIN_TOOLKIT_PACKS.find((pack) => pack.keywords.some((keyword) => lower.includes(keyword)))
 }
 
+function parseToolkitReference(reference?: string | null) {
+  const trimmed = reference?.trim()
+  if (!trimmed) return null
+
+  let candidate = trimmed
+  try {
+    const url = new URL(trimmed)
+    candidate =
+      url.searchParams.get('id') ||
+      url.searchParams.get('symptom') ||
+      url.searchParams.get('slug') ||
+      url.pathname.split('/').filter(Boolean).pop() ||
+      trimmed
+  } catch {
+    // Ignore parse errors; treat as direct ID/slug.
+  }
+
+  const normalized = candidate.split('?')[0].split('#')[0].trim()
+  if (!normalized) return null
+
+  return {
+    id: normalized,
+    slug: normalized,
+  }
+}
+
+function buildToolkitContextFromSymptoms(params: {
+  symptoms: Array<{
+    name?: string | null
+    ageGroup?: string | null
+    briefInstruction?: string | null
+    instructionsHtml?: string | null
+    instructions?: string | null
+    highlightedText?: string | null
+  }>
+  surgeryName?: string | null
+}) {
+  const contextItems = params.symptoms
+    .filter((s) => s)
+    .map((symptom) => {
+      const parts: string[] = []
+      if (symptom.name) {
+        parts.push(`## ${symptom.name}`)
+      }
+      if (symptom.ageGroup) {
+        parts.push(`**Age group:** ${symptom.ageGroup}`)
+      }
+      if (symptom.briefInstruction) {
+        parts.push(`**Brief instruction:** ${symptom.briefInstruction}`)
+      }
+      if (symptom.instructionsHtml) {
+        let plainText = symptom.instructionsHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+        if (plainText.length > 1500) {
+          plainText = plainText.slice(0, 1500) + '...'
+        }
+        parts.push(`**Full instructions:**\n${plainText}`)
+      } else if (symptom.instructions) {
+        let truncated = symptom.instructions.trim()
+        if (truncated.length > 1500) {
+          truncated = truncated.slice(0, 1500) + '...'
+        }
+        parts.push(`**Full instructions:**\n${truncated}`)
+      }
+      if (symptom.highlightedText) {
+        parts.push(`**Key phrases:** ${symptom.highlightedText}`)
+      }
+      return parts.join('\n\n')
+    })
+
+  return `INTERNAL PRACTICE-APPROVED GUIDANCE (MUST USE VERBATIM WHERE APPLICABLE)
+
+This guidance is from ${params.surgeryName || 'this practice'}'s approved Signposting Toolkit database. Use this wording exactly as written for workflow phrasing and slot language.
+
+${contextItems.join('\n\n---\n\n')}
+
+USAGE RULES:
+- Use this wording verbatim for slot choices (Red/Orange/Pink-Purple/Green) and escalation steps
+- Do not invent new slot colours or escalation routes
+- Preserve exact phrasing for safety netting and red flags
+- If a symptom is mentioned, use the exact instruction text above
+- If guidance contradicts generic knowledge, prefer the internal guidance`
+}
+
 async function readToolkitFile(filePath: string) {
   const fullPath = path.join(process.cwd(), filePath)
   try {
@@ -386,6 +469,7 @@ async function resolveSignpostingToolkitAdvice(params: {
   promptText: string
   tags?: string[]
   targetRole: EditorialRole
+  toolkitReference?: string
 }): Promise<{
   context: string
   source: { title: string; url: string; publisher: string }
@@ -397,7 +481,12 @@ async function resolveSignpostingToolkitAdvice(params: {
 
   try {
     // Import here to avoid circular dependencies
-    const { getEffectiveSymptoms, getEffectiveSymptomByName } = await import('@/server/effectiveSymptoms')
+    const {
+      getEffectiveSymptoms,
+      getEffectiveSymptomById,
+      getEffectiveSymptomByName,
+      getEffectiveSymptomBySlug,
+    } = await import('@/server/effectiveSymptoms')
     const { prisma } = await import('@/lib/prisma')
 
     // Get surgery name for source attribution
@@ -405,6 +494,28 @@ async function resolveSignpostingToolkitAdvice(params: {
       where: { id: params.surgeryId },
       select: { name: true },
     })
+
+    const reference = parseToolkitReference(params.toolkitReference)
+    if (reference) {
+      const resolvedSymptom =
+        (await getEffectiveSymptomById(reference.id ?? '', params.surgeryId)) ||
+        (await getEffectiveSymptomBySlug(reference.slug ?? '', params.surgeryId))
+      if (resolvedSymptom) {
+        const context = buildToolkitContextFromSymptoms({
+          symptoms: [resolvedSymptom],
+          surgeryName: surgery?.name,
+        })
+        const source = {
+          title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
+          url: resolvedSymptom.linkToPage ?? null,
+          publisher: 'Signposting Toolkit',
+        }
+        return { context, source }
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[Editorial AI] Toolkit reference not found, falling back to matched symptoms.')
+      }
+    }
 
     // Normalise search text
     const searchText = [params.promptText, ...(params.tags || [])].join(' ').toLowerCase()
@@ -472,53 +583,10 @@ async function resolveSignpostingToolkitAdvice(params: {
     }
 
     // Build context string from effective symptoms
-    const contextItems = matchedSymptoms
-      .filter((s): s is NonNullable<typeof s> => s !== null)
-      .map((symptom) => {
-        const parts: string[] = []
-        if (symptom.name) {
-          parts.push(`## ${symptom.name}`)
-        }
-        if (symptom.ageGroup) {
-          parts.push(`**Age group:** ${symptom.ageGroup}`)
-        }
-        if (symptom.briefInstruction) {
-          parts.push(`**Brief instruction:** ${symptom.briefInstruction}`)
-        }
-        if (symptom.instructionsHtml) {
-          // Strip HTML tags for plain text version
-          let plainText = symptom.instructionsHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
-          // Truncate to ~1,500 chars per symptom to prevent prompt bloat
-          if (plainText.length > 1500) {
-            plainText = plainText.slice(0, 1500) + '...'
-          }
-          parts.push(`**Full instructions:**\n${plainText}`)
-        } else if (symptom.instructions) {
-          // Truncate legacy markdown too
-          let truncated = symptom.instructions.trim()
-          if (truncated.length > 1500) {
-            truncated = truncated.slice(0, 1500) + '...'
-          }
-          parts.push(`**Full instructions:**\n${truncated}`)
-        }
-        if (symptom.highlightedText) {
-          parts.push(`**Key phrases:** ${symptom.highlightedText}`)
-        }
-        return parts.join('\n\n')
-      })
-
-    const context = `INTERNAL PRACTICE-APPROVED GUIDANCE (MUST USE VERBATIM WHERE APPLICABLE)
-
-This guidance is from ${surgery?.name || 'this practice'}'s approved Signposting Toolkit database. Use this wording exactly as written for workflow phrasing and slot language.
-
-${contextItems.join('\n\n---\n\n')}
-
-USAGE RULES:
-- Use this wording verbatim for slot choices (Red/Orange/Pink-Purple/Green) and escalation steps
-- Do not invent new slot colours or escalation routes
-- Preserve exact phrasing for safety netting and red flags
-- If a symptom is mentioned, use the exact instruction text above
-- If guidance contradicts generic knowledge, prefer the internal guidance`
+    const context = buildToolkitContextFromSymptoms({
+      symptoms: matchedSymptoms.filter((s): s is NonNullable<typeof s> => s !== null),
+      surgeryName: surgery?.name,
+    })
 
     const source = {
       title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
@@ -653,26 +721,61 @@ export async function generateEditorialBatch(params: {
   returnDebugInfo?: boolean
   userId?: string
   traceId?: string // Optional: if provided, use this; otherwise generate new one
+  promptOverrides?: {
+    systemPrompt?: string
+    userPrompt?: string
+    toolkitContext?: string
+    disableToolkit?: boolean
+    toolkitReference?: string
+  }
 }) {
   const traceId = params.traceId || randomUUID()
   let attemptIndex = 0
-  const toolkit = await resolveSignpostingToolkitAdvice({
-    surgeryId: params.surgeryId,
-    promptText: params.promptText,
-    tags: params.tags,
-    targetRole: params.targetRole,
-  })
+  const toolkitOverride =
+    params.promptOverrides?.toolkitContext && params.targetRole === 'ADMIN'
+      ? {
+          context: params.promptOverrides.toolkitContext,
+          source: {
+            title: 'Signposting Toolkit (override)',
+            url: null,
+            publisher: 'Signposting Toolkit',
+          },
+        }
+      : null
 
-  const systemPrompt = buildSystemPrompt({ role: params.targetRole })
-  const userPrompt = buildUserPrompt({
-    promptText: params.promptText,
-    targetRole: params.targetRole,
-    count: params.count,
-    tags: params.tags,
-    interactiveFirst: params.interactiveFirst,
-    toolkitContext: toolkit?.context,
-    toolkitSource: toolkit?.source,
-  })
+  const toolkit = params.promptOverrides?.disableToolkit
+    ? null
+    : toolkitOverride ??
+      (await resolveSignpostingToolkitAdvice({
+        surgeryId: params.surgeryId,
+        promptText: params.promptText,
+        tags: params.tags,
+        targetRole: params.targetRole,
+        toolkitReference: params.promptOverrides?.toolkitReference,
+      }))
+
+  const systemPrompt = params.promptOverrides?.systemPrompt?.trim() || buildSystemPrompt({ role: params.targetRole })
+  const buildUserPromptPayload = (validationIssues?: AdminValidationIssue[]) => {
+    if (params.promptOverrides?.userPrompt?.trim()) {
+      const validationSection =
+        validationIssues && validationIssues.length > 0
+          ? `\n\nVALIDATION FAILURES TO FIX:\n${formatAdminValidationIssues(validationIssues)}\n`
+          : ''
+      return `${params.promptOverrides.userPrompt.trim()}${validationSection}`
+    }
+
+    return buildUserPrompt({
+      promptText: params.promptText,
+      targetRole: params.targetRole,
+      count: params.count,
+      tags: params.tags,
+      interactiveFirst: params.interactiveFirst,
+      toolkitContext: toolkit?.context,
+      toolkitSource: toolkit?.source,
+      validationIssues,
+    })
+  }
+  const userPrompt = buildUserPromptPayload()
 
   // Extract matched symptom names from toolkit context for debug info
   const matchedSymptomNames: string[] = []
@@ -815,18 +918,11 @@ export async function generateEditorialBatch(params: {
         })
       }
       // Reuse the same toolkit context for retry (no need to refetch)
-      const retryPrompt = buildUserPrompt({
-        promptText: params.promptText,
-        targetRole: params.targetRole,
-        count: params.count,
-        tags: params.tags,
-        interactiveFirst: params.interactiveFirst,
-        toolkitContext: toolkit?.context,
-        toolkitSource: toolkit?.source,
-        validationIssues: issues,
-      })
+      const retryPrompt = buildUserPromptPayload(issues)
 
-      const strictSystemPrompt = buildSystemPrompt({ role: params.targetRole, strictAdmin: true })
+      const strictSystemPrompt = params.promptOverrides?.systemPrompt?.trim()
+        ? params.promptOverrides.systemPrompt.trim()
+        : buildSystemPrompt({ role: params.targetRole, strictAdmin: true })
       const strictResult = await runGenerationAttempt({
         systemPrompt: strictSystemPrompt,
         userPrompt: retryPrompt,
