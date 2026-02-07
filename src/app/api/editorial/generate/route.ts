@@ -77,15 +77,17 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
-    const allowPromptOverrides = process.env.NODE_ENV !== 'production' && user.globalRole === 'SUPERUSER'
+    const allowPromptOverrides = user.globalRole === 'SUPERUSER'
     if (parsed.promptOverrides && !allowPromptOverrides) {
       return NextResponse.json(
-        { ok: false, error: { code: 'FORBIDDEN', message: 'Prompt overrides are only available to super admins in non-production.' } },
+        { ok: false, error: { code: 'FORBIDDEN', message: 'Prompt overrides are only available to super admins.' } },
         { status: 403 }
       )
     }
-    // Debug is automatic for editors/admins in non-production
-    debugEnabled = process.env.NODE_ENV !== 'production' && (user.globalRole === 'SUPERUSER' || user.memberships?.some((m: any) => m.role === 'ADMIN'))
+    // Debug is automatic for super admins, and for editors/admins in non-production
+    debugEnabled =
+      user.globalRole === 'SUPERUSER' ||
+      (process.env.NODE_ENV !== 'production' && user.memberships?.some((m: any) => m.role === 'ADMIN'))
 
     stage = 'rate_limit_check'
     const since = new Date(Date.now() - 60 * 60 * 1000)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -54,14 +54,6 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: Ed
   const [toolkitContextOverride, setToolkitContextOverride] = useState('')
   const [toolkitReference, setToolkitReference] = useState('')
   const [disableToolkit, setDisableToolkit] = useState(false)
-  // Use effect to avoid hydration mismatch - start false on server, update on client
-  const [isDevMode, setIsDevMode] = useState(false)
-  
-  useEffect(() => {
-    // Only check on client side after mount
-    setIsDevMode(typeof window !== 'undefined' && window.location.hostname !== 'app.signpostingtool.co.uk')
-  }, [])
-
   const handleGenerate = async (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)
@@ -69,7 +61,7 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: Ed
     setErrorDetails(null)
     setDebugInfo(null)
 
-    const promptOverrides = isDevMode && isSuperAdmin
+    const promptOverrides = isSuperAdmin
       ? {
           systemPrompt: systemPromptOverride.trim() || undefined,
           userPrompt: userPromptOverride.trim() || undefined,
@@ -319,9 +311,9 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: Ed
           </div>
         </div>
 
-        {isDevMode && isSuperAdmin && (
+        {isSuperAdmin && (
           <details className="mt-6 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm">
-            <summary className="cursor-pointer font-semibold text-slate-700">Super admin prompt controls (dev/test only)</summary>
+            <summary className="cursor-pointer font-semibold text-slate-700">Super admin prompt controls</summary>
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <label className="block text-sm">
                 Toolkit reference (ID, slug, or URL)
@@ -373,7 +365,7 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: Ed
                 />
               </label>
               <p className="text-xs text-slate-500 md:col-span-2">
-                Prompt overrides are disabled for background runs and are only respected for super admins in dev/test environments.
+                Prompt overrides are disabled for background runs and are only respected for super admins.
               </p>
             </div>
           </details>
@@ -398,13 +390,13 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: Ed
       </form>
 
       {/* Debug Panel (automatic for editors/admins in non-production) */}
-      {isDevMode && (
+      {isSuperAdmin && (
         <details
           open={debugPanelOpen}
           className="rounded-lg border border-slate-200 bg-white"
         >
           <summary className="cursor-pointer px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Debug Panel{' '}
+            Generation prompt details{' '}
             {debugInfo?.traceId && (
               <span className="font-mono text-xs text-slate-500">
                 ({debugInfo.stage || 'ready'} • Trace: {debugInfo.traceId.slice(0, 8)}…)
@@ -413,10 +405,15 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: Ed
           </summary>
           <div className="border-t border-slate-200 p-6 space-y-4">
             {!debugInfo && (
-              <div className="text-sm text-slate-500">No debug data yet. Generate cards to see debug information.</div>
+              <div className="text-sm text-slate-500">
+                Generate cards to capture the exact system and user prompts sent to the model.
+              </div>
             )}
             {debugInfo && (
               <>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  This section shows the exact prompts delivered to the model for the last generation request.
+                </div>
                 {/* Debug Summary Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-slate-50 p-3 rounded border">
                   <div>
