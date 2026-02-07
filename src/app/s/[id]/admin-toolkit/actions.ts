@@ -685,9 +685,7 @@ const updateItemInput = z.object({
   surgeryId: z.string().min(1),
   itemId: z.string().min(1),
   title: z.string().trim().min(1, 'Title is required').max(120, 'Title is too long'),
-  // NOTE: categoryId is intentionally NOT accepted by this action.
-  // The item edit page is for content only; category changes use the settings page.
-  // Any categoryId in the payload will be ignored and logged as a warning.
+  categoryId: z.union([z.string().min(1), z.null()]).optional(),
   contentHtml: z.string().optional(), // Legacy field, kept for backwards compatibility
   introHtml: z.string().optional(),
   footerHtml: z.string().optional(),
@@ -721,28 +719,6 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
   }
   const { surgeryId, itemId } = parsed.data
-
-  // GUARDRAIL: Reject any attempt to pass categoryId through this action.
-  // This action is for content editing only; category changes must use the admin settings page.
-  const rawInput = input as Record<string, unknown>
-  if ('categoryId' in rawInput) {
-    console.warn(
-      `[updateAdminToolkitItem] BLOCKED: Attempt to modify categoryId for item ${itemId} in surgery ${surgeryId}. ` +
-      `Payload included categoryId=${JSON.stringify(rawInput.categoryId)}. ` +
-      `This action does not support category changes. categoryId will be preserved.`
-    )
-    // We don't reject the request, but we completely ignore categoryId.
-    // If someone explicitly tries to set categoryId to null/empty, this is a bug or attack.
-    if (rawInput.categoryId === null || rawInput.categoryId === '') {
-      return {
-        ok: false,
-        error: {
-          code: 'VALIDATION_ERROR',
-          message: 'Cannot clear category through the item edit page. Use the Practice Handbook settings to move items between categories.',
-        },
-      }
-    }
-  }
 
   const gate = await requireAdminToolkitItemEdit(surgeryId, itemId)
   if (!gate.ok) return gate

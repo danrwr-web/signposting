@@ -1,12 +1,13 @@
 /**
  * Tests for updateAdminToolkitItem server action
  *
- * These tests verify the non-destructive update behaviour:
- * - categoryId must ALWAYS be preserved (never changed by this action)
+ * These tests verify the update behaviour:
+ * - categoryId is preserved when not provided in the payload
+ * - Admin users (canManage=true) CAN change categoryId, including to subcategories
+ * - Non-admin users cannot change categoryId
  * - contentJson blocks should only be updated when explicitly provided
- * - Attempts to set categoryId to null/empty should be rejected
  *
- * @see https://github.com/your-org/signposting/issues/XXX (data loss bug fix)
+ * @see https://github.com/your-org/signposting/issues/XXX (subcategory save fix)
  */
 
 import { randomUUID } from 'crypto'
@@ -48,28 +49,22 @@ type UpdatePayload = {
 function simulateUpdateLogic(
   existing: MockAdminItem,
   payload: UpdatePayload,
-): { shouldReject: boolean; rejectReason?: string; resultCategoryId: string | null } {
-  // GUARDRAIL: Check if categoryId is being passed
-  if ('categoryId' in payload) {
-    if (payload.categoryId === null || payload.categoryId === '') {
-      return {
-        shouldReject: true,
-        rejectReason: 'Cannot clear category through the item edit page.',
-        resultCategoryId: existing.categoryId,
-      }
+  canManage: boolean,
+): { resultCategoryId: string | null } {
+  // Only include categoryId if user can manage AND it's explicitly provided
+  if (canManage && payload.categoryId !== undefined) {
+    return {
+      resultCategoryId: payload.categoryId ?? null,
     }
-    // Non-null categoryId is ignored but logged
-    console.warn(`BLOCKED: Attempt to modify categoryId. Preserving existing.`)
   }
 
-  // CRITICAL: categoryId is ALWAYS preserved
+  // categoryId is preserved when not provided or when user cannot manage
   return {
-    shouldReject: false,
     resultCategoryId: existing.categoryId,
   }
 }
 
-describe('updateAdminToolkitItem - categoryId preservation', () => {
+describe('updateAdminToolkitItem - categoryId handling', () => {
   const existingItem: MockAdminItem = {
     id: 'item-123',
     type: 'PAGE',
@@ -86,7 +81,7 @@ describe('updateAdminToolkitItem - categoryId preservation', () => {
     lastReviewedAt: null,
   }
 
-  it('preserves categoryId when only title is updated', () => {
+  it('preserves categoryId when not provided in payload (admin user)', () => {
     const payload: UpdatePayload = {
       surgeryId: 'surgery-1',
       itemId: 'item-123',
@@ -94,68 +89,87 @@ describe('updateAdminToolkitItem - categoryId preservation', () => {
       // categoryId NOT provided
     }
 
-    const result = simulateUpdateLogic(existingItem, payload)
+    const result = simulateUpdateLogic(existingItem, payload, true)
 
-    expect(result.shouldReject).toBe(false)
     expect(result.resultCategoryId).toBe('category-abc')
   })
 
-  it('preserves categoryId when content is updated without categoryId in payload', () => {
+  it('preserves categoryId when not provided in payload (non-admin user)', () => {
     const payload: UpdatePayload = {
       surgeryId: 'surgery-1',
       itemId: 'item-123',
       title: 'New Title',
-      introHtml: '<p>New intro</p>',
-      footerHtml: '<p>New footer</p>',
       // categoryId NOT provided
     }
 
-    const result = simulateUpdateLogic(existingItem, payload)
+    const result = simulateUpdateLogic(existingItem, payload, false)
 
-    expect(result.shouldReject).toBe(false)
     expect(result.resultCategoryId).toBe('category-abc')
   })
 
-  it('rejects when categoryId is explicitly set to null', () => {
+  it('allows admin user to change categoryId to a different category', () => {
     const payload: UpdatePayload = {
       surgeryId: 'surgery-1',
       itemId: 'item-123',
       title: 'New Title',
-      categoryId: null, // EXPLICIT null - should be rejected
+      categoryId: 'different-category',
     }
 
-    const result = simulateUpdateLogic(existingItem, payload)
+    const result = simulateUpdateLogic(existingItem, payload, true)
 
-    expect(result.shouldReject).toBe(true)
-    expect(result.rejectReason).toContain('Cannot clear category')
+    expect(result.resultCategoryId).toBe('different-category')
   })
 
-  it('rejects when categoryId is explicitly set to empty string', () => {
+  it('allows admin user to change categoryId to a subcategory', () => {
     const payload: UpdatePayload = {
       surgeryId: 'surgery-1',
       itemId: 'item-123',
       title: 'New Title',
-      categoryId: '', // EXPLICIT empty string - should be rejected
+      categoryId: 'subcategory-paediatrics',
     }
 
-    const result = simulateUpdateLogic(existingItem, payload)
+    const result = simulateUpdateLogic(existingItem, payload, true)
 
-    expect(result.shouldReject).toBe(true)
-    expect(result.rejectReason).toContain('Cannot clear category')
+    expect(result.resultCategoryId).toBe('subcategory-paediatrics')
   })
 
-  it('preserves categoryId even when a different categoryId is provided (ignores it)', () => {
+  it('allows admin user to uncategorise an item (set categoryId to null)', () => {
     const payload: UpdatePayload = {
       surgeryId: 'surgery-1',
       itemId: 'item-123',
       title: 'New Title',
-      categoryId: 'different-category', // This should be IGNORED
+      categoryId: null,
     }
 
-    const result = simulateUpdateLogic(existingItem, payload)
+    const result = simulateUpdateLogic(existingItem, payload, true)
 
-    expect(result.shouldReject).toBe(false)
+    expect(result.resultCategoryId).toBeNull()
+  })
+
+  it('ignores categoryId changes from non-admin users', () => {
+    const payload: UpdatePayload = {
+      surgeryId: 'surgery-1',
+      itemId: 'item-123',
+      title: 'New Title',
+      categoryId: 'different-category',
+    }
+
+    const result = simulateUpdateLogic(existingItem, payload, false)
+
     // categoryId should remain the ORIGINAL, not the payload's value
+    expect(result.resultCategoryId).toBe('category-abc')
+  })
+
+  it('ignores categoryId null from non-admin users', () => {
+    const payload: UpdatePayload = {
+      surgeryId: 'surgery-1',
+      itemId: 'item-123',
+      title: 'New Title',
+      categoryId: null,
+    }
+
+    const result = simulateUpdateLogic(existingItem, payload, false)
+
     expect(result.resultCategoryId).toBe('category-abc')
   })
 })
@@ -313,25 +327,13 @@ describe('updateAdminToolkitItem - content block preservation', () => {
   })
 })
 
-describe('updateAdminToolkitItem - regression test for data loss bug', () => {
-  it('reproduces the exact payload that caused the bug and verifies fix', () => {
-    // This is the exact payload structure that was causing the bug
-    const bugPayload = {
-      surgeryId: 'surgery-1',
-      itemId: 'cmkphuzuf0039lb04smpznmsd',
-      title: 'Holidays',
-      introHtml: '<p class="prose-p">Test</p>',
-      footerHtml: '',
-      roleCardsBlock: null,
-      warningLevel: null,
-      lastReviewedAt: '2026-02-02T00:00:00.000Z',
-    }
-
+describe('updateAdminToolkitItem - subcategory save regression test', () => {
+  it('admin user can save a subcategory ID and it is not reverted to the parent', () => {
     const existingItem: MockAdminItem = {
-      id: 'cmkphuzuf0039lb04smpznmsd',
+      id: 'item-handbook',
       type: 'PAGE',
-      title: 'Holidays',
-      categoryId: 'category-holidays', // THIS MUST BE PRESERVED
+      title: 'Paediatrics referral',
+      categoryId: 'parent-ers-category', // Currently assigned to parent "ERS"
       warningLevel: null,
       contentHtml: '<p>Some notes</p>',
       contentJson: {
@@ -343,13 +345,18 @@ describe('updateAdminToolkitItem - regression test for data loss bug', () => {
       lastReviewedAt: null,
     }
 
-    // Simulate the categoryId preservation logic
-    const result = simulateUpdateLogic(existingItem, bugPayload as UpdatePayload)
+    // Admin changes category to the "Paediatrics" subcategory under "ERS"
+    const payload: UpdatePayload = {
+      surgeryId: 'surgery-1',
+      itemId: 'item-handbook',
+      title: 'Paediatrics referral',
+      categoryId: 'subcategory-paediatrics', // Subcategory under ERS
+    }
 
-    // The fix should preserve categoryId
-    expect(result.shouldReject).toBe(false)
-    expect(result.resultCategoryId).toBe('category-holidays')
-    expect(result.resultCategoryId).not.toBeNull()
-    expect(result.resultCategoryId).not.toBe('')
+    const result = simulateUpdateLogic(existingItem, payload, true)
+
+    // The subcategory ID must be saved, NOT reverted to the parent
+    expect(result.resultCategoryId).toBe('subcategory-paediatrics')
+    expect(result.resultCategoryId).not.toBe('parent-ers-category')
   })
 })
