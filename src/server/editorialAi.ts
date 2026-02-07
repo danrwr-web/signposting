@@ -61,6 +61,12 @@ ADMIN SCOPE:
 - If the prompt is about mental health crisis or suicidal ideation:
   - Include immediate danger triggers and 999 guidance
   - Include boundaries: do not counsel, do not assess clinically, escalate
+
+SLOT LANGUAGE (REQUIRED for ADMIN cards):
+- slotLanguage.relevant MUST be true for every ADMIN card.
+- slotLanguage.guidance MUST have at least one entry with slot (Red/Orange/Pink-Purple/Green) and rule.
+- Extract the slot choice and action from the scenario (e.g. "Pink-Purple: Book telephone appointment for routine vertigo" or "Red: Escalate immediately for stroke symptoms").
+- Even when the scenario involves "task GP" or "Epley manoeuvre", include slot guidance from the toolkit (e.g. Pink-Purple for routine, Red for urgent).
 `
 
 const ADMIN_SOURCE_RULES = `
@@ -122,6 +128,8 @@ export type GenerationMeta = {
   fallbackUsed: boolean
   fallbackReason: string | null
   totalSymptomsSearched: number
+  validationOverridden?: boolean
+  validationIssues?: Array<{ code: string; message: string; cardTitle?: string }>
 }
 
 const ADMIN_TOOLKIT_PACKS: ToolkitPack[] = [
@@ -263,7 +271,14 @@ ${roleProfile}
 }
 
 function formatAdminValidationIssues(issues: AdminValidationIssue[]) {
-  return issues.map((issue) => `- ${issue.message}${issue.cardTitle ? ` (Card: ${issue.cardTitle})` : ''}`).join('\n')
+  const lines = issues.map((issue) => `- ${issue.message}${issue.cardTitle ? ` (Card: ${issue.cardTitle})` : ''}`)
+  const hasSlotGuidance = issues.some((i) => i.code === 'MISSING_SLOT_GUIDANCE')
+  if (hasSlotGuidance) {
+    lines.push(
+      '- Ensure slotLanguage.relevant is true and slotLanguage.guidance has at least one { slot, rule } entry (e.g. { "slot": "Pink-Purple", "rule": "Book telephone appointment for routine vertigo" }).',
+    )
+  }
+  return lines.join('\n')
 }
 
 function formatToolkitSection(toolkitContext?: string, toolkitSource?: { title: string; url: string | null; publisher: string }) {
@@ -741,6 +756,7 @@ export async function generateEditorialBatch(params: {
   returnDebugInfo?: boolean
   userId?: string
   traceId?: string // Optional: if provided, use this; otherwise generate new one
+  overrideValidation?: boolean // When true (superuser only), save cards even when safety validation fails
 }) {
   const traceId = params.traceId || randomUUID()
   let attemptIndex = 0
@@ -801,6 +817,7 @@ export async function generateEditorialBatch(params: {
   })
 
   let finalResult = primaryParsed
+  let validationOverriddenIssues: Array<{ code: string; message: string; cardTitle?: string }> | undefined
 
   // Post-process ADMIN cards before safety validation:
   // 1. Force sources[0] to be Signposting Toolkit (internal) with url null
@@ -881,106 +898,134 @@ export async function generateEditorialBatch(params: {
 
     const issues = validateAdminCards({ cards: finalResult.data.cards, promptText: params.promptText })
     if (issues.length > 0) {
-      // Store initial safety validation failure in trace (before retry)
-      if (process.env.NODE_ENV !== 'production') {
-        promptTraceStore.update(traceId, {
-          safetyValidationPassed: false,
-          safetyValidationErrors: issues.map((issue) => ({
-            code: issue.code,
-            message: issue.message,
-            cardTitle: issue.cardTitle,
-          })),
-        })
-      }
-      // Reuse the same toolkit context for retry (no need to refetch)
-      const retryPrompt = buildUserPrompt({
-        promptText: params.promptText,
-        targetRole: params.targetRole,
-        count: params.count,
-        tags: params.tags,
-        interactiveFirst: params.interactiveFirst,
-        toolkitContext: toolkit?.context,
-        toolkitSource: toolkit?.source,
-        validationIssues: issues,
-      })
-
-      const strictSystemPrompt = buildSystemPrompt({ role: params.targetRole, strictAdmin: true })
-      const strictResult = await runGenerationAttempt({
-        systemPrompt: strictSystemPrompt,
-        userPrompt: retryPrompt,
-        requestId: params.requestId,
-        attemptIndex: attemptIndex++,
-        traceId,
-        onAttempt: params.onAttempt,
-      })
-
-      finalResult = await resolveGenerationResult({
-        attempt: strictResult,
-        requestId: params.requestId,
-        attemptIndex: () => attemptIndex++,
-        systemPrompt: strictSystemPrompt,
-        traceId,
-        onAttempt: params.onAttempt,
-      })
-
-      // Re-normalise sources after retry (same logic as before retry)
-      finalResult.data.cards = finalResult.data.cards.map((card) => {
-        let normalizedSources = card.sources.map((source) => ({
-          ...source,
-          url: source.url && source.url.trim() ? source.url.trim() : null,
-        }))
-        const firstIsToolkit =
-          normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === null
-        if (!firstIsToolkit) {
-          normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
-        }
-        return { ...card, sources: normalizedSources }
-      })
-
-      const retryIssues = validateAdminCards({
-        cards: finalResult.data.cards,
-        promptText: params.promptText,
-      })
-      if (retryIssues.length > 0) {
-        // Store safety validation failure in trace before throwing
+      // Superuser override: skip retry and throw, proceed with current cards
+      if (params.overrideValidation) {
+        validationOverriddenIssues = issues
         if (process.env.NODE_ENV !== 'production') {
           promptTraceStore.update(traceId, {
             safetyValidationPassed: false,
-            safetyValidationErrors: retryIssues.map((issue) => ({
+            safetyValidationErrors: issues.map((issue) => ({
               code: issue.code,
               message: issue.message,
               cardTitle: issue.cardTitle,
             })),
           })
         }
-        // Build debug info for error response
-        const debugInfoForError: EditorialDebugInfo | undefined = params.returnDebugInfo ? {
-          traceId,
-          toolkitInjected: !!toolkit,
-          toolkitSource: toolkit?.source || null,
-          matchedSymptoms: matchedSymptomNames,
-          toolkitContextLength: toolkit?.context?.length || 0,
-          promptSystem: systemPrompt,
-          promptUser: userPrompt,
-          modelRawJson: finalResult.data,
-          modelNormalisedJson: finalResult.data,
-          safetyErrors: retryIssues.map((issue) => ({
-            code: issue.code,
-            message: issue.message,
-            cardTitle: issue.cardTitle,
-          })),
-        } : undefined
-        
-        throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
-          issues: retryIssues,
-          traceId,
-          debug: debugInfoForError,
+      } else {
+        // Store initial safety validation failure in trace (before retry)
+        if (process.env.NODE_ENV !== 'production') {
+          promptTraceStore.update(traceId, {
+            safetyValidationPassed: false,
+            safetyValidationErrors: issues.map((issue) => ({
+              code: issue.code,
+              message: issue.message,
+              cardTitle: issue.cardTitle,
+            })),
+          })
+        }
+        // Reuse the same toolkit context for retry (no need to refetch)
+        const retryPrompt = buildUserPrompt({
+          promptText: params.promptText,
+          targetRole: params.targetRole,
+          count: params.count,
+          tags: params.tags,
+          interactiveFirst: params.interactiveFirst,
+          toolkitContext: toolkit?.context,
+          toolkitSource: toolkit?.source,
+          validationIssues: issues,
         })
+
+        const strictSystemPrompt = buildSystemPrompt({ role: params.targetRole, strictAdmin: true })
+        const strictResult = await runGenerationAttempt({
+          systemPrompt: strictSystemPrompt,
+          userPrompt: retryPrompt,
+          requestId: params.requestId,
+          attemptIndex: attemptIndex++,
+          traceId,
+          onAttempt: params.onAttempt,
+        })
+
+        finalResult = await resolveGenerationResult({
+          attempt: strictResult,
+          requestId: params.requestId,
+          attemptIndex: () => attemptIndex++,
+          systemPrompt: strictSystemPrompt,
+          traceId,
+          onAttempt: params.onAttempt,
+        })
+
+        // Re-normalise sources after retry (same logic as before retry)
+        finalResult.data.cards = finalResult.data.cards.map((card) => {
+          let normalizedSources = card.sources.map((source) => ({
+            ...source,
+            url: source.url && source.url.trim() ? source.url.trim() : null,
+          }))
+          const firstIsToolkit =
+            normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === null
+          if (!firstIsToolkit) {
+            normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
+          }
+          return { ...card, sources: normalizedSources }
+        })
+
+        const retryIssues = validateAdminCards({
+          cards: finalResult.data.cards,
+          promptText: params.promptText,
+        })
+        if (retryIssues.length > 0) {
+          // Superuser override: skip throw, proceed with current cards
+          if (params.overrideValidation) {
+            validationOverriddenIssues = retryIssues
+          } else {
+            // Store safety validation failure in trace before throwing
+            if (process.env.NODE_ENV !== 'production') {
+              promptTraceStore.update(traceId, {
+                safetyValidationPassed: false,
+                safetyValidationErrors: retryIssues.map((issue) => ({
+                  code: issue.code,
+                  message: issue.message,
+                  cardTitle: issue.cardTitle,
+                })),
+              })
+            }
+            // Build debug info for error response
+            const debugInfoForError: EditorialDebugInfo | undefined = params.returnDebugInfo
+              ? {
+                  stage: 'safety_validation',
+                  requestId: params.requestId,
+                  traceId,
+                  toolkitInjected: !!toolkit,
+                  toolkitSource: toolkit?.source || null,
+                  matchedSymptoms: matchedSymptomNames,
+                  toolkitContextLength: toolkit?.context?.length || 0,
+                  promptSystem: systemPrompt,
+                  promptUser: userPrompt,
+                  modelRawJson: finalResult.data,
+                  modelNormalisedJson: finalResult.data,
+                  safetyErrors: retryIssues.map((issue) => ({
+                    code: issue.code,
+                    message: issue.message,
+                    cardTitle: issue.cardTitle,
+                  })),
+                }
+              : undefined
+
+            throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
+              issues: retryIssues,
+              traceId,
+              debug: debugInfoForError,
+            })
+          }
+        }
       }
     }
     
-    // Mark safety validation as passed if we got here (ADMIN role only)
-    if (params.targetRole === 'ADMIN' && process.env.NODE_ENV !== 'production') {
+    // Mark safety validation as passed if we got here (ADMIN role only); skip when overridden
+    if (
+      params.targetRole === 'ADMIN' &&
+      process.env.NODE_ENV !== 'production' &&
+      !validationOverriddenIssues
+    ) {
       promptTraceStore.update(traceId, {
         safetyValidationPassed: true,
         safetyValidationErrors: undefined,
@@ -1011,6 +1056,16 @@ export async function generateEditorialBatch(params: {
     fallbackUsed: toolkit?.fallbackUsed ?? false,
     fallbackReason: toolkit?.fallbackReason ?? null,
     totalSymptomsSearched: toolkit?.totalSymptomsSearched ?? 0,
+    ...(validationOverriddenIssues?.length
+      ? {
+          validationOverridden: true,
+          validationIssues: validationOverriddenIssues.map((i) => ({
+            code: i.code,
+            message: i.message,
+            cardTitle: i.cardTitle,
+          })),
+        }
+      : {}),
   }
 
   // Add debug info if requested (superusers + non-production admins)

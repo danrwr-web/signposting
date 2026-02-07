@@ -44,10 +44,12 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
   const [interactiveFirst, setInteractiveFirst] = useState(true)
   const [loading, setLoading] = useState(false)
   const [generateInBackground, setGenerateInBackground] = useState(false)
+  const [overrideValidation, setOverrideValidation] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<{
     requestId?: string
     traceId?: string
+    errorCode?: string
     issues: Array<{ path?: string; code?: string; message: string }>
     rawSnippet?: string
   } | null>(null)
@@ -79,6 +81,7 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
         .map((tag) => tag.trim())
         .filter(Boolean),
       interactiveFirst,
+      ...(isSuperuser ? { overrideValidation } : {}),
     }
 
     try {
@@ -142,6 +145,7 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
     setCount(5)
     setTargetRole('ADMIN')
     setInteractiveFirst(true)
+    setOverrideValidation(false)
     setError(null)
     setErrorDetails(null)
     setDebugInfo(null)
@@ -189,6 +193,13 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
         {error && (
           <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
             {error}
+            {isSuperuser &&
+              errorDetails?.errorCode === 'SAFETY_VALIDATION_FAILED' &&
+              !overrideValidation && (
+                <p className="mt-2 text-amber-800">
+                  To save anyway, enable &quot;Allow validation override&quot; and generate again.
+                </p>
+              )}
             {errorDetails && (
               <details className="mt-3 text-xs text-red-800">
                 <summary className="cursor-pointer">Details (editors/admin only)</summary>
@@ -290,6 +301,18 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
               />
               Run in background (continue reviewing cards while generating; you will be notified when ready)
             </label>
+
+            {isSuperuser && (
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={overrideValidation}
+                  onChange={(event) => setOverrideValidation(event.target.checked)}
+                  className="accent-nhs-blue"
+                />
+                Allow validation override (save cards even if safety checks fail)
+              </label>
+            )}
           </div>
         </div>
 

@@ -124,6 +124,7 @@ export const EditorialGenerateRequestZ = z.object({
   count: z.number().int().min(1).max(10).default(5),
   tags: z.array(z.string().min(1)).optional(),
   interactiveFirst: z.boolean().default(true),
+  overrideValidation: z.boolean().optional().default(false),
 })
 
 export const EditorialVariationsRequestZ = z.object({

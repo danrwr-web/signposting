@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       onAttempt: recordAttempt,
       returnDebugInfo: debugEnabled,
+      overrideValidation: isSuperuser && parsed.overrideValidation === true,
     })
 
     // Capture debug info if available (for inclusion in response)
