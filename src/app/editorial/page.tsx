@@ -38,5 +38,7 @@ export default async function EditorialPage({ searchParams }: EditorialPageProps
     redirect('/unauthorized')
   }
 
-  return <EditorialGeneratorClient surgeryId={surgeryId} />
+  const isSuperuser = user.globalRole === 'SUPERUSER'
+
+  return <EditorialGeneratorClient surgeryId={surgeryId} isSuperuser={isSuperuser} />
 }

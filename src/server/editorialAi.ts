@@ -101,6 +101,10 @@ export type EditorialDebugInfo = {
   toolkitSource?: { title: string; url: string | null; publisher?: string } | null
   matchedSymptoms: string[]
   toolkitContextLength: number
+  fallbackUsed?: boolean
+  fallbackReason?: string | null
+  totalSymptomsSearched?: number
+  toolkitContextSnippet?: string | null
   promptSystem?: string
   promptUser?: string
   modelRawText?: string
@@ -109,6 +113,15 @@ export type EditorialDebugInfo = {
   schemaErrors?: Array<{ path: string; message: string }>
   safetyErrors?: Array<{ code: string; message: string; cardTitle?: string }>
   error?: { name?: string; message?: string; stack?: string }
+}
+
+export type GenerationMeta = {
+  toolkitInjected: boolean
+  matchedSymptoms: string[]
+  toolkitContextLength: number
+  fallbackUsed: boolean
+  fallbackReason: string | null
+  totalSymptomsSearched: number
 }
 
 const ADMIN_TOOLKIT_PACKS: ToolkitPack[] = [
@@ -253,7 +266,7 @@ function formatAdminValidationIssues(issues: AdminValidationIssue[]) {
   return issues.map((issue) => `- ${issue.message}${issue.cardTitle ? ` (Card: ${issue.cardTitle})` : ''}`).join('\n')
 }
 
-function formatToolkitSection(toolkitContext?: string, toolkitSource?: { title: string; url: string; publisher: string }) {
+function formatToolkitSection(toolkitContext?: string, toolkitSource?: { title: string; url: string | null; publisher: string }) {
   if (!toolkitContext || !toolkitSource) return ''
   
   // Check if this is the new format with INTERNAL PRACTICE-APPROVED GUIDANCE header
@@ -293,7 +306,7 @@ function buildUserPrompt(params: {
   tags?: string[]
   interactiveFirst: boolean
   toolkitContext?: string
-  toolkitSource?: { title: string; url: string; publisher: string }
+  toolkitSource?: { title: string; url: string | null; publisher: string }
   validationIssues?: AdminValidationIssue[]
 }) {
   const toolkitSection =
@@ -363,11 +376,14 @@ async function readToolkitFile(filePath: string) {
   }
 }
 
-async function resolveAdminToolkitContext(params: { promptText: string; tags?: string[] }) {
+async function resolveAdminToolkitContext(params: { promptText: string; tags?: string[] }): Promise<{
+  context: string
+  source: { title: string; url: string | null; publisher: string }
+}> {
   const combined = [params.promptText, ...(params.tags || [])].join(' ')
   const pack = findToolkitPack(combined)
   const sourceRoute = pack?.sourceRoute ?? 'admin-core'
-  const source = {
+  const source: { title: string; url: string | null; publisher: string } = {
     title: ADMIN_TOOLKIT_SOURCE_TITLE,
     url: `${ADMIN_TOOLKIT_SOURCE_BASE_URL}/${sourceRoute}`,
     publisher: ADMIN_TOOLKIT_SOURCE_PUBLISHER,
@@ -381,15 +397,87 @@ async function resolveAdminToolkitContext(params: { promptText: string; tags?: s
   return { context: context.trim() || DEFAULT_ADMIN_TOOLKIT_CONTEXT.trim(), source }
 }
 
+/** Stop-words excluded from token matching to avoid false positives. */
+const MATCHING_STOP_WORDS = new Set([
+  'a', 'an', 'the', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'be',
+  'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+  'would', 'could', 'should', 'may', 'might', 'shall', 'can', 'to', 'of',
+  'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'into', 'about',
+  'it', 'its', 'this', 'that', 'these', 'those', 'i', 'we', 'you', 'they',
+  'he', 'she', 'my', 'our', 'your', 'their', 'me', 'us', 'him', 'her',
+  'not', 'no', 'nor', 'so', 'if', 'then', 'than', 'too', 'very', 'just',
+  'also', 'how', 'what', 'when', 'where', 'who', 'which', 'why',
+  'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some',
+  'such', 'only', 'same', 'up', 'out', 'off', 'over', 'under',
+  'create', 'make', 'cards', 'card', 'learning', 'training', 'team',
+  'staff', 'admin', 'reception', 'about', 'please', 'generate', 'draft',
+])
+
+/**
+ * Tokenise text into meaningful lowercase words, stripping stop-words and
+ * very short tokens (<3 chars) unless they appear useful (e.g. "uti").
+ */
+function tokenise(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 2 && !MATCHING_STOP_WORDS.has(t))
+}
+
+/**
+ * Score a symptom against prompt tokens. Higher = better match.
+ * Awards points for:
+ *  - Exact token match in symptom name (3 pts)
+ *  - Partial token match in symptom name, e.g. "throat" in "sore throat" (1 pt)
+ *  - Exact token match in briefInstruction (1 pt)
+ */
+function scoreSymptom(
+  promptTokens: string[],
+  symptomName: string,
+  briefInstruction: string,
+): number {
+  const nameTokens = tokenise(symptomName)
+  const nameLower = symptomName.toLowerCase()
+  const briefLower = briefInstruction.toLowerCase()
+  let score = 0
+
+  for (const pt of promptTokens) {
+    // Exact token match in symptom name tokens (strongest signal)
+    if (nameTokens.includes(pt)) {
+      score += 3
+      continue
+    }
+    // Partial match: prompt token appears inside the full symptom name string
+    if (nameLower.includes(pt)) {
+      score += 1
+      continue
+    }
+    // Token appears in brief instruction
+    if (briefLower.includes(pt)) {
+      score += 1
+    }
+  }
+
+  return score
+}
+
+export type ToolkitAdviceResult = {
+  context: string
+  source: { title: string; url: string | null; publisher: string }
+  matchedSymptomNames: string[]
+  fallbackUsed: boolean
+  fallbackReason?: string
+  totalSymptomsSearched: number
+  toolkitContextSnippet: string
+}
+
 async function resolveSignpostingToolkitAdvice(params: {
   surgeryId: string
   promptText: string
   tags?: string[]
   targetRole: EditorialRole
-}): Promise<{
-  context: string
-  source: { title: string; url: string; publisher: string }
-} | null> {
+}): Promise<ToolkitAdviceResult | null> {
   // Only for ADMIN role
   if (params.targetRole !== 'ADMIN') {
     return null
@@ -397,7 +485,7 @@ async function resolveSignpostingToolkitAdvice(params: {
 
   try {
     // Import here to avoid circular dependencies
-    const { getEffectiveSymptoms, getEffectiveSymptomByName } = await import('@/server/effectiveSymptoms')
+    const { getEffectiveSymptoms } = await import('@/server/effectiveSymptoms')
     const { prisma } = await import('@/lib/prisma')
 
     // Get surgery name for source attribution
@@ -406,74 +494,60 @@ async function resolveSignpostingToolkitAdvice(params: {
       select: { name: true },
     })
 
-    // Normalise search text
-    const searchText = [params.promptText, ...(params.tags || [])].join(' ').toLowerCase()
+    // Tokenise the prompt + tags into meaningful search tokens
+    const rawSearchText = [params.promptText, ...(params.tags || [])].join(' ')
+    const promptTokens = tokenise(rawSearchText)
 
-    // Try to match symptoms - first attempt: direct name lookup
-    // Extract potential symptom names (simple heuristic: common symptom terms)
-    const commonSymptomTerms = [
-      'chest pain',
-      'headache',
-      'abdominal pain',
-      'back pain',
-      'mental health',
-      'anxiety',
-      'depression',
-      'cough',
-      'fever',
-      'rash',
-      'breathing',
-      'diarrhea',
-      'vomiting',
-      'dizziness',
-    ]
-
-    const matchedSymptoms: Array<Awaited<ReturnType<typeof getEffectiveSymptomByName>>> = []
-
-    // Try direct name matches first
-    for (const term of commonSymptomTerms) {
-      if (searchText.includes(term)) {
-        const symptom = await getEffectiveSymptomByName(term, params.surgeryId)
-        if (symptom && !matchedSymptoms.find((s) => s?.id === symptom?.id)) {
-          matchedSymptoms.push(symptom)
-          if (matchedSymptoms.length >= 5) break
-        }
-      }
-    }
-
-    // If no direct matches, load symptom list and do lightweight substring matching
-    if (matchedSymptoms.length === 0) {
-      const allSymptoms = await getEffectiveSymptoms(params.surgeryId, false)
-
-      // Match against symptom name and briefInstruction
-      const relevantSymptoms = allSymptoms
-        .filter((symptom) => {
-          const name = symptom.name?.toLowerCase() || ''
-          const brief = symptom.briefInstruction?.toLowerCase() || ''
-          const nameMatch = name && (name.includes(searchText) || searchText.includes(name))
-          const briefMatch = brief && (brief.includes(searchText) || searchText.includes(brief))
-          return nameMatch || briefMatch
-        })
-        .slice(0, 5) // Cap to top 5 matches
-
-      matchedSymptoms.push(...relevantSymptoms.map((s) => s as any))
-    }
-
-    // If still no matches, fall back to existing static toolkit context
-    if (matchedSymptoms.length === 0 || matchedSymptoms.every((s) => !s)) {
+    if (promptTokens.length === 0) {
+      // If prompt has no meaningful tokens, fall back to static context
       const existing = await resolveAdminToolkitContext({
         promptText: params.promptText,
         tags: params.tags,
       })
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[Editorial AI] No symptom matches, using static toolkit fallback')
+      console.log('[Editorial AI] No meaningful prompt tokens, using static toolkit fallback')
+      return {
+        ...existing,
+        matchedSymptomNames: [],
+        fallbackUsed: true,
+        fallbackReason: 'No meaningful tokens extracted from prompt',
+        totalSymptomsSearched: 0,
+        toolkitContextSnippet: existing.context.slice(0, 500),
       }
-      return existing
+    }
+
+    // Load all effective symptoms for this surgery and score them
+    const allSymptoms = await getEffectiveSymptoms(params.surgeryId, false)
+
+    const scored = allSymptoms
+      .map((symptom) => ({
+        symptom,
+        score: scoreSymptom(promptTokens, symptom.name || '', symptom.briefInstruction || ''),
+      }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5) // Top 5 matches
+
+    const matchedSymptoms = scored.map(({ symptom }) => symptom)
+
+    // If no matches, fall back to existing static toolkit context
+    if (matchedSymptoms.length === 0) {
+      const existing = await resolveAdminToolkitContext({
+        promptText: params.promptText,
+        tags: params.tags,
+      })
+      console.log(`[Editorial AI] No symptom matches (searched ${allSymptoms.length} symptoms, tokens: [${promptTokens.join(', ')}]), using static toolkit fallback`)
+      return {
+        ...existing,
+        matchedSymptomNames: [],
+        fallbackUsed: true,
+        fallbackReason: `No symptoms matched prompt tokens [${promptTokens.join(', ')}] across ${allSymptoms.length} symptoms`,
+        totalSymptomsSearched: allSymptoms.length,
+        toolkitContextSnippet: existing.context.slice(0, 500),
+      }
     }
 
     // Build context string from effective symptoms
     const contextItems = matchedSymptoms
-      .filter((s): s is NonNullable<typeof s> => s !== null)
       .map((symptom) => {
         const parts: string[] = []
         if (symptom.name) {
@@ -522,22 +596,36 @@ USAGE RULES:
 
     const source = {
       title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
-      url: null, // DB-driven context has no single URL - symptoms are practice-specific
+      url: null as string | null, // DB-driven context has no single URL - symptoms are practice-specific
       publisher: 'Signposting Toolkit',
     }
 
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[Editorial AI] Injected toolkit context: ${matchedSymptoms.filter((s) => s).length} symptom(s), ${context.length} chars`)
-    }
+    const matchedNames = matchedSymptoms.map((s) => s.name || 'Unknown').filter(Boolean)
+    console.log(`[Editorial AI] Injected toolkit context: ${matchedSymptoms.length} symptom(s) [${matchedNames.join(', ')}], ${context.length} chars, tokens: [${promptTokens.join(', ')}]`)
 
-    return { context, source }
+    return {
+      context,
+      source,
+      matchedSymptomNames: matchedNames,
+      fallbackUsed: false,
+      totalSymptomsSearched: allSymptoms.length,
+      toolkitContextSnippet: context.slice(0, 500),
+    }
   } catch (error) {
     // On error, fall back to static toolkit context
     console.warn('[Editorial AI] Error resolving signposting toolkit advice, falling back to static:', error)
-    return await resolveAdminToolkitContext({
+    const existing = await resolveAdminToolkitContext({
       promptText: params.promptText,
       tags: params.tags,
     })
+    return {
+      ...existing,
+      matchedSymptomNames: [],
+      fallbackUsed: true,
+      fallbackReason: `Error during symptom matching: ${error instanceof Error ? error.message : String(error)}`,
+      totalSymptomsSearched: 0,
+      toolkitContextSnippet: existing.context.slice(0, 500),
+    }
   }
 }
 
@@ -674,18 +762,8 @@ export async function generateEditorialBatch(params: {
     toolkitSource: toolkit?.source,
   })
 
-  // Extract matched symptom names from toolkit context for debug info
-  const matchedSymptomNames: string[] = []
-  if (toolkit?.context && toolkit.context.includes('INTERNAL PRACTICE-APPROVED GUIDANCE')) {
-    // Extract symptom names from the context (they appear as ## Symptom Name)
-    const lines = toolkit.context.split('\n')
-    for (const line of lines) {
-      const match = line.match(/^## (.+)$/)
-      if (match && match[1]) {
-        matchedSymptomNames.push(match[1].trim())
-      }
-    }
-  }
+  // Use matched symptom names directly from the toolkit result (no need to re-parse)
+  const matchedSymptomNames: string[] = toolkit?.matchedSymptomNames || []
 
   // Store initial trace (dev/preview only)
   if (process.env.NODE_ENV !== 'production') {
@@ -925,10 +1003,21 @@ export async function generateEditorialBatch(params: {
     traceId, // Always return traceId
   }
 
-  // Add debug info if requested (dev only)
+  // Build generation metadata (lightweight summary for DB persistence)
+  const generationMeta = {
+    toolkitInjected: !!toolkit,
+    matchedSymptoms: matchedSymptomNames,
+    toolkitContextLength: toolkit?.context?.length || 0,
+    fallbackUsed: toolkit?.fallbackUsed ?? false,
+    fallbackReason: toolkit?.fallbackReason ?? null,
+    totalSymptomsSearched: toolkit?.totalSymptomsSearched ?? 0,
+  }
+
+  // Add debug info if requested (superusers + non-production admins)
   if (params.returnDebugInfo) {
     return {
       ...result,
+      generationMeta,
       debug: {
         promptUser: userPrompt,
         promptSystem: systemPrompt,
@@ -936,11 +1025,15 @@ export async function generateEditorialBatch(params: {
         toolkitSource: toolkit?.source || null,
         matchedSymptoms: matchedSymptomNames,
         toolkitContextLength: toolkit?.context?.length || 0,
+        fallbackUsed: toolkit?.fallbackUsed ?? false,
+        fallbackReason: toolkit?.fallbackReason ?? null,
+        totalSymptomsSearched: toolkit?.totalSymptomsSearched ?? 0,
+        toolkitContextSnippet: toolkit?.toolkitContextSnippet ?? null,
       },
     }
   }
 
-  return result
+  return { ...result, generationMeta }
 }
 
 export async function generateEditorialVariations(params: {

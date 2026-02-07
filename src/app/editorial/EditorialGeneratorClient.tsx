@@ -6,9 +6,10 @@ import Link from 'next/link'
 
 interface EditorialGeneratorClientProps {
   surgeryId: string
+  isSuperuser?: boolean
 }
 
-// Debug info returned inline from the generate API (no separate fetch needed)
+// Generation insights info returned inline from the generate API
 interface DebugInfo {
   stage?: string
   requestId?: string
@@ -20,6 +21,10 @@ interface DebugInfo {
   toolkitSource?: { title: string; url: string | null; publisher?: string } | null
   matchedSymptoms?: string[]
   toolkitContextLength?: number
+  fallbackUsed?: boolean
+  fallbackReason?: string | null
+  totalSymptomsSearched?: number
+  toolkitContextSnippet?: string | null
   promptSystem?: string
   promptUser?: string
   modelRawText?: string
@@ -30,7 +35,7 @@ interface DebugInfo {
   error?: { name?: string; message?: string; stack?: string }
 }
 
-export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
+export default function EditorialGeneratorClient({ surgeryId, isSuperuser = false }: EditorialGeneratorClientProps) {
   const router = useRouter()
   const [promptText, setPromptText] = useState('')
   const [targetRole, setTargetRole] = useState('ADMIN')
@@ -48,8 +53,9 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   } | null>(null)
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
-  // Use effect to avoid hydration mismatch - start false on server, update on client
+  // Superusers always see insights; other admins only in non-production
   const [isDevMode, setIsDevMode] = useState(false)
+  const showInsightsPanel = isSuperuser || isDevMode
   
   useEffect(() => {
     // Only check on client side after mount
@@ -305,42 +311,47 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         </div>
       </form>
 
-      {/* Debug Panel (automatic for editors/admins in non-production) */}
-      {isDevMode && (
+      {/* Generation Insights (superusers always; other admins in non-production only) */}
+      {showInsightsPanel && (
         <details
           open={debugPanelOpen}
           className="rounded-lg border border-slate-200 bg-white"
         >
           <summary className="cursor-pointer px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Debug Panel{' '}
+            Generation Insights{' '}
             {debugInfo?.traceId && (
               <span className="font-mono text-xs text-slate-500">
-                ({debugInfo.stage || 'ready'} • Trace: {debugInfo.traceId.slice(0, 8)}…)
+                ({debugInfo.stage || 'ready'} &bull; Trace: {debugInfo.traceId.slice(0, 8)}&hellip;)
               </span>
             )}
           </summary>
           <div className="border-t border-slate-200 p-6 space-y-4">
             {!debugInfo && (
-              <div className="text-sm text-slate-500">No debug data yet. Generate cards to see debug information.</div>
+              <div className="text-sm text-slate-500">No insights data yet. Generate cards to see what happened under the hood.</div>
             )}
             {debugInfo && (
               <>
-                {/* Debug Summary Row */}
+                {/* Summary Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-slate-50 p-3 rounded border">
                   <div>
                     <strong>Stage:</strong> {safeString(debugInfo.stage || 'unknown')}
                   </div>
                   <div>
-                    <strong>Toolkit:</strong> {debugInfo.toolkitInjected ? '✓ Injected' : '✗ None'}
+                    <strong>Toolkit advice:</strong>{' '}
+                    {debugInfo.toolkitInjected
+                      ? debugInfo.fallbackUsed
+                        ? 'Fallback (static)'
+                        : 'Matched from surgery'
+                      : 'Not injected'}
                   </div>
                   <div>
-                    <strong>Symptoms:</strong>{' '}
+                    <strong>Matched symptoms:</strong>{' '}
                     {Array.isArray(debugInfo.matchedSymptoms) && debugInfo.matchedSymptoms.length > 0
                       ? debugInfo.matchedSymptoms.join(', ')
                       : 'None'}
                   </div>
                   <div>
-                    <strong>Context:</strong>{' '}
+                    <strong>Toolkit context:</strong>{' '}
                     {typeof debugInfo.toolkitContextLength === 'number'
                       ? debugInfo.toolkitContextLength.toLocaleString()
                       : '0'}{' '}
@@ -348,104 +359,159 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                   </div>
                 </div>
 
+                {/* Toolkit matching detail row */}
+                {debugInfo.toolkitInjected && (
+                  <div className="text-sm bg-blue-50 p-3 rounded border border-blue-200 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <strong>Symptoms searched:</strong>{' '}
+                      {typeof debugInfo.totalSymptomsSearched === 'number'
+                        ? debugInfo.totalSymptomsSearched
+                        : 'unknown'}
+                    </div>
+                    {debugInfo.fallbackUsed && debugInfo.fallbackReason && (
+                      <div className="text-amber-800">
+                        <strong>Fallback reason:</strong> {debugInfo.fallbackReason}
+                      </div>
+                    )}
+                    {!debugInfo.fallbackUsed && debugInfo.matchedSymptoms && debugInfo.matchedSymptoms.length > 0 && (
+                      <div className="text-green-800">
+                        <strong>Surgery-specific advice injected for:</strong>{' '}
+                        {debugInfo.matchedSymptoms.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Toolkit Context Snippet */}
+                {debugInfo.toolkitContextSnippet && (
+                  <details className="text-sm">
+                    <summary className="cursor-pointer font-semibold text-slate-700 hover:text-nhs-blue">
+                      Toolkit context sent to AI (preview)
+                    </summary>
+                    <pre className="mt-2 text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap break-words">
+                      {safeString(debugInfo.toolkitContextSnippet)}
+                    </pre>
+                  </details>
+                )}
+
                 <div className="space-y-4">
                   {/* System Prompt */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <strong className="text-sm">System Prompt</strong>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(debugInfo.promptSystem)}
-                        className="text-xs text-nhs-blue hover:underline"
-                      >
-                        Copy
-                      </button>
-                    </div>
-                    <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap break-words">
-                      {safeString(debugInfo.promptSystem)}
-                    </pre>
-                  </div>
-
-                  {/* User Prompt */}
-                  {debugInfo.promptUser && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm">User Prompt</strong>
+                  <details className="text-sm">
+                    <summary className="cursor-pointer font-semibold text-slate-700 hover:text-nhs-blue">
+                      System prompt sent to AI
+                    </summary>
+                    <div className="mt-2">
+                      <div className="flex items-center justify-end mb-1">
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(safeString(debugInfo.promptUser))}
+                          onClick={() => copyToClipboard(safeString(debugInfo.promptSystem))}
                           className="text-xs text-nhs-blue hover:underline"
                         >
                           Copy
                         </button>
                       </div>
-                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
-                        {safeString(debugInfo.promptUser)}
+                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 whitespace-pre-wrap break-words">
+                        {safeString(debugInfo.promptSystem)}
                       </pre>
                     </div>
+                  </details>
+
+                  {/* User Prompt */}
+                  {debugInfo.promptUser && (
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-semibold text-slate-700 hover:text-nhs-blue">
+                        User prompt sent to AI (includes toolkit context)
+                      </summary>
+                      <div className="mt-2">
+                        <div className="flex items-center justify-end mb-1">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(safeString(debugInfo.promptUser))}
+                            className="text-xs text-nhs-blue hover:underline"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                          {safeString(debugInfo.promptUser)}
+                        </pre>
+                      </div>
+                    </details>
                   )}
 
                   {/* Model Raw Text */}
                   {debugInfo.modelRawText && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm">Raw Model Output (Text)</strong>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(safeString(debugInfo.modelRawText))}
-                          className="text-xs text-nhs-blue hover:underline"
-                        >
-                          Copy
-                        </button>
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-semibold text-slate-700 hover:text-nhs-blue">
+                        Raw model output (text)
+                      </summary>
+                      <div className="mt-2">
+                        <div className="flex items-center justify-end mb-1">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(safeString(debugInfo.modelRawText))}
+                            className="text-xs text-nhs-blue hover:underline"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                          {safeString(debugInfo.modelRawText)}
+                        </pre>
                       </div>
-                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
-                        {safeString(debugInfo.modelRawText)}
-                      </pre>
-                    </div>
+                    </details>
                   )}
 
                   {/* Model Raw JSON */}
                   {debugInfo.modelRawJson !== undefined && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm">Raw Model Output (JSON)</strong>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(formatJson(debugInfo.modelRawJson))}
-                          className="text-xs text-nhs-blue hover:underline"
-                        >
-                          Copy
-                        </button>
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-semibold text-slate-700 hover:text-nhs-blue">
+                        Raw model output (JSON)
+                      </summary>
+                      <div className="mt-2">
+                        <div className="flex items-center justify-end mb-1">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(formatJson(debugInfo.modelRawJson))}
+                            className="text-xs text-nhs-blue hover:underline"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                          {formatJson(debugInfo.modelRawJson)}
+                        </pre>
                       </div>
-                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
-                        {formatJson(debugInfo.modelRawJson)}
-                      </pre>
-                    </div>
+                    </details>
                   )}
 
                   {/* Normalised Output */}
                   {debugInfo.modelNormalisedJson !== undefined && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm">Normalised Output</strong>
-                        <button
-                          type="button"
-                          onClick={() => copyToClipboard(formatJson(debugInfo.modelNormalisedJson))}
-                          className="text-xs text-nhs-blue hover:underline"
-                        >
-                          Copy
-                        </button>
+                    <details className="text-sm">
+                      <summary className="cursor-pointer font-semibold text-slate-700 hover:text-nhs-blue">
+                        Normalised output
+                      </summary>
+                      <div className="mt-2">
+                        <div className="flex items-center justify-end mb-1">
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(formatJson(debugInfo.modelNormalisedJson))}
+                            className="text-xs text-nhs-blue hover:underline"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                        <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
+                          {formatJson(debugInfo.modelNormalisedJson)}
+                        </pre>
                       </div>
-                      <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-96 whitespace-pre-wrap break-words">
-                        {formatJson(debugInfo.modelNormalisedJson)}
-                      </pre>
-                    </div>
+                    </details>
                   )}
 
                   {/* Schema Validation Errors */}
                   {debugInfo.schemaErrors && debugInfo.schemaErrors.length > 0 && (
                     <div>
-                      <strong className="text-sm text-red-700">Schema Validation Errors</strong>
+                      <strong className="text-sm text-red-700">Schema validation errors</strong>
                       <div className="space-y-2 mt-2">
                         {debugInfo.schemaErrors.map((err, index) => (
                           <div key={index} className="bg-red-50 p-3 rounded border border-red-200">
@@ -461,7 +527,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                   {Array.isArray(debugInfo.safetyErrors) && debugInfo.safetyErrors.length > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <strong className="text-sm text-red-700">Safety Validation Errors (Failed)</strong>
+                        <strong className="text-sm text-red-700">Safety validation errors</strong>
                         <button
                           type="button"
                           onClick={() => copyToClipboard(formatJson(debugInfo.safetyErrors))}
@@ -479,7 +545,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                             <div key={index} className="bg-red-50 p-3 rounded border border-red-200">
                               <div className="font-semibold text-sm text-red-900">
                                 {code}
-                                {cardTitle && <span className="font-normal text-red-700"> – {cardTitle}</span>}
+                                {cardTitle && <span className="font-normal text-red-700"> &ndash; {cardTitle}</span>}
                               </div>
                               {message && <div className="text-xs text-red-700 mt-1">{message}</div>}
                             </div>
@@ -492,7 +558,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                   {/* Error Object */}
                   {debugInfo.error && (
                     <div>
-                      <strong className="text-sm text-red-700">Error Details</strong>
+                      <strong className="text-sm text-red-700">Error details</strong>
                       <pre className="text-xs bg-red-50 p-3 rounded border overflow-auto max-h-64 mt-2 whitespace-pre-wrap break-words">
                         {formatJson(debugInfo.error)}
                       </pre>
@@ -502,7 +568,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
                   {/* Toolkit Source */}
                   {debugInfo.toolkitSource && (
                     <div>
-                      <strong className="text-sm">Toolkit Source</strong>
+                      <strong className="text-sm">Toolkit source</strong>
                       <pre className="text-xs bg-slate-50 p-3 rounded border overflow-auto max-h-64 mt-2 whitespace-pre-wrap break-words">
                         {formatJson(debugInfo.toolkitSource)}
                       </pre>

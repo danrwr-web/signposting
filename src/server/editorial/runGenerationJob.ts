@@ -90,6 +90,10 @@ export async function runGenerationJob(jobId: string): Promise<void> {
         targetRole: resolvedRole,
         modelUsed: generated.modelUsed,
         status: 'DRAFT',
+        // Persist generation metadata for later review
+        ...('generationMeta' in generated && generated.generationMeta
+          ? { generationMeta: generated.generationMeta }
+          : {}),
       },
     })
 

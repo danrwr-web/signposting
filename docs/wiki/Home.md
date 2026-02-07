@@ -58,6 +58,7 @@ Recent highlights from the latest release. For full details, see the versioned R
 - **Unreleased — In progress**
   - Added Daily Dose learning sessions with role-based micro-learning and editorial approval workflow
   - AI-assisted Daily Dose editorial drafting with batch review, variations, and clinician sign-off for high-risk content
+  - Improved card generation so the AI reliably uses your surgery's signposting advice; superusers now see a Generation Insights panel
 
 - **v1.3 — Jan 2026**: Practice Handbook improvements, Workflow Guidance refinements, and routing updates
 - **v1.2 — Jan 2026**: Added Workflow Guidance module and redesigned marketing site

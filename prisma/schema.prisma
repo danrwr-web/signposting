@@ -286,16 +286,17 @@ model DailyDoseSession {
 }
 
 model DailyDoseGenerationBatch {
-  id         String   @id @default(cuid())
-  surgeryId  String
-  createdBy  String?
-  promptText String
-  targetRole String
-  modelUsed  String?
-  status     String   @default("DRAFT") // "DRAFT" | "READY" | "PUBLISHED"
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id             String   @id @default(cuid())
+  surgeryId      String
+  createdBy      String?
+  promptText     String
+  targetRole     String
+  modelUsed      String?
+  status         String   @default("DRAFT") // "DRAFT" | "READY" | "PUBLISHED"
+  notes          String?
+  generationMeta Json?    // Toolkit matching metadata: toolkitInjected, matchedSymptoms, fallbackUsed, etc.
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   surgery       Surgery                      @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   createdByUser User?                        @relation("DailyDoseBatchCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)

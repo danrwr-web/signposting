@@ -77,8 +77,9 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
-    // Debug is automatic for editors/admins in non-production
-    debugEnabled = process.env.NODE_ENV !== 'production' && (user.globalRole === 'SUPERUSER' || user.memberships?.some((m: any) => m.role === 'ADMIN'))
+    // Superusers always get debug/insights data; other admins only in non-production
+    const isSuperuser = user.globalRole === 'SUPERUSER'
+    debugEnabled = isSuperuser || (process.env.NODE_ENV !== 'production' && user.memberships?.some((m: any) => m.role === 'ADMIN'))
 
     stage = 'rate_limit_check'
     const since = new Date(Date.now() - 60 * 60 * 1000)
@@ -162,6 +163,10 @@ export async function POST(request: NextRequest) {
         targetRole: resolvedRole,
         modelUsed: generated.modelUsed,
         status: 'DRAFT',
+        // Persist generation metadata for later review
+        ...('generationMeta' in generated && generated.generationMeta
+          ? { generationMeta: generated.generationMeta }
+          : {}),
       },
     })
 
@@ -255,7 +260,7 @@ export async function POST(request: NextRequest) {
         const details = error.details as
           | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string; traceId?: string; debug?: EditorialDebugInfo }
           | undefined
-        const includeRawSnippet = process.env.NODE_ENV !== 'production'
+        const includeRawSnippet = isSuperuser || process.env.NODE_ENV !== 'production'
         return NextResponse.json(
           {
             ok: false,
@@ -266,7 +271,7 @@ export async function POST(request: NextRequest) {
             rawSnippet: includeRawSnippet ? details?.rawSnippet : undefined,
             error: { 
               code: 'SCHEMA_MISMATCH', 
-              message: 'Generated output did not match schema. Check Debug panel for details.' 
+              message: 'Generated output did not match schema. Check Generation Insights panel for details.' 
             },
             // Include inline debug info (dev-only)
             ...(debugEnabled && details?.debug ? { debug: details.debug } : {}),
