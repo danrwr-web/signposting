@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 interface EditorialGeneratorClientProps {
   surgeryId: string
+  isSuperAdmin: boolean
 }
 
 // Debug info returned inline from the generate API (no separate fetch needed)
@@ -30,7 +31,7 @@ interface DebugInfo {
   error?: { name?: string; message?: string; stack?: string }
 }
 
-export default function EditorialGeneratorClient({ surgeryId }: EditorialGeneratorClientProps) {
+export default function EditorialGeneratorClient({ surgeryId, isSuperAdmin }: EditorialGeneratorClientProps) {
   const router = useRouter()
   const [promptText, setPromptText] = useState('')
   const [targetRole, setTargetRole] = useState('ADMIN')
@@ -48,20 +49,37 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
   } | null>(null)
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
-  // Use effect to avoid hydration mismatch - start false on server, update on client
-  const [isDevMode, setIsDevMode] = useState(false)
-  
-  useEffect(() => {
-    // Only check on client side after mount
-    setIsDevMode(typeof window !== 'undefined' && window.location.hostname !== 'app.signpostingtool.co.uk')
-  }, [])
-
+  const [systemPromptOverride, setSystemPromptOverride] = useState('')
+  const [userPromptOverride, setUserPromptOverride] = useState('')
+  const [toolkitContextOverride, setToolkitContextOverride] = useState('')
+  const [toolkitReference, setToolkitReference] = useState('')
+  const [disableToolkit, setDisableToolkit] = useState(false)
   const handleGenerate = async (event: React.FormEvent) => {
     event.preventDefault()
     setLoading(true)
     setError(null)
     setErrorDetails(null)
     setDebugInfo(null)
+
+    const promptOverrides = isSuperAdmin
+      ? {
+          systemPrompt: systemPromptOverride.trim() || undefined,
+          userPrompt: userPromptOverride.trim() || undefined,
+          toolkitContext: toolkitContextOverride.trim() || undefined,
+          toolkitReference: toolkitReference.trim() || undefined,
+          disableToolkit: disableToolkit || undefined,
+        }
+      : undefined
+
+    const hasPromptOverrides =
+      !!promptOverrides &&
+      Object.values(promptOverrides).some((value) => value !== undefined)
+
+    if (generateInBackground && hasPromptOverrides) {
+      setError('Prompt overrides are not supported for background generation. Please run in foreground.')
+      setLoading(false)
+      return
+    }
 
     const requestBody = {
       surgeryId,
@@ -73,6 +91,7 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
         .map((tag) => tag.trim())
         .filter(Boolean),
       interactiveFirst,
+      ...(hasPromptOverrides ? { promptOverrides } : {}),
     }
 
     try {
@@ -140,6 +159,11 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
     setErrorDetails(null)
     setDebugInfo(null)
     setDebugPanelOpen(false)
+    setSystemPromptOverride('')
+    setUserPromptOverride('')
+    setToolkitContextOverride('')
+    setToolkitReference('')
+    setDisableToolkit(false)
   }
 
   const formatJson = (obj: unknown): string => {
@@ -287,6 +311,66 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
           </div>
         </div>
 
+        {isSuperAdmin && (
+          <details className="mt-6 rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm">
+            <summary className="cursor-pointer font-semibold text-slate-700">Super admin prompt controls</summary>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className="block text-sm">
+                Toolkit reference (ID, slug, or URL)
+                <input
+                  type="text"
+                  value={toolkitReference}
+                  onChange={(event) => setToolkitReference(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. headache or https://..."
+                />
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={disableToolkit}
+                  onChange={(event) => setDisableToolkit(event.target.checked)}
+                  className="accent-nhs-blue"
+                />
+                Disable toolkit injection
+              </label>
+              <label className="block text-sm md:col-span-2">
+                Toolkit context override
+                <textarea
+                  rows={4}
+                  value={toolkitContextOverride}
+                  onChange={(event) => setToolkitContextOverride(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs"
+                  placeholder="Paste custom toolkit guidance to inject verbatim"
+                />
+              </label>
+              <label className="block text-sm md:col-span-2">
+                System prompt override
+                <textarea
+                  rows={4}
+                  value={systemPromptOverride}
+                  onChange={(event) => setSystemPromptOverride(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs"
+                  placeholder="Override the system prompt"
+                />
+              </label>
+              <label className="block text-sm md:col-span-2">
+                User prompt override
+                <textarea
+                  rows={5}
+                  value={userPromptOverride}
+                  onChange={(event) => setUserPromptOverride(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-xs"
+                  placeholder="Override the user prompt"
+                />
+              </label>
+              <p className="text-xs text-slate-500 md:col-span-2">
+                Prompt overrides are disabled for background runs and are only respected for super admins.
+              </p>
+            </div>
+          </details>
+        )}
+
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="submit"
@@ -306,13 +390,13 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
       </form>
 
       {/* Debug Panel (automatic for editors/admins in non-production) */}
-      {isDevMode && (
+      {isSuperAdmin && (
         <details
           open={debugPanelOpen}
           className="rounded-lg border border-slate-200 bg-white"
         >
           <summary className="cursor-pointer px-6 py-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            Debug Panel{' '}
+            Generation prompt details{' '}
             {debugInfo?.traceId && (
               <span className="font-mono text-xs text-slate-500">
                 ({debugInfo.stage || 'ready'} • Trace: {debugInfo.traceId.slice(0, 8)}…)
@@ -321,10 +405,15 @@ export default function EditorialGeneratorClient({ surgeryId }: EditorialGenerat
           </summary>
           <div className="border-t border-slate-200 p-6 space-y-4">
             {!debugInfo && (
-              <div className="text-sm text-slate-500">No debug data yet. Generate cards to see debug information.</div>
+              <div className="text-sm text-slate-500">
+                Generate cards to capture the exact system and user prompts sent to the model.
+              </div>
             )}
             {debugInfo && (
               <>
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  This section shows the exact prompts delivered to the model for the last generation request.
+                </div>
                 {/* Debug Summary Row */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm bg-slate-50 p-3 rounded border">
                   <div>

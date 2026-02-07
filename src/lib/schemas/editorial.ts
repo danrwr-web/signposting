@@ -117,6 +117,14 @@ export const EditorialGenerationOutputZ = z.object({
   quiz: EditorialQuizZ,
 })
 
+export const EditorialPromptOverridesZ = z.object({
+  systemPrompt: z.string().min(1).optional(),
+  userPrompt: z.string().min(1).optional(),
+  toolkitContext: z.string().min(1).optional(),
+  disableToolkit: z.boolean().optional(),
+  toolkitReference: z.string().min(1).optional(),
+})
+
 export const EditorialGenerateRequestZ = z.object({
   surgeryId: z.string().optional(),
   promptText: z.string().min(10),
@@ -124,6 +132,7 @@ export const EditorialGenerateRequestZ = z.object({
   count: z.number().int().min(1).max(10).default(5),
   tags: z.array(z.string().min(1)).optional(),
   interactiveFirst: z.boolean().default(true),
+  promptOverrides: EditorialPromptOverridesZ.optional(),
 })
 
 export const EditorialVariationsRequestZ = z.object({
