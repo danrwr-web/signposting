@@ -178,6 +178,16 @@ export const EditorialPublishRequestZ = z.object({
   cardId: z.string().min(1),
 })
 
+// Prompt template management (superuser settings)
+export const EditorialPromptTemplateUpdateZ = z.object({
+  role: EditorialRoleZ,
+  template: z.string().min(10),
+})
+
+export const EditorialPromptTemplateResetZ = z.object({
+  role: EditorialRoleZ,
+})
+
 export type EditorialRole = z.infer<typeof EditorialRoleZ>
 export type EditorialStatus = z.infer<typeof EditorialStatusZ>
 export type EditorialRisk = z.infer<typeof EditorialRiskZ>

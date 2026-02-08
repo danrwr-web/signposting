@@ -36,7 +36,11 @@ export default function DailyDoseNav({ currentSurgeryId }: DailyDoseNavProps) {
       ]
     : []
 
-  const items = [...navItems, ...adminItems]
+  const superuserItems = isSuperuser
+    ? [{ href: '/editorial/settings', label: 'Settings' }]
+    : []
+
+  const items = [...navItems, ...adminItems, ...superuserItems]
 
   return (
     <nav aria-label="Daily Dose" className="border-b border-slate-200 bg-white">

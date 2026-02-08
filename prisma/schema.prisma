@@ -74,6 +74,7 @@ model User {
   dailyDoseBatchesCreated         DailyDoseGenerationBatch[]   @relation("DailyDoseBatchCreatedBy")
   dailyDoseGenerationAttempts     DailyDoseGenerationAttempt[] @relation("DailyDoseAttemptCreatedBy")
   dailyDoseGenerationJobs         DailyDoseGenerationJob[]     @relation("DailyDoseGenerationJobCreatedBy")
+  dailyDosePromptTemplatesEdited  DailyDosePromptTemplate[]    @relation("PromptTemplateEditor")
 }
 
 model UserSurgery {
@@ -419,6 +420,16 @@ model DailyDoseFlaggedContent {
 
   @@index([surgeryId])
   @@index([status])
+}
+
+model DailyDosePromptTemplate {
+  id        String   @id @default(cuid())
+  role      String   @unique // "ADMIN" | "GP" | "NURSE"
+  template  String // The full system prompt text
+  updatedAt DateTime @updatedAt
+  updatedBy String? // User ID of last editor
+
+  editor User? @relation("PromptTemplateEditor", fields: [updatedBy], references: [id])
 }
 
 model BaseSymptom {

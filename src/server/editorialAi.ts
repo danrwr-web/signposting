@@ -745,6 +745,36 @@ async function resolveGenerationResult(params: {
 }
 
 /**
+ * Return the hardcoded default system prompt for a role.
+ * Exported so the settings UI can show the default for comparison.
+ */
+export function buildDefaultSystemPrompt(role: EditorialRole): string {
+  return buildSystemPrompt({ role })
+}
+
+/**
+ * Load the system prompt for a given role.
+ * Returns the saved template from the database if one exists,
+ * otherwise falls back to the hardcoded default.
+ */
+export async function getSystemPromptForRole(role: EditorialRole): Promise<string> {
+  try {
+    const { prisma } = await import('@/lib/prisma')
+    const saved = await prisma.dailyDosePromptTemplate.findUnique({
+      where: { role },
+      select: { template: true },
+    })
+    if (saved?.template) {
+      return saved.template
+    }
+  } catch (error) {
+    // If the table doesn't exist yet or DB is unavailable, fall back silently
+    console.warn('getSystemPromptForRole: failed to load saved template, using default', error)
+  }
+  return buildSystemPrompt({ role })
+}
+
+/**
  * Build the fully constructed system and user prompts without calling the AI.
  * Used by the preview endpoint so superusers can inspect/edit prompts before generation.
  */
@@ -763,7 +793,7 @@ export async function buildEditorialPrompts(params: {
     targetRole: params.targetRole,
   })
 
-  const systemPrompt = buildSystemPrompt({ role: params.targetRole })
+  const systemPrompt = await getSystemPromptForRole(params.targetRole)
   const userPrompt = buildUserPrompt({
     promptText: params.promptText,
     targetRole: params.targetRole,
