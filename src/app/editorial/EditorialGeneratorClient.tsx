@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -35,6 +35,26 @@ interface DebugInfo {
   error?: { name?: string; message?: string; stack?: string }
 }
 
+// Toolkit metadata returned by the preview endpoint
+interface ToolkitMeta {
+  toolkitInjected: boolean
+  matchedSymptoms: string[]
+  toolkitContextLength: number
+  fallbackUsed: boolean
+  fallbackReason: string | null
+  totalSymptomsSearched: number
+  toolkitContextSnippet: string | null
+  toolkitSource: { title: string; url: string | null; publisher: string } | null
+}
+
+// Preview response from the server
+interface PromptPreview {
+  systemPrompt: string
+  userPrompt: string
+  toolkitMeta: ToolkitMeta
+  resolvedRole: string
+}
+
 export default function EditorialGeneratorClient({ surgeryId, isSuperuser = false }: EditorialGeneratorClientProps) {
   const router = useRouter()
   const [promptText, setPromptText] = useState('')
@@ -57,12 +77,85 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
   // Superusers always see insights; other admins only in non-production
   const [isDevMode, setIsDevMode] = useState(false)
+
+  // Prompt preview state (superuser only)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewData, setPreviewData] = useState<PromptPreview | null>(null)
+  const [editedSystemPrompt, setEditedSystemPrompt] = useState('')
+  const [editedUserPrompt, setEditedUserPrompt] = useState('')
+  const [previewError, setPreviewError] = useState<string | null>(null)
+  const previewPanelRef = useRef<HTMLDivElement>(null)
+
+  // Track whether the superuser has modified either prompt from the original
+  const systemPromptModified = previewData !== null && editedSystemPrompt !== previewData.systemPrompt
+  const userPromptModified = previewData !== null && editedUserPrompt !== previewData.userPrompt
+  const anyPromptModified = systemPromptModified || userPromptModified
   const showInsightsPanel = isSuperuser || isDevMode
   
   useEffect(() => {
     // Only check on client side after mount
     setIsDevMode(typeof window !== 'undefined' && window.location.hostname !== 'app.signpostingtool.co.uk')
   }, [])
+
+  const handlePreviewPrompt = async () => {
+    setPreviewLoading(true)
+    setPreviewError(null)
+    setPreviewData(null)
+
+    try {
+      const response = await fetch('/api/editorial/generate/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surgeryId,
+          promptText,
+          targetRole,
+          count,
+          tags: tags
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          interactiveFirst,
+        }),
+      })
+
+      const payload = await response.json().catch(() => ({
+        ok: false,
+        error: { message: 'Failed to parse response' },
+      }))
+
+      if (!response.ok || payload?.ok === false) {
+        setPreviewError(payload?.error?.message || 'Unable to preview prompts')
+        return
+      }
+
+      const preview: PromptPreview = {
+        systemPrompt: payload.systemPrompt,
+        userPrompt: payload.userPrompt,
+        toolkitMeta: payload.toolkitMeta,
+        resolvedRole: payload.resolvedRole,
+      }
+      setPreviewData(preview)
+      setEditedSystemPrompt(preview.systemPrompt)
+      setEditedUserPrompt(preview.userPrompt)
+
+      // Scroll to the preview panel after it renders
+      requestAnimationFrame(() => {
+        previewPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  const handleDiscardPreview = () => {
+    setPreviewData(null)
+    setEditedSystemPrompt('')
+    setEditedUserPrompt('')
+    setPreviewError(null)
+  }
 
   const handleGenerate = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -71,17 +164,26 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
     setErrorDetails(null)
     setDebugInfo(null)
 
-    const requestBody = {
+    const parsedTags = tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean)
+
+    // Build the base request body
+    const requestBody: Record<string, unknown> = {
       surgeryId,
       promptText,
       targetRole,
       count,
-      tags: tags
-        .split(',')
-        .map((tag) => tag.trim())
-        .filter(Boolean),
+      tags: parsedTags,
       interactiveFirst,
       ...(isSuperuser ? { overrideValidation } : {}),
+    }
+
+    // If superuser has previewed (and possibly edited) prompts, include overrides
+    if (isSuperuser && previewData) {
+      requestBody.systemPromptOverride = editedSystemPrompt
+      requestBody.userPromptOverride = editedUserPrompt
     }
 
     try {
@@ -150,6 +252,11 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
     setErrorDetails(null)
     setDebugInfo(null)
     setDebugPanelOpen(false)
+    // Reset preview state
+    setPreviewData(null)
+    setEditedSystemPrompt('')
+    setEditedUserPrompt('')
+    setPreviewError(null)
   }
 
   const formatJson = (obj: unknown): string => {
@@ -319,11 +426,21 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
         <div className="mt-6 flex flex-wrap gap-3">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || previewLoading}
             className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading ? 'Generating…' : 'Generate drafts'}
           </button>
+          {isSuperuser && (
+            <button
+              type="button"
+              disabled={loading || previewLoading || !promptText}
+              onClick={handlePreviewPrompt}
+              className="rounded-md border border-nhs-blue px-4 py-2 text-sm font-semibold text-nhs-blue hover:bg-nhs-light-blue disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {previewLoading ? 'Building prompts…' : 'Preview prompt'}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleClear}
@@ -333,6 +450,190 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
           </button>
         </div>
       </form>
+
+      {/* Prompt Preview Panel (superuser only) */}
+      {isSuperuser && previewError && !previewData && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700" role="alert">
+          {previewError}
+        </div>
+      )}
+      {isSuperuser && previewData && (
+        <div
+          ref={previewPanelRef}
+          className="rounded-lg border-2 border-nhs-blue bg-white"
+          role="region"
+          aria-label="Prompt preview and editing"
+        >
+          <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+            <div>
+              <h2 className="text-lg font-bold text-nhs-dark-blue">Prompt preview</h2>
+              <p className="mt-1 text-xs text-slate-500">
+                Review and optionally edit the prompts before sending to the AI.
+                {anyPromptModified && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                    Modified
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span>Role: <strong>{previewData.resolvedRole}</strong></span>
+            </div>
+          </div>
+
+          {/* Toolkit metadata summary */}
+          <div className="border-b border-slate-200 px-6 py-3">
+            <div className="grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
+              <div>
+                <strong className="text-slate-600">Toolkit advice:</strong>{' '}
+                {previewData.toolkitMeta.toolkitInjected
+                  ? previewData.toolkitMeta.fallbackUsed
+                    ? 'Fallback (static)'
+                    : 'Matched from surgery'
+                  : 'Not injected'}
+              </div>
+              <div>
+                <strong className="text-slate-600">Matched symptoms:</strong>{' '}
+                {previewData.toolkitMeta.matchedSymptoms.length > 0
+                  ? previewData.toolkitMeta.matchedSymptoms.join(', ')
+                  : 'None'}
+              </div>
+              <div>
+                <strong className="text-slate-600">Toolkit context:</strong>{' '}
+                {previewData.toolkitMeta.toolkitContextLength.toLocaleString()} chars
+              </div>
+              <div>
+                <strong className="text-slate-600">Symptoms searched:</strong>{' '}
+                {previewData.toolkitMeta.totalSymptomsSearched}
+              </div>
+            </div>
+            {previewData.toolkitMeta.fallbackUsed && previewData.toolkitMeta.fallbackReason && (
+              <p className="mt-2 text-xs text-amber-700">
+                <strong>Fallback reason:</strong> {previewData.toolkitMeta.fallbackReason}
+              </p>
+            )}
+          </div>
+
+          {/* Editable prompts */}
+          <div className="space-y-4 px-6 py-4">
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label htmlFor="preview-system-prompt" className="text-sm font-semibold text-slate-700">
+                  System prompt
+                  {systemPromptModified && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      Edited
+                    </span>
+                  )}
+                </label>
+                <div className="flex items-center gap-2">
+                  {systemPromptModified && (
+                    <button
+                      type="button"
+                      onClick={() => setEditedSystemPrompt(previewData.systemPrompt)}
+                      className="text-xs text-slate-500 hover:text-nhs-blue hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(editedSystemPrompt)}
+                    className="text-xs text-nhs-blue hover:underline"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <textarea
+                id="preview-system-prompt"
+                rows={10}
+                value={editedSystemPrompt}
+                onChange={(e) => setEditedSystemPrompt(e.target.value)}
+                className={`w-full rounded-md border px-3 py-2 font-mono text-xs ${
+                  systemPromptModified
+                    ? 'border-amber-400 bg-amber-50'
+                    : 'border-slate-200 bg-slate-50'
+                }`}
+                aria-describedby="system-prompt-hint"
+              />
+              <p id="system-prompt-hint" className="mt-1 text-xs text-slate-400">
+                Controls the AI&apos;s role, rules, and output format.
+              </p>
+            </div>
+
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label htmlFor="preview-user-prompt" className="text-sm font-semibold text-slate-700">
+                  User prompt (includes toolkit context)
+                  {userPromptModified && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                      Edited
+                    </span>
+                  )}
+                </label>
+                <div className="flex items-center gap-2">
+                  {userPromptModified && (
+                    <button
+                      type="button"
+                      onClick={() => setEditedUserPrompt(previewData.userPrompt)}
+                      className="text-xs text-slate-500 hover:text-nhs-blue hover:underline"
+                    >
+                      Reset
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(editedUserPrompt)}
+                    className="text-xs text-nhs-blue hover:underline"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <textarea
+                id="preview-user-prompt"
+                rows={16}
+                value={editedUserPrompt}
+                onChange={(e) => setEditedUserPrompt(e.target.value)}
+                className={`w-full rounded-md border px-3 py-2 font-mono text-xs ${
+                  userPromptModified
+                    ? 'border-amber-400 bg-amber-50'
+                    : 'border-slate-200 bg-slate-50'
+                }`}
+                aria-describedby="user-prompt-hint"
+              />
+              <p id="user-prompt-hint" className="mt-1 text-xs text-slate-400">
+                The full prompt sent to the AI, including toolkit guidance, card count, tags, and JSON schema.
+              </p>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 px-6 py-4">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={(e) => handleGenerate(e as unknown as React.FormEvent)}
+              className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {loading ? 'Generating…' : anyPromptModified ? 'Generate with edited prompts' : 'Generate with these prompts'}
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardPreview}
+              className="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:border-nhs-blue"
+            >
+              Discard
+            </button>
+            {anyPromptModified && (
+              <span className="text-xs text-amber-700" role="status">
+                One or both prompts have been edited from the original.
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Generation Insights (superusers always; other admins in non-production only) */}
       {showInsightsPanel && (

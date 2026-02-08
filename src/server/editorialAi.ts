@@ -744,22 +744,18 @@ async function resolveGenerationResult(params: {
   }
 }
 
-export async function generateEditorialBatch(params: {
+/**
+ * Build the fully constructed system and user prompts without calling the AI.
+ * Used by the preview endpoint so superusers can inspect/edit prompts before generation.
+ */
+export async function buildEditorialPrompts(params: {
   surgeryId: string
   promptText: string
   targetRole: EditorialRole
   count: number
   tags?: string[]
   interactiveFirst: boolean
-  requestId: string
-  onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
-  returnDebugInfo?: boolean
-  userId?: string
-  traceId?: string // Optional: if provided, use this; otherwise generate new one
-  overrideValidation?: boolean // When true (superuser only), save cards even when safety validation fails
 }) {
-  const traceId = params.traceId || randomUUID()
-  let attemptIndex = 0
   const toolkit = await resolveSignpostingToolkitAdvice({
     surgeryId: params.surgeryId,
     promptText: params.promptText,
@@ -778,8 +774,62 @@ export async function generateEditorialBatch(params: {
     toolkitSource: toolkit?.source,
   })
 
-  // Use matched symptom names directly from the toolkit result (no need to re-parse)
   const matchedSymptomNames: string[] = toolkit?.matchedSymptomNames || []
+
+  return {
+    systemPrompt,
+    userPrompt,
+    toolkitMeta: {
+      toolkitInjected: !!toolkit,
+      matchedSymptoms: matchedSymptomNames,
+      toolkitContextLength: toolkit?.context?.length || 0,
+      fallbackUsed: toolkit?.fallbackUsed ?? false,
+      fallbackReason: toolkit?.fallbackReason ?? null,
+      totalSymptomsSearched: toolkit?.totalSymptomsSearched ?? 0,
+      toolkitContextSnippet: toolkit?.toolkitContextSnippet ?? null,
+      toolkitSource: toolkit?.source || null,
+    },
+    // Raw toolkit fields needed by generateEditorialBatch for retry prompts
+    _rawToolkitContext: toolkit?.context,
+    _rawToolkitSource: toolkit?.source,
+  }
+}
+
+export async function generateEditorialBatch(params: {
+  surgeryId: string
+  promptText: string
+  targetRole: EditorialRole
+  count: number
+  tags?: string[]
+  interactiveFirst: boolean
+  requestId: string
+  onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
+  returnDebugInfo?: boolean
+  userId?: string
+  traceId?: string // Optional: if provided, use this; otherwise generate new one
+  overrideValidation?: boolean // When true (superuser only), save cards even when safety validation fails
+  systemPromptOverride?: string // When provided (superuser only), use this instead of the constructed system prompt
+  userPromptOverride?: string // When provided (superuser only), use this instead of the constructed user prompt
+}) {
+  const traceId = params.traceId || randomUUID()
+  let attemptIndex = 0
+
+  // Build prompts normally, then override if superuser provided custom prompts
+  const built = await buildEditorialPrompts({
+    surgeryId: params.surgeryId,
+    promptText: params.promptText,
+    targetRole: params.targetRole,
+    count: params.count,
+    tags: params.tags,
+    interactiveFirst: params.interactiveFirst,
+  })
+
+  const toolkit = built.toolkitMeta
+  const systemPrompt = params.systemPromptOverride ?? built.systemPrompt
+  const userPrompt = params.userPromptOverride ?? built.userPrompt
+
+  // Use matched symptom names directly from the toolkit result (no need to re-parse)
+  const matchedSymptomNames: string[] = toolkit.matchedSymptoms
 
   // Store initial trace (dev/preview only)
   if (process.env.NODE_ENV !== 'production') {
@@ -790,9 +840,9 @@ export async function generateEditorialBatch(params: {
       surgeryId: params.surgeryId,
       targetRole: params.targetRole,
       promptText: params.promptText,
-      toolkitInjected: !!toolkit,
+      toolkitInjected: toolkit.toolkitInjected,
       matchedSymptoms: matchedSymptomNames,
-      toolkitContextLength: toolkit?.context?.length || 0,
+      toolkitContextLength: toolkit.toolkitContextLength,
       promptSystem: systemPrompt,
       promptUser: userPrompt,
     })
@@ -877,10 +927,10 @@ export async function generateEditorialBatch(params: {
             stage: 'after_normalise',
             requestId: params.requestId,
             traceId,
-            toolkitInjected: !!toolkit,
-            toolkitSource: toolkit?.source || null,
+            toolkitInjected: toolkit.toolkitInjected,
+            toolkitSource: toolkit.toolkitSource,
             matchedSymptoms: matchedSymptomNames,
-            toolkitContextLength: toolkit?.context?.length || 0,
+            toolkitContextLength: toolkit.toolkitContextLength,
             promptSystem: systemPrompt,
             promptUser: userPrompt,
             modelRawJson: finalResult.data,
@@ -930,8 +980,8 @@ export async function generateEditorialBatch(params: {
           count: params.count,
           tags: params.tags,
           interactiveFirst: params.interactiveFirst,
-          toolkitContext: toolkit?.context,
-          toolkitSource: toolkit?.source,
+          toolkitContext: built._rawToolkitContext,
+          toolkitSource: built._rawToolkitSource,
           validationIssues: issues,
         })
 
@@ -994,10 +1044,10 @@ export async function generateEditorialBatch(params: {
                   stage: 'safety_validation',
                   requestId: params.requestId,
                   traceId,
-                  toolkitInjected: !!toolkit,
-                  toolkitSource: toolkit?.source || null,
+                  toolkitInjected: toolkit.toolkitInjected,
+                  toolkitSource: toolkit.toolkitSource,
                   matchedSymptoms: matchedSymptomNames,
-                  toolkitContextLength: toolkit?.context?.length || 0,
+                  toolkitContextLength: toolkit.toolkitContextLength,
                   promptSystem: systemPrompt,
                   promptUser: userPrompt,
                   modelRawJson: finalResult.data,
@@ -1050,12 +1100,12 @@ export async function generateEditorialBatch(params: {
 
   // Build generation metadata (lightweight summary for DB persistence)
   const generationMeta = {
-    toolkitInjected: !!toolkit,
+    toolkitInjected: toolkit.toolkitInjected,
     matchedSymptoms: matchedSymptomNames,
-    toolkitContextLength: toolkit?.context?.length || 0,
-    fallbackUsed: toolkit?.fallbackUsed ?? false,
-    fallbackReason: toolkit?.fallbackReason ?? null,
-    totalSymptomsSearched: toolkit?.totalSymptomsSearched ?? 0,
+    toolkitContextLength: toolkit.toolkitContextLength,
+    fallbackUsed: toolkit.fallbackUsed,
+    fallbackReason: toolkit.fallbackReason,
+    totalSymptomsSearched: toolkit.totalSymptomsSearched,
     ...(validationOverriddenIssues?.length
       ? {
           validationOverridden: true,
@@ -1076,14 +1126,14 @@ export async function generateEditorialBatch(params: {
       debug: {
         promptUser: userPrompt,
         promptSystem: systemPrompt,
-        toolkitInjected: !!toolkit,
-        toolkitSource: toolkit?.source || null,
+        toolkitInjected: toolkit.toolkitInjected,
+        toolkitSource: toolkit.toolkitSource,
         matchedSymptoms: matchedSymptomNames,
-        toolkitContextLength: toolkit?.context?.length || 0,
-        fallbackUsed: toolkit?.fallbackUsed ?? false,
-        fallbackReason: toolkit?.fallbackReason ?? null,
-        totalSymptomsSearched: toolkit?.totalSymptomsSearched ?? 0,
-        toolkitContextSnippet: toolkit?.toolkitContextSnippet ?? null,
+        toolkitContextLength: toolkit.toolkitContextLength,
+        fallbackUsed: toolkit.fallbackUsed,
+        fallbackReason: toolkit.fallbackReason,
+        totalSymptomsSearched: toolkit.totalSymptomsSearched,
+        toolkitContextSnippet: toolkit.toolkitContextSnippet,
       },
     }
   }

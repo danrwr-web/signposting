@@ -125,6 +125,9 @@ export const EditorialGenerateRequestZ = z.object({
   tags: z.array(z.string().min(1)).optional(),
   interactiveFirst: z.boolean().default(true),
   overrideValidation: z.boolean().optional().default(false),
+  // Superuser-only: override the constructed prompts before sending to AI
+  systemPromptOverride: z.string().optional(),
+  userPromptOverride: z.string().optional(),
 })
 
 export const EditorialVariationsRequestZ = z.object({

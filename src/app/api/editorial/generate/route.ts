@@ -133,6 +133,9 @@ export async function POST(request: NextRequest) {
       onAttempt: recordAttempt,
       returnDebugInfo: debugEnabled,
       overrideValidation: isSuperuser && parsed.overrideValidation === true,
+      // Superuser-only: use custom prompts instead of the auto-constructed ones
+      ...(isSuperuser && parsed.systemPromptOverride ? { systemPromptOverride: parsed.systemPromptOverride } : {}),
+      ...(isSuperuser && parsed.userPromptOverride ? { userPromptOverride: parsed.userPromptOverride } : {}),
     })
 
     // Capture debug info if available (for inclusion in response)
