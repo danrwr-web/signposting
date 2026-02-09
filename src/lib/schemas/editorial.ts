@@ -8,7 +8,8 @@ export const EditorialSourceZ = z.object({
   title: z.string().min(1),
   url: z
     .union([
-      z.string().url(),
+      z.string().startsWith('/s/'), // Relative URL for surgery signposting pages (check first)
+      z.string().url(), // Absolute URL (e.g., https://example.com)
       z.string().length(0), // Empty string
       z.literal(null),
       z.undefined(),
