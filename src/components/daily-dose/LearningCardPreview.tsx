@@ -9,6 +9,7 @@ type ContentBlock =
 type Interaction = {
   question: string
   options: string[]
+  correctIndex?: number
 }
 
 type Source = { title: string; url: string | null; org?: string; publisher?: string }
@@ -40,12 +41,19 @@ export default function LearningCardPreview({
           <div key={`int-${i}`} className="rounded-lg border border-slate-200 bg-slate-50/50 p-4">
             <p className="text-sm font-semibold text-slate-700">{interaction.question}</p>
             <ul className="mt-2 space-y-1 text-sm text-slate-600">
-              {interaction.options.map((opt, j) => (
-                <li key={j} className="flex gap-2">
-                  <span className="text-nhs-blue">•</span>
-                  {opt}
-                </li>
-              ))}
+              {interaction.options.map((opt, j) => {
+                const isCorrect = interaction.correctIndex !== undefined && j === interaction.correctIndex
+                return (
+                  <li
+                    key={j}
+                    className={`flex gap-2 ${isCorrect ? 'rounded-md bg-emerald-50 px-2 py-1 text-emerald-800 font-medium' : ''}`}
+                  >
+                    <span className={isCorrect ? 'text-emerald-600' : 'text-nhs-blue'}>•</span>
+                    {opt}
+                    {isCorrect && <span className="ml-auto text-xs text-emerald-600 font-semibold">✓ Correct</span>}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         ))}

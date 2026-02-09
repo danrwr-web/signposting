@@ -635,6 +635,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     interactions={cardForm.interactions.map((i) => ({
                       question: i.question,
                       options: i.optionsText.split('\n').filter(Boolean),
+                      correctIndex: i.correctIndex,
                     }))}
                     sources={cardForm.sources.filter((s) => s.title?.trim()).map((s) => ({
                       title: s.title,
