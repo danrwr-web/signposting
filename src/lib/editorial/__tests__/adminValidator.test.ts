@@ -53,6 +53,46 @@ describe('adminValidator', () => {
     expect(issues.some((issue) => issue.code === 'MISSING_TOOLKIT_SOURCE')).toBe(true)
   })
 
+  it('accepts toolkit source with /s/ URL (surgery signposting page)', () => {
+    const issues = validateAdminCards({
+      cards: [
+        {
+          ...baseCard,
+          sources: [
+            {
+              title: 'Signposting Toolkit (internal)',
+              url: '/s/surgery-1',
+              publisher: 'Signposting Toolkit',
+            },
+          ],
+        },
+      ],
+      promptText: 'Admin mental health crisis',
+    })
+
+    expect(issues.some((issue) => issue.code === 'MISSING_TOOLKIT_SOURCE')).toBe(false)
+  })
+
+  it('accepts toolkit source with null URL', () => {
+    const issues = validateAdminCards({
+      cards: [
+        {
+          ...baseCard,
+          sources: [
+            {
+              title: 'Signposting Toolkit (internal)',
+              url: null,
+              publisher: 'Signposting Toolkit',
+            },
+          ],
+        },
+      ],
+      promptText: 'Admin mental health crisis',
+    })
+
+    expect(issues.some((issue) => issue.code === 'MISSING_TOOLKIT_SOURCE')).toBe(false)
+  })
+
   it('flags missing slot guidance for triage prompts', () => {
     const issues = validateAdminCards({
       cards: [
