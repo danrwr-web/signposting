@@ -522,6 +522,10 @@ async function resolveSignpostingToolkitAdvice(params: {
       console.log('[Editorial AI] No meaningful prompt tokens, using static toolkit fallback')
       return {
         ...existing,
+        source: {
+          ...existing.source,
+          url: `/s/${params.surgeryId}`,
+        },
         matchedSymptomNames: [],
         fallbackUsed: true,
         fallbackReason: 'No meaningful tokens extracted from prompt',
@@ -553,6 +557,10 @@ async function resolveSignpostingToolkitAdvice(params: {
       console.log(`[Editorial AI] No symptom matches (searched ${allSymptoms.length} symptoms, tokens: [${promptTokens.join(', ')}]), using static toolkit fallback`)
       return {
         ...existing,
+        source: {
+          ...existing.source,
+          url: `/s/${params.surgeryId}`,
+        },
         matchedSymptomNames: [],
         fallbackUsed: true,
         fallbackReason: `No symptoms matched prompt tokens [${promptTokens.join(', ')}] across ${allSymptoms.length} symptoms`,
@@ -611,7 +619,7 @@ USAGE RULES:
 
     const source = {
       title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
-      url: null as string | null, // DB-driven context has no single URL - symptoms are practice-specific
+      url: `/s/${params.surgeryId}`,
       publisher: 'Signposting Toolkit',
     }
 
@@ -635,6 +643,10 @@ USAGE RULES:
     })
     return {
       ...existing,
+      source: {
+        ...existing.source,
+        url: `/s/${params.surgeryId}`,
+      },
       matchedSymptomNames: [],
       fallbackUsed: true,
       fallbackReason: `Error during symptom matching: ${error instanceof Error ? error.message : String(error)}`,
@@ -900,13 +912,13 @@ export async function generateEditorialBatch(params: {
   let validationOverriddenIssues: Array<{ code: string; message: string; cardTitle?: string }> | undefined
 
   // Post-process ADMIN cards before safety validation:
-  // 1. Force sources[0] to be Signposting Toolkit (internal) with url null
+  // 1. Force sources[0] to be Signposting Toolkit (internal) with URL to surgery's signposting page
   // 2. Normalize empty/whitespace URLs to null
   // 3. Check for forbidden "diagnose/diagnosis" wording
   if (params.targetRole === 'ADMIN') {
     const toolkitSource = {
       title: 'Signposting Toolkit (internal)',
-      url: null as string | null,
+      url: `/s/${params.surgeryId}`,
       publisher: 'Signposting Toolkit',
     }
 
@@ -920,9 +932,9 @@ export async function generateEditorialBatch(params: {
         url: source.url && source.url.trim() ? source.url.trim() : null,
       }))
 
-      // Force sources[0] to be Signposting Toolkit (internal) with url null
+      // Force sources[0] to be Signposting Toolkit (internal) with URL to surgery's signposting page
       const firstIsToolkit =
-        normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === null
+        normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === toolkitSource.url
       if (!firstIsToolkit) {
         normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
       }
@@ -1041,7 +1053,7 @@ export async function generateEditorialBatch(params: {
             url: source.url && source.url.trim() ? source.url.trim() : null,
           }))
           const firstIsToolkit =
-            normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === null
+            normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === toolkitSource.url
           if (!firstIsToolkit) {
             normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
           }
