@@ -638,7 +638,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     }))}
                     sources={cardForm.sources.filter((s) => s.title?.trim()).map((s) => ({
                       title: s.title,
-                      url: s.url || '#',
+                      url: s.url || null,
                       publisher: s.publisher,
                     }))}
                     reviewByDate={cardForm.reviewByDate || null}

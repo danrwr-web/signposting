@@ -11,7 +11,7 @@ type Interaction = {
   options: string[]
 }
 
-type Source = { title: string; url: string; org?: string; publisher?: string }
+type Source = { title: string; url: string | null; org?: string; publisher?: string }
 
 interface LearningCardPreviewProps {
   title: string
@@ -104,13 +104,22 @@ export default function LearningCardPreview({
           <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 text-sm text-slate-600">
             <p className="font-semibold text-slate-700">Sources</p>
             <ul className="mt-2 space-y-1">
-              {sources.map((s, i) => (
-                <li key={i}>
-                  <a href={s.url} target="_blank" rel="noreferrer noopener" className="text-nhs-blue hover:underline">
-                    {s.title} ({s.org ?? s.publisher ?? 'UK source'})
-                  </a>
-                </li>
-              ))}
+              {sources.map((s, i) => {
+                const hasValidUrl = s.url && s.url !== '#' && s.url.trim() !== ''
+                return (
+                  <li key={i}>
+                    {hasValidUrl ? (
+                      <a href={s.url!} target="_blank" rel="noreferrer noopener" className="text-nhs-blue hover:underline">
+                        {s.title} ({s.org ?? s.publisher ?? 'UK source'})
+                      </a>
+                    ) : (
+                      <span className="text-slate-600">
+                        {s.title} ({s.org ?? s.publisher ?? 'UK source'})
+                      </span>
+                    )}
+                  </li>
+                )
+              })}
             </ul>
             {reviewByDate && <p className="mt-2 text-xs text-slate-500">Review due: {reviewByDate}</p>}
           </div>

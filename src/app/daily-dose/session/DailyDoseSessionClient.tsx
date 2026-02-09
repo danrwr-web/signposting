@@ -625,18 +625,27 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                   <div className="mt-4 border-t border-slate-200 pt-3">
                     <p className="mb-2 text-xs font-semibold text-slate-500">Sources</p>
                     <ul className="space-y-1 text-xs text-slate-600">
-                      {questionCard.sources.map((source) => (
-                        <li key={source.url}>
-                          <a
-                            href={source.url}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="text-nhs-blue underline-offset-2 hover:underline"
-                          >
-                            {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
-                          </a>
-                        </li>
-                      ))}
+                      {questionCard.sources.map((source, index) => {
+                        const hasValidUrl = source.url && source.url !== '#' && source.url.trim() !== ''
+                        return (
+                          <li key={source.url || `source-${index}`}>
+                            {hasValidUrl ? (
+                              <a
+                                href={source.url!}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="text-nhs-blue underline-offset-2 hover:underline"
+                              >
+                                {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
+                              </a>
+                            ) : (
+                              <span className="text-slate-600">
+                                {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
+                              </span>
+                            )}
+                          </li>
+                        )
+                      })}
                     </ul>
                   </div>
                 )}
