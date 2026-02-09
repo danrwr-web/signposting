@@ -47,15 +47,10 @@ type QuestionResult = {
 }
 
 type Step =
-  | { type: 'intro'; title: string; headerText: string; cardProgress?: { current: number; total: number } }
-  | {
-      type: 'content'
-      block: DailyDoseContentBlock
-      index: number
-      cardProgress?: { current: number; total: number }
-    }
   | {
       type: 'question'
+      cardTitle: string
+      headerText: string
       prompt: string
       options: string[]
       key: string
@@ -63,6 +58,7 @@ type Step =
       source: 'interaction' | 'content'
       cardProgress?: { current: number; total: number }
       questionId?: string
+      cardId: string
     }
   | {
       type: 'feedback'
@@ -70,13 +66,12 @@ type Step =
       correct: boolean
       rationale: string
       key: string
+      cardId: string
+      cardProgress?: { current: number; total: number }
+      hasAdditionalContent: boolean
     }
   | {
-      type: 'reveal'
-      text: string
-    }
-  | {
-      type: 'sources'
+      type: 'additionalContent'
       card: CoreCard
       cardProgress?: { current: number; total: number }
     }
@@ -173,10 +168,14 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
       const headerText = topicLabel ? `${roleLabel} · ${topicLabel}` : roleLabel
       const cardProgress = { current: cardIndex + 1, total: totalCards }
 
-      // Card intro
-      out.push({ type: 'intro', title: card.title, headerText, cardProgress })
+      // Collect additional content blocks (for View 3 - only shown if they exist)
+      const additionalContentBlocks = card.contentBlocks.filter(
+        (block) =>
+          (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout' || block.type === 'steps' || block.type === 'do-dont' || block.type === 'reveal') &&
+          block.type !== 'question'
+      )
 
-      // Embedded interactions (questions within the card)
+      // Embedded interactions (questions within the card) - View 1: Title + Question
       const interactions = card.interactions ?? []
       for (let i = 0; i < interactions.length; i++) {
         const interaction = interactions[i]
@@ -190,6 +189,8 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         })
         out.push({
           type: 'question',
+          cardTitle: card.title,
+          headerText,
           prompt: interaction.question,
           options: interaction.options,
           key,
@@ -197,16 +198,17 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
           source: 'interaction',
           cardProgress,
           questionId,
+          cardId: card.id,
         })
       }
 
-      // Content blocks
-      for (let i = 0; i < card.contentBlocks.length; i++) {
-        const block = card.contentBlocks[i]
-        if (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout' || block.type === 'steps' || block.type === 'do-dont') {
-          out.push({ type: 'content', block, index: i, cardProgress })
-        } else if (block.type === 'question') {
-          const key = `embed:${card.id}:content:${i}`
+      // Content blocks with questions - View 1: Title + Question
+      const contentQuestions = card.contentBlocks.filter((b) => b.type === 'question')
+      for (let i = 0; i < contentQuestions.length; i++) {
+        const block = contentQuestions[i]
+        if (block.type === 'question') {
+          const originalIndex = card.contentBlocks.indexOf(block)
+          const key = `embed:${card.id}:content:${originalIndex}`
           // Generate questionId for tracking
           const questionId = getQuestionId({
             prompt: block.prompt,
@@ -216,21 +218,36 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
           })
           out.push({
             type: 'question',
+            cardTitle: card.title,
+            headerText,
             prompt: block.prompt,
             options: block.options,
             key,
-            blockIndex: i,
+            blockIndex: originalIndex,
             source: 'content',
             cardProgress,
             questionId,
+            cardId: card.id,
           })
-        } else if (block.type === 'reveal') {
-          out.push({ type: 'reveal', text: block.text })
         }
       }
-
-      // Sources step (for flag button and navigation) - sources themselves are shown on answer pages
-      out.push({ type: 'sources', card, cardProgress })
+      
+      // After all questions for this card, add additional content if it exists (View 3)
+      const totalQuestions = interactions.length + contentQuestions.length
+      if (totalQuestions > 0 && additionalContentBlocks.length > 0) {
+        out.push({
+          type: 'additionalContent',
+          card,
+          cardProgress,
+        })
+      } else if (totalQuestions === 0 && additionalContentBlocks.length > 0) {
+        // If card has no questions but has additional content, show it
+        out.push({
+          type: 'additionalContent',
+          card,
+          cardProgress,
+        })
+      }
     }
 
     // 3. Session-end quiz
@@ -303,6 +320,9 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         rationale: result.rationale,
       },
     }))
+
+    // Auto-advance to feedback view (next step)
+    // The rendering logic will show feedback when questionResults[key] exists
   }
 
   const handleQuizAnswer = async (question: DailyDoseQuizQuestion, answer: string) => {
@@ -449,13 +469,16 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     const cards = session.sessionCards || (session.coreCard ? [session.coreCard] : [])
     if (cards.length === 0) return null
     
-    // Look backwards from current stepIndex for intro step
+    // Look backwards from current stepIndex for question step with cardId
     for (let i = Math.min(stepIndex, steps.length - 1); i >= 0; i--) {
       const step = steps[i]
-      if (step && step.type === 'intro' && 'card' in step && step.card) {
-        return step.card
+      if (step && step.type === 'question' && 'cardId' in step) {
+        return cards.find((c) => c.id === step.cardId) || null
       }
-      if (step && step.type === 'sources' && 'card' in step && step.card) {
+      if (step && step.type === 'feedback' && 'cardId' in step) {
+        return cards.find((c) => c.id === step.cardId) || null
+      }
+      if (step && step.type === 'additionalContent' && 'card' in step) {
         return step.card
       }
     }
@@ -464,12 +487,6 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     return cards[0] || null
   }, [session, steps, stepIndex])
 
-  const allEmbeddedAnswered = useMemo(() => {
-    if (!currentCard) return false
-    const embeddedCount = (currentCard.interactions ?? []).length + currentCard.contentBlocks.filter((b) => b.type === 'question').length
-    const answeredCount = Object.keys(questionResults).filter((k) => k.startsWith(`embed:${currentCard.id}:`)).length
-    return embeddedCount === answeredCount
-  }, [currentCard, questionResults])
 
   // NOW we can do conditional returns
   if (loading) {
@@ -537,7 +554,186 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     if (!currentStep) return null
 
     switch (currentStep.type) {
-      case 'intro': {
+      case 'additionalContent': {
+        const card = currentStep.card
+        const additionalBlocks = card.contentBlocks.filter(
+          (block) =>
+            (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout' || block.type === 'steps' || block.type === 'do-dont' || block.type === 'reveal') &&
+            block.type !== 'question'
+        )
+        
+        const isLastCard = currentStep.cardProgress?.current === currentStep.cardProgress?.total
+        const hasQuiz = session.quizQuestions.length > 0
+        
+        return (
+          <div className="flex h-full flex-col justify-between p-6">
+            <div className="space-y-4">
+              {additionalBlocks.map((block, i) => {
+                if (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout') {
+                  return (
+                    <div
+                      key={i}
+                      className={`rounded-lg border p-4 ${block.type === 'callout' ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200 bg-white'}`}
+                    >
+                      <p className="text-slate-700">{block.text}</p>
+                    </div>
+                  )
+                } else if (block.type === 'steps' || block.type === 'do-dont') {
+                  return (
+                    <div key={i} className="rounded-lg border border-slate-200 bg-white p-4">
+                      <ul className="space-y-2 text-slate-700">
+                        {block.items.map((item, j) => (
+                          <li key={j} className="flex gap-2">
+                            <span className="text-nhs-blue">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )
+                } else if (block.type === 'reveal') {
+                  return (
+                    <div key={i} className="rounded-lg border border-slate-200 bg-white p-4">
+                      <p className="text-slate-700">{block.text}</p>
+                    </div>
+                  )
+                }
+                return null
+              })}
+            </div>
+            <div className="mt-4 space-y-3">
+              {hasQuiz ? (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
+                >
+                  Continue to quiz
+                </button>
+              ) : isLastCard ? (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={handleComplete}
+                  className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
+                >
+                  {saving ? 'Saving…' : 'Finish session'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
+                >
+                  Next card
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleFlag}
+                className="w-full text-xs font-semibold text-nhs-blue hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue rounded"
+              >
+                Flag this card for review
+              </button>
+              {flagMessage && <p className="text-xs text-slate-500 text-center">{flagMessage}</p>}
+            </div>
+          </div>
+        )
+      }
+
+      case 'question': {
+        const result = questionResults[currentStep.key]
+        
+        // View 2: Show feedback if answer has been submitted
+        if (result) {
+          const questionCard = currentCard
+          // Check if next step is additionalContent for this card
+          const nextStep = steps[stepIndex + 1]
+          const hasAdditionalContent = nextStep?.type === 'additionalContent' && 
+            nextStep.card?.id === currentStep.cardId
+          const isLastQuestionForCard = !steps.slice(stepIndex + 1).some(
+            (s) => s.type === 'question' && 'cardId' in s && s.cardId === currentStep.cardId
+          )
+          const isLastCard = currentStep.cardProgress?.current === currentStep.cardProgress?.total
+          const hasQuiz = session.quizQuestions.length > 0
+          
+          return (
+            <div className="flex h-full flex-col justify-between p-6">
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs text-slate-500">{currentStep.headerText}</p>
+                  {currentStep.cardProgress && (
+                    <p className="text-xs text-slate-500">
+                      Card {currentStep.cardProgress.current} of {currentStep.cardProgress.total}
+                    </p>
+                  )}
+                </div>
+                <h1 className="mb-4 text-xl font-bold leading-tight text-nhs-dark-blue">{currentStep.cardTitle}</h1>
+                
+                <p className="text-sm font-semibold text-slate-700">{currentStep.prompt}</p>
+                <div className={`mt-4 rounded-lg p-4 ${result.correct ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-100'}`}>
+                  <p className={`text-sm ${result.correct ? 'text-emerald-800 font-medium' : 'text-slate-600'}`}>
+                    {result.correct ? '✓ Correct.' : 'Not quite.'} {result.rationale}
+                  </p>
+                </div>
+                
+                {questionCard && questionCard.sources && questionCard.sources.length > 0 && (
+                  <div className="mt-3 border-t border-slate-200 pt-2">
+                    <p className="mb-1 text-[10px] font-medium text-slate-400 uppercase tracking-wide">Sources</p>
+                    <ul className="space-y-0.5 text-[10px] text-slate-500">
+                      {questionCard.sources.map((source, index) => {
+                        const hasValidUrl = source.url && source.url !== '#' && source.url.trim() !== ''
+                        return (
+                          <li key={source.url || `source-${index}`}>
+                            {hasValidUrl ? (
+                              <a
+                                href={source.url!}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                className="text-nhs-blue underline-offset-1 hover:underline"
+                              >
+                                {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
+                              </a>
+                            ) : (
+                              <span className="text-slate-500">
+                                {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
+                              </span>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 space-y-3">
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
+                >
+                  {hasAdditionalContent
+                    ? 'Continue'
+                    : isLastQuestionForCard && isLastCard && !hasQuiz
+                    ? 'Finish session'
+                    : isLastQuestionForCard
+                    ? 'Next card'
+                    : 'Next question'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFlag}
+                  className="w-full text-xs font-semibold text-nhs-blue hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue rounded"
+                >
+                  Flag this card for review
+                </button>
+                {flagMessage && <p className="text-xs text-slate-500 text-center">{flagMessage}</p>}
+              </div>
+            </div>
+          )
+        }
+        
+        // View 1: Show title + question + answers
         return (
           <div className="flex h-full flex-col justify-between p-6">
             <div>
@@ -549,126 +745,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                   </p>
                 )}
               </div>
-              <h1 className="mt-2 text-2xl font-bold leading-tight text-nhs-dark-blue">{currentStep.title}</h1>
-            </div>
-            <button
-              type="button"
-              onClick={goNext}
-              className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-            >
-              Continue
-            </button>
-          </div>
-        )
-      }
-
-      case 'content': {
-        const block = currentStep.block
-        let content: React.ReactNode
-        if (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout') {
-          content = <p className="text-slate-700">{block.text}</p>
-        } else if (block.type === 'steps' || block.type === 'do-dont') {
-          content = (
-            <ul className="space-y-2 text-slate-700">
-              {block.items.map((item, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-nhs-blue">•</span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          )
-        } else {
-          content = null
-        }
-        return (
-          <div className="flex h-full flex-col justify-between p-6">
-            <div className={`rounded-lg border p-4 ${block.type === 'callout' ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200 bg-white'}`}>
-              {content}
-            </div>
-            <button
-              type="button"
-              onClick={goNext}
-              className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-            >
-              Continue
-            </button>
-          </div>
-        )
-      }
-
-      case 'question': {
-        const result = questionResults[currentStep.key]
-        if (result) {
-          // Get the card for this question to show sources
-          const questionCard = currentCard || (() => {
-            // Fallback: find card from steps
-            for (let i = stepIndex; i >= 0; i--) {
-              const step = steps[i]
-              if (step && step.type === 'intro' && 'card' in step && step.card) {
-                return step.card
-              }
-            }
-            return null
-          })()
-          
-          return (
-            <div className="flex h-full flex-col justify-between p-6">
-              <div>
-                <p className="text-sm font-semibold text-slate-700">{currentStep.prompt}</p>
-                <div className="mt-4 rounded-lg bg-slate-100 p-4">
-                  <p className="text-sm text-slate-600">
-                    {result.correct ? 'Correct.' : 'Not quite.'} {result.rationale}
-                  </p>
-                </div>
-                {questionCard && questionCard.sources && questionCard.sources.length > 0 && (
-                  <div className="mt-4 border-t border-slate-200 pt-3">
-                    <p className="mb-2 text-xs font-semibold text-slate-500">Sources</p>
-                    <ul className="space-y-1 text-xs text-slate-600">
-                      {questionCard.sources.map((source, index) => {
-                        const hasValidUrl = source.url && source.url !== '#' && source.url.trim() !== ''
-                        return (
-                          <li key={source.url || `source-${index}`}>
-                            {hasValidUrl ? (
-                              <a
-                                href={source.url!}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className="text-nhs-blue underline-offset-2 hover:underline"
-                              >
-                                {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
-                              </a>
-                            ) : (
-                              <span className="text-slate-600">
-                                {source.title} {source.org || source.publisher ? `(${source.org ?? source.publisher})` : ''}
-                              </span>
-                            )}
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={goNext}
-                className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-              >
-                Continue
-              </button>
-            </div>
-          )
-        }
-        
-        // Extract cardId from the step key or use currentCard
-        const cardId = currentStep.key.includes(':') 
-          ? currentStep.key.split(':')[1] 
-          : (currentCard?.id || '')
-        
-        return (
-          <div className="flex h-full flex-col justify-between p-6">
-            <div>
+              <h1 className="mb-4 text-xl font-bold leading-tight text-nhs-dark-blue">{currentStep.cardTitle}</h1>
               <p className="text-sm font-semibold text-slate-700">{currentStep.prompt}</p>
               <div className="mt-4 space-y-2">
                 {currentStep.options.map((option) => (
@@ -677,14 +754,14 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                     label={option}
                     onClick={async () => {
                       await handleAnswer({
-                        cardId,
+                        cardId: currentStep.cardId,
                         blockIndex: currentStep.blockIndex,
                         answer: option,
                         keyPrefix: 'embed',
                         source: currentStep.source,
                       }).catch((err) => setError(err instanceof Error ? err.message : 'Unable to record answer'))
                     }}
-                    disabled={false}
+                    disabled={!!questionResults[currentStep.key]}
                   />
                 ))}
               </div>
@@ -693,64 +770,6 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         )
       }
 
-      case 'reveal': {
-        return (
-          <div className="flex h-full flex-col justify-between p-6">
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
-              {allEmbeddedAnswered ? (
-                <p className="text-slate-700">{currentStep.text}</p>
-              ) : (
-                <p className="text-slate-500">Answer the questions above to reveal this explanation.</p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={goNext}
-              className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-            >
-              Continue
-            </button>
-          </div>
-        )
-      }
-
-      case 'sources': {
-        // Sources are now shown on answer pages, but we still need this step for flag button and navigation
-        const c = currentStep.card
-        const hasQuiz = session.quizQuestions.length > 0
-        return (
-          <div className="flex h-full flex-col justify-between p-6">
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={handleFlag}
-                className="text-xs font-semibold text-nhs-blue hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue rounded"
-              >
-                Flag this card for review
-              </button>
-              {flagMessage && <p className="text-xs text-slate-500">{flagMessage}</p>}
-            </div>
-            {hasQuiz ? (
-              <button
-                type="button"
-                onClick={goNext}
-                className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-              >
-                Continue to quiz
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={handleComplete}
-                className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-              >
-                {saving ? 'Saving…' : 'Finish session'}
-              </button>
-            )}
-          </div>
-        )
-      }
 
       case 'quiz': {
         const q = currentStep.question
@@ -762,15 +781,15 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
           return (
             <div className="flex h-full flex-col justify-between p-6">
               <div>
-              {currentStep.quizProgress && (
+                {currentStep.quizProgress && (
                 <p className="mb-2 text-xs text-slate-500">
                   {currentStep.isWarmup ? 'Warm-up' : 'Quiz'} Q {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
                 </p>
               )}
                 <p className="text-sm font-semibold text-slate-700">{q.prompt}</p>
-                <div className="mt-4 rounded-lg bg-slate-100 p-4">
-                  <p className="text-sm text-slate-600">
-                    {result.correct ? 'Correct.' : 'Not quite.'} {result.rationale}
+                <div className={`mt-4 rounded-lg p-4 ${result.correct ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-100'}`}>
+                  <p className={`text-sm ${result.correct ? 'text-emerald-800 font-medium' : 'text-slate-600'}`}>
+                    {result.correct ? '✓ Correct.' : 'Not quite.'} {result.rationale}
                   </p>
                 </div>
               </div>
@@ -781,7 +800,9 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                     if (currentQuizIndex > 0) {
                       setStepIndex(quizStart + currentQuizIndex - 1)
                     } else {
-                      setStepIndex(steps.findIndex((s) => s.type === 'sources'))
+                      // Go back to last card's additional content or last question
+                      const lastCardStepIndex = steps.findLastIndex((s) => s.type === 'question' || s.type === 'additionalContent')
+                      setStepIndex(Math.max(0, lastCardStepIndex))
                     }
                   }}
                   className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue"
