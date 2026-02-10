@@ -118,14 +118,24 @@ export default function SurgeryFiltersHeader({
               />
             </div>
           </div>
-          <Link
-            href="/daily-dose"
-            className="flex w-full flex-col justify-center rounded-xl border border-nhs-blue bg-white px-4 py-3 text-left shadow-sm transition-colors hover:bg-nhs-light-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 lg:w-60"
-            aria-label="Daily Dose, try the learning app"
-          >
-            <span className="text-sm font-semibold text-nhs-dark-blue">Daily Dose</span>
-            <span className="text-xs text-nhs-grey">Try the learning app.</span>
-          </Link>
+          <div className="flex flex-col gap-3 lg:flex-row lg:w-auto">
+            <Link
+              href="/daily-dose"
+              className="flex w-full flex-col justify-center rounded-xl border border-nhs-blue bg-white px-4 py-3 text-left shadow-sm transition-colors hover:bg-nhs-light-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 lg:w-60"
+              aria-label="Daily Dose, try the learning app"
+            >
+              <span className="text-sm font-semibold text-nhs-dark-blue">Daily Dose</span>
+              <span className="text-xs text-nhs-grey">Try the learning app.</span>
+            </Link>
+            <Link
+              href={currentSurgeryId ? `/s/${currentSurgeryId}/clinical-tools` : '/clinical-tools'}
+              className="flex w-full flex-col justify-center rounded-xl border border-nhs-blue bg-white px-4 py-3 text-left shadow-sm transition-colors hover:bg-nhs-light-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 lg:w-60"
+              aria-label="Clinical tools for GPs and Nurses"
+            >
+              <span className="text-sm font-semibold text-nhs-dark-blue">Clinical tools for GPs and Nurses</span>
+              <span className="text-xs text-nhs-grey">Clinical decision aids.</span>
+            </Link>
+          </div>
         </div>
 
         {commonReasonsItems && commonReasonsItems.length > 0 && (
