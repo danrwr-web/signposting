@@ -35,5 +35,5 @@ export default async function DailyDoseInsightsPage({ params }: DailyDoseInsight
     redirect('/unauthorized')
   }
 
-  return <DailyDoseInsightsClient surgeryId={surgeryId} />
+  return <DailyDoseInsightsClient surgeryId={surgeryId} isSuperuser={isSuperuser} />
 }

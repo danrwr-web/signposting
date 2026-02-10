@@ -38,5 +38,7 @@ export default async function DailyDoseInsightsPage({ searchParams }: InsightsPa
     redirect('/unauthorized')
   }
 
-  return <DailyDoseInsightsClient surgeryId={surgeryId} />
+  const isSuperuser = user.globalRole === 'SUPERUSER'
+
+  return <DailyDoseInsightsClient surgeryId={surgeryId} isSuperuser={isSuperuser} />
 }

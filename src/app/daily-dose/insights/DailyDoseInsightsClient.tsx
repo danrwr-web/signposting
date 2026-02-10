@@ -36,7 +36,7 @@ type InsightsResponse = {
   commonlyMissedTopics: MissedTopic[]
 }
 
-export default function DailyDoseInsightsClient({ surgeryId }: { surgeryId: string }) {
+export default function DailyDoseInsightsClient({ surgeryId, isSuperuser = false }: { surgeryId: string; isSuperuser?: boolean }) {
   const [insights, setInsights] = useState<InsightsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -115,7 +115,9 @@ export default function DailyDoseInsightsClient({ surgeryId }: { surgeryId: stri
       <div className="flex h-full flex-col overflow-auto p-6">
         <h1 className="text-xl font-bold text-nhs-dark-blue">Daily Dose insights</h1>
         <p className="mt-2 text-sm text-slate-600">
-          Metrics are hidden when fewer than {insights.minN} users are in a group.
+          {isSuperuser 
+            ? `Metrics are normally hidden when fewer than ${insights.minN} users are in a group. As a superuser, you can see all data.`
+            : `Metrics are hidden when fewer than ${insights.minN} users are in a group.`}
         </p>
 
         <section className="mt-6">
@@ -124,12 +126,21 @@ export default function DailyDoseInsightsClient({ surgeryId }: { surgeryId: stri
             {insights.engagementByRole.map((entry) => (
               <div key={entry.role} className="rounded-lg border border-slate-200 p-3 text-sm">
                 <p className="font-semibold text-slate-700">{entry.role}</p>
-                {entry.suppressed ? (
+                {entry.suppressed && !isSuperuser ? (
                   <p className="mt-2 text-xs text-slate-500">Hidden due to low participant numbers.</p>
                 ) : (
                   <div className="mt-2 space-y-1 text-slate-600">
-                    <p>Active (7 days): {entry.activeUsers7}</p>
-                    <p>Active (30 days): {entry.activeUsers30}</p>
+                    {entry.suppressed && isSuperuser ? (
+                      <>
+                        <p>Active (7 days): {entry.activeUsers7 ?? 'N/A'} <span className="text-xs text-slate-500">(below threshold, {entry.userCount} users)</span></p>
+                        <p>Active (30 days): {entry.activeUsers30 ?? 'N/A'} <span className="text-xs text-slate-500">(below threshold, {entry.userCount} users)</span></p>
+                      </>
+                    ) : (
+                      <>
+                        <p>Active (7 days): {entry.activeUsers7}</p>
+                        <p>Active (30 days): {entry.activeUsers30}</p>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -144,18 +155,24 @@ export default function DailyDoseInsightsClient({ surgeryId }: { surgeryId: stri
             return (
               <div key={role} className="mt-4">
                 <h3 className="text-sm font-semibold text-slate-700">{role}</h3>
-                {suppressed ? (
+                {suppressed && !isSuperuser ? (
                   <p className="mt-2 text-xs text-slate-500">Hidden due to low participant numbers.</p>
                 ) : (
                   <div className="mt-2 space-y-2">
                     {items
-                      .filter((item) => !item.suppressed)
+                      .filter((item) => !item.suppressed || isSuperuser)
                       .map((item) => (
                         <div key={item.topicId} className="rounded-lg border border-slate-200 p-3 text-sm">
                           <p className="font-semibold">{item.topicName}</p>
-                          <p className="text-xs text-slate-500">
-                            Accuracy {item.accuracy}% • {item.questionCount} questions
-                          </p>
+                          {item.suppressed && isSuperuser ? (
+                            <p className="text-xs text-slate-500">
+                              Below threshold ({item.userCount} users) • Accuracy and question count not available
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-500">
+                              Accuracy {item.accuracy}% • {item.questionCount} questions
+                            </p>
+                          )}
                         </div>
                       ))}
                   </div>
