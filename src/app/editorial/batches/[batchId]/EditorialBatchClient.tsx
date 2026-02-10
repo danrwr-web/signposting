@@ -547,8 +547,8 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+      <div className="w-full shrink-0 rounded-lg border border-slate-200 bg-white p-6 lg:w-1/3 lg:max-w-[33%]">
         <h1 className="text-2xl font-bold text-nhs-dark-blue">Generation batch</h1>
         <p className="mt-2 text-sm text-slate-600">{batch.promptText}</p>
         <p className="mt-1 text-xs text-slate-500">
@@ -562,7 +562,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[300px,1fr]">
+      <div className="min-w-0 flex-1 grid gap-6 lg:grid-cols-[300px,1fr]">
         <aside className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-600">Drafts</h2>
           <div className="space-y-2">
