@@ -55,6 +55,7 @@ export default function EditorialSettingsClient() {
   const [editingTagName, setEditingTagName] = useState('')
   const [tagSaving, setTagSaving] = useState(false)
   const [tagDeleting, setTagDeleting] = useState<string | null>(null)
+  const [tagSeeding, setTagSeeding] = useState(false)
 
   const activeTemplate = templates.find((t) => t.role === activeRole)
   const isModified = activeTemplate ? editedTemplate !== activeTemplate.template : false
@@ -194,6 +195,34 @@ export default function EditorialSettingsClient() {
       fetchTags()
     }
   }, [activeTab, fetchTags])
+
+  const handleSeedDefaultTags = async () => {
+    setTagSeeding(true)
+    setError(null)
+    setSuccessMessage(null)
+    try {
+      const response = await fetch('/api/editorial/settings/tags/seed', { method: 'POST' })
+      const payload = await response.json().catch(() => ({
+        ok: false,
+        error: { message: 'Failed to parse response' },
+      }))
+      if (!response.ok || !payload.ok) {
+        setError(payload?.error?.message || 'Failed to load default tags')
+        return
+      }
+      const created = payload.created ?? 0
+      setSuccessMessage(
+        created === 0
+          ? 'Default tag library is already loaded.'
+          : `${created} tag(s) added. Default tag library is now available.`,
+      )
+      await fetchTags()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setTagSeeding(false)
+    }
+  }
 
   const handleCreateTag = async () => {
     if (!newTagName.trim()) return
@@ -542,6 +571,22 @@ export default function EditorialSettingsClient() {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* Load default tag library */}
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <h2 className="text-base font-semibold text-nhs-dark-blue mb-2">Default tag library</h2>
+                  <p className="text-sm text-slate-600 mb-3">
+                    Load the standard set of tags (body systems, clinical and operational domains). Only missing tags are added; existing tags are left unchanged.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSeedDefaultTags}
+                    disabled={tagSeeding}
+                    className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {tagSeeding ? 'Loading…' : 'Load default tag library'}
+                  </button>
+                </div>
+
                 {/* Add new tag */}
                 <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
                   <h2 className="text-base font-semibold text-nhs-dark-blue mb-3">Add new tag</h2>
