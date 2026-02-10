@@ -104,8 +104,10 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       const combined = JSON.stringify(card)
       const inferredRisk = inferRiskLevel(combined)
       const riskLevel = inferredRisk === 'HIGH' ? 'HIGH' : card.riskLevel
+      const cardNow = new Date()
       const reviewByDate = new Date(card.reviewByDate)
-      const reviewByDateValid = !Number.isNaN(reviewByDate.getTime())
+      const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > cardNow
+      const defaultReviewByDate = new Date(cardNow.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months (180 days) from now
 
       let normalizedSources = card.sources.map((source) => ({
         ...source,
@@ -139,7 +141,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
           estimatedTimeMinutes: card.estimatedTimeMinutes,
           riskLevel,
           needsSourcing,
-          reviewByDate: reviewByDateValid ? reviewByDate : null,
+          reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
           tags: [],
           status: 'DRAFT',
           createdBy: job.createdBy,

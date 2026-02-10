@@ -60,6 +60,15 @@ const roleOptions = [
   { value: 'ADMIN', label: 'Admin / Reception' },
 ]
 
+function getReviewStatus(reviewByDate: Date | null): 'overdue' | 'due-soon' | 'ok' | 'none' {
+  if (!reviewByDate) return 'none'
+  const now = new Date()
+  const daysUntilReview = Math.floor((reviewByDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  if (daysUntilReview < 0) return 'overdue'
+  if (daysUntilReview <= 30) return 'due-soon'
+  return 'ok'
+}
+
 export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string }) {
   const [topics, setTopics] = useState<Topic[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -67,6 +76,8 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'overdue' | 'due-soon' | 'ok'>('all')
+  const [sortBy, setSortBy] = useState<'default' | 'review-asc' | 'review-desc'>('default')
   const [topicForm, setTopicForm] = useState({
     name: '',
     roleScope: ['ADMIN'],
@@ -118,6 +129,41 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
   }, [surgeryId])
 
   const topicRoleScopeText = useMemo(() => topicForm.roleScope.join(', ') || 'None', [topicForm.roleScope])
+
+  const filteredCards = useMemo(() => {
+    let filtered = cards
+    if (reviewFilter !== 'all') {
+      filtered = filtered.filter((card) => {
+        if (!card.reviewByDate) return reviewFilter === 'ok'
+        const status = getReviewStatus(new Date(card.reviewByDate))
+        return status === reviewFilter
+      })
+    }
+    if (sortBy === 'review-asc') {
+      filtered = [...filtered].sort((a, b) => {
+        if (!a.reviewByDate) return 1
+        if (!b.reviewByDate) return -1
+        return new Date(a.reviewByDate).getTime() - new Date(b.reviewByDate).getTime()
+      })
+    } else if (sortBy === 'review-desc') {
+      filtered = [...filtered].sort((a, b) => {
+        if (!a.reviewByDate) return -1
+        if (!b.reviewByDate) return 1
+        return new Date(b.reviewByDate).getTime() - new Date(a.reviewByDate).getTime()
+      })
+    }
+    return filtered
+  }, [cards, reviewFilter, sortBy])
+
+  const reviewQueue = useMemo(() => {
+    const now = new Date()
+    return cards.filter((card) => {
+      if (!card.reviewByDate) return false
+      const reviewDate = new Date(card.reviewByDate)
+      const daysUntilReview = Math.floor((reviewDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      return daysUntilReview <= 30
+    })
+  }, [cards])
 
   const handleTopicSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -434,11 +480,46 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
 
       <section className="rounded-lg border border-slate-200 bg-white p-6">
         <h2 className="text-lg font-semibold text-nhs-dark-blue">Cards</h2>
+        <div className="mt-3 mb-4 flex flex-wrap gap-3">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-slate-700">Filter:</span>
+            <select
+              value={reviewFilter}
+              onChange={(e) => setReviewFilter(e.target.value as typeof reviewFilter)}
+              className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+            >
+              <option value="all">All cards</option>
+              <option value="overdue">Needs review (overdue)</option>
+              <option value="due-soon">Due soon (≤30 days)</option>
+              <option value="ok">Not due yet</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-slate-700">Sort:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="rounded-md border border-slate-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+            >
+              <option value="default">Default</option>
+              <option value="review-asc">Review date (earliest first)</option>
+              <option value="review-desc">Review date (latest first)</option>
+            </select>
+          </label>
+        </div>
         <div className="mt-3 grid gap-6 lg:grid-cols-[1.2fr,1fr]">
           <div className="space-y-3 text-sm text-slate-700">
-            {cards.length === 0 && <p className="text-slate-500">No cards created yet.</p>}
-            {cards.map((card) => (
-              <div key={card.id} className="rounded-md border border-slate-200 p-3">
+            {filteredCards.length === 0 && <p className="text-slate-500">No cards found.</p>}
+            {filteredCards.map((card) => {
+              const reviewStatus = getReviewStatus(card.reviewByDate ? new Date(card.reviewByDate) : null)
+              const statusClasses = {
+                overdue: 'border-red-300 bg-red-50',
+                'due-soon': 'border-amber-300 bg-amber-50',
+                ok: 'border-slate-200',
+                none: 'border-slate-200',
+              }
+              return (
+              <div key={card.id} className={`rounded-md border p-3 ${statusClasses[reviewStatus]}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3 flex-1">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -487,10 +568,28 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
                   </div>
                 </div>
                 {card.reviewByDate && (
-                  <p className="text-xs text-slate-500">Review by {new Date(card.reviewByDate).toLocaleDateString()}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <p className={`text-xs ${
+                      reviewStatus === 'overdue' ? 'text-red-700 font-semibold' :
+                      reviewStatus === 'due-soon' ? 'text-amber-700 font-semibold' :
+                      'text-slate-500'
+                    }`}>
+                      Review by {new Date(card.reviewByDate).toLocaleDateString()}
+                    </p>
+                    {reviewStatus === 'overdue' && (
+                      <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                        Overdue
+                      </span>
+                    )}
+                    {reviewStatus === 'due-soon' && (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                        Due soon
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-            ))}
+            )})}
           </div>
 
           <form onSubmit={saveCard} className="space-y-4 rounded-md border border-slate-200 p-4 text-sm">
@@ -580,9 +679,26 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
               <input
                 type="date"
                 value={cardForm.reviewByDate}
-                onChange={(event) => setCardForm((prev) => ({ ...prev, reviewByDate: event.target.value }))}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(event) => {
+                  const selectedDate = event.target.value
+                  setCardForm((prev) => ({ ...prev, reviewByDate: selectedDate }))
+                }}
                 className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
               />
+              {cardForm.reviewByDate && (() => {
+                const selectedDate = new Date(cardForm.reviewByDate)
+                const now = new Date()
+                const sixMonthsFromNow = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000)
+                if (selectedDate < sixMonthsFromNow) {
+                  return (
+                    <p className="mt-1 text-xs text-amber-600">
+                      Warning: Review date is less than 6 months away. Consider setting it further in the future.
+                    </p>
+                  )
+                }
+                return null
+              })()}
             </label>
 
             <label className="block">
@@ -911,6 +1027,74 @@ export default function DailyDoseAdminClient({ surgeryId }: { surgeryId: string 
             </button>
           </form>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-nhs-dark-blue">
+            Review Queue ({reviewQueue.length})
+          </h2>
+          <button
+            type="button"
+            onClick={async () => {
+              if (!confirm('This will update all cards with past review dates to 6 months from their creation date. Continue?')) {
+                return
+              }
+              setSaving(true)
+              setError(null)
+              try {
+                const response = await fetch(`/api/daily-dose/admin/migrate-review-dates?surgeryId=${surgeryId}`, {
+                  method: 'POST',
+                })
+                if (!response.ok) {
+                  const payload = await response.json().catch(() => ({}))
+                  throw new Error(payload?.error || 'Migration failed')
+                }
+                const result = await response.json()
+                alert(`Migration complete: ${result.updated} card(s) updated out of ${result.total} total.`)
+                loadData()
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Migration failed')
+              } finally {
+                setSaving(false)
+              }
+            }}
+            disabled={saving}
+            className="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Fix past review dates
+          </button>
+        </div>
+        {reviewQueue.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">No cards need review.</p>
+        ) : (
+          <ul className="mt-3 space-y-2 text-sm text-slate-700">
+            {reviewQueue.map((card) => {
+              const reviewDate = card.reviewByDate ? new Date(card.reviewByDate) : null
+              const status = getReviewStatus(reviewDate)
+              const isOverdue = status === 'overdue'
+              return (
+                <li key={card.id} className={`rounded-md border p-3 ${isOverdue ? 'border-red-300 bg-red-50' : 'border-amber-300 bg-amber-50'}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">{card.title}</p>
+                      <p className="text-xs text-slate-500">
+                        Review by {reviewDate?.toLocaleDateString()} • {isOverdue ? 'Overdue' : 'Due soon'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => editCard(card)}
+                      className="rounded-md border border-slate-200 px-2 py-1 text-xs hover:border-nhs-blue"
+                    >
+                      Review
+                    </button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </section>
 
       <section className="rounded-lg border border-slate-200 bg-white p-6">

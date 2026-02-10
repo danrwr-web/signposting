@@ -183,8 +183,10 @@ export async function POST(request: NextRequest) {
       const combined = JSON.stringify(card)
       const inferredRisk = inferRiskLevel(combined)
       const riskLevel = inferredRisk === 'HIGH' ? 'HIGH' : card.riskLevel
+      const now = new Date()
       const reviewByDate = new Date(card.reviewByDate)
-      const reviewByDateValid = !Number.isNaN(reviewByDate.getTime())
+      const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now
+      const defaultReviewByDate = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months (180 days) from now
       
       // Post-processing: Force ADMIN sources[0] to be deterministic
       let normalizedSources = card.sources.map((source) => ({
@@ -219,7 +221,7 @@ export async function POST(request: NextRequest) {
           estimatedTimeMinutes: card.estimatedTimeMinutes,
           riskLevel,
           needsSourcing,
-          reviewByDate: reviewByDateValid ? reviewByDate : null,
+          reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
           tags: [],
           status: 'DRAFT',
           createdBy: user.id,

@@ -157,7 +157,7 @@ const GENERATION_SCHEMA = `
       "tags": ["string"],
       "riskLevel": "LOW|MED|HIGH",
       "needsSourcing": true|false,
-      "reviewByDate": "YYYY-MM-DD",
+      "reviewByDate": "YYYY-MM-DD (must be a future date, typically 6 months from today)",
       "sources": [{ "title": "string", "url": "https://", "publisher": "string?", "accessedDate": "string?" }],
       "contentBlocks": [
         { "type": "text|callout", "text": "string" },
@@ -205,7 +205,7 @@ const VARIATION_SCHEMA = `
       "tags": ["string"],
       "riskLevel": "LOW|MED|HIGH",
       "needsSourcing": true|false,
-      "reviewByDate": "YYYY-MM-DD",
+      "reviewByDate": "YYYY-MM-DD (must be a future date, typically 6 months from today)",
       "sources": [{ "title": "string", "url": "https://", "publisher": "string?", "accessedDate": "string?" }],
       "contentBlocks": [
         { "type": "text|callout", "text": "string" },
@@ -337,6 +337,8 @@ ${formatAdminValidationIssues(params.validationIssues)}
   return `${toolkitSection}${validationSection}Create ${params.count} learning cards for ${params.targetRole} staff.
 Prompt: ${params.promptText}
 Interactive-first: ${params.interactiveFirst ? 'yes' : 'no'}
+
+IMPORTANT: reviewByDate must be a future date (YYYY-MM-DD format). Use a date approximately 6 months from today. Never use past dates.
 
 Return JSON using this schema:
 ${GENERATION_SCHEMA}
