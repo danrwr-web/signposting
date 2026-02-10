@@ -65,6 +65,12 @@ export async function runGenerationJob(jobId: string): Promise<void> {
   }
 
   try {
+    const availableTags = await prisma.dailyDoseTag.findMany({
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    })
+    const availableTagNames = availableTags.map((t) => t.name)
+
     const generated = await generateEditorialBatch({
       surgeryId: job.surgeryId,
       promptText: job.promptText,
@@ -75,6 +81,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       userId: job.createdBy ?? undefined,
       onAttempt: recordAttempt,
       returnDebugInfo: false,
+      availableTagNames: availableTagNames.length > 0 ? availableTagNames : undefined,
     })
 
     const topicId = await ensureEditorialTopic(job.surgeryId, resolvedRole)
@@ -100,6 +107,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       data: { batchId: batch.id },
     })
 
+    const allowedTagSet = new Set(availableTagNames)
     const cardCreates = generated.cards.slice(0, job.count).map((card) => {
       const combined = JSON.stringify(card)
       const inferredRisk = inferRiskLevel(combined)
@@ -108,6 +116,9 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       const reviewByDate = new Date(card.reviewByDate)
       const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > cardNow
       const defaultReviewByDate = new Date(cardNow.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months (180 days) from now
+      const cardTags = (Array.isArray(card.tags) ? card.tags : [])
+        .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSet.has(String(t).trim()))
+        .map((t: string) => t.trim())
 
       let normalizedSources = card.sources.map((source) => ({
         ...source,
@@ -142,7 +153,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
           riskLevel,
           needsSourcing,
           reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
-          tags: [],
+          tags: cardTags,
           status: 'DRAFT',
           createdBy: job.createdBy,
           generatedFrom: { type: 'prompt' },

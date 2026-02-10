@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { EditorialGenerateRequestZ } from '@/lib/schemas/editorial'
@@ -51,12 +52,19 @@ export async function POST(request: NextRequest) {
       requestedRole: parsed.targetRole,
     })
 
+    const availableTags = await prisma.dailyDoseTag.findMany({
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    })
+    const availableTagNames = availableTags.map((t) => t.name)
+
     const result = await buildEditorialPrompts({
       surgeryId,
       promptText: parsed.promptText,
       targetRole: resolvedRole,
       count: parsed.count,
       interactiveFirst: parsed.interactiveFirst,
+      availableTagNames: availableTagNames.length > 0 ? availableTagNames : undefined,
     })
 
     return NextResponse.json({

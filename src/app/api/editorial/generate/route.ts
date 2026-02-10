@@ -122,6 +122,12 @@ export async function POST(request: NextRequest) {
     }
 
     stage = 'toolkit_resolve'
+    const availableTags = await prisma.dailyDoseTag.findMany({
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    })
+    const availableTagNames = availableTags.map((t) => t.name)
+
     const generated = await generateEditorialBatch({
       surgeryId,
       promptText: parsed.promptText,
@@ -133,6 +139,7 @@ export async function POST(request: NextRequest) {
       onAttempt: recordAttempt,
       returnDebugInfo: debugEnabled,
       overrideValidation: isSuperuser && parsed.overrideValidation === true,
+      availableTagNames: availableTagNames.length > 0 ? availableTagNames : undefined,
       // Superuser-only: use custom prompts instead of the auto-constructed ones
       ...(isSuperuser && parsed.systemPromptOverride ? { systemPromptOverride: parsed.systemPromptOverride } : {}),
       ...(isSuperuser && parsed.userPromptOverride ? { userPromptOverride: parsed.userPromptOverride } : {}),
@@ -179,6 +186,7 @@ export async function POST(request: NextRequest) {
       data: { batchId: batch.id },
     })
 
+    const allowedTagSet = new Set(availableTagNames)
     const cardCreates = generated.cards.slice(0, parsed.count).map((card) => {
       const combined = JSON.stringify(card)
       const inferredRisk = inferRiskLevel(combined)
@@ -187,6 +195,9 @@ export async function POST(request: NextRequest) {
       const reviewByDate = new Date(card.reviewByDate)
       const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now
       const defaultReviewByDate = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months (180 days) from now
+      const cardTags = (Array.isArray(card.tags) ? card.tags : [])
+        .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSet.has(String(t).trim()))
+        .map((t: string) => t.trim())
       
       // Post-processing: Force ADMIN sources[0] to be deterministic
       let normalizedSources = card.sources.map((source) => ({
@@ -222,7 +233,7 @@ export async function POST(request: NextRequest) {
           riskLevel,
           needsSourcing,
           reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
-          tags: [],
+          tags: cardTags,
           status: 'DRAFT',
           createdBy: user.id,
           generatedFrom: { type: 'prompt' },

@@ -322,6 +322,7 @@ function buildUserPrompt(params: {
   toolkitContext?: string
   toolkitSource?: { title: string; url: string | null; publisher: string }
   validationIssues?: AdminValidationIssue[]
+  availableTagNames?: string[]
 }) {
   const toolkitSection =
     params.targetRole === 'ADMIN' ? formatToolkitSection(params.toolkitContext, params.toolkitSource) : ''
@@ -334,11 +335,18 @@ ${formatAdminValidationIssues(params.validationIssues)}
 `
       : ''
 
+  const tagsSection =
+    params.availableTagNames && params.availableTagNames.length > 0
+      ? `
+TAGS: For each card, set "tags" to an array of 1–4 tag names chosen ONLY from this list (use the exact strings): ${params.availableTagNames.join(', ')}. Pick tags that best match the card topic. If none fit well, use the closest 1–2. Do not invent tag names.
+
+`
+      : ''
+
   return `${toolkitSection}${validationSection}Create ${params.count} learning cards for ${params.targetRole} staff.
 Prompt: ${params.promptText}
 Interactive-first: ${params.interactiveFirst ? 'yes' : 'no'}
-
-IMPORTANT: reviewByDate must be a future date (YYYY-MM-DD format). Use a date approximately 6 months from today. Never use past dates.
+${tagsSection}IMPORTANT: reviewByDate must be a future date (YYYY-MM-DD format). Use a date approximately 6 months from today. Never use past dates.
 
 Return JSON using this schema:
 ${GENERATION_SCHEMA}
@@ -794,6 +802,7 @@ export async function buildEditorialPrompts(params: {
   targetRole: EditorialRole
   count: number
   interactiveFirst: boolean
+  availableTagNames?: string[]
 }) {
   const toolkit = await resolveSignpostingToolkitAdvice({
     surgeryId: params.surgeryId,
@@ -809,6 +818,7 @@ export async function buildEditorialPrompts(params: {
     interactiveFirst: params.interactiveFirst,
     toolkitContext: toolkit?.context,
     toolkitSource: toolkit?.source,
+    availableTagNames: params.availableTagNames,
   })
 
   const matchedSymptomNames: string[] = toolkit?.matchedSymptomNames || []
@@ -846,6 +856,7 @@ export async function generateEditorialBatch(params: {
   overrideValidation?: boolean // When true (superuser only), save cards even when safety validation fails
   systemPromptOverride?: string // When provided (superuser only), use this instead of the constructed system prompt
   userPromptOverride?: string // When provided (superuser only), use this instead of the constructed user prompt
+  availableTagNames?: string[]
 }) {
   const traceId = params.traceId || randomUUID()
   let attemptIndex = 0
@@ -856,8 +867,8 @@ export async function generateEditorialBatch(params: {
     promptText: params.promptText,
     targetRole: params.targetRole,
     count: params.count,
-    tags: params.tags,
     interactiveFirst: params.interactiveFirst,
+    availableTagNames: params.availableTagNames,
   })
 
   const toolkit = built.toolkitMeta
