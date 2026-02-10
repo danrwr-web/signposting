@@ -104,6 +104,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [editingTags, setEditingTags] = useState<string[]>([])
   const [isEditingTags, setIsEditingTags] = useState(false)
   const [updatingTags, setUpdatingTags] = useState(false)
+  const [reviewFrameIndex, setReviewFrameIndex] = useState(0)
 
   const [cardForm, setCardForm] = useState({
     id: '',
@@ -190,8 +191,10 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     if (!activeCard) {
       setIsEditingTags(false)
       setEditingTags([])
+      setReviewFrameIndex(0)
       return
     }
+    setReviewFrameIndex(0)
     const cardTags = Array.isArray(activeCard.tags) ? activeCard.tags : []
     setCardForm({
       id: activeCard.id,
@@ -624,7 +627,17 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
           ) : activeCard ? (
             <>
               <div className="flex flex-col lg:flex-row gap-6 items-start">
-                <div className="flex-1 flex justify-center">
+                <div className="flex-1 flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setReviewFrameIndex((i) => Math.max(0, i - 1))}
+                    disabled={reviewFrameIndex === 0}
+                    className="flex flex-col items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200"
+                    aria-label="Previous frame"
+                  >
+                    <span className="text-lg leading-none" aria-hidden>←</span>
+                    <span className="text-[10px] font-medium">Back</span>
+                  </button>
                   <PhoneFrame
                   alignActions={false}
                   actions={
@@ -701,8 +714,19 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                       publisher: s.publisher,
                     }))}
                     reviewByDate={cardForm.reviewByDate || null}
+                    frameIndex={reviewFrameIndex}
                   />
                 </PhoneFrame>
+                  <button
+                    type="button"
+                    onClick={() => setReviewFrameIndex((i) => Math.min((cardForm.blocks.length > 0 ? 3 : 2) - 1, i + 1))}
+                    disabled={reviewFrameIndex >= (cardForm.blocks.length > 0 ? 3 : 2) - 1}
+                    className="flex flex-col items-center gap-0.5 rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50 hover:border-slate-300 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200"
+                    aria-label="Next frame"
+                  >
+                    <span className="text-lg leading-none" aria-hidden>→</span>
+                    <span className="text-[10px] font-medium">Next</span>
+                  </button>
                 </div>
 
                 {/* Batch info + Tag editing */}
