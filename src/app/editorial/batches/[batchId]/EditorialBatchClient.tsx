@@ -547,22 +547,8 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   }
 
   return (
-    <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-      <div className="w-full shrink-0 rounded-lg border border-slate-200 bg-white p-6 lg:w-1/3 lg:max-w-[33%]">
-        <h1 className="text-2xl font-bold text-nhs-dark-blue">Generation batch</h1>
-        <p className="mt-2 text-sm text-slate-600">{batch.promptText}</p>
-        <p className="mt-1 text-xs text-slate-500">
-          Role: {batch.targetRole} • Model: {batch.modelUsed || 'AI'} • Created{' '}
-          {new Date(batch.createdAt).toLocaleString()}
-        </p>
-        {error && (
-          <div className="mt-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
-            {error}
-          </div>
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1 grid gap-6 lg:grid-cols-[300px,1fr]">
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-[300px,1fr]">
         <aside className="space-y-3">
           <h2 className="text-sm font-semibold text-slate-600">Drafts</h2>
           <div className="space-y-2">
@@ -610,6 +596,11 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         </aside>
 
         <section className="flex flex-col gap-6">
+          {error && activeType === 'quiz' && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+              {error}
+            </div>
+          )}
           {activeType === 'quiz' && quiz ? (
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold text-nhs-dark-blue">Quiz</h2>
@@ -714,8 +705,20 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 </PhoneFrame>
                 </div>
 
-                {/* Tag editing section */}
-                <div className="lg:w-80 w-full">
+                {/* Batch info + Tag editing */}
+                <div className="lg:w-80 w-full space-y-3">
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <h3 className="text-sm font-semibold text-nhs-dark-blue mb-2">Batch</h3>
+                    <p className="text-xs text-slate-600 line-clamp-2" title={batch.promptText}>{batch.promptText}</p>
+                    <p className="mt-1 text-[10px] text-slate-500">
+                      {batch.targetRole} · {batch.modelUsed || 'AI'} · {new Date(batch.createdAt).toLocaleString()}
+                    </p>
+                    {error && (
+                      <div className="mt-2 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-700" role="alert">
+                        {error}
+                      </div>
+                    )}
+                  </div>
                   <div className="rounded-lg border border-slate-200 bg-white p-4">
                     <h3 className="text-sm font-semibold text-nhs-dark-blue mb-3">Tags</h3>
                     {isEditingTags ? (
