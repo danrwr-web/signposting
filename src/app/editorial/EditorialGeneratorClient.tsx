@@ -60,7 +60,6 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
   const [promptText, setPromptText] = useState('')
   const [targetRole, setTargetRole] = useState('ADMIN')
   const [count, setCount] = useState(5)
-  const [interactiveFirst, setInteractiveFirst] = useState(true)
   const [loading, setLoading] = useState(false)
   const [generateInBackground, setGenerateInBackground] = useState(false)
   const [overrideValidation, setOverrideValidation] = useState(false)
@@ -110,7 +109,7 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
           promptText,
           targetRole,
           count,
-          interactiveFirst,
+          interactiveFirst: true,
         }),
       })
 
@@ -165,7 +164,7 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
       promptText,
       targetRole,
       count,
-      interactiveFirst,
+      interactiveFirst: true,
       ...(isSuperuser ? { overrideValidation } : {}),
     }
 
@@ -364,16 +363,6 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
                 onChange={(event) => setCount(Number(event.target.value))}
                 className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
               />
-            </label>
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={interactiveFirst}
-                onChange={(event) => setInteractiveFirst(event.target.checked)}
-                className="accent-nhs-blue"
-              />
-              Interactive-first (default on)
             </label>
 
             <label className="flex items-center gap-2 text-sm">
