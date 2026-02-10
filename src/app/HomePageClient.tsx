@@ -119,7 +119,10 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
           }
         })
         .catch(error => {
-          console.error('Error fetching symptoms:', error)
+          // Don't log AbortError - it's expected when component unmounts or navigation occurs
+          if (error.name !== 'AbortError') {
+            console.error('Error fetching symptoms:', error)
+          }
           // Keep the initial symptoms if fetch fails
         })
         .finally(() => {

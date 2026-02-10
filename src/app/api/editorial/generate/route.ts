@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
   let promptText: string | null = null
   let stage = 'initialization'
   let user: Awaited<ReturnType<typeof getSessionUser>> = null
+  let isSuperuser = false
 
   // Top-level try/catch to prevent 502 errors
   try {
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
       )
     }
     // Superusers always get debug/insights data; other admins only in non-production
-    const isSuperuser = user.globalRole === 'SUPERUSER'
+    isSuperuser = user.globalRole === 'SUPERUSER'
     debugEnabled = isSuperuser || (process.env.NODE_ENV !== 'production' && user.memberships?.some((m: any) => m.role === 'ADMIN'))
 
     stage = 'rate_limit_check'
