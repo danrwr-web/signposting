@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import toast from 'react-hot-toast'
 import LearningCardPreview from '@/components/daily-dose/LearningCardPreview'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 import Modal from '@/components/appointments/Modal'
@@ -97,6 +98,13 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [showCompletionModal, setShowCompletionModal] = useState(false)
   const [nextBatchId, setNextBatchId] = useState<string | null>(null)
 
+  // Tag management state
+  const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string }>>([])
+  const [tagsLoading, setTagsLoading] = useState(false)
+  const [editingTags, setEditingTags] = useState<string[]>([])
+  const [isEditingTags, setIsEditingTags] = useState(false)
+  const [updatingTags, setUpdatingTags] = useState(false)
+
   const [cardForm, setCardForm] = useState({
     id: '',
     title: '',
@@ -154,19 +162,43 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     loadBatch()
   }, [loadBatch])
 
+  // Fetch available tags
+  useEffect(() => {
+    const fetchTags = async () => {
+      setTagsLoading(true)
+      try {
+        const response = await fetch('/api/editorial/settings/tags')
+        const payload = await response.json().catch(() => ({ ok: false }))
+        if (response.ok && payload.ok) {
+          setAvailableTags(payload.tags || [])
+        }
+      } catch (err) {
+        // Silently fail - tags are optional
+      } finally {
+        setTagsLoading(false)
+      }
+    }
+    fetchTags()
+  }, [])
+
   const activeCard = useMemo(
     () => (activeType === 'card' ? cards.find((card) => card.id === activeId) ?? null : null),
     [cards, activeId, activeType]
   )
 
   useEffect(() => {
-    if (!activeCard) return
+    if (!activeCard) {
+      setIsEditingTags(false)
+      setEditingTags([])
+      return
+    }
+    const cardTags = Array.isArray(activeCard.tags) ? activeCard.tags : []
     setCardForm({
       id: activeCard.id,
       title: activeCard.title,
       targetRole: activeCard.targetRole ?? 'ADMIN',
       estimatedTimeMinutes: activeCard.estimatedTimeMinutes ?? 5,
-      tagsText: (activeCard.tags || []).join(', '),
+      tagsText: cardTags.join(', '),
       riskLevel: activeCard.riskLevel ?? 'LOW',
       needsSourcing: Boolean(activeCard.needsSourcing),
       reviewByDate: activeCard.reviewByDate ? activeCard.reviewByDate.slice(0, 10) : '',
@@ -200,6 +232,9 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       })),
       status: activeCard.status,
     })
+    // Sync editingTags with card tags
+    setEditingTags(cardTags)
+    setIsEditingTags(false)
   }, [activeCard])
 
   // Readiness checklist - detailed requirements for approval
@@ -465,6 +500,36 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     }
   }
 
+  const handleUpdateTags = async () => {
+    if (!activeCard) return
+    setUpdatingTags(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/editorial/cards/${activeCard.id}/tags`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags: editingTags, surgeryId }),
+      })
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload?.error?.message || 'Failed to update tags')
+      }
+      // Update local card state
+      setCards((prevCards) =>
+        prevCards.map((card) => (card.id === activeCard.id ? { ...card, tags: editingTags } : card))
+      )
+      // Update cardForm to keep in sync
+      setCardForm((prev) => ({ ...prev, tagsText: editingTags.join(', ') }))
+      setIsEditingTags(false)
+      toast.success('Tags updated')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update tags')
+      toast.error(err instanceof Error ? err.message : 'Failed to update tags')
+    } finally {
+      setUpdatingTags(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-6" aria-live="polite">
@@ -567,8 +632,9 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
             </div>
           ) : activeCard ? (
             <>
-              <div className="flex flex-col items-center">
-                <PhoneFrame
+              <div className="flex flex-col lg:flex-row gap-6 items-start">
+                <div className="flex-1 flex justify-center">
+                  <PhoneFrame
                   alignActions={false}
                   actions={
                     <div className="flex flex-col items-center gap-3">
@@ -645,6 +711,85 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     reviewByDate={cardForm.reviewByDate || null}
                   />
                 </PhoneFrame>
+                </div>
+
+                {/* Tag editing section */}
+                <div className="lg:w-80 w-full">
+                  <div className="rounded-lg border border-slate-200 bg-white p-4">
+                    <h3 className="text-sm font-semibold text-nhs-dark-blue mb-3">Tags</h3>
+                    {isEditingTags ? (
+                      <div className="space-y-3">
+                        <select
+                          multiple
+                          value={editingTags}
+                          onChange={(e) => {
+                            const selected = Array.from(e.target.selectedOptions, (option) => option.value)
+                            setEditingTags(selected)
+                          }}
+                          size={Math.min(availableTags.length, 5)}
+                          className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm"
+                          style={{ minHeight: '80px' }}
+                          disabled={updatingTags}
+                        >
+                          {availableTags.map((tag) => (
+                            <option key={tag.id} value={tag.name}>
+                              {tag.name}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="text-[10px] text-slate-500">Hold Ctrl/Cmd to select multiple</p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleUpdateTags}
+                            disabled={updatingTags}
+                            className="flex-1 rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+                          >
+                            {updatingTags ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsEditingTags(false)
+                              setEditingTags(Array.isArray(activeCard.tags) ? activeCard.tags : [])
+                            }}
+                            disabled={updatingTags}
+                            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
+                          {Array.isArray(activeCard.tags) && activeCard.tags.length > 0 ? (
+                            activeCard.tags.map((tag, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center rounded-full bg-nhs-light-blue px-2 py-0.5 text-xs font-medium text-nhs-blue"
+                              >
+                                {tag}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400">No tags</span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingTags(true)
+                            setEditingTags(Array.isArray(activeCard.tags) ? activeCard.tags : [])
+                          }}
+                          className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-nhs-blue hover:bg-nhs-light-blue hover:border-nhs-blue"
+                        >
+                          {Array.isArray(activeCard.tags) && activeCard.tags.length > 0 ? 'Edit tags' : 'Add tags'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {cardForm.riskLevel === 'HIGH' && (
