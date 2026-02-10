@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import LearningCardPreview from '@/components/daily-dose/LearningCardPreview'
+import SessionStyleCardPreview from '@/components/daily-dose/SessionStyleCardPreview'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 import Modal from '@/components/appointments/Modal'
 
@@ -680,7 +680,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     </div>
                   }
                 >
-                  <LearningCardPreview
+                  <SessionStyleCardPreview
                     title={cardForm.title}
                     headerText={`${cardForm.targetRole} · ${cardForm.riskLevel} risk`}
                     contentBlocks={cardForm.blocks.map((b) => {
@@ -702,6 +702,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                       question: i.question,
                       options: i.optionsText.split('\n').filter(Boolean),
                       correctIndex: i.correctIndex,
+                      explanation: i.explanation ?? '',
                     }))}
                     sources={cardForm.sources.filter((s) => s.title?.trim()).map((s) => ({
                       title: s.title,
