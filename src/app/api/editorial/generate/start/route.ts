@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
         promptText: parsed.promptText,
         targetRole: resolvedRole,
         count: parsed.count,
-        tags: parsed.tags ?? [],
+        tags: [],
         interactiveFirst: parsed.interactiveFirst,
       },
     })

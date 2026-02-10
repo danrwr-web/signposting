@@ -60,7 +60,6 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
   const [promptText, setPromptText] = useState('')
   const [targetRole, setTargetRole] = useState('ADMIN')
   const [count, setCount] = useState(5)
-  const [tags, setTags] = useState('')
   const [interactiveFirst, setInteractiveFirst] = useState(true)
   const [loading, setLoading] = useState(false)
   const [generateInBackground, setGenerateInBackground] = useState(false)
@@ -111,10 +110,6 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
           promptText,
           targetRole,
           count,
-          tags: tags
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
           interactiveFirst,
         }),
       })
@@ -164,18 +159,12 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
     setErrorDetails(null)
     setDebugInfo(null)
 
-    const parsedTags = tags
-      .split(',')
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-
     // Build the base request body
     const requestBody: Record<string, unknown> = {
       surgeryId,
       promptText,
       targetRole,
       count,
-      tags: parsedTags,
       interactiveFirst,
       ...(isSuperuser ? { overrideValidation } : {}),
     }
@@ -243,7 +232,6 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
 
   const handleClear = () => {
     setPromptText('')
-    setTags('')
     setCount(5)
     setTargetRole('ADMIN')
     setInteractiveFirst(true)
@@ -375,17 +363,6 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
                 value={count}
                 onChange={(event) => setCount(Number(event.target.value))}
                 className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-              />
-            </label>
-
-            <label className="block text-sm">
-              Tags (optional)
-              <input
-                type="text"
-                value={tags}
-                onChange={(event) => setTags(event.target.value)}
-                className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-                placeholder="e.g. mental health, escalation"
               />
             </label>
 

@@ -123,7 +123,6 @@ export const EditorialGenerateRequestZ = z.object({
   promptText: z.string().min(10),
   targetRole: EditorialRoleZ,
   count: z.number().int().min(1).max(10).default(5),
-  tags: z.array(z.string().min(1)).optional(),
   interactiveFirst: z.boolean().default(true),
   overrideValidation: z.boolean().optional().default(false),
   // Superuser-only: override the constructed prompts before sending to AI
@@ -187,6 +186,25 @@ export const EditorialPromptTemplateUpdateZ = z.object({
 
 export const EditorialPromptTemplateResetZ = z.object({
   role: EditorialRoleZ,
+})
+
+// Tag management (superuser settings)
+export const EditorialTagCreateZ = z.object({
+  name: z.string().min(1).max(50).trim(),
+})
+
+export const EditorialTagUpdateZ = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(50).trim(),
+})
+
+export const EditorialTagDeleteZ = z.object({
+  id: z.string().min(1),
+})
+
+export const EditorialCardTagsUpdateZ = z.object({
+  tags: z.array(z.string().min(1)).default([]),
+  surgeryId: z.string().optional(),
 })
 
 export type EditorialRole = z.infer<typeof EditorialRoleZ>

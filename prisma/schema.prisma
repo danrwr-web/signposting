@@ -75,6 +75,7 @@ model User {
   dailyDoseGenerationAttempts     DailyDoseGenerationAttempt[] @relation("DailyDoseAttemptCreatedBy")
   dailyDoseGenerationJobs         DailyDoseGenerationJob[]     @relation("DailyDoseGenerationJobCreatedBy")
   dailyDosePromptTemplatesEdited  DailyDosePromptTemplate[]    @relation("PromptTemplateEditor")
+  dailyDoseTagsCreated            DailyDoseTag[]                @relation("DailyDoseTagCreatedBy")
 }
 
 model UserSurgery {
@@ -430,6 +431,18 @@ model DailyDosePromptTemplate {
   updatedBy String? // User ID of last editor
 
   editor User? @relation("PromptTemplateEditor", fields: [updatedBy], references: [id])
+}
+
+model DailyDoseTag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String?
+
+  creator User? @relation("DailyDoseTagCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([name])
 }
 
 model BaseSymptom {

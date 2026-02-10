@@ -82,6 +82,31 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
   const [sortBy, setSortBy] = useState<'createdAt' | 'reviewByDate' | 'title'>('createdAt')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
+  // Tags state
+  const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string }>>([])
+  const [tagsLoading, setTagsLoading] = useState(false)
+  const [editingTagsCardId, setEditingTagsCardId] = useState<string | null>(null)
+  const [editingTags, setEditingTags] = useState<string[]>([])
+
+  const loadAvailableTags = useCallback(async () => {
+    setTagsLoading(true)
+    try {
+      const response = await fetch('/api/editorial/settings/tags')
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (response.ok && payload.ok) {
+        setAvailableTags(payload.tags || [])
+      }
+    } catch (err) {
+      // Silently fail - tags are optional
+    } finally {
+      setTagsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadAvailableTags()
+  }, [loadAvailableTags])
+
   const loadCards = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -559,6 +584,7 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Role</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Risk</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Tags</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Review By</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Created</th>
                   <th className="px-4 py-3 text-left font-semibold text-slate-700">Actions</th>
@@ -642,6 +668,98 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
                         <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusStyles[card.status]}`}>
                           {card.status}
                         </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {editingTagsCardId === card.id ? (
+                          <div className="space-y-2">
+                            <select
+                              multiple
+                              value={editingTags}
+                              onChange={(e) => {
+                                const selected = Array.from(e.target.selectedOptions, (option) => option.value)
+                                setEditingTags(selected)
+                              }}
+                              size={Math.min(availableTags.length, 5)}
+                              className="w-full rounded-md border border-slate-200 px-2 py-1 text-xs"
+                              style={{ minHeight: '60px' }}
+                            >
+                              {availableTags.map((tag) => (
+                                <option key={tag.id} value={tag.name}>
+                                  {tag.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="flex gap-1">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  setActionLoading(card.id)
+                                  try {
+                                    const response = await fetch(`/api/editorial/cards/${card.id}/tags`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ tags: editingTags, surgeryId }),
+                                    })
+                                    const payload = await response.json().catch(() => ({ ok: false }))
+                                    if (!response.ok || !payload.ok) {
+                                      throw new Error(payload?.error?.message || 'Failed to update tags')
+                                    }
+                                    await loadCards()
+                                    setEditingTagsCardId(null)
+                                    setEditingTags([])
+                                    toast.success('Tags updated')
+                                  } catch (err) {
+                                    toast.error(err instanceof Error ? err.message : 'Failed to update tags')
+                                  } finally {
+                                    setActionLoading(null)
+                                  }
+                                }}
+                                disabled={actionLoading === card.id}
+                                className="rounded bg-nhs-blue px-2 py-0.5 text-xs font-semibold text-white hover:bg-nhs-dark-blue disabled:opacity-70"
+                              >
+                                Save
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingTagsCardId(null)
+                                  setEditingTags([])
+                                }}
+                                disabled={actionLoading === card.id}
+                                className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-600 hover:border-slate-400 disabled:opacity-70"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-slate-500">Hold Ctrl/Cmd to select multiple</p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1 items-center">
+                            {Array.isArray(card.tags) && card.tags.length > 0 ? (
+                              card.tags.map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center rounded-full bg-nhs-light-blue px-2 py-0.5 text-xs font-medium text-nhs-blue"
+                                >
+                                  {tag}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-slate-400">No tags</span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTagsCardId(card.id)
+                                setEditingTags(Array.isArray(card.tags) ? card.tags : [])
+                              }}
+                              className="ml-1 text-xs text-nhs-blue hover:underline"
+                              title="Edit tags"
+                            >
+                              {Array.isArray(card.tags) && card.tags.length > 0 ? 'Edit' : 'Add'}
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-slate-600">{formatDate(card.reviewByDate)}</td>
                       <td className="px-4 py-3 text-slate-600">{formatDate(card.createdAt)}</td>

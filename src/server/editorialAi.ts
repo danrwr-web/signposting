@@ -318,7 +318,6 @@ function buildUserPrompt(params: {
   promptText: string
   targetRole: EditorialRole
   count: number
-  tags?: string[]
   interactiveFirst: boolean
   toolkitContext?: string
   toolkitSource?: { title: string; url: string | null; publisher: string }
@@ -337,7 +336,6 @@ ${formatAdminValidationIssues(params.validationIssues)}
 
   return `${toolkitSection}${validationSection}Create ${params.count} learning cards for ${params.targetRole} staff.
 Prompt: ${params.promptText}
-Tags: ${(params.tags || []).join(', ') || 'none'}
 Interactive-first: ${params.interactiveFirst ? 'yes' : 'no'}
 
 Return JSON using this schema:
@@ -490,7 +488,6 @@ export type ToolkitAdviceResult = {
 async function resolveSignpostingToolkitAdvice(params: {
   surgeryId: string
   promptText: string
-  tags?: string[]
   targetRole: EditorialRole
 }): Promise<ToolkitAdviceResult | null> {
   // Only for ADMIN role
@@ -509,9 +506,8 @@ async function resolveSignpostingToolkitAdvice(params: {
       select: { name: true },
     })
 
-    // Tokenise the prompt + tags into meaningful search tokens
-    const rawSearchText = [params.promptText, ...(params.tags || [])].join(' ')
-    const promptTokens = tokenise(rawSearchText)
+    // Tokenise the prompt into meaningful search tokens
+    const promptTokens = tokenise(params.promptText)
 
     if (promptTokens.length === 0) {
       // If prompt has no meaningful tokens, fall back to static context
@@ -795,13 +791,11 @@ export async function buildEditorialPrompts(params: {
   promptText: string
   targetRole: EditorialRole
   count: number
-  tags?: string[]
   interactiveFirst: boolean
 }) {
   const toolkit = await resolveSignpostingToolkitAdvice({
     surgeryId: params.surgeryId,
     promptText: params.promptText,
-    tags: params.tags,
     targetRole: params.targetRole,
   })
 
@@ -810,7 +804,6 @@ export async function buildEditorialPrompts(params: {
     promptText: params.promptText,
     targetRole: params.targetRole,
     count: params.count,
-    tags: params.tags,
     interactiveFirst: params.interactiveFirst,
     toolkitContext: toolkit?.context,
     toolkitSource: toolkit?.source,
@@ -842,7 +835,6 @@ export async function generateEditorialBatch(params: {
   promptText: string
   targetRole: EditorialRole
   count: number
-  tags?: string[]
   interactiveFirst: boolean
   requestId: string
   onAttempt?: (attempt: GenerationAttemptRecord) => Promise<void> | void
@@ -1020,7 +1012,6 @@ export async function generateEditorialBatch(params: {
           promptText: params.promptText,
           targetRole: params.targetRole,
           count: params.count,
-          tags: params.tags,
           interactiveFirst: params.interactiveFirst,
           toolkitContext: built._rawToolkitContext,
           toolkitSource: built._rawToolkitSource,

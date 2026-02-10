@@ -35,12 +35,11 @@ export async function runGenerationJob(jobId: string): Promise<void> {
     return
   }
 
-  const requestId = randomUUID()
-  const tags = Array.isArray(job.tags) ? (job.tags as string[]) : []
-  const resolvedRole = resolveTargetRole({
-    promptText: job.promptText,
-    requestedRole: job.targetRole as EditorialRole,
-  })
+    const requestId = randomUUID()
+    const resolvedRole = resolveTargetRole({
+      promptText: job.promptText,
+      requestedRole: job.targetRole as EditorialRole,
+    })
 
   await prisma.dailyDoseGenerationJob.update({
     where: { id: jobId },
@@ -71,7 +70,6 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       promptText: job.promptText,
       targetRole: resolvedRole,
       count: job.count,
-      tags,
       interactiveFirst: job.interactiveFirst,
       requestId,
       userId: job.createdBy ?? undefined,
@@ -142,7 +140,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
           riskLevel,
           needsSourcing,
           reviewByDate: reviewByDateValid ? reviewByDate : null,
-          tags: card.tags,
+          tags: [],
           status: 'DRAFT',
           createdBy: job.createdBy,
           generatedFrom: { type: 'prompt' },
