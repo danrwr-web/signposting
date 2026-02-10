@@ -28,6 +28,13 @@ const CLINICAL_TOOLS: ClinicalTool[] = [
     href: '/diabetic-titration',
     category: 'Diabetes',
   },
+  {
+    id: 'luts',
+    title: 'LUTS treatment decision aid',
+    description: 'Interactive decision aid to help identify LUTS symptom patterns and choose appropriate medication classes.',
+    href: '/luts',
+    category: 'Urology',
+  },
 ]
 
 export default function ClinicalToolsClient({ surgeryId }: ClinicalToolsClientProps) {
