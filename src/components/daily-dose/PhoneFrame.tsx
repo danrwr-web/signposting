@@ -15,7 +15,7 @@ interface PhoneFrameProps {
 // Base/reference size for the phone frame (maintains aspect ratio when scaled)
 const BASE_WIDTH = 400
 const BASE_HEIGHT = 711 // 400 * 16/9 ≈ 711 (9:16 aspect ratio)
-const RESERVE_SPACE = 250 // Space reserved for header, actions, padding
+const RESERVE_SPACE = 120 // Space reserved for compact header, actions, padding
 
 export default function PhoneFrame({ children, actions, className = '', alignActions = true }: PhoneFrameProps) {
   const [scale, setScale] = useState(1)
