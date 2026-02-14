@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Surgery } from '@prisma/client'
+import type { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useSession } from 'next-auth/react'
 
 interface SurgerySelectorProps {
-  surgeries: Surgery[]
+  surgeries: Pick<Surgery, 'id' | 'slug' | 'name'>[]
   currentSurgeryId?: string
   onClose?: () => void
 }

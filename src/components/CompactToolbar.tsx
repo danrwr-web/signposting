@@ -6,7 +6,7 @@ import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import SurgerySelector from './SurgerySelector'
 import SurgeryFiltersHeader from './SurgeryFiltersHeader'
 import UserPreferencesModal from './UserPreferencesModal'
-import { Surgery } from '@prisma/client'
+import type { Surgery } from '@prisma/client'
 import { useSession } from 'next-auth/react'
 import { useSurgery } from '@/context/SurgeryContext'
 import LogoSizeControl from './LogoSizeControl'
@@ -18,7 +18,7 @@ type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' 
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
 
 interface CompactToolbarProps {
-  surgeries: Surgery[]
+  surgeries: Pick<Surgery, 'id' | 'slug' | 'name'>[]
   currentSurgeryId?: string
   searchTerm: string
   onSearchChange: (value: string) => void

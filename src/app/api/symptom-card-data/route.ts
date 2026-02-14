@@ -1,17 +1,18 @@
 /**
  * Combined endpoint for symptom card data
- * Returns both highlights and image icons in one request to reduce API calls
+ * Returns highlights, image icons, and settings in one request per surgery.
+ *
+ * Batch mode (no `phrase`): returns all image icons so the client can match locally.
+ * Legacy mode (`phrase` provided): returns a single matching icon (kept for backwards compat).
  */
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { unstable_noStore as noStore } from 'next/cache'
 import { z } from 'zod'
 import { getCachedHighlightRules, getSurgeryBuiltInHighlightsSetting, getSurgeryImageIconsSetting } from '@/server/highlights'
 import { prisma } from '@/lib/prisma'
 
 export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
 
 const QueryZ = z.object({
   surgeryId: z.string().optional(),
@@ -20,14 +21,13 @@ const QueryZ = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    noStore()
     const { searchParams } = new URL(request.url)
     const parsed = QueryZ.safeParse({
       surgeryId: searchParams.get('surgeryId') ?? undefined,
       phrase: searchParams.get('phrase') ?? undefined,
     })
     const surgeryParam = parsed.success ? parsed.data.surgeryId : undefined
-    const phrase = parsed.success ? parsed.data.phrase : undefined // Optional: for image icon lookup
+    const phrase = parsed.success ? parsed.data.phrase : undefined
 
     // Convert surgery parameter to surgeryId (handles both ID and slug)
     let surgeryId: string | null = null
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Fetch highlights and image icon settings in parallel
+    // Fetch highlights and settings in parallel
     const [globalRules, surgeryRules, enableBuiltInHighlights, enableImageIcons] = await Promise.all([
       getCachedHighlightRules(null),
       surgeryId ? getCachedHighlightRules(surgeryId) : Promise.resolve([]),
@@ -60,9 +60,11 @@ export async function GET(request: NextRequest) {
     // Combine highlight rules
     const highlights = [...globalRules, ...surgeryRules]
 
-    // Get matching image icon if phrase provided
+    // Image icons: batch mode returns all, legacy mode returns single match
     let imageIcon = null
-    if (phrase && enableImageIcons && ('imageIcon' in prisma)) {
+    let imageIcons: Array<{ phrase: string; imageUrl: string; cardSize: string; instructionSize: string }> = []
+
+    if (enableImageIcons && ('imageIcon' in prisma)) {
       try {
         const icons = await (prisma as any).imageIcon.findMany({
           where: { isEnabled: true },
@@ -76,21 +78,31 @@ export async function GET(request: NextRequest) {
           },
           orderBy: { createdAt: 'desc' }
         })
-        
-        const phraseLower = phrase.toLowerCase()
-        const matching = icons.find((icon: any) =>
-          phraseLower.includes(icon.phrase.toLowerCase())
-        )
-        if (matching) {
-          imageIcon = {
-            imageUrl: matching.imageUrl,
-            cardSize: matching.cardSize || 'medium',
-            instructionSize: matching.instructionSize || 'medium'
+
+        // Batch mode: return all icons for client-side matching
+        imageIcons = icons.map((icon: any) => ({
+          phrase: icon.phrase,
+          imageUrl: icon.imageUrl,
+          cardSize: icon.cardSize || 'medium',
+          instructionSize: icon.instructionSize || 'medium',
+        }))
+
+        // Legacy single-match mode when phrase is provided
+        if (phrase) {
+          const phraseLower = phrase.toLowerCase()
+          const matching = icons.find((icon: any) =>
+            phraseLower.includes(icon.phrase.toLowerCase())
+          )
+          if (matching) {
+            imageIcon = {
+              imageUrl: matching.imageUrl,
+              cardSize: matching.cardSize || 'medium',
+              instructionSize: matching.instructionSize || 'medium'
+            }
           }
         }
-      } catch (error) {
-        // Silently fail if imageIcon model not available
-        console.log('ImageIcon model not available')
+      } catch {
+        // imageIcon model not available yet
       }
     }
 
@@ -98,11 +110,12 @@ export async function GET(request: NextRequest) {
       highlights,
       enableBuiltInHighlights,
       enableImageIcons,
-      imageIcon
+      imageIcon,
+      imageIcons,
     })
 
-    // The main UI should reflect highlight changes immediately.
-    response.headers.set('Cache-Control', 'no-store')
+    // Allow short browser caching (highlights rarely change mid-session).
+    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=300')
     return response
   } catch (error) {
     console.error('Error fetching symptom card data:', error)
@@ -110,7 +123,8 @@ export async function GET(request: NextRequest) {
       highlights: [],
       enableBuiltInHighlights: true,
       enableImageIcons: true,
-      imageIcon: null
+      imageIcon: null,
+      imageIcons: [],
     })
     response.headers.set('Cache-Control', 'no-store')
     return response
