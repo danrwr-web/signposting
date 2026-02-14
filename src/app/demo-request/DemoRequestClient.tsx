@@ -102,17 +102,17 @@ export default function DemoRequestClient() {
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+        <div className="text-center mb-10">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight">
             Request a demo of the Signposting Toolkit
           </h1>
-          <p className="text-lg text-gray-700">
-            Tell us a bit about your surgery and we’ll get in touch to arrange a walkthrough.
+          <p className="text-lg text-gray-600 leading-relaxed">
+            Tell us a bit about your surgery and we&apos;ll get in touch to arrange a walkthrough.
           </p>
         </div>
 
         {isSuccess ? (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-8 text-center">
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
             <div className="mb-4">
               <svg className="mx-auto h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -125,20 +125,20 @@ export default function DemoRequestClient() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href="/"
-                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
+                className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-lg text-white bg-nhs-blue hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 transition-all shadow-md"
               >
                 Back to homepage
               </Link>
               <Link
                 href="/"
-                className="text-base font-medium text-blue-600 hover:text-blue-700 underline"
+                className="text-base font-medium text-nhs-blue hover:text-nhs-dark-blue underline underline-offset-2"
               >
                 Learn more about the Signposting Toolkit
               </Link>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6 bg-white border border-gray-200 rounded-lg p-8">
+          <form onSubmit={handleSubmit} className="space-y-6 bg-white border border-gray-100 rounded-2xl p-8 shadow-sm">
             {errors.general && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
                 <p className="text-sm text-red-800">{errors.general}</p>
@@ -168,7 +168,7 @@ export default function DemoRequestClient() {
                 required
                 value={formData.name}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent ${
                   errors.name ? 'border-red-500' : 'border-gray-300'
                 }`}
                 aria-invalid={errors.name ? 'true' : 'false'}
@@ -191,7 +191,7 @@ export default function DemoRequestClient() {
                 required
                 value={formData.role}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent ${
                   errors.role ? 'border-red-500' : 'border-gray-300'
                 }`}
                 aria-invalid={errors.role ? 'true' : 'false'}
@@ -222,7 +222,7 @@ export default function DemoRequestClient() {
                 required
                 value={formData.practice}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent ${
                   errors.practice ? 'border-red-500' : 'border-gray-300'
                 }`}
                 aria-invalid={errors.practice ? 'true' : 'false'}
@@ -246,7 +246,7 @@ export default function DemoRequestClient() {
                 required
                 value={formData.email}
                 onChange={handleChange}
-                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent ${
                   errors.email ? 'border-red-500' : 'border-gray-300'
                 }`}
                 aria-invalid={errors.email ? 'true' : 'false'}
@@ -269,7 +269,7 @@ export default function DemoRequestClient() {
                 name="phone"
                 value={formData.phone}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
               />
             </div>
 
@@ -284,7 +284,7 @@ export default function DemoRequestClient() {
                 value={formData.message}
                 onChange={handleChange}
                 placeholder="Anything particular you'd like to focus on?"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
               />
             </div>
 
@@ -292,7 +292,7 @@ export default function DemoRequestClient() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full px-10 py-4 text-lg font-semibold rounded-lg text-white bg-nhs-blue hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Submitting...' : 'Submit request'}
               </button>

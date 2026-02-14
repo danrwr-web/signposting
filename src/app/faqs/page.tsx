@@ -122,17 +122,17 @@ export default function FAQsPage() {
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="mb-10">
-          <h1 className="text-4xl font-bold text-gray-900">FAQs</h1>
-          <p className="mt-4 text-lg text-gray-700">
+          <h1 className="text-4xl font-bold text-gray-900 tracking-tight">FAQs</h1>
+          <p className="mt-4 text-lg text-gray-600 leading-relaxed">
             Answers to common questions about setup, governance, and optional AI tools.
           </p>
-          <p className="mt-4 text-sm text-gray-600">
+          <p className="mt-4 text-sm text-gray-500">
             Looking for detailed guidance for day-to-day use?{' '}
             <a
               href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
               target="_blank"
               rel="noreferrer noopener"
-              className="text-blue-600 hover:text-blue-700 underline font-medium"
+              className="text-nhs-blue hover:text-nhs-dark-blue underline underline-offset-2 font-medium"
             >
               Read the User Guide
             </a>
@@ -152,13 +152,13 @@ export default function FAQsPage() {
         </div>
 
         <section className="mt-12">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-8">
+          <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-slate-50 to-white p-8 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900">Still have questions?</h2>
-            <p className="mt-3 text-gray-700">Get in touch and we’ll be happy to help.</p>
+            <p className="mt-3 text-gray-600">Get in touch and we&apos;ll be happy to help.</p>
             <p className="mt-4">
               <a
                 href="mailto:contact@signpostingtool.co.uk"
-                className="text-blue-600 hover:text-blue-700 font-medium underline"
+                className="text-nhs-blue hover:text-nhs-dark-blue font-medium underline underline-offset-2"
               >
                 contact@signpostingtool.co.uk
               </a>
@@ -167,7 +167,7 @@ export default function FAQsPage() {
         </section>
 
         <div className="mt-10 text-center">
-          <Link href="/" className="text-blue-600 hover:text-blue-700 underline font-medium">
+          <Link href="/" className="text-nhs-blue hover:text-nhs-dark-blue underline underline-offset-2 font-medium">
             Back to the homepage
           </Link>
         </div>

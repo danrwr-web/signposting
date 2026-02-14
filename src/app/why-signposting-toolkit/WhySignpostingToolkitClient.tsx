@@ -4,6 +4,22 @@ import Link from 'next/link'
 import MarketingHeader from '@/components/marketing/MarketingHeader'
 import MarketingFooter from '@/components/marketing/MarketingFooter'
 
+function CheckIcon() {
+  return (
+    <svg className="w-5 h-5 text-nhs-blue mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
+function WarningIcon() {
+  return (
+    <svg className="w-5 h-5 text-nhs-blue mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+    </svg>
+  )
+}
+
 export default function WhySignpostingToolkitClient() {
   const appBaseUrl =
     process.env.NEXT_PUBLIC_APP_BASE_URL?.replace(/\/$/, '') ||
@@ -15,19 +31,21 @@ export default function WhySignpostingToolkitClient() {
       <MarketingHeader appEntryUrl={appEntryUrl} />
 
       {/* Hero Section */}
-      <section className="bg-gradient-to-b from-slate-50 to-white py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-white py-20">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(0,94,184,0.04)_1px,transparent_0)] bg-[length:32px_32px]" />
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl leading-tight mb-6">
-              Why choose the Signposting Toolkit?
+            <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl leading-tight tracking-tight mb-6">
+              Why choose the{' '}
+              <span className="text-gradient-blue">Signposting Toolkit?</span>
             </h1>
-            <p className="text-xl text-gray-700 mt-6 max-w-3xl mx-auto leading-relaxed">
-              The Signposting Toolkit is built by practising GPs to support safer, clearer care navigation for reception and care navigation teams. Here’s how it’s different from generic symptom lists and basic signposting tools.
+            <p className="text-xl text-gray-600 mt-6 max-w-3xl mx-auto leading-relaxed">
+              The Signposting Toolkit is built by practising GPs to support safer, clearer care navigation for reception and care navigation teams. Here&apos;s how it&apos;s different from generic symptom lists and basic signposting tools.
             </p>
-            <div className="mt-8">
+            <div className="mt-10">
               <Link
                 href="/demo-request"
-                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
+                className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-lg text-white bg-nhs-blue hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 transition-all shadow-md hover:shadow-lg"
               >
                 Request a demo
               </Link>
@@ -37,55 +55,49 @@ export default function WhySignpostingToolkitClient() {
       </section>
 
       {/* Built for real GP workflows */}
-      <section className="py-16 bg-white">
+      <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Built for real GP workflows
           </h2>
-          <ul className="space-y-4 text-lg text-gray-700">
+          <ul className="space-y-5 text-lg text-gray-700">
             <li className="flex items-start">
-              <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <CheckIcon />
               <span>Developed and used in a real NHS GP surgery</span>
             </li>
             <li className="flex items-start">
-              <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <CheckIcon />
               <span>Designed around day-to-day reception and care navigation work</span>
             </li>
             <li className="flex items-start">
-              <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span>Focused on safe delegation and continuity, not just “deflection”</span>
+              <CheckIcon />
+              <span>Focused on safe delegation and continuity, not just &ldquo;deflection&rdquo;</span>
             </li>
           </ul>
         </div>
       </section>
 
       {/* Local clinical governance and customisation */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Local clinical governance and customisation
           </h2>
-          <div className="space-y-4 text-lg text-gray-700">
+          <div className="space-y-5 text-lg text-gray-700">
             <p>
               Every instruction can be edited locally. Each surgery (or PCN) can align the toolkit with its own pathways. The practice keeps full ownership and sign-off of the content.
             </p>
-            <ul className="space-y-3 ml-4">
+            <ul className="space-y-4 ml-1">
               <li className="flex items-start">
-                <span className="text-blue-600 mr-3">•</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-nhs-blue mt-2.5 mr-4 flex-shrink-0" />
                 <span>Full local control over all symptom instructions</span>
               </li>
               <li className="flex items-start">
-                <span className="text-blue-600 mr-3">•</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-nhs-blue mt-2.5 mr-4 flex-shrink-0" />
                 <span>Customise pathways to match your local services</span>
               </li>
               <li className="flex items-start">
-                <span className="text-blue-600 mr-3">•</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-nhs-blue mt-2.5 mr-4 flex-shrink-0" />
                 <span>Clinical sign-off required before any changes go live</span>
               </li>
             </ul>
@@ -94,38 +106,30 @@ export default function WhySignpostingToolkitClient() {
       </section>
 
       {/* Safety-first design */}
-      <section className="py-16 bg-white">
+      <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Safety-first design
           </h2>
-          <div className="space-y-4 text-lg text-gray-700">
+          <div className="space-y-5 text-lg text-gray-700">
             <p>
               The Signposting Toolkit is designed to support safe decision-making, not replace clinical judgement.
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <WarningIcon />
                 <span>High-risk symptoms are clearly flagged</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>Clear “stop and check” points built into the workflow</span>
+                <WarningIcon />
+                <span>Clear &ldquo;stop and check&rdquo; points built into the workflow</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>The toolkit supports reception teams; it doesn’t make clinical decisions</span>
+                <WarningIcon />
+                <span>The toolkit supports reception teams; it doesn&apos;t make clinical decisions</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
+                <WarningIcon />
                 <span>Optional AI tools can help improve clarity of wording — any draft content must be reviewed locally before use</span>
               </li>
             </ul>
@@ -134,38 +138,30 @@ export default function WhySignpostingToolkitClient() {
       </section>
 
       {/* Designed for reception and care navigation teams */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Designed for reception and care navigation teams
           </h2>
-          <div className="space-y-4 text-lg text-gray-700">
+          <div className="space-y-5 text-lg text-gray-700">
             <p>
               The toolkit is built specifically for non-clinical staff who need clear, consistent guidance they can use confidently.
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
+                <CheckIcon />
                 <span>Plain-English instructions that anyone can follow</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                </svg>
+                <CheckIcon />
                 <span>Colour-coded urgency cues for quick visual scanning</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
+                <CheckIcon />
                 <span>Consistent layout across symptoms for faster navigation</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
+                <CheckIcon />
                 <span>Faster onboarding for new team members</span>
               </li>
             </ul>
@@ -174,32 +170,26 @@ export default function WhySignpostingToolkitClient() {
       </section>
 
       {/* Ready for multi-surgery use */}
-      <section className="py-16 bg-white">
+      <section className="py-20 bg-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Ready for multi-surgery use
           </h2>
-          <div className="space-y-4 text-lg text-gray-700">
+          <div className="space-y-5 text-lg text-gray-700">
             <p>
               The toolkit supports practices working together, whether as part of a PCN or across multiple sites.
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
+                <CheckIcon />
                 <span>Works across practices or a PCN</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
+                <CheckIcon />
                 <span>Each site can have its own local variants</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
+                <CheckIcon />
                 <span>Shared governance with clear accountability</span>
               </li>
             </ul>
@@ -208,33 +198,26 @@ export default function WhySignpostingToolkitClient() {
       </section>
 
       {/* Audit and improvement */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-6">
+          <h2 className="text-3xl font-bold text-gray-900 mb-8">
             Audit and improvement
           </h2>
-          <div className="space-y-4 text-lg text-gray-700">
+          <div className="space-y-5 text-lg text-gray-700">
             <p>
-              The toolkit provides visibility into how it’s being used, helping practices improve their care navigation over time.
+              The toolkit provides visibility into how it&apos;s being used, helping practices improve their care navigation over time.
             </p>
-            <ul className="space-y-3">
+            <ul className="space-y-4">
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                <span>Activity is logged (what’s viewed/clicked)</span>
+                <CheckIcon />
+                <span>Activity is logged (what&apos;s viewed/clicked)</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
+                <CheckIcon />
                 <span>Content can be reviewed and updated over time</span>
               </li>
               <li className="flex items-start">
-                <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
+                <CheckIcon />
                 <span>Practices can see how the toolkit is being used</span>
               </li>
             </ul>
@@ -243,25 +226,25 @@ export default function WhySignpostingToolkitClient() {
       </section>
 
       {/* Closing CTA */}
-      <section className="py-20 bg-white">
+      <section className="bg-gradient-to-r from-nhs-dark-blue to-nhs-blue py-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-white mb-4">
               See how it could work in your surgery
             </h2>
-            <p className="text-lg text-gray-700 mb-8 max-w-2xl mx-auto">
+            <p className="text-lg text-blue-100 mb-10 max-w-2xl mx-auto">
               Book a demo to see the Signposting Toolkit in action and discuss how it could support your reception and care navigation teams.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link
                 href="/demo-request"
-                className="inline-flex items-center px-10 py-4 border border-transparent text-lg font-semibold rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors shadow-lg"
+                className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-lg text-nhs-dark-blue bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-nhs-dark-blue transition-all shadow-md"
               >
                 Request a demo
               </Link>
               <Link
                 href="/"
-                className="inline-flex items-center px-10 py-4 border border-gray-300 text-lg font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                className="inline-flex items-center px-10 py-4 text-lg font-medium rounded-lg text-white border-2 border-white/30 hover:border-white/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-nhs-dark-blue transition-colors"
               >
                 Back to homepage
               </Link>
@@ -274,4 +257,3 @@ export default function WhySignpostingToolkitClient() {
     </div>
   )
 }
-
