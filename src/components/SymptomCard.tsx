@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { memo, useEffect, useState } from 'react'
+import { memo, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { useSurgery } from '@/context/SurgeryContext'
@@ -13,75 +13,39 @@ export interface SymptomChangeInfo {
   approvedAt: Date
 }
 
+/** Pre-fetched card data shared across all SymptomCards for a surgery */
+export interface CardData {
+  highlightRules: HighlightRule[]
+  enableBuiltInHighlights: boolean
+  enableImageIcons: boolean
+  imageIcons: Array<{ phrase: string; imageUrl: string; cardSize: string }>
+}
+
 interface SymptomCardProps {
   symptom: EffectiveSymptom
   surgeryId?: string
   changeInfo?: SymptomChangeInfo
+  cardData?: CardData
 }
 
-function SymptomCard({ symptom, surgeryId, changeInfo }: SymptomCardProps) {
+function SymptomCard({ symptom, surgeryId, changeInfo, cardData }: SymptomCardProps) {
   const { currentSurgeryId } = useSurgery()
   const { cardStyle, isSimplified } = useCardStyle()
-  const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
-  const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
-  const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
-  const [imageIcon, setImageIcon] = useState<{ imageUrl: string; cardSize: string } | null>(null)
+
+  const highlightRules = cardData?.highlightRules ?? []
+  const enableBuiltInHighlights = cardData?.enableBuiltInHighlights ?? true
+  const enableImageIcons = cardData?.enableImageIcons ?? true
+
+  // Match image icon locally from the pre-fetched list
+  const imageIcon = useMemo(() => {
+    if (!enableImageIcons || !cardData?.imageIcons?.length || !symptom.briefInstruction) return null
+    const phraseLower = symptom.briefInstruction.toLowerCase()
+    const match = cardData.imageIcons.find(icon => phraseLower.includes(icon.phrase.toLowerCase()))
+    return match ? { imageUrl: match.imageUrl, cardSize: match.cardSize } : null
+  }, [enableImageIcons, cardData?.imageIcons, symptom.briefInstruction])
 
   // Use the canonical surgery identifier used in `/s/[id]` routes.
-  // Avoid using the human-readable `surgery.slug` here, otherwise `/symptom/...` links won't round-trip back to `/s/[id]`.
   const effectiveSurgeryId = surgeryId || currentSurgeryId
-
-
-  // Load highlight rules and image icon from combined API endpoint
-  useEffect(() => {
-    const loadCardData = async () => {
-      try {
-        // Build URL with surgeryId and phrase for combined data fetch
-        let url = '/api/symptom-card-data'
-        const params = new URLSearchParams()
-        if (effectiveSurgeryId) {
-          params.append('surgeryId', effectiveSurgeryId)
-        }
-        if (symptom.briefInstruction) {
-          params.append('phrase', symptom.briefInstruction)
-        }
-        if (params.toString()) {
-          url += `?${params.toString()}`
-        }
-        
-        // Single API call for all card data - uses caching
-        const response = await fetch(url, { cache: 'no-store' })
-        if (response.ok) {
-          const json = await response.json()
-          const { 
-            highlights, 
-            enableBuiltInHighlights: builtInEnabled, 
-            enableImageIcons: imageIconsEnabled,
-            imageIcon: iconData
-          } = json
-          
-          setHighlightRules(Array.isArray(highlights) ? highlights : [])
-          setEnableBuiltInHighlights(builtInEnabled ?? true)
-          setEnableImageIcons(imageIconsEnabled ?? true)
-          
-          // Set image icon if available
-          if (iconData && iconData.imageUrl) {
-            setImageIcon({ 
-              imageUrl: iconData.imageUrl, 
-              cardSize: iconData.cardSize || 'medium' 
-            })
-          } else {
-            setImageIcon(null)
-          }
-        } else {
-          console.error('SymptomCard: Failed to fetch card data:', response.status, response.statusText)
-        }
-      } catch (error) {
-        console.error('Failed to load card data:', error)
-      }
-    }
-    loadCardData()
-  }, [effectiveSurgeryId, symptom.briefInstruction])
 
   const getSourceColor = (source: string) => {
     if (cardStyle === 'powerappsBlue') {
