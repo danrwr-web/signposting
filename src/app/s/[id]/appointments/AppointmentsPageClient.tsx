@@ -8,6 +8,8 @@ import AppointmentEditModal from '@/components/appointments/AppointmentEditModal
 import StaffTypesManager from '@/components/appointments/StaffTypesManager'
 import Modal from '@/components/appointments/Modal'
 import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
+import { SkeletonCardGrid } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface AppointmentType {
   id: string
@@ -201,22 +203,26 @@ export default function AppointmentsPageClient({
     if (!appointmentPendingDelete) {
       return
     }
-    setDeleting(true)
+    const deletedId = appointmentPendingDelete.id
+    const previousAppointments = appointments
+
+    // Optimistic update: remove from list immediately
+    setAppointments(prev => prev.filter(a => a.id !== deletedId))
+    setAppointmentPendingDelete(null)
+    toast.success('Appointment deleted')
+
     try {
-      const response = await fetch(`/api/admin/appointments/${appointmentPendingDelete.id}`, {
+      const response = await fetch(`/api/admin/appointments/${deletedId}`, {
         method: 'DELETE'
       })
       if (!response.ok) {
         throw new Error('Failed to delete appointment')
       }
-      toast.success('Appointment deleted')
-      setAppointmentPendingDelete(null)
-      fetchAppointments()
     } catch (error) {
+      // Revert on error
       console.error('Error deleting appointment:', error)
-      toast.error('Failed to delete appointment')
-    } finally {
-      setDeleting(false)
+      setAppointments(previousAppointments)
+      toast.error('Failed to delete appointment — reverted')
     }
   }
 
@@ -292,9 +298,7 @@ export default function AppointmentsPageClient({
 
         {/* Appointments Grid */}
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="text-nhs-grey">Loading appointments...</div>
-          </div>
+          <SkeletonCardGrid count={8} showBadge lines={2} />
         ) : filteredAppointments.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredAppointments.map((appointment) => (
@@ -309,21 +313,32 @@ export default function AppointmentsPageClient({
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <div className="text-nhs-grey text-lg mb-4">
-              {searchTerm || selectedFilter !== 'All' 
-                ? 'No appointments found matching your criteria.'
-                : 'No appointments found. Upload a CSV to get started.'}
-            </div>
-            {isAdmin && !searchTerm && selectedFilter === 'All' && (
-              <button
-                onClick={() => setShowUploadModal(true)}
-                className="rounded-md bg-nhs-blue px-4 py-2 text-white transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-              >
-                Upload CSV
-              </button>
-            )}
-          </div>
+          <EmptyState
+            illustration={searchTerm || selectedFilter !== 'ALL' ? 'search' : 'calendar'}
+            title={searchTerm || selectedFilter !== 'ALL'
+              ? 'No appointments found'
+              : 'No appointments yet'}
+            description={searchTerm || selectedFilter !== 'ALL'
+              ? 'No appointments match your current filters. Try adjusting your search or clearing filters.'
+              : 'Upload a CSV file to populate your appointment directory.'}
+            action={
+              searchTerm || selectedFilter !== 'ALL'
+                ? {
+                    label: 'Clear Filters',
+                    onClick: () => {
+                      setSearchTerm('')
+                      setSelectedFilter('ALL')
+                    },
+                    variant: 'secondary',
+                  }
+                : isAdmin
+                  ? {
+                      label: 'Upload CSV',
+                      onClick: () => setShowUploadModal(true),
+                    }
+                  : undefined
+            }
+          />
         )}
 
         {/* Upload Modal */}
