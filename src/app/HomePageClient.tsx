@@ -9,6 +9,8 @@ import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 import type { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
 import { SymptomChangeInfo, CardData } from '@/components/SymptomCard'
+import { SkeletonCardGrid } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
@@ -213,18 +215,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   }, [symptoms, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
 
   const renderSkeletonGrid = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" role="status" aria-live="polite">
-      {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm animate-pulse">
-          <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
-          <div className="h-4 w-32 bg-gray-100 rounded mb-2" />
-          <div className="h-3 w-full bg-gray-100 rounded mb-1" />
-          <div className="h-3 w-5/6 bg-gray-100 rounded mb-1" />
-          <div className="h-3 w-2/3 bg-gray-100 rounded" />
-        </div>
-      ))}
-      <span className="sr-only">Loading symptoms</span>
-    </div>
+    <SkeletonCardGrid count={8} lines={3} />
   )
 
   return (
@@ -303,21 +294,20 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
             cardData={cardData}
           />
         ) : (
-          <div className="text-center py-12">
-            <div className="text-nhs-grey text-lg mb-4">
-              No symptoms found matching your criteria.
-            </div>
-            <button
-              onClick={() => {
+          <EmptyState
+            illustration="search"
+            title="No symptoms found"
+            description="No symptoms match your current filters. Try adjusting your search or clearing all filters."
+            action={{
+              label: 'Clear Filters',
+              onClick: () => {
                 setSearchTerm('')
                 setSelectedLetter('All')
                 setSelectedAge('All')
-              }}
-              className="nhs-button-secondary"
-            >
-              Clear Filters
-            </button>
-          </div>
+              },
+              variant: 'secondary',
+            }}
+          />
         )}
       </main>
     </div>
@@ -327,8 +317,10 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 export default function HomePageClient(props: HomePageClientProps) {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-nhs-light-grey flex items-center justify-center">
-        <div className="text-nhs-grey">Loading...</div>
+      <div className="min-h-screen bg-nhs-light-grey">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <SkeletonCardGrid count={8} lines={3} />
+        </div>
       </div>
     }>
       <HomePageClientContent {...props} />

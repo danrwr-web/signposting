@@ -6,6 +6,7 @@ import type { AdminToolkitCategory, AdminToolkitPageItem } from '@/server/adminT
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import { useCardStyle } from '@/context/CardStyleContext'
 import type { AdminToolkitQuickAccessButton } from '@/lib/adminToolkitQuickAccessShared'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 // Note: Settings cog moved to page header (AdminToolkitHeaderActions component)
 
@@ -321,9 +322,18 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
           {/* Main: pages */}
           <section className="p-4 lg:pb-64">
             {itemsSorted.length === 0 ? (
-              <div className="py-12 text-center text-sm text-gray-500">
-                {normalisedSearch ? 'No pages match your search.' : 'No pages yet.'}
-              </div>
+              <EmptyState
+                illustration={normalisedSearch ? 'search' : 'documents'}
+                title={normalisedSearch ? 'No pages match your search' : 'No pages yet'}
+                description={normalisedSearch
+                  ? 'Try a different search term or clear your search.'
+                  : 'Add your first handbook page to get started.'}
+                action={normalisedSearch
+                  ? { label: 'Clear search', onClick: () => setSearch(''), variant: 'secondary' }
+                  : canWrite
+                    ? { label: 'Add page', href: `/s/${surgeryId}/admin-toolkit/admin` }
+                    : undefined}
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {itemsSorted.map((item) => (
