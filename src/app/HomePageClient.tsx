@@ -113,6 +113,27 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
       })
       .catch(() => {})
 
+    // Helper to fetch changes for a given set of symptoms
+    const fetchChanges = (symptomsForChanges: EffectiveSymptom[]) => {
+      fetch(
+        `/api/symptoms/changes?surgeryId=${surgeryId}&symptomIds=${encodeURIComponent(
+          symptomsForChanges.map(s => s.id).join(',')
+        )}`,
+        { cache: 'no-store', signal: controller.signal }
+      )
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data?.changes) { setChangesMap(new Map()); return }
+          const newMap = new Map<string, SymptomChangeInfo>()
+          for (const [id, info] of Object.entries(data.changes)) {
+            const ci = info as { changeType: 'new' | 'updated'; approvedAt: string }
+            newMap.set(id, { changeType: ci.changeType, approvedAt: new Date(ci.approvedAt) })
+          }
+          setChangesMap(newMap)
+        })
+        .catch(() => setChangesMap(new Map()))
+    }
+
     // Only re-fetch symptoms when switching surgeries — the server already provided initial data
     if (isSwitching) {
       setIsLoadingSymptoms(true)
@@ -134,31 +155,16 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
                 window.localStorage.setItem(getCacheKey(surgeryId), payload)
               } catch { /* quota exceeded, ignore */ }
             }
+            // Fetch changes after symptoms arrive so we use the correct IDs
+            fetchChanges(sortedSymptoms)
           }
         })
         .catch(() => {})
         .finally(() => setIsLoadingSymptoms(false))
+    } else {
+      // Initial load — initialSymptoms are correct for this surgery
+      fetchChanges(initialSymptoms)
     }
-
-    // Fetch changes in parallel (doesn't depend on symptoms finishing)
-    fetch(
-      `/api/symptoms/changes?surgeryId=${surgeryId}&symptomIds=${encodeURIComponent(
-        (isSwitching ? symptomCache.current[surgeryId] ?? initialSymptoms : initialSymptoms)
-          .map(s => s.id).join(',')
-      )}`,
-      { cache: 'no-store', signal: controller.signal }
-    )
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        if (!data?.changes) { setChangesMap(new Map()); return }
-        const newMap = new Map<string, SymptomChangeInfo>()
-        for (const [id, info] of Object.entries(data.changes)) {
-          const ci = info as { changeType: 'new' | 'updated'; approvedAt: string }
-          newMap.set(id, { changeType: ci.changeType, approvedAt: new Date(ci.approvedAt) })
-        }
-        setChangesMap(newMap)
-      })
-      .catch(() => setChangesMap(new Map()))
 
     return () => controller.abort()
   }, [surgeryId, routeSurgeryId, getCacheKey, initialSymptoms])
