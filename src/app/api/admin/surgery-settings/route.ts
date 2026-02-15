@@ -12,6 +12,7 @@ import { COMMON_REASONS_MAX, validateCommonReasonsConfig, type UiConfig } from '
 import { revalidatePath } from 'next/cache'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 // GET /api/admin/surgery-settings - Get surgery settings
 export async function GET(request: NextRequest) {
