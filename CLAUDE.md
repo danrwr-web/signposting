@@ -69,6 +69,7 @@ src/
 │   ├── super/              # Superuser dashboard
 │   └── symptom/[id]/       # Public symptom detail
 ├── components/             # React components (organized by feature)
+│   ├── ui/                 # Shared UI primitives (Button, Input, Dialog, etc.)
 │   ├── admin/              # Admin table, kebab menu, search
 │   ├── admin-toolkit/      # Practice Handbook UI
 │   ├── appointments/       # Appointment management
@@ -224,6 +225,28 @@ Always run `npm run db:generate` after schema changes to regenerate the Prisma c
 - Tailwind CSS utility classes throughout
 - NHS color palette available via `nhs-*` prefixed classes (e.g., `bg-nhs-blue`, `text-nhs-dark-blue`)
 - Key colors: `nhs-blue: #005EB8`, `nhs-dark-blue: #003087`, `nhs-green: #00A499`, `nhs-red: #DA020E`
+
+### Shared UI Components (IMPORTANT)
+
+**Always use the shared UI primitives** from `src/components/ui/` instead of writing inline Tailwind for common elements. Import from `@/components/ui`:
+
+```typescript
+import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertBanner } from '@/components/ui'
+```
+
+| Component | Use instead of | Key props |
+|-----------|---------------|-----------|
+| `Button` | `<button className="px-4 py-2 bg-nhs-blue...">` | `variant` (`primary`\|`secondary`\|`success`\|`danger`\|`danger-soft`\|`ghost`\|`link`), `size` (`sm`\|`md`\|`lg`), `loading`, `iconLeft`, `iconRight` |
+| `Input` | `<input className="w-full px-3 py-2 border...">` | `error` (boolean for red ring) |
+| `Select` | `<select className="w-full px-3 py-2 border...">` | `error` (boolean for red ring) |
+| `Textarea` | `<textarea className="w-full px-3 py-2 border...">` | `error` (boolean for red ring) |
+| `FormField` | Label + input + error `<div>` wrappers | `label`, `error`, `required`, `htmlFor` |
+| `Badge` | `<span className="inline-flex px-2 py-0.5 rounded...">` | `color` (10 presets), `size` (`sm`\|`md`\|`lg`), `pill` |
+| `Card` | `<div className="bg-white rounded-lg shadow-md...">` | `elevation` (`flat`\|`raised`\|`elevated`\|`floating`), `hoverable`, `padding` |
+| `Dialog` | Custom `<div className="fixed inset-0 z-50...">` modals | `open`, `onClose`, `title`, `description`, `width`, `footer`, `initialFocusRef` |
+| `AlertBanner` | `<div className="bg-red-50 border-l-4...">` | `variant` (`error`\|`warning`\|`success`\|`info`) |
+
+**Do NOT** create new inline modal/dialog implementations — always use `Dialog`. It handles portal rendering, focus trapping, Escape key, body scroll lock, and ARIA attributes automatically.
 
 ### Error Handling
 - API routes: try-catch with `NextResponse.json({ error: '...' }, { status: ... })`

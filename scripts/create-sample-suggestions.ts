@@ -68,14 +68,7 @@ async function createSampleSuggestions() {
   
   // Show some statistics
   const totalSuggestions = await prisma.suggestion.count()
-  const pendingSuggestions = await prisma.suggestion.count({ where: { status: 'pending' } })
-  const actionedSuggestions = await prisma.suggestion.count({ where: { status: 'actioned' } })
-  const discardedSuggestions = await prisma.suggestion.count({ where: { status: 'discarded' } })
-  
   console.log(`Total suggestions: ${totalSuggestions}`)
-  console.log(`Pending: ${pendingSuggestions}`)
-  console.log(`Actioned: ${actionedSuggestions}`)
-  console.log(`Discarded: ${discardedSuggestions}`)
 }
 
 createSampleSuggestions()

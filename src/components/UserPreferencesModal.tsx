@@ -233,7 +233,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
                       name="cardTheme"
                       value="default"
                       checked={cardStyle === 'default'}
-                      onChange={handleCardStyleChange}
+                      onChange={(v) => handleCardStyleChange(v as CardStyle)}
                       title="Modern (white)"
                       help="Clean white cards with rounded corners."
                       preview={<div className="w-full h-full bg-white rounded shadow-sm border border-slate-200" />}
@@ -242,7 +242,7 @@ export default function UserPreferencesModal({ isOpen, onClose }: UserPreference
                       name="cardTheme"
                       value="powerappsBlue"
                       checked={cardStyle === 'powerappsBlue'}
-                      onChange={handleCardStyleChange}
+                      onChange={(v) => handleCardStyleChange(v as CardStyle)}
                       title="Classic (blue)"
                       help="Blue cards that match the older design."
                       preview={

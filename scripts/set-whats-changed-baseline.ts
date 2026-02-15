@@ -71,7 +71,7 @@ async function setBaseline(surgerySlug: string, module: WhatsChangedModule, date
   // Update surgery
   await prisma.surgery.update({
     where: { id: surgery.id },
-    data: { uiConfig: updatedConfig },
+    data: { uiConfig: updatedConfig as import('@prisma/client').Prisma.InputJsonValue },
   })
 
   console.log(`✓ Set ${module} baseline for "${surgery.name}" (${surgery.slug}) to ${dateStr}`)

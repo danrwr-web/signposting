@@ -766,12 +766,12 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
         json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
       } else {
         // Explicitly empty - remove the block
-        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'INTRO_TEXT')) }
+        json = { ...json, blocks: withoutIntro }
       }
       // If introHtml is empty, we intentionally leave the block removed (user cleared it)
     }
     // If introHtml is undefined, existing INTRO_TEXT block is preserved (not touched)
-    
+
     // Handle ROLE_CARDS block
     if (roleCards !== undefined) {
       // Filter out existing ROLE_CARDS block
@@ -818,7 +818,7 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
         json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerHtml) })
       } else {
         // Explicitly empty - remove the block
-        json = { ...json, blocks: kept.filter((b) => !(b && typeof b === 'object' && !Array.isArray(b) && (b as any).type === 'FOOTER_TEXT')) }
+        json = { ...json, blocks: withoutFooter }
       }
       // If footerHtml is empty, we intentionally leave the block removed (user cleared it)
     }

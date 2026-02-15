@@ -245,7 +245,7 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       })
 
       if (sourceTemplate) {
-        templateForRender = repairOverrideAnswerOptionLinks(template, sourceTemplate)
+        templateForRender = repairOverrideAnswerOptionLinks(template as any, sourceTemplate as any)
       }
     }
 

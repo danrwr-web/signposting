@@ -578,10 +578,11 @@ interface DrawerProps {
   baseSymptomId?: string
   customSymptomId?: string
   onEnabled?: () => void
+  onDelete?: (payload: { baseSymptomId?: string; customSymptomId?: string; surgeryId: string }) => Promise<void>
   closeButtonRef?: React.RefObject<HTMLButtonElement>
 }
 
-function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, onEnabled, closeButtonRef }: DrawerProps) {
+function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, onEnabled, onDelete, closeButtonRef }: DrawerProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<null | {
     name: string

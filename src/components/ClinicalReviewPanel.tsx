@@ -160,7 +160,7 @@ export default function ClinicalReviewPanel({
       setEnabledSymptoms(enabledSymptomsData.symptoms || [])
       
       // Build set of enabled symptom keys for quick lookup
-      const enabledKeys = new Set(
+      const enabledKeys = new Set<string>(
         (enabledSymptomsData.symptoms || []).map((s: EffectiveSymptom) => `${s.id}-${s.ageGroup || ''}`)
       )
       setEnabledSymptomKeys(enabledKeys)

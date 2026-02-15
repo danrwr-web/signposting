@@ -27,6 +27,25 @@ const config: Config = {
         'nhs-yellow': '#FFB81C',
         'nhs-yellow-tint': '#FFF7BF',
       },
+      keyframes: {
+        'dialog-overlay-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'dialog-content-in': {
+          from: { opacity: '0', transform: 'scale(0.95) translateY(4px)' },
+          to: { opacity: '1', transform: 'scale(1) translateY(0)' },
+        },
+        'alert-slide-in': {
+          from: { opacity: '0', transform: 'translateY(-4px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+      },
+      animation: {
+        'dialog-overlay-in': 'dialog-overlay-in 150ms ease-out',
+        'dialog-content-in': 'dialog-content-in 200ms ease-out',
+        'alert-slide-in': 'alert-slide-in 200ms ease-out',
+      },
     },
   },
   plugins: [

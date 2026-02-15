@@ -32,19 +32,8 @@ export async function GET(request: NextRequest) {
     
     console.log('Suggestions test API: Sample suggestions:', suggestions.length)
     
-    // Check if status field exists by trying to query it
-    let hasStatusField = false
-    try {
-      await prisma.suggestion.findFirst({
-        where: {
-          status: 'pending'
-        }
-      })
-      hasStatusField = true
-      console.log('Suggestions test API: Status field exists')
-    } catch (error) {
-      console.log('Suggestions test API: Status field does not exist yet')
-    }
+    // Status field is not yet in the schema (see TODO in prisma/schema.prisma)
+    const hasStatusField = false
     
     return NextResponse.json({
       success: true,

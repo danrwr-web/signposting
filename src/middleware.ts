@@ -130,7 +130,7 @@ export default async function middleware(req: NextRequest) {
   // In development or for other hosts, keep existing behaviour.
   const isProtectedPath = pathname.startsWith('/admin') || pathname.startsWith('/s/')
   if (isProtectedPath) {
-    return authMiddleware(req)
+    return (authMiddleware as any)(req)
   }
 
   return NextResponse.next()

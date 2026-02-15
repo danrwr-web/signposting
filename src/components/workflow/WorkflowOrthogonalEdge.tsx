@@ -37,8 +37,6 @@ export default function WorkflowOrthogonalEdge({
       sourceY,
       targetX,
       targetY,
-      sourcePosition,
-      targetPosition,
     })
     edgePath = path
     labelX = sourceX
@@ -51,8 +49,6 @@ export default function WorkflowOrthogonalEdge({
       sourceY,
       targetX,
       targetY,
-      sourcePosition,
-      targetPosition,
     })
     edgePath = path
     labelX = (sourceX + targetX) / 2
