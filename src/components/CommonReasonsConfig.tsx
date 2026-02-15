@@ -153,7 +153,10 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
         }
       })
 
-      const response = await fetch('/api/admin/surgery-settings', {
+      const patchUrl = surgeryId
+        ? `/api/admin/surgery-settings?surgeryId=${surgeryId}`
+        : '/api/admin/surgery-settings'
+      const response = await fetch(patchUrl, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
