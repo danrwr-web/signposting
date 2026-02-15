@@ -145,7 +145,7 @@ export function Dialog({
     <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-slate-900/40"
+        className="absolute inset-0 bg-slate-900/40 animate-dialog-overlay-in"
         aria-hidden="true"
         onClick={onClose}
       />
@@ -163,6 +163,7 @@ export function Dialog({
           widthClasses[width],
           'max-h-[90vh] flex flex-col',
           'rounded-2xl bg-white shadow-xl',
+          'animate-dialog-content-in',
           'focus:outline-none',
         ].join(' ')}
       >

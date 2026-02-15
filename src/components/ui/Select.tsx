@@ -18,7 +18,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
         ref={ref}
         className={[
           'w-full px-3 py-2 rounded-md border text-sm',
-          'transition-colors',
+          'transition-[color,border-color,box-shadow] duration-150',
           'focus:outline-none focus:ring-2 focus:border-transparent',
           'disabled:opacity-60 disabled:cursor-not-allowed',
           error

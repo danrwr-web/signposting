@@ -57,7 +57,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
         className={[
           'bg-white rounded-lg',
           elevationClasses[elevation],
-          hoverable && 'hover:shadow-lg transition-shadow duration-200 cursor-pointer',
+          hoverable && 'hover:shadow-lg hover:-translate-y-0.5 transition-[box-shadow,transform] duration-200 ease-out cursor-pointer',
           paddingClasses[padding],
           className,
         ]

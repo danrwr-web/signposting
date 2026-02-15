@@ -48,7 +48,7 @@ export function AlertBanner({
     <div
       role="alert"
       className={[
-        'flex gap-3 rounded-lg border p-3 text-sm',
+        'flex gap-3 rounded-lg border p-3 text-sm animate-alert-slide-in',
         variantClasses[variant],
         className,
       ]
