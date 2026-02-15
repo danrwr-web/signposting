@@ -203,25 +203,24 @@ export default function AppointmentsPageClient({
     if (!appointmentPendingDelete) {
       return
     }
-    const deletedId = appointmentPendingDelete.id
-    const previousAppointments = appointments
+    const deletedAppointment = appointmentPendingDelete
 
     // Optimistic update: remove from list immediately
-    setAppointments(prev => prev.filter(a => a.id !== deletedId))
+    setAppointments(prev => prev.filter(a => a.id !== deletedAppointment.id))
     setAppointmentPendingDelete(null)
     toast.success('Appointment deleted')
 
     try {
-      const response = await fetch(`/api/admin/appointments/${deletedId}`, {
+      const response = await fetch(`/api/admin/appointments/${deletedAppointment.id}`, {
         method: 'DELETE'
       })
       if (!response.ok) {
         throw new Error('Failed to delete appointment')
       }
     } catch (error) {
-      // Revert on error
+      // Revert only the specific item back into the list
       console.error('Error deleting appointment:', error)
-      setAppointments(previousAppointments)
+      setAppointments(prev => [...prev, deletedAppointment].sort((a, b) => a.name.localeCompare(b.name)))
       toast.error('Failed to delete appointment — reverted')
     }
   }

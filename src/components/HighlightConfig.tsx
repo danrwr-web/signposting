@@ -193,7 +193,7 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       return
     }
 
-    const previousHighlights = highlights
+    const deletedRule = highlights.find(h => h.id === id)
     // Optimistic: remove from list immediately
     setHighlights(prev => prev.filter(h => h.id !== id))
     toast.success('Highlight rule deleted')
@@ -204,8 +204,10 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       })
 
       if (!response.ok) {
-        // Revert on failure
-        setHighlights(previousHighlights)
+        // Revert only the specific deleted item back into the list
+        if (deletedRule) {
+          setHighlights(prev => [...prev, deletedRule])
+        }
         const errorData = await response.json().catch(() => ({}))
         if (response.status === 403) {
           toast.error(errorData.error || 'You do not have permission to delete this rule')
@@ -214,15 +216,17 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
         }
       }
     } catch (error) {
-      // Revert on error
-      setHighlights(previousHighlights)
+      // Revert only the specific deleted item
+      if (deletedRule) {
+        setHighlights(prev => [...prev, deletedRule])
+      }
       console.error('Error deleting highlight:', error)
       toast.error('Failed to delete highlight rule — reverted')
     }
   }
 
   const handleToggleActive = async (id: string, isEnabled: boolean) => {
-    const previousHighlights = highlights
+    const previousValue = highlights.find(h => h.id === id)?.isEnabled
     // Optimistic: toggle in local state immediately
     setHighlights(prev =>
       prev.map(h => h.id === id ? { ...h, isEnabled } : h)
@@ -238,13 +242,17 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       if (response.ok) {
         toast.success(`Highlight rule ${isEnabled ? 'enabled' : 'disabled'}`)
       } else {
-        // Revert on failure
-        setHighlights(previousHighlights)
+        // Revert only the specific item's toggle
+        setHighlights(prev =>
+          prev.map(h => h.id === id ? { ...h, isEnabled: previousValue ?? !isEnabled } : h)
+        )
         toast.error('Failed to update highlight rule')
       }
     } catch (error) {
-      // Revert on error
-      setHighlights(previousHighlights)
+      // Revert only the specific item's toggle
+      setHighlights(prev =>
+        prev.map(h => h.id === id ? { ...h, isEnabled: previousValue ?? !isEnabled } : h)
+      )
       console.error('Error updating highlight:', error)
       toast.error('Failed to update highlight rule — reverted')
     }
