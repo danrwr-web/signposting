@@ -5,6 +5,7 @@ import { useScrollReveal } from '@/hooks/useScrollReveal'
 import { useFadeUpOnScroll } from '@/hooks/useFadeUpOnScroll'
 import MarketingHeader from '@/components/marketing/MarketingHeader'
 import MarketingFooter from '@/components/marketing/MarketingFooter'
+import AnimatedDemo from '@/components/marketing/AnimatedDemo'
 
 function CheckIcon({ className = '' }: { className?: string }) {
   return (
@@ -29,9 +30,6 @@ export default function LandingPageClient() {
     (process.env.NODE_ENV === 'development' ? '' : 'https://app.signpostingtool.co.uk')
   const appEntryUrl = appBaseUrl || '/'
   const { register } = useScrollReveal()
-
-  // Feature flag to control demo media visibility
-  const SHOW_HOMEPAGE_DEMO = false
 
   // Fade-up hooks for "Why It Works" section with staggered delays
   const whyItWorks1 = useFadeUpOnScroll({ staggerDelay: 0 })
@@ -321,7 +319,7 @@ export default function LandingPageClient() {
         </div>
       </section>
 
-      {/* Promotional video section */}
+      {/* Interactive demo section */}
       <section id="demo-section" className="bg-gradient-to-b from-gray-50 to-white py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
@@ -329,28 +327,23 @@ export default function LandingPageClient() {
               See the Signposting Toolkit in action
             </h2>
             <p className="mt-4 text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
-              A one-minute walkthrough showing how reception teams use the toolkit for triage support in real life.
+              Watch how reception teams search for a symptom and get clear, clinically approved guidance in seconds.
             </p>
           </div>
 
-          {SHOW_HOMEPAGE_DEMO && (
-            <div className="max-w-4xl mx-auto mb-10">
-              <div className="w-full rounded-2xl shadow-lg overflow-hidden bg-gray-100 aspect-video relative">
-                <img
-                  src="/images/toolkit-demo.gif"
-                  alt="Signposting Toolkit demo showing symptom search, selection, and instruction panel"
-                  className="w-full h-full object-contain"
-                  style={{ display: 'block' }}
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement
-                    target.style.display = 'none'
-                  }}
-                />
-              </div>
-            </div>
-          )}
+          {/* Animated demo — primary */}
+          <div className="max-w-3xl mx-auto mb-12">
+            <AnimatedDemo />
+            <p className="text-center text-xs text-gray-400 mt-3">
+              Hover to pause. The animation loops automatically.
+            </p>
+          </div>
 
-          <div className="max-w-4xl mx-auto">
+          {/* Video walkthrough — secondary */}
+          <div className="max-w-3xl mx-auto">
+            <p className="text-center text-sm text-gray-500 mb-4">
+              Or watch the full one-minute walkthrough:
+            </p>
             <div className="w-full rounded-2xl shadow-xl overflow-hidden ring-1 ring-gray-200 aspect-video">
               <iframe
                 src="https://www.youtube-nocookie.com/embed/-IIpq9X9n9Y?rel=0&modestbranding=1&controls=1&autohide=1&playsinline=1"
