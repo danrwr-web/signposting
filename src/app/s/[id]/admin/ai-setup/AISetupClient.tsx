@@ -25,7 +25,7 @@ interface CustomiseInstructionsResponse {
   skippedDetails?: Array<{ symptomId: string; reason?: string }>
 }
 
-const APPOINTMENT_ARCHETYPE_LABELS: Record<keyof AppointmentModelConfig, string> = {
+const APPOINTMENT_ARCHETYPE_LABELS: Record<Exclude<keyof AppointmentModelConfig, 'clinicianArchetypes'>, string> = {
   routineContinuityGp: 'Routine continuity GP',
   routineGpPhone: 'Routine GP telephone',
   gpTriage48h: 'GP triage within 48 hours',
@@ -275,7 +275,7 @@ export default function AISetupClient({
                       return (
                         <div key={key} className="border-l-4 border-nhs-blue pl-4 py-2">
                           <div className="font-medium text-gray-900 mb-1">
-                            {APPOINTMENT_ARCHETYPE_LABELS[key as keyof AppointmentModelConfig]}
+                            {APPOINTMENT_ARCHETYPE_LABELS[key as Exclude<keyof AppointmentModelConfig, 'clinicianArchetypes'>]}
                           </div>
                           <div className="text-sm text-gray-700 space-y-1">
                             <div>Local name: {config.localName || '(not set)'}</div>

@@ -673,7 +673,7 @@ export async function createWorkflowNodeForTemplate(
         isStart: false,
         actionKey: null,
         badges: [],
-        style: defaultStyle,
+        style: (defaultStyle ?? undefined) as import('@prisma/client').Prisma.InputJsonValue | undefined,
         positionX: positionX !== undefined ? Math.round(positionX) : null,
         positionY: positionY !== undefined ? Math.round(positionY) : null,
       },
@@ -1110,12 +1110,10 @@ export async function updateWorkflowNodeForDiagram(
 
     await prisma.$transaction(async (tx) => {
       // Update node fields
-      const updateData: {
+      const updateData: Record<string, any> & {
         title: string
         body: string | null
         actionKey: WorkflowActionKey | null
-        badges?: unknown
-        style?: unknown
       } = {
         title,
         body: body || null,
@@ -1199,7 +1197,7 @@ export async function updateWorkflowNodeForDiagram(
         
         // If style is explicitly null, allow clearing it
         // Otherwise, use merged style with clamped dimensions
-        updateData.style = style === null ? null : mergedStyle
+        updateData.style = (style === null ? null : mergedStyle) as any
       }
       
       await tx.workflowNodeTemplate.update({

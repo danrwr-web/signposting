@@ -140,7 +140,7 @@ export async function setChangesBaselineDate(
   
   await prisma.surgery.update({
     where: { id: surgeryId },
-    data: { uiConfig: updatedConfig },
+    data: { uiConfig: updatedConfig as import('@prisma/client').Prisma.InputJsonValue },
   })
 }
 

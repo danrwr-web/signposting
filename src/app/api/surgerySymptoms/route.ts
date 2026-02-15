@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
         isEnabled,
         canRevertToBase: status === 'MODIFIED',
         statusRowId: statusRow?.id,
-        lastEditedAt: statusRow?.lastEditedAt ?? null,
+        lastEditedAt: statusRow?.lastEditedAt?.toISOString() ?? null,
         lastEditedBy: statusRow?.lastEditedBy ?? null,
       }
     })

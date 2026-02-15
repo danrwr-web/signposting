@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       const base = await tx.baseSymptom.create({
         data: {
           name: custom.name,
+          slug: custom.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
           briefInstruction: custom.briefInstruction,
           instructions: custom.instructions,
           instructionsHtml: custom.instructionsHtml,

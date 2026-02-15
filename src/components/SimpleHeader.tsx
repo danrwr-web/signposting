@@ -5,14 +5,13 @@ import Link from 'next/link'
 import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import SurgerySelector from './SurgerySelector'
 import UserPreferencesModal from './UserPreferencesModal'
-import { Surgery } from '@prisma/client'
 import LogoSizeControl from './LogoSizeControl'
 import NavigationTriggerWithTooltip from './NavigationTriggerWithTooltip'
 import { useSurgery } from '@/context/SurgeryContext'
 
 interface SimpleHeaderProps {
   /** Optional list of surgeries for the dropdown selector */
-  surgeries?: Surgery[]
+  surgeries?: Array<{ id: string; slug: string | null; name: string }>
   /** Current surgery ID (used with surgeries prop) */
   currentSurgeryId?: string
   /** Surgery name to display (alternative to surgeries prop) */

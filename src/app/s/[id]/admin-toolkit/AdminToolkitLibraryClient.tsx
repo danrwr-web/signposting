@@ -91,7 +91,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
           const selectedCat = findCategory(categories, selectedCategoryId)
           if (selectedCat && selectedCat.children) {
             const childIds = getCategoryAndChildrenIds(selectedCat)
-            matchesCategory = childIds.includes(item.categoryId)
+            matchesCategory = item.categoryId !== null && childIds.includes(item.categoryId)
           }
         }
       }

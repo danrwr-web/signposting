@@ -163,7 +163,7 @@ export async function PATCH(
     // Update surgery
     await prisma.surgery.update({
       where: { id: surgeryId },
-      data: { uiConfig: updatedConfig },
+      data: { uiConfig: updatedConfig as import('@prisma/client').Prisma.InputJsonValue },
     })
 
     // Revalidate affected paths

@@ -48,8 +48,8 @@ export async function GET(request: NextRequest) {
     } else {
       // Surgery admins see only their surgery's suggestions
       const surgeryIds = user.memberships
-        .filter(m => m.role === 'ADMIN')
-        .map(m => m.surgeryId)
+        .filter((m: { role: string }) => m.role === 'ADMIN')
+        .map((m: { surgeryId: string }) => m.surgeryId)
       
       console.log('Suggestions API: Surgery admin access - surgery IDs:', surgeryIds)
       
@@ -285,7 +285,7 @@ async function deleteSingleSuggestion(request: NextRequest, suggestionId: string
     // Check permissions
     if (user.globalRole !== 'SUPERUSER') {
       const hasPermission = user.memberships.some(
-        m => m.surgeryId === suggestion.surgeryId && m.role === 'ADMIN'
+        (m: { surgeryId: string; role: string }) => m.surgeryId === suggestion.surgeryId && m.role === 'ADMIN'
       )
       
       if (!hasPermission) {
@@ -334,8 +334,8 @@ async function clearAllSuggestions(request: NextRequest, user: any) {
     } else {
       // Surgery admins can only clear their surgery's suggestions
       const surgeryIds = user.memberships
-        .filter(m => m.role === 'ADMIN')
-        .map(m => m.surgeryId)
+        .filter((m: { role: string }) => m.role === 'ADMIN')
+        .map((m: { surgeryId: string }) => m.surgeryId)
       
       console.log('Suggestions API: Surgery admin clearing suggestions for surgery IDs:', surgeryIds)
       
@@ -411,7 +411,7 @@ export async function PATCH(request: NextRequest) {
     // Check permissions
     if (user.globalRole !== 'SUPERUSER') {
       const hasPermission = user.memberships.some(
-        m => m.surgeryId === suggestion.surgeryId && m.role === 'ADMIN'
+        (m: { surgeryId: string; role: string }) => m.surgeryId === suggestion.surgeryId && m.role === 'ADMIN'
       )
       
       if (!hasPermission) {

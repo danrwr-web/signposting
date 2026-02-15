@@ -84,7 +84,7 @@ export default function AppointmentCsvUpload({
         toast(() => (
           <span className="text-sm text-nhs-grey">
             Some rows were skipped: {details}
-            {result.issues.length > 3 ? '…' : ''}
+            {result.issues!.length > 3 ? '…' : ''}
           </span>
         ), { icon: '⚠️' })
       }

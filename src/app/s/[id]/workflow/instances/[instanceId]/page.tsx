@@ -140,7 +140,7 @@ export default async function WorkflowInstancePage({ params }: WorkflowInstanceP
 
     // Handle END node - mark as completed if not already
     if (currentNode.nodeType === 'END') {
-      if (instance.status !== 'COMPLETED') {
+      if ((instance.status as string) !== 'COMPLETED') {
         await prisma.workflowInstance.update({
           where: { id: instanceId },
           data: {

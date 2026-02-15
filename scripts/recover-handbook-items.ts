@@ -14,7 +14,7 @@
  * @see https://github.com/your-org/signposting/issues/XXX (data loss bug fix)
  */
 
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -47,7 +47,7 @@ async function findAffectedItems(options?: { surgeryId?: string; sinceDays?: num
   const sinceDate = new Date()
   sinceDate.setDate(sinceDate.getDate() - sinceDays)
 
-  const whereClause: Parameters<typeof prisma.adminItem.findMany>[0]['where'] = {
+  const whereClause: import('@prisma/client').Prisma.AdminItemWhereInput = {
     deletedAt: null,
     categoryId: null,
     updatedAt: { gte: sinceDate },
@@ -149,11 +149,11 @@ async function findItemsWithEmptyContent(options?: { surgeryId?: string; sinceDa
   const sinceDate = new Date()
   sinceDate.setDate(sinceDate.getDate() - sinceDays)
 
-  const whereClause: Parameters<typeof prisma.adminItem.findMany>[0]['where'] = {
+  const whereClause: import('@prisma/client').Prisma.AdminItemWhereInput = {
     deletedAt: null,
     updatedAt: { gte: sinceDate },
     type: 'PAGE',
-    OR: [{ contentHtml: null }, { contentHtml: '' }, { contentJson: null }],
+    OR: [{ contentHtml: { equals: null } }, { contentHtml: '' }, { contentJson: { equals: Prisma.DbNull } }],
   }
 
   if (options?.surgeryId) {
@@ -228,7 +228,7 @@ async function restoreCategoryId(itemId: string, categoryId: string, dryRun = tr
         surgeryId: item.surgeryId,
         adminItemId: itemId,
         action: 'ITEM_CATEGORY_RESTORED',
-        actorUserId: null, // System recovery
+        actorUserId: 'SYSTEM_RECOVERY',
         entityType: 'ADMIN_ITEM',
         summary: `Restored categoryId via recovery script (was null due to bug)`,
         diffJson: {

@@ -106,7 +106,7 @@ function isMarketingHost(hostHeader: string | null): boolean {
 }
 
 export default async function HomePage() {
-  const headerList = headers()
+  const headerList = await headers()
   const host = headerList.get('host')
 
   // On marketing hosts we always serve the landing page and skip auth redirects.

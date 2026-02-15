@@ -228,7 +228,7 @@ export default function TemplatesClient({ surgeryId, templates, isSuperuser }: T
                       <span className="inline-flex items-center gap-2">
                         <input
                           type="text"
-                          value={deleteConfirm}
+                          value={deleteConfirm ?? ''}
                           onChange={(e) => setDeleteConfirm(e.target.value)}
                           placeholder="Type DELETE"
                           className="w-28 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:ring-1 focus:ring-red-500"
