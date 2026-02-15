@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
+import { Button } from '@/components/ui'
 
 export default function AdminLoginForm() {
   const [email, setEmail] = useState('')
@@ -81,13 +82,13 @@ export default function AdminLoginForm() {
       </div>
 
       <div>
-        <button
+        <Button
           type="submit"
-          disabled={isLoading}
-          className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-nhs-blue hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-nhs-blue disabled:opacity-50 disabled:cursor-not-allowed"
+          loading={isLoading}
+          className="w-full"
         >
           {isLoading ? 'Signing in...' : 'Sign in'}
-        </button>
+        </Button>
       </div>
 
       <div className="text-center">
