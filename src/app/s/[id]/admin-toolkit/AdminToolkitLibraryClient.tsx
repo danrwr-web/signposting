@@ -251,12 +251,13 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
           {/* Sidebar: categories */}
           <aside
             ref={sidebarScrollRef}
-            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start md:overflow-y-auto ${
+            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
               isBlueCards ? 'bg-nhs-blue scrollbar-nhs-blue' : 'bg-gray-50'
             }`}
             style={{
               top: sidebarStickyTopPx,
               maxHeight: `calc(100vh - ${sidebarStickyTopPx + bottomOffsetPx}px)`,
+              overflowY: 'auto',
             }}
           >
             <div className="px-4 py-4">
