@@ -18,6 +18,8 @@ interface SimpleHeaderProps {
   surgeryName?: string
   /** Surgery ID for logo link (used with surgeryName prop) */
   surgeryId?: string
+  /** When provided, surgery selector calls this instead of navigating */
+  onSurgeryChange?: (surgeryId: string) => void
 }
 
 /**
@@ -29,6 +31,7 @@ export default function SimpleHeader({
   currentSurgeryId,
   surgeryName,
   surgeryId: propSurgeryId,
+  onSurgeryChange,
 }: SimpleHeaderProps) {
   const pathname = usePathname()
   const params = useParams()
@@ -70,9 +73,10 @@ export default function SimpleHeader({
           {/* Surgery Selector or Name Display + Preferences */}
           <div className="flex items-center gap-3">
             {surgeries && surgeries.length > 0 ? (
-              <SurgerySelector 
-                surgeries={surgeries} 
+              <SurgerySelector
+                surgeries={surgeries}
                 currentSurgeryId={currentSurgeryId}
+                onSurgeryChange={onSurgeryChange}
               />
             ) : effectiveSurgeryName ? (
               <span className="text-sm text-nhs-grey font-medium">

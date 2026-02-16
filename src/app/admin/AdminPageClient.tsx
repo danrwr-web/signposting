@@ -774,7 +774,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={surgeries} currentSurgeryId={undefined} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={selectedSurgery} onSurgeryChange={setSelectedSurgery} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -788,17 +788,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             </p>
           </div>
           <div className="flex gap-2">
-            {session.type === 'superuser' && surgeries.length > 0 && (
-              <select
-                value={selectedSurgery}
-                onChange={(e) => setSelectedSurgery(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white text-nhs-dark-blue focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
-              >
-                {surgeries.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            )}
             <button
               onClick={handleLogout}
               className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
