@@ -26,7 +26,9 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const isBlueCards = cardStyle === 'powerappsBlue'
 
   const searchStickyRef = useRef<HTMLDivElement>(null)
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
+  const [showBottomFade, setShowBottomFade] = useState(false)
 
   // Fetch recent changes count for the badge
   useEffect(() => {
@@ -54,6 +56,31 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+
+  // Handle sidebar scroll to show/hide bottom fade
+  useEffect(() => {
+    const scrollContainer = sidebarScrollRef.current
+    if (!scrollContainer) return
+
+    const checkScrollPosition = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 5
+      const hasOverflow = scrollHeight > clientHeight
+      setShowBottomFade(hasOverflow && !isAtBottom)
+    }
+
+    // Check initial state
+    checkScrollPosition()
+
+    scrollContainer.addEventListener('scroll', checkScrollPosition)
+    // Also check on resize in case content changes
+    window.addEventListener('resize', checkScrollPosition)
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', checkScrollPosition)
+      window.removeEventListener('resize', checkScrollPosition)
+    }
+  }, [categories])
 
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
 
@@ -201,7 +228,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside
-            className={`border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
+            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
               isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
             }`}
             style={sidebarStickyTopPx ? { top: sidebarStickyTopPx } : undefined}
@@ -211,10 +238,21 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                 isBlueCards ? 'text-white' : 'text-gray-500'
               }`}>Categories</h2>
             </div>
-            <nav
-              className="px-2 pb-4"
-              aria-label="Practice Handbook categories"
+            <div
+              ref={sidebarScrollRef}
+              className={`md:max-h-[calc(100vh-72px)] md:overflow-y-auto ${
+                isBlueCards ? 'scrollbar-nhs-blue' : ''
+              }`}
+              style={
+                sidebarStickyTopPx
+                  ? { maxHeight: `calc(100vh - ${sidebarStickyTopPx}px)` }
+                  : undefined
+              }
             >
+              <nav
+                className="px-2 pb-4"
+                aria-label="Practice Handbook categories"
+              >
             <button
               type="button"
               onClick={() => setSelectedCategoryId('ALL')}
@@ -316,7 +354,19 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                 </div>
               )
             })}
-            </nav>
+              </nav>
+            </div>
+            {/* Bottom fade affordance */}
+            {showBottomFade && (
+              <div
+                className={`absolute bottom-0 left-0 right-0 h-10 pointer-events-none z-10 ${
+                  isBlueCards
+                    ? 'bg-gradient-to-t from-nhs-blue to-transparent'
+                    : 'bg-gradient-to-t from-gray-50 to-transparent'
+                }`}
+                aria-hidden="true"
+              />
+            )}
           </aside>
 
           {/* Main: pages */}
