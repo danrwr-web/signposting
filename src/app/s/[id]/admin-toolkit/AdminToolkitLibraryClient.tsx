@@ -26,7 +26,9 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const isBlueCards = cardStyle === 'powerappsBlue'
 
   const searchStickyRef = useRef<HTMLDivElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
+  const [showSidebarFade, setShowSidebarFade] = useState(false)
 
   // Fetch recent changes count for the badge
   useEffect(() => {
@@ -54,6 +56,23 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+
+  // Detect whether sidebar has more content to scroll
+  useEffect(() => {
+    const el = sidebarRef.current
+    if (!el) return
+    const check = () => {
+      const canScroll = el.scrollHeight - el.scrollTop - el.clientHeight > 1
+      setShowSidebarFade(canScroll)
+    }
+    check()
+    el.addEventListener('scroll', check, { passive: true })
+    window.addEventListener('resize', check)
+    return () => {
+      el.removeEventListener('scroll', check)
+      window.removeEventListener('resize', check)
+    }
+  }, [categories])
 
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
 
@@ -201,10 +220,16 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside
-            className={`border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
+            ref={sidebarRef}
+            className={`border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start md:overflow-y-auto md:max-h-[calc(100vh_-_var(--sidebar-top))] sidebar-scrollbar ${
               isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
             }`}
-            style={sidebarStickyTopPx ? { top: sidebarStickyTopPx } : undefined}
+            style={{
+              '--sidebar-top': `${sidebarStickyTopPx}px`,
+              '--sidebar-thumb': isBlueCards ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)',
+              '--sidebar-thumb-hover': isBlueCards ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)',
+              ...(sidebarStickyTopPx ? { top: sidebarStickyTopPx } : {})
+            } as React.CSSProperties}
           >
             <div className="px-4 py-4">
               <h2 className={`text-xs font-medium uppercase tracking-wide ${
@@ -317,6 +342,18 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               )
             })}
             </nav>
+            {/* Bottom fade affordance – hints at more scrollable content */}
+            <div
+              className={`hidden md:block sticky bottom-0 left-0 right-0 h-10 -mt-10 pointer-events-none transition-opacity duration-200 ${
+                showSidebarFade ? 'opacity-100' : 'opacity-0'
+              }`}
+              style={{
+                background: isBlueCards
+                  ? 'linear-gradient(to bottom, transparent, #005EB8)'
+                  : 'linear-gradient(to bottom, transparent, #f9fafb)'
+              }}
+              aria-hidden="true"
+            />
           </aside>
 
           {/* Main: pages */}

@@ -34,9 +34,32 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Admin Toolkit sidebar scrollbar (themed via CSS custom properties) */
+  .sidebar-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sidebar-thumb, rgba(0,0,0,0.2)) transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--sidebar-thumb, rgba(0,0,0,0.2));
+    border-radius: 3px;
+  }
+
+  .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: var(--sidebar-thumb-hover, rgba(0,0,0,0.4));
   }
   
   .line-clamp-2 {
