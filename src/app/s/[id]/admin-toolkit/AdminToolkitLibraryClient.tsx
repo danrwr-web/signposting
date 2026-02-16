@@ -29,7 +29,6 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const sidebarRef = useRef<HTMLElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
   const [showSidebarFade, setShowSidebarFade] = useState(false)
-  const [isMdScreen, setIsMdScreen] = useState(false)
 
   // Fetch recent changes count for the badge
   useEffect(() => {
@@ -56,15 +55,6 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     measure()
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
-  }, [])
-
-  // Track md+ breakpoint so we can apply max-height via inline style
-  useEffect(() => {
-    const mql = window.matchMedia('(min-width: 768px)')
-    setIsMdScreen(mql.matches)
-    const handler = (e: MediaQueryListEvent) => setIsMdScreen(e.matches)
-    mql.addEventListener('change', handler)
-    return () => mql.removeEventListener('change', handler)
   }, [])
 
   // Detect whether sidebar has more content to scroll
@@ -235,13 +225,10 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
             }`}
             style={{
+              '--sidebar-top': `${sidebarStickyTopPx}px`,
               '--sidebar-thumb': isBlueCards ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.15)',
               '--sidebar-thumb-hover': isBlueCards ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.3)',
-              ...(sidebarStickyTopPx ? { top: sidebarStickyTopPx } : {}),
-              ...(isMdScreen ? {
-                maxHeight: `calc(100vh - ${sidebarStickyTopPx}px)`,
-                overflowY: 'auto' as const,
-              } : {})
+              ...(sidebarStickyTopPx ? { top: sidebarStickyTopPx } : {})
             } as React.CSSProperties}
           >
             <div className="px-4 py-4">

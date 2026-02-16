@@ -61,6 +61,14 @@
   .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
     background: var(--sidebar-thumb-hover, rgba(0,0,0,0.4));
   }
+
+  /* Independent sidebar scrolling on md+ screens (pure CSS, no JS timing) */
+  @media (min-width: 768px) {
+    .sidebar-scrollbar {
+      max-height: calc(100vh - var(--sidebar-top, 0px));
+      overflow-y: auto;
+    }
+  }
   
   .line-clamp-2 {
     display: -webkit-box;
