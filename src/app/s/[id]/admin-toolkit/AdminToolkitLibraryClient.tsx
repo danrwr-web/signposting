@@ -26,8 +26,9 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const isBlueCards = cardStyle === 'powerappsBlue'
 
   const searchStickyRef = useRef<HTMLDivElement>(null)
-  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+  const sidebarScrollRef = useRef<HTMLElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
+  const [bottomOffsetPx, setBottomOffsetPx] = useState(0)
   const [showBottomFade, setShowBottomFade] = useState(false)
 
   // Fetch recent changes count for the badge
@@ -55,6 +56,27 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     measure()
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  // Measure the pinned panel height (changes when expanded/collapsed)
+  useEffect(() => {
+    const panel = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
+    if (!panel) return
+
+    const measurePanel = () => {
+      setBottomOffsetPx(panel.offsetHeight)
+    }
+
+    // Initial measurement
+    measurePanel()
+
+    // Observe height changes (e.g., when user expands/collapses)
+    const resizeObserver = new ResizeObserver(measurePanel)
+    resizeObserver.observe(panel)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
   }, [])
 
   // Handle sidebar scroll to show/hide bottom fade
@@ -228,26 +250,24 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside
-            className={`handbook-sidebar relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start md:flex md:flex-col md:overflow-hidden ${
-              isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
+            ref={sidebarScrollRef}
+            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start md:overflow-y-auto ${
+              isBlueCards ? 'bg-nhs-blue scrollbar-nhs-blue' : 'bg-gray-50'
             }`}
-            style={{ '--sidebar-offset': `${sidebarStickyTopPx}px` } as React.CSSProperties}
+            style={{
+              top: sidebarStickyTopPx,
+              maxHeight: `calc(100vh - ${sidebarStickyTopPx + bottomOffsetPx}px)`,
+            }}
           >
-            <div className="px-4 py-4 shrink-0">
+            <div className="px-4 py-4">
               <h2 className={`text-xs font-medium uppercase tracking-wide ${
                 isBlueCards ? 'text-white' : 'text-gray-500'
               }`}>Categories</h2>
             </div>
-            <div
-              ref={sidebarScrollRef}
-              className={`flex-1 min-h-0 md:overflow-y-auto ${
-                isBlueCards ? 'scrollbar-nhs-blue' : ''
-              }`}
+            <nav
+              className="px-2 pb-4"
+              aria-label="Practice Handbook categories"
             >
-              <nav
-                className="px-2 pb-4"
-                aria-label="Practice Handbook categories"
-              >
             <button
               type="button"
               onClick={() => setSelectedCategoryId('ALL')}
@@ -349,8 +369,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
                 </div>
               )
             })}
-              </nav>
-            </div>
+            </nav>
             {/* Bottom fade affordance */}
             {showBottomFade && (
               <div
