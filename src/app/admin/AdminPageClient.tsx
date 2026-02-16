@@ -275,8 +275,18 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     if (session.type === 'surgery' && session.surgeryId) {
       setSelectedSurgery(session.surgeryId)
     } else if (session.type === 'superuser' && surgeries.length > 0) {
-      // For superuser, default to first surgery
-      setSelectedSurgery(surgeries[0].id)
+      // Try to restore the last-viewed surgery from localStorage (set by SurgerySelector)
+      let restoredId: string | null = null
+      try {
+        const stored = localStorage.getItem('surgery_state')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed?.id && surgeries.some(s => s.id === parsed.id)) {
+            restoredId = parsed.id
+          }
+        }
+      } catch { /* ignore parse errors */ }
+      setSelectedSurgery(restoredId || surgeries[0].id)
     }
   }, [session, surgeries])
 
