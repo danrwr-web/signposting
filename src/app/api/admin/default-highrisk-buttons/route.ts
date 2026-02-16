@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
     // Load configs: surgery-specific (if provided) and global (placeholder surgeryId)
     const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
-    const [existingConfigs, globalConfigs] = await Promise.all([
+    const [existingConfigs, globalConfigs, surgeryRecord] = await Promise.all([
       surgeryId
         ? prisma.defaultHighRiskButtonConfig.findMany({
             where: { surgeryId },
@@ -80,7 +80,13 @@ export async function GET(request: NextRequest) {
       prisma.defaultHighRiskButtonConfig.findMany({
         where: { surgeryId: GLOBAL_SURGERY_ID },
         orderBy: { orderIndex: 'asc' }
-      })
+      }),
+      surgeryId
+        ? prisma.surgery.findUnique({
+            where: { id: surgeryId },
+            select: { enableDefaultHighRisk: true }
+          })
+        : Promise.resolve(null)
     ])
     
     // Merge maps: surgery overrides take precedence over global, which override hardcoded
@@ -126,7 +132,7 @@ export async function GET(request: NextRequest) {
     buttons.sort((a, b) => a.orderIndex - b.orderIndex)
 
     return NextResponse.json(
-      { buttons },
+      { buttons, enableDefaultHighRisk: surgeryRecord?.enableDefaultHighRisk ?? true },
       { headers: { 'Cache-Control': 'private, max-age=30' } }
     )
   } catch (error) {

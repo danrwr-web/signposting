@@ -275,8 +275,18 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     if (session.type === 'surgery' && session.surgeryId) {
       setSelectedSurgery(session.surgeryId)
     } else if (session.type === 'superuser' && surgeries.length > 0) {
-      // For superuser, default to first surgery
-      setSelectedSurgery(surgeries[0].id)
+      // Try to restore the last-viewed surgery from localStorage (set by SurgerySelector)
+      let restoredId: string | null = null
+      try {
+        const stored = localStorage.getItem('surgery_state')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed?.id && surgeries.some(s => s.id === parsed.id)) {
+            restoredId = parsed.id
+          }
+        }
+      } catch { /* ignore parse errors */ }
+      setSelectedSurgery(restoredId || surgeries[0].id)
     }
   }, [session, surgeries])
 
@@ -774,7 +784,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={surgeries} currentSurgeryId={undefined} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={selectedSurgery} onSurgeryChange={setSelectedSurgery} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
