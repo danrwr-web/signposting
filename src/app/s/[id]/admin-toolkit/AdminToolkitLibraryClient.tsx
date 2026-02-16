@@ -60,22 +60,38 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
 
   // Measure the pinned panel height (changes when expanded/collapsed)
   useEffect(() => {
-    const panel = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
-    if (!panel) return
+    let resizeObserver: ResizeObserver | null = null
+    let mutationObserver: MutationObserver | null = null
 
-    const measurePanel = () => {
-      setBottomOffsetPx(panel.offsetHeight)
+    const attachResizeObserver = (panel: HTMLElement) => {
+      const measurePanel = () => {
+        setBottomOffsetPx(panel.offsetHeight)
+      }
+      measurePanel()
+      resizeObserver = new ResizeObserver(measurePanel)
+      resizeObserver.observe(panel)
     }
 
-    // Initial measurement
-    measurePanel()
-
-    // Observe height changes (e.g., when user expands/collapses)
-    const resizeObserver = new ResizeObserver(measurePanel)
-    resizeObserver.observe(panel)
+    // Try to find the panel immediately
+    const panel = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
+    if (panel) {
+      attachResizeObserver(panel)
+    } else {
+      // Panel not in DOM yet - watch for it to appear
+      mutationObserver = new MutationObserver(() => {
+        const el = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
+        if (el) {
+          mutationObserver?.disconnect()
+          mutationObserver = null
+          attachResizeObserver(el)
+        }
+      })
+      mutationObserver.observe(document.body, { childList: true, subtree: true })
+    }
 
     return () => {
-      resizeObserver.disconnect()
+      resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
     }
   }, [])
 
