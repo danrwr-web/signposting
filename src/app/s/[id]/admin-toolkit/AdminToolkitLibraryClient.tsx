@@ -26,7 +26,10 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
   const isBlueCards = cardStyle === 'powerappsBlue'
 
   const searchStickyRef = useRef<HTMLDivElement>(null)
+  const sidebarScrollRef = useRef<HTMLElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
+  const [bottomOffsetPx, setBottomOffsetPx] = useState(0)
+  const [showBottomFade, setShowBottomFade] = useState(false)
 
   // Fetch recent changes count for the badge
   useEffect(() => {
@@ -54,6 +57,68 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+
+  // Measure the pinned panel height (changes when expanded/collapsed)
+  useEffect(() => {
+    let resizeObserver: ResizeObserver | null = null
+    let mutationObserver: MutationObserver | null = null
+
+    const attachResizeObserver = (panel: HTMLElement) => {
+      const measurePanel = () => {
+        setBottomOffsetPx(panel.offsetHeight)
+      }
+      measurePanel()
+      resizeObserver = new ResizeObserver(measurePanel)
+      resizeObserver.observe(panel)
+    }
+
+    // Try to find the panel immediately
+    const panel = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
+    if (panel) {
+      attachResizeObserver(panel)
+    } else {
+      // Panel not in DOM yet - watch for it to appear
+      mutationObserver = new MutationObserver(() => {
+        const el = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
+        if (el) {
+          mutationObserver?.disconnect()
+          mutationObserver = null
+          attachResizeObserver(el)
+        }
+      })
+      mutationObserver.observe(document.body, { childList: true, subtree: true })
+    }
+
+    return () => {
+      resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
+    }
+  }, [])
+
+  // Handle sidebar scroll to show/hide bottom fade
+  useEffect(() => {
+    const scrollContainer = sidebarScrollRef.current
+    if (!scrollContainer) return
+
+    const checkScrollPosition = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 5
+      const hasOverflow = scrollHeight > clientHeight
+      setShowBottomFade(hasOverflow && !isAtBottom)
+    }
+
+    // Check initial state
+    checkScrollPosition()
+
+    scrollContainer.addEventListener('scroll', checkScrollPosition)
+    // Also check on resize in case content changes
+    window.addEventListener('resize', checkScrollPosition)
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', checkScrollPosition)
+      window.removeEventListener('resize', checkScrollPosition)
+    }
+  }, [categories])
 
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
 
@@ -201,10 +266,15 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside
-            className={`border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
-              isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
+            ref={sidebarScrollRef}
+            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
+              isBlueCards ? 'bg-nhs-blue scrollbar-nhs-blue' : 'bg-gray-50'
             }`}
-            style={sidebarStickyTopPx ? { top: sidebarStickyTopPx } : undefined}
+            style={{
+              top: sidebarStickyTopPx,
+              maxHeight: `calc(100vh - ${sidebarStickyTopPx + bottomOffsetPx}px)`,
+              overflowY: 'auto',
+            }}
           >
             <div className="px-4 py-4">
               <h2 className={`text-xs font-medium uppercase tracking-wide ${
@@ -317,6 +387,17 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               )
             })}
             </nav>
+            {/* Bottom fade affordance */}
+            {showBottomFade && (
+              <div
+                className={`absolute bottom-0 left-0 right-0 h-10 pointer-events-none z-10 ${
+                  isBlueCards
+                    ? 'bg-gradient-to-t from-nhs-blue to-transparent'
+                    : 'bg-gradient-to-t from-gray-50 to-transparent'
+                }`}
+                aria-hidden="true"
+              />
+            )}
           </aside>
 
           {/* Main: pages */}
