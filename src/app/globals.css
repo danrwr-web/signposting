@@ -209,3 +209,11 @@
     }
   }
 }
+
+/* Practice Handbook sidebar height constraint */
+@media (min-width: 768px) {
+  .handbook-sidebar {
+    top: var(--sidebar-offset, 0px);
+    max-height: calc(100vh - var(--sidebar-offset, 0px));
+  }
+}
