@@ -228,26 +228,23 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside
-            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
+            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start md:flex md:flex-col md:overflow-hidden ${
               isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
             }`}
-            style={sidebarStickyTopPx ? { top: sidebarStickyTopPx } : undefined}
+            style={sidebarStickyTopPx
+              ? { top: sidebarStickyTopPx, maxHeight: `calc(100vh - ${sidebarStickyTopPx}px)` }
+              : undefined}
           >
-            <div className="px-4 py-4">
+            <div className="px-4 py-4 shrink-0">
               <h2 className={`text-xs font-medium uppercase tracking-wide ${
                 isBlueCards ? 'text-white' : 'text-gray-500'
               }`}>Categories</h2>
             </div>
             <div
               ref={sidebarScrollRef}
-              className={`md:max-h-[calc(100vh-72px)] md:overflow-y-auto ${
+              className={`flex-1 min-h-0 md:overflow-y-auto ${
                 isBlueCards ? 'scrollbar-nhs-blue' : ''
               }`}
-              style={
-                sidebarStickyTopPx
-                  ? { maxHeight: `calc(100vh - ${sidebarStickyTopPx}px)` }
-                  : undefined
-              }
             >
               <nav
                 className="px-2 pb-4"
