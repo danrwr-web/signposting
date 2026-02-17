@@ -215,7 +215,13 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   }, [symptoms, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
 
   const renderSkeletonGrid = () => (
-    <SkeletonCardGrid count={8} lines={3} />
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-4 h-4 bg-gray-200 rounded-full animate-pulse" />
+        <div className="h-3 w-32 bg-gray-200 rounded animate-pulse" />
+      </div>
+      <SkeletonCardGrid count={8} lines={3} />
+    </div>
   )
 
   return (
@@ -267,14 +273,29 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
       </div>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Page Header */}
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-nhs-dark-blue mb-3">
-            Find the right place for care
-          </h1>
-          <p className="text-base text-nhs-grey max-w-2xl mx-auto">
-            Search by symptom and we&apos;ll guide you to the appropriate service.
-          </p>
+        {/* Welcome / Context Bar */}
+        <div className="flex items-center gap-3 mb-6 px-4 py-3 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-center w-9 h-9 rounded-full bg-nhs-blue/10 flex-shrink-0">
+            <svg className="w-5 h-5 text-nhs-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <div className="min-w-0">
+            {surgeryName ? (
+              <>
+                <h1 className="text-sm font-semibold text-nhs-dark-blue truncate">{surgeryName}</h1>
+                <p className="text-xs text-gray-500">How can we help your patient today?</p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-sm font-semibold text-nhs-dark-blue">Signposting</h1>
+                <p className="text-xs text-gray-500">Search by symptom to find the right service</p>
+              </>
+            )}
+          </div>
+          <div className="ml-auto text-xs text-gray-400 hidden sm:block whitespace-nowrap" aria-live="polite">
+            {symptoms.length} symptom{symptoms.length !== 1 ? 's' : ''} available
+          </div>
         </div>
 
         {/* Symptoms Grid */}
@@ -297,9 +318,15 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
           <EmptyState
             illustration="search"
             title="No symptoms found"
-            description="No symptoms match your current filters. Try adjusting your search or clearing all filters."
+            description={
+              searchTerm
+                ? `No results for "${searchTerm}"${selectedAge !== 'All' || selectedLetter !== 'All' ? ' with the current filters' : ''}. Check for typos or try a broader term.`
+                : selectedLetter !== 'All'
+                  ? `No symptoms starting with "${selectedLetter}"${selectedAge !== 'All' ? ` for the selected age group` : ''}. Try a different letter or clear your filters.`
+                  : 'No symptoms match your current filters. Try adjusting or clearing all filters.'
+            }
             action={{
-              label: 'Clear Filters',
+              label: searchTerm ? 'Clear Search' : 'Clear All Filters',
               onClick: () => {
                 setSearchTerm('')
                 setSelectedLetter('All')
@@ -307,6 +334,17 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
               },
               variant: 'secondary',
             }}
+            secondaryAction={
+              searchTerm && (selectedAge !== 'All' || selectedLetter !== 'All')
+                ? {
+                    label: 'Keep search, reset other filters',
+                    onClick: () => {
+                      setSelectedLetter('All')
+                      setSelectedAge('All')
+                    },
+                  }
+                : undefined
+            }
           />
         )}
       </main>
