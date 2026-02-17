@@ -73,7 +73,7 @@ export default function MarketingFooter({
               </li>
               <li>
                 <a
-                  href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
+                  href="https://docs.signpostingtool.co.uk/getting-started/user-guide"
                   target="_blank"
                   rel="noreferrer noopener"
                   className="text-sm text-gray-600 hover:text-nhs-blue transition-colors"

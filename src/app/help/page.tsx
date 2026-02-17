@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function HelpPage() {
-  redirect('https://docs.signpostingtool.co.uk/wiki/User-Guide')
+  redirect('https://docs.signpostingtool.co.uk/getting-started/user-guide')
 }
