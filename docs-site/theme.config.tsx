@@ -47,7 +47,7 @@ const config: DocsThemeConfig = {
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <meta name="description" content="Signposting Toolkit — Documentation for NHS GP care-navigation teams" />
       <meta name="og:title" content="Signposting Toolkit Docs" />
-      <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+      <link rel="icon" type="image/png" href="/images/signposting_logo_fav.png" />
       <link
         href="https://fonts.googleapis.com/css2?family=Fira+Sans:wght@400;500;600;700&family=Source+Sans+3:ital,wght@0,400;0,500;0,600;1,400&display=swap"
         rel="stylesheet"
