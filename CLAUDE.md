@@ -305,3 +305,15 @@ See `env.example` for the full list. Key variables:
 4. **Content format consistency** - When updating symptom instructions, update all three format fields (markdown, JSON, HTML)
 5. **Surgery scoping** - Always filter queries by `surgeryId` to maintain tenant isolation
 6. **Redirect errors** - Next.js `redirect()` throws an error internally; do not wrap calls in try-catch that would swallow `NEXT_REDIRECT`
+
+## Documentation Updates
+
+When making user-facing changes to the application, always check whether the relevant documentation in `docs-site/pages/` needs updating. The mapping is:
+
+- Feature changes → `docs-site/pages/features/`
+- Admin/governance changes → `docs-site/pages/governance/`
+- Getting started flow changes → `docs-site/pages/getting-started/`
+- Developer/technical changes → `docs-site/pages/technical/`
+- New releases → update the version banner in `docs-site/pages/index.mdx`
+
+If you've made changes that affect how users interact with the app, update the docs as part of the same commit or PR. Don't wait for a separate docs pass.
