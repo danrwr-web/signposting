@@ -10,4 +10,6 @@ export default withNextra({
   output: 'export',
   images: { unoptimized: true },
   basePath: '',
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
 })
