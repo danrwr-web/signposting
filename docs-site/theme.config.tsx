@@ -54,8 +54,10 @@ const config: DocsThemeConfig = {
       />
     </>
   ),
-  primaryHue: { dark: 210, light: 210 },
-  primarySaturation: { dark: 100, light: 100 },
+  color: {
+    hue: { dark: 210, light: 210 },
+    saturation: { dark: 100, light: 100 },
+  },
   sidebar: {
     defaultMenuCollapseLevel: 1,
     toggleButton: true,
@@ -85,11 +87,6 @@ const config: DocsThemeConfig = {
         </a>
       </div>
     ),
-  },
-  useNextSeoProps() {
-    return {
-      titleTemplate: '%s – Signposting Toolkit Docs',
-    }
   },
 }
 
