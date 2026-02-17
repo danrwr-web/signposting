@@ -129,7 +129,7 @@ export default function FAQsPage() {
           <p className="mt-4 text-sm text-gray-500">
             Looking for detailed guidance for day-to-day use?{' '}
             <a
-              href="https://docs.signpostingtool.co.uk/wiki/User-Guide"
+              href="https://docs.signpostingtool.co.uk/getting-started/user-guide"
               target="_blank"
               rel="noreferrer noopener"
               className="text-nhs-blue hover:text-nhs-dark-blue underline underline-offset-2 font-medium"

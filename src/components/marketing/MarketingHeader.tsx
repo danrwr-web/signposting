@@ -12,7 +12,7 @@ const navLinks = [
   { href: '/inside-the-platform', label: 'Inside the Platform' },
   { href: '/faqs', label: 'FAQs' },
   {
-    href: 'https://docs.signpostingtool.co.uk/wiki/User-Guide',
+    href: 'https://docs.signpostingtool.co.uk/getting-started/user-guide',
     label: 'User Guide',
     external: true,
   },
