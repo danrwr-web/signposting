@@ -2,26 +2,348 @@
 title: "Admin Guide"
 ---
 
-## Managing Workflow Guidance
+A comprehensive reference for Surgery Admin users. This guide covers every admin feature available in the Signposting Toolkit.
 
-Administrators can enable Workflow Guidance per surgery using feature flags.
-
-Admin users can:
-	•	Create workflows
-	•	Edit workflows
-	•	Customise Global Default workflows
-	•	Approve workflows for staff use
-
-Only approved workflows are visible to non-admin staff.
+Surgery Admins can manage symptoms, users, appointments, clinical reviews, settings, and more for their surgery. Superusers have the same access plus cross-surgery and system-level controls.
 
 ---
 
-## Quick Access (staff home screen)
+## Symptom Management
 
-The **Quick Access** tab in the Admin Dashboard controls the optional quick access buttons shown on the staff home screen.
+Admins manage the symptom library for their surgery from the main Signposting page and the Admin Dashboard.
 
-- You can choose up to **6** symptoms to show as quick access buttons.
-- You can optionally set a short custom label for each button (leave blank to use the full symptom name).
+### Creating Custom Symptoms
+
+Custom symptoms are surgery-specific and completely independent of the base library. They are marked as **"Practice Created"** in the symptom list.
+
+To create a custom symptom:
+
+1. Open the Admin Dashboard and go to the symptom management section.
+2. Click **Create Symptom**.
+3. Enter the symptom name, age group (Under 5, 5–17, or Adult), brief instruction, and full instructions.
+4. The slug is generated automatically — you do not need to enter one.
+5. Save the symptom. It enters clinical review as **Pending** by default.
+
+Custom symptoms are managed entirely by your surgery and are not affected by base library updates.
+
+### Editing Overrides
+
+Any base symptom can be customised locally without affecting the central library. An override lets you change the name, age group, brief instruction, full instructions, or highlighted text for your surgery only.
+
+To create or edit an override:
+
+1. Find the base symptom in the library.
+2. Click **Customise Instructions** (or the edit action).
+3. Modify the fields you want to change. Only non-null override fields replace the base values.
+4. Save. The symptom shows a **"Practice Customised"** badge to indicate it differs from the base.
+
+When editing instructions, update all three format fields (markdown, ProseMirror JSON, and HTML) to maintain consistency.
+
+### Hiding Base Symptoms
+
+If a base symptom is not relevant to your surgery, you can hide it. This sets the `isHidden` flag on the override without deleting the base record.
+
+Hidden symptoms are excluded from the symptom library for your surgery but can be restored at any time by removing the override.
+
+---
+
+## Clinical Review
+
+All symptoms must pass clinical review before they become fully available to staff. This ensures every piece of guidance has been checked by a clinician.
+
+See the [Clinical Governance](/governance/clinical-governance) page for the full governance framework.
+
+### Review States
+
+Each symptom has a review status per surgery:
+
+- **Pending** — Awaiting clinical review. Visible in the library but shows a pending indicator.
+- **Approved** — Reviewed and approved by a clinician. Fully available to staff.
+- **Changes Required** — Reviewer has flagged issues. Needs correction before re-review.
+
+### Submitting for Review
+
+When you create or edit a symptom (custom or override), it automatically enters **Pending** status if clinical review is enabled for your surgery (controlled by the `requiresClinicalReview` setting).
+
+### Approving and Rejecting
+
+Admins and superusers can review symptoms from the **Clinical Review** page:
+
+1. Navigate to **Clinical Review** in the admin navigation.
+2. You can see symptoms grouped by status: Pending, Approved, and Changes Required.
+3. For each pending symptom, review the instructions for safety and accuracy.
+4. Click **Approve** to mark it as approved, or **Request Changes** to flag issues with a review note.
+5. **Bulk approve** is available to approve multiple symptoms at once.
+
+The review records who approved each symptom and when, creating a clear audit trail.
+
+---
+
+## User Management
+
+Admins manage users for their surgery from the **Users** section in the surgery admin area.
+
+### Creating Users
+
+1. Go to **Admin → Users** for your surgery.
+2. Click **Add User**.
+3. Enter the user's name, email, and password.
+4. Assign a role: **Surgery Admin** or **Standard**.
+
+### Roles
+
+- **Surgery Admin** — Can manage symptoms, users, settings, clinical reviews, and all admin features for the surgery.
+- **Standard** — Can view the symptom library, appointments, workflows, and handbook (if enabled). Cannot access admin features unless explicitly granted (e.g. Practice Handbook per-item editing).
+
+### Multi-Surgery Memberships
+
+Users can be members of multiple surgeries. Each membership has its own role, so a user can be Admin in one surgery and Standard in another.
+
+### Password Resets
+
+Admins can reset a user's password from the Users management page. The user will need to use the new password on next login.
+
+### User Activity
+
+The Users list shows when each user was last active, helping you identify inactive accounts.
+
+---
+
+## Appointment Directory Management
+
+The Appointment Directory stores your surgery's appointment types so that signposting instructions can reference the correct local services.
+
+See the [Appointment Directory](/features/appointment-directory) page for more detail on the user-facing features.
+
+### Creating and Editing Appointment Types
+
+1. Go to **Appointments** in the admin area.
+2. Click **Add Appointment Type** to create a new one.
+3. Enter the name, duration, description, and assign a staff type category.
+4. Edit existing types by clicking on them in the list.
+
+### Staff Teams
+
+Staff types categorise appointments by who delivers them (e.g. GP, Practice Nurse, HCA, ANP). You can create and manage staff type categories from the Appointments admin area.
+
+### CSV Import
+
+For bulk setup, appointment types can be imported from a CSV file:
+
+1. Go to the Appointments admin area.
+2. Click **Import**.
+3. Upload a CSV file with the required columns.
+4. Review the import preview and confirm.
+
+This is useful when initially configuring a surgery or migrating data from another system.
+
+---
+
+## Highlight Rules
+
+Highlight rules automatically colour key phrases in symptom instructions to draw attention to important information such as appointment types, urgency levels, and services.
+
+See the [High-Risk & Highlighting](/features/high-risk-and-highlighting) page for the full highlight engine reference.
+
+### Built-in Highlight Slots
+
+The system includes built-in highlight colours:
+
+- **Orange** — Standard appointments requiring booking
+- **Red** — Urgent appointments
+- **Pink/Purple** — Specific service types
+- **Green** — Community or pharmacy pathways
+
+Built-in highlights can be enabled or disabled per surgery using the `enableBuiltInHighlights` setting.
+
+### Custom Highlight Rules
+
+Admins can create surgery-specific highlight rules:
+
+1. Open the Highlight Rules section in the Admin Dashboard.
+2. Click **Add Rule**.
+3. Enter the phrase to match (case-insensitive).
+4. Choose a text colour and background colour.
+5. Save. The rule applies immediately to all instructions containing that phrase.
+
+Rules can be edited (change colours or phrase) or disabled. Each rule must have a unique phrase per surgery. If a phrase already exists, you will be prompted to edit the existing rule instead.
+
+---
+
+## Quick Access Buttons (High-Risk Links)
+
+Quick access buttons appear at the top of the staff home screen, providing one-click access to urgent or frequently used symptoms.
+
+### Configuration
+
+1. Go to **Quick Access** in the Admin Dashboard.
+2. You can configure up to **6** buttons.
+3. Search for a symptom and select it to add as a quick access button.
+4. Optionally set a short **custom label** for each button. Leave blank to use the full symptom name.
+5. Drag to **reorder** buttons. Changes auto-save.
+
+### Default High-Risk Buttons
+
+The system comes with pre-configured default high-risk buttons (e.g. Anaphylaxis, Stroke, Chest Pain, Sepsis, Meningitis). These can be enabled or disabled per surgery using the `enableDefaultHighRisk` setting.
+
+---
+
+## Feature Flags
+
+Feature flags control which optional modules and AI features are available for your surgery and users.
+
+See the [Multi-Surgery & RBAC](/governance/multi-surgery-and-rbac) page for the full feature flag reference.
+
+### Surgery-Level Flags
+
+Superusers control which features are enabled for each surgery. The available flags are:
+
+| Flag Key | Feature | Description |
+|----------|---------|-------------|
+| `workflow_guidance` | Workflow Guidance | Visual workflow diagrams for document processing |
+| `admin_toolkit` | Practice Handbook | Surgery-specific guidance pages, lists, rota, and pinned panel |
+| `ai_instructions` | AI Instruction Editor | AI-assisted instruction improvement |
+| `ai_training` | AI Suggested Questions | AI-generated triage questions on symptom pages |
+| `ai_surgery_customisation` | AI Surgery Customisation | Batch AI rewriting of instructions based on onboarding profile |
+
+### User-Level Overrides
+
+When a surgery-level flag is enabled, admins can further control AI features at the user level. This allows individual users to have AI features enabled or disabled independently.
+
+User-level overrides only apply to AI features (`ai_instructions`, `ai_training`, `ai_surgery_customisation`). Module flags (`workflow_guidance`, `admin_toolkit`) are surgery-wide only.
+
+### Managing Flags
+
+Surgery admins can view which features are enabled for their surgery in **Practice Settings → Module Access**. To change surgery-level flags, contact a superuser.
+
+---
+
+## AI Setup and Customisation
+
+The AI Surgery Customisation feature rewrites symptom instructions to match your surgery's local terminology, appointment types, and workflows.
+
+See the [AI Features](/features/ai-features) page for the full AI reference.
+
+### Prerequisites
+
+Before using AI customisation:
+
+1. Complete the **Onboarding Wizard** — the AI uses your onboarding profile (appointment model, team structure, escalation pathways, local services, and communication preferences) to tailor instructions.
+2. The `ai_surgery_customisation` feature flag must be enabled for your surgery.
+
+### Using the AI Setup Page
+
+1. Go to **Admin → AI Setup** for your surgery.
+2. The page shows a summary of your configured appointment model (which appointment types the AI will use when rewriting).
+3. Choose a **customisation scope**:
+   - **Customise ALL symptoms** — Process every enabled symptom. Keep the browser tab open until complete.
+   - **Select symptoms manually** — Pick specific symptoms from a searchable list.
+4. Click **Generate AI-customised instructions**.
+5. The progress tracker shows which symptom is currently being processed, along with running counts of processed and skipped symptoms.
+6. When complete, all customised symptoms enter **Pending** clinical review. Visit the Clinical Review page to approve them.
+
+If any symptoms are skipped (e.g. no instructions to customise), the results panel shows which symptoms were skipped and why.
+
+---
+
+## Analytics
+
+The Analytics dashboard provides aggregated usage data to support onboarding, governance, and service improvement. It is designed to show visibility over surveillance — the focus is on whether modules are being used, not individual performance.
+
+See the [Analytics](/features/analytics) page for more detail.
+
+Analytics are accessible to Surgery Admins and Superusers from the admin navigation.
+
+---
+
+## Surgery Settings
+
+Several surgery-wide settings control how the toolkit behaves for your practice.
+
+### Clinical Review
+
+- **`requiresClinicalReview`** — When enabled (default), all new and edited symptoms enter Pending review status. When disabled, symptoms go live immediately.
+
+### Visual Features
+
+- **`enableDefaultHighRisk`** — Show the pre-configured high-risk quick access buttons (Anaphylaxis, Stroke, etc.) on the staff home screen.
+- **`enableBuiltInHighlights`** — Apply the built-in highlight colour rules (orange, red, pink, green) to symptom instructions.
+- **`enableImageIcons`** — Display phrase-triggered image icons on symptom cards and instruction pages.
+
+### Image Icons
+
+Image icons are visual indicators that appear on symptom cards and instruction pages when the brief instruction text contains a matching phrase. They provide quick visual context — for example, a pharmacy icon next to pharmacy-related symptoms.
+
+**How they work:**
+- Each icon is linked to a **trigger phrase** (e.g. "pharmacy", "physiotherapy"). When a symptom's brief instruction contains that phrase, the icon is displayed automatically.
+- Icons have **separate size settings** for symptom cards and instruction pages (small, medium, or large), so they can be compact on cards but larger on the full instruction view.
+- All icons include **alt text** for screen readers and accessibility.
+
+**Who manages them:**
+- **Superusers** create and manage icons globally — uploading the image, setting the trigger phrase, configuring card and instruction sizes, and adding alt text.
+- Icons can be created as **global** (available to all surgeries) or **surgery-specific**.
+- **Surgery admins** can toggle the `enableImageIcons` setting to show or hide all image icons for their surgery.
+
+---
+
+## User Suggestions
+
+Staff can submit improvement suggestions for symptoms using the **Suggest a change** option on symptom pages. This creates a feedback loop between reception teams and admins.
+
+### How Suggestions Work
+
+1. A staff member views a symptom and clicks **Suggest a change**.
+2. They enter their suggestion text and optionally their email.
+3. The suggestion is saved with the symptom name and surgery context.
+
+### Reviewing Suggestions
+
+Admins can review suggestions from the **User Suggestions** section of the Admin Dashboard:
+
+- **Summary cards** at the top show counts for Total, Pending, Actioned, and Discarded suggestions.
+- **Filter by status** using the dropdown to show All, Pending, Actioned, or Discarded.
+- For each suggestion you can see the symptom name, submitter email (if provided), submission date, and current status.
+
+### Actioning and Discarding
+
+For each **Pending** suggestion, two actions are available:
+
+- **Mark Actioned** — Indicates the suggestion has been addressed (e.g. the symptom was updated).
+- **Discard** — Indicates the suggestion was reviewed but not needed.
+
+Both actions record who took the action and when, creating a lightweight audit trail. If you change your mind, click **Undo** to return a suggestion to Pending.
+
+Individual suggestions can be permanently deleted, and a **Clear All** button (with confirmation) removes all suggestions for your surgery.
+
+Superusers can see and manage suggestions across all surgeries.
+
+---
+
+## Setup Checklist
+
+The Setup Checklist helps track your surgery's onboarding progress. It is available from the Admin Dashboard and shows:
+
+- **Onboarding status** — Whether the onboarding questionnaire has been completed.
+- **Appointment model** — Whether appointment types have been configured.
+- **AI customisation** — Whether AI has been used to customise instructions.
+- **Pending reviews** — How many symptoms are awaiting clinical review.
+
+Use the checklist to ensure all setup steps are complete before going live with your team.
+
+---
+
+## Managing Workflow Guidance
+
+Administrators can enable Workflow Guidance per surgery using the `workflow_guidance` feature flag.
+
+Admin users can:
+- Create and edit workflows on the visual canvas
+- Customise Global Default workflows for their surgery
+- Approve workflows for staff use (draft → approved lifecycle)
+
+Only approved workflows are visible to non-admin staff.
+
+See the [Workflow Guidance](/features/workflow-guidance) page for the full reference.
 
 ---
 
@@ -33,25 +355,25 @@ The **Practice Handbook** is an optional module for storing surgery-specific gui
 
 The Practice Handbook admin page is split into **Items** (day-to-day content editing) and **Structure & Settings** (categories, pinned panel, and rota) tabs for clarity.
 
-### Enabling the module
+### Enabling the Module
 
 - The module is controlled by the `admin_toolkit` feature flag (superuser-controlled).
 - When enabled, a new **Practice Handbook** link appears in the top navigation.
 
-### Global defaults starter kit (templates)
+### Global Defaults Starter Kit (Templates)
 
 We keep a special surgery record, `global-default-buttons`, as the template source for Practice Handbook starter content.
 
 - A seeding script can populate it with a lightweight starter kit (categories + example pages).
 - Surgeries can then be populated by copying from this global defaults surgery (without copying rota or pinned panel text).
 
-### Write access (who can edit)
+### Write Access (Who Can Edit)
 
 - Any signed-in member of the surgery can **view** Practice Handbook pages (as long as the category and item are visible to them).
 - **Surgery Admins** and **Superusers** can always edit all Practice Handbook items and manage settings.
 - Standard users can only edit an item if they have been given an explicit grant for that item.
 
-### Permissions (visibility and editing)
+### Permissions (Visibility and Editing)
 
 The Practice Handbook uses two separate controls:
 
@@ -62,21 +384,21 @@ The Practice Handbook uses two separate controls:
   - Roles or people
 - **Per-item editing grants** (who can edit a specific item)
 
-#### Category visibility
+#### Category Visibility
 
 - Category visibility is set in **Structure & Settings → Categories**.
 - Visibility is enforced server-side:
   - Restricted categories do not appear in search results.
   - Restricted items cannot be opened via a direct link unless the user has access.
 
-#### Per-item editing grants (standard users)
+#### Per-Item Editing Grants (Standard Users)
 
 - Standard users **cannot access the Practice Handbook admin dashboard**.
 - To let a standard user edit a specific item, an admin can set **Additional editors** for that item.
 - Admins can also optionally allow **all standard users** to edit a given item.
 - Standard users edit from the staff-facing item page using the **Edit** button (which opens a dedicated edit screen).
 
-### Pinned panel and rota
+### Pinned Panel and Rota
 
 Practice Handbook pages show an always-visible pinned panel at the bottom, including:
 
@@ -85,3 +407,30 @@ Practice Handbook pages show an always-visible pinned panel at the bottom, inclu
 - **Post route** (editable text)
 
 The operational info panel is collapsible and remembers your preference. It automatically expands when the on-take GP changes.
+
+### What's Changed (Handbook)
+
+The Practice Handbook has a dedicated **What's Changed** page (accessible from the Handbook navigation) that shows recently modified handbook items, following the same pattern as the symptom library's What's Changed view.
+
+- Items are shown within a configurable time window (default: 30 days), or since a baseline date if one has been set.
+- Each item is tagged as **New** or **Updated** with a badge and shows when it was last changed.
+- Any surgery member can view handbook changes (the page respects the `admin_toolkit` feature flag — it is only available when the Practice Handbook module is enabled).
+
+This helps staff stay aware of updated guidance without needing to check every page individually.
+
+---
+
+## Related Pages
+
+- [Clinical Governance](/governance/clinical-governance) — Full governance framework
+- [Multi-Surgery & RBAC](/governance/multi-surgery-and-rbac) — Roles, permissions, and feature flags
+- [Symptom Library](/features/symptom-library) — Symptom management for staff
+- [AI Features](/features/ai-features) — AI tools reference
+- [Analytics](/features/analytics) — Usage analytics
+- [Workflow Guidance](/features/workflow-guidance) — Workflow feature reference
+- [Appointment Directory](/features/appointment-directory) — Appointment management
+- [High-Risk & Highlighting](/features/high-risk-and-highlighting) — Highlight engine reference
+
+---
+
+_Last updated: February 2026_

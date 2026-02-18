@@ -6,52 +6,206 @@ title: "Workflow Guidance"
 
 Workflow Guidance provides visual flow-diagram based guidance to support staff in handling common internal workflows such as discharge summaries, test requests, and GP review.
 
-## How this differs from Signposting
+This module is controlled by the `workflow_guidance` feature flag and must be enabled by a superuser before it appears in the navigation.
+
+## How This Differs from Signposting
 
 Signposting focuses on where a patient should be directed.
 
 Workflow Guidance focuses on how staff should process work internally once it arrives.
+
+---
 
 ## Global Default and Surgery Workflows
 
 Workflows are initially created as Global Default templates.
 
 Surgeries can:
-	•	Use Global Default workflows unchanged
-	•	Create local overrides for surgery-specific processes
-	•	Create entirely surgery-specific workflows
+- Use Global Default workflows unchanged
+- Create local overrides for surgery-specific processes
+- Create entirely surgery-specific workflows
+
+When a surgery overrides a Global Default workflow, the link to the original is preserved so changes can be tracked.
+
+---
+
+## Node Types
+
+Workflow diagrams are built from five types of node. Each has a specific role in the flow:
+
+### Instruction
+
+An information block that tells staff what to do or check at this step. Instruction nodes contain a title and rich-text body with detailed guidance. Staff read the instruction and proceed to the next step.
+
+### Question
+
+A decision point with two or more answer options (e.g. "Yes / No", or multiple choices). Each answer option can branch to a different next node or trigger a specific action. Question nodes are how workflows branch into different paths depending on the situation.
+
+### End
+
+A terminal node that represents the outcome of a workflow path. End nodes carry an **action key** that tells staff what to do with the document. The available action keys are:
+
+| Action Key | Meaning |
+|------------|---------|
+| `FORWARD_TO_GP` | Forward the document to a GP for review |
+| `FORWARD_TO_PRESCRIBING_TEAM` | Forward to the prescribing team |
+| `FORWARD_TO_PHARMACY_TEAM` | Forward to the pharmacy team |
+| `FILE_WITHOUT_FORWARDING` | File the document without any forwarding |
+| `ADD_TO_YELLOW_SLOT` | Add to a yellow (follow-up) slot for the patient |
+| `SEND_STANDARD_LETTER` | Send a standard letter to the patient |
+| `CODE_AND_FILE` | Code the information and file it |
+| `OTHER` | Another action (staff follows local protocol) |
+
+### Panel
+
+A background container node that groups related steps visually. Panel nodes render behind other nodes and can be resized and repositioned to create clear visual groupings on the canvas. They do not affect the workflow logic — they are purely for visual organisation.
+
+### Reference
+
+An informational reference card that provides supporting context (e.g. "See also: local referral criteria"). Reference nodes are not connectable to the workflow flow — they sit alongside the diagram as supplementary information.
+
+---
 
 ## Node Badges and Styling
 
-Workflow nodes support visual badges and custom styling to help distinguish different types of steps:
-
 ### Badges
 
-Nodes can display badges (e.g., "STAMP") as small pills in the top-right corner. Badges help quickly identify special requirements or categories.
+Nodes can display small badge pills in the top-right corner (e.g. "STAMP") to quickly identify special requirements or categories.
 
-### Node Styling
+### Theme Presets
 
-Nodes can be customised with:
-- **Theme presets**: Default, Info (blue), Warning (amber), Success (green), Muted (gray), Panel (background)
-- **Custom colours**: Background, text, and border colours
-- **Visual properties**: Border width, border radius, font weight
+Nodes can use one of six theme presets:
+- **Default** — Standard appearance
+- **Info** (blue) — Informational steps
+- **Warning** (amber) — Steps requiring caution
+- **Success** (green) — Positive outcomes
+- **Muted** (grey) — Lower-priority steps
+- **Panel** — Background container style
 
-### Panel Nodes
+### Custom Colours
 
-Panel nodes are background container nodes that can group related workflow steps. They render behind other nodes and can be resized and repositioned to create visual groupings.
+Beyond themes, each node can have custom background, text, and border colours, as well as border width, border radius, and font weight.
+
+### Surgery-Wide Style Defaults
+
+Admins can set default colours per node type at the surgery level from **Workflow → Admin → Styles**. This ensures a consistent look across all workflows without styling each node individually.
+
+Template-level defaults can also be set per workflow, overriding the surgery defaults.
+
+---
+
+## Creating and Editing Workflows
+
+### The Workflow Canvas
+
+Admins build workflows on a visual canvas powered by React Flow. The canvas supports:
+
+- **Drag-and-drop** nodes to position them on the diagram
+- **Connect nodes** by dragging from one node's output handle to another node's input handle
+- **Edge labels** on connections to show answer text or navigation context
+- **Zoom and pan** to navigate large diagrams
+- **Collapsible details panel** — the side panel can be collapsed to give more space for the diagram
+
+### Creating a Workflow
+
+1. Go to **Workflow → Templates** in the admin area.
+2. Click **Create Workflow**.
+3. Enter a name, description, optional icon, and colour.
+4. Set the **workflow type** (Primary, Supporting, or Module) and **landing category** (Primary, Secondary, or Admin) to control how it appears on the landing page.
+5. The canvas opens with a blank diagram. Add nodes, connect them, and set their content.
+
+### Editing an Existing Workflow
+
+1. Navigate to the workflow template.
+2. Click **Edit** to open the canvas.
+3. Modify nodes, connections, or styling as needed.
+4. Changes are saved to the template.
+
+### Template Management
+
+- **Duplicate** — Create a copy of an existing template.
+- **Delete** — Remove a template (admin only).
+- **View** — Preview a template as staff would see it (read-only).
+
+---
 
 ## Draft and Approval States
 
 All workflows operate within a draft-and-approve lifecycle to ensure clinical governance.
 
-Draft workflows are visible only to admins.
+- **Draft** — Only visible to admins. Work in progress.
+- **Approved** — Visible to all staff. Ready for use.
+- **Superseded** — A previous version that has been replaced.
 
-Approved workflows are visible to staff.
+The approval record tracks who approved the workflow and when.
+
+---
+
+## Running Workflows (Staff View)
+
+### Starting a Workflow
+
+1. Go to **Workflow Guidance** in the main navigation.
+2. The landing page shows available workflows grouped by category (Primary, Secondary, Admin).
+3. Click on a workflow to view it, or click **Start** to begin a new instance.
+4. Enter an optional reference (e.g. "Cardiology letter 11/12/25 — JS") and category (e.g. "Hospital Letter", "Result").
+
+### Working Through a Workflow
+
+1. The workflow displays the current step — an instruction to read or a question to answer.
+2. For question nodes, select an answer from the available options. The workflow advances to the next step based on your answer.
+3. Optionally add free-text notes at any step.
+4. Continue until you reach an End node, which tells you the final action to take (e.g. "Forward to GP", "File without forwarding").
+
+### Workflow Instances
+
+Each time a staff member starts a workflow, a new **instance** is created. Instances track:
+
+- Which template was used
+- Who started it
+- The reference and category
+- Status: **Active**, **Completed**, or **Cancelled**
+- All answers given at each step
+- When it was completed
+
+### Cross-Workflow Links
+
+Some workflow nodes link to other workflows. These appear as navigation links on the node, allowing staff to open a related workflow in context (e.g. a discharge summary workflow might link to a referral process workflow).
+
+---
+
+## Engagement Analytics
+
+Admins can view workflow engagement from **Workflow → Admin → Engagement**. This shows:
+
+- Which workflows are being viewed
+- View counts over time
+- Which staff members are engaging with workflows
+
+This data helps admins understand which workflows are actively used and where further training may be needed.
+
+See also the [Analytics](/features/analytics) page for the surgery-wide analytics dashboard.
+
+---
 
 ## Governance and Audit
 
 Every workflow records:
-	•	Who approved it
-	•	When it was approved
-	•	Who last edited it
-	•	When it was last edited
+- Who approved it
+- When it was approved
+- Who last edited it
+- When it was last edited
+
+This creates a complete audit trail for governance purposes.
+
+---
+
+## Related Pages
+
+- [Admin Guide](/governance/admin-guide) — Managing workflows as an admin
+- [Clinical Governance](/governance/clinical-governance) — Governance framework
+- [Analytics](/features/analytics) — Surgery-wide usage analytics
+
+---
+
+_Last updated: February 2026_

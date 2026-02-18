@@ -121,6 +121,38 @@ Generated questions are organised into logical groups:
 
 ---
 
+## AI Surgery-Specific Customisation
+
+AI Surgery Customisation (beta) rewrites symptom instructions in bulk to match your surgery's local terminology, appointment types, team structure, and escalation pathways. It uses the onboarding profile you complete during setup.
+
+This feature is controlled by the `ai_surgery_customisation` feature flag.
+
+### Prerequisites
+
+1. **Complete the Onboarding Wizard** — The AI reads your onboarding profile to understand your surgery's appointment model (e.g. "Green Slot — continuity GP", "Duty GP telephone today"), team structure, escalation pathways, local services, and communication preferences.
+2. **Enable the feature** — A superuser must enable `ai_surgery_customisation` for your surgery.
+
+### How It Works
+
+1. **Navigate to AI Setup** — Go to **Admin → AI Setup** for your surgery.
+2. **Review your appointment model** — The page displays all configured appointment types from your onboarding profile, showing local names, clinician roles, and descriptions. If no types are configured, you will be prompted to complete Step 2.5 of the onboarding wizard first.
+3. **Choose a scope:**
+   - **Customise ALL symptoms** — Process every enabled symptom for the surgery. This can take several minutes for large libraries; keep the tab open.
+   - **Select symptoms manually** — Search and pick specific symptoms from a checklist.
+4. **Click "Generate AI-customised instructions"** — The system processes symptoms one by one, showing real-time progress:
+   - Which symptom is currently being processed
+   - Running count of processed and skipped symptoms
+5. **Review results** — On completion, a summary shows how many were processed and skipped. Skipped symptoms include a reason (e.g. no instructions to customise).
+6. **Clinical review required** — All customised symptoms are automatically set to **Pending** clinical review. A clinician must approve them before they become visible to staff.
+
+### Safety
+
+- All AI-generated content requires clinical review before publication.
+- Original instructions are preserved in version history.
+- The AI never publishes directly — human approval is always required.
+
+---
+
 ## Smart Symptom Updates
 
 When base library content is updated centrally, surgeries can choose to adopt updates or keep their local versions.
@@ -153,10 +185,15 @@ AI features can be enabled or disabled at multiple levels:
 - **Surgery** — Per-practice enablement
 - **User** — Individual user overrides (if surgery enabled)
 
-### Current Features
-- `ai_instructions` — AI Instruction Editor
-- `ai_questions` — AI Suggested Questions
-- `smart_symptom_updates` — Smart update notifications
+### Current Feature Flags
+
+| Flag Key | Feature | Supports User-Level Override |
+|----------|---------|------------------------------|
+| `ai_instructions` | AI Instruction Editor | Yes |
+| `ai_training` | AI Suggested Questions | Yes |
+| `ai_surgery_customisation` | AI Surgery Customisation | Yes |
+
+> **Note:** In earlier documentation, the AI Suggested Questions flag was referred to as `ai_questions`. The actual database key is `ai_training`.
 
 ### Management
 - Surgery admins can enable/disable
@@ -258,4 +295,4 @@ AI features can be enabled or disabled at multiple levels:
 
 ---
 
-_Last updated: December 2025_
+_Last updated: February 2026_
