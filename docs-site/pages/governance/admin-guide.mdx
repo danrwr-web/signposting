@@ -272,10 +272,17 @@ Several surgery-wide settings control how the toolkit behaves for your practice.
 
 ### Image Icons
 
-Image icons are visual indicators that appear on symptom cards when their brief instruction contains a matching phrase. They provide quick visual context (e.g. a pharmacy icon for pharmacy-related symptoms).
+Image icons are visual indicators that appear on symptom cards and instruction pages when the brief instruction text contains a matching phrase. They provide quick visual context — for example, a pharmacy icon next to pharmacy-related symptoms.
 
-- Superusers create and manage icons globally (upload image, set matching phrase, configure display sizes for cards and instruction pages, add alt text for accessibility).
-- Surgery admins can toggle individual icons on or off for their surgery.
+**How they work:**
+- Each icon is linked to a **trigger phrase** (e.g. "pharmacy", "physiotherapy"). When a symptom's brief instruction contains that phrase, the icon is displayed automatically.
+- Icons have **separate size settings** for symptom cards and instruction pages (small, medium, or large), so they can be compact on cards but larger on the full instruction view.
+- All icons include **alt text** for screen readers and accessibility.
+
+**Who manages them:**
+- **Superusers** create and manage icons globally — uploading the image, setting the trigger phrase, configuring card and instruction sizes, and adding alt text.
+- Icons can be created as **global** (available to all surgeries) or **surgery-specific**.
+- **Surgery admins** can toggle the `enableImageIcons` setting to show or hide all image icons for their surgery.
 
 ---
 
@@ -291,12 +298,24 @@ Staff can submit improvement suggestions for symptoms using the **Suggest a chan
 
 ### Reviewing Suggestions
 
-Admins can review suggestions from the Admin Dashboard:
+Admins can review suggestions from the **User Suggestions** section of the Admin Dashboard:
 
-- View all suggestions for the surgery.
-- Delete individual suggestions or clear all at once.
+- **Summary cards** at the top show counts for Total, Pending, Actioned, and Discarded suggestions.
+- **Filter by status** using the dropdown to show All, Pending, Actioned, or Discarded.
+- For each suggestion you can see the symptom name, submitter email (if provided), submission date, and current status.
 
-Superusers can see suggestions across all surgeries.
+### Actioning and Discarding
+
+For each **Pending** suggestion, two actions are available:
+
+- **Mark Actioned** — Indicates the suggestion has been addressed (e.g. the symptom was updated).
+- **Discard** — Indicates the suggestion was reviewed but not needed.
+
+Both actions record who took the action and when, creating a lightweight audit trail. If you change your mind, click **Undo** to return a suggestion to Pending.
+
+Individual suggestions can be permanently deleted, and a **Clear All** button (with confirmation) removes all suggestions for your surgery.
+
+Superusers can see and manage suggestions across all surgeries.
 
 ---
 
@@ -388,6 +407,16 @@ Practice Handbook pages show an always-visible pinned panel at the bottom, inclu
 - **Post route** (editable text)
 
 The operational info panel is collapsible and remembers your preference. It automatically expands when the on-take GP changes.
+
+### What's Changed (Handbook)
+
+The Practice Handbook has a dedicated **What's Changed** page (accessible from the Handbook navigation) that shows recently modified handbook items, following the same pattern as the symptom library's What's Changed view.
+
+- Items are shown within a configurable time window (default: 30 days), or since a baseline date if one has been set.
+- Each item is tagged as **New** or **Updated** with a badge and shows when it was last changed.
+- Any surgery member can view handbook changes (the page respects the `admin_toolkit` feature flag — it is only available when the Practice Handbook module is enabled).
+
+This helps staff stay aware of updated guidance without needing to check every page individually.
 
 ---
 

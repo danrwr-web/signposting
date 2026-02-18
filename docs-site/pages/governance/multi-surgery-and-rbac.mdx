@@ -159,11 +159,15 @@ Features can be controlled at multiple levels:
 2. **Surgery Level** — Per-practice enablement
 3. **User Level** — Individual overrides (if surgery enabled)
 
-### Current Features
+### Current Feature Flags
 
-- `ai_instructions` — AI Instruction Editor
-- `ai_questions` — AI Suggested Questions  
-- `smart_symptom_updates` — Smart update notifications
+| Flag Key | Feature | Description |
+|----------|---------|-------------|
+| `ai_instructions` | AI Instruction Editor | Allow staff to generate and improve signposting instructions with AI |
+| `ai_training` | AI Suggested Questions | Show AI-generated, patient-friendly questions on symptom pages to help staff gather the right information |
+| `ai_surgery_customisation` | AI Surgery Customisation | Batch AI rewriting of symptom instructions based on the surgery onboarding profile |
+| `workflow_guidance` | Workflow Guidance | Visual workflow diagrams for document processing |
+| `admin_toolkit` | Practice Handbook | Surgery-specific guidance pages, lists, rota, and pinned panel |
 
 ### Flag Logic
 
@@ -266,4 +270,4 @@ A user works at multiple practices:
 
 ---
 
-_Last updated: December 2025_
+_Last updated: February 2026_
