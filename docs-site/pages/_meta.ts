@@ -16,4 +16,7 @@ export default {
   technical: {
     title: 'Technical',
   },
+  'release-notes': {
+    title: 'Release Notes',
+  },
 }
