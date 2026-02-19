@@ -95,11 +95,18 @@ function normaliseGenerationOutput(raw: unknown) {
       : (JSON.parse(JSON.stringify(raw)) as Record<string, unknown>)
   const cards = Array.isArray(output.cards) ? output.cards : []
 
+  const DEFAULT_SAFETY_NETTING = ['Advise patient to seek medical attention if symptoms worsen.']
+
   output.cards = cards.map((card) => {
     if (!card || typeof card !== 'object') return card
     const typedCard = card as Record<string, unknown>
     typedCard.targetRole = normaliseRole(typedCard.targetRole)
     typedCard.riskLevel = normaliseRiskLevel(typedCard.riskLevel)
+
+    const rawSafetyNetting = ensureArray(typedCard.safetyNetting).filter(
+      (s): s is string => typeof s === 'string' && s.trim().length > 0
+    )
+    typedCard.safetyNetting = rawSafetyNetting.length >= 1 ? rawSafetyNetting : DEFAULT_SAFETY_NETTING
 
     typedCard.interactions = ensureArray(typedCard.interactions).map((interaction) => {
       if (!interaction || typeof interaction !== 'object') return interaction

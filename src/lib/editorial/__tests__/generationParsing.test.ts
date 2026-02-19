@@ -96,4 +96,51 @@ Here is the JSON you asked for:
     if (result.success) return
     expect(result.issues.some((issue) => issue.path.includes('title'))).toBe(true)
   })
+
+  it('repairs empty or missing safetyNetting with default', () => {
+    const output = JSON.stringify({
+      cards: [
+        {
+          targetRole: 'ADMIN',
+          title: 'Infection awareness',
+          estimatedTimeMinutes: 5,
+          tags: ['Infection'],
+          riskLevel: 'MED',
+          needsSourcing: false,
+          reviewByDate: '2026-02-01',
+          sources: [{ title: 'NHS', url: 'https://www.nhs.uk/' }],
+          contentBlocks: [{ type: 'text', text: 'Recognise infection symptoms.' }],
+          interactions: [
+            {
+              type: 'mcq',
+              question: 'What should you do?',
+              options: ['Book Red', 'Book Green'],
+              correctIndex: 0,
+              explanation: 'Book Red for urgent symptoms.',
+            },
+          ],
+          slotLanguage: { relevant: true, guidance: [{ slot: 'Red', rule: 'Urgent.' }] },
+          safetyNetting: [],
+        },
+      ],
+      quiz: {
+        title: 'Quick check',
+        questions: [
+          {
+            type: 'mcq',
+            question: 'Which slot?',
+            options: ['Red', 'Green'],
+            correctIndex: 0,
+            explanation: 'Red.',
+          },
+        ],
+      },
+    })
+
+    const result = parseAndValidateGeneration(output)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.cards[0].safetyNetting).toHaveLength(1)
+    expect(result.data.cards[0].safetyNetting[0]).toContain('symptoms worsen')
+  })
 })
