@@ -79,6 +79,8 @@ export type DailyDoseQuestion = {
   blockIndex: number
   source: 'content' | 'interaction'
   questionId?: string // Deterministic ID for tracking
+  /** Scenario/context from the card (e.g. "A patient has called saying they think they have a UTI") */
+  context?: string
 }
 
 export type DailyDoseQuizQuestion = DailyDoseQuestion & {

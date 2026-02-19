@@ -11,6 +11,41 @@ import type {
 } from './types'
 import { getQuestionId } from './questionId'
 
+function blockToText(block: DailyDoseContentBlock): string | null {
+  if (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout' || block.type === 'reveal') {
+    return block.text?.trim() || null
+  }
+  if (block.type === 'steps' || block.type === 'do-dont') {
+    return block.items?.length ? block.items.join(' ').trim() : null
+  }
+  return null
+}
+
+function buildQuestionContext(
+  card: DailyDoseCardPayload,
+  options: { blockIndex?: number; source: 'content' | 'interaction' }
+): string | undefined {
+  const blocks = card.contentBlocks || []
+  let textParts: string[] = []
+  if (card.title?.trim()) textParts.push(card.title.trim())
+
+  if (options.source === 'content' && options.blockIndex !== undefined) {
+    for (let i = 0; i < options.blockIndex; i++) {
+      const t = blockToText(blocks[i])
+      if (t) textParts.push(t)
+    }
+  } else {
+    for (const block of blocks) {
+      if (block.type === 'question') continue
+      const t = blockToText(block)
+      if (t) textParts.push(t)
+    }
+  }
+
+  const joined = textParts.join(' ').trim()
+  return joined || undefined
+}
+
 export function extractQuestionsFromBlocks(card: DailyDoseCardPayload): DailyDoseQuestion[] {
   const blocks = card.contentBlocks || []
   const questions: DailyDoseQuestion[] = []
@@ -28,6 +63,7 @@ export function extractQuestionsFromBlocks(card: DailyDoseCardPayload): DailyDos
       difficulty: block.difficulty,
       blockIndex: index,
       source: 'content',
+      context: buildQuestionContext(card, { blockIndex: index, source: 'content' }),
     }
     question.questionId = getQuestionId(question)
     questions.push(question)
@@ -55,6 +91,7 @@ export function extractQuestionsFromInteractions(card: DailyDoseCardPayload): Da
       rationale: interaction.explanation,
       blockIndex: index,
       source: 'interaction',
+      context: buildQuestionContext(card, { source: 'interaction' }),
     }
     question.questionId = getQuestionId(question)
     return question

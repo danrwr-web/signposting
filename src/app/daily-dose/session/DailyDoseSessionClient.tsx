@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { DailyDoseContentBlock, DailyDoseQuizQuestion } from '@/lib/daily-dose/types'
 import { getQuestionId } from '@/lib/daily-dose/questionId'
+import { QUIZ_CONTEXT_SINGLE_PAGE_MAX_CHARS } from '@/lib/daily-dose/constants'
 import LearningCardOptionCard from '@/components/daily-dose/LearningCardOptionCard'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
@@ -97,6 +98,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     correctCount: number
     questionsAttempted: number
   } | null>(null)
+  const [contextViewedForQuiz, setContextViewedForQuiz] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     let active = true
@@ -777,15 +779,46 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
         const result = questionResults[quizKey]
         const quizStart = steps.findIndex((s) => s.type === 'quiz')
         const currentQuizIndex = stepIndex - quizStart
+        const needsContextPage =
+          q.context &&
+          q.context.length > QUIZ_CONTEXT_SINGLE_PAGE_MAX_CHARS &&
+          !contextViewedForQuiz[quizKey]
+
+        if (needsContextPage) {
+          return (
+            <div className="flex h-full flex-col justify-between p-6">
+              <div className="flex-1 overflow-y-auto">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm text-slate-700">{q.context}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() =>
+                  setContextViewedForQuiz((prev) => ({ ...prev, [quizKey]: true }))
+                }
+                className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
+              >
+                Continue
+              </button>
+            </div>
+          )
+        }
+
         if (result) {
           return (
             <div className="flex h-full flex-col justify-between p-6">
               <div>
                 {currentStep.quizProgress && (
-                <p className="mb-2 text-xs text-slate-500">
-                  {currentStep.isWarmup ? 'Warm-up' : 'Quiz'} Q {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
-                </p>
-              )}
+                  <p className="mb-2 text-xs text-slate-500">
+                    {currentStep.isWarmup ? 'Warm-up' : 'Quiz'} Q {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
+                  </p>
+                )}
+                {q.context && (
+                  <div className="mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs text-slate-600">{q.context}</p>
+                  </div>
+                )}
                 <p className="text-sm font-semibold text-slate-700">{q.prompt}</p>
                 <div className={`mt-4 rounded-lg p-4 ${result.correct ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-100'}`}>
                   <p className={`text-sm ${result.correct ? 'text-emerald-800 font-medium' : 'text-slate-600'}`}>
@@ -842,6 +875,11 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
                 <p className="text-xs text-slate-500">
                   Question {currentQuizIndex + 1} of {session.quizQuestions.length}
                 </p>
+              )}
+              {q.context && (
+                <div className="mt-2 mb-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-xs text-slate-600">{q.context}</p>
+                </div>
               )}
               <p className="mt-2 text-sm font-semibold text-slate-700">{q.prompt}</p>
               <div className="mt-4 space-y-2">
