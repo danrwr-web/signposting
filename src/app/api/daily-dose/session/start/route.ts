@@ -5,56 +5,21 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { DailyDoseSessionStartZ } from '@/lib/daily-dose/schemas'
-import { buildQuizQuestions } from '@/lib/daily-dose/questions'
 import { buildSessionQuiz } from '@/lib/daily-dose/buildSessionQuiz'
 import { selectSessionCards, selectWarmupRecallCards } from '@/lib/daily-dose/sessionSelection'
-import { getRecentQuestionIds } from '@/lib/daily-dose/questionExclusion'
+import { getRecentQuestionIds, getCardsFromRecentSessions } from '@/lib/daily-dose/questionExclusion'
 import { extractQuestionsFromBlocks, extractQuestionsFromInteractions } from '@/lib/daily-dose/questions'
-import { normaliseRoleScope, uniqueBy } from '@/lib/daily-dose/utils'
+import { normaliseRoleScope, uniqueBy, toCardPayload } from '@/lib/daily-dose/utils'
 import {
   DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
   DAILY_DOSE_WARMUP_RECALL_MAX,
-  DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
   DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
+  QUIZ_EXCLUSION_SESSIONS,
 } from '@/lib/daily-dose/constants'
 import { z } from 'zod'
-import type { DailyDoseCardPayload } from '@/lib/daily-dose/types'
+import type { DailyDoseCardPayload, DailyDoseQuizQuestion } from '@/lib/daily-dose/types'
 
 const MAX_INCOMPLETE_SESSION_AGE_HOURS = 8
-
-function toCardPayload(card: {
-  id: string
-  title: string
-  topicId: string
-  topic: { name: string }
-  roleScope: unknown
-  contentBlocks: unknown
-  interactions?: unknown
-  sources: unknown
-  reviewByDate: Date | null
-  version: number
-  status: string
-  tags: unknown
-  batchId?: string | null
-}): DailyDoseCardPayload & { batchId?: string | null } {
-  return {
-    id: card.id,
-    title: card.title,
-    topicId: card.topicId,
-    topicName: card.topic?.name,
-    roleScope: normaliseRoleScope(card.roleScope),
-    contentBlocks: Array.isArray(card.contentBlocks) ? (card.contentBlocks as DailyDoseCardPayload['contentBlocks']) : [],
-    interactions: Array.isArray(card.interactions)
-      ? (card.interactions as DailyDoseCardPayload['interactions'])
-      : [],
-    sources: Array.isArray(card.sources) ? (card.sources as DailyDoseCardPayload['sources']) : [],
-    reviewByDate: card.reviewByDate ? card.reviewByDate.toISOString() : null,
-    version: card.version,
-    status: card.status,
-    tags: Array.isArray(card.tags) ? (card.tags as string[]) : undefined,
-    batchId: card.batchId ?? null,
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -130,18 +95,21 @@ export async function POST(request: NextRequest) {
         const sessionCards = orderedCards
         const warmupQuestions: DailyDoseQuizQuestion[] = []
         
-        // Get recent question IDs for exclusion
-        const recentQuestionIds = await getRecentQuestionIds({
+        const recentSessionCards = await getCardsFromRecentSessions({
           userId: user.id,
           surgeryId,
-          excludeLastNSessions: DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
+        })
+        const excludeQuestionIds = await getRecentQuestionIds({
+          userId: user.id,
+          surgeryId,
+          excludeLastNSessions: QUIZ_EXCLUSION_SESSIONS,
         })
 
-        // Build session-end quiz
         const quizQuestions = buildSessionQuiz({
           sessionCards,
+          recentSessionCards,
           recallCards: [],
-          recentQuestionIds,
+          excludeQuestionIds,
           targetLength: DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
         })
 
@@ -259,18 +227,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No Daily Dose cards available for this role yet' }, { status: 404 })
     }
 
-    // Get recent question IDs for exclusion
-    const recentQuestionIds = await getRecentQuestionIds({
+    const recentSessionCards = await getCardsFromRecentSessions({
       userId: user.id,
       surgeryId,
-      excludeLastNSessions: DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
+    })
+    const excludeQuestionIds = await getRecentQuestionIds({
+      userId: user.id,
+      surgeryId,
+      excludeLastNSessions: QUIZ_EXCLUSION_SESSIONS,
     })
 
-    // Build session-end quiz (primarily from session cards, max 1 recall question)
     const quizQuestions = buildSessionQuiz({
       sessionCards,
+      recentSessionCards,
       recallCards: warmupRecallCards,
-      recentQuestionIds,
+      excludeQuestionIds,
       targetLength: DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
     })
 

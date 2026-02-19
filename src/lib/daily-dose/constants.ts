@@ -28,6 +28,10 @@ export const DAILY_DOSE_QUIZ_LENGTH_MIN = 4
 export const DAILY_DOSE_QUIZ_LENGTH_MAX = 6
 export const DAILY_DOSE_WARMUP_RECALL_MAX = 2
 export const DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW = 3 // Exclude questions from last N sessions
+
+// Quiz question selection
+export const QUIZ_RECENT_SESSION_POOL_SIZE = 8 // Pull from sessions 2-9 (exclude most recent 1)
+export const QUIZ_EXCLUSION_SESSIONS = 1 // Exclude questions from last N completed sessions
 export const DAILY_DOSE_RECALL_ELIGIBILITY_DAYS = 7 // Days before a card/question is eligible for recall
 
 /** Max context length (chars) for single-page quiz layout; longer context uses two-page flow */

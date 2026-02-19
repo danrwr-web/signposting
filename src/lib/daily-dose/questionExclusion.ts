@@ -1,9 +1,12 @@
-import type { DailyDoseQuestion } from './types'
+import type { DailyDoseQuestion, DailyDoseCardPayload } from './types'
 import { getQuestionId } from './questionId'
-import { DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW } from './constants'
+import {
+  DAILY_DOSE_RECENT_SESSION_EXCLUSION_WINDOW,
+  QUIZ_RECENT_SESSION_POOL_SIZE,
+} from './constants'
 import { prisma } from '@/lib/prisma'
 import { extractQuestionsFromBlocks, extractQuestionsFromInteractions } from './questions'
-import type { DailyDoseCardPayload } from './types'
+import { toCardPayload } from './utils'
 
 /**
  * Get question IDs that were shown in recent sessions for exclusion.
@@ -48,6 +51,61 @@ export async function getRecentQuestionIds(params: {
   }
 
   return questionIds
+}
+
+/**
+ * Get cards from recent completed sessions (sessions 2 through N+1), excluding the most recent session.
+ * Used as primary source for quiz questions to reduce repetition.
+ */
+export async function getCardsFromRecentSessions(params: {
+  userId: string
+  surgeryId: string
+  poolSize?: number
+}): Promise<DailyDoseCardPayload[]> {
+  const { userId, surgeryId, poolSize = QUIZ_RECENT_SESSION_POOL_SIZE } = params
+
+  const sessions = await prisma.dailyDoseSession.findMany({
+    where: {
+      userId,
+      surgeryId,
+      completedAt: { not: null },
+    },
+    orderBy: { completedAt: 'desc' },
+    take: poolSize + 1,
+    select: { cardIds: true },
+  })
+
+  if (sessions.length < 2) return []
+
+  const sessionsToUse = sessions.slice(1, poolSize + 1)
+  const cardIds = new Set<string>()
+  for (const s of sessionsToUse) {
+    const ids = Array.isArray(s.cardIds) ? (s.cardIds as string[]) : []
+    ids.forEach((id) => cardIds.add(id))
+  }
+
+  if (cardIds.size === 0) return []
+
+  const cards = await prisma.dailyDoseCard.findMany({
+    where: { id: { in: Array.from(cardIds) }, isActive: true },
+    select: {
+      id: true,
+      title: true,
+      topicId: true,
+      topic: { select: { name: true } },
+      roleScope: true,
+      contentBlocks: true,
+      interactions: true,
+      sources: true,
+      reviewByDate: true,
+      version: true,
+      status: true,
+      tags: true,
+      batchId: true,
+    },
+  })
+
+  return cards.map((card) => toCardPayload(card))
 }
 
 /**
