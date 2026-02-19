@@ -106,47 +106,49 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
   }
 
   return (
-    <PhoneFrame
-      actions={
-        <div className="flex w-full flex-col items-center gap-3">
-          <div className="flex flex-wrap justify-center gap-2">
-            <Link
-              href={`/daily-dose/session?surgery=${surgeryId}`}
-              className="inline-flex items-center rounded-xl bg-nhs-blue px-6 py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
-            >
-              Start session
-            </Link>
-            <Link
-              href={`/daily-dose/onboarding?surgery=${surgeryId}`}
-              className="inline-flex items-center rounded-xl border border-nhs-blue px-6 py-3 text-sm font-semibold text-nhs-blue hover:bg-nhs-blue hover:text-white"
-            >
-              Update preferences
-            </Link>
+    <PhoneFrame>
+      <div className="flex h-full flex-col justify-between p-6">
+        {/* Stats at top */}
+        <div className="flex justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
+          <div className="flex-1">
+            <p className="text-xs text-slate-500">Streak</p>
+            <p className="text-lg font-semibold text-nhs-dark-blue">{history?.streak ?? 0} days</p>
           </div>
-          <div className="flex w-full max-w-[400px] justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
-            <div>
-              <p className="text-xs text-slate-500">Streak</p>
-              <p className="text-lg font-semibold text-nhs-dark-blue">{history?.streak ?? 0} days</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">Total XP</p>
-              <p className="text-lg font-semibold text-nhs-dark-blue">{history?.totalXp ?? 0}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500">Due</p>
-              <p className="text-lg font-semibold text-nhs-dark-blue">{history?.reviewQueue?.length ?? 0}</p>
-            </div>
+          <div className="flex-1">
+            <p className="text-xs text-slate-500">Total XP</p>
+            <p className="text-lg font-semibold text-nhs-dark-blue">{history?.totalXp ?? 0}</p>
+          </div>
+          <div className="flex-1">
+            <p className="text-xs text-slate-500">Due</p>
+            <p className="text-lg font-semibold text-nhs-dark-blue">{history?.reviewQueue?.length ?? 0}</p>
           </div>
         </div>
-      }
-    >
-      <div className="flex h-full flex-col justify-center p-6">
-        <h1 className="text-2xl font-bold text-nhs-dark-blue">
-          Welcome back{userName ? `, ${userName}` : ''}
-        </h1>
-        <p className="mt-3 text-slate-600">
-          Keep your learning streak ticking with a short Daily Dose session.
-        </p>
+
+        {/* Welcome message */}
+        <div className="flex flex-1 flex-col justify-center">
+          <h1 className="text-2xl font-bold text-nhs-dark-blue">
+            Welcome back{userName ? `, ${userName}` : ''}
+          </h1>
+          <p className="mt-3 text-slate-600">
+            Keep your learning streak ticking with a short Daily Dose session.
+          </p>
+        </div>
+
+        {/* Buttons at bottom */}
+        <div className="flex flex-col gap-3 pt-4">
+          <Link
+            href={`/daily-dose/session?surgery=${surgeryId}`}
+            className="inline-flex items-center justify-center rounded-xl bg-nhs-blue px-6 py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
+          >
+            Start session
+          </Link>
+          <Link
+            href={`/daily-dose/onboarding?surgery=${surgeryId}`}
+            className="inline-flex items-center justify-center rounded-xl border border-nhs-blue px-6 py-3 text-sm font-semibold text-nhs-blue hover:bg-nhs-blue hover:text-white"
+          >
+            Update preferences
+          </Link>
+        </div>
       </div>
     </PhoneFrame>
   )
