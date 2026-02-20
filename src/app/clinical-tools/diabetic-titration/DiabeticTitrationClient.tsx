@@ -2,9 +2,6 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
-import CompactToolbar from '@/components/CompactToolbar'
-import { useSurgery } from '@/context/SurgeryContext'
-import { Surgery } from '@prisma/client'
 import {
   type DiabetesInput,
   type DiabetesRecommendation,
@@ -18,9 +15,6 @@ interface DiabeticTitrationClientProps {
 type YesNoAnswer = boolean | null
 
 export default function DiabeticTitrationClient({ surgeryId }: DiabeticTitrationClientProps) {
-  const { surgery } = useSurgery()
-  const surgeries: Surgery[] = surgery ? [surgery] : []
-
   // Eligibility state
   const [adultT2DM, setAdultT2DM] = useState<boolean | null>(null)
   const [hba1c_mmol_mol, setHba1c_mmol_mol] = useState<number | null>(null)
@@ -219,22 +213,6 @@ export default function DiabeticTitrationClient({ surgeryId }: DiabeticTitration
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <CompactToolbar
-        variant="full"
-        surgeries={surgeries}
-        currentSurgeryId={surgeryId}
-        searchTerm=""
-        onSearchChange={() => {}}
-        selectedLetter="All"
-        onLetterChange={() => {}}
-        selectedAge="All"
-        onAgeChange={() => {}}
-        resultsCount={0}
-        totalCount={0}
-        showSurgerySelector={false}
-        onShowSurgerySelector={() => {}}
-      />
-
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Back Link */}
         <Link
