@@ -18,12 +18,6 @@ export interface ModuleItem {
 }
 
 /**
- * "New" badge expiry dates for modules.
- * After the date passes, the badge will no longer render.
- */
-export const DAILY_DOSE_NEW_BADGE_UNTIL = new Date('2026-02-09T23:59:59Z') // 14 days from launch
-
-/**
  * Check if a module's "New" badge should be displayed.
  */
 export function shouldShowNewBadge(module: ModuleItem): boolean {
@@ -65,7 +59,6 @@ export const MODULES: ModuleItem[] = [
     label: 'Daily Dose',
     href: '/s/{surgeryId}/daily-dose',
     featureKey: 'daily_dose',
-    newBadgeUntil: DAILY_DOSE_NEW_BADGE_UNTIL
   },
   {
     id: 'appointments', 

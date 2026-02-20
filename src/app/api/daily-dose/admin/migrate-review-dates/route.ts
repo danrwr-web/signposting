@@ -3,7 +3,7 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
-import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
+import { resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { DailyDoseSurgeryQueryZ } from '@/lib/daily-dose/schemas'
 import { z } from 'zod'
 
@@ -14,12 +14,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
+    if (user.globalRole !== 'SUPERUSER') {
+      return NextResponse.json({ error: 'Superuser access required' }, { status: 403 })
+    }
+
     const query = DailyDoseSurgeryQueryZ.parse({
       surgeryId: request.nextUrl.searchParams.get('surgeryId') ?? undefined,
     })
     const surgeryId = resolveSurgeryIdForUser({ requestedId: query.surgeryId, user })
-    if (!surgeryId || !isDailyDoseAdmin(user, surgeryId)) {
-      return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    if (!surgeryId) {
+      return NextResponse.json({ error: 'Surgery not found' }, { status: 404 })
     }
 
     const now = new Date()

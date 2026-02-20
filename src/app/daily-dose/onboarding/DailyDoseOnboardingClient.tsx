@@ -16,7 +16,6 @@ type Profile = {
   preferences?: {
     weekdayOnlyStreak?: boolean
     chosenFocusTopicIds?: string[]
-    baselineConfidence?: number
   }
 }
 
@@ -32,7 +31,6 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
   const [role, setRole] = useState<string>('ADMIN')
   const [weekdayOnlyStreak, setWeekdayOnlyStreak] = useState(true)
   const [chosenTopicIds, setChosenTopicIds] = useState<string[]>([])
-  const [baselineConfidence, setBaselineConfidence] = useState<number>(3)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,7 +52,6 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
           setRole(profileJson.profile.role ?? 'ADMIN')
           setWeekdayOnlyStreak(profileJson.profile.preferences?.weekdayOnlyStreak ?? true)
           setChosenTopicIds(profileJson.profile.preferences?.chosenFocusTopicIds ?? [])
-          setBaselineConfidence(profileJson.profile.preferences?.baselineConfidence ?? 3)
         }
       })
       .catch((err) => {
@@ -99,7 +96,6 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
           preferences: {
             weekdayOnlyStreak,
             chosenFocusTopicIds: chosenTopicIds,
-            baselineConfidence,
           },
           onboardingCompleted: true,
         }),
@@ -212,19 +208,6 @@ export default function DailyDoseOnboardingClient({ surgeryId }: { surgeryId: st
             className="accent-nhs-blue"
           />
           Weekdays only for streaks
-        </label>
-
-        <label className="rounded-md border border-slate-200 px-3 py-2 text-sm">
-          <span className="block text-slate-600">Baseline confidence</span>
-          <input
-            type="range"
-            min={1}
-            max={5}
-            value={baselineConfidence}
-            onChange={(event) => setBaselineConfidence(Number(event.target.value))}
-            className="mt-2 w-full accent-nhs-blue"
-          />
-          <span className="text-xs text-slate-500">Level {baselineConfidence} of 5</span>
         </label>
       </div>
       </form>
