@@ -125,10 +125,13 @@ export async function runGenerationJob(jobId: string): Promise<void> {
         url: source.url === '' || (source.url && source.url.trim() === '') ? null : source.url,
       }))
 
+      // For ADMIN role, force sources[0] to be "Signposting Toolkit (internal)".
+      // Preserve the URL already computed by generateEditorialBatch (which links to the
+      // specific matched symptom when one was found, e.g. /symptom/{id}?surgery={id}).
       if (resolvedRole === 'ADMIN' && normalizedSources.length > 0) {
         normalizedSources[0] = {
           title: 'Signposting Toolkit (internal)',
-          url: null,
+          url: normalizedSources[0]?.url ?? null,
           publisher: 'Signposting Toolkit',
         }
       }

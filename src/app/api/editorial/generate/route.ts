@@ -205,11 +205,13 @@ export async function POST(request: NextRequest) {
         url: (source.url === '' || (source.url && source.url.trim() === '')) ? null : source.url,
       }))
       
-      // For ADMIN role, force sources[0] to be "Signposting Toolkit (internal)" with URL to surgery's signposting page
+      // For ADMIN role, force sources[0] to be "Signposting Toolkit (internal)".
+      // Preserve the URL already computed by generateEditorialBatch (which links to the
+      // specific matched symptom when one was found, e.g. /symptom/{id}?surgery={id}).
       if (resolvedRole === 'ADMIN' && normalizedSources.length > 0) {
         normalizedSources[0] = {
           title: 'Signposting Toolkit (internal)',
-          url: `/s/${surgeryId}`,
+          url: normalizedSources[0]?.url ?? `/s/${surgeryId}`,
           publisher: 'Signposting Toolkit',
         }
       }

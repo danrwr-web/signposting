@@ -489,6 +489,7 @@ export type ToolkitAdviceResult = {
   context: string
   source: { title: string; url: string | null; publisher: string }
   matchedSymptomNames: string[]
+  matchedSymptomId?: string // ID of the top-ranked matched symptom, used to build the source URL
   fallbackUsed: boolean
   fallbackReason?: string
   totalSymptomsSearched: number
@@ -623,9 +624,10 @@ USAGE RULES:
 - If a symptom is mentioned, use the exact instruction text above
 - If guidance contradicts generic knowledge, prefer the internal guidance`
 
+    const topSymptom = matchedSymptoms[0]
     const source = {
       title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
-      url: `/s/${params.surgeryId}`,
+      url: `/symptom/${topSymptom.id}?surgery=${params.surgeryId}`,
       publisher: 'Signposting Toolkit',
     }
 
@@ -636,6 +638,7 @@ USAGE RULES:
       context,
       source,
       matchedSymptomNames: matchedNames,
+      matchedSymptomId: topSymptom.id,
       fallbackUsed: false,
       totalSymptomsSearched: allSymptoms.length,
       toolkitContextSnippet: context.slice(0, 500),
@@ -829,6 +832,7 @@ export async function buildEditorialPrompts(params: {
     toolkitMeta: {
       toolkitInjected: !!toolkit,
       matchedSymptoms: matchedSymptomNames,
+      matchedSymptomId: toolkit?.matchedSymptomId ?? null,
       toolkitContextLength: toolkit?.context?.length || 0,
       fallbackUsed: toolkit?.fallbackUsed ?? false,
       fallbackReason: toolkit?.fallbackReason ?? null,
@@ -917,13 +921,13 @@ export async function generateEditorialBatch(params: {
   let validationOverriddenIssues: Array<{ code: string; message: string; cardTitle?: string }> | undefined
 
   // Post-process ADMIN cards before safety validation:
-  // 1. Force sources[0] to be Signposting Toolkit (internal) with URL to surgery's signposting page
+  // 1. Force sources[0] to be Signposting Toolkit (internal), linking to the matched symptom when available
   // 2. Normalize empty/whitespace URLs to null
   // 3. Check for forbidden "diagnose/diagnosis" wording
   if (params.targetRole === 'ADMIN') {
     const toolkitSource = {
       title: 'Signposting Toolkit (internal)',
-      url: `/s/${params.surgeryId}`,
+      url: toolkit.toolkitSource?.url ?? `/s/${params.surgeryId}`,
       publisher: 'Signposting Toolkit',
     }
 
@@ -1148,6 +1152,7 @@ export async function generateEditorialBatch(params: {
   const generationMeta = {
     toolkitInjected: toolkit.toolkitInjected,
     matchedSymptoms: matchedSymptomNames,
+    matchedSymptomId: toolkit.matchedSymptomId ?? null,
     toolkitContextLength: toolkit.toolkitContextLength,
     fallbackUsed: toolkit.fallbackUsed,
     fallbackReason: toolkit.fallbackReason,
