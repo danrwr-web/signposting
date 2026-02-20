@@ -205,15 +205,21 @@ export async function POST(request: NextRequest) {
         url: (source.url === '' || (source.url && source.url.trim() === '')) ? null : source.url,
       }))
       
-      // For ADMIN role, force sources[0] to be "Signposting Toolkit (internal)".
-      // Preserve the URL already computed by generateEditorialBatch (which links to the
-      // specific matched symptom when one was found, e.g. /symptom/{id}?surgery={id}).
+      // For ADMIN role, ensure sources[0] is a Signposting Toolkit source.
+      // generateEditorialBatch already sets per-card toolkit sources; this is a safety net.
       if (resolvedRole === 'ADMIN' && normalizedSources.length > 0) {
-        normalizedSources[0] = {
-          title: 'Signposting Toolkit (internal)',
-          url: normalizedSources[0]?.url ?? `/s/${surgeryId}`,
-          publisher: 'Signposting Toolkit',
+        if (!normalizedSources[0]?.title?.startsWith('Signposting Toolkit')) {
+          normalizedSources[0] = {
+            title: 'Signposting Toolkit (internal)',
+            url: normalizedSources[0]?.url ?? `/s/${surgeryId}`,
+            publisher: 'Signposting Toolkit',
+          }
         }
+        // Remove any duplicate toolkit sources beyond index 0
+        normalizedSources = [
+          normalizedSources[0],
+          ...normalizedSources.slice(1).filter((s) => !s.title?.startsWith('Signposting Toolkit')),
+        ]
       }
       
       const needsSourcing = resolveNeedsSourcing(normalizedSources, card.needsSourcing) || !reviewByDateValid

@@ -485,11 +485,47 @@ function scoreSymptom(
   return score
 }
 
+/**
+ * Given a card and a list of matched symptoms, return the best-matching symptom
+ * for this specific card's content. Used to assign per-card source URLs.
+ */
+function bestSymptomForCard(
+  card: {
+    title: string
+    contentBlocks: Array<{ type: string; text?: string; items?: string[] }>
+    interactions: Array<{ question: string; options: string[]; explanation: string }>
+  },
+  symptoms: Array<{ id: string; name: string; briefInstruction: string }>,
+): { id: string; name: string; briefInstruction: string } | null {
+  if (symptoms.length === 0) return null
+  if (symptoms.length === 1) return symptoms[0]
+
+  const cardText = [
+    card.title,
+    ...card.contentBlocks.map((b) => b.text || (b.items || []).join(' ')),
+    ...card.interactions.map((i) => [i.question, i.options.join(' '), i.explanation].join(' ')),
+  ].join(' ')
+
+  const tokens = tokenise(cardText)
+  let best = symptoms[0]
+  let bestScore = 0
+
+  for (const symptom of symptoms) {
+    const score = scoreSymptom(tokens, symptom.name, symptom.briefInstruction)
+    if (score > bestScore) {
+      bestScore = score
+      best = symptom
+    }
+  }
+
+  return best
+}
+
 export type ToolkitAdviceResult = {
   context: string
   source: { title: string; url: string | null; publisher: string }
   matchedSymptomNames: string[]
-  matchedSymptomId?: string // ID of the top-ranked matched symptom, used to build the source URL
+  matchedSymptomEntries: Array<{ id: string; name: string; briefInstruction: string }>
   fallbackUsed: boolean
   fallbackReason?: string
   totalSymptomsSearched: number
@@ -534,6 +570,7 @@ async function resolveSignpostingToolkitAdvice(params: {
           url: `/s/${params.surgeryId}`,
         },
         matchedSymptomNames: [],
+        matchedSymptomEntries: [],
         fallbackUsed: true,
         fallbackReason: 'No meaningful tokens extracted from prompt',
         totalSymptomsSearched: 0,
@@ -569,6 +606,7 @@ async function resolveSignpostingToolkitAdvice(params: {
           url: `/s/${params.surgeryId}`,
         },
         matchedSymptomNames: [],
+        matchedSymptomEntries: [],
         fallbackUsed: true,
         fallbackReason: `No symptoms matched prompt tokens [${promptTokens.join(', ')}] across ${allSymptoms.length} symptoms`,
         totalSymptomsSearched: allSymptoms.length,
@@ -624,10 +662,15 @@ USAGE RULES:
 - If a symptom is mentioned, use the exact instruction text above
 - If guidance contradicts generic knowledge, prefer the internal guidance`
 
-    const topSymptom = matchedSymptoms[0]
+    const matchedEntries = matchedSymptoms.map((s) => ({
+      id: s.id,
+      name: s.name || '',
+      briefInstruction: s.briefInstruction || '',
+    }))
+
     const source = {
       title: `Signposting Toolkit (${surgery?.name || 'internal'})`,
-      url: `/symptom/${topSymptom.id}?surgery=${params.surgeryId}`,
+      url: `/s/${params.surgeryId}`,
       publisher: 'Signposting Toolkit',
     }
 
@@ -638,7 +681,7 @@ USAGE RULES:
       context,
       source,
       matchedSymptomNames: matchedNames,
-      matchedSymptomId: topSymptom.id,
+      matchedSymptomEntries: matchedEntries,
       fallbackUsed: false,
       totalSymptomsSearched: allSymptoms.length,
       toolkitContextSnippet: context.slice(0, 500),
@@ -657,6 +700,7 @@ USAGE RULES:
         url: `/s/${params.surgeryId}`,
       },
       matchedSymptomNames: [],
+      matchedSymptomEntries: [],
       fallbackUsed: true,
       fallbackReason: `Error during symptom matching: ${error instanceof Error ? error.message : String(error)}`,
       totalSymptomsSearched: 0,
@@ -832,7 +876,7 @@ export async function buildEditorialPrompts(params: {
     toolkitMeta: {
       toolkitInjected: !!toolkit,
       matchedSymptoms: matchedSymptomNames,
-      matchedSymptomId: toolkit?.matchedSymptomId ?? null,
+      matchedSymptomEntries: toolkit?.matchedSymptomEntries ?? [],
       toolkitContextLength: toolkit?.context?.length || 0,
       fallbackUsed: toolkit?.fallbackUsed ?? false,
       fallbackReason: toolkit?.fallbackReason ?? null,
@@ -925,11 +969,8 @@ export async function generateEditorialBatch(params: {
   // 2. Normalize empty/whitespace URLs to null
   // 3. Check for forbidden "diagnose/diagnosis" wording
   if (params.targetRole === 'ADMIN') {
-    const toolkitSource = {
-      title: 'Signposting Toolkit (internal)',
-      url: toolkit.toolkitSource?.url ?? `/s/${params.surgeryId}`,
-      publisher: 'Signposting Toolkit',
-    }
+    const matchedSymptomEntries = toolkit.matchedSymptomEntries ?? []
+    const toolkitTitle = toolkit.toolkitSource?.title ?? 'Signposting Toolkit (internal)'
 
     const diagnosePattern = /\bdiagnos(e|is|ed|ing)\b/i
     const diagnoseIssues: Array<{ code: string; message: string; cardTitle?: string }> = []
@@ -941,12 +982,18 @@ export async function generateEditorialBatch(params: {
         url: source.url && source.url.trim() ? source.url.trim() : null,
       }))
 
-      // Force sources[0] to be Signposting Toolkit (internal) with URL to surgery's signposting page
-      const firstIsToolkit =
-        normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === toolkitSource.url
-      if (!firstIsToolkit) {
-        normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
+      // Compute per-card symptom URL by matching card content against available symptoms
+      const bestMatch = bestSymptomForCard(card, matchedSymptomEntries)
+      const toolkitSource = {
+        title: toolkitTitle,
+        url: bestMatch ? `/symptom/${bestMatch.id}?surgery=${params.surgeryId}` : `/s/${params.surgeryId}`,
+        publisher: 'Signposting Toolkit',
       }
+
+      // Remove ALL AI-generated toolkit sources (may use varying titles like
+      // "Signposting Toolkit (Ide Lane Surgery)") and prepend the canonical one
+      const nonToolkitSources = normalizedSources.filter((s) => !s.title?.startsWith('Signposting Toolkit'))
+      normalizedSources = [toolkitSource, ...nonToolkitSources]
 
       // Check for forbidden "diagnose/diagnosis" wording
       const cardText = JSON.stringify(card)
@@ -1054,17 +1101,20 @@ export async function generateEditorialBatch(params: {
           onAttempt: params.onAttempt,
         })
 
-        // Re-normalise sources after retry (same logic as before retry)
+        // Re-normalise sources after retry (same per-card logic as before retry)
         finalResult.data.cards = finalResult.data.cards.map((card) => {
           let normalizedSources = card.sources.map((source) => ({
             ...source,
             url: source.url && source.url.trim() ? source.url.trim() : null,
           }))
-          const firstIsToolkit =
-            normalizedSources[0]?.title === toolkitSource.title && normalizedSources[0]?.url === toolkitSource.url
-          if (!firstIsToolkit) {
-            normalizedSources = [toolkitSource, ...normalizedSources.filter((s) => s.title !== toolkitSource.title)]
+          const bestMatch = bestSymptomForCard(card, matchedSymptomEntries)
+          const toolkitSource = {
+            title: toolkitTitle,
+            url: bestMatch ? `/symptom/${bestMatch.id}?surgery=${params.surgeryId}` : `/s/${params.surgeryId}`,
+            publisher: 'Signposting Toolkit',
           }
+          const nonToolkitSources = normalizedSources.filter((s) => !s.title?.startsWith('Signposting Toolkit'))
+          normalizedSources = [toolkitSource, ...nonToolkitSources]
           return { ...card, sources: normalizedSources }
         })
 
@@ -1152,7 +1202,6 @@ export async function generateEditorialBatch(params: {
   const generationMeta = {
     toolkitInjected: toolkit.toolkitInjected,
     matchedSymptoms: matchedSymptomNames,
-    matchedSymptomId: toolkit.matchedSymptomId ?? null,
     toolkitContextLength: toolkit.toolkitContextLength,
     fallbackUsed: toolkit.fallbackUsed,
     fallbackReason: toolkit.fallbackReason,
