@@ -73,6 +73,26 @@ describe('adminValidator', () => {
     expect(issues.some((issue) => issue.code === 'MISSING_TOOLKIT_SOURCE')).toBe(false)
   })
 
+  it('accepts toolkit source with /symptom/ URL (specific symptom page)', () => {
+    const issues = validateAdminCards({
+      cards: [
+        {
+          ...baseCard,
+          sources: [
+            {
+              title: 'Signposting Toolkit (internal)',
+              url: '/symptom/abc123?surgery=surgery-1',
+              publisher: 'Signposting Toolkit',
+            },
+          ],
+        },
+      ],
+      promptText: 'Admin mental health crisis',
+    })
+
+    expect(issues.some((issue) => issue.code === 'MISSING_TOOLKIT_SOURCE')).toBe(false)
+  })
+
   it('accepts toolkit source with null URL', () => {
     const issues = validateAdminCards({
       cards: [
