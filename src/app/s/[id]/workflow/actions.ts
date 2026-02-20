@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAdmin, requireSurgeryAccess, getSessionUser, can } from '@/lib/rbac'
-import { WorkflowNodeType, WorkflowActionKey, Prisma } from '@prisma/client'
+import { WorkflowNodeType, WorkflowActionKey } from '@prisma/client'
 import { inferWorkflowIconKey } from '@/components/workflow/icons/inferWorkflowIconKey'
 import { isWorkflowIconKey } from '@/components/workflow/icons/workflowIconRegistry'
 
@@ -12,6 +12,9 @@ export interface ActionResult {
   success: boolean
   error?: string
 }
+
+/** Global surgery ID used for shared/default workflow templates */
+const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
 export async function createWorkflowTemplate(
   surgeryId: string,
@@ -658,7 +661,7 @@ export async function createWorkflowNodeForTemplate(
         title: defaultTitle,
         items: [{ text: 'New item' }],
       },
-    } : undefined
+    } : null
 
     const node = await prisma.workflowNodeTemplate.create({
       data: {
@@ -670,7 +673,7 @@ export async function createWorkflowNodeForTemplate(
         isStart: false,
         actionKey: null,
         badges: [],
-        style: defaultStyle,
+        style: (defaultStyle ?? undefined) as import('@prisma/client').Prisma.InputJsonValue | undefined,
         positionX: positionX !== undefined ? Math.round(positionX) : null,
         positionY: positionY !== undefined ? Math.round(positionY) : null,
       },
@@ -909,7 +912,7 @@ export async function deleteWorkflowAnswerOptionById(
   try {
     await requireSurgeryAdmin(surgeryId)
 
-    // Verify template belongs to surgery
+    // Verify template belongs to surgery or global surgery
     const template = await prisma.workflowTemplate.findFirst({
       where: { id: templateId, surgeryId },
     })
@@ -1083,10 +1086,10 @@ export async function updateWorkflowNodeForDiagram(
 
     // Validate linked workflows if provided
     if (linkedWorkflows !== undefined) {
-      // Check all linked templates belong to same surgery and no self-links
+      // Check all linked templates belong to same surgery, global surgery, and no self-links
       for (const link of linkedWorkflows) {
         const linkedTemplate = await prisma.workflowTemplate.findFirst({
-          where: { id: link.toTemplateId, surgeryId },
+          where: { id: link.toTemplateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
         })
 
         if (!linkedTemplate) {
@@ -1107,12 +1110,10 @@ export async function updateWorkflowNodeForDiagram(
 
     await prisma.$transaction(async (tx) => {
       // Update node fields
-      const updateData: {
+      const updateData: Record<string, any> & {
         title: string
         body: string | null
         actionKey: WorkflowActionKey | null
-        badges?: Prisma.InputJsonValue
-        style?: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput
       } = {
         title,
         body: body || null,
@@ -1194,9 +1195,9 @@ export async function updateWorkflowNodeForDiagram(
           }
         }
         
-        // If style is explicitly null, allow clearing it (use Prisma.DbNull for database NULL)
+        // If style is explicitly null, allow clearing it
         // Otherwise, use merged style with clamped dimensions
-        updateData.style = style === null ? Prisma.DbNull : mergedStyle
+        updateData.style = (style === null ? null : mergedStyle) as any
       }
       
       await tx.workflowNodeTemplate.update({
@@ -1270,9 +1271,9 @@ export async function createWorkflowNodeLink(
       }
     }
 
-    // Verify linked template belongs to same surgery
+    // Verify linked template belongs to same surgery or global surgery
     const linkedTemplate = await prisma.workflowTemplate.findFirst({
-      where: { id: linkedTemplateId, surgeryId },
+      where: { id: linkedTemplateId, OR: [{ surgeryId }, { surgeryId: GLOBAL_SURGERY_ID }] },
     })
 
     if (!linkedTemplate) {
@@ -1723,10 +1724,6 @@ export async function createWorkflowOverride(
 ): Promise<ActionResult & { templateId?: string }> {
   try {
     await requireSurgeryAdmin(surgeryId)
-
-    // Global Default surgery ID - stores shared workflow templates
-    // These are inherited by all surgeries and can be overridden per-surgery
-    const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
     // Verify global template exists and belongs to Global Default surgery
     const globalTemplate = await prisma.workflowTemplate.findFirst({

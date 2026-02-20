@@ -6,14 +6,13 @@ import { useParams, usePathname, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import SurgerySelector from './SurgerySelector'
 import UserPreferencesModal from './UserPreferencesModal'
-import { Surgery } from '@prisma/client'
 import LogoSizeControl from './LogoSizeControl'
 import NavigationTriggerWithTooltip from './NavigationTriggerWithTooltip'
 import { useSurgery } from '@/context/SurgeryContext'
 
 interface SimpleHeaderProps {
   /** Optional list of surgeries for the dropdown selector */
-  surgeries?: Surgery[]
+  surgeries?: Array<{ id: string; slug: string | null; name: string }>
   /** Current surgery ID (used with surgeries prop) */
   currentSurgeryId?: string
   /** Surgery name to display (alternative to surgeries prop) */
@@ -22,6 +21,8 @@ interface SimpleHeaderProps {
   surgeryId?: string
   /** Whether to show Daily Dose navigation tabs */
   showDailyDoseNav?: boolean
+  /** When provided, surgery selector calls this instead of navigating */
+  onSurgeryChange?: (surgeryId: string) => void
 }
 
 /**
@@ -34,6 +35,7 @@ export default function SimpleHeader({
   surgeryName,
   surgeryId: propSurgeryId,
   showDailyDoseNav = false,
+  onSurgeryChange,
 }: SimpleHeaderProps) {
   const pathname = usePathname()
   const params = useParams()
@@ -86,11 +88,11 @@ export default function SimpleHeader({
     : []
 
   return (
-    <header className="bg-white border-b border-gray-200">
+    <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-start justify-between py-2">
+        <div className={showDailyDoseNav ? "flex items-start justify-between py-2" : "flex items-center justify-between h-16"}>
           {/* Left: Logo + Left Nav */}
-          <div className="flex flex-col">
+          <div className={showDailyDoseNav ? "flex flex-col" : "flex items-center"}>
             <div className="flex items-center">
               <NavigationTriggerWithTooltip className="mr-3" />
               <Link href={logoHref} className="flex items-center">
@@ -125,12 +127,13 @@ export default function SimpleHeader({
           </div>
 
           {/* Right: Surgery Selector + Right Nav */}
-          <div className="flex flex-col items-end">
+          <div className={showDailyDoseNav ? "flex flex-col items-end" : "flex items-center gap-3"}>
             <div className="flex items-center gap-3">
               {surgeries && surgeries.length > 0 ? (
-                <SurgerySelector 
-                  surgeries={surgeries} 
+                <SurgerySelector
+                  surgeries={surgeries}
                   currentSurgeryId={currentSurgeryId}
+                  onSurgeryChange={onSurgeryChange}
                 />
               ) : effectiveSurgeryName ? (
                 <span className="text-sm text-nhs-grey font-medium">
@@ -175,7 +178,7 @@ export default function SimpleHeader({
       </div>
 
       {/* User Preferences Modal */}
-      <UserPreferencesModal 
+      <UserPreferencesModal
         isOpen={showPreferencesModal}
         onClose={() => setShowPreferencesModal(false)}
       />

@@ -53,7 +53,7 @@ export default function WorkflowPanelNode({ id, data, selected }: NodeProps<Work
           minWidth={300}
           minHeight={200}
           isVisible={isSelected || selected}
-          style={{ pointerEvents: 'auto' }}
+          lineStyle={{ pointerEvents: 'auto' }}
         />
       )}
 

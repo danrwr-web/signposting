@@ -4,20 +4,6 @@ A high-level history of major changes.
 
 ---
 
-## Unreleased — In Progress
-
-### ✨ New
-- Added **Daily Dose** — short, role-based learning sessions with approvals, sources, and safe practice-level insights
-- AI-assisted Daily Dose editorial drafting with batch review, variations, and section regeneration (clinician sign-off for high-risk content)
-- Daily Dose AI generation includes schema repair, retry prompts, and clearer diagnostics for editors
-
-### 🧹 Updated
-- Daily Dose card generation now uses **token-based symptom matching** so the AI reliably references your surgery's signposting advice — previously many prompts fell back to generic content
-- Superusers can now see a **Generation Insights** panel on the editorial page (in all environments, including production) showing which symptoms were matched, whether a fallback was used, and the full prompts sent to the AI
-- Generation metadata (matched symptoms, toolkit context, fallback status) is now stored alongside each batch for future review
-
----
-
 ## Baseline Platform (as of January 2026)
 
 The following core capabilities are established and available to all surgeries:

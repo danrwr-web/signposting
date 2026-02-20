@@ -58,7 +58,7 @@ export function sanitizeHtml(html: string): string {
   // Normalise inline style formatting to be stable and readable.
   // sanitize-html may output compact styles like `color:rgb(255, 0, 0)` (no spaces / no trailing semicolons),
   // which makes string-based tests brittle. We reformat as `color: rgb(...);` consistently.
-  return sanitized.replace(/style="([^"]*)"/g, (_match, styleValue: string) => {
+  return sanitized.replace(/style="([^"]*)"/g, (_match: string, styleValue: string) => {
     const declarations = styleValue
       .split(';')
       .map((s) => s.trim())

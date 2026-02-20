@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 
 export interface SurgeryState {
   id: string
-  slug: string
+  slug: string | null
   name: string
 }
 

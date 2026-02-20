@@ -46,24 +46,40 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [limitMessage, setLimitMessage] = useState<string | null>(null)
 
-  // Fetch initial config if not provided
+  // Fetch config when surgeryId becomes available or changes
   useEffect(() => {
-    if (!initialConfig && surgeryId && isLoading) {
-      fetch(`/api/admin/surgery-settings?surgeryId=${surgeryId}`)
+    if (!initialConfig && surgeryId) {
+      let cancelled = false
+      setIsLoading(true)
+      fetch(`/api/admin/surgery-settings?surgeryId=${surgeryId}`, {
+        cache: 'no-store',
+        credentials: 'include',
+      })
         .then(async (res) => {
-          if (res.ok) {
-            const data = await res.json()
-            const uiConfig = data.surgery?.uiConfig as UiConfig | null
-            if (uiConfig?.commonReasons) {
-              setEnabled(uiConfig.commonReasons.commonReasonsEnabled)
-              setItems(normalizeInitialItems(uiConfig.commonReasons))
-            }
+          if (cancelled) return
+          if (!res.ok) {
+            console.error('Failed to load surgery settings:', res.status, res.statusText)
+            return
+          }
+          const data = await res.json()
+          const uiConfig = data.surgery?.uiConfig as UiConfig | null
+          if (uiConfig?.commonReasons) {
+            setEnabled(uiConfig.commonReasons.commonReasonsEnabled)
+            setItems(normalizeInitialItems(uiConfig.commonReasons))
+          } else {
+            setEnabled(false)
+            setItems([])
           }
         })
-        .catch(err => console.error('Error loading config:', err))
-        .finally(() => setIsLoading(false))
+        .catch(err => {
+          if (!cancelled) console.error('Error loading config:', err)
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false)
+        })
+      return () => { cancelled = true }
     }
-  }, [surgeryId, initialConfig, isLoading])
+  }, [surgeryId, initialConfig])
 
   // Filter symptoms by search term
   const filteredSymptoms = useMemo(() => {
@@ -149,7 +165,10 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
         }
       })
 
-      const response = await fetch('/api/admin/surgery-settings', {
+      const patchUrl = surgeryId
+        ? `/api/admin/surgery-settings?surgeryId=${surgeryId}`
+        : '/api/admin/surgery-settings'
+      const response = await fetch(patchUrl, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

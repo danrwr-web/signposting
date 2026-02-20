@@ -31,7 +31,7 @@ async function ensureBuiltInStaffTypes() {
     await prisma.appointmentStaffType.upsert({
       where: {
         surgeryId_normalizedLabel: {
-          surgeryId: null,
+          surgeryId: null as unknown as string,
           normalizedLabel: normalizeStaffLabel(type.label)
         }
       },

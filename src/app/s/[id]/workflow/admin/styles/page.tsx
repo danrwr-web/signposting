@@ -77,7 +77,7 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
     let selectedTemplate: {
       id: string
       name: string
-      styleDefaults: WorkflowNodeStyleDefault[]
+      styleDefaults: Array<{ nodeType: string; bgColor: string | null; textColor: string | null; borderColor: string | null }>
     } | null = null
 
     if (templateId) {
@@ -158,7 +158,7 @@ export default async function WorkflowAdminStylesPage({ params, searchParams }: 
               <TemplateStyleDefaultsEditor
                 surgeryId={surgeryId}
                 templateId={selectedTemplate.id}
-                styleDefaults={selectedTemplate.styleDefaults || []}
+                styleDefaults={(selectedTemplate.styleDefaults || []) as any}
                 isSuperuser={true}
               />
               

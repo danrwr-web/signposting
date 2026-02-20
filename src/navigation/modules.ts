@@ -60,14 +60,14 @@ export const MODULES: ModuleItem[] = [
     href: '/s/{surgeryId}/admin-toolkit', 
     featureKey: 'admin_toolkit' 
   },
-  { 
-    id: 'daily-dose', 
-    label: 'Daily Dose', 
-    href: '/s/{surgeryId}/daily-dose', 
+  {
+    id: 'daily-dose',
+    label: 'Daily Dose',
+    href: '/s/{surgeryId}/daily-dose',
     featureKey: 'daily_dose',
     newBadgeUntil: DAILY_DOSE_NEW_BADGE_UNTIL
   },
-  { 
+  {
     id: 'appointments', 
     label: 'Appointments Directory', 
     href: '/s/{surgeryId}/appointments', 
@@ -84,26 +84,25 @@ export const MODULES: ModuleItem[] = [
 /**
  * Management/admin navigation items visible only to practice admins and superusers.
  * The href should use {surgeryId} placeholder which will be replaced at runtime.
+ *
+ * Navigation structure:
+ * - Practice settings (/admin/practice): Surgery-level administration across modules
+ *   (includes Users & access, Module access, Practice Handbook admin, Workflow Guidance)
+ * - Signposting settings (/admin): Module-specific Signposting configuration
+ * - System management (/admin/system): Super Admin only, platform governance
+ *
+ * Note: Practice Handbook admin is accessed via Practice settings, NOT directly from
+ * the hamburger menu. This keeps configuration tasks in one place.
  */
 export const MANAGEMENT_ITEMS: ManagementItem[] = [
-  { 
-    id: 'edit-handbook', 
-    label: 'Edit Handbook', 
-    href: '/s/{surgeryId}/admin-toolkit/admin' 
+  {
+    id: 'practice-settings',
+    label: 'Practice settings',
+    href: '/admin/practice'
   },
-  { 
-    id: 'signposting-settings', 
-    label: 'Signposting settings', 
-    href: '/admin' 
-  },
-  { 
-    id: 'workflow-editor', 
-    label: 'Workflow editor', 
-    href: '/s/{surgeryId}/workflow/templates' 
-  },
-  { 
-    id: 'user-management', 
-    label: 'User & access management', 
-    href: '/s/{surgeryId}/admin/users' 
+  {
+    id: 'signposting-settings',
+    label: 'Signposting settings',
+    href: '/admin'
   },
 ]

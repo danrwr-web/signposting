@@ -139,7 +139,7 @@ export default async function middleware(req: NextRequest) {
     pathname.startsWith('/daily-dose') ||
     pathname.startsWith('/editorial')
   if (isProtectedPath) {
-    return authMiddleware(req)
+    return (authMiddleware as any)(req)
   }
 
   return NextResponse.next()

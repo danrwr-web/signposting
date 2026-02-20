@@ -6,6 +6,7 @@ import type { AdminToolkitCategory, AdminToolkitPageItem } from '@/server/adminT
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import { useCardStyle } from '@/context/CardStyleContext'
 import type { AdminToolkitQuickAccessButton } from '@/lib/adminToolkitQuickAccessShared'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 // Note: Settings cog moved to page header (AdminToolkitHeaderActions component)
 
@@ -20,11 +21,31 @@ interface AdminToolkitLibraryClientProps {
 export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categories, items, quickAccessButtons }: AdminToolkitLibraryClientProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | 'ALL'>('ALL')
   const [search, setSearch] = useState('')
+  const [changesCount, setChangesCount] = useState<number | null>(null)
   const { cardStyle } = useCardStyle()
   const isBlueCards = cardStyle === 'powerappsBlue'
 
   const searchStickyRef = useRef<HTMLDivElement>(null)
+  const sidebarScrollRef = useRef<HTMLElement>(null)
   const [sidebarStickyTopPx, setSidebarStickyTopPx] = useState(0)
+  const [bottomOffsetPx, setBottomOffsetPx] = useState(0)
+  const [showBottomFade, setShowBottomFade] = useState(false)
+
+  // Fetch recent changes count for the badge
+  useEffect(() => {
+    async function fetchChangesCount() {
+      try {
+        const res = await fetch(`/api/admin-toolkit/changes?surgeryId=${surgeryId}&countOnly=true`)
+        if (res.ok) {
+          const data = await res.json()
+          setChangesCount(data.count ?? 0)
+        }
+      } catch {
+        // Silently fail - badge just won't show
+      }
+    }
+    fetchChangesCount()
+  }, [surgeryId])
 
   useEffect(() => {
     const measure = () => {
@@ -36,6 +57,68 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     window.addEventListener('resize', measure)
     return () => window.removeEventListener('resize', measure)
   }, [])
+
+  // Measure the pinned panel height (changes when expanded/collapsed)
+  useEffect(() => {
+    let resizeObserver: ResizeObserver | null = null
+    let mutationObserver: MutationObserver | null = null
+
+    const attachResizeObserver = (panel: HTMLElement) => {
+      const measurePanel = () => {
+        setBottomOffsetPx(panel.offsetHeight)
+      }
+      measurePanel()
+      resizeObserver = new ResizeObserver(measurePanel)
+      resizeObserver.observe(panel)
+    }
+
+    // Try to find the panel immediately
+    const panel = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
+    if (panel) {
+      attachResizeObserver(panel)
+    } else {
+      // Panel not in DOM yet - watch for it to appear
+      mutationObserver = new MutationObserver(() => {
+        const el = document.querySelector('[data-handbook-bottom-bar]') as HTMLElement | null
+        if (el) {
+          mutationObserver?.disconnect()
+          mutationObserver = null
+          attachResizeObserver(el)
+        }
+      })
+      mutationObserver.observe(document.body, { childList: true, subtree: true })
+    }
+
+    return () => {
+      resizeObserver?.disconnect()
+      mutationObserver?.disconnect()
+    }
+  }, [])
+
+  // Handle sidebar scroll to show/hide bottom fade
+  useEffect(() => {
+    const scrollContainer = sidebarScrollRef.current
+    if (!scrollContainer) return
+
+    const checkScrollPosition = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer
+      const isAtBottom = scrollHeight - scrollTop - clientHeight < 5
+      const hasOverflow = scrollHeight > clientHeight
+      setShowBottomFade(hasOverflow && !isAtBottom)
+    }
+
+    // Check initial state
+    checkScrollPosition()
+
+    scrollContainer.addEventListener('scroll', checkScrollPosition)
+    // Also check on resize in case content changes
+    window.addEventListener('resize', checkScrollPosition)
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', checkScrollPosition)
+      window.removeEventListener('resize', checkScrollPosition)
+    }
+  }, [categories])
 
   const normalisedSearch = useMemo(() => search.trim().toLowerCase(), [search])
 
@@ -74,7 +157,7 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
           const selectedCat = findCategory(categories, selectedCategoryId)
           if (selectedCat && selectedCat.children) {
             const childIds = getCategoryAndChildrenIds(selectedCat)
-            matchesCategory = childIds.includes(item.categoryId)
+            matchesCategory = item.categoryId !== null && childIds.includes(item.categoryId)
           }
         }
       }
@@ -135,8 +218,24 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
     <div className="bg-white rounded-lg shadow-md border border-gray-200">
       {/* Header zone */}
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-        <div className="text-sm text-gray-600" aria-live="polite">
-          {itemsSorted.length} page{itemsSorted.length === 1 ? '' : 's'}
+        <div className="flex items-center gap-2 text-sm text-gray-600" aria-live="polite">
+          <span>{itemsSorted.length} page{itemsSorted.length === 1 ? '' : 's'}</span>
+          <span className="text-gray-300">•</span>
+          <Link
+            href={`/s/${surgeryId}/admin-toolkit/changes`}
+            className={`px-2.5 py-1 rounded-md text-sm transition-colors ${
+              changesCount !== null && changesCount > 0
+                ? 'text-nhs-blue font-medium hover:bg-blue-50 hover:underline'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            What&apos;s changed
+            {changesCount !== null && changesCount > 0 && (
+              <span className="ml-1.5 inline-flex items-center justify-center min-w-[1.25rem] px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-900">
+                {changesCount}
+              </span>
+            )}
+          </Link>
         </div>
         {canWrite ? null : <span className="text-sm text-gray-500">You have view-only access.</span>}
       </div>
@@ -167,10 +266,15 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
       <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
           {/* Sidebar: categories */}
           <aside
-            className={`border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
-              isBlueCards ? 'bg-nhs-blue' : 'bg-gray-50'
+            ref={sidebarScrollRef}
+            className={`relative border-b md:border-b-0 md:border-r border-gray-200 md:sticky md:self-start ${
+              isBlueCards ? 'bg-nhs-blue scrollbar-nhs-blue' : 'bg-gray-50'
             }`}
-            style={sidebarStickyTopPx ? { top: sidebarStickyTopPx } : undefined}
+            style={{
+              top: sidebarStickyTopPx,
+              maxHeight: `calc(100vh - ${sidebarStickyTopPx + bottomOffsetPx}px)`,
+              overflowY: 'auto',
+            }}
           >
             <div className="px-4 py-4">
               <h2 className={`text-xs font-medium uppercase tracking-wide ${
@@ -283,14 +387,34 @@ export default function AdminToolkitLibraryClient({ surgeryId, canWrite, categor
               )
             })}
             </nav>
+            {/* Bottom fade affordance */}
+            {showBottomFade && (
+              <div
+                className={`absolute bottom-0 left-0 right-0 h-10 pointer-events-none z-10 ${
+                  isBlueCards
+                    ? 'bg-gradient-to-t from-nhs-blue to-transparent'
+                    : 'bg-gradient-to-t from-gray-50 to-transparent'
+                }`}
+                aria-hidden="true"
+              />
+            )}
           </aside>
 
           {/* Main: pages */}
           <section className="p-4 lg:pb-64">
             {itemsSorted.length === 0 ? (
-              <div className="py-12 text-center text-sm text-gray-500">
-                {normalisedSearch ? 'No pages match your search.' : 'No pages yet.'}
-              </div>
+              <EmptyState
+                illustration={normalisedSearch ? 'search' : 'documents'}
+                title={normalisedSearch ? 'No pages match your search' : 'No pages yet'}
+                description={normalisedSearch
+                  ? 'Try a different search term or clear your search.'
+                  : 'Add your first handbook page to get started.'}
+                action={normalisedSearch
+                  ? { label: 'Clear search', onClick: () => setSearch(''), variant: 'secondary' }
+                  : canWrite
+                    ? { label: 'Add page', href: `/s/${surgeryId}/admin-toolkit/admin` }
+                    : undefined}
+              />
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {itemsSorted.map((item) => (

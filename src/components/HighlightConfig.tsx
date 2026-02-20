@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { HighlightRule } from '@/lib/highlighting'
 import { GetHighlightsResZ } from '@/lib/api-contracts'
+import { Skeleton } from '@/components/ui/Skeleton'
 
 interface HighlightConfigProps {
   surgeryId?: string
@@ -192,16 +193,22 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       return
     }
 
+    const deletedRule = highlights.find(h => h.id === id)
+    // Optimistic: remove from list immediately
+    setHighlights(prev => prev.filter(h => h.id !== id))
+    toast.success('Highlight rule deleted')
+
     try {
       const response = await fetch(`/api/highlights/${id}`, {
         method: 'DELETE'
       })
 
-      if (response.ok) {
-        toast.success('Highlight rule deleted successfully')
-        loadHighlights()
-      } else {
-        const errorData = await response.json()
+      if (!response.ok) {
+        // Revert only the specific deleted item back into the list
+        if (deletedRule) {
+          setHighlights(prev => [...prev, deletedRule])
+        }
+        const errorData = await response.json().catch(() => ({}))
         if (response.status === 403) {
           toast.error(errorData.error || 'You do not have permission to delete this rule')
         } else {
@@ -209,12 +216,22 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
         }
       }
     } catch (error) {
+      // Revert only the specific deleted item
+      if (deletedRule) {
+        setHighlights(prev => [...prev, deletedRule])
+      }
       console.error('Error deleting highlight:', error)
-      toast.error('Failed to delete highlight rule')
+      toast.error('Failed to delete highlight rule — reverted')
     }
   }
 
   const handleToggleActive = async (id: string, isEnabled: boolean) => {
+    const previousValue = highlights.find(h => h.id === id)?.isEnabled
+    // Optimistic: toggle in local state immediately
+    setHighlights(prev =>
+      prev.map(h => h.id === id ? { ...h, isEnabled } : h)
+    )
+
     try {
       const response = await fetch(`/api/highlights/${id}`, {
         method: 'PATCH',
@@ -224,13 +241,20 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
 
       if (response.ok) {
         toast.success(`Highlight rule ${isEnabled ? 'enabled' : 'disabled'}`)
-        loadHighlights()
       } else {
+        // Revert only the specific item's toggle
+        setHighlights(prev =>
+          prev.map(h => h.id === id ? { ...h, isEnabled: previousValue ?? !isEnabled } : h)
+        )
         toast.error('Failed to update highlight rule')
       }
     } catch (error) {
+      // Revert only the specific item's toggle
+      setHighlights(prev =>
+        prev.map(h => h.id === id ? { ...h, isEnabled: previousValue ?? !isEnabled } : h)
+      )
       console.error('Error updating highlight:', error)
-      toast.error('Failed to update highlight rule')
+      toast.error('Failed to update highlight rule — reverted')
     }
   }
 
@@ -240,6 +264,10 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       return
     }
 
+    const previous = enableImageIcons
+    // Optimistic: toggle immediately
+    setEnableImageIcons(enabled)
+
     try {
       const response = await fetch(`/api/admin/surgery-settings`, {
         method: 'PATCH',
@@ -248,13 +276,14 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       })
 
       if (response.ok) {
-        setEnableImageIcons(enabled)
         toast.success(`Image icons ${enabled ? 'enabled' : 'disabled'}`)
       } else {
-        const errorData = await response.json()
+        setEnableImageIcons(previous)
+        const errorData = await response.json().catch(() => ({}))
         toast.error(`Failed to update image icons setting: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
+      setEnableImageIcons(previous)
       console.error('Error updating image icons setting:', error)
       toast.error('Failed to update image icons setting')
     }
@@ -266,7 +295,9 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
       return
     }
 
-    console.log('Toggle built-in highlights:', enabled, 'for surgery:', surgeryId)
+    const previous = enableBuiltInHighlights
+    // Optimistic: toggle immediately
+    setEnableBuiltInHighlights(enabled)
 
     try {
       const response = await fetch(`/api/admin/surgery-settings`, {
@@ -275,19 +306,15 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
         body: JSON.stringify({ enableBuiltInHighlights: enabled })
       })
 
-      console.log('Toggle response status:', response.status)
-
       if (response.ok) {
-        const result = await response.json()
-        console.log('Toggle response data:', result)
-        setEnableBuiltInHighlights(enabled)
         toast.success(`Built-in highlights ${enabled ? 'enabled' : 'disabled'}`)
       } else {
-        const errorData = await response.json()
-        console.error('Toggle error response:', errorData)
+        setEnableBuiltInHighlights(previous)
+        const errorData = await response.json().catch(() => ({}))
         toast.error(`Failed to update built-in highlights setting: ${errorData.error || 'Unknown error'}`)
       }
     } catch (error) {
+      setEnableBuiltInHighlights(previous)
       console.error('Error updating built-in highlights setting:', error)
       toast.error('Failed to update built-in highlights setting')
     }
@@ -299,9 +326,28 @@ export default function HighlightConfig({ surgeryId, isSuperuser = false }: High
         <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
           Highlight Configuration
         </h3>
-        <div className="text-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nhs-blue mx-auto"></div>
-          <p className="text-nhs-grey mt-2">Loading highlight rules...</p>
+        <div className="space-y-3 animate-pulse">
+          {/* Toggle skeletons */}
+          <div className="bg-blue-50 rounded-lg p-4">
+            <Skeleton height="h-4" width="w-36" className="mb-3" />
+            <div className="flex items-center justify-between">
+              <Skeleton height="h-3" width="w-64" />
+              <Skeleton height="h-8" width="w-20" rounded="lg" />
+            </div>
+          </div>
+          {/* Rule skeletons */}
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="flex items-center justify-between bg-nhs-light-grey rounded-lg p-4">
+              <div className="flex items-center gap-4">
+                <Skeleton height="h-7" width="w-24" rounded="md" />
+                <Skeleton height="h-3" width="w-40" />
+              </div>
+              <div className="flex gap-2">
+                <Skeleton height="h-7" width="w-16" rounded="md" />
+                <Skeleton height="h-7" width="w-12" rounded="md" />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )

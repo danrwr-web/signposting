@@ -2,80 +2,50 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { memo, useEffect, useState } from 'react'
+import { memo, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 
+export interface SymptomChangeInfo {
+  changeType: 'new' | 'updated'
+  approvedAt: Date
+}
+
+/** Pre-fetched card data shared across all SymptomCards for a surgery */
+export interface CardData {
+  highlightRules: HighlightRule[]
+  enableBuiltInHighlights: boolean
+  enableImageIcons: boolean
+  imageIcons: Array<{ phrase: string; imageUrl: string; cardSize: string }>
+}
+
 interface SymptomCardProps {
   symptom: EffectiveSymptom
   surgeryId?: string
+  changeInfo?: SymptomChangeInfo
+  cardData?: CardData
 }
 
-function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
+function SymptomCard({ symptom, surgeryId, changeInfo, cardData }: SymptomCardProps) {
   const { currentSurgeryId } = useSurgery()
   const { cardStyle, isSimplified } = useCardStyle()
-  const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
-  const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState<boolean>(true)
-  const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
-  const [imageIcon, setImageIcon] = useState<{ imageUrl: string; cardSize: string } | null>(null)
+
+  const highlightRules = cardData?.highlightRules ?? []
+  const enableBuiltInHighlights = cardData?.enableBuiltInHighlights ?? true
+  const enableImageIcons = cardData?.enableImageIcons ?? true
+
+  // Match image icon locally from the pre-fetched list
+  const imageIcon = useMemo(() => {
+    if (!enableImageIcons || !cardData?.imageIcons?.length || !symptom.briefInstruction) return null
+    const phraseLower = symptom.briefInstruction.toLowerCase()
+    const match = cardData.imageIcons.find(icon => phraseLower.includes(icon.phrase.toLowerCase()))
+    return match ? { imageUrl: match.imageUrl, cardSize: match.cardSize } : null
+  }, [enableImageIcons, cardData?.imageIcons, symptom.briefInstruction])
 
   // Use the canonical surgery identifier used in `/s/[id]` routes.
-  // Avoid using the human-readable `surgery.slug` here, otherwise `/symptom/...` links won't round-trip back to `/s/[id]`.
   const effectiveSurgeryId = surgeryId || currentSurgeryId
-
-
-  // Load highlight rules and image icon from combined API endpoint
-  useEffect(() => {
-    const loadCardData = async () => {
-      try {
-        // Build URL with surgeryId and phrase for combined data fetch
-        let url = '/api/symptom-card-data'
-        const params = new URLSearchParams()
-        if (effectiveSurgeryId) {
-          params.append('surgeryId', effectiveSurgeryId)
-        }
-        if (symptom.briefInstruction) {
-          params.append('phrase', symptom.briefInstruction)
-        }
-        if (params.toString()) {
-          url += `?${params.toString()}`
-        }
-        
-        // Single API call for all card data - uses caching
-        const response = await fetch(url, { cache: 'no-store' })
-        if (response.ok) {
-          const json = await response.json()
-          const { 
-            highlights, 
-            enableBuiltInHighlights: builtInEnabled, 
-            enableImageIcons: imageIconsEnabled,
-            imageIcon: iconData
-          } = json
-          
-          setHighlightRules(Array.isArray(highlights) ? highlights : [])
-          setEnableBuiltInHighlights(builtInEnabled ?? true)
-          setEnableImageIcons(imageIconsEnabled ?? true)
-          
-          // Set image icon if available
-          if (iconData && iconData.imageUrl) {
-            setImageIcon({ 
-              imageUrl: iconData.imageUrl, 
-              cardSize: iconData.cardSize || 'medium' 
-            })
-          } else {
-            setImageIcon(null)
-          }
-        } else {
-          console.error('SymptomCard: Failed to fetch card data:', response.status, response.statusText)
-        }
-      } catch (error) {
-        console.error('Failed to load card data:', error)
-      }
-    }
-    loadCardData()
-  }, [effectiveSurgeryId, symptom.briefInstruction])
 
   const getSourceColor = (source: string) => {
     if (cardStyle === 'powerappsBlue') {
@@ -154,6 +124,21 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
     return source || 'base'
   }
 
+  // Render change badge (New/Updated) if applicable
+  const renderChangeBadge = () => {
+    if (!changeInfo) return null
+
+    const badgeColors = changeInfo.changeType === 'new'
+      ? 'bg-green-100 text-green-800'
+      : 'bg-amber-100 text-amber-800'
+
+    return (
+      <span className={`px-2 py-0.5 rounded text-xs font-medium ${badgeColors}`}>
+        {changeInfo.changeType === 'new' ? 'New' : 'Updated'}
+      </span>
+    )
+  }
+
   const highlightText = (text: string) => {
     return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
   }
@@ -180,9 +165,12 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
         className={`group block ${linkRadiusClass} cursor-pointer focus-visible:outline-none focus-visible:ring-2 ${linkFocusClasses}`}
       >
         <div className={simplifiedContainerClasses}>
-          <h3 className="text-center text-2xl font-semibold leading-snug">
-            {symptom.name || 'Unknown Symptom'}
-          </h3>
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <h3 className="text-center text-2xl font-semibold leading-snug">
+              {symptom.name || 'Unknown Symptom'}
+            </h3>
+            {renderChangeBadge()}
+          </div>
           {symptom.briefInstruction && (
             <p
               className="sr-only"
@@ -238,10 +226,11 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
       <div className={cardClasses}>
         {/* Header with title and badges */}
         <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex items-center gap-2 flex-1 flex-wrap">
             <h3 className={titleClasses}>
               {symptom.name || 'Unknown Symptom'}
             </h3>
+            {renderChangeBadge()}
           </div>
           <div className="flex flex-col gap-1 flex-shrink-0">
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgeGroupColor(symptom.ageGroup || 'Adult')}`}>
@@ -252,33 +241,33 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
             </span>
           </div>
         </div>
-        
+
         {/* Brief instruction - truncated */}
         <div className="flex-1 mb-3 min-h-[72px]">
-          <p 
+          <p
             className={instructionClasses}
-            dangerouslySetInnerHTML={{ 
-              __html: highlightText(symptom.briefInstruction || "") 
+            dangerouslySetInnerHTML={{
+              __html: highlightText(symptom.briefInstruction || "")
             }}
           />
         </div>
-        
+
         {/* Highlight preview - compact */}
         {symptom.highlightedText && (
-          <div className={cardStyle === 'powerappsBlue' 
-            ? 'bg-red-100 border-l-2 border-red-400 p-2 mb-3 rounded-r' 
+          <div className={cardStyle === 'powerappsBlue'
+            ? 'bg-red-100 border-l-2 border-red-400 p-2 mb-3 rounded-r'
             : 'bg-red-50 border-l-2 border-nhs-red p-2 mb-3 rounded-r'}>
-            <p 
+            <p
               className={cardStyle === 'powerappsBlue'
                 ? 'text-xs font-medium text-red-900 line-clamp-2'
                 : 'text-xs font-medium text-nhs-red line-clamp-2'}
-              dangerouslySetInnerHTML={{ 
-                __html: highlightText(symptom.highlightedText || "") 
+              dangerouslySetInnerHTML={{
+                __html: highlightText(symptom.highlightedText || "")
               }}
             />
           </div>
         )}
-        
+
         {/* Footer with link and open affordance */}
         <div className="flex items-center justify-between mt-auto">
           {symptom.linkToPage && (
@@ -295,7 +284,7 @@ function SymptomCard({ symptom, surgeryId }: SymptomCardProps) {
                 large: 'w-32 h-32'
               }
               const sizeClass = sizeClasses[imageIcon.cardSize as keyof typeof sizeClasses] || sizeClasses.medium
-              
+
               return (
                 <div className={`relative ${sizeClass} flex-shrink-0`}>
                   <Image

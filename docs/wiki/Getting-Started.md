@@ -18,8 +18,6 @@
 
 - [Appointment Directory](Appointment-Directory)
 
-- [Daily Dose](Daily-Dose)
-
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
@@ -34,6 +32,8 @@
 A simple step-by-step guide to help practices set up and begin using the Signposting Toolkit safely and confidently.
 
 This onboarding process usually takes **30–60 minutes** for an admin lead + a clinical lead.
+
+**Tip:** If your surgery has the onboarding features enabled, you can track your progress using the **Setup & onboarding** section in **Practice settings**. This shows which steps are complete and what remains to be done.
 
 ---
 
@@ -136,16 +136,7 @@ This acts as a mini-training module inside the workflow.
 
 ---
 
-## 8. Daily Dose learning (Optional)
-Daily Dose is a short, role-based learning module for practice teams.
-
-- Ask staff to complete the Daily Dose onboarding (role + focus topics)
-- Keep cards in **Draft** until they are approved locally
-- Use the insights page to spot common gaps (aggregated only)
-
----
-
-## 9. Go Live
+## 8. Go Live
 Once the clinical lead is satisfied:
 
 - Inform reception/admin staff  
@@ -156,7 +147,7 @@ Most practices adopt it fully within **24 hours**.
 
 ---
 
-## 10. Monitor Usage (Optional)
+## 9. Monitor Usage (Optional)
 If enabled, the admin dashboard can show:
 
 - Most-used symptoms  
@@ -167,7 +158,7 @@ This helps identify where further training or refinement is needed.
 
 ---
 
-## 11. Maintain Governance
+## 10. Maintain Governance
 Simply repeat the clinical review cycle whenever:
 
 - New symptoms are added  

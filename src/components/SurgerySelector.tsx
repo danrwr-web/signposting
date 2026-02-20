@@ -2,17 +2,19 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { Surgery } from '@prisma/client'
+import type { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useSession } from 'next-auth/react'
 
 interface SurgerySelectorProps {
-  surgeries: Surgery[]
+  surgeries: Pick<Surgery, 'id' | 'slug' | 'name'>[]
   currentSurgeryId?: string
   onClose?: () => void
+  /** When provided, called instead of navigating. Used on pages like /admin where surgery selection controls page state. */
+  onSurgeryChange?: (surgeryId: string) => void
 }
 
-export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }: SurgerySelectorProps) {
+export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, onSurgeryChange }: SurgerySelectorProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { clearSurgery, surgery } = useSurgery()
@@ -54,6 +56,13 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
     // Update local state immediately for responsive UI
     setSelectedId(surgeryId)
 
+    // If a callback is provided, use it instead of navigating (e.g. on /admin page)
+    if (onSurgeryChange) {
+      onSurgeryChange(surgeryId)
+      onClose?.()
+      return
+    }
+
     // Write to cookie/localStorage for persistence (without triggering context navigation)
     if (typeof document !== 'undefined') {
       document.cookie = `surgery=${encodeURIComponent(surgeryId)}; Path=/; Max-Age=${60 * 60 * 24 * 180}; SameSite=Lax`
@@ -69,7 +78,7 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose }
     // Navigate to the same page but for the new surgery
     // Use safe path matching to avoid navigating to surgery-specific item pages
     const newPath = getSafePathForSurgery(pathname, surgeryId)
-    
+
     router.push(newPath)
     onClose?.()
   }

@@ -114,7 +114,7 @@ export async function PATCH(
   } catch (error) {
     console.error('Error updating staff type:', error)
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: 'Validation error', details: error.issues }, { status: 400 })
     }
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json({ error: error.message }, { status: 403 })

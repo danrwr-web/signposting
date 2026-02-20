@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 import LogoSizeControl from '@/components/LogoSizeControl'
+import { Button, Dialog, Input, Badge } from '@/components/ui'
 
 interface Surgery {
   id: string
@@ -27,13 +28,13 @@ interface Surgery {
   }
 }
 
-interface SurgeriesClientProps {
-  surgeries: Surgery[]
+interface BaselineDates {
+  signpostingBaseline: string | null
+  practiceHandbookBaseline: string | null
 }
 
-// Helper function to get surgery initial from name
-function getSurgeryInitial(name: string): string {
-  return name.charAt(0).toUpperCase()
+interface SurgeriesClientProps {
+  surgeries: Surgery[]
 }
 
 export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
@@ -41,16 +42,94 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
   const [editingSurgery, setEditingSurgery] = useState<Surgery | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+
+  // Baseline dates state
+  const [baselineDates, setBaselineDates] = useState<BaselineDates>({
+    signpostingBaseline: null,
+    practiceHandbookBaseline: null,
+  })
+  const [isLoadingBaselines, setIsLoadingBaselines] = useState(false)
+  const [isSavingBaselines, setIsSavingBaselines] = useState(false)
+
+  // Fetch baseline dates when editing a surgery
+  const fetchBaselineDates = useCallback(async (surgeryId: string) => {
+    setIsLoadingBaselines(true)
+    try {
+      const res = await fetch(`/api/admin/surgeries/${surgeryId}/baselines`)
+      if (res.ok) {
+        const data = await res.json()
+        setBaselineDates({
+          signpostingBaseline: data.signpostingBaseline ? data.signpostingBaseline.split('T')[0] : null,
+          practiceHandbookBaseline: data.practiceHandbookBaseline ? data.practiceHandbookBaseline.split('T')[0] : null,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching baseline dates:', error)
+    } finally {
+      setIsLoadingBaselines(false)
+    }
+  }, [])
+
+  // Fetch baselines when editingSurgery changes
+  useEffect(() => {
+    if (editingSurgery) {
+      fetchBaselineDates(editingSurgery.id)
+    } else {
+      setBaselineDates({ signpostingBaseline: null, practiceHandbookBaseline: null })
+    }
+  }, [editingSurgery, fetchBaselineDates])
+
+  // Show toast helper
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 3000)
+  }
+
+  // Save baseline dates
+  const handleSaveBaselines = async () => {
+    if (!editingSurgery) return
+
+    setIsSavingBaselines(true)
+    try {
+      const res = await fetch(`/api/admin/surgeries/${editingSurgery.id}/baselines`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          signpostingBaseline: baselineDates.signpostingBaseline || null,
+          practiceHandbookBaseline: baselineDates.practiceHandbookBaseline || null,
+        }),
+      })
+
+      if (res.ok) {
+        showToast('Baseline dates saved successfully', 'success')
+      } else {
+        const error = await res.json()
+        showToast(`Error: ${error.error || 'Failed to save'}`, 'error')
+      }
+    } catch (error) {
+      console.error('Error saving baseline dates:', error)
+      showToast('Failed to save baseline dates', 'error')
+    } finally {
+      setIsSavingBaselines(false)
+    }
+  }
+
+  // Set baseline to today helper
+  const setBaselineToToday = (field: 'signpostingBaseline' | 'practiceHandbookBaseline') => {
+    const today = new Date().toISOString().split('T')[0]
+    setBaselineDates(prev => ({ ...prev, [field]: today }))
+  }
+
   // Sort surgeries alphabetically by name
   const sortedSurgeries = [...surgeries].sort((a, b) => {
     const nameA = (a.name || '').toLowerCase()
     const nameB = (b.name || '').toLowerCase()
     return nameA.localeCompare(nameB)
   })
-  
+
   const [surgeriesList, setSurgeriesList] = useState(sortedSurgeries)
-  
+
   // Filter surgeries by search query (name, case-insensitive)
   const filteredSurgeries = sortedSurgeries.filter((surgery) => {
     if (!searchQuery.trim()) return true
@@ -64,7 +143,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
 
   const handleCreateSurgery = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     setIsLoading(true)
     try {
       const response = await fetch('/api/admin/surgeries', {
@@ -94,12 +173,12 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
 
   const handleUpdateSurgery = async (e: React.FormEvent<HTMLFormElement>) => {
     if (!editingSurgery) return
-    
+
     e.preventDefault()
     setIsLoading(true)
-    
+
     const formData = new FormData(e.currentTarget)
-    
+
     try {
       const response = await fetch(`/api/admin/surgeries/${editingSurgery.id}`, {
         method: 'PATCH',
@@ -114,7 +193,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
       })
 
       const result = await response.json()
-      
+
       if (response.ok) {
         // Update the local state
         setSurgeriesList(prev =>
@@ -163,12 +242,9 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
           <h1 className="text-2xl font-bold text-gray-900">
             Surgeries
           </h1>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
+          <Button onClick={() => setShowCreateModal(true)}>
             Create Surgery
-          </button>
+          </Button>
         </div>
 
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -215,29 +291,27 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                 render: (surgery) => {
                   const first2Users = surgery.users.slice(0, 2)
                   const extraCount = surgery.users.length - 2
-                  
+
                   if (surgery.users.length === 0) {
                     return <span className="text-sm text-gray-400 italic">No members</span>
                   }
-                  
+
                   return (
                     <div className="flex flex-wrap gap-2">
                       {first2Users.map((membership) => (
-                        <span
+                        <Badge
                           key={membership.id}
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            membership.role === 'ADMIN'
-                              ? 'bg-green-50 text-green-700 border border-green-100'
-                              : 'bg-blue-50 text-blue-700 border border-blue-100'
-                          }`}
+                          color={membership.role === 'ADMIN' ? 'green' : 'blue'}
+                          size="sm"
+                          pill={false}
                         >
                           {membership.user.name || membership.user.email} ({membership.role})
-                        </span>
+                        </Badge>
                       ))}
                       {extraCount > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
+                        <Badge color="gray" size="sm" pill={false}>
                           +{extraCount} more
-                        </span>
+                        </Badge>
                       )}
                     </div>
                   )
@@ -273,116 +347,202 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
       </main>
 
       {/* Create Surgery Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Create New Surgery
-              </h3>
-              <form onSubmit={handleCreateSurgery}>
-                <div className="mb-4">
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Surgery Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    required
-                    value={newSurgery.name}
-                    onChange={(e) => setNewSurgery({ ...newSurgery, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Ide Lane Surgery"
-                  />
-                </div>
-                <div className="mb-6" />
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Create Surgery
-                  </button>
-                </div>
-              </form>
-            </div>
+      <Dialog
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create New Surgery"
+        width="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="create-surgery-form" loading={isLoading}>
+              Create Surgery
+            </Button>
+          </>
+        }
+      >
+        <form id="create-surgery-form" onSubmit={handleCreateSurgery}>
+          <div className="mb-4">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              Surgery Name
+            </label>
+            <Input
+              id="name"
+              required
+              value={newSurgery.name}
+              onChange={(e) => setNewSurgery({ ...newSurgery, name: e.target.value })}
+              placeholder="Ide Lane Surgery"
+            />
           </div>
-        </div>
-      )}
+        </form>
+      </Dialog>
 
       {/* Edit Surgery Modal */}
-      {editingSurgery && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Edit Surgery
-              </h3>
-              <form onSubmit={handleUpdateSurgery}>
-                <div className="mb-4">
-                  <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Surgery Name
-                  </label>
-                  <input
-                    type="text"
-                    id="edit-name"
-                    name="name"
-                    required
-                    defaultValue={editingSurgery.name}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
+      <Dialog
+        open={!!editingSurgery}
+        onClose={() => setEditingSurgery(null)}
+        title="Edit Surgery"
+        width="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingSurgery(null)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-surgery-form" loading={isLoading}>
+              {isLoading ? 'Updating...' : 'Update Surgery'}
+            </Button>
+          </>
+        }
+      >
+        {editingSurgery && (
+          <>
+            <form id="edit-surgery-form" onSubmit={handleUpdateSurgery}>
+              <div className="mb-4">
+                <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Surgery Name
+                </label>
+                <Input
+                  id="edit-name"
+                  name="name"
+                  required
+                  defaultValue={editingSurgery.name}
+                />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="edit-adminEmail" className="block text-sm font-medium text-gray-700 mb-1">
+                  Admin Email
+                </label>
+                <Input
+                  type="email"
+                  id="edit-adminEmail"
+                  name="adminEmail"
+                  defaultValue={editingSurgery.adminEmail || ''}
+                />
+              </div>
+              <div className="mb-6">
+                <label htmlFor="edit-adminPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  Admin Password (leave blank to keep current)
+                </label>
+                <Input
+                  type="password"
+                  id="edit-adminPassword"
+                  name="adminPassword"
+                  placeholder="Leave blank to keep current"
+                />
+              </div>
+            </form>
+
+            {/* Change awareness baselines section */}
+            <div className="mt-4 pt-6 border-t border-gray-200">
+              <h4 className="text-md font-medium text-gray-900 mb-2">
+                Change awareness baselines
+              </h4>
+              <p className="text-sm text-gray-500 mb-4">
+                Set baseline dates to filter out initial import/migration noise from &quot;What&apos;s changed&quot; feeds.
+                Changes before these dates will not appear.
+              </p>
+
+              {isLoadingBaselines ? (
+                <div className="text-sm text-gray-500 py-4 text-center">Loading baseline dates...</div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Symptom Library baseline */}
+                  <div>
+                    <label htmlFor="signposting-baseline" className="block text-sm font-medium text-gray-700 mb-1">
+                      Symptom Library changes from
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="date"
+                        id="signposting-baseline"
+                        value={baselineDates.signpostingBaseline || ''}
+                        onChange={(e) => setBaselineDates(prev => ({ ...prev, signpostingBaseline: e.target.value || null }))}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setBaselineToToday('signpostingBaseline')}
+                        title="Set to today"
+                      >
+                        Today
+                      </Button>
+                      {baselineDates.signpostingBaseline && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setBaselineDates(prev => ({ ...prev, signpostingBaseline: null }))}
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                          title="Clear"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Practice Handbook baseline */}
+                  <div>
+                    <label htmlFor="handbook-baseline" className="block text-sm font-medium text-gray-700 mb-1">
+                      Practice Handbook changes from
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="date"
+                        id="handbook-baseline"
+                        value={baselineDates.practiceHandbookBaseline || ''}
+                        onChange={(e) => setBaselineDates(prev => ({ ...prev, practiceHandbookBaseline: e.target.value || null }))}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setBaselineToToday('practiceHandbookBaseline')}
+                        title="Set to today"
+                      >
+                        Today
+                      </Button>
+                      {baselineDates.practiceHandbookBaseline && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setBaselineDates(prev => ({ ...prev, practiceHandbookBaseline: null }))}
+                          className="text-red-600 hover:text-red-800 hover:bg-red-50"
+                          title="Clear"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Save baselines button */}
+                  <div className="flex justify-end pt-2">
+                    <Button
+                      variant="success"
+                      onClick={handleSaveBaselines}
+                      loading={isSavingBaselines}
+                    >
+                      {isSavingBaselines ? 'Saving...' : 'Save Baselines'}
+                    </Button>
+                  </div>
                 </div>
-                <div className="mb-4">
-                  <label htmlFor="edit-adminEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                    Admin Email
-                  </label>
-                  <input
-                    type="email"
-                    id="edit-adminEmail"
-                    name="adminEmail"
-                    defaultValue={editingSurgery.adminEmail || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div className="mb-6">
-                  <label htmlFor="edit-adminPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                    Admin Password (leave blank to keep current)
-                  </label>
-                  <input
-                    type="password"
-                    id="edit-adminPassword"
-                    name="adminPassword"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Leave blank to keep current"
-                  />
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingSurgery(null)}
-                    disabled={isLoading}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isLoading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-                  >
-                    {isLoading ? 'Updating...' : 'Update Surgery'}
-                  </button>
-                </div>
-              </form>
+              )}
             </div>
-          </div>
+          </>
+        )}
+      </Dialog>
+
+      {/* Toast notification */}
+      {toast && (
+        <div
+          className={`fixed bottom-4 right-4 px-4 py-3 rounded-md shadow-lg z-50 ${
+            toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+          }`}
+        >
+          {toast.message}
         </div>
       )}
     </div>

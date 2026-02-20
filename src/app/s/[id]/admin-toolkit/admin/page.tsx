@@ -85,13 +85,16 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
         select: {
           role: true,
           adminToolkitWrite: true,
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, globalRole: true } },
         },
         orderBy: [{ role: 'desc' }],
       }),
     ])
 
+    // Only show standard users as additional editor candidates.
+    // Surgery admins and superusers can always edit, so they don't need to be listed.
     const editorCandidates = members
+      .filter((m) => m.role === 'STANDARD' && m.user.globalRole !== 'SUPERUSER')
       .map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email }))
       .sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email))
 
@@ -100,6 +103,19 @@ export default async function AdminToolkitAdminPage({ params, searchParams }: Ad
     return (
       <div className="min-h-screen bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Back link - consistent with System Management pages */}
+          <nav className="mb-4">
+            <Link
+              href={`/s/${surgeryId}/admin-toolkit`}
+              className="inline-flex items-center text-sm text-nhs-grey hover:text-nhs-blue transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              Back to Practice Handbook
+            </Link>
+          </nav>
+
           <header className="mb-6 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold text-nhs-dark-blue">Practice Handbook settings</h1>

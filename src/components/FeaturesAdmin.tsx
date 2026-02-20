@@ -123,7 +123,7 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
 
       const json = await res.json().catch(() => null as any)
       if (featureMeta?.key === 'admin_toolkit' && enabled === true) {
-        const seedStatus = json?.seedResult?.status
+        const seedStatus = (json as Record<string, Record<string, string>> | null)?.seedResult?.status
         if (seedStatus === 'seeded') {
           toast.success('Practice Handbook enabled and starter kit added')
         } else {

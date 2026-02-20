@@ -30,8 +30,8 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
   },
   {
     key: 'admin_toolkit',
-    name: 'Admin Toolkit',
-    description: 'Enable the Admin Toolkit module (practice guidance pages, lists, rota and pinned panel).',
+    name: 'Practice Handbook',
+    description: 'Enable the Practice Handbook module (practice guidance pages, lists, rota and pinned panel).',
   },
   {
     key: 'daily_dose',

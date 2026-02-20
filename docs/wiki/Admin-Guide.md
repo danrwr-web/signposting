@@ -18,8 +18,6 @@
 
 - [Appointment Directory](Appointment-Directory)
 
-- [Daily Dose](Daily-Dose)
-
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
@@ -29,26 +27,6 @@
 - [Admin Guide](Admin-Guide)
 
 - [Developer Guide](Developer-Guide)
-
----
-
-## Daily Dose editorial and insights
-
-Daily Dose adds a lightweight editorial workspace for practice learning content.
-
-Admins can:
-
-- Create and edit **topics**
-- Draft and review **learning cards**
-- Generate draft batches with AI prompts (cards + quiz)
-- Review and edit cards in a batch workspace
-- Approve and publish cards (draft → approved → published)
-- Retire cards that are no longer suitable
-- Check the **flag queue** for content issues
-
-High-risk Daily Dose content requires clinician sign-off before publishing. Cards must include UK sources and a review-by date before approval.
-
-Insights are aggregated only. If a role group is too small, the data is hidden to protect privacy.
 
 ---
 

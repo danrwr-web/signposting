@@ -22,7 +22,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'getting-started',
     title: 'Getting Started',
-    url: `${DOCS_BASE_URL}/wiki/Getting-Started`,
+    url: `${DOCS_BASE_URL}/getting-started`,
     description: 'Set up your surgery and get the team ready.',
     keywords: ['onboarding', 'setup', 'surgery', 'new practice'],
     section: 'quick',
@@ -30,7 +30,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'user-guide',
     title: 'User Guide',
-    url: `${DOCS_BASE_URL}/wiki/User-Guide`,
+    url: `${DOCS_BASE_URL}/getting-started/user-guide`,
     description: 'Everyday guidance for reception teams.',
     keywords: ['day to day', 'reception', 'how to use', 'signposting'],
     section: 'quick',
@@ -38,7 +38,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'symptom-library',
     title: 'Symptom Library',
-    url: `${DOCS_BASE_URL}/wiki/Symptom-Library`,
+    url: `${DOCS_BASE_URL}/features/symptom-library`,
     description: 'Find and manage symptoms safely.',
     keywords: ['symptoms', 'search', 'review', 'highlighting'],
     section: 'quick',
@@ -46,7 +46,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'practice-handbook',
     title: 'Practice Handbook',
-    url: `${DOCS_BASE_URL}/wiki/Admin-Guide#practice-handbook`,
+    url: `${DOCS_BASE_URL}/governance/admin-guide#practice-handbook`,
     description: 'Local guidance pages for your practice.',
     keywords: ['admin toolkit', 'handbook', 'local guidance', 'rota'],
     section: 'quick',
@@ -54,7 +54,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'workflow-guidance',
     title: 'Workflow Guidance',
-    url: `${DOCS_BASE_URL}/wiki/Workflow-Guidance`,
+    url: `${DOCS_BASE_URL}/features/workflow-guidance`,
     description: 'Standardise workflows and approvals.',
     keywords: ['workflow', 'templates', 'approvals', 'diagrams'],
     section: 'quick',
@@ -62,7 +62,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'clinical-governance',
     title: 'Clinical Governance',
-    url: `${DOCS_BASE_URL}/wiki/Clinical-Governance`,
+    url: `${DOCS_BASE_URL}/governance/clinical-governance`,
     description: 'Clinical review, approvals, and safety.',
     keywords: ['review', 'approval', 'audit', 'safety'],
     section: 'quick',
@@ -70,7 +70,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'appointment-directory',
     title: 'Appointment Directory',
-    url: `${DOCS_BASE_URL}/wiki/Appointment-Directory`,
+    url: `${DOCS_BASE_URL}/features/appointment-directory`,
     description: 'Manage appointment types and filtering.',
     keywords: ['appointments', 'directory', 'filters', 'services'],
     section: 'quick',
@@ -78,7 +78,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'ai-features',
     title: 'AI Features',
-    url: `${DOCS_BASE_URL}/wiki/AI-Features`,
+    url: `${DOCS_BASE_URL}/features/ai-features`,
     description: 'Optional AI tools with safe controls.',
     keywords: ['ai', 'questions', 'instructions', 'review'],
     section: 'quick',
@@ -86,7 +86,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'admin-guide',
     title: 'Admin Guide',
-    url: `${DOCS_BASE_URL}/wiki/Admin-Guide`,
+    url: `${DOCS_BASE_URL}/governance/admin-guide`,
     description: 'Admin controls, permissions, and settings.',
     keywords: ['admin', 'permissions', 'settings', 'roles'],
     section: 'docs',
@@ -94,7 +94,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'developer-guide',
     title: 'Developer Guide',
-    url: `${DOCS_BASE_URL}/wiki/Developer-Guide`,
+    url: `${DOCS_BASE_URL}/technical/developer-guide`,
     description: 'Technical overview for developers.',
     keywords: ['developer', 'architecture', 'api', 'prisma'],
     section: 'docs',

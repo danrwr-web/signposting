@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import Link from 'next/link'
 import WorkflowDiagramClientWrapper from '@/components/workflow/WorkflowDiagramClientWrapper'
+import WorkflowViewTracker from '@/components/workflow/WorkflowViewTracker'
 import {
   updateWorkflowNodePosition,
   createWorkflowNodeForTemplate,
@@ -20,6 +21,7 @@ import {
   deleteWorkflowNodeLink,
   bulkUpdateWorkflowNodePositions,
   approveWorkflowTemplate,
+  createWorkflowOverride,
 } from '../../../actions'
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
@@ -243,28 +245,48 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       })
 
       if (sourceTemplate) {
-        templateForRender = repairOverrideAnswerOptionLinks(template, sourceTemplate)
+        templateForRender = repairOverrideAnswerOptionLinks(template as any, sourceTemplate as any)
       }
     }
 
-    // Check if user can admin *this template* (global templates should only be editable by superusers).
-    const isAdmin = can(user).isAdminOfSurgery(templateOwnerSurgeryId)
+    // Determine permissions:
+    // - isGlobalTemplate: template belongs to GLOBAL_SURGERY_ID (shared default)
+    // - isSurgeryAdmin: user can admin the current surgery (surgeryId in URL)
+    // - isSuperuser: user has global superuser role
+    // - canEditDirectly: can modify this template in place (surgery owns it, or superuser on global)
+    const isGlobalTemplate = templateOwnerSurgeryId === GLOBAL_SURGERY_ID
+    const isSurgeryAdmin = can(user).isAdminOfSurgery(surgeryId)
     const isSuperuser = user.globalRole === 'SUPERUSER'
+    
+    // Only allow direct editing if:
+    // 1. Template belongs to this surgery AND user is admin of this surgery, OR
+    // 2. Template is global AND user is superuser
+    const canEditDirectly = isGlobalTemplate 
+      ? isSuperuser 
+      : (templateOwnerSurgeryId === surgeryId && isSurgeryAdmin)
+    
+    // Surgery admins can create a customised copy of global templates
+    const canCustomise = isGlobalTemplate && isSurgeryAdmin && !isSuperuser
 
-    // Staff (and non-global admins) must not see draft templates.
-    if (!isAdmin && templateForRender.approvalStatus !== 'APPROVED') {
+    // Staff (and non-admins) must not see draft templates.
+    if (!isSurgeryAdmin && !isSuperuser && templateForRender.approvalStatus !== 'APPROVED') {
       redirect('/unauthorized')
     }
 
-    // Get all active templates for the template owner surgery (for linked workflow dropdown)
-    const allTemplates = isAdmin ? await prisma.workflowTemplate.findMany({
+    // Get all active templates for linked workflow dropdown
+    // Include both surgery-specific templates AND global templates
+    const allTemplates = canEditDirectly ? await prisma.workflowTemplate.findMany({
       where: {
-        surgeryId: templateOwnerSurgeryId,
+        OR: [
+          { surgeryId: templateOwnerSurgeryId },
+          { surgeryId: GLOBAL_SURGERY_ID },
+        ],
         isActive: true,
       },
       select: {
         id: true,
         name: true,
+        surgeryId: true, // Include to help identify source
       },
       orderBy: {
         name: 'asc',
@@ -292,20 +314,28 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
       })
     }
 
-    // Create bound server actions for admin editing
-    const updatePositionAction = isAdmin ? updateWorkflowNodePosition.bind(null, surgeryId, templateId) : undefined
-    const createNodeAction = isAdmin ? createWorkflowNodeForTemplate.bind(null, surgeryId, templateId) : undefined
-    const createAnswerOptionAction = isAdmin ? createWorkflowAnswerOptionForDiagram.bind(null, surgeryId, templateId) : undefined
-    const updateAnswerOptionLabelAction = isAdmin ? updateWorkflowAnswerOptionLabel.bind(null, surgeryId, templateId) : undefined
-    const deleteAnswerOptionAction = isAdmin ? deleteWorkflowAnswerOptionById.bind(null, surgeryId, templateId) : undefined
-    const deleteNodeAction = isAdmin ? deleteWorkflowNodeById.bind(null, surgeryId, templateId) : undefined
-    const updateNodeAction = isAdmin ? updateWorkflowNodeForDiagram.bind(null, surgeryId, templateId) : undefined
-    const publishWorkflowAction = isAdmin
+    // Create bound server actions for admin editing (only if can edit directly)
+    const updatePositionAction = canEditDirectly ? updateWorkflowNodePosition.bind(null, surgeryId, templateId) : undefined
+    const createNodeAction = canEditDirectly ? createWorkflowNodeForTemplate.bind(null, surgeryId, templateId) : undefined
+    const createAnswerOptionAction = canEditDirectly ? createWorkflowAnswerOptionForDiagram.bind(null, surgeryId, templateId) : undefined
+    const updateAnswerOptionLabelAction = canEditDirectly ? updateWorkflowAnswerOptionLabel.bind(null, surgeryId, templateId) : undefined
+    const deleteAnswerOptionAction = canEditDirectly ? deleteWorkflowAnswerOptionById.bind(null, surgeryId, templateId) : undefined
+    const deleteNodeAction = canEditDirectly ? deleteWorkflowNodeById.bind(null, surgeryId, templateId) : undefined
+    const updateNodeAction = canEditDirectly ? updateWorkflowNodeForDiagram.bind(null, surgeryId, templateId) : undefined
+    const publishWorkflowAction = canEditDirectly
       ? approveWorkflowTemplate.bind(null, templateOwnerSurgeryId, templateId)
+      : undefined
+    
+    // Create override action for surgery admins viewing global templates
+    const createOverrideAction = canCustomise 
+      ? createWorkflowOverride.bind(null, surgeryId, templateId)
       : undefined
 
     return (
       <div className="min-h-screen bg-gray-50 w-full">
+        {/* Track workflow views for engagement analytics */}
+        <WorkflowViewTracker surgeryId={surgeryId} templateId={templateId} />
+        
         <div className="w-full max-w-none px-4 sm:px-6 lg:px-8 py-8">
           {/* Back link and content header */}
           <div className="mb-8">
@@ -395,12 +425,15 @@ export default async function WorkflowTemplateViewPage({ params }: WorkflowTempl
                   borderColor: default_.borderColor,
                 })),
               } as Parameters<typeof WorkflowDiagramClientWrapper>[0]['template']}
-              isAdmin={isAdmin}
+              isAdmin={canEditDirectly}
               isSuperuser={isSuperuser}
+              canCustomise={canCustomise}
+              isGlobalTemplate={isGlobalTemplate}
               allTemplates={allTemplates}
               surgeryId={surgeryId}
               templateId={templateId}
               publishWorkflowAction={publishWorkflowAction}
+              createOverrideAction={createOverrideAction}
               surgeryDefaults={surgeryDefaults}
               updatePositionAction={updatePositionAction}
               createNodeAction={createNodeAction}

@@ -111,15 +111,16 @@ export async function customiseInstructions(
   }
 
   // Check if any archetypes are enabled
-  const hasEnabledArchetypes = Object.values(appointmentModel).some(arch => arch.enabled)
+  const { clinicianArchetypes: _ca, ...archetypeConfigs } = appointmentModel
+  const hasEnabledArchetypes = Object.values(archetypeConfigs).some((arch: any) => arch.enabled)
 
   // Helper function to find fallback archetype
   const getFallbackArchetype = (preferredKey: keyof AppointmentModelConfig): keyof AppointmentModelConfig | null => {
-    if (appointmentModel[preferredKey]?.enabled) {
+    if ((appointmentModel[preferredKey] as any)?.enabled) {
       return preferredKey
     }
     // Fallback order based on semantic similarity
-    const fallbackMap: Record<keyof AppointmentModelConfig, (keyof AppointmentModelConfig)[]> = {
+    const fallbackMap: Partial<Record<string, string[]>> = {
       routineContinuityGp: ['routineGpPhone', 'gpTriage48h'],
       routineGpPhone: ['routineContinuityGp', 'gpTriage48h'],
       gpTriage48h: ['routineGpPhone', 'urgentSameDayPhone'],
@@ -129,8 +130,8 @@ export async function customiseInstructions(
     }
     const fallbacks = fallbackMap[preferredKey] || []
     for (const fallback of fallbacks) {
-      if (appointmentModel[fallback]?.enabled) {
-        return fallback
+      if ((appointmentModel[fallback as keyof AppointmentModelConfig] as any)?.enabled) {
+        return fallback as keyof AppointmentModelConfig
       }
     }
     return null

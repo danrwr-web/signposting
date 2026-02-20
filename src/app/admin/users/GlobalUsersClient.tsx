@@ -8,6 +8,7 @@ import KebabMenu from '@/components/admin/KebabMenu'
 import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 import LogoSizeControl from '@/components/LogoSizeControl'
 import { formatRelativeDate } from '@/lib/formatRelativeDate'
+import { Button, Dialog, Input, Select, Badge } from '@/components/ui'
 
 interface User {
   id: string
@@ -87,7 +88,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
-    
+
     try {
       const response = await fetch(`/api/admin/users/${editingUser.id}`, {
         method: 'PATCH',
@@ -112,13 +113,13 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       console.error('Error updating user:', error)
       alert('Failed to update user. Please try again.')
     }
-    
+
     setEditingUser(null)
   }
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       // First, create the user
       const { initialSurgeryId, initialSurgeryRole, ...userData } = newUser
@@ -132,7 +133,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
 
       if (response.ok) {
         const createdUser = await response.json()
-        
+
         // If a surgery was selected, create the membership
         if (initialSurgeryId) {
           try {
@@ -156,7 +157,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
             alert('User created but failed to add surgery membership. You can add it manually later.')
           }
         }
-        
+
         // Refresh the page to show the new user
         window.location.reload()
       } else {
@@ -167,14 +168,14 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       console.error('Error creating user:', error)
       alert('Failed to create user. Please try again.')
     }
-    
+
     setShowCreateModal(false)
-    setNewUser({ 
-      email: '', 
-      name: '', 
-      password: '', 
-      globalRole: 'USER', 
-      isTestUser: false, 
+    setNewUser({
+      email: '',
+      name: '',
+      password: '',
+      globalRole: 'USER',
+      isTestUser: false,
       symptomUsageLimit: 25,
       initialSurgeryId: '',
       initialSurgeryRole: 'STANDARD'
@@ -210,10 +211,10 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
 
   const handleResetPassword = async (e: React.FormEvent) => {
     if (!resettingPasswordFor) return
-    
+
     e.preventDefault()
     setIsResettingPassword(true)
-    
+
     try {
       const response = await fetch(`/api/admin/users/${resettingPasswordFor.id}/reset-password`, {
         method: 'POST',
@@ -391,12 +392,9 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
           <h1 className="text-2xl font-bold text-gray-900">
             Global Users
           </h1>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
+          <Button onClick={() => setShowCreateModal(true)}>
             Create User
-          </button>
+          </Button>
         </div>
 
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -436,15 +434,13 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
                         {user.name || 'No name set'}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            user.globalRole === 'SUPERUSER'
-                              ? 'bg-purple-50 text-purple-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
+                        <Badge
+                          color={user.globalRole === 'SUPERUSER' ? 'purple' : 'gray'}
+                          size="sm"
+                          pill={false}
                         >
                           {user.globalRole === 'SUPERUSER' ? 'System admin' : 'User'}
-                        </span>
+                        </Badge>
                         {user.isTestUser && (
                           <span className="text-xs text-amber-600">Test</span>
                         )}
@@ -529,444 +525,352 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       </main>
 
       {/* Create User Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Create New User
-              </h3>
-              <form onSubmit={handleCreateUser}>
-                <div className="mb-4">
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    value={newUser.email}
-                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="user@example.com"
-                  />
+      <Dialog
+        open={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false)
+          setNewUser({ email: '', name: '', password: '', globalRole: 'USER', isTestUser: false, symptomUsageLimit: 25, initialSurgeryId: '', initialSurgeryRole: 'STANDARD' })
+        }}
+        title="Create New User"
+        width="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowCreateModal(false)
+                setNewUser({ email: '', name: '', password: '', globalRole: 'USER', isTestUser: false, symptomUsageLimit: 25, initialSurgeryId: '', initialSurgeryRole: 'STANDARD' })
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" form="create-user-form">
+              Create User
+            </Button>
+          </>
+        }
+      >
+        <form id="create-user-form" onSubmit={handleCreateUser}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <Input
+              type="email"
+              id="email"
+              required
+              value={newUser.email}
+              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              placeholder="user@example.com"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <Input
+              id="name"
+              value={newUser.name}
+              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+              placeholder="John Doe"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <Input
+              type="password"
+              id="password"
+              required
+              value={newUser.password}
+              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              placeholder="Enter password"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="globalRole" className="block text-sm font-medium text-gray-700 mb-1">Global Role</label>
+            <Select
+              id="globalRole"
+              value={newUser.globalRole}
+              onChange={(e) => setNewUser({ ...newUser, globalRole: e.target.value })}
+            >
+              <option value="USER">User</option>
+              <option value="SUPERUSER">System admin</option>
+            </Select>
+          </div>
+          <div className="mb-4">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={newUser.isTestUser}
+                onChange={(e) => setNewUser({ ...newUser, isTestUser: e.target.checked })}
+                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+              />
+              <span className="ml-2 text-sm text-gray-700">Test User (Limited Access)</span>
+            </label>
+          </div>
+          {newUser.isTestUser && (
+            <div className="mb-4">
+              <label htmlFor="symptomUsageLimit" className="block text-sm font-medium text-gray-700 mb-1">Symptom Usage Limit</label>
+              <Input
+                type="number"
+                id="symptomUsageLimit"
+                min={1}
+                value={newUser.symptomUsageLimit}
+                onChange={(e) => setNewUser({ ...newUser, symptomUsageLimit: parseInt(e.target.value) || 25 })}
+                placeholder="25"
+              />
+              <p className="mt-1 text-xs text-gray-500">Number of symptoms the test user can view before being locked out</p>
+            </div>
+          )}
+          <div className="mb-4">
+            <label htmlFor="initialSurgery" className="block text-sm font-medium text-gray-700 mb-1">Initial Surgery Membership (Optional)</label>
+            <Select
+              id="initialSurgery"
+              value={newUser.initialSurgeryId}
+              onChange={(e) => setNewUser({ ...newUser, initialSurgeryId: e.target.value })}
+            >
+              <option value="">None - Add later</option>
+              {surgeries.map((surgery) => (
+                <option key={surgery.id} value={surgery.id}>{surgery.name}</option>
+              ))}
+            </Select>
+            <p className="mt-1 text-xs text-gray-500">Optionally add this user to a surgery immediately</p>
+          </div>
+          {newUser.initialSurgeryId && (
+            <div className="mb-6">
+              <label htmlFor="initialSurgeryRole" className="block text-sm font-medium text-gray-700 mb-1">Role in Surgery</label>
+              <Select
+                id="initialSurgeryRole"
+                value={newUser.initialSurgeryRole}
+                onChange={(e) => setNewUser({ ...newUser, initialSurgeryRole: e.target.value as 'STANDARD' | 'ADMIN' })}
+              >
+                <option value="STANDARD">Standard</option>
+                <option value="ADMIN">Admin</option>
+              </Select>
+            </div>
+          )}
+        </form>
+      </Dialog>
+
+      {/* Edit User Modal */}
+      <Dialog
+        open={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title="Edit User"
+        width="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
+            <Button type="submit" form="edit-user-form">Update User</Button>
+          </>
+        }
+      >
+        {editingUser && (
+          <form id="edit-user-form" onSubmit={handleUpdateUser}>
+            <div className="mb-4">
+              <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+              <Input
+                type="email"
+                id="edit-email"
+                value={editingUser.email}
+                disabled
+                className="bg-gray-100 text-gray-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+            </div>
+            <div className="mb-4">
+              <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+              <Input
+                id="edit-name"
+                value={editingUser.name || ''}
+                onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="edit-globalRole" className="block text-sm font-medium text-gray-700 mb-1">Global Role</label>
+              <Select
+                id="edit-globalRole"
+                value={editingUser.globalRole}
+                onChange={(e) => setEditingUser({ ...editingUser, globalRole: e.target.value })}
+              >
+                <option value="USER">Standard User</option>
+                <option value="SUPERUSER">System admin</option>
+              </Select>
+            </div>
+            <div className="mb-6">
+              <label htmlFor="edit-defaultSurgery" className="block text-sm font-medium text-gray-700 mb-1">Default Surgery</label>
+              <Select
+                id="edit-defaultSurgery"
+                value={editingUser.defaultSurgeryId || ''}
+                onChange={(e) => setEditingUser({ ...editingUser, defaultSurgeryId: e.target.value || null })}
+              >
+                <option value="">No default surgery</option>
+                {surgeries.map((surgery) => (
+                  <option key={surgery.id} value={surgery.id}>{surgery.name}</option>
+                ))}
+              </Select>
+              <p className="mt-1 text-xs text-gray-500">The surgery this user will be redirected to when they log in</p>
+            </div>
+          </form>
+        )}
+      </Dialog>
+
+      {/* Membership Management Modal */}
+      <Dialog
+        open={showMembershipModal && !!selectedUser}
+        onClose={() => {
+          setShowMembershipModal(false)
+          setSelectedUser(null)
+          setNewMembership({ surgeryId: '', role: 'STANDARD' })
+        }}
+        title={`Manage Surgery Memberships - ${selectedUser?.name || selectedUser?.email || ''}`}
+        width="2xl"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowMembershipModal(false)
+                setSelectedUser(null)
+                setNewMembership({ surgeryId: '', role: 'STANDARD' })
+              }}
+            >
+              Close
+            </Button>
+            <Button type="submit" form="add-membership-form" variant="primary">
+              Add Membership
+            </Button>
+          </>
+        }
+      >
+        {selectedUser && (
+          <>
+            {/* Current Memberships */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-gray-900 mb-3">Current Memberships</h4>
+              {selectedUser.memberships.length === 0 ? (
+                <p className="text-sm text-gray-500 italic">No surgery memberships</p>
+              ) : (
+                <div className="space-y-2">
+                  {selectedUser.memberships.map((membership) => (
+                    <div key={membership.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                      <div>
+                        <span className="font-medium">{membership.surgery.name}</span>
+                        <Badge
+                          color={membership.role === 'ADMIN' ? 'green' : 'blue'}
+                          className="ml-2"
+                        >
+                          {membership.role}
+                        </Badge>
+                      </div>
+                      <div className="flex space-x-2">
+                        <select
+                          value={membership.role}
+                          onChange={(e) => handleUpdateMembershipRole(membership.id, e.target.value as 'STANDARD' | 'ADMIN')}
+                          className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                        >
+                          <option value="STANDARD">Standard</option>
+                          <option value="ADMIN">Admin</option>
+                        </select>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          onClick={() => handleRemoveMembership(membership.id)}
+                          className="text-red-600 hover:text-red-500"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="mb-4">
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={newUser.name}
-                    onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    required
-                    value={newUser.password}
-                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter password"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="globalRole" className="block text-sm font-medium text-gray-700 mb-1">
-                    Global Role
-                  </label>
-                  <select
-                    id="globalRole"
-                    value={newUser.globalRole}
-                    onChange={(e) => setNewUser({ ...newUser, globalRole: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="USER">User</option>
-                    <option value="SUPERUSER">System admin</option>
-                  </select>
-                </div>
-                <div className="mb-4">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={newUser.isTestUser}
-                      onChange={(e) => setNewUser({ ...newUser, isTestUser: e.target.checked })}
-                      className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Test User (Limited Access)</span>
-                  </label>
-                </div>
-                {newUser.isTestUser && (
-                  <div className="mb-4">
-                    <label htmlFor="symptomUsageLimit" className="block text-sm font-medium text-gray-700 mb-1">
-                      Symptom Usage Limit
-                    </label>
-                    <input
-                      type="number"
-                      id="symptomUsageLimit"
-                      min="1"
-                      value={newUser.symptomUsageLimit}
-                      onChange={(e) => setNewUser({ ...newUser, symptomUsageLimit: parseInt(e.target.value) || 25 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="25"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Number of symptoms the test user can view before being locked out
-                    </p>
+              )}
+            </div>
+
+            {/* Add New Membership */}
+            <div className="border-t pt-4">
+              <h4 className="text-md font-medium text-gray-900 mb-3">Add New Membership</h4>
+              <form id="add-membership-form" onSubmit={handleAddMembership}>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label htmlFor="surgeryId" className="block text-sm font-medium text-gray-700 mb-1">Surgery</label>
+                    <Select
+                      id="surgeryId"
+                      required
+                      value={newMembership.surgeryId}
+                      onChange={(e) => setNewMembership({ ...newMembership, surgeryId: e.target.value })}
+                    >
+                      <option value="">Select surgery...</option>
+                      {surgeries
+                        .filter(surgery => !selectedUser.memberships.some(m => m.surgery.id === surgery.id))
+                        .map((surgery) => (
+                          <option key={surgery.id} value={surgery.id}>{surgery.name}</option>
+                        ))}
+                    </Select>
                   </div>
-                )}
-                <div className="mb-4">
-                  <label htmlFor="initialSurgery" className="block text-sm font-medium text-gray-700 mb-1">
-                    Initial Surgery Membership (Optional)
-                  </label>
-                  <select
-                    id="initialSurgery"
-                    value={newUser.initialSurgeryId}
-                    onChange={(e) => setNewUser({ ...newUser, initialSurgeryId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">None - Add later</option>
-                    {surgeries.map((surgery) => (
-                      <option key={surgery.id} value={surgery.id}>
-                        {surgery.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Optionally add this user to a surgery immediately
-                  </p>
-                </div>
-                {newUser.initialSurgeryId && (
-                  <div className="mb-6">
-                    <label htmlFor="initialSurgeryRole" className="block text-sm font-medium text-gray-700 mb-1">
-                      Role in Surgery
-                    </label>
-                    <select
-                      id="initialSurgeryRole"
-                      value={newUser.initialSurgeryRole}
-                      onChange={(e) => setNewUser({ ...newUser, initialSurgeryRole: e.target.value as 'STANDARD' | 'ADMIN' })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  <div>
+                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <Select
+                      id="role"
+                      value={newMembership.role}
+                      onChange={(e) => setNewMembership({ ...newMembership, role: e.target.value as 'STANDARD' | 'ADMIN' })}
                     >
                       <option value="STANDARD">Standard</option>
                       <option value="ADMIN">Admin</option>
-                    </select>
+                    </Select>
                   </div>
-                )}
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowCreateModal(false)
-                      setNewUser({ 
-                        email: '', 
-                        name: '', 
-                        password: '', 
-                        globalRole: 'USER', 
-                        isTestUser: false, 
-                        symptomUsageLimit: 25,
-                        initialSurgeryId: '',
-                        initialSurgeryRole: 'STANDARD'
-                      })
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Create User
-                  </button>
                 </div>
               </form>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit User Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Edit User
-              </h3>
-              <form onSubmit={handleUpdateUser}>
-                <div className="mb-4">
-                  <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="edit-email"
-                    value={editingUser.email}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Email cannot be changed
-                  </p>
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="edit-name"
-                    value={editingUser.name || ''}
-                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="edit-globalRole" className="block text-sm font-medium text-gray-700 mb-1">
-                    Global Role
-                  </label>
-                  <select
-                    id="edit-globalRole"
-                    value={editingUser.globalRole}
-                    onChange={(e) => setEditingUser({ ...editingUser, globalRole: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="USER">Standard User</option>
-                    <option value="SUPERUSER">System admin</option>
-                  </select>
-                </div>
-                <div className="mb-6">
-                  <label htmlFor="edit-defaultSurgery" className="block text-sm font-medium text-gray-700 mb-1">
-                    Default Surgery
-                  </label>
-                  <select
-                    id="edit-defaultSurgery"
-                    value={editingUser.defaultSurgeryId || ''}
-                    onChange={(e) => setEditingUser({ ...editingUser, defaultSurgeryId: e.target.value || null })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="">No default surgery</option>
-                    {surgeries.map((surgery) => (
-                      <option key={surgery.id} value={surgery.id}>
-                        {surgery.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">
-                    The surgery this user will be redirected to when they log in
-                  </p>
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingUser(null)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Update User
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Membership Management Modal */}
-      {showMembershipModal && selectedUser && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-[600px] shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Manage Surgery Memberships - {selectedUser.name || selectedUser.email}
-                </h3>
-                <button
-                  onClick={() => {
-                    setShowMembershipModal(false)
-                    setSelectedUser(null)
-                    setNewMembership({ surgeryId: '', role: 'STANDARD' })
-                  }}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              {/* Current Memberships */}
-              <div className="mb-6">
-                <h4 className="text-md font-medium text-gray-900 mb-3">Current Memberships</h4>
-                {selectedUser.memberships.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">No surgery memberships</p>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedUser.memberships.map((membership) => (
-                      <div key={membership.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                        <div>
-                          <span className="font-medium">{membership.surgery.name}</span>
-                          <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                            membership.role === 'ADMIN' 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {membership.role}
-                          </span>
-                        </div>
-                        <div className="flex space-x-2">
-                          <select
-                            value={membership.role}
-                            onChange={(e) => handleUpdateMembershipRole(membership.id, e.target.value as 'STANDARD' | 'ADMIN')}
-                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="STANDARD">Standard</option>
-                            <option value="ADMIN">Admin</option>
-                          </select>
-                          <button
-                            onClick={() => handleRemoveMembership(membership.id)}
-                            className="text-xs text-red-600 hover:text-red-500 px-2 py-1"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Add New Membership */}
-              <div className="border-t pt-4">
-                <h4 className="text-md font-medium text-gray-900 mb-3">Add New Membership</h4>
-                <form onSubmit={handleAddMembership}>
-                  <div className="grid grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label htmlFor="surgeryId" className="block text-sm font-medium text-gray-700 mb-1">
-                        Surgery
-                      </label>
-                      <select
-                        id="surgeryId"
-                        required
-                        value={newMembership.surgeryId}
-                        onChange={(e) => setNewMembership({ ...newMembership, surgeryId: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="">Select surgery...</option>
-                        {surgeries
-                          .filter(surgery => !selectedUser.memberships.some(m => m.surgery.id === surgery.id))
-                          .map((surgery) => (
-                            <option key={surgery.id} value={surgery.id}>
-                              {surgery.name}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                        Role
-                      </label>
-                      <select
-                        id="role"
-                        value={newMembership.role}
-                        onChange={(e) => setNewMembership({ ...newMembership, role: e.target.value as 'STANDARD' | 'ADMIN' })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                      >
-                        <option value="STANDARD">Standard</option>
-                        <option value="ADMIN">Admin</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowMembershipModal(false)
-                        setSelectedUser(null)
-                        setNewMembership({ surgeryId: '', role: 'STANDARD' })
-                      }}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                      Close
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                    >
-                      Add Membership
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Dialog>
 
       {/* Reset Password Modal */}
-      {resettingPasswordFor && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Reset Password
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Reset password for {resettingPasswordFor.email}
-              </p>
-              <form onSubmit={handleResetPassword}>
-                <div className="mb-6">
-                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="new-password"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter new password"
-                  />
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResettingPasswordFor(null)
-                      setNewPassword('')
-                    }}
-                    disabled={isResettingPassword}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isResettingPassword || !newPassword}
-                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50"
-                  >
-                    {isResettingPassword ? 'Resetting...' : 'Reset Password'}
-                  </button>
-                </div>
-              </form>
-            </div>
+      <Dialog
+        open={!!resettingPasswordFor}
+        onClose={() => {
+          setResettingPasswordFor(null)
+          setNewPassword('')
+        }}
+        title="Reset Password"
+        description={resettingPasswordFor ? `Reset password for ${resettingPasswordFor.email}` : undefined}
+        width="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setResettingPasswordFor(null)
+                setNewPassword('')
+              }}
+              disabled={isResettingPassword}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="reset-password-form"
+              variant="danger"
+              loading={isResettingPassword}
+              disabled={!newPassword}
+            >
+              {isResettingPassword ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          </>
+        }
+      >
+        <form id="reset-password-form" onSubmit={handleResetPassword}>
+          <div className="mb-6">
+            <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+            <Input
+              type="password"
+              id="new-password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+            />
           </div>
-        </div>
-      )}
+        </form>
+      </Dialog>
     </div>
   )
 }

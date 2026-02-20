@@ -27,8 +27,6 @@ Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.
 
 - [Appointment Directory](Appointment-Directory)
 
-- [Daily Dose](Daily-Dose)
-
 - [Workflow Guidance](Workflow-Guidance)
 
 - [High-Risk & Highlighting](High-Risk-&-Highlighting)
@@ -54,11 +52,6 @@ Developed inside a working NHS practice, the toolkit provides structured, clinic
 ## What's New
 
 Recent highlights from the latest release. For full details, see the versioned Release Notes.
-
-- **Unreleased — In progress**
-  - Added Daily Dose learning sessions with role-based micro-learning and editorial approval workflow
-  - AI-assisted Daily Dose editorial drafting with batch review, variations, and clinician sign-off for high-risk content
-  - Improved card generation so the AI reliably uses your surgery's signposting advice; superusers now see a Generation Insights panel
 
 - **v1.3 — Jan 2026**: Practice Handbook improvements, Workflow Guidance refinements, and routing updates
 - **v1.2 — Jan 2026**: Added Workflow Guidance module and redesigned marketing site
@@ -98,9 +91,6 @@ AI-powered tools help improve instruction clarity and generate safe triage quest
 ### [Appointment Directory](Appointment-Directory)
 A simple, searchable catalogue of local services and appointment types. Perfect for new receptionists and experienced staff alike.
 
-### [Daily Dose](Daily-Dose)
-Short, role-based learning sessions that help teams stay consistent and confident in day-to-day care navigation.
-
 ### [High-Risk & Highlighting](High-Risk-&-Highlighting)
 Automatic colour-coding highlights urgent phrases and high-risk symptoms, helping staff identify critical cases immediately.
 
@@ -125,7 +115,6 @@ See: [Workflow Guidance →](Workflow-Guidance)
 6. **Audit, Access & Safety** — Role-based access, no patient data stored, activity tracking & suggestions.
 7. **Practice Handbook** — Internal guidance pages for operational procedures and staff information.
 8. **Workflow Guidance** — Visual workflows for common document and administrative processes.
-9. **Daily Dose** — Short learning sessions for whole-practice staff, with approval gates and sources.
 
 ---
 

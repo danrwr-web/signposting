@@ -3,19 +3,13 @@
  *
  * Neon pooler URLs (often containing "-pooler.") are not suitable for migrations/advisory locks.
  * Use DIRECT_URL pointing at the non-pooler endpoint.
- *
- * Set VERCEL_SKIP_MIGRATE=1 to skip migrations during build (e.g. when DB is unreachable from
- * Vercel's build environment). Run "prisma migrate deploy" manually or via a separate CI step.
- *
- * Set VERCEL_MIGRATE_FAIL_GRACEFULLY=1 to continue the build if migrate fails (e.g. P1002
- * advisory lock timeout). Use when DB is slow or locked; ensure migrations are run separately.
  */
 
 const { spawnSync } = require('node:child_process')
 
-if (process.env.VERCEL_SKIP_MIGRATE === '1' || process.env.VERCEL_SKIP_MIGRATE === 'true') {
-  console.log('VERCEL_SKIP_MIGRATE is set; skipping prisma migrate deploy.')
-  process.exit(0)
+function run(cmd, args) {
+  const res = spawnSync(cmd, args, { stdio: 'inherit', shell: false, env: process.env })
+  if (res.status !== 0) process.exit(res.status ?? 1)
 }
 
 function normaliseDbUrl(url) {
@@ -77,17 +71,8 @@ if (finalDb && !finalDb.startsWith('postgresql://')) {
   process.exit(1)
 }
 
-// Be tolerant of concurrent deploys and Neon cold starts (advisory lock timeout, default 10s).
-process.env.PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT = process.env.PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT || '120000'
+// Be a bit more tolerant of concurrent deploys holding the advisory lock.
+process.env.PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT = process.env.PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT || '60000'
 
-const res = spawnSync('npx', ['prisma', 'migrate', 'deploy'], { stdio: 'inherit', shell: false, env: process.env })
-if (res.status !== 0) {
-  if (process.env.VERCEL_MIGRATE_FAIL_GRACEFULLY === '1' || process.env.VERCEL_MIGRATE_FAIL_GRACEFULLY === 'true') {
-    console.warn(
-      '\nWARN: prisma migrate deploy failed (e.g. P1002: DB unreachable). Build continues. Run "prisma migrate deploy" manually.'
-    )
-    process.exit(0)
-  }
-  process.exit(res.status ?? 1)
-}
+run('npx', ['prisma', 'migrate', 'deploy'])
 

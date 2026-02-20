@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
-import SymptomCard from './SymptomCard'
+import SymptomCard, { SymptomChangeInfo, CardData } from './SymptomCard'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 
@@ -17,6 +17,10 @@ interface VirtualizedGridProps {
   }
   itemHeight?: number
   overscan?: number
+  /** Map of symptom ID to change info (New/Updated badges) */
+  changesMap?: Map<string, SymptomChangeInfo>
+  /** Pre-fetched card data (highlights, image icons, settings) shared across all cards */
+  cardData?: CardData
 }
 
 interface GridDimensions {
@@ -39,7 +43,9 @@ export default function VirtualizedGrid({
   surgeryId,
   columns = DEFAULT_COLUMNS,
   itemHeight,
-  overscan = DEFAULT_OVERSCAN
+  overscan = DEFAULT_OVERSCAN,
+  changesMap,
+  cardData
 }: VirtualizedGridProps) {
   const { currentSurgeryId } = useSurgery()
   const { isSimplified, cardStyle } = useCardStyle()
@@ -147,10 +153,15 @@ export default function VirtualizedGrid({
   const renderSymptom = useCallback(
     (symptom: EffectiveSymptom, key?: string) => (
       <div key={key ?? symptom.id}>
-        <SymptomCard symptom={symptom} surgeryId={effectiveSurgeryId || undefined} />
+        <SymptomCard
+          symptom={symptom}
+          surgeryId={effectiveSurgeryId || undefined}
+          changeInfo={changesMap?.get(symptom.id)}
+          cardData={cardData}
+        />
       </div>
     ),
-    [effectiveSurgeryId]
+    [effectiveSurgeryId, changesMap, cardData]
   )
 
   // If we have fewer than 150 symptoms, render normally without virtualization

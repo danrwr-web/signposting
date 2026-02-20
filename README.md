@@ -1,6 +1,6 @@
 # Signposting Toolkit
 
-📚 Documentation: https://danrwr-web.github.io/signposting/
+📚 Documentation: https://docs.signpostingtool.co.uk/
 
 A web-based signposting and care-navigation toolkit for GP reception and care navigation teams. Built within an NHS practice, this toolkit provides structured, clinically-approved guidance to help teams route patients safely and consistently.
 
@@ -12,7 +12,7 @@ A web-based signposting and care-navigation toolkit for GP reception and care na
 
 The Signposting Toolkit helps primary care teams send patients to the right service first time. It replaces guesswork with clarity, ensuring teams make the same safe decisions even on the busiest days.
 
-The toolkit provides a structured symptom library, local customisation, AI-assisted clarity tools, an appointment directory, Daily Dose micro-learning, and a full governance workflow for clinical review — all delivered through a clean, modern, NHS-aligned interface.
+The toolkit provides a structured symptom library, local customisation, AI-assisted clarity tools, an appointment directory, and a full governance workflow for clinical review — all delivered through a clean, modern, NHS-aligned interface.
 
 ---
 
@@ -23,8 +23,7 @@ The toolkit provides a structured symptom library, local customisation, AI-assis
 - **AI Instruction Editor** — AI-powered tools to improve instruction clarity (with mandatory clinical review)
 - **AI Suggested Questions** — Generates grouped triage-style questions to help staff gather information safely
 - **Appointment Directory** — Simple, searchable catalogue of local services and appointment types
-- **Practice Handbook** (Admin Toolkit) — Surgery-specific guidance pages with Items and Structure & Settings admin tabs
-- **Daily Dose** — Short, role-based micro-learning sessions with editorial approval and review dates
+- **Admin Toolkit** — Surgery-specific guidance pages with Items and Structure & Settings admin tabs
 - **Workflow Guidance** — Step-by-step workflows for processing common documents (with global defaults and per-surgery customisation)
 - **Clinical Review Workflow** — Every symptom must be clinically approved before going live
 - **Multi-surgery / Tenancy Model** — Complete data isolation between practices with independent configurations
@@ -34,7 +33,7 @@ The toolkit provides a structured symptom library, local customisation, AI-assis
 
 ## Screenshots
 
-_Screenshots coming soon. See [documentation](docs/wiki/Home.md) for more information._
+_Screenshots coming soon. See [documentation](https://docs.signpostingtool.co.uk/) for more information._
 
 <!-- When screenshots are available, uncomment and update paths:
 ![Symptom Detail](docs/wiki/images/symptom-detail.png)
@@ -48,17 +47,16 @@ _Screenshots coming soon. See [documentation](docs/wiki/Home.md) for more inform
 
 Comprehensive documentation is available in the repository:
 
-- **[Main Documentation](docs/wiki/Home.md)** — Complete user and administrator guide
+- **[Main Documentation](https://docs.signpostingtool.co.uk/)** — Complete user and administrator guide
 
 **Documentation Topics:**
-- [Symptom Library](docs/wiki/Symptom-Library.md) — Symptom system details
-- [Clinical Governance](docs/wiki/Clinical-Governance.md) — Review workflow and safety
-- [AI Features](docs/wiki/AI-Features.md) — AI tools and safety checks
-- [Appointment Directory](docs/wiki/Appointment-Directory.md) — Appointment types and filtering
-- [Daily Dose](docs/wiki/Daily-Dose.md) — Daily micro-learning sessions
-- [High-Risk & Highlighting](docs/wiki/High-Risk-&-Highlighting.md) — Visual indicators and rules
-- [Multi-Surgery & RBAC](docs/wiki/Multi-Surgery-&-RBAC.md) — Multi-tenancy and permissions
-- [Developer Guide](docs/wiki/Developer-Guide.md) — Architecture and development
+- [Symptom Library](https://docs.signpostingtool.co.uk/features/symptom-library) — Symptom system details
+- [Clinical Governance](https://docs.signpostingtool.co.uk/governance/clinical-governance) — Review workflow and safety
+- [AI Features](https://docs.signpostingtool.co.uk/features/ai-features) — AI tools and safety checks
+- [Appointment Directory](https://docs.signpostingtool.co.uk/features/appointment-directory) — Appointment types and filtering
+- [High-Risk & Highlighting](https://docs.signpostingtool.co.uk/features/high-risk-and-highlighting) — Visual indicators and rules
+- [Multi-Surgery & RBAC](https://docs.signpostingtool.co.uk/governance/multi-surgery-and-rbac) — Multi-tenancy and permissions
+- [Developer Guide](https://docs.signpostingtool.co.uk/technical/developer-guide) — Architecture and development
 
 **Hosted Documentation:** _(to be added once GitHub Pages is enabled)_
 
@@ -143,7 +141,7 @@ The application is designed to work natively with Vercel serverless functions.
 
 - Prisma migrations run via `postinstall` hook
 - Ensure `DATABASE_URL` is set in Vercel environment settings
-- See [Developer Guide](docs/wiki/Developer-Guide.md) for deployment details
+- See [Developer Guide](https://docs.signpostingtool.co.uk/technical/developer-guide) for deployment details
 
 ---
 

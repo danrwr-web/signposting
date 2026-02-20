@@ -106,7 +106,7 @@ async function getSurgeryBreakdown(where: any) {
   })
 
   // Get surgery details
-  const surgeryIds = surgeryEngagement.map(item => item.surgeryId).filter(Boolean)
+  const surgeryIds = surgeryEngagement.map(item => item.surgeryId).filter((id): id is string => id !== null)
   const surgeries = await prisma.surgery.findMany({
     where: { id: { in: surgeryIds } },
     select: {

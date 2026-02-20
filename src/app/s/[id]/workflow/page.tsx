@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getEffectiveWorkflows } from '@/server/effectiveWorkflows'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import WorkflowLandingClient, { type WorkflowLandingItem } from './WorkflowLandingClient'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const GLOBAL_SURGERY_ID = 'global-default-buttons'
 
@@ -175,17 +176,15 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
 
           {/* Empty State */}
           {mainWorkflows.length === 0 && (
-            <div className="bg-gray-50 rounded-xl border border-gray-200 p-12 text-center">
-              <p className="text-gray-500 mb-4">No workflow templates available.</p>
-              {isAdmin && (
-                <Link
-                  href={`/s/${surgeryId}/workflow/templates`}
-                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-4 py-2"
-                >
-                  Create a template to get started
-                </Link>
-              )}
-            </div>
+            <EmptyState
+              illustration="workflow"
+              title="No workflow templates yet"
+              description="Create your first workflow template to provide step-by-step guidance for document processing."
+              action={isAdmin ? {
+                label: 'Create a template',
+                href: `/s/${surgeryId}/workflow/templates`,
+              } : undefined}
+            />
           )}
 
           {/* Management - Visually Quiet */}
@@ -206,6 +205,12 @@ export default async function WorkflowDashboardPage({ params }: WorkflowDashboar
                   className="text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-3 py-1.5 transition-colors"
                 >
                   Manage Templates
+                </Link>
+                <Link
+                  href={`/s/${surgeryId}/workflow/admin/engagement`}
+                  className="text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-3 py-1.5 transition-colors"
+                >
+                  Engagement
                 </Link>
                 {isSuperuser && (
                   <Link

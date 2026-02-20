@@ -61,10 +61,9 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       if (response.ok) {
         const data = await response.json()
         setDefaultButtons(data.buttons || [])
-        
-        // Determine if any default buttons are enabled
-        const hasEnabledButtons = data.buttons?.some((button: DefaultHighRiskButtonConfig) => button.isEnabled)
-        setEnableDefaultHighRisk(hasEnabledButtons)
+
+        // Use the surgery's enableDefaultHighRisk setting from the API response
+        setEnableDefaultHighRisk(data.enableDefaultHighRisk ?? true)
       } else {
         toast.error('Failed to load default button configurations')
       }

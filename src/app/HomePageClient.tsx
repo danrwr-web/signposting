@@ -6,14 +6,17 @@ import VirtualizedGrid from '@/components/VirtualizedGrid'
 import TestUserUsage from '@/components/TestUserUsage'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
-import { Surgery } from '@prisma/client'
+import type { Surgery } from '@prisma/client'
 import { useSurgery } from '@/context/SurgeryContext'
+import { SymptomChangeInfo, CardData } from '@/components/SymptomCard'
+import { SkeletonCardGrid } from '@/components/ui/Skeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
 
 interface HomePageClientProps {
-  surgeries: Surgery[]
+  surgeries: Pick<Surgery, 'id' | 'slug' | 'name'>[]
   symptoms: EffectiveSymptom[]
   // When rendered at `/s/[id]`, pass the canonical surgery id from the route.
   // This avoids relying on cookie/localStorage context, which may be stale or point to a different surgery.
@@ -31,8 +34,11 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   const [showSurgerySelector, setShowSurgerySelector] = useState(false)
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>(initialSymptoms)
   const [isLoadingSymptoms, setIsLoadingSymptoms] = useState(false)
+  const [changesMap, setChangesMap] = useState<Map<string, SymptomChangeInfo>>(new Map())
   const symptomCache = useRef<Record<string, EffectiveSymptom[]>>({})
   const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
+
+  const [cardData, setCardData] = useState<CardData | undefined>(undefined)
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const deferredSelectedLetter = useDeferredValue(selectedLetter)
@@ -58,7 +64,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 
   // Use the canonical surgery identifier used in `/s/[id]` routes.
   // Avoid using the human-readable `surgery.slug` so we don't generate inconsistent `?surgery=` links.
-  const surgeryId = routeSurgeryId || currentSurgeryId
+  const surgeryId = routeSurgeryId || currentSurgeryId || undefined
 
   const getCacheKey = useCallback((id: string) => `signposting:symptoms:${id}`, [])
 
@@ -88,53 +94,82 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
     }
   }, [getCacheKey, surgeryId])
 
-  // Fetch symptoms when surgery changes
+  // Fetch symptoms only when the user switches to a different surgery (not on initial load).
+  // Also fetch card data (highlights, image icons) and changes in parallel.
   useEffect(() => {
-    if (surgeryId) {
+    if (!surgeryId) return
+
+    const controller = new AbortController()
+    const isSwitching = surgeryId !== routeSurgeryId
+
+    // Always fetch card data (highlights/icons) for the current surgery
+    fetch(`/api/symptom-card-data?surgeryId=${surgeryId}`, { signal: controller.signal })
+      .then(r => r.json())
+      .then(json => {
+        setCardData({
+          highlightRules: Array.isArray(json.highlights) ? json.highlights : [],
+          enableBuiltInHighlights: json.enableBuiltInHighlights ?? true,
+          enableImageIcons: json.enableImageIcons ?? true,
+          imageIcons: Array.isArray(json.imageIcons) ? json.imageIcons : [],
+        })
+      })
+      .catch(() => {})
+
+    // Helper to fetch changes for a given set of symptoms
+    const fetchChanges = (symptomsForChanges: EffectiveSymptom[]) => {
+      fetch(
+        `/api/symptoms/changes?surgeryId=${surgeryId}&symptomIds=${encodeURIComponent(
+          symptomsForChanges.map(s => s.id).join(',')
+        )}`,
+        { cache: 'no-store', signal: controller.signal }
+      )
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (!data?.changes) { setChangesMap(new Map()); return }
+          const newMap = new Map<string, SymptomChangeInfo>()
+          for (const [id, info] of Object.entries(data.changes)) {
+            const ci = info as { changeType: 'new' | 'updated'; approvedAt: string }
+            newMap.set(id, { changeType: ci.changeType, approvedAt: new Date(ci.approvedAt) })
+          }
+          setChangesMap(newMap)
+        })
+        .catch(() => setChangesMap(new Map()))
+    }
+
+    // Only re-fetch symptoms when switching surgeries — the server already provided initial data
+    if (isSwitching) {
       setIsLoadingSymptoms(true)
-      const key = surgeryId
-      const cached = symptomCache.current[key]
+      const cached = symptomCache.current[surgeryId]
       if (cached) {
         setSymptoms(cached)
       }
-
-      const controller = new AbortController()
 
       fetch(`/api/symptoms?surgery=${surgeryId}`, { cache: 'no-store', signal: controller.signal })
         .then(response => response.json())
         .then(data => {
           if (data.symptoms && Array.isArray(data.symptoms)) {
-            // Ensure symptoms are sorted alphabetically
             const sortedSymptoms = data.symptoms.sort((a: any, b: any) => a.name.localeCompare(b.name))
             setSymptoms(sortedSymptoms)
-            symptomCache.current[key] = sortedSymptoms
+            symptomCache.current[surgeryId] = sortedSymptoms
             if (typeof window !== 'undefined') {
               try {
                 const payload = JSON.stringify({ updatedAt: Date.now(), symptoms: sortedSymptoms })
-                window.localStorage.setItem(getCacheKey(key), payload)
-              } catch (error) {
-                console.error('Failed to cache symptoms to localStorage', error)
-              }
+                window.localStorage.setItem(getCacheKey(surgeryId), payload)
+              } catch { /* quota exceeded, ignore */ }
             }
+            // Fetch changes after symptoms arrive so we use the correct IDs
+            fetchChanges(sortedSymptoms)
           }
         })
-        .catch(error => {
-          // Don't log AbortError - it's expected when component unmounts or navigation occurs
-          if (error.name !== 'AbortError') {
-            console.error('Error fetching symptoms:', error)
-          }
-          // Keep the initial symptoms if fetch fails
-        })
-        .finally(() => {
-          setIsLoadingSymptoms(false)
-        })
-
-      return () => controller.abort()
+        .catch(() => {})
+        .finally(() => setIsLoadingSymptoms(false))
+    } else {
+      // Initial load — initialSymptoms are correct for this surgery
+      fetchChanges(initialSymptoms)
     }
-  }, [surgeryId, getCacheKey])
 
-  // Manual refresh function - symptoms are refreshed when surgery changes or user explicitly refreshes
-  // Removed automatic polling to reduce server load and improve performance
+    return () => controller.abort()
+  }, [surgeryId, routeSurgeryId, getCacheKey, initialSymptoms])
 
   // Load age filter from localStorage
   useEffect(() => {
@@ -180,18 +215,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
   }, [symptoms, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
 
   const renderSkeletonGrid = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" role="status" aria-live="polite">
-      {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm animate-pulse">
-          <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
-          <div className="h-4 w-32 bg-gray-100 rounded mb-2" />
-          <div className="h-3 w-full bg-gray-100 rounded mb-1" />
-          <div className="h-3 w-5/6 bg-gray-100 rounded mb-1" />
-          <div className="h-3 w-2/3 bg-gray-100 rounded" />
-        </div>
-      ))}
-      <span className="sr-only">Loading symptoms</span>
-    </div>
+    <SkeletonCardGrid count={8} lines={3} />
   )
 
   return (
@@ -266,23 +290,24 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
               md: 2,
               sm: 1
             }}
+            changesMap={changesMap}
+            cardData={cardData}
           />
         ) : (
-          <div className="text-center py-12">
-            <div className="text-nhs-grey text-lg mb-4">
-              No symptoms found matching your criteria.
-            </div>
-            <button
-              onClick={() => {
+          <EmptyState
+            illustration="search"
+            title="No symptoms found"
+            description="No symptoms match your current filters. Try adjusting your search or clearing all filters."
+            action={{
+              label: 'Clear Filters',
+              onClick: () => {
                 setSearchTerm('')
                 setSelectedLetter('All')
                 setSelectedAge('All')
-              }}
-              className="nhs-button-secondary"
-            >
-              Clear Filters
-            </button>
-          </div>
+              },
+              variant: 'secondary',
+            }}
+          />
         )}
       </main>
     </div>
@@ -292,8 +317,10 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
 export default function HomePageClient(props: HomePageClientProps) {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-nhs-light-grey flex items-center justify-center">
-        <div className="text-nhs-grey">Loading...</div>
+      <div className="min-h-screen bg-nhs-light-grey">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <SkeletonCardGrid count={8} lines={3} />
+        </div>
       </div>
     }>
       <HomePageClientContent {...props} />

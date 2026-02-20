@@ -115,7 +115,7 @@ export default function AdminToolkitPinnedPanel({
   }
 
   return (
-    <div className={outerClassName}>
+    <div className={outerClassName} data-handbook-bottom-bar>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {isExpanded ? (
           <div className="rounded-2xl border border-[#D8E4F0] bg-[#F3F7FB] shadow-sm">

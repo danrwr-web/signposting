@@ -75,9 +75,8 @@ export async function getSurgeryImageIconsSetting(surgeryId?: string): Promise<b
     })
 
     return (surgery as any)?.enableImageIcons ?? true
-  } catch (error) {
+  } catch {
     // Field doesn't exist yet in production DB, return default
-    console.log('enableImageIcons field not found, using default true')
     return true
   }
 }

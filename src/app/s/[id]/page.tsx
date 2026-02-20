@@ -5,9 +5,11 @@ import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import HomePageClient from '@/app/HomePageClient'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
 
-// Disable caching for this page to ensure fresh requiresClinicalReview data
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+// Allow Next.js to cache this page for a short window. Symptom data is already
+// cached for 300s inside getCachedEffectiveSymptoms; aligning the page with a
+// shorter revalidation period gives a large speed boost for repeated visits
+// while keeping data reasonably fresh.
+export const revalidate = 60
 
 interface SignpostingToolPageProps {
   params: Promise<{
@@ -37,8 +39,9 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       redirect('/unauthorized')
     }
 
-    // Get all surgeries for the surgery selector
+    // Get all surgeries for the surgery selector (only fields needed by the UI)
     const surgeries = await prisma.surgery.findMany({
+      select: { id: true, slug: true, name: true },
       orderBy: { name: 'asc' }
     })
 

@@ -61,10 +61,13 @@ interface Props {
   template: WorkflowTemplate
   isAdmin: boolean
   isSuperuser?: boolean
+  canCustomise?: boolean
+  isGlobalTemplate?: boolean
   allTemplates: Array<{ id: string; name: string }>
   surgeryId: string
   templateId: string
   publishWorkflowAction?: () => Promise<{ success: boolean; error?: string }>
+  createOverrideAction?: () => Promise<{ success: boolean; error?: string; templateId?: string }>
   surgeryDefaults?: Array<{
     nodeType: WorkflowNodeType
     bgColor: string | null

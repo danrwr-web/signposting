@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         surgeryId_symptomId_ageGroup: {
           surgeryId,
           symptomId,
-          ageGroup: ageGroup || null,
+          ageGroup: (ageGroup || null) as unknown as string,
         }
       },
       update: {

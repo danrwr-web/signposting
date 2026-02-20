@@ -28,6 +28,9 @@ export default function UniversalNavigationPanel() {
   const [lastFetchedSurgeryId, setLastFetchedSurgeryId] = useState<string | null>(null) // Track which surgery we've fetched for
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showHelpPanel, setShowHelpPanel] = useState(false)
+  // Onboarding completion state for "Finish setup" link
+  const [onboardingIncomplete, setOnboardingIncomplete] = useState(false)
+  const [onboardingFetched, setOnboardingFetched] = useState(false)
 
   const surgeryId = surgery?.id
   const surgeryName = surgery?.name || 'No surgery selected'
@@ -37,16 +40,16 @@ export default function UniversalNavigationPanel() {
   // Determine active module based on current route
   const getActiveModule = useCallback((): string | null => {
     if (!pathname || !surgeryId) return null
-    
+
     const surgeryPrefix = `/s/${surgeryId}`
-    
+
     // Check module routes (order matters - more specific first)
     if (pathname.startsWith(`${surgeryPrefix}/workflow`)) return 'workflow'
     if (pathname.startsWith(`${surgeryPrefix}/admin-toolkit`)) return 'handbook'
     if (pathname.startsWith(`${surgeryPrefix}/daily-dose`)) return 'daily-dose'
     if (pathname.startsWith(`${surgeryPrefix}/appointments`)) return 'appointments'
     if (pathname === surgeryPrefix || pathname === `${surgeryPrefix}/`) return 'signposting'
-    
+
     return null
   }, [pathname, surgeryId])
 
@@ -55,7 +58,7 @@ export default function UniversalNavigationPanel() {
   // Fetch enabled features for the current surgery
   // Also depend on session status to re-fetch when session becomes available after login
   const sessionStatus = session?.user ? 'authenticated' : 'loading'
-  
+
   useEffect(() => {
     if (!surgeryId) {
       // No surgery selected yet - keep loading state true to avoid showing "Not enabled"
@@ -80,11 +83,11 @@ export default function UniversalNavigationPanel() {
 
     const fetchFeatures = async () => {
       setFeaturesLoading(true)
-      
+
       while (retryCount < maxRetries && !isCancelled) {
         try {
           const response = await fetch(`/api/surgeries/${surgeryId}/features`)
-          
+
           if (response.ok) {
             const data = await response.json()
             if (!isCancelled) {
@@ -94,7 +97,7 @@ export default function UniversalNavigationPanel() {
             }
             return // Success - exit the retry loop
           }
-          
+
           // If 401/403, session might not be ready yet - retry after delay
           if (response.status === 401 || response.status === 403) {
             retryCount++
@@ -103,7 +106,7 @@ export default function UniversalNavigationPanel() {
               continue
             }
           }
-          
+
           // Other error - don't retry
           break
         } catch (error) {
@@ -114,7 +117,7 @@ export default function UniversalNavigationPanel() {
           }
         }
       }
-      
+
       // If we exhausted retries or got a non-auth error, still set loading to false
       // but keep featuresLoading true if we never got a successful response
       // This way modules remain clickable
@@ -125,11 +128,57 @@ export default function UniversalNavigationPanel() {
     }
 
     fetchFeatures()
-    
+
     return () => {
       isCancelled = true
     }
   }, [surgeryId, lastFetchedSurgeryId, sessionStatus])
+
+  // Fetch onboarding completion status for "Finish setup" link
+  useEffect(() => {
+    if (!surgeryId || !isAdmin) {
+      setOnboardingIncomplete(false)
+      setOnboardingFetched(false)
+      return
+    }
+
+    // Only fetch if ai_surgery_customisation feature is enabled
+    if (!enabledFeatures['ai_surgery_customisation']) {
+      setOnboardingIncomplete(false)
+      setOnboardingFetched(true)
+      return
+    }
+
+    let isCancelled = false
+
+    const fetchOnboardingStatus = async () => {
+      try {
+        const response = await fetch(`/api/admin/setup-checklist?surgeryId=${surgeryId}`)
+        if (response.ok && !isCancelled) {
+          const data = await response.json()
+          // Calculate if onboarding is incomplete (any step not done)
+          const isIncomplete =
+            !data.onboardingCompleted ||
+            !data.appointmentModelConfigured ||
+            !data.aiCustomisationOccurred ||
+            data.pendingCount > 0
+          setOnboardingIncomplete(isIncomplete)
+          setOnboardingFetched(true)
+        }
+      } catch (error) {
+        console.error('Error fetching onboarding status:', error)
+        if (!isCancelled) {
+          setOnboardingFetched(true)
+        }
+      }
+    }
+
+    fetchOnboardingStatus()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [surgeryId, isAdmin, enabledFeatures])
 
   // Handle escape key to close
   useEffect(() => {
@@ -341,15 +390,28 @@ export default function UniversalNavigationPanel() {
                     </Link>
                   </li>
                 ))}
-                {/* Feature settings - only for superusers */}
+                {/* Finish setup - conditional link for incomplete onboarding */}
+                {isAdmin && onboardingFetched && onboardingIncomplete && enabledFeatures['ai_surgery_customisation'] && (
+                  <li>
+                    <Link
+                      href={`/s/${surgeryId}/admin/setup-checklist`}
+                      onClick={() => close()}
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-inset"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-amber-500 mr-2 flex-shrink-0" aria-hidden="true" />
+                      Finish setup
+                    </Link>
+                  </li>
+                )}
+                {/* System management - only for superusers */}
                 {isSuperuser && (
                   <li>
                     <Link
-                      href="/admin"
+                      href="/admin/system"
                       onClick={() => close()}
                       className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
                     >
-                      Feature settings
+                      System management
                     </Link>
                   </li>
                 )}
@@ -405,7 +467,7 @@ export default function UniversalNavigationPanel() {
       </aside>
 
       {/* User Preferences Modal */}
-      <UserPreferencesModal 
+      <UserPreferencesModal
         isOpen={showPreferencesModal}
         onClose={() => setShowPreferencesModal(false)}
       />

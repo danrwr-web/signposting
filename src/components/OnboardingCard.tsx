@@ -1,9 +1,7 @@
 'use client'
 
-import { Surgery } from '@prisma/client'
-
 interface OnboardingCardProps {
-  surgery: Surgery | undefined
+  surgery: { onboardingProfile?: { completed: boolean; completedAt?: Date | null } | null } | undefined
   surgeryId: string
 }
 

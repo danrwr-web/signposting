@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { Surgery } from '@/lib/api-contracts'
+import { Button, Dialog, Input } from '@/components/ui'
 
 interface SuperDashboardClientProps {
   surgeries: Surgery[]
@@ -33,7 +34,7 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
       })
 
       const result = await response.json()
-      
+
       if (response.ok) {
         toast.success('Surgery created successfully!')
         setSurgeriesList(prev => [...prev, result.surgery])
@@ -51,7 +52,7 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
 
   const handleUpdateSurgery = async (formData: FormData) => {
     if (!editingSurgery) return
-    
+
     setIsLoading(true)
     try {
       const response = await fetch(`/api/admin/surgeries/${editingSurgery.id}`, {
@@ -65,10 +66,10 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
       })
 
       const result = await response.json()
-      
+
       if (response.ok) {
         toast.success('Surgery updated successfully!')
-        setSurgeriesList(prev => 
+        setSurgeriesList(prev =>
           prev.map(s => s.id === editingSurgery.id ? result.surgery : s)
         )
         setEditingSurgery(null)
@@ -121,12 +122,9 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-medium text-gray-900">Surgeries</h2>
-              <button
-                onClick={() => setShowCreateForm(true)}
-                className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors"
-              >
+              <Button onClick={() => setShowCreateForm(true)}>
                 Add Surgery
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -161,18 +159,22 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
                       {new Date(surgery.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button
+                      <Button
+                        variant="link"
+                        size="sm"
                         onClick={() => setEditingSurgery(surgery)}
-                        className="text-nhs-blue hover:text-nhs-dark-blue mr-4"
+                        className="mr-4"
                       >
                         Edit
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="link"
+                        size="sm"
                         onClick={() => handleDeleteSurgery(surgery.id)}
                         className="text-red-600 hover:text-red-900"
                       >
                         Delete
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -182,124 +184,74 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
         </div>
 
         {/* Create Surgery Modal */}
-        {showCreateForm && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Create Surgery</h3>
-                <form action={handleCreateSurgery}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Name
-                    </label>
-                    <input
-                      name="name"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Email
-                    </label>
-                    <input
-                      name="adminEmail"
-                      type="email"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Password
-                    </label>
-                    <input
-                      name="adminPassword"
-                      type="password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowCreateForm(false)}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue disabled:opacity-50"
-                    >
-                      {isLoading ? 'Creating...' : 'Create'}
-                    </button>
-                  </div>
-                </form>
-              </div>
+        <Dialog
+          open={showCreateForm}
+          onClose={() => setShowCreateForm(false)}
+          title="Create Surgery"
+          width="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowCreateForm(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="create-surgery-form" loading={isLoading}>
+                {isLoading ? 'Creating...' : 'Create'}
+              </Button>
+            </>
+          }
+        >
+          <form id="create-surgery-form" action={handleCreateSurgery}>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+              <Input name="name" required />
             </div>
-          </div>
-        )}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Admin Email</label>
+              <Input name="adminEmail" type="email" />
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Admin Password</label>
+              <Input name="adminPassword" type="password" />
+            </div>
+          </form>
+        </Dialog>
 
         {/* Edit Surgery Modal */}
-        {editingSurgery && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Surgery</h3>
-                <form action={handleUpdateSurgery}>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Name
-                    </label>
-                    <input
-                      name="name"
-                      defaultValue={editingSurgery.name}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Email
-                    </label>
-                    <input
-                      name="adminEmail"
-                      type="email"
-                      defaultValue={editingSurgery.adminEmail || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Admin Password (leave blank to keep current)
-                    </label>
-                    <input
-                      name="adminPassword"
-                      type="password"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                    />
-                  </div>
-                  <div className="flex justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => setEditingSurgery(null)}
-                      className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue disabled:opacity-50"
-                    >
-                      {isLoading ? 'Updating...' : 'Update'}
-                    </button>
-                  </div>
-                </form>
+        <Dialog
+          open={!!editingSurgery}
+          onClose={() => setEditingSurgery(null)}
+          title="Edit Surgery"
+          width="sm"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setEditingSurgery(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="edit-surgery-form" loading={isLoading}>
+                {isLoading ? 'Updating...' : 'Update'}
+              </Button>
+            </>
+          }
+        >
+          {editingSurgery && (
+            <form id="edit-surgery-form" action={handleUpdateSurgery}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <Input name="name" defaultValue={editingSurgery.name} required />
               </div>
-            </div>
-          </div>
-        )}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Admin Email</label>
+                <Input name="adminEmail" type="email" defaultValue={editingSurgery.adminEmail || ''} />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Admin Password (leave blank to keep current)
+                </label>
+                <Input name="adminPassword" type="password" />
+              </div>
+            </form>
+          )}
+        </Dialog>
       </div>
     </div>
   )

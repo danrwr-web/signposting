@@ -282,6 +282,7 @@ function PageEditorContent({
                 : 'Main guidance text for this page.'}
             </p>
             <RichTextEditor
+              key={`admin-edit-intro-${selectedItemId}`}
               docId={`admin-toolkit:item:${selectedItemId}:intro`}
               value={form.introHtml}
               onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
@@ -324,6 +325,7 @@ function PageEditorContent({
           <>
             <p className="mb-2 text-xs text-gray-500">Optional extra guidance shown below role cards.</p>
             <RichTextEditor
+              key={`admin-edit-footer-${selectedItemId}`}
               docId={`admin-toolkit:item:${selectedItemId}:footer`}
               value={form.footerHtml}
               onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
@@ -585,12 +587,9 @@ export default function AdminToolkitAdminClient({
   const titleInputRef = useRef<HTMLInputElement>(null)
   
   // Tab state with URL query param persistence
+  // Use initialTab prop from server to avoid hydration mismatch with useSearchParams()
   type TabId = 'items' | 'settings' | 'engagement' | 'audit'
-  const [activeTab, setActiveTab] = useState<TabId>(() => {
-    const tabParam = searchParams.get('tab')
-    const validTabs: TabId[] = ['items', 'settings', 'engagement', 'audit']
-    return validTabs.includes(tabParam as TabId) ? (tabParam as TabId) : initialTab
-  })
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab)
   
   const handleTabChange = (tab: TabId) => {
     setActiveTab(tab)
@@ -714,7 +713,11 @@ export default function AdminToolkitAdminClient({
       return
     }
 
-    setForm(formFromItem(item))
+    // Update form immediately when item changes to prevent stale content
+    const newForm = formFromItem(item)
+    setForm(newForm)
+    // Increment editor key to force remount of rich text editors
+    setEditorInstanceKey((k) => k + 1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selectedItemId, items])
 
@@ -1348,35 +1351,45 @@ function ItemsTab({
   }, [filteredItems, topLevelIdForCategoryId, categoryById])
 
   const expandedStorageKey = useMemo(() => `adminToolkitItemsPickerExpanded:${surgeryId}`, [surgeryId])
-  const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set<string>()
+  // Initialize with empty Set to avoid hydration mismatch (localStorage not available during SSR)
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<Set<string>>(new Set())
+  const [expandedInitialized, setExpandedInitialized] = useState(false)
+
+  // Hydrate expanded state from localStorage after mount (client-only)
+  useEffect(() => {
+    if (expandedInitialized) return
     try {
       const raw = window.localStorage.getItem(expandedStorageKey)
-      if (!raw) return new Set<string>()
-      const parsed = JSON.parse(raw) as unknown
-      if (!Array.isArray(parsed)) return new Set<string>()
-      return new Set(parsed.filter((x) => typeof x === 'string'))
+      if (raw) {
+        const parsed = JSON.parse(raw) as unknown
+        if (Array.isArray(parsed)) {
+          const restored = new Set(parsed.filter((x) => typeof x === 'string'))
+          if (restored.size > 0) {
+            setExpandedGroupKeys(restored)
+            setExpandedInitialized(true)
+            return
+          }
+        }
+      }
     } catch {
-      return new Set<string>()
+      // ignore localStorage errors
     }
-  })
+    // No stored state - expand all groups by default
+    if (groups.length > 0) {
+      setExpandedGroupKeys(new Set(groups.map((g) => g.key)))
+    }
+    setExpandedInitialized(true)
+  }, [expandedStorageKey, groups, expandedInitialized])
 
+  // Persist expanded state to localStorage
   useEffect(() => {
-    if (typeof window === 'undefined') return
+    if (!expandedInitialized) return
     try {
       window.localStorage.setItem(expandedStorageKey, JSON.stringify(Array.from(expandedGroupKeys)))
     } catch {
       // ignore
     }
-  }, [expandedGroupKeys, expandedStorageKey])
-
-  // If no stored state yet, default to expanding all visible groups.
-  useEffect(() => {
-    if (expandedGroupKeys.size > 0) return
-    if (groups.length === 0) return
-    setExpandedGroupKeys(new Set(groups.map((g) => g.key)))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [groups.length])
+  }, [expandedGroupKeys, expandedStorageKey, expandedInitialized])
 
   const toggleGroup = (key: string) => {
     setExpandedGroupKeys((prev) => {
@@ -1591,7 +1604,10 @@ function ItemsTab({
                 <select
                   className="w-full nhs-input"
                   value={form.categoryId ?? ''}
-                  onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
+                  onChange={(e) => {
+                    const selectedValue = e.target.value
+                    setForm((prev) => ({ ...prev, categoryId: selectedValue ? selectedValue : null }))
+                  }}
                 >
                   <option value="">Uncategorised</option>
                   {categories.map((c) => (
@@ -1854,7 +1870,10 @@ function ItemEditFormContent({
           <select
             className="w-full nhs-input"
             value={form.categoryId ?? ''}
-            onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value ? e.target.value : null }))}
+            onChange={(e) => {
+              const selectedValue = e.target.value
+              setForm((prev) => ({ ...prev, categoryId: selectedValue ? selectedValue : null }))
+            }}
           >
             <option value="">Uncategorised</option>
             {categories.map((c) => (
@@ -2168,16 +2187,34 @@ function ItemEditFormContent({
           type="button"
           className="nhs-button"
           onClick={async () => {
+            // Get original values to compare against
+            const originalForm = formFromItem(selectedItem)
+            
+            // Only include content fields if they've changed from original
+            const contentHtmlChanged = selectedItem.type === 'PAGE' && form.contentHtml !== originalForm.contentHtml
+            const introHtmlChanged = selectedItem.type === 'PAGE' && form.introHtml !== originalForm.introHtml
+            const footerHtmlChanged = selectedItem.type === 'PAGE' && form.footerHtml !== originalForm.footerHtml
+            
+            // Check if role cards changed
+            const roleCardsChanged = selectedItem.type === 'PAGE' && (
+              form.roleCardsEnabled !== originalForm.roleCardsEnabled ||
+              form.roleCardsTitle !== originalForm.roleCardsTitle ||
+              form.roleCardsLayout !== originalForm.roleCardsLayout ||
+              form.roleCardsColumns !== originalForm.roleCardsColumns ||
+              JSON.stringify(form.roleCardsCards) !== JSON.stringify(originalForm.roleCardsCards)
+            )
+            
             const res = await updateAdminToolkitItem({
               surgeryId,
               itemId: selectedItem.id,
               title: form.title,
               categoryId: form.categoryId,
-              contentHtml: selectedItem.type === 'PAGE' ? form.contentHtml : undefined, // Legacy field
-              introHtml: selectedItem.type === 'PAGE' ? form.introHtml : undefined,
-              footerHtml: selectedItem.type === 'PAGE' ? form.footerHtml : undefined,
+              // Only send content fields if they changed
+              contentHtml: contentHtmlChanged ? form.contentHtml : undefined,
+              introHtml: introHtmlChanged ? form.introHtml : undefined,
+              footerHtml: footerHtmlChanged ? form.footerHtml : undefined,
               roleCardsBlock:
-                selectedItem.type === 'PAGE'
+                roleCardsChanged
                   ? form.roleCardsEnabled
                     ? {
                         id: form.roleCardsBlockId || undefined,

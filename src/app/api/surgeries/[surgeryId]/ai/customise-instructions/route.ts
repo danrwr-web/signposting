@@ -298,13 +298,13 @@ export async function POST(
                 surgeryId_symptomId_ageGroup: {
                   surgeryId,
                   symptomId: symptomRef.baseSymptomId,
-                  ageGroup: baseSymptomData.ageGroup || null,
+                  ageGroup: (baseSymptomData.ageGroup || null) as unknown as string,
                 },
               },
               create: {
                 surgeryId,
                 symptomId: symptomRef.baseSymptomId,
-                ageGroup: baseSymptomData.ageGroup || null,
+                ageGroup: (baseSymptomData.ageGroup || null) as unknown as string,
                 status: 'PENDING',
                 lastReviewedAt: null,
                 reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
@@ -352,13 +352,13 @@ export async function POST(
                 surgeryId_symptomId_ageGroup: {
                   surgeryId,
                   symptomId: symptomRef.customSymptomId!,
-                  ageGroup: baseSymptomData.ageGroup || null,
+                  ageGroup: (baseSymptomData.ageGroup || null) as unknown as string,
                 },
               },
               create: {
                 surgeryId,
                 symptomId: symptomRef.customSymptomId!,
-                ageGroup: baseSymptomData.ageGroup || null,
+                ageGroup: (baseSymptomData.ageGroup || null) as unknown as string,
                 status: 'PENDING',
                 lastReviewedAt: null,
                 reviewNote: 'AI customisation based on onboarding profile – pending clinical review',

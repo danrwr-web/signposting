@@ -36,7 +36,7 @@ export default function Accordion({ items, allowMultipleOpen = true }: Accordion
         const panelId = `${baseId}-panel-${item.id}`
 
         return (
-          <div key={item.id} className="rounded-lg border border-slate-200 bg-white">
+          <div key={item.id} className="rounded-xl border border-gray-100 bg-white shadow-sm">
             <h3 className="m-0">
               <button
                 type="button"
@@ -44,12 +44,12 @@ export default function Accordion({ items, allowMultipleOpen = true }: Accordion
                 aria-expanded={isOpen}
                 aria-controls={panelId}
                 onClick={() => toggle(item.id)}
-                className="w-full flex items-start justify-between gap-6 text-left px-5 py-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"
+                className="w-full flex items-start justify-between gap-6 text-left px-5 py-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
               >
                 <span className="text-base font-semibold text-gray-900 leading-snug">
                   {item.question}
                 </span>
-                <span aria-hidden="true" className="mt-1 text-blue-700">
+                <span aria-hidden="true" className="mt-1 text-nhs-blue">
                   <svg
                     className={`h-5 w-5 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                     viewBox="0 0 20 20"

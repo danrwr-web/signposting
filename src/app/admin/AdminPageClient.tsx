@@ -15,8 +15,6 @@ import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import EngagementAnalytics from '@/components/EngagementAnalytics'
 import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
-import FeaturesAdmin from '@/components/FeaturesAdmin'
-import SetupChecklistClient from '@/app/s/[id]/admin/setup-checklist/SetupChecklistClient'
 import { Surgery } from '@prisma/client'
 import { HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
@@ -93,16 +91,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   const [aiUsageError, setAiUsageError] = useState<string | null>(null)
   const [featureFlags, setFeatureFlags] = useState<Record<string, boolean>>({})
   const [featureFlagsLoading, setFeatureFlagsLoading] = useState(false)
-  const [setupChecklistData, setSetupChecklistData] = useState<{
-    surgeryId: string
-    surgeryName: string
-    onboardingCompleted: boolean
-    onboardingCompletedAt: Date | null
-    appointmentModelConfigured: boolean
-    aiCustomisationOccurred: boolean
-    pendingCount: number
-  } | null>(null)
-  const [setupChecklistLoading, setSetupChecklistLoading] = useState(false)
 
   const refreshMetrics = useCallback(async () => {
     if (!selectedSurgery) return
@@ -178,34 +166,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         })
     }
   }, [session.type, session.surgeryId])
-
-  // Load setup checklist data when tab is active
-  useEffect(() => {
-    if (activeTab === 'setup-checklist' && session.type === 'surgery' && session.surgeryId && !setupChecklistLoading && !setupChecklistData) {
-      setSetupChecklistLoading(true)
-      fetch(`/api/admin/setup-checklist?surgeryId=${session.surgeryId}`)
-        .then(async (res) => {
-          if (res.ok) {
-            const data = await res.json()
-            setSetupChecklistData({
-              surgeryId: data.surgeryId,
-              surgeryName: data.surgeryName,
-              onboardingCompleted: data.onboardingCompleted,
-              onboardingCompletedAt: data.onboardingCompletedAt ? new Date(data.onboardingCompletedAt) : null,
-              appointmentModelConfigured: data.appointmentModelConfigured,
-              aiCustomisationOccurred: data.aiCustomisationOccurred,
-              pendingCount: data.pendingCount,
-            })
-          }
-        })
-        .catch(err => {
-          console.error('Error loading setup checklist data:', err)
-        })
-        .finally(() => {
-          setSetupChecklistLoading(false)
-        })
-    }
-  }, [activeTab, session.type, session.surgeryId])
 
   // Load highlight rules from API
   useEffect(() => {
@@ -315,15 +275,25 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     if (session.type === 'surgery' && session.surgeryId) {
       setSelectedSurgery(session.surgeryId)
     } else if (session.type === 'superuser' && surgeries.length > 0) {
-      // For superuser, default to first surgery
-      setSelectedSurgery(surgeries[0].id)
+      // Try to restore the last-viewed surgery from localStorage (set by SurgerySelector)
+      let restoredId: string | null = null
+      try {
+        const stored = localStorage.getItem('surgery_state')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (parsed?.id && surgeries.some(s => s.id === parsed.id)) {
+            restoredId = parsed.id
+          }
+        }
+      } catch { /* ignore parse errors */ }
+      setSelectedSurgery(restoredId || surgeries[0].id)
     }
   }, [session, surgeries])
 
   // Initialize active tab from URL params
   useEffect(() => {
     const tabParam = searchParams.get('tab')
-    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'features', 'users', 'system', 'aiUsage', 'setup-checklist']
+    const validTabs = ['library', 'clinical-review', 'data', 'highlights', 'highrisk', 'engagement', 'suggestions', 'front-page']
     if (tabParam && validTabs.includes(tabParam)) {
       setActiveTab(tabParam)
     }
@@ -805,9 +775,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     }
   }
 
-  const setupChecklistBadge = metrics?.setupChecklistOutstandingCount && metrics.setupChecklistOutstandingCount > 0
-    ? metrics.setupChecklistOutstandingCount
-    : undefined
   const clinicalReviewBadge = metrics?.pendingReviewCount && metrics.pendingReviewCount > 0
     ? metrics.pendingReviewCount
     : undefined
@@ -817,16 +784,16 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={surgeries} currentSurgeryId={undefined} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={selectedSurgery} onSurgeryChange={setSelectedSurgery} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-nhs-dark-blue">
-              Settings
+              Signposting settings
             </h1>
             <p className="text-nhs-grey mt-1">
-              Logged in as {session.email} ({session.type === 'surgery' ? 'Practice admin' : 'System admin'})
+              Configure symptom library, clinical review, highlights, and other Signposting module settings.
               {session.surgerySlug && ` • ${session.surgerySlug}`}
             </p>
           </div>
@@ -845,32 +812,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
                 {[
-                  // Symptom Library first; visible to superusers and surgery admins
+                  // Signposting module settings only
                   { id: 'library', label: 'Symptom Library' },
                   // Clinical Review: visible to superusers and surgery admins
                   ...((session.type === 'superuser' || session.type === 'surgery')
                     ? [{ id: 'clinical-review', label: 'Clinical Review', badge: clinicalReviewBadge }]
                     : []),
-                  // Data Management is superuser-only
+                  // Data Management is superuser-only (for symptom database imports)
                   ...(session.type === 'superuser' ? [{ id: 'data', label: 'Data Management' }] : []),
                   { id: 'highlights', label: 'Highlight Config' },
                   { id: 'highrisk', label: 'High-Risk Buttons' },
                   ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'front-page', label: 'Quick Access' }] : []),
                   { id: 'engagement', label: 'Engagement' },
                   { id: 'suggestions', label: 'Suggestions', badge: suggestionsBadge },
-                  // Features: visible to SUPERUSER and PRACTICE_ADMIN
-                  ...((session.type === 'superuser' || session.type === 'surgery') ? [{ id: 'features', label: 'Features' }] : []),
-                  // Setup Checklist: only visible if ai_surgery_customisation feature flag is enabled
-                  ...(session.type === 'surgery' && featureFlags.ai_surgery_customisation === true
-                    ? [{ id: 'setup-checklist', label: 'Setup Checklist', badge: setupChecklistBadge }]
-                    : []),
-                  ...(session.type === 'surgery' ? [{ id: 'users', label: 'User & access management' }] : []),
-                  ...(session.type === 'superuser'
-                    ? [
-                        { id: 'system', label: 'System Management' },
-                        { id: 'aiUsage', label: 'AI usage / cost' },
-                      ]
-                    : []),
                 ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1034,148 +988,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               <SuggestionsAnalytics session={session} />
             )}
 
-            {/* Features Tab */}
-            {activeTab === 'features' && (session.type === 'superuser' || session.type === 'surgery') && (
-              <FeaturesAdmin
-                currentUser={{
-                  id: session.id,
-                  email: session.email,
-                  globalRole: session.type === 'superuser' ? 'SUPERUSER' : 'USER',
-                  surgeryId: session.surgeryId
-                }}
-                selectedSurgeryId={selectedSurgery || session.surgeryId || null}
-              />
-            )}
-
-            {/* Setup Checklist Tab - Only for Surgery Admins with feature flag enabled */}
-            {activeTab === 'setup-checklist' && session.type === 'surgery' && featureFlags.ai_surgery_customisation === true && (
-              <div>
-                {setupChecklistLoading ? (
-                  <div className="text-center py-8">
-                    <p className="text-nhs-grey">Loading setup checklist...</p>
-                  </div>
-                ) : setupChecklistData ? (
-                  <SetupChecklistClient
-                    surgeryId={setupChecklistData.surgeryId}
-                    surgeryName={setupChecklistData.surgeryName}
-                    onboardingCompleted={setupChecklistData.onboardingCompleted}
-                    onboardingCompletedAt={setupChecklistData.onboardingCompletedAt}
-                    appointmentModelConfigured={setupChecklistData.appointmentModelConfigured}
-                    aiCustomisationOccurred={setupChecklistData.aiCustomisationOccurred}
-                    pendingCount={setupChecklistData.pendingCount}
-                  />
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-nhs-grey">Failed to load setup checklist data.</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* User & access management Tab - Only for Surgery Admins */}
-            {activeTab === 'users' && session.type === 'surgery' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  User & access management
-                </h2>
-                <p className="text-nhs-grey mb-6">
-                  Manage users for your surgery. Add new users, change roles, and set default surgeries.
-                </p>
-
-                <div className="bg-white p-6 rounded-lg border border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Surgery User & access management
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Manage users who have access to your surgery. You can add new users, 
-                    change their roles, and set their default surgery.
-                  </p>
-                  
-                  <div className="flex gap-4 flex-wrap">
-                    <a
-                      href={`/s/${session.surgeryId}/admin/users`}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      Manage Users
-                    </a>
-                  </div>
-                  </div>
-
-                {/* Optional: Cross-link to Setup Checklist tab if feature flag enabled */}
-                {featureFlags.ai_surgery_customisation === true && (() => {
-                  const currentSurgery = surgeries.find(s => s.id === session.surgeryId)
-                  const onboardingCompleted = currentSurgery?.onboardingProfile?.completed ?? false
-                  const completedAt = currentSurgery?.onboardingProfile?.completedAt
-                  
-                  if (onboardingCompleted && completedAt) {
-                    return (
-                      <div className="mt-6 text-sm text-gray-600">
-                        Onboarding: Completed on {new Date(completedAt).toLocaleDateString('en-GB', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}.{' '}
-                        <button
-                          onClick={() => {
-                            setActiveTab('setup-checklist')
-                            router.push('/admin?tab=setup-checklist', { scroll: false })
-                          }}
-                          className="text-nhs-blue hover:underline"
-                        >
-                          View in Setup Checklist tab
-                        </button>
-                      </div>
-                    )
-                  }
-                  return null
-                })()}
-              </div>
-            )}
-
-            {/* System Management Tab - Only for Superusers */}
-            {activeTab === 'system' && session.type === 'superuser' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  System Management
-                </h2>
-                <p className="text-nhs-grey mb-6">
-                  Global system administration and management tools.
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Global User Management
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Manage all users across the system, create new users, and assign roles.
-                    </p>
-                    <a
-                      href="/admin/users"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      Manage Users
-                    </a>
-                  </div>
-
-                  <div className="bg-white p-6 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all">
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      Surgery Management
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Create new surgeries, manage surgery settings, and assign administrators.
-                    </p>
-                    <a
-                      href="/admin/surgeries"
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                    >
-                      Manage Surgeries
-                    </a>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Symptom Library Tab */}
             {activeTab === 'library' && (
               <div>
@@ -1218,167 +1030,6 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
               </div>
             )}
 
-            {/* AI Usage / Cost Tab - Only for Superusers */}
-            {activeTab === 'aiUsage' && session.type === 'superuser' && (
-              <div>
-                <h2 className="text-xl font-semibold text-nhs-dark-blue mb-4">
-                  AI Usage / Cost Dashboard
-                </h2>
-                <p className="text-nhs-grey mb-6">
-                  Monitor AI usage and estimated costs across the system.
-                </p>
-
-                {aiUsageLoading && (
-                  <div className="text-center py-8">
-                    <p className="text-nhs-grey">Loading usage data...</p>
-                  </div>
-                )}
-
-                {aiUsageError && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                    <p className="text-red-800">{aiUsageError}</p>
-                  </div>
-                )}
-
-                {!aiUsageLoading && !aiUsageError && aiUsageData && (
-                  <div className="space-y-6">
-                    {/* Last 7 Days */}
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                      <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-                        Last 7 days
-                      </h3>
-                      <div className="mb-4">
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-nhs-grey">Total Calls</p>
-                            <p className="text-xl font-semibold">{aiUsageData.last7days.overall.calls}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-nhs-grey">Estimated Cost</p>
-                            <p className="text-xl font-semibold">£{aiUsageData.last7days.overall.costGbp.toFixed(2)}</p>
-                          </div>
-                        </div>
-                      </div>
-                      {aiUsageData.last7days.byRoute.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Route
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Calls
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens In
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens Out
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Estimated Cost
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {aiUsageData.last7days.byRoute.map((routeData) => (
-                                <tr key={routeData.route}>
-                                  <td className="px-4 py-3 text-sm text-gray-900">
-                                    {routeData.route === 'improveInstruction' ? 'Improve wording' : routeData.route === 'explainInstruction' ? 'Explain rule' : routeData.route}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.calls}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.promptTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.completionTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    £{routeData.costGbp.toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="text-nhs-grey text-sm">No usage data for this period.</p>
-                      )}
-                    </div>
-
-                    {/* Last 30 Days */}
-                    <div className="bg-white rounded-lg shadow-md p-6">
-                      <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
-                        Last 30 days
-                      </h3>
-                      <div className="mb-4">
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-nhs-grey">Total Calls</p>
-                            <p className="text-xl font-semibold">{aiUsageData.last30days.overall.calls}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-nhs-grey">Estimated Cost</p>
-                            <p className="text-xl font-semibold">£{aiUsageData.last30days.overall.costGbp.toFixed(2)}</p>
-                          </div>
-                        </div>
-                      </div>
-                      {aiUsageData.last30days.byRoute.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                              <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Route
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Calls
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens In
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Tokens Out
-                                </th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                  Estimated Cost
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                              {aiUsageData.last30days.byRoute.map((routeData) => (
-                                <tr key={routeData.route}>
-                                  <td className="px-4 py-3 text-sm text-gray-900">
-                                    {routeData.route === 'improveInstruction' ? 'Improve wording' : routeData.route === 'explainInstruction' ? 'Explain rule' : routeData.route}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.calls}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.promptTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    {routeData.completionTokens.toLocaleString()}
-                                  </td>
-                                  <td className="px-4 py-3 text-sm text-gray-700">
-                                    £{routeData.costGbp.toFixed(2)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="text-nhs-grey text-sm">No usage data for this period.</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </main>
