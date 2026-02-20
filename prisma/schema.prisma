@@ -275,6 +275,7 @@ model DailyDoseSession {
   sessionDate        DateTime  @default(now())
   cardIds            Json
   cardResults        Json?
+  questionIds        Json?
   questionsAttempted Int       @default(0)
   correctCount       Int       @default(0)
   xpEarned           Int       @default(0)

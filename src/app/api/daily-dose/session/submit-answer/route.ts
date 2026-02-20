@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
       }
       const options = interaction.options ?? []
       const correctIndex = interaction.correctIndex ?? 0
-      const correctAnswer = options[correctIndex] ?? options[0] ?? ''
-      const isCorrect = correctAnswer.trim().toLowerCase() === parsed.answer.trim().toLowerCase()
+      const correctAnswer = options[correctIndex] ?? ''
+      const submittedIndex = options.indexOf(parsed.answer)
+      const isCorrect = submittedIndex !== -1 && submittedIndex === correctIndex
 
       return NextResponse.json({
         correct: isCorrect,
@@ -65,10 +66,14 @@ export async function POST(request: NextRequest) {
 
     const question = block as {
       correctAnswer?: string
+      options?: string[]
       rationale?: string
     }
+    const options = question.options ?? []
     const correctAnswer = question.correctAnswer ?? ''
-    const isCorrect = correctAnswer.trim().toLowerCase() === parsed.answer.trim().toLowerCase()
+    const correctIndex = options.indexOf(correctAnswer)
+    const submittedIndex = options.indexOf(parsed.answer)
+    const isCorrect = correctIndex !== -1 && submittedIndex !== -1 && submittedIndex === correctIndex
 
     return NextResponse.json({
       correct: isCorrect,

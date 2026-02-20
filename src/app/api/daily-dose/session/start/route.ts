@@ -49,6 +49,24 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date()
+
+    // Same-day session guard: only one completed session per calendar day (UTC)
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+    const todayEnd = new Date()
+    todayEnd.setUTCHours(23, 59, 59, 999)
+    const completedToday = await prisma.dailyDoseSession.findFirst({
+      where: {
+        userId: user.id,
+        surgeryId,
+        completedAt: { gte: todayStart, lte: todayEnd },
+      },
+      select: { id: true },
+    })
+    if (completedToday) {
+      return NextResponse.json({ error: 'Daily session already completed for today' }, { status: 409 })
+    }
+
     const recentSession = await prisma.dailyDoseSession.findFirst({
       where: {
         userId: user.id,

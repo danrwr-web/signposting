@@ -17,6 +17,7 @@ jest.mock('@/lib/prisma', () => ({
     },
     dailyDoseSession: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -80,7 +81,10 @@ describe('Daily Dose flow smoke tests', () => {
       role: 'ADMIN',
       preferences: { chosenFocusTopicIds: [] },
     })
-    ;(prisma.dailyDoseSession.findFirst as jest.Mock).mockResolvedValue(null)
+    // start/route calls findFirst twice: same-day guard, then incomplete session check
+    ;(prisma.dailyDoseSession.findFirst as jest.Mock)
+      .mockResolvedValueOnce(null) // same-day guard: no completed session today
+      .mockResolvedValueOnce(null) // incomplete session check: no incomplete session
     ;(prisma.dailyDoseTopic.findMany as jest.Mock).mockResolvedValue([
       { id: 'topic-1', name: 'Demo', roleScope: ['ADMIN'], ordering: 0 },
     ])
@@ -110,6 +114,7 @@ describe('Daily Dose flow smoke tests', () => {
       },
     ])
     ;(prisma.dailyDoseUserCardState.findMany as jest.Mock).mockResolvedValue([])
+    ;(prisma.dailyDoseSession.findMany as jest.Mock).mockResolvedValue([])
     ;(prisma.dailyDoseSession.create as jest.Mock).mockResolvedValue({ id: 'session-1' })
 
     const startRequest = createJsonRequest({
@@ -118,10 +123,10 @@ describe('Daily Dose flow smoke tests', () => {
     const startResponse = await postStart(startRequest)
     expect(startResponse.status).toBe(200)
 
-    ;(prisma.dailyDoseSession.findFirst as jest.Mock).mockResolvedValue({
-      id: 'session-1',
-      completedAt: null,
-    })
+    // complete/route calls findFirst twice: session validation, then same-day guard
+    ;(prisma.dailyDoseSession.findFirst as jest.Mock)
+      .mockResolvedValueOnce({ id: 'session-1', completedAt: null }) // session validation
+      .mockResolvedValueOnce(null) // same-day guard: no other completed session today
 
     const tx = {
       dailyDoseSession: { update: jest.fn() },

@@ -41,6 +41,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Session already completed' }, { status: 409 })
     }
 
+    // Same-day session guard: only one completed session per calendar day (UTC)
+    const todayStart = new Date()
+    todayStart.setUTCHours(0, 0, 0, 0)
+    const todayEnd = new Date()
+    todayEnd.setUTCHours(23, 59, 59, 999)
+    const completedToday = await prisma.dailyDoseSession.findFirst({
+      where: {
+        userId: user.id,
+        surgeryId,
+        completedAt: { gte: todayStart, lte: todayEnd },
+        NOT: { id: parsed.sessionId },
+      },
+      select: { id: true },
+    })
+    if (completedToday) {
+      return NextResponse.json({ error: 'Daily session already completed for today' }, { status: 409 })
+    }
+
     const questionCount = parsed.cardResults.reduce((total, result) => total + result.questionCount, 0)
     const correctCount = parsed.cardResults.reduce((total, result) => total + result.correctCount, 0)
     const xpEarned = calculateSessionXp({
@@ -72,12 +90,11 @@ export async function POST(request: NextRequest) {
         where: { id: parsed.sessionId },
         data: {
           cardResults: parsed.cardResults,
+          questionIds: Array.from(sessionQuestionIds),
           questionsAttempted: questionCount,
           correctCount,
           xpEarned,
           completedAt: now,
-          // Store question IDs for exclusion tracking (as JSON array)
-          // Note: We'll add a dedicated field in future, but for now store in cardResults
         },
       })
 

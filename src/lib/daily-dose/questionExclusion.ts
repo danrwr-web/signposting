@@ -29,25 +29,17 @@ export async function getRecentQuestionIds(params: {
     orderBy: { completedAt: 'desc' },
     take: excludeLastNSessions,
     select: {
-      cardResults: true,
+      questionIds: true,
     },
   })
 
   const questionIds = new Set<string>()
 
-  // Extract question IDs from recent sessions' cardResults
+  // Extract question IDs from the dedicated questionIds field
   for (const session of recentSessions) {
-    if (!session.cardResults) continue
-    
-    const cardResults = Array.isArray(session.cardResults)
-      ? (session.cardResults as Array<{ questionIds?: string[] }>)
-      : []
-    
-    cardResults.forEach((result) => {
-      if (result.questionIds && Array.isArray(result.questionIds)) {
-        result.questionIds.forEach((id) => questionIds.add(id))
-      }
-    })
+    if (!session.questionIds) continue
+    const ids = Array.isArray(session.questionIds) ? (session.questionIds as string[]) : []
+    ids.forEach((id) => questionIds.add(id))
   }
 
   return questionIds
