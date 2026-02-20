@@ -153,13 +153,33 @@ export default function SurgeryFiltersHeader({
           </div>
         </div>
 
-        <div className="mt-3 overflow-x-auto scrollbar-hide">
-          <div className="flex gap-3 pb-2 min-w-max">
-            <HighRiskButtons
-              surgeryId={currentSurgeryId}
-              variant="classic"
-              appearance={highRiskStyle ?? 'pill'}
-            />
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
+            <div className="flex gap-3 pb-2 min-w-max">
+              <HighRiskButtons
+                surgeryId={currentSurgeryId}
+                variant="classic"
+                appearance={highRiskStyle ?? 'pill'}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Link
+              href="/daily-dose"
+              className="flex flex-col justify-center rounded-lg border border-nhs-blue bg-white px-3 py-2 text-left shadow-sm transition-colors hover:bg-nhs-light-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 min-w-[140px]"
+              aria-label="Daily Dose, try the learning app"
+            >
+              <span className="text-xs font-semibold text-nhs-dark-blue leading-tight">Daily Dose</span>
+              <span className="text-[10px] text-nhs-grey leading-tight">Try the learning app.</span>
+            </Link>
+            <Link
+              href={currentSurgeryId ? `/s/${currentSurgeryId}/clinical-tools` : '/clinical-tools'}
+              className="flex flex-col justify-center rounded-lg border border-nhs-blue bg-white px-3 py-2 text-left shadow-sm transition-colors hover:bg-nhs-light-blue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 min-w-[140px]"
+              aria-label="Clinical tools for GPs and Nurses"
+            >
+              <span className="text-xs font-semibold text-nhs-dark-blue leading-tight">Clinical tools</span>
+              <span className="text-[10px] text-nhs-grey leading-tight">For GPs and Nurses.</span>
+            </Link>
           </div>
         </div>
 
