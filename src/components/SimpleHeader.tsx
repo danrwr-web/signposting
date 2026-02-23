@@ -70,6 +70,7 @@ export default function SimpleHeader({
     ? [
         { href: '/daily-dose', label: 'Home' },
         { href: '/daily-dose/session', label: 'Session' },
+        { href: '/daily-dose/pathway', label: 'Pathway' },
         { href: '/daily-dose/history', label: 'History' },
       ]
     : []

@@ -42,3 +42,17 @@ export const DAILY_DOSE_XP = {
   perCorrect: 5,
   maxPerSession: 50,
 } as const
+
+// Learning Pathway constants
+export const PATHWAY_UNIT_LEVELS = ['INTRO', 'CORE', 'STRETCH'] as const
+export type PathwayUnitLevel = (typeof PATHWAY_UNIT_LEVELS)[number]
+
+export const PATHWAY_UNIT_STATUSES = ['NOT_STARTED', 'IN_PROGRESS', 'SECURE'] as const
+export type PathwayUnitStatus = (typeof PATHWAY_UNIT_STATUSES)[number]
+
+export const PATHWAY_SECURE_ACCURACY_THRESHOLD = 0.8 // 80% accuracy
+export const PATHWAY_SECURE_MIN_SESSIONS = 2 // At least 2 sessions (initial + reinforcement)
+
+// RAG thresholds (percentage of units that are Secure)
+export const PATHWAY_RAG_RED_THRESHOLD = 0.4 // < 40% secure = Red
+export const PATHWAY_RAG_AMBER_THRESHOLD = 0.8 // 40-79% = Amber, >= 80% = Green

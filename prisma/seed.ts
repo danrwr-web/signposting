@@ -209,6 +209,158 @@ async function ensureDailyDoseCards(surgeryId: string, topics: Array<{ id: strin
   return createdCards
 }
 
+async function ensureLearningPathway(
+  surgeryId: string,
+  userId: string,
+  cards: Array<{ id: string; title: string }>
+) {
+  const themeDefs = [
+    {
+      name: 'Safe Signposting Language',
+      description: 'Learn consistent, calm phrasing to guide patients safely and respectfully.',
+      ordering: 1,
+      units: [
+        { title: 'Introduction to Safe Language', level: 'INTRO', ordering: 1 },
+        { title: 'Common Phrases to Avoid', level: 'INTRO', ordering: 2 },
+        { title: 'Confident Redirecting', level: 'CORE', ordering: 1 },
+        { title: 'Handling Difficult Conversations', level: 'CORE', ordering: 2 },
+        { title: 'Advanced De-escalation', level: 'STRETCH', ordering: 1 },
+      ],
+    },
+    {
+      name: 'Reception Triage Essentials',
+      description: 'Core triage skills for front-desk teams to route patients safely.',
+      ordering: 2,
+      units: [
+        { title: 'What is Triage?', level: 'INTRO', ordering: 1 },
+        { title: 'Red Flag Recognition', level: 'INTRO', ordering: 2 },
+        { title: 'Prioritising Same-Day Requests', level: 'CORE', ordering: 1 },
+        { title: 'Working with Clinicians', level: 'CORE', ordering: 2 },
+        { title: 'Complex Multi-Symptom Calls', level: 'STRETCH', ordering: 1 },
+      ],
+    },
+    {
+      name: 'Safeguarding Awareness',
+      description: 'Recognise, record, and escalate safeguarding concerns appropriately.',
+      ordering: 3,
+      units: [
+        { title: 'What is Safeguarding?', level: 'INTRO', ordering: 1 },
+        { title: 'Recognising Signs of Concern', level: 'CORE', ordering: 1 },
+        { title: 'Recording and Escalation', level: 'CORE', ordering: 2 },
+        { title: 'Multi-Agency Working', level: 'STRETCH', ordering: 1 },
+        { title: 'Difficult Disclosure Scenarios', level: 'STRETCH', ordering: 2 },
+      ],
+    },
+  ]
+
+  // Demo progress patterns: some secure, some in-progress, some not started
+  // Indexed by [themeIndex][unitIndex]
+  const progressPatterns: Array<
+    Array<{ sessionsCompleted: number; correctCount: number; totalQuestions: number } | null>
+  > = [
+    // Theme 1: Safe Signposting Language — good progress
+    [
+      { sessionsCompleted: 3, correctCount: 9, totalQuestions: 10 }, // SECURE (90%)
+      { sessionsCompleted: 2, correctCount: 8, totalQuestions: 10 }, // SECURE (80%)
+      { sessionsCompleted: 1, correctCount: 6, totalQuestions: 10 }, // IN_PROGRESS (60%)
+      null, // NOT_STARTED
+      null, // NOT_STARTED
+    ],
+    // Theme 2: Reception Triage — just started
+    [
+      { sessionsCompleted: 2, correctCount: 9, totalQuestions: 10 }, // SECURE (90%)
+      { sessionsCompleted: 1, correctCount: 7, totalQuestions: 10 }, // IN_PROGRESS (70%)
+      null,
+      null,
+      null,
+    ],
+    // Theme 3: Safeguarding — not started at all
+    [null, null, null, null, null],
+  ]
+
+  for (let ti = 0; ti < themeDefs.length; ti++) {
+    const themeDef = themeDefs[ti]
+
+    // Find or create theme
+    let theme = await prisma.dailyDoseTheme.findFirst({
+      where: { surgeryId, name: themeDef.name },
+    })
+    if (!theme) {
+      theme = await prisma.dailyDoseTheme.create({
+        data: {
+          surgeryId,
+          name: themeDef.name,
+          description: themeDef.description,
+          ordering: themeDef.ordering,
+          isActive: true,
+        },
+      })
+    }
+
+    for (let ui = 0; ui < themeDef.units.length; ui++) {
+      const unitDef = themeDef.units[ui]
+
+      // Find or create unit
+      let unit = await prisma.dailyDoseUnit.findFirst({
+        where: { themeId: theme.id, title: unitDef.title },
+      })
+      if (!unit) {
+        unit = await prisma.dailyDoseUnit.create({
+          data: {
+            themeId: theme.id,
+            title: unitDef.title,
+            level: unitDef.level,
+            ordering: unitDef.ordering,
+            isActive: true,
+          },
+        })
+      }
+
+      // Link a card to this unit if available (round-robin through cards)
+      if (cards.length > 0) {
+        const cardIndex = (ti * themeDef.units.length + ui) % cards.length
+        const card = cards[cardIndex]
+        const existingLink = await prisma.dailyDoseUnitCard.findUnique({
+          where: { unitId_cardId: { unitId: unit.id, cardId: card.id } },
+        })
+        if (!existingLink) {
+          await prisma.dailyDoseUnitCard.create({
+            data: { unitId: unit.id, cardId: card.id, ordering: 0 },
+          })
+        }
+      }
+
+      // Create demo progress for the admin user
+      const pattern = progressPatterns[ti]?.[ui]
+      if (pattern) {
+        const status =
+          pattern.sessionsCompleted >= 2 &&
+          pattern.totalQuestions > 0 &&
+          pattern.correctCount / pattern.totalQuestions >= 0.8
+            ? 'SECURE'
+            : 'IN_PROGRESS'
+
+        await prisma.userUnitProgress.upsert({
+          where: { userId_unitId: { userId, unitId: unit.id } },
+          update: {},
+          create: {
+            userId,
+            unitId: unit.id,
+            surgeryId,
+            status,
+            sessionsCompleted: pattern.sessionsCompleted,
+            correctCount: pattern.correctCount,
+            totalQuestions: pattern.totalQuestions,
+            lastSessionAt: new Date(),
+          },
+        })
+      }
+    }
+  }
+
+  console.log('Created learning pathway themes, units, and demo progress')
+}
+
 async function main() {
   console.log('Starting seed...')
 
@@ -476,6 +628,9 @@ async function main() {
   }
 
   console.log('Created sample overrides')
+
+  // Seed learning pathway
+  await ensureLearningPathway(surgery1.id, adminUser.id, dailyDoseCards)
 
   console.log('Seed completed successfully!')
 }
