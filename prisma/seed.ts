@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
+
+const DEMO_PASSWORD = 'demo1234'
 
 const normalizeStaffLabel = (label: string) =>
   label.trim().toUpperCase().replace(/[^A-Z0-9]+/g, '_') || 'STAFF'
@@ -389,36 +392,41 @@ async function main() {
   console.log('Created surgeries:', { surgery1, surgery2 })
 
   // Create RBAC users
+  const hashedPassword = await bcrypt.hash(DEMO_PASSWORD, 12)
+
   const superuser = await prisma.user.upsert({
     where: { email: 'superuser@example.com' },
-    update: {},
+    update: { password: hashedPassword },
     create: {
       email: 'superuser@example.com',
       name: 'Super User',
       globalRole: 'SUPERUSER',
       defaultSurgeryId: surgery1.id,
+      password: hashedPassword,
     },
   })
 
   const adminUser = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
-    update: {},
+    update: { password: hashedPassword },
     create: {
       email: 'admin@example.com',
       name: 'Admin User',
       globalRole: 'USER',
       defaultSurgeryId: surgery1.id,
+      password: hashedPassword,
     },
   })
 
   const standardUser = await prisma.user.upsert({
     where: { email: 'user@example.com' },
-    update: {},
+    update: { password: hashedPassword },
     create: {
       email: 'user@example.com',
       name: 'Standard User',
       globalRole: 'USER',
       defaultSurgeryId: surgery1.id,
+      password: hashedPassword,
     },
   })
 
