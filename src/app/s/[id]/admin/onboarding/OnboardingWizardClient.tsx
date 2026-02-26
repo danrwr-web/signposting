@@ -736,9 +736,17 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
           {currentStep === 2.5 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Appointment types & naming</h2>
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-sm text-gray-600 mb-4">
                 Define how your appointment types map to common archetypes. This helps the AI customise instructions with your surgery&apos;s terminology.
               </p>
+              <a
+                href="https://docs.signpostingtool.co.uk/getting-started#step-25--appointment-types--naming"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-nhs-blue underline hover:text-nhs-dark-blue"
+              >
+                How to fill in this section ↗
+              </a>
 
               {APPOINTMENT_ARCHETYPES.map((archetype) => {
                 const config = profile.appointmentModel[archetype.key]
@@ -875,9 +883,17 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
               {/* Other clinician appointments section */}
               <div className="mt-8 pt-8 border-t-2 border-gray-300">
                 <h3 className="text-xl font-semibold text-nhs-dark-blue mb-4">Other clinician appointments</h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <p className="text-sm text-gray-600 mb-4">
                   Configure non-GP clinician appointment types that can be used for specific conditions (e.g., ANP for minor illness, Pharmacist for medication queries, FCP for MSK problems).
                 </p>
+                <a
+                  href="https://docs.signpostingtool.co.uk/getting-started#minor-illness-clinician--getting-the-best-results"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-nhs-blue underline hover:text-nhs-dark-blue mb-6 inline-block"
+                >
+                  How to fill in this section ↗
+                </a>
 
                 {CLINICIAN_ARCHETYPES.map((archetype) => {
                   // Ensure clinicianArchetypes array exists

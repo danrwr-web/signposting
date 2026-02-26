@@ -47,6 +47,61 @@ For each enabled type, you provide:
 
 You can also configure non-GP clinician appointments (Minor Illness Clinician, Clinical Pharmacist, First Contact Physiotherapist, or other).
 
+> **Important:** The quality of AI-customised instructions depends directly on what you enter here. Vague or incomplete descriptions produce generic output that won't match your surgery's real workflow. Take the time to fill in local names, clinician roles, and descriptions accurately — the AI can only work with the information you provide.
+
+#### Good example vs poor example
+
+Below is the same Minor Illness Clinician (ANP) archetype filled in two different ways:
+
+**Well-filled entry:**
+| Field | Value |
+|-------|-------|
+| Local name | ANP Clinic (Minor Illness) |
+| Role | ANP |
+| Conditions checklist | Earache, sore throat, sinusitis, cough (acute), UTI (non-pregnant adults), simple skin infections, conjunctivitis, insect bites |
+| Restrictions | Does not manage chronic disease reviews, mental health, or children under 2 |
+| Under-5s | Accepts children aged 2–5 for the conditions listed above |
+
+**Poorly-filled entry:**
+| Field | Value |
+|-------|-------|
+| Local name | ANP |
+| Role | ANP |
+| Conditions checklist | *(empty)* |
+| Restrictions | *(empty)* |
+| Under-5s | *(left as default — No)* |
+
+The well-filled entry gives the AI enough detail to route "sore throat in a 4-year-old" to the ANP Clinic. The poorly-filled entry gives the AI almost nothing to work with, so it defaults to routing everything through a GP.
+
+> **Note:** If two appointment types have very similar local names (e.g. "GP Telephone" and "GP Phone Triage"), the AI may confuse them when writing instructions. Use distinct, unambiguous names that match exactly what your reception team sees in the appointment book.
+
+#### Minor Illness Clinician — getting the best results
+
+If your surgery has an ANP, Nurse Practitioner, or other minor illness clinician, this section is especially important.
+
+**Conditions checklist** — Tick the conditions your minor illness clinician routinely handles. The AI uses this list to decide which symptoms can be routed away from a GP. If the list is empty, the AI has no basis for routing anything to this clinician.
+
+**Under-5s setting** — Some minor illness clinicians see young children; others do not. If your clinician accepts under-5s (or a subset, e.g. ages 2–5), enable this setting. The AI uses it to decide whether a "child with earache" should go to the ANP or remain with a GP. Leaving it off when your clinician does see young children means those patients will always be routed to a GP unnecessarily.
+
+**Restrictions** — Use this to tell the AI what your clinician does *not* handle. For example: "Does not manage chronic disease reviews, mental health, or complex multi-system problems." This prevents the AI from routing inappropriate conditions to the wrong clinician.
+
+**Example of a complete, well-configured entry:**
+
+- **Local name:** ANP Clinic (Minor Illness)
+- **Role:** ANP
+- **Conditions:** Earache / ear infection, Sore throat / tonsillitis, Sinusitis, Cough (acute, uncomplicated), Cold / flu symptoms, Uncomplicated UTI (non-pregnant adults), Simple skin infections, Conjunctivitis, Insect bites / minor wounds
+- **Under-5s:** Yes — accepts children aged 2 and over
+- **Restrictions:** Does not manage chronic disease reviews, mental health assessments, children under 2, or complex multi-system presentations
+
+#### What to expect from AI customisation
+
+After completing the onboarding wizard and running AI customisation, here is what to expect:
+
+- **Conservative routing** — The AI defaults to preserving GP pathways when it is uncertain. If your profile doesn't clearly indicate that another clinician handles a condition, the AI will leave the GP routing in place. This is by design — it is safer to under-route than to send patients to the wrong clinician.
+- **Clinical review is mandatory** — Every AI-customised instruction is set to Pending review. A clinician must approve each one before it goes live. This is not a rubber-stamp step — reviewers should check that routing makes sense for your surgery.
+- **You can re-run customisation** — If you improve your onboarding profile (e.g. add missing conditions to your ANP, fix a local name), you can re-run AI customisation. The new run will use your updated profile and overwrite previous drafts.
+- **Skipped symptoms are normal** — Some symptoms will be skipped during customisation. The results page shows these with a reason (e.g. "No instructions to customise" or "Base symptom has no HTML content"). This is expected — not every symptom needs customisation.
+
 ### Step 3 — Team Structure
 
 - Which clinicians you have on site (GP partners, Salaried GPs, ANPs, Practice Nurses, HCAs, FCP, Pharmacist, Mental Health Practitioner, Social Prescriber, Frailty Team, and others)

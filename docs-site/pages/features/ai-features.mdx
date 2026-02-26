@@ -287,6 +287,45 @@ AI features can be enabled or disabled at multiple levels:
 
 ---
 
+## Troubleshooting
+
+### "The AI is routing everything to GPs"
+
+This usually means your clinician archetype profiles are too vague for the AI to confidently route away from a GP. Check the following:
+
+- **Conditions checklist** — Open Step 2.5 in the onboarding wizard and check that your Minor Illness Clinician (ANP) has conditions ticked. If the checklist is empty, the AI has no basis for routing anything away from a GP.
+- **Descriptions** — Make sure each appointment type has a specific one-sentence description. "ANP for minor illness" is too vague — "ANP for acute earache, sore throat, UTI, and simple skin infections in adults and children aged 2+" gives the AI something to work with.
+- **Under-5s setting** — If your clinician sees young children but this is left off, child symptoms will always route to a GP.
+
+The AI is deliberately conservative: when in doubt, it preserves the existing GP pathway rather than routing to the wrong clinician.
+
+### "Slot names in the output don't match our system"
+
+The AI uses the **local names** you entered in Step 2.5. If the output says "Book a GP Telephone" but your system calls it "Pink Slot — GP Phone Triage", go back to Step 2.5 and update the local name to match exactly what reception sees in the appointment book.
+
+After updating, re-run AI customisation to regenerate instructions with the corrected names.
+
+### "The AI added a routing step that wasn't in the original"
+
+This is expected behaviour in some cases — the AI may add a routing option based on your onboarding profile (e.g. adding an ANP pathway that didn't exist in the base instructions). However, this is exactly what clinical review is for:
+
+- If the new routing is correct for your surgery, **approve** it.
+- If it is incorrect, **reject** the change. The original base instruction is preserved and will remain active.
+
+You can also edit the AI-generated draft during review to keep parts you agree with and remove parts you don't.
+
+### "Many symptoms were skipped"
+
+Symptoms are skipped when there is nothing for the AI to customise. Common reasons:
+
+- **No instructions to customise** — The base symptom has no HTML content. The AI needs existing instructions to rewrite.
+- **Symptom is disabled** — Disabled symptoms are not processed.
+- **No relevant appointment types** — If none of your configured appointment types are relevant to a symptom, it may be skipped.
+
+The results summary shows the reason for each skipped symptom. If a symptom you expected to be customised was skipped, check that it has base instructions with content.
+
+---
+
 ## Related Pages
 
 - [Clinical Governance](/governance/clinical-governance) — How AI content is reviewed
