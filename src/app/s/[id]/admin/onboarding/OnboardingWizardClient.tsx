@@ -856,6 +856,25 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                           <p className="text-xs text-gray-500 mb-2">
                             Explain when this appointment type is normally used.
                           </p>
+                          {(!config.description || config.description.trim() === '' || config.description !== archetype.suggestedDescription) && archetype.suggestedDescription && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateProfile({
+                                  appointmentModel: {
+                                    ...profile.appointmentModel,
+                                    [archetype.key]: {
+                                      ...config,
+                                      description: archetype.suggestedDescription,
+                                    },
+                                  },
+                                })
+                              }}
+                              className="text-xs text-nhs-blue underline hover:text-nhs-dark-blue mb-2 inline-block"
+                            >
+                              Use suggested text
+                            </button>
+                          )}
                           <textarea
                             value={config.description}
                             onChange={(e) => {
@@ -1092,6 +1111,37 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                             <p className="text-xs text-gray-500 mb-2">
                               Explain when this appointment type is normally used.
                             </p>
+                            {(!(config.description) || config.description.trim() === '' || config.description !== archetype.suggestedDescription) && archetype.suggestedDescription && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedArchetypes = [...clinicianArchetypes]
+                                  if (archetypeIndex >= 0) {
+                                    updatedArchetypes[archetypeIndex] = {
+                                      ...config,
+                                      description: archetype.suggestedDescription,
+                                    }
+                                  } else {
+                                    updatedArchetypes.push({
+                                      key: archetype.key,
+                                      enabled: true,
+                                      localName: config.localName,
+                                      role: config.role,
+                                      description: archetype.suggestedDescription,
+                                    })
+                                  }
+                                  updateProfile({
+                                    appointmentModel: {
+                                      ...profile.appointmentModel,
+                                      clinicianArchetypes: updatedArchetypes,
+                                    },
+                                  })
+                                }}
+                                className="text-xs text-nhs-blue underline hover:text-nhs-dark-blue mb-2 inline-block"
+                              >
+                                Use suggested text
+                              </button>
+                            )}
                             <textarea
                               value={config.description || ''}
                               onChange={(e) => {
