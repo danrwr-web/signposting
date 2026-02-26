@@ -348,6 +348,10 @@ CONTINUITY AND ESCALATION RULES:
   * 48h GP triage (Pink/Purple slot equivalent) if more suitable,
   * but NOT same-day urgent or Duty Team unless explicitly urgent.
 
+ROLE ROUTING NOTES:
+The surgery has provided specific routing preferences for certain symptom types or tasks. These are stored in the onboarding profile under "team.roleRoutingNotes". You must follow these routing preferences when they are relevant to the symptom being customised. For example, if the notes say "back pain → FCP", then MSK symptoms should route to the FCP appointment type rather than a GP. If the notes say "medication queries → Pharmacist", then symptoms involving medication management should route to the pharmacist archetype where one is configured.
+These routing notes take precedence over default routing decisions but must not override safety-critical escalation pathways or red flag routing.
+
 IMPROVEMENT GOALS:
 - Improve clarity, structure, readability, and workflow for reception/admin teams.
 - Use the surgery's preferred terminology (e.g., their duty doctor term, slot names).
@@ -403,6 +407,7 @@ Rewrite the symptom instructions to match this surgery's:
 3. Booking rules (reflect who can book directly)
 4. Escalation pathways (use their first escalation point and urgent wording)
 5. Communication style (match their detail level and terminology preference)
+6. Role routing (follow any specific routing notes from team.roleRoutingNotes where relevant to this symptom)
 
 IMPORTANT:
 - Maintain all clinical safety exactly as written.
