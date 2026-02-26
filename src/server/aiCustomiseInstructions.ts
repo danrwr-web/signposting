@@ -28,6 +28,8 @@ interface ClinicianArchetypeConfig {
   localName?: string | null
   role?: string | null
   description?: string | null
+  restrictions?: string | null
+  acceptsUnderFives?: boolean | null
 }
 
 interface AppointmentModelConfig {
@@ -225,9 +227,18 @@ export async function customiseInstructions(
       const localName = minorIllnessClinicianArchetype.localName || 'Minor Illness Clinician Appointment'
       const role = minorIllnessClinicianArchetype.role || 'ANP / Paramedic / ACP'
       const description = minorIllnessClinicianArchetype.description || 'minor illnesses that do not require GP review'
-      
+      const restrictions = minorIllnessClinicianArchetype.restrictions || null
+
       appointmentSelectionRules += `
-- **PRIORITY FOR MINOR ILLNESSES**: For minor, self-limiting illnesses without red flags (such as uncomplicated earache, sore throat, cough, cold/flu, uncomplicated UTI, simple rashes), prefer the Minor Illness Clinician Appointment (local name: "${localName}") instead of booking with the GP or Duty Team. This appointment type is suitable for: ${description}. Only use GP appointments or Duty Team when the symptom or red flags explicitly require GP-level or senior review (e.g., severe systemic illness, red-flag features, rapid deterioration).`
+- **PRIORITY FOR MINOR ILLNESSES**: For minor, self-limiting illnesses without red flags (such as uncomplicated earache, sore throat, cough, cold/flu, uncomplicated UTI, simple rashes), prefer the Minor Illness Clinician Appointment (local name: "${localName}") instead of booking with the GP or Duty Team. This appointment type is suitable for: ${description}.${restrictions ? ` Note the following restrictions apply: ${restrictions}.` : ''} Only use GP appointments or Duty Team when the symptom or red flags explicitly require GP-level or senior review (e.g., severe systemic illness, red-flag features, rapid deterioration).`
+
+      if (minorIllnessClinicianArchetype.acceptsUnderFives === false) {
+        appointmentSelectionRules += `
+- **UNDER 5s EXCLUSION**: The Minor Illness Clinician Appointment ("${localName}") does NOT accept patients under 5 years old. For children under 5 with minor illness symptoms, route to a GP appointment or Duty Team instead.`
+      } else if (minorIllnessClinicianArchetype.acceptsUnderFives === true) {
+        appointmentSelectionRules += `
+- **UNDER 5s ACCEPTED**: The Minor Illness Clinician Appointment ("${localName}") can accept patients under 5 years old for appropriate minor illness presentations.`
+      }
     }
 
     // Add other clinician archetype rules

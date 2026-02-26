@@ -204,10 +204,10 @@ const getDefaultProfile = (): SurgeryOnboardingProfileJson => ({
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
     clinicianArchetypes: [
-      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null },
-      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null },
-      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null },
-      { key: 'OTHER', enabled: false, localName: null, role: null, description: null },
+      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null, restrictions: null, acceptsUnderFives: null },
+      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null, restrictions: null, acceptsUnderFives: null },
+      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null, restrictions: null, acceptsUnderFives: null },
+      { key: 'OTHER', enabled: false, localName: null, role: null, description: null, restrictions: null, acceptsUnderFives: null },
     ],
   },
 })
@@ -967,6 +967,84 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                               }}
                               placeholder={archetype.descriptionPlaceholder}
                               rows={3}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                            />
+                          </div>
+
+                          <div className="flex items-center">
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={config.acceptsUnderFives ?? false}
+                                onChange={(e) => {
+                                  const updatedArchetypes = [...clinicianArchetypes]
+                                  if (archetypeIndex >= 0) {
+                                    updatedArchetypes[archetypeIndex] = {
+                                      ...config,
+                                      acceptsUnderFives: e.target.checked,
+                                    }
+                                  } else {
+                                    updatedArchetypes.push({
+                                      key: archetype.key,
+                                      enabled: true,
+                                      localName: config.localName,
+                                      role: config.role,
+                                      description: config.description,
+                                      restrictions: config.restrictions,
+                                      acceptsUnderFives: e.target.checked,
+                                    })
+                                  }
+                                  updateProfile({
+                                    appointmentModel: {
+                                      ...profile.appointmentModel,
+                                      clinicianArchetypes: updatedArchetypes,
+                                    },
+                                  })
+                                }}
+                                className="mr-2"
+                              />
+                              <span className="text-sm font-medium text-gray-700">
+                                Accepts patients under 5 years old?
+                              </span>
+                            </label>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Restrictions
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Any restrictions or exclusions for this appointment type (e.g. &quot;not suitable for pregnant patients&quot;). Leave blank if none.
+                            </p>
+                            <textarea
+                              value={config.restrictions || ''}
+                              onChange={(e) => {
+                                const updatedArchetypes = [...clinicianArchetypes]
+                                if (archetypeIndex >= 0) {
+                                  updatedArchetypes[archetypeIndex] = {
+                                    ...config,
+                                    restrictions: e.target.value || null,
+                                  }
+                                } else {
+                                  updatedArchetypes.push({
+                                    key: archetype.key,
+                                    enabled: true,
+                                    localName: config.localName,
+                                    role: config.role,
+                                    description: config.description,
+                                    restrictions: e.target.value || null,
+                                    acceptsUnderFives: config.acceptsUnderFives,
+                                  })
+                                }
+                                updateProfile({
+                                  appointmentModel: {
+                                    ...profile.appointmentModel,
+                                    clinicianArchetypes: updatedArchetypes,
+                                  },
+                                })
+                              }}
+                              placeholder="e.g. Not suitable for pregnant patients, immunocompromised patients, or children under 2"
+                              rows={2}
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                             />
                           </div>
