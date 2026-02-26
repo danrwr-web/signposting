@@ -230,7 +230,13 @@ export async function customiseInstructions(
       const restrictions = minorIllnessClinicianArchetype.restrictions || null
 
       appointmentSelectionRules += `
-- **PRIORITY FOR MINOR ILLNESSES**: For minor, self-limiting illnesses without red flags (such as uncomplicated earache, sore throat, cough, cold/flu, uncomplicated UTI, simple rashes), prefer the Minor Illness Clinician Appointment (local name: "${localName}") instead of booking with the GP or Duty Team. This appointment type is suitable for: ${description}.${restrictions ? ` Note the following restrictions apply: ${restrictions}.` : ''} Only use GP appointments or Duty Team when the symptom or red flags explicitly require GP-level or senior review (e.g., severe systemic illness, red-flag features, rapid deterioration).`
+- **MINOR ILLNESS CLINICIAN — CONDITIONAL ROUTING ONLY**: This surgery has a Minor Illness Clinician appointment (local name: "${localName}", staffed by: ${role}, suitable for: ${description}).${restrictions ? ` Restrictions — do not use for: ${restrictions}.` : ''}
+  IMPORTANT: Do NOT default to this appointment type. Only route to it when the base instruction clearly supports a minor illness pathway AND none of the following apply:
+  * The base instruction contains red flags, complexity signals, or comorbidity warnings
+  * The base instruction routes to Duty Team or urgent same-day care
+  * The patient is under 5 and this clinic does not accept under 5s (see under-5s rule below)
+  * The presentation falls within the restrictions listed above
+  When in doubt, PRESERVE the original routing from the base instruction. Do not downgrade a GP routing to a Minor Illness Clinician routing unless the original instruction clearly and unambiguously supports it.`
 
       if (minorIllnessClinicianArchetype.acceptsUnderFives === false) {
         appointmentSelectionRules += `
