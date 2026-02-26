@@ -1671,53 +1671,6 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  How much should be customised now?
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="customisationScope"
-                      checked={profile.aiSettings.customisationScope === 'all'}
-                      onChange={() => updateProfile({
-                        aiSettings: { ...profile.aiSettings, customisationScope: 'all' }
-                      })}
-                      className="mr-2"
-                    />
-                    Customise ALL symptoms
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="customisationScope"
-                      checked={profile.aiSettings.customisationScope === 'core'}
-                      onChange={() => updateProfile({
-                        aiSettings: { ...profile.aiSettings, customisationScope: 'core' }
-                      })}
-                      className="mr-2"
-                    />
-                    Customise core set only (recommended)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="customisationScope"
-                      checked={profile.aiSettings.customisationScope === 'manual'}
-                      onChange={() => updateProfile({
-                        aiSettings: { ...profile.aiSettings, customisationScope: 'manual' }
-                      })}
-                      className="mr-2"
-                    />
-                    I will select symptoms manually
-                  </label>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  All symptoms means every enabled symptom in your library. Core set uses the same list but is recommended for first-time setup. You can always run customisation again after reviewing results.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Should all AI-generated instructions be automatically set to PENDING for clinical review?
                 </label>
                 <div className="space-y-2">
@@ -1750,7 +1703,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  The customisation scope and clinical review settings are used when you run AI customisation from the AI Setup page. You can change these settings at any time before or after running customisation.
+                  When you&apos;re ready, go to Admin → AI Setup to run the customisation. You can choose which symptoms to customise at that point.
                 </p>
               </div>
             </div>
