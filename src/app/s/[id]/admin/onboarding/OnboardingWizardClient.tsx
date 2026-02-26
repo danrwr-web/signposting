@@ -38,49 +38,99 @@ const APPOINTMENT_ARCHETYPES = [
     key: 'routineContinuityGp' as const,
     heading: 'Routine continuity GP',
     intro: 'For non-urgent problems where it\'s best for the patient to see their usual GP or a regular GP in the team.',
-    placeholder: 'e.g. Green Slot – continuity GP',
-    descriptionPlaceholder: 'e.g. Used for stable or long-term problems where continuity is helpful but not urgent.',
-    suggestedDescription: 'Used for stable or long-term problems where continuity is helpful but not urgent.',
+    placeholder: 'e.g. Routine F2F — continuity GP',
+    descriptionPlaceholder: 'e.g. Used for ongoing or long-term problems where seeing the same GP matters — chronic disease reviews, long-standing skin conditions, stable mental health, follow-up after hospital discharge, or any problem where the patient benefits from continuity.',
+    suggestedDescription: 'Used for ongoing or long-term problems where seeing the same GP matters — chronic disease reviews, long-standing skin conditions, stable mental health, or follow-up after hospital discharge.',
   },
   {
     key: 'routineGpPhone' as const,
     heading: 'Routine GP telephone',
     intro: 'For non-urgent problems that can be safely managed over the phone, without needing an examination.',
-    placeholder: 'e.g. Routine GP phone appointment',
-    descriptionPlaceholder: 'e.g. Used for follow-up discussions, simple results, or medication queries that don\'t need a face-to-face review.',
-    suggestedDescription: 'Used for follow-up discussions, simple results, or medication queries that don\'t need a face-to-face review.',
+    placeholder: 'e.g. Routine GP telephone appointment',
+    descriptionPlaceholder: 'e.g. Used for follow-up calls, straightforward results discussions, medication queries, or simple advice where a face-to-face review is not needed and the problem is not urgent.',
+    suggestedDescription: 'Used for follow-up calls, straightforward results discussions, medication queries, or simple advice where a face-to-face review is not needed and the problem is not urgent.',
   },
   {
     key: 'gpTriage48h' as const,
     heading: 'GP triage within 48 hours',
     intro: 'For problems that need GP input within the next 1–2 days, but are not same-day emergencies.',
-    placeholder: 'e.g. Pink/Purple – GP triage (within 48 hours)',
-    descriptionPlaceholder: 'e.g. Used when a GP needs to assess symptoms within 48 hours to decide on face-to-face review or self-care.',
-    suggestedDescription: 'Used when a GP needs to assess symptoms within 48 hours to decide on face-to-face review or self-care.',
+    placeholder: 'e.g. GP triage — within 48 hours',
+    descriptionPlaceholder: 'e.g. Used when a GP needs to assess new or changing symptoms within 48 hours — symptoms needing clinical judgement, results needing discussion, medication concerns, or problems that are worsening but not yet urgent.',
+    suggestedDescription: 'Used when a GP needs to assess new or changing symptoms within 48 hours — symptoms needing clinical judgement, results needing discussion, or problems that are worsening but not yet a same-day emergency.',
   },
   {
     key: 'urgentSameDayPhone' as const,
     heading: 'Urgent same-day telephone (Duty GP)',
     intro: 'For urgent or safety-critical problems where a GP needs to speak to the patient the same day.',
-    placeholder: 'e.g. Duty GP telephone today',
-    descriptionPlaceholder: 'e.g. Used for acute issues with red-flag symptoms where the Duty GP must assess the patient today.',
-    suggestedDescription: 'Used for acute issues with red-flag symptoms where the Duty GP must assess the patient today.',
+    placeholder: 'e.g. Duty GP telephone — same day',
+    descriptionPlaceholder: 'e.g. Used for acute symptoms with possible red flags where the Duty GP must speak to the patient today — chest pain, breathing difficulty, sudden severe headache, suspected infection with systemic features, or rapid clinical deterioration.',
+    suggestedDescription: 'Used for acute symptoms with possible red flags where the Duty GP must speak to the patient today — chest pain, breathing difficulty, sudden severe headache, or rapid clinical deterioration.',
   },
   {
     key: 'urgentSameDayF2F' as const,
     heading: 'Urgent same-day face-to-face',
     intro: 'For patients who clearly need to be examined in person on the same day, usually after GP triage.',
-    placeholder: 'e.g. Urgent F2F – today',
-    descriptionPlaceholder: 'e.g. Used when the GP believes the patient needs to be seen in person urgently (e.g. acute abdominal pain).',
-    suggestedDescription: 'Used when the GP believes the patient needs to be seen in person urgently (e.g. acute abdominal pain).',
+    placeholder: 'e.g. Urgent F2F — same day',
+    descriptionPlaceholder: 'e.g. Used when the GP believes the patient must be examined in person urgently the same day — acute abdominal pain, suspected fracture, wound review, or any presentation where examination cannot wait.',
+    suggestedDescription: 'Used when the GP believes the patient must be examined in person urgently the same day — acute abdominal pain, suspected fracture, wound review, or any presentation where examination cannot wait.',
   },
   {
     key: 'otherClinicianDirect' as const,
     heading: 'Direct booking with another clinician',
     intro: 'For problems that can go straight to another clinician, without needing a GP first.',
-    placeholder: 'e.g. FCP MSK clinic, Minor illness ANP, Pharmacist meds review',
-    descriptionPlaceholder: 'e.g. Used when patients can be booked directly with FCP for MSK problems, ANP for minor illness, or a clinical pharmacist for medicines queries.',
-    suggestedDescription: 'Used when the patient can be booked directly with FCP, ANP, or a clinical pharmacist according to local pathways.',
+    placeholder: 'e.g. FCP MSK clinic, ANP minor illness, Pharmacist meds review',
+    descriptionPlaceholder: 'e.g. Used when patients can be booked directly with a specialist clinician — FCP for MSK problems such as back pain or joint pain, ANP for minor illness in eligible patients, or a clinical pharmacist for medication queries and polypharmacy reviews.',
+    suggestedDescription: 'Used when patients can be booked directly with a specialist clinician — FCP for MSK problems, ANP for minor illness in eligible patients, or a clinical pharmacist for medication queries.',
+  },
+]
+
+const ANP_CONDITIONS = [
+  {
+    category: 'Ears, nose & throat',
+    conditions: [
+      'Earache / ear infection',
+      'Sore throat / tonsillitis',
+      'Sinusitis',
+      'Nasal congestion / rhinitis',
+      'Mouth ulcers / oral infections',
+    ],
+  },
+  {
+    category: 'Respiratory',
+    conditions: [
+      'Cough (acute, uncomplicated)',
+      'Cold / flu symptoms',
+      'Hay fever / allergic rhinitis',
+    ],
+  },
+  {
+    category: 'Skin',
+    conditions: [
+      'Simple skin infections (impetigo, folliculitis)',
+      'Rashes (non-urgent, non-systemic)',
+      'Insect bites / minor wounds',
+      'Conjunctivitis',
+    ],
+  },
+  {
+    category: 'Urinary',
+    conditions: [
+      'Uncomplicated UTI (non-pregnant adults)',
+    ],
+  },
+  {
+    category: 'Gastrointestinal',
+    conditions: [
+      'Diarrhoea / vomiting (uncomplicated)',
+      'Constipation (simple)',
+    ],
+  },
+  {
+    category: 'Other',
+    conditions: [
+      'Mild headache (tension-type, no red flags)',
+      'Minor musculoskeletal (sprains, strains — if no FCP)',
+    ],
   },
 ]
 
@@ -234,6 +284,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
   const [otherRole, setOtherRole] = useState('')
   const [otherEscalation, setOtherEscalation] = useState('')
   const [justCompleted, setJustCompleted] = useState(false)
+  const [archetypeConditions, setArchetypeConditions] = useState<Record<string, string[]>>({})
+  const [archetypeExtraText, setArchetypeExtraText] = useState<Record<string, string>>({})
 
   useEffect(() => {
     fetchProfile()
@@ -277,6 +329,21 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
           }
         })
       }
+
+      // Initialise archetype conditions and extra text from loaded profile
+      const loadedConditions: Record<string, string[]> = {}
+      const loadedExtraText: Record<string, string> = {}
+      const archetypes = profileToSet.appointmentModel?.clinicianArchetypes || []
+      for (const ca of archetypes) {
+        if (ca.conditions && ca.conditions.length > 0) {
+          loadedConditions[ca.key] = ca.conditions
+        } else if (ca.description) {
+          // Backwards-compatible fallback: show existing description as free text
+          loadedExtraText[ca.key] = ca.description
+        }
+      }
+      setArchetypeConditions(loadedConditions)
+      setArchetypeExtraText(loadedExtraText)
     } catch (error) {
       console.error('Error fetching profile:', error)
       toast.error('Failed to load onboarding profile')
@@ -303,6 +370,23 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
       // Handle "Other" escalation
       if (profileToSave.escalation.firstEscalation === 'Other…' || otherEscalation.trim()) {
         profileToSave.escalation.firstEscalation = otherEscalation.trim() || null
+      }
+
+      // Serialise archetype conditions into description field
+      if (profileToSave.appointmentModel?.clinicianArchetypes) {
+        profileToSave.appointmentModel.clinicianArchetypes = profileToSave.appointmentModel.clinicianArchetypes.map((ca: any) => {
+          const conditions = archetypeConditions[ca.key] || []
+          const extraText = archetypeExtraText[ca.key] || ''
+          const selectedList = conditions.join(', ')
+          const combined = selectedList
+            ? `Suitable for: ${selectedList}.${extraText ? ' ' + extraText.trim() : ''}`
+            : extraText.trim() || ''
+          return {
+            ...ca,
+            conditions,
+            description: combined || ca.description,
+          }
+        })
       }
 
       const response = await fetch(`/api/surgeries/${surgeryId}/onboarding`, {
@@ -632,18 +716,14 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                     Explain briefly how your appointment workflow operates.
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Please include (in simple terms):
-                    <br />– Which roles are allowed to book urgent appointments (e.g. reception, clinicians only, Duty doctor only)
-                    <br />– How urgent appointments are normally chosen (e.g. &apos;Try orange first; use red only if orange is full&apos;)
-                    <br />– Any triage sequencing rules (e.g. &apos;Admin team books pink/purple; clinicians convert to F2F as needed&apos;)
-                    <br />– Any important exceptions or special circumstances.
+                    Describe your urgent appointment workflow in plain English. Include: which roles are allowed to book urgent slots, which slot to try first, and how appointments escalate (e.g. phone triage converting to F2F). The AI uses this to decide how to route urgent symptoms correctly.
                   </p>
                   <textarea
                     value={profile.urgentCareModel.urgentSlotsDescription || ''}
                     onChange={(e) => updateProfile({
                       urgentCareModel: { ...profile.urgentCareModel, urgentSlotsDescription: e.target.value }
                     })}
-                    placeholder="e.g. Reception can book orange slots directly. Orange slots are tried first for urgent F2F. Red slots are used as triage slots or if there are no orange slots left. Clinicians can convert pink/purple triage slots to F2F as needed."
+                    placeholder={"e.g. Reception can book orange slots directly for urgent face-to-face appointments. Try orange first — use red only if orange is full. Pink/purple slots are for GP telephone triage within 48 hours and are booked by reception. Clinicians can convert pink/purple triage slots to face-to-face if needed after speaking to the patient."}
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                   />
@@ -822,13 +902,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                             onChange={(e) => {
                               const nextEnabled = e.target.checked
                               const updatedArchetypes = [...clinicianArchetypes]
-                              
+
                               if (archetypeIndex >= 0) {
                                 // Update existing
                                 updatedArchetypes[archetypeIndex] = {
                                   ...config,
                                   enabled: nextEnabled,
-                                  description: (!config.description || config.description.trim() === '') && nextEnabled
+                                  description: (!config.description || config.description.trim() === '') && nextEnabled && archetype.key !== 'ANP'
                                     ? archetype.suggestedDescription
                                     : config.description,
                                 }
@@ -839,8 +919,14 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                   enabled: nextEnabled,
                                   localName: null,
                                   role: config.role,
-                                  description: nextEnabled ? archetype.suggestedDescription : null,
+                                  description: nextEnabled && archetype.key !== 'ANP' ? archetype.suggestedDescription : null,
                                 })
+                              }
+
+                              // Pre-populate ANP conditions checklist when first enabled
+                              if (archetype.key === 'ANP' && nextEnabled && !(archetypeConditions['ANP']?.length > 0)) {
+                                const allConditions = ANP_CONDITIONS.flatMap(g => g.conditions)
+                                setArchetypeConditions(prev => ({ ...prev, ANP: allConditions }))
                               }
 
                               updateProfile({
@@ -933,6 +1019,56 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                             />
                           </div>
 
+                          {archetype.key === 'ANP' ? (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Which conditions should this appointment type be used for?
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Tick all conditions this clinician can manage. The AI will use this list to route patients correctly.
+                            </p>
+                            <div className="space-y-4 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                              {ANP_CONDITIONS.map((group) => (
+                                <div key={group.category}>
+                                  <p className="text-sm font-medium text-gray-700 mb-1">{group.category}</p>
+                                  <div className="space-y-1 ml-2">
+                                    {group.conditions.map((condition) => (
+                                      <label key={condition} className="flex items-center">
+                                        <input
+                                          type="checkbox"
+                                          checked={(archetypeConditions['ANP'] || []).includes(condition)}
+                                          onChange={(e) => {
+                                            const current = archetypeConditions['ANP'] || []
+                                            const updated = e.target.checked
+                                              ? [...current, condition]
+                                              : current.filter((c) => c !== condition)
+                                            setArchetypeConditions(prev => ({ ...prev, ANP: updated }))
+                                          }}
+                                          className="mr-2"
+                                        />
+                                        <span className="text-sm text-gray-600">{condition}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-3">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Any additional conditions not listed above?
+                              </label>
+                              <textarea
+                                value={archetypeExtraText['ANP'] || ''}
+                                onChange={(e) => {
+                                  setArchetypeExtraText(prev => ({ ...prev, ANP: e.target.value }))
+                                }}
+                                placeholder="e.g. Shingles (uncomplicated), travel health advice, minor burns"
+                                rows={2}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+                          ) : (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               When should this be used?
@@ -970,6 +1106,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                             />
                           </div>
+                          )}
 
                           <div className="flex items-center">
                             <label className="flex items-center cursor-pointer">
@@ -1115,12 +1252,15 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Are certain symptoms or tasks usually handled by specific roles?
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  List any symptom categories or problem types that should go to a specific clinician rather than a GP. Use plain language — the AI will use this alongside the appointment model above to improve routing decisions.
+                </p>
                 <textarea
                   value={profile.team.roleRoutingNotes}
                   onChange={(e) => updateProfile({
                     team: { ...profile.team, roleRoutingNotes: e.target.value }
                   })}
-                  placeholder="e.g. Back pain → FCP, Medication queries → Pharmacist"
+                  placeholder={"e.g. Back pain, joint pain, sports injuries → FCP Clinic\nMinor illness (earache, UTI, sore throat) in adults → ANP Clinic\nMedication queries, polypharmacy reviews → Clinical Pharmacist\nMental health, low mood, anxiety → Social Prescriber first, then IAPT self-referral\nWound care, dressings → Practice Nurse"}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                 />

@@ -217,6 +217,7 @@ export const ClinicianArchetypeConfigZ = z.object({
   description: z.string().optional().nullable(),
   restrictions: z.string().optional().nullable(),
   acceptsUnderFives: z.boolean().optional().nullable(),
+  conditions: z.array(z.string()).optional().default([]),
 });
 
 export const AppointmentModelConfigZ = z.object({

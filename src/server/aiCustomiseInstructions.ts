@@ -30,6 +30,7 @@ interface ClinicianArchetypeConfig {
   description?: string | null
   restrictions?: string | null
   acceptsUnderFives?: boolean | null
+  conditions?: string[]
 }
 
 interface AppointmentModelConfig {
