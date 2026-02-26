@@ -214,6 +214,14 @@ export default function AISetupClient({
   return (
     <div className="min-h-screen bg-nhs-light-grey">
       <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-4">
+          <Link
+            href={`/s/${surgeryId}/admin/setup-checklist`}
+            className="inline-flex items-center text-sm text-nhs-blue hover:text-nhs-dark-blue"
+          >
+            &larr; Back to Setup Checklist
+          </Link>
+        </div>
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <h1 className="text-2xl font-bold text-nhs-dark-blue mb-2">
             AI Surgery-Specific Customisation (Beta)

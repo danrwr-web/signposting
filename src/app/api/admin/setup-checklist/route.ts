@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
           select: {
             completed: true,
             completedAt: true,
+            updatedAt: true,
             profileJson: true,
           }
         }
@@ -71,6 +72,11 @@ export async function GET(request: NextRequest) {
     }).some(arch => arch.enabled)
     const clinicianArchetypesEnabled = (appointmentModel.clinicianArchetypes || []).some(ca => ca.enabled)
     const appointmentModelConfigured = gpArchetypesEnabled || clinicianArchetypesEnabled
+
+    // Determine if onboarding has been meaningfully started
+    const profileSurgeryName = profileJson?.surgeryName
+    const onboardingStarted = !!(surgery.onboardingProfile && (profileSurgeryName || appointmentModelConfigured))
+    const onboardingUpdatedAt = surgery.onboardingProfile?.updatedAt ?? null
 
     // Calculate pendingCount from SymptomReviewStatus
     const enabledSymptoms = await getEffectiveSymptoms(surgeryId, false)
@@ -124,6 +130,8 @@ export async function GET(request: NextRequest) {
       surgeryName: surgery.name,
       onboardingCompleted,
       onboardingCompletedAt,
+      onboardingStarted,
+      onboardingUpdatedAt,
       appointmentModelConfigured,
       aiCustomisationOccurred,
       pendingCount,

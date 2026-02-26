@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { SessionUser } from '@/lib/rbac'
 import { SurgeryOnboardingProfileJson } from '@/lib/api-contracts'
@@ -454,6 +455,14 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
   return (
     <div className="min-h-screen bg-nhs-light-grey">
       <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-4">
+          <Link
+            href={`/s/${surgeryId}/admin/setup-checklist`}
+            className="inline-flex items-center text-sm text-nhs-blue hover:text-nhs-dark-blue"
+          >
+            &larr; Back to Setup Checklist
+          </Link>
+        </div>
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h1 className="text-3xl font-bold text-nhs-dark-blue mb-2">
             Surgery Onboarding Questionnaire
@@ -488,18 +497,18 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                     Your surgery profile has been saved. You can safely close this page, or use the admin menu to revisit your answers at any time.
                   </p>
                   <div className="flex gap-3 mt-4">
-                    <a
+                    <Link
                       href={`/s/${surgeryId}/admin/ai-setup`}
                       className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
                     >
                       Go to AI Setup
-                    </a>
-                    <a
-                      href="/admin?tab=setup-checklist"
+                    </Link>
+                    <Link
+                      href={`/s/${surgeryId}/admin/setup-checklist`}
                       className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
                     >
-                      Return to Settings
-                    </a>
+                      Back to Setup Checklist
+                    </Link>
                   </div>
                 </div>
               </div>

@@ -26,6 +26,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
           select: {
             completed: true,
             completedAt: true,
+            updatedAt: true,
             profileJson: true,
           }
         }
@@ -39,6 +40,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
     // Extract onboardingProfile data
     const onboardingCompleted = surgery.onboardingProfile?.completed ?? false
     const onboardingCompletedAt = surgery.onboardingProfile?.completedAt ?? null
+    const onboardingUpdatedAt = surgery.onboardingProfile?.updatedAt ?? null
 
     // Extract appointmentModel from profileJson
     const profileJson = surgery.onboardingProfile?.profileJson as any
@@ -118,6 +120,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
         surgeryName={surgery.name}
         onboardingCompleted={onboardingCompleted}
         onboardingCompletedAt={onboardingCompletedAt}
+        onboardingUpdatedAt={onboardingUpdatedAt}
         appointmentModelConfigured={appointmentModelConfigured}
         aiCustomisationOccurred={aiCustomisationOccurred}
         pendingCount={pendingCount}
