@@ -633,7 +633,10 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
           {currentStep === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Appointment Types & Booking Rules</h2>
-              
+              <p className="text-sm text-gray-600 mb-6">
+                This step captures your booking rules and urgent appointment workflow. Step 2.5 (next) covers how to name and describe those appointment types for the AI.
+              </p>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Which appointments can reception book directly?
@@ -670,6 +673,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   onChange={(e) => updateProfile({
                     bookingRules: { ...profile.bookingRules, mustNotBookDirectly: e.target.value }
                   })}
+                  placeholder="e.g. Same-day GP appointments must not be booked by reception without GP approval. Duty Doctor slots are clinician-only."
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                 />
@@ -1266,9 +1270,12 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
               <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Clinical Team Structure</h2>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Which clinicians do you have on site?
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Which clinicians do you have on site? (optional — for context)
                 </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  This information helps give context about your team. Routing decisions are primarily driven by the appointment types you configured in Step 2.5.
+                </p>
                 <div className="space-y-2 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
                   {TEAM_ROLES.map((role) => (
                     <label key={role} className="flex items-center">
@@ -1382,7 +1389,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   onChange={(e) => updateProfile({
                     escalation: { ...profile.escalation, urgentWording: e.target.value }
                   })}
-                  placeholder="e.g. Always pass to Duty Doctor immediately"
+                  placeholder="e.g. Always pass to the Duty Team immediately. Do not ask the patient to call back."
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                 />
@@ -1406,13 +1413,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     MSK / physiotherapy
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.msk}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, msk: e.target.value }
                     })}
                     placeholder="e.g. Local Physio Service – FCP if booked by us; or self-referral via website"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1420,13 +1427,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Mental health
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.mentalHealth}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, mentalHealth: e.target.value }
                     })}
                     placeholder="e.g. Talkworks – self-referral, give website and phone number"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1434,13 +1441,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Social prescribing
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.socialPrescribing}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, socialPrescribing: e.target.value }
                     })}
                     placeholder="e.g. In-house social prescriber – reception can book directly into clinic"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1448,13 +1455,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Community nursing / wound care
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.communityNursing}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, communityNursing: e.target.value }
                     })}
                     placeholder="e.g. Community nurse team – GP or nurse to refer; reception cannot book directly"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1462,13 +1469,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Audiology
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.audiology}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, audiology: e.target.value }
                     })}
                     placeholder="e.g. Local audiology service – GP referral only"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1476,13 +1483,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Frailty / falls
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.frailty}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, frailty: e.target.value }
                     })}
                     placeholder="e.g. Community frailty team – refer via [system]"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1490,13 +1497,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Sexual health
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.sexualHealth}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, sexualHealth: e.target.value }
                     })}
                     placeholder="e.g. Local GUM clinic – self-referral, give website/phone number"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1504,13 +1511,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Out-of-hours service
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.outOfHours}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, outOfHours: e.target.value }
                     })}
                     placeholder="e.g. NHS 111 / OOH GP – advise patients to call 111"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1704,6 +1711,9 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                     I will select symptoms manually
                   </label>
                 </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  All symptoms means every enabled symptom in your library. Core set uses the same list but is recommended for first-time setup. You can always run customisation again after reviewing results.
+                </p>
               </div>
 
               <div>
@@ -1740,7 +1750,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  These settings will be used to tailor instructions for your surgery. You can change them later.
+                  The customisation scope and clinical review settings are used when you run AI customisation from the AI Setup page. You can change these settings at any time before or after running customisation.
                 </p>
               </div>
             </div>
