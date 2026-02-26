@@ -28,6 +28,7 @@ interface ClinicianArchetypeConfig {
   localName?: string | null
   role?: string | null
   description?: string | null
+  restrictions?: string | null
 }
 
 interface AppointmentModelConfig {
@@ -227,7 +228,20 @@ export async function customiseInstructions(
       const description = minorIllnessClinicianArchetype.description || 'minor illnesses that do not require GP review'
       
       appointmentSelectionRules += `
-- **PRIORITY FOR MINOR ILLNESSES**: For minor, self-limiting illnesses without red flags (such as uncomplicated earache, sore throat, cough, cold/flu, uncomplicated UTI, simple rashes), prefer the Minor Illness Clinician Appointment (local name: "${localName}") instead of booking with the GP or Duty Team. This appointment type is suitable for: ${description}. Only use GP appointments or Duty Team when the symptom or red flags explicitly require GP-level or senior review (e.g., severe systemic illness, red-flag features, rapid deterioration).`
+- **MINOR ILLNESS CLINICIAN — CONDITIONAL ROUTING**: This surgery has a Minor Illness Clinician appointment (local name: "${localName}", staffed by: ${role}, suitable for: ${description}).
+
+  Route to this appointment ONLY when ALL of the following are true:
+  * The base instruction does not contain age restrictions that exclude this patient group
+  * The base instruction does not contain comorbidity warnings or complexity signals suggesting GP review is preferable
+  * The symptom presentation is genuinely minor and self-limiting with no red flags in the original instruction
+  * The clinician restrictions for this appointment type do not exclude this presentation: ${minorIllnessClinicianArchetype.restrictions || 'none specified'}
+
+  When in doubt, PRESERVE the original routing from the base instruction. Do not downgrade a GP routing to a Minor Illness Clinician routing unless the original instruction clearly supports it.
+
+  NEVER route to the Minor Illness Clinician for:
+  * Under 5s unless the onboarding profile explicitly states this clinic accepts under 5s
+  * Patients where the base instruction flags complexity, chronic conditions, or need for examination
+  * Any presentation where the original instruction routes to Duty Team or urgent same-day care`
     }
 
     // Add other clinician archetype rules

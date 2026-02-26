@@ -215,6 +215,7 @@ export const ClinicianArchetypeConfigZ = z.object({
   localName: z.string().optional().nullable(),
   role: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
+  restrictions: z.string().optional().nullable(),
 });
 
 export const AppointmentModelConfigZ = z.object({
