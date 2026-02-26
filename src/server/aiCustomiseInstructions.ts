@@ -352,6 +352,7 @@ IMPROVEMENT GOALS:
 - Use the surgery's preferred terminology (e.g., their duty doctor term, slot names).
 - Follow the surgery's preferred communication detail level (brief/moderate/detailed).
 - Follow the surgery's terminology preference (surgery-specific vs generic vs mixed).
+- Do NOT add routing pathways or clinical steps that do not exist in the base instruction. Only rewrite what is already there — do not invent new steps.
 
 ${hasEnabledArchetypes ? appointmentModelInstruction : `COLOUR-SLOT TERMINOLOGY:
 ${colourSlotInstruction}`}
