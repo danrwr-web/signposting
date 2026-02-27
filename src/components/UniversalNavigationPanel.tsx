@@ -302,8 +302,8 @@ export default function UniversalNavigationPanel() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto py-4">
-          {/* Dashboard link — admin users only, hidden once onboarding is complete */}
-          {isAdmin && surgeryId && onboardingFetched && !onboardingCompleted && (
+          {/* Dashboard link — admin users only, only during active onboarding */}
+          {isAdmin && surgeryId && onboardingFetched && enabledFeatures['ai_surgery_customisation'] && !onboardingCompleted && (
             <nav aria-label="Dashboard" className="mb-4">
               <ul className="px-3">
                 <li>

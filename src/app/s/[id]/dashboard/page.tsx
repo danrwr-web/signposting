@@ -39,6 +39,11 @@ export default async function SurgeryDashboardPage({ params }: SurgeryDashboardP
 
     const setupComplete = onboarding?.completed ?? false
 
+    // Once onboarding is complete, the dashboard serves no purpose — redirect to signposting
+    if (setupComplete) {
+      redirect(`/s/${surgeryId}/signposting`)
+    }
+
     return (
       <SurgeryDashboardClient
         surgery={surgery}
