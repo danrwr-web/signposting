@@ -1,4 +1,4 @@
-import { requireSurgeryAccess } from '@/lib/rbac'
+import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
@@ -19,10 +19,22 @@ interface SignpostingToolPageProps {
 
 export default async function SignpostingToolPage({ params }: SignpostingToolPageProps) {
   const { id: surgeryId } = await params
-  
+
   try {
-    await requireSurgeryAccess(surgeryId)
-    
+    const user = await requireSurgeryAccess(surgeryId)
+
+    // If the user is an admin and setup is not complete, redirect to the
+    // dashboard where the welcome banner is visible.
+    if (can(user).manageSurgery(surgeryId)) {
+      const onboarding = await prisma.surgeryOnboardingProfile.findUnique({
+        where: { surgeryId },
+        select: { completed: true },
+      })
+      if (!onboarding?.completed) {
+        redirect(`/s/${surgeryId}/dashboard`)
+      }
+    }
+
     // Get surgery details including clinical review status and UI config
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },

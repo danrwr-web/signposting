@@ -386,6 +386,9 @@ export default function UniversalNavigationPanel() {
                           : 'text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue focus:ring-nhs-blue'
                       }`}
                     >
+                      {onboardingStarted && !onboardingCompleted && (
+                        <span className="w-2 h-2 rounded-full bg-amber-400 mr-2 flex-shrink-0" aria-hidden="true" />
+                      )}
                       {!onboardingStarted ? 'Begin setup' : onboardingCompleted ? 'Practice setup' : 'Finish setup'}
                     </Link>
                   </li>
