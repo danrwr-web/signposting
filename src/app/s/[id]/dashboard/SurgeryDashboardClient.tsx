@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import TestUserUsage from '@/components/TestUserUsage'
+import { AlertBanner, Button } from '@/components/ui'
 
 interface Surgery {
   id: string
@@ -18,9 +19,10 @@ interface Surgery {
 interface SurgeryDashboardClientProps {
   surgery: Surgery
   user: SessionUser
+  setupComplete: boolean
 }
 
-export default function SurgeryDashboardClient({ surgery, user }: SurgeryDashboardClientProps) {
+export default function SurgeryDashboardClient({ surgery, user, setupComplete }: SurgeryDashboardClientProps) {
   const canManageSurgery = user.globalRole === 'SUPERUSER' || 
     user.memberships.some(m => m.surgeryId === surgery.id && m.role === 'ADMIN')
 
@@ -52,6 +54,27 @@ export default function SurgeryDashboardClient({ surgery, user }: SurgeryDashboa
           </div>
         </div>
       </header>
+
+      {/* Setup Welcome Banner */}
+      {!setupComplete && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <AlertBanner variant="info">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p className="font-semibold">Welcome to your Signposting Toolkit</p>
+                <p className="mt-1">Complete your practice setup to configure your symptom library and get your team ready to go.</p>
+              </div>
+              <div className="flex-shrink-0">
+                <Link href={`/s/${surgery.id}/admin/setup-checklist`}>
+                  <Button variant="primary" size="sm">
+                    Begin setup &rarr;
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </AlertBanner>
+        </div>
+      )}
 
       {/* Clinical Review Warning Banner */}
       {surgery.requiresClinicalReview && (
