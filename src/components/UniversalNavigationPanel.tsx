@@ -302,8 +302,8 @@ export default function UniversalNavigationPanel() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto py-4">
-          {/* Dashboard link — admin users only */}
-          {isAdmin && surgeryId && (
+          {/* Dashboard link — admin users only, hidden once onboarding is complete */}
+          {isAdmin && surgeryId && onboardingFetched && !onboardingCompleted && (
             <nav aria-label="Dashboard" className="mb-4">
               <ul className="px-3">
                 <li>
@@ -391,22 +391,18 @@ export default function UniversalNavigationPanel() {
                     </Link>
                   </li>
                 ))}
-                {/* Finish setup - conditional link for incomplete onboarding */}
-                {isAdmin && onboardingFetched && enabledFeatures['ai_surgery_customisation'] && (
+                {/* Begin/Finish setup — only shown pre-completion; post-completion access is via Practice Settings */}
+                {isAdmin && onboardingFetched && enabledFeatures['ai_surgery_customisation'] && !onboardingCompleted && (
                   <li>
                     <Link
                       href={`/s/${surgeryId}/admin/setup-checklist`}
                       onClick={() => close()}
-                      className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-inset ${
-                        !onboardingCompleted
-                          ? 'bg-nhs-blue text-white hover:bg-nhs-dark-blue focus:ring-white'
-                          : 'text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue focus:ring-nhs-blue'
-                      }`}
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium bg-nhs-blue text-white hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-inset"
                     >
-                      {onboardingStarted && !onboardingCompleted && (
+                      {onboardingStarted && (
                         <span className="w-2 h-2 rounded-full bg-amber-400 mr-2 flex-shrink-0" aria-hidden="true" />
                       )}
-                      {!onboardingStarted ? 'Begin setup' : onboardingCompleted ? 'Practice setup' : 'Finish setup'}
+                      {onboardingStarted ? 'Finish setup' : 'Begin setup'}
                     </Link>
                   </li>
                 )}
