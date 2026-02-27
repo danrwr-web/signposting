@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import toast from 'react-hot-toast'
 import { SessionUser } from '@/lib/rbac'
 import { SurgeryOnboardingProfileJson } from '@/lib/api-contracts'
@@ -38,49 +39,99 @@ const APPOINTMENT_ARCHETYPES = [
     key: 'routineContinuityGp' as const,
     heading: 'Routine continuity GP',
     intro: 'For non-urgent problems where it\'s best for the patient to see their usual GP or a regular GP in the team.',
-    placeholder: 'e.g. Green Slot – continuity GP',
-    descriptionPlaceholder: 'e.g. Used for stable or long-term problems where continuity is helpful but not urgent.',
-    suggestedDescription: 'Used for stable or long-term problems where continuity is helpful but not urgent.',
+    placeholder: 'e.g. Routine F2F — continuity GP',
+    descriptionPlaceholder: 'e.g. Used for ongoing or long-term problems where seeing the same GP matters — chronic disease reviews, long-standing skin conditions, stable mental health, follow-up after hospital discharge, or any problem where the patient benefits from continuity.',
+    suggestedDescription: 'Used for ongoing or long-term problems where seeing the same GP matters — chronic disease reviews, long-standing skin conditions, stable mental health, or follow-up after hospital discharge.',
   },
   {
     key: 'routineGpPhone' as const,
     heading: 'Routine GP telephone',
     intro: 'For non-urgent problems that can be safely managed over the phone, without needing an examination.',
-    placeholder: 'e.g. Routine GP phone appointment',
-    descriptionPlaceholder: 'e.g. Used for follow-up discussions, simple results, or medication queries that don\'t need a face-to-face review.',
-    suggestedDescription: 'Used for follow-up discussions, simple results, or medication queries that don\'t need a face-to-face review.',
+    placeholder: 'e.g. Routine GP telephone appointment',
+    descriptionPlaceholder: 'e.g. Used for follow-up calls, straightforward results discussions, medication queries, or simple advice where a face-to-face review is not needed and the problem is not urgent.',
+    suggestedDescription: 'Used for follow-up calls, straightforward results discussions, medication queries, or simple advice where a face-to-face review is not needed and the problem is not urgent.',
   },
   {
     key: 'gpTriage48h' as const,
     heading: 'GP triage within 48 hours',
     intro: 'For problems that need GP input within the next 1–2 days, but are not same-day emergencies.',
-    placeholder: 'e.g. Pink/Purple – GP triage (within 48 hours)',
-    descriptionPlaceholder: 'e.g. Used when a GP needs to assess symptoms within 48 hours to decide on face-to-face review or self-care.',
-    suggestedDescription: 'Used when a GP needs to assess symptoms within 48 hours to decide on face-to-face review or self-care.',
+    placeholder: 'e.g. GP triage — within 48 hours',
+    descriptionPlaceholder: 'e.g. Used when a GP needs to assess new or changing symptoms within 48 hours — symptoms needing clinical judgement, results needing discussion, medication concerns, or problems that are worsening but not yet urgent.',
+    suggestedDescription: 'Used when a GP needs to assess new or changing symptoms within 48 hours — symptoms needing clinical judgement, results needing discussion, or problems that are worsening but not yet a same-day emergency.',
   },
   {
     key: 'urgentSameDayPhone' as const,
     heading: 'Urgent same-day telephone (Duty GP)',
     intro: 'For urgent or safety-critical problems where a GP needs to speak to the patient the same day.',
-    placeholder: 'e.g. Duty GP telephone today',
-    descriptionPlaceholder: 'e.g. Used for acute issues with red-flag symptoms where the Duty GP must assess the patient today.',
-    suggestedDescription: 'Used for acute issues with red-flag symptoms where the Duty GP must assess the patient today.',
+    placeholder: 'e.g. Duty GP telephone — same day',
+    descriptionPlaceholder: 'e.g. Used for acute symptoms with possible red flags where the Duty GP must speak to the patient today — chest pain, breathing difficulty, sudden severe headache, suspected infection with systemic features, or rapid clinical deterioration.',
+    suggestedDescription: 'Used for acute symptoms with possible red flags where the Duty GP must speak to the patient today — chest pain, breathing difficulty, sudden severe headache, or rapid clinical deterioration.',
   },
   {
     key: 'urgentSameDayF2F' as const,
     heading: 'Urgent same-day face-to-face',
     intro: 'For patients who clearly need to be examined in person on the same day, usually after GP triage.',
-    placeholder: 'e.g. Urgent F2F – today',
-    descriptionPlaceholder: 'e.g. Used when the GP believes the patient needs to be seen in person urgently (e.g. acute abdominal pain).',
-    suggestedDescription: 'Used when the GP believes the patient needs to be seen in person urgently (e.g. acute abdominal pain).',
+    placeholder: 'e.g. Urgent F2F — same day',
+    descriptionPlaceholder: 'e.g. Used when the GP believes the patient must be examined in person urgently the same day — acute abdominal pain, suspected fracture, wound review, or any presentation where examination cannot wait.',
+    suggestedDescription: 'Used when the GP believes the patient must be examined in person urgently the same day — acute abdominal pain, suspected fracture, wound review, or any presentation where examination cannot wait.',
   },
   {
     key: 'otherClinicianDirect' as const,
     heading: 'Direct booking with another clinician',
     intro: 'For problems that can go straight to another clinician, without needing a GP first.',
-    placeholder: 'e.g. FCP MSK clinic, Minor illness ANP, Pharmacist meds review',
-    descriptionPlaceholder: 'e.g. Used when patients can be booked directly with FCP for MSK problems, ANP for minor illness, or a clinical pharmacist for medicines queries.',
-    suggestedDescription: 'Used when the patient can be booked directly with FCP, ANP, or a clinical pharmacist according to local pathways.',
+    placeholder: 'e.g. FCP MSK clinic, ANP minor illness, Pharmacist meds review',
+    descriptionPlaceholder: 'e.g. Used when patients can be booked directly with a specialist clinician — FCP for MSK problems such as back pain or joint pain, ANP for minor illness in eligible patients, or a clinical pharmacist for medication queries and polypharmacy reviews.',
+    suggestedDescription: 'Used when patients can be booked directly with a specialist clinician — FCP for MSK problems, ANP for minor illness in eligible patients, or a clinical pharmacist for medication queries.',
+  },
+]
+
+const ANP_CONDITIONS = [
+  {
+    category: 'Ears, nose & throat',
+    conditions: [
+      'Earache / ear infection',
+      'Sore throat / tonsillitis',
+      'Sinusitis',
+      'Nasal congestion / rhinitis',
+      'Mouth ulcers / oral infections',
+    ],
+  },
+  {
+    category: 'Respiratory',
+    conditions: [
+      'Cough (acute, uncomplicated)',
+      'Cold / flu symptoms',
+      'Hay fever / allergic rhinitis',
+    ],
+  },
+  {
+    category: 'Skin',
+    conditions: [
+      'Simple skin infections (impetigo, folliculitis)',
+      'Rashes (non-urgent, non-systemic)',
+      'Insect bites / minor wounds',
+      'Conjunctivitis',
+    ],
+  },
+  {
+    category: 'Urinary',
+    conditions: [
+      'Uncomplicated UTI (non-pregnant adults)',
+    ],
+  },
+  {
+    category: 'Gastrointestinal',
+    conditions: [
+      'Diarrhoea / vomiting (uncomplicated)',
+      'Constipation (simple)',
+    ],
+  },
+  {
+    category: 'Other',
+    conditions: [
+      'Mild headache (tension-type, no red flags)',
+      'Minor musculoskeletal (sprains, strains — if no FCP)',
+    ],
   },
 ]
 
@@ -204,10 +255,10 @@ const getDefaultProfile = (): SurgeryOnboardingProfileJson => ({
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
     clinicianArchetypes: [
-      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null },
-      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null },
-      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null },
-      { key: 'OTHER', enabled: false, localName: null, role: null, description: null },
+      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null, restrictions: null, acceptsUnderFives: null },
+      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null, restrictions: null, acceptsUnderFives: null },
+      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null, restrictions: null, acceptsUnderFives: null },
+      { key: 'OTHER', enabled: false, localName: null, role: null, description: null, restrictions: null, acceptsUnderFives: null },
     ],
   },
 })
@@ -234,6 +285,8 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
   const [otherRole, setOtherRole] = useState('')
   const [otherEscalation, setOtherEscalation] = useState('')
   const [justCompleted, setJustCompleted] = useState(false)
+  const [archetypeConditions, setArchetypeConditions] = useState<Record<string, string[]>>({})
+  const [archetypeExtraText, setArchetypeExtraText] = useState<Record<string, string>>({})
 
   useEffect(() => {
     fetchProfile()
@@ -277,6 +330,21 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
           }
         })
       }
+
+      // Initialise archetype conditions and extra text from loaded profile
+      const loadedConditions: Record<string, string[]> = {}
+      const loadedExtraText: Record<string, string> = {}
+      const archetypes = profileToSet.appointmentModel?.clinicianArchetypes || []
+      for (const ca of archetypes) {
+        if (ca.conditions && ca.conditions.length > 0) {
+          loadedConditions[ca.key] = ca.conditions
+        } else if (ca.description) {
+          // Backwards-compatible fallback: show existing description as free text
+          loadedExtraText[ca.key] = ca.description
+        }
+      }
+      setArchetypeConditions(loadedConditions)
+      setArchetypeExtraText(loadedExtraText)
     } catch (error) {
       console.error('Error fetching profile:', error)
       toast.error('Failed to load onboarding profile')
@@ -303,6 +371,23 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
       // Handle "Other" escalation
       if (profileToSave.escalation.firstEscalation === 'Other…' || otherEscalation.trim()) {
         profileToSave.escalation.firstEscalation = otherEscalation.trim() || null
+      }
+
+      // Serialise archetype conditions into description field
+      if (profileToSave.appointmentModel?.clinicianArchetypes) {
+        profileToSave.appointmentModel.clinicianArchetypes = profileToSave.appointmentModel.clinicianArchetypes.map((ca: any) => {
+          const conditions = archetypeConditions[ca.key] || []
+          const extraText = archetypeExtraText[ca.key] || ''
+          const selectedList = conditions.join(', ')
+          const combined = selectedList
+            ? `Suitable for: ${selectedList}.${extraText ? ' ' + extraText.trim() : ''}`
+            : extraText.trim() || ''
+          return {
+            ...ca,
+            conditions,
+            description: combined || ca.description,
+          }
+        })
       }
 
       const response = await fetch(`/api/surgeries/${surgeryId}/onboarding`, {
@@ -370,6 +455,14 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
   return (
     <div className="min-h-screen bg-nhs-light-grey">
       <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-4">
+          <Link
+            href={`/s/${surgeryId}/admin/setup-checklist`}
+            className="inline-flex items-center text-sm text-nhs-blue hover:text-nhs-dark-blue"
+          >
+            &larr; Back to Setup Checklist
+          </Link>
+        </div>
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h1 className="text-3xl font-bold text-nhs-dark-blue mb-2">
             Surgery Onboarding Questionnaire
@@ -404,18 +497,18 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                     Your surgery profile has been saved. You can safely close this page, or use the admin menu to revisit your answers at any time.
                   </p>
                   <div className="flex gap-3 mt-4">
-                    <a
+                    <Link
                       href={`/s/${surgeryId}/admin/ai-setup`}
                       className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
                     >
                       Go to AI Setup
-                    </a>
-                    <a
-                      href="/admin?tab=setup-checklist"
+                    </Link>
+                    <Link
+                      href={`/s/${surgeryId}/admin/setup-checklist`}
                       className="inline-flex items-center px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm font-medium"
                     >
-                      Return to Settings
-                    </a>
+                      Back to Setup Checklist
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -549,7 +642,10 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
           {currentStep === 2 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Appointment Types & Booking Rules</h2>
-              
+              <p className="text-sm text-gray-600 mb-6">
+                This step captures your booking rules and urgent appointment workflow. Step 2.5 (next) covers how to name and describe those appointment types for the AI.
+              </p>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Which appointments can reception book directly?
@@ -586,6 +682,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   onChange={(e) => updateProfile({
                     bookingRules: { ...profile.bookingRules, mustNotBookDirectly: e.target.value }
                   })}
+                  placeholder="e.g. Same-day GP appointments must not be booked by reception without GP approval. Duty Doctor slots are clinician-only."
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                 />
@@ -632,18 +729,14 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                     Explain briefly how your appointment workflow operates.
                   </label>
                   <p className="text-xs text-gray-500 mb-2">
-                    Please include (in simple terms):
-                    <br />– Which roles are allowed to book urgent appointments (e.g. reception, clinicians only, Duty doctor only)
-                    <br />– How urgent appointments are normally chosen (e.g. &apos;Try orange first; use red only if orange is full&apos;)
-                    <br />– Any triage sequencing rules (e.g. &apos;Admin team books pink/purple; clinicians convert to F2F as needed&apos;)
-                    <br />– Any important exceptions or special circumstances.
+                    Describe your urgent appointment workflow in plain English. Include: which roles are allowed to book urgent slots, which slot to try first, and how appointments escalate (e.g. phone triage converting to F2F). The AI uses this to decide how to route urgent symptoms correctly.
                   </p>
                   <textarea
                     value={profile.urgentCareModel.urgentSlotsDescription || ''}
                     onChange={(e) => updateProfile({
                       urgentCareModel: { ...profile.urgentCareModel, urgentSlotsDescription: e.target.value }
                     })}
-                    placeholder="e.g. Reception can book orange slots directly. Orange slots are tried first for urgent F2F. Red slots are used as triage slots or if there are no orange slots left. Clinicians can convert pink/purple triage slots to F2F as needed."
+                    placeholder={"e.g. Reception can book orange slots directly for urgent face-to-face appointments. Try orange first — use red only if orange is full. Pink/purple slots are for GP telephone triage within 48 hours and are booked by reception. Clinicians can convert pink/purple triage slots to face-to-face if needed after speaking to the patient."}
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                   />
@@ -656,9 +749,17 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
           {currentStep === 2.5 && (
             <div className="space-y-6">
               <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Appointment types & naming</h2>
-              <p className="text-sm text-gray-600 mb-6">
+              <p className="text-sm text-gray-600 mb-4">
                 Define how your appointment types map to common archetypes. This helps the AI customise instructions with your surgery&apos;s terminology.
               </p>
+              <a
+                href="https://docs.signpostingtool.co.uk/getting-started#step-25--appointment-types--naming"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-nhs-blue underline hover:text-nhs-dark-blue"
+              >
+                How to fill in this section ↗
+              </a>
 
               {APPOINTMENT_ARCHETYPES.map((archetype) => {
                 const config = profile.appointmentModel[archetype.key]
@@ -768,6 +869,25 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                           <p className="text-xs text-gray-500 mb-2">
                             Explain when this appointment type is normally used.
                           </p>
+                          {(!config.description || config.description.trim() === '' || config.description !== archetype.suggestedDescription) && archetype.suggestedDescription && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateProfile({
+                                  appointmentModel: {
+                                    ...profile.appointmentModel,
+                                    [archetype.key]: {
+                                      ...config,
+                                      description: archetype.suggestedDescription,
+                                    },
+                                  },
+                                })
+                              }}
+                              className="text-xs text-nhs-blue underline hover:text-nhs-dark-blue mb-2 inline-block"
+                            >
+                              Use suggested text
+                            </button>
+                          )}
                           <textarea
                             value={config.description}
                             onChange={(e) => {
@@ -795,9 +915,17 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
               {/* Other clinician appointments section */}
               <div className="mt-8 pt-8 border-t-2 border-gray-300">
                 <h3 className="text-xl font-semibold text-nhs-dark-blue mb-4">Other clinician appointments</h3>
-                <p className="text-sm text-gray-600 mb-6">
+                <p className="text-sm text-gray-600 mb-4">
                   Configure non-GP clinician appointment types that can be used for specific conditions (e.g., ANP for minor illness, Pharmacist for medication queries, FCP for MSK problems).
                 </p>
+                <a
+                  href="https://docs.signpostingtool.co.uk/getting-started#minor-illness-clinician--getting-the-best-results"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-nhs-blue underline hover:text-nhs-dark-blue mb-6 inline-block"
+                >
+                  How to fill in this section ↗
+                </a>
 
                 {CLINICIAN_ARCHETYPES.map((archetype) => {
                   // Ensure clinicianArchetypes array exists
@@ -822,13 +950,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                             onChange={(e) => {
                               const nextEnabled = e.target.checked
                               const updatedArchetypes = [...clinicianArchetypes]
-                              
+
                               if (archetypeIndex >= 0) {
                                 // Update existing
                                 updatedArchetypes[archetypeIndex] = {
                                   ...config,
                                   enabled: nextEnabled,
-                                  description: (!config.description || config.description.trim() === '') && nextEnabled
+                                  description: (!config.description || config.description.trim() === '') && nextEnabled && archetype.key !== 'ANP'
                                     ? archetype.suggestedDescription
                                     : config.description,
                                 }
@@ -839,8 +967,14 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                   enabled: nextEnabled,
                                   localName: null,
                                   role: config.role,
-                                  description: nextEnabled ? archetype.suggestedDescription : null,
+                                  description: nextEnabled && archetype.key !== 'ANP' ? archetype.suggestedDescription : null,
                                 })
+                              }
+
+                              // Pre-populate ANP conditions checklist when first enabled
+                              if (archetype.key === 'ANP' && nextEnabled && !(archetypeConditions['ANP']?.length > 0)) {
+                                const allConditions = ANP_CONDITIONS.flatMap(g => g.conditions)
+                                setArchetypeConditions(prev => ({ ...prev, ANP: allConditions }))
                               }
 
                               updateProfile({
@@ -933,6 +1067,56 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                             />
                           </div>
 
+                          {archetype.key === 'ANP' ? (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Which conditions should this appointment type be used for?
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Tick all conditions this clinician can manage. The AI will use this list to route patients correctly.
+                            </p>
+                            <div className="space-y-4 border border-gray-200 rounded-lg p-4 max-h-96 overflow-y-auto">
+                              {ANP_CONDITIONS.map((group) => (
+                                <div key={group.category}>
+                                  <p className="text-sm font-medium text-gray-700 mb-1">{group.category}</p>
+                                  <div className="space-y-1 ml-2">
+                                    {group.conditions.map((condition) => (
+                                      <label key={condition} className="flex items-center">
+                                        <input
+                                          type="checkbox"
+                                          checked={(archetypeConditions['ANP'] || []).includes(condition)}
+                                          onChange={(e) => {
+                                            const current = archetypeConditions['ANP'] || []
+                                            const updated = e.target.checked
+                                              ? [...current, condition]
+                                              : current.filter((c) => c !== condition)
+                                            setArchetypeConditions(prev => ({ ...prev, ANP: updated }))
+                                          }}
+                                          className="mr-2"
+                                        />
+                                        <span className="text-sm text-gray-600">{condition}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-3">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Any additional conditions not listed above?
+                              </label>
+                              <textarea
+                                value={archetypeExtraText['ANP'] || ''}
+                                onChange={(e) => {
+                                  setArchetypeExtraText(prev => ({ ...prev, ANP: e.target.value }))
+                                }}
+                                placeholder="e.g. Shingles (uncomplicated), travel health advice, minor burns"
+                                rows={2}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+                          ) : (
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               When should this be used?
@@ -940,6 +1124,37 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                             <p className="text-xs text-gray-500 mb-2">
                               Explain when this appointment type is normally used.
                             </p>
+                            {(!(config.description) || config.description.trim() === '' || config.description !== archetype.suggestedDescription) && archetype.suggestedDescription && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedArchetypes = [...clinicianArchetypes]
+                                  if (archetypeIndex >= 0) {
+                                    updatedArchetypes[archetypeIndex] = {
+                                      ...config,
+                                      description: archetype.suggestedDescription,
+                                    }
+                                  } else {
+                                    updatedArchetypes.push({
+                                      key: archetype.key,
+                                      enabled: true,
+                                      localName: config.localName,
+                                      role: config.role,
+                                      description: archetype.suggestedDescription,
+                                    })
+                                  }
+                                  updateProfile({
+                                    appointmentModel: {
+                                      ...profile.appointmentModel,
+                                      clinicianArchetypes: updatedArchetypes,
+                                    },
+                                  })
+                                }}
+                                className="text-xs text-nhs-blue underline hover:text-nhs-dark-blue mb-2 inline-block"
+                              >
+                                Use suggested text
+                              </button>
+                            )}
                             <textarea
                               value={config.description || ''}
                               onChange={(e) => {
@@ -970,6 +1185,85 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                             />
                           </div>
+                          )}
+
+                          <div className="flex items-center">
+                            <label className="flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={config.acceptsUnderFives ?? false}
+                                onChange={(e) => {
+                                  const updatedArchetypes = [...clinicianArchetypes]
+                                  if (archetypeIndex >= 0) {
+                                    updatedArchetypes[archetypeIndex] = {
+                                      ...config,
+                                      acceptsUnderFives: e.target.checked,
+                                    }
+                                  } else {
+                                    updatedArchetypes.push({
+                                      key: archetype.key,
+                                      enabled: true,
+                                      localName: config.localName,
+                                      role: config.role,
+                                      description: config.description,
+                                      restrictions: config.restrictions,
+                                      acceptsUnderFives: e.target.checked,
+                                    })
+                                  }
+                                  updateProfile({
+                                    appointmentModel: {
+                                      ...profile.appointmentModel,
+                                      clinicianArchetypes: updatedArchetypes,
+                                    },
+                                  })
+                                }}
+                                className="mr-2"
+                              />
+                              <span className="text-sm font-medium text-gray-700">
+                                Accepts patients under 5 years old?
+                              </span>
+                            </label>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Restrictions
+                            </label>
+                            <p className="text-xs text-gray-500 mb-2">
+                              Any restrictions or exclusions for this appointment type (e.g. &quot;not suitable for pregnant patients&quot;). Leave blank if none.
+                            </p>
+                            <textarea
+                              value={config.restrictions || ''}
+                              onChange={(e) => {
+                                const updatedArchetypes = [...clinicianArchetypes]
+                                if (archetypeIndex >= 0) {
+                                  updatedArchetypes[archetypeIndex] = {
+                                    ...config,
+                                    restrictions: e.target.value || null,
+                                  }
+                                } else {
+                                  updatedArchetypes.push({
+                                    key: archetype.key,
+                                    enabled: true,
+                                    localName: config.localName,
+                                    role: config.role,
+                                    description: config.description,
+                                    restrictions: e.target.value || null,
+                                    acceptsUnderFives: config.acceptsUnderFives,
+                                  })
+                                }
+                                updateProfile({
+                                  appointmentModel: {
+                                    ...profile.appointmentModel,
+                                    clinicianArchetypes: updatedArchetypes,
+                                  },
+                                })
+                              }}
+                              placeholder="e.g. Not suitable for pregnant patients, immunocompromised patients, or children under 2"
+                              rows={2}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -985,9 +1279,12 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
               <h2 className="text-2xl font-semibold text-nhs-dark-blue mb-4">Clinical Team Structure</h2>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Which clinicians do you have on site?
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Which clinicians do you have on site? (optional — for context)
                 </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  This information helps give context about your team. Routing decisions are primarily driven by the appointment types you configured in Step 2.5.
+                </p>
                 <div className="space-y-2 max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
                   {TEAM_ROLES.map((role) => (
                     <label key={role} className="flex items-center">
@@ -1037,12 +1334,15 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Are certain symptoms or tasks usually handled by specific roles?
                 </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  List any symptom categories or problem types that should go to a specific clinician rather than a GP. Use plain language — the AI will use this alongside the appointment model above to improve routing decisions.
+                </p>
                 <textarea
                   value={profile.team.roleRoutingNotes}
                   onChange={(e) => updateProfile({
                     team: { ...profile.team, roleRoutingNotes: e.target.value }
                   })}
-                  placeholder="e.g. Back pain → FCP, Medication queries → Pharmacist"
+                  placeholder={"e.g. Back pain, joint pain, sports injuries → FCP Clinic\nMinor illness (earache, UTI, sore throat) in adults → ANP Clinic\nMedication queries, polypharmacy reviews → Clinical Pharmacist\nMental health, low mood, anxiety → Social Prescriber first, then IAPT self-referral\nWound care, dressings → Practice Nurse"}
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                 />
@@ -1098,7 +1398,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   onChange={(e) => updateProfile({
                     escalation: { ...profile.escalation, urgentWording: e.target.value }
                   })}
-                  placeholder="e.g. Always pass to Duty Doctor immediately"
+                  placeholder="e.g. Always pass to the Duty Team immediately. Do not ask the patient to call back."
                   rows={4}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
                 />
@@ -1122,13 +1422,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     MSK / physiotherapy
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.msk}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, msk: e.target.value }
                     })}
                     placeholder="e.g. Local Physio Service – FCP if booked by us; or self-referral via website"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1136,13 +1436,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Mental health
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.mentalHealth}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, mentalHealth: e.target.value }
                     })}
                     placeholder="e.g. Talkworks – self-referral, give website and phone number"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1150,13 +1450,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Social prescribing
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.socialPrescribing}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, socialPrescribing: e.target.value }
                     })}
                     placeholder="e.g. In-house social prescriber – reception can book directly into clinic"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1164,13 +1464,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Community nursing / wound care
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.communityNursing}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, communityNursing: e.target.value }
                     })}
                     placeholder="e.g. Community nurse team – GP or nurse to refer; reception cannot book directly"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1178,13 +1478,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Audiology
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.audiology}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, audiology: e.target.value }
                     })}
                     placeholder="e.g. Local audiology service – GP referral only"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1192,13 +1492,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Frailty / falls
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.frailty}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, frailty: e.target.value }
                     })}
                     placeholder="e.g. Community frailty team – refer via [system]"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1206,13 +1506,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Sexual health
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.sexualHealth}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, sexualHealth: e.target.value }
                     })}
                     placeholder="e.g. Local GUM clinic – self-referral, give website/phone number"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1220,13 +1520,13 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Out-of-hours service
                   </label>
-                  <input
-                    type="text"
+                  <textarea
                     value={profile.localServices.outOfHours}
                     onChange={(e) => updateProfile({
                       localServices: { ...profile.localServices, outOfHours: e.target.value }
                     })}
                     placeholder="e.g. NHS 111 / OOH GP – advise patients to call 111"
+                    rows={2}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-transparent placeholder:text-gray-400"
                   />
                 </div>
@@ -1380,50 +1680,6 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-3">
-                  How much should be customised now?
-                </label>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="customisationScope"
-                      checked={profile.aiSettings.customisationScope === 'all'}
-                      onChange={() => updateProfile({
-                        aiSettings: { ...profile.aiSettings, customisationScope: 'all' }
-                      })}
-                      className="mr-2"
-                    />
-                    Customise ALL symptoms
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="customisationScope"
-                      checked={profile.aiSettings.customisationScope === 'core'}
-                      onChange={() => updateProfile({
-                        aiSettings: { ...profile.aiSettings, customisationScope: 'core' }
-                      })}
-                      className="mr-2"
-                    />
-                    Customise core set only (recommended)
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      name="customisationScope"
-                      checked={profile.aiSettings.customisationScope === 'manual'}
-                      onChange={() => updateProfile({
-                        aiSettings: { ...profile.aiSettings, customisationScope: 'manual' }
-                      })}
-                      className="mr-2"
-                    />
-                    I will select symptoms manually
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-3">
                   Should all AI-generated instructions be automatically set to PENDING for clinical review?
                 </label>
                 <div className="space-y-2">
@@ -1456,7 +1712,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  These settings will be used to tailor instructions for your surgery. You can change them later.
+                  When you&apos;re ready, go to Admin → AI Setup to run the customisation. You can choose which symptoms to customise at that point.
                 </p>
               </div>
             </div>

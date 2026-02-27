@@ -7,6 +7,7 @@ interface SetupChecklistClientProps {
   surgeryName: string
   onboardingCompleted: boolean
   onboardingCompletedAt: Date | null
+  onboardingUpdatedAt: Date | null
   appointmentModelConfigured: boolean
   aiCustomisationOccurred: boolean
   pendingCount: number
@@ -29,23 +30,42 @@ export default function SetupChecklistClient({
   surgeryName,
   onboardingCompleted,
   onboardingCompletedAt,
+  onboardingUpdatedAt,
   appointmentModelConfigured,
   aiCustomisationOccurred,
   pendingCount,
   standalone = false,
 }: SetupChecklistClientProps) {
+  const formatDate = (date: Date | string | null): string => {
+    if (!date) return 'unknown'
+    return new Date(date).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+  }
+
+  const onboardingDescription = (() => {
+    if (!onboardingCompleted) {
+      return 'Complete the onboarding questionnaire to configure your surgery profile.'
+    }
+    const completedStr = `Completed on ${formatDate(onboardingCompletedAt)}`
+    if (onboardingUpdatedAt && onboardingCompletedAt) {
+      const completedDay = new Date(onboardingCompletedAt).toDateString()
+      const updatedDay = new Date(onboardingUpdatedAt).toDateString()
+      if (completedDay !== updatedDay) {
+        return `${completedStr} · Last updated ${formatDate(onboardingUpdatedAt)}`
+      }
+    }
+    return completedStr
+  })()
+
   // Build checklist items
   const checklistItems: ChecklistItem[] = [
     {
       id: 'onboarding',
       title: 'Onboarding completed?',
-      description: onboardingCompleted
-        ? `Completed on ${onboardingCompletedAt ? new Date(onboardingCompletedAt).toLocaleDateString('en-GB', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          }) : 'unknown'}`
-        : 'Complete the onboarding questionnaire to configure your surgery profile.',
+      description: onboardingDescription,
       status: onboardingCompleted ? 'completed' : 'pending',
       actionLabel: onboardingCompleted ? 'Edit onboarding' : 'Start onboarding',
       actionHref: `/s/${surgeryId}/admin/onboarding`,

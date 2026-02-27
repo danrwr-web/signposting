@@ -28,6 +28,9 @@ interface ClinicianArchetypeConfig {
   localName?: string | null
   role?: string | null
   description?: string | null
+  restrictions?: string | null
+  acceptsUnderFives?: boolean | null
+  conditions?: string[]
 }
 
 interface AppointmentModelConfig {
@@ -225,9 +228,24 @@ export async function customiseInstructions(
       const localName = minorIllnessClinicianArchetype.localName || 'Minor Illness Clinician Appointment'
       const role = minorIllnessClinicianArchetype.role || 'ANP / Paramedic / ACP'
       const description = minorIllnessClinicianArchetype.description || 'minor illnesses that do not require GP review'
-      
+      const restrictions = minorIllnessClinicianArchetype.restrictions || null
+
       appointmentSelectionRules += `
-- **PRIORITY FOR MINOR ILLNESSES**: For minor, self-limiting illnesses without red flags (such as uncomplicated earache, sore throat, cough, cold/flu, uncomplicated UTI, simple rashes), prefer the Minor Illness Clinician Appointment (local name: "${localName}") instead of booking with the GP or Duty Team. This appointment type is suitable for: ${description}. Only use GP appointments or Duty Team when the symptom or red flags explicitly require GP-level or senior review (e.g., severe systemic illness, red-flag features, rapid deterioration).`
+- **MINOR ILLNESS CLINICIAN — CONDITIONAL ROUTING ONLY**: This surgery has a Minor Illness Clinician appointment (local name: "${localName}", staffed by: ${role}, suitable for: ${description}).${restrictions ? ` Restrictions — do not use for: ${restrictions}.` : ''}
+  IMPORTANT: Do NOT default to this appointment type. Only route to it when the base instruction clearly supports a minor illness pathway AND none of the following apply:
+  * The base instruction contains red flags, complexity signals, or comorbidity warnings
+  * The base instruction routes to Duty Team or urgent same-day care
+  * The patient is under 5 and this clinic does not accept under 5s (see under-5s rule below)
+  * The presentation falls within the restrictions listed above
+  When in doubt, PRESERVE the original routing from the base instruction. Do not downgrade a GP routing to a Minor Illness Clinician routing unless the original instruction clearly and unambiguously supports it.`
+
+      if (minorIllnessClinicianArchetype.acceptsUnderFives === false) {
+        appointmentSelectionRules += `
+- **UNDER 5s EXCLUSION**: The Minor Illness Clinician Appointment ("${localName}") does NOT accept patients under 5 years old. For children under 5 with minor illness symptoms, route to a GP appointment or Duty Team instead.`
+      } else if (minorIllnessClinicianArchetype.acceptsUnderFives === true) {
+        appointmentSelectionRules += `
+- **UNDER 5s ACCEPTED**: The Minor Illness Clinician Appointment ("${localName}") can accept patients under 5 years old for appropriate minor illness presentations.`
+      }
     }
 
     // Add other clinician archetype rules
@@ -330,11 +348,16 @@ CONTINUITY AND ESCALATION RULES:
   * 48h GP triage (Pink/Purple slot equivalent) if more suitable,
   * but NOT same-day urgent or Duty Team unless explicitly urgent.
 
+ROLE ROUTING NOTES:
+The surgery has provided specific routing preferences for certain symptom types or tasks. These are stored in the onboarding profile under "team.roleRoutingNotes". You must follow these routing preferences when they are relevant to the symptom being customised. For example, if the notes say "back pain → FCP", then MSK symptoms should route to the FCP appointment type rather than a GP. If the notes say "medication queries → Pharmacist", then symptoms involving medication management should route to the pharmacist archetype where one is configured.
+These routing notes take precedence over default routing decisions but must not override safety-critical escalation pathways or red flag routing.
+
 IMPROVEMENT GOALS:
 - Improve clarity, structure, readability, and workflow for reception/admin teams.
 - Use the surgery's preferred terminology (e.g., their duty doctor term, slot names).
 - Follow the surgery's preferred communication detail level (brief/moderate/detailed).
 - Follow the surgery's terminology preference (surgery-specific vs generic vs mixed).
+- Do NOT add routing pathways or clinical steps that do not exist in the base instruction. Only rewrite what is already there — do not invent new steps.
 
 ${hasEnabledArchetypes ? appointmentModelInstruction : `COLOUR-SLOT TERMINOLOGY:
 ${colourSlotInstruction}`}
@@ -384,6 +407,7 @@ Rewrite the symptom instructions to match this surgery's:
 3. Booking rules (reflect who can book directly)
 4. Escalation pathways (use their first escalation point and urgent wording)
 5. Communication style (match their detail level and terminology preference)
+6. Role routing (follow any specific routing notes from team.roleRoutingNotes where relevant to this symptom)
 
 IMPORTANT:
 - Maintain all clinical safety exactly as written.
