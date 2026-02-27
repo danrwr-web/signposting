@@ -101,6 +101,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         ...(parsed.learningSubsection !== undefined
           ? { learningSubsection: parsed.learningSubsection }
           : {}),
+        // Multi-category assignments
+        ...(parsed.learningAssignments !== undefined
+          ? { learningAssignments: parsed.learningAssignments ?? [] }
+          : {}),
       },
     })
 

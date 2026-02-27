@@ -9,7 +9,7 @@ import {
 } from '@/server/editorialAi'
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
 import { resolveTargetRole } from '@/lib/editorial/roleRouting'
-import { inferLearningCategory, type LearningCategoryRef } from '@/lib/editorial/inferLearningCategory'
+import { inferLearningCategories, type LearningCategoryRef } from '@/lib/editorial/inferLearningCategory'
 import { randomUUID } from 'node:crypto'
 
 /**
@@ -84,7 +84,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       slug: c.slug,
       subsections: Array.isArray(c.subsections) ? (c.subsections as string[]) : [],
     }))
-    const inferredCategory = inferLearningCategory(job.promptText, categoryRefs)
+    const inferredCategories = inferLearningCategories(job.promptText, categoryRefs)
 
     const generated = await generateEditorialBatch({
       surgeryId: job.surgeryId,
@@ -182,14 +182,12 @@ export async function runGenerationJob(jobId: string): Promise<void> {
           createdBy: job.createdBy,
           generatedFrom: {
             type: 'prompt',
-            ...(inferredCategory
-              ? {
-                  suggestedCategoryId: inferredCategory.categoryId,
-                  suggestedCategoryName: inferredCategory.categoryName,
-                  suggestedSubsection: inferredCategory.subsection,
-                  categoryConfidence: inferredCategory.confidence,
-                }
-              : {}),
+            suggestedAssignments: inferredCategories.map((c) => ({
+              categoryId: c.categoryId,
+              categoryName: c.categoryName,
+              subsection: c.subsection,
+              confidence: c.confidence,
+            })),
           },
           clinicianApproved: false,
           publishedAt: null,

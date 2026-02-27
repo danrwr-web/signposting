@@ -1,11 +1,11 @@
 /**
- * Infers the best-matching learning category and subsection for a card
+ * Infers matching learning categories and subsections for a card
  * based on the prompt text used to generate it.
  *
  * Strategy:
  * 1. Exact subsection name match (case-insensitive) → high confidence
  * 2. All words of a subsection name found in prompt (partial match) → low confidence
- * 3. No match → null (user assigns manually)
+ * 3. Returns ALL matches above threshold (a card can belong to multiple categories)
  */
 
 export interface LearningCategoryRef {
@@ -52,50 +52,42 @@ function keywords(text: string): string[] {
 }
 
 /**
- * Infers the most likely learning category and subsection for a given prompt.
+ * Infers ALL matching learning categories and subsections for a given prompt.
+ * Returns high-confidence matches first, then low-confidence.
+ * Deduplicates by categoryId + subsection pair.
  *
  * @param promptText - The free-text prompt used to generate the card
  * @param categories - Active learning categories loaded from DB
- * @returns The best match, or null if no match found
+ * @returns Array of matches (empty = no matches found)
  */
-export function inferLearningCategory(
+export function inferLearningCategories(
   promptText: string,
   categories: LearningCategoryRef[],
-): InferredCategory | null {
-  if (!promptText || !categories.length) return null
+): InferredCategory[] {
+  if (!promptText || !categories.length) return []
 
   const normalisedPrompt = normalise(promptText)
   const promptWords = new Set(normalisedPrompt.split(' ').filter((w) => w.length >= 3))
 
-  let bestHighConfidence: InferredCategory | null = null
-  let bestLowConfidence: InferredCategory | null = null
-  let bestLowScore = 0
+  const highMatches: InferredCategory[] = []
+  const lowMatches: InferredCategory[] = []
+  const seen = new Set<string>()
 
   for (const category of categories) {
     for (const subsection of category.subsections) {
       const normSub = normalise(subsection)
+      const key = `${category.id}::${subsection}`
 
       // High confidence: exact subsection name appears in prompt
       if (normalisedPrompt.includes(normSub)) {
-        if (!bestHighConfidence) {
-          bestHighConfidence = {
+        if (!seen.has(key)) {
+          seen.add(key)
+          highMatches.push({
             categoryId: category.id,
             categoryName: category.name,
             subsection,
             confidence: 'high',
-          }
-          // Keep searching — prefer longer (more specific) matches
-        } else {
-          // Prefer the more specific (longer) match
-          const existingLen = normalise(bestHighConfidence.subsection).length
-          if (normSub.length > existingLen) {
-            bestHighConfidence = {
-              categoryId: category.id,
-              categoryName: category.name,
-              subsection,
-              confidence: 'high',
-            }
-          }
+          })
         }
         continue
       }
@@ -107,17 +99,29 @@ export function inferLearningCategory(
       const matchCount = kws.filter((kw) => promptWords.has(kw)).length
       const score = matchCount / kws.length
 
-      if (score >= 0.6 && matchCount >= 1 && score > bestLowScore) {
-        bestLowScore = score
-        bestLowConfidence = {
+      if (score >= 0.6 && matchCount >= 1 && !seen.has(key)) {
+        seen.add(key)
+        lowMatches.push({
           categoryId: category.id,
           categoryName: category.name,
           subsection,
           confidence: 'low',
-        }
+        })
       }
     }
   }
 
-  return bestHighConfidence ?? bestLowConfidence ?? null
+  return [...highMatches, ...lowMatches]
+}
+
+/**
+ * Convenience wrapper that returns just the single best match.
+ * Kept for backwards compatibility — prefer inferLearningCategories.
+ */
+export function inferLearningCategory(
+  promptText: string,
+  categories: LearningCategoryRef[],
+): InferredCategory | null {
+  const results = inferLearningCategories(promptText, categories)
+  return results[0] ?? null
 }
