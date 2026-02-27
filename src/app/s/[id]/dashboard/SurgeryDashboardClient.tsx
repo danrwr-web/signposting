@@ -117,7 +117,7 @@ export default function SurgeryDashboardClient({ surgery, user, setupComplete }:
         {/* Quick Actions */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
           <Link
-            href={`/s/${surgery.id}`}
+            href={`/s/${surgery.id}/signposting`}
             className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow"
           >
             <div className="p-6">

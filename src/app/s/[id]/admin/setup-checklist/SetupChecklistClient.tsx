@@ -439,7 +439,7 @@ function ClinicalReviewItem({
           </div>
         </div>
         <div className="flex-shrink-0 ml-4">
-          <Link href={`/s/${surgeryId}/admin/clinical-review`}>
+          <Link href={`/admin?tab=clinical-review`}>
             <Button variant={complete ? 'secondary' : 'primary'} size="sm">
               {complete ? 'View' : 'Review now'}
             </Button>
@@ -526,7 +526,7 @@ function HealthDashboard({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-nhs-grey">Pending review</span>
-              <Link href={`/s/${surgeryId}/admin/clinical-review`} className="hover:underline">
+              <Link href={`/admin?tab=clinical-review`} className="hover:underline">
                 <span className={`text-sm font-semibold ${getPendingColor(health.pendingReviewCount)}`}>
                   {health.pendingReviewCount}
                 </span>
@@ -534,7 +534,7 @@ function HealthDashboard({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-nhs-grey">Changes requested</span>
-              <Link href={`/s/${surgeryId}/admin/clinical-review`} className="hover:underline">
+              <Link href={`/admin?tab=clinical-review`} className="hover:underline">
                 <span className="text-sm font-semibold text-nhs-dark-blue">
                   {health.changesRequestedCount}
                 </span>
@@ -602,7 +602,7 @@ function HealthDashboard({
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-nhs-grey">Pending review</span>
-              <Link href={`/s/${surgeryId}/admin/clinical-review`} className="hover:underline">
+              <Link href={`/admin?tab=clinical-review`} className="hover:underline">
                 <span className={`text-sm font-semibold ${getPendingColor(health.pendingReviewCount)}`}>
                   {health.pendingReviewCount}
                 </span>
@@ -614,7 +614,7 @@ function HealthDashboard({
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
-        <Link href={`/s/${surgeryId}/admin/clinical-review`}>
+        <Link href={`/admin?tab=clinical-review`}>
           <Button variant={health.pendingReviewCount > 0 ? 'primary' : 'secondary'} size="md">
             Review pending ({health.pendingReviewCount})
           </Button>

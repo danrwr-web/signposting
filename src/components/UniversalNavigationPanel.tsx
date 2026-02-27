@@ -302,6 +302,23 @@ export default function UniversalNavigationPanel() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto py-4">
+          {/* Dashboard link — admin users only */}
+          {isAdmin && surgeryId && (
+            <nav aria-label="Dashboard" className="mb-4">
+              <ul className="px-3">
+                <li>
+                  <Link
+                    href={`/s/${surgeryId}/dashboard`}
+                    onClick={() => close()}
+                    className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                  >
+                    Dashboard
+                  </Link>
+                </li>
+              </ul>
+            </nav>
+          )}
+
           {/* Modules Section */}
           <nav aria-label="Modules">
             <h3 className="px-5 text-xs font-semibold text-nhs-grey uppercase tracking-wider mb-2">
