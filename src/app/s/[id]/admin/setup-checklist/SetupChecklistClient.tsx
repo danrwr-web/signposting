@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Button, Card, Badge, AlertBanner } from '@/components/ui'
 
 // --- Types ---
@@ -85,6 +86,9 @@ export default function SetupChecklistClient({
   onboardingUpdatedAt,
   standalone = false,
 }: SetupChecklistClientProps) {
+  const searchParams = useSearchParams()
+  const previewMode = searchParams.get('preview')
+
   const aiEnabled = features.includes('ai_surgery_customisation')
   const handbookEnabled = features.includes('admin_toolkit')
 
@@ -110,9 +114,11 @@ export default function SetupChecklistClient({
   const recommendedComplete = recommendedItems.every(Boolean)
 
   // Determine page mode
-  const mode: PageMode = essentialComplete
-    ? (recommendedComplete ? 'health' : 'nearly-there')
-    : 'setup'
+  const mode: PageMode = previewMode === 'health'
+    ? 'health'
+    : essentialComplete
+      ? (recommendedComplete ? 'health' : 'nearly-there')
+      : 'setup'
 
   const pageTitle = mode === 'health' ? 'Surgery Health' : 'Setup Checklist'
   const pageDescription = mode === 'health'
@@ -280,10 +286,7 @@ function ChecklistView({
 
       {/* Recommended Steps */}
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-lg font-bold text-nhs-dark-blue">Recommended</h2>
-          <Badge color="gray" size="sm">Recommended</Badge>
-        </div>
+        <h2 className="text-lg font-bold text-nhs-dark-blue mb-2">Recommended</h2>
         <p className="text-sm text-nhs-grey mb-4">
           These steps aren&apos;t required to go live, but will improve your team&apos;s experience.
         </p>
