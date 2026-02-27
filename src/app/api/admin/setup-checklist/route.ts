@@ -4,6 +4,7 @@ import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { AppointmentModelConfig } from '@/lib/api-contracts'
+import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinicalReviewCounts'
 
 export const runtime = 'nodejs'
 
@@ -78,21 +79,16 @@ export async function GET(request: NextRequest) {
     const onboardingStarted = !!(surgery.onboardingProfile && (profileSurgeryName || appointmentModelConfigured))
     const onboardingUpdatedAt = surgery.onboardingProfile?.updatedAt ?? null
 
-    // Calculate pendingCount from SymptomReviewStatus
-    const enabledSymptoms = await getEffectiveSymptoms(surgeryId, false)
+    // Calculate pendingCount using the same logic as the Clinical Review panel
+    const allSymptoms = await getEffectiveSymptoms(surgeryId, true)
     const allReviewStatuses = await prisma.symptomReviewStatus.findMany({
       where: { surgeryId },
+      select: { symptomId: true, ageGroup: true, status: true },
     })
-
-    const reviewedSymptomKeys = new Set(
-      allReviewStatuses.map(rs => `${rs.symptomId}-${rs.ageGroup || ''}`)
+    const statusMap = new Map(
+      allReviewStatuses.map(rs => [getClinicalReviewKey(rs.symptomId, rs.ageGroup), rs])
     )
-    const unreviewedCount = enabledSymptoms.filter(s => {
-      const key = `${s.id}-${s.ageGroup || ''}`
-      return !reviewedSymptomKeys.has(key)
-    }).length
-    const explicitPendingCount = allReviewStatuses.filter(rs => rs.status === 'PENDING').length
-    const pendingCount = unreviewedCount + explicitPendingCount
+    const { pending: pendingCount } = computeClinicalReviewCounts(allSymptoms, statusMap as any)
 
     // Check if AI customisation has occurred
     // Get all symptom IDs for this surgery (base symptoms with overrides + custom symptoms)
