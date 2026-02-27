@@ -153,6 +153,15 @@ export const EditorialRegenerateSectionRequestZ = z.object({
   userInstruction: z.string().optional(),
 })
 
+// Learning pathway assignment (multi-category per card)
+export const LearningAssignmentZ = z.object({
+  categoryId: z.string().min(1),
+  categoryName: z.string().min(1),
+  subsection: z.string().nullable().optional(),
+})
+
+export type LearningAssignment = z.infer<typeof LearningAssignmentZ>
+
 export const EditorialCardUpdateZ = z.object({
   title: z.string().min(1),
   targetRole: EditorialRoleZ,
@@ -212,15 +221,6 @@ export const EditorialCardTagsUpdateZ = z.object({
   tags: z.array(z.string().min(1)).default([]),
   surgeryId: z.string().optional(),
 })
-
-// Learning pathway assignment (multi-category per card)
-export const LearningAssignmentZ = z.object({
-  categoryId: z.string().min(1),
-  categoryName: z.string().min(1),
-  subsection: z.string().nullable().optional(),
-})
-
-export type LearningAssignment = z.infer<typeof LearningAssignmentZ>
 
 // Learning category management (superuser settings)
 export const LearningCategoryCreateZ = z.object({
