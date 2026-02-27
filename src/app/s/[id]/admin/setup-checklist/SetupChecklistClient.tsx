@@ -171,9 +171,19 @@ export default function SetupChecklistClient({
                     {item.id === 'clinical-review' && pendingCount > 0 && (
                       <div className="mt-3 text-xs text-gray-600">
                         <p className="font-medium mb-1">Suggested review order:</p>
-                        <ol className="list-decimal list-inside space-y-1 ml-2">
-                          <li>Review high-risk symptoms first (e.g. chest pain, stroke, sepsis, very unwell children).</li>
-                          <li>Next, review symptoms where the clinician type matters locally (for example where you want Minor Illness Clinicians, FCPs or pharmacists involved).</li>
+                        <ol className="list-decimal list-inside space-y-1.5 ml-2">
+                          <li>
+                            Use &quot;High-risk symptoms first&quot; sort to review chest pain, stroke, sepsis and similar urgent symptoms.
+                            <Link href="/admin?tab=clinical-review&sort=high-risk-first" className="ml-1 text-nhs-blue hover:underline">
+                              → Open Clinical Review with this sort
+                            </Link>
+                          </li>
+                          <li>
+                            Use &quot;Clinician-type symptoms first&quot; to review symptoms routed to ANP, FCP or pharmacist appointments.
+                            <Link href="/admin?tab=clinical-review&sort=clinician-type-first" className="ml-1 text-nhs-blue hover:underline">
+                              → Open Clinical Review with this sort
+                            </Link>
+                          </li>
                           <li>Then work through the remaining symptoms in your own priority order.</li>
                         </ol>
                       </div>

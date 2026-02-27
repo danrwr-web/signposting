@@ -1,9 +1,15 @@
 'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
+
+const VALID_SORTS = ['name-asc', 'name-desc', 'changed-new', 'status', 'high-risk-first', 'clinician-type-first'] as const
+type SortKey = typeof VALID_SORTS[number]
+
+const CLINICIAN_KEYWORDS = ['anp', 'fcp', 'pharmacist', 'physiotherapist', 'minor illness', 'minor illness clinician']
 
 interface Surgery {
   id: string
@@ -46,15 +52,24 @@ export default function ClinicalReviewPanel({
   adminSurgeryId = null,
   onPendingCountChange 
 }: ClinicalReviewPanelProps) {
+  const searchParams = useSearchParams()
+  const initialSort = searchParams.get('sort')
+
   const [symptoms, setSymptoms] = useState<EffectiveSymptom[]>([])
   const [enabledSymptoms, setEnabledSymptoms] = useState<EffectiveSymptom[]>([])
   const [enabledSymptomKeys, setEnabledSymptomKeys] = useState<Set<string>>(new Set())
   const [reviewStatuses, setReviewStatuses] = useState<Map<string, SymptomReviewStatus>>(new Map())
+  const [highRiskSymptomIds, setHighRiskSymptomIds] = useState<Set<string>>(new Set())
+  const [highRiskSlugs, setHighRiskSlugs] = useState<Set<string>>(new Set())
   const [surgeryData, setSurgeryData] = useState<Surgery | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterKey>('pending')
   const [search, setSearch] = useState('')
-  const [sort, setSort] = useState<'name-asc' | 'name-desc' | 'changed-new' | 'status'>('name-asc')
+  const [sort, setSort] = useState<SortKey>(() => {
+    const validSet: Record<string, boolean> = {}
+    for (const s of VALID_SORTS) validSet[s] = true
+    return initialSort && validSet[initialSort] ? (initialSort as SortKey) : 'name-asc'
+  })
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [resettingAll, setResettingAll] = useState(false)
   
@@ -175,6 +190,8 @@ export default function ClinicalReviewPanel({
       }
       setReviewStatuses(statusMap)
       setSurgeryData(reviewData.surgery || null)
+      setHighRiskSymptomIds(new Set(reviewData.highRiskSymptomIds || []))
+      setHighRiskSlugs(new Set(reviewData.highRiskSlugs || []))
 
       const counts = computeClinicalReviewCounts(symptomsData.symptoms || [], statusMap as any)
       onPendingCountChange?.(counts.pending)
@@ -520,6 +537,18 @@ export default function ClinicalReviewPanel({
       if (sort === 'name-asc') return a.symptom.name.localeCompare(b.symptom.name)
       if (sort === 'name-desc') return b.symptom.name.localeCompare(a.symptom.name)
       if (sort === 'status') return a.status.localeCompare(b.status)
+      if (sort === 'high-risk-first') {
+        const aHR = highRiskSymptomIds.has(a.symptom.id) || highRiskSlugs.has(a.symptom.slug) ? 1 : 0
+        const bHR = highRiskSymptomIds.has(b.symptom.id) || highRiskSlugs.has(b.symptom.slug) ? 1 : 0
+        if (bHR !== aHR) return bHR - aHR
+        return a.symptom.name.localeCompare(b.symptom.name)
+      }
+      if (sort === 'clinician-type-first') {
+        const aMatch = CLINICIAN_KEYWORDS.some(k => (a.symptom.briefInstruction || '').toLowerCase().includes(k))
+        const bMatch = CLINICIAN_KEYWORDS.some(k => (b.symptom.briefInstruction || '').toLowerCase().includes(k))
+        if (aMatch !== bMatch) return aMatch ? -1 : 1
+        return a.symptom.name.localeCompare(b.symptom.name)
+      }
       // changed-new
       const aTime = a.reviewStatus?.lastReviewedAt ? new Date(a.reviewStatus.lastReviewedAt).getTime() : -Infinity
       const bTime = b.reviewStatus?.lastReviewedAt ? new Date(b.reviewStatus.lastReviewedAt).getTime() : -Infinity
@@ -527,7 +556,7 @@ export default function ClinicalReviewPanel({
     })
 
     return rows
-  }, [symptoms, reviewStatuses, activeFilter, search, sort])
+  }, [symptoms, reviewStatuses, activeFilter, search, sort, highRiskSymptomIds, highRiskSlugs])
 
   const debugMismatch = useMemo(() => {
     const isDev = process.env.NODE_ENV !== 'production'
@@ -687,13 +716,15 @@ export default function ClinicalReviewPanel({
             />
             <select
               value={sort}
-              onChange={e => setSort(e.target.value as any)}
-              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-[220px] max-w-full max-[900px]:w-full"
+              onChange={e => setSort(e.target.value as SortKey)}
+              className="h-10 px-3 border border-gray-300 rounded-md text-sm w-[260px] max-w-full max-[900px]:w-full"
               aria-label="Sort"
             >
               <option value="name-asc">Name A–Z</option>
               <option value="name-desc">Name Z–A</option>
-              <option value="changed-new">Last changed — newest</option>
+              <option value="high-risk-first">High-risk symptoms first</option>
+              <option value="clinician-type-first">Clinician-type symptoms first</option>
+              <option value="changed-new">Most recently changed</option>
               <option value="status">Status</option>
             </select>
           </div>
