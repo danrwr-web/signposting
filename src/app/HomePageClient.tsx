@@ -27,7 +27,7 @@ interface HomePageClientProps {
 }
 
 function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresClinicalReview, surgeryName, surgeryId: routeSurgeryId, commonReasonsItems }: HomePageClientProps) {
-  const { surgery, currentSurgeryId, setSurgery } = useSurgery()
+  const { surgery, currentSurgeryId, setSurgery, canManageSurgery, isSuperuser } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
   const [selectedAge, setSelectedAge] = useState<AgeBand>('All')
@@ -239,8 +239,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
         commonReasonsItems={commonReasonsItems}
       />
 
-      {/* Clinical Review Warning Banner */}
-      {requiresClinicalReview && surgeryName && (
+      {/* Clinical Review Warning Banner — only shown to standard (non-admin) users */}
+      {requiresClinicalReview && surgeryName && !isSuperuser && !(currentSurgeryId && canManageSurgery(currentSurgeryId)) && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex">

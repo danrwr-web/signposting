@@ -68,19 +68,13 @@ export default function PracticeSettingsClient({
       .then(async (res) => {
         if (res.ok) {
           const data = await res.json()
-          // Calculate outstanding count
-          let outstandingCount = 0
-          if (!data.onboardingCompleted) outstandingCount += 1
-          if (!data.appointmentModelConfigured) outstandingCount += 1
-          if (!data.aiCustomisationOccurred) outstandingCount += 1
-          if (data.pendingCount > 0) outstandingCount += 1
 
           setSetupChecklistData({
             onboardingCompleted: data.onboardingCompleted,
             appointmentModelConfigured: data.appointmentModelConfigured,
             aiCustomisationOccurred: data.aiCustomisationOccurred,
             pendingCount: data.pendingCount,
-            setupChecklistOutstandingCount: outstandingCount,
+            setupChecklistOutstandingCount: 0, // computed dynamically in buildCards()
           })
         }
       })
@@ -143,9 +137,16 @@ export default function PracticeSettingsClient({
       },
     ]
 
-    // Add Setup & onboarding if ai_surgery_customisation feature is enabled
-    if (currentEnabledFeatures['ai_surgery_customisation']) {
-      const outstandingCount = setupChecklistData?.setupChecklistOutstandingCount ?? 0
+    // Setup & onboarding — available to all surgeries
+    {
+      // Compute outstanding count dynamically so the AI item is only counted when the flag is on
+      let outstandingCount = 0
+      if (setupChecklistData) {
+        if (!setupChecklistData.onboardingCompleted) outstandingCount += 1
+        if (!setupChecklistData.appointmentModelConfigured) outstandingCount += 1
+        if (currentEnabledFeatures['ai_surgery_customisation'] && !setupChecklistData.aiCustomisationOccurred) outstandingCount += 1
+        if (setupChecklistData.pendingCount > 0) outstandingCount += 1
+      }
       const isComplete = outstandingCount === 0 && setupChecklistData !== null
       cards.push({
         id: 'setup-onboarding',
@@ -189,6 +190,21 @@ export default function PracticeSettingsClient({
         icon: (
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+          </svg>
+        ),
+      })
+    }
+
+    // Surgery Health card — shown for all surgeries once onboarding is complete
+    if (setupChecklistData?.onboardingCompleted) {
+      cards.push({
+        id: 'surgery-health',
+        title: 'Surgery Health',
+        description: 'View your surgery\'s governance, usage, and content health at a glance.',
+        href: `/s/${selectedSurgeryId}/admin/setup-checklist`,
+        icon: (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
           </svg>
         ),
       })

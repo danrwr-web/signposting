@@ -143,14 +143,6 @@ export default function UniversalNavigationPanel() {
       return
     }
 
-    // Only fetch if ai_surgery_customisation feature is enabled
-    if (!enabledFeatures['ai_surgery_customisation']) {
-      setOnboardingStarted(false)
-      setOnboardingCompleted(false)
-      setOnboardingFetched(true)
-      return
-    }
-
     let isCancelled = false
 
     const fetchOnboardingStatus = async () => {
@@ -175,7 +167,7 @@ export default function UniversalNavigationPanel() {
     return () => {
       isCancelled = true
     }
-  }, [surgeryId, isAdmin, enabledFeatures])
+  }, [surgeryId, isAdmin])
 
   // Handle escape key to close
   useEffect(() => {
@@ -302,6 +294,23 @@ export default function UniversalNavigationPanel() {
 
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto py-4">
+          {/* Dashboard link — admin users only, only during active onboarding */}
+          {isAdmin && surgeryId && onboardingFetched && !onboardingCompleted && (
+            <nav aria-label="Dashboard" className="mb-4">
+              <ul className="px-3">
+                <li>
+                  <Link
+                    href={`/s/${surgeryId}/dashboard`}
+                    onClick={() => close()}
+                    className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                  >
+                    Dashboard
+                  </Link>
+                </li>
+              </ul>
+            </nav>
+          )}
+
           {/* Modules Section */}
           <nav aria-label="Modules">
             <h3 className="px-5 text-xs font-semibold text-nhs-grey uppercase tracking-wider mb-2">
@@ -374,22 +383,18 @@ export default function UniversalNavigationPanel() {
                     </Link>
                   </li>
                 ))}
-                {/* Finish setup - conditional link for incomplete onboarding */}
-                {isAdmin && onboardingFetched && enabledFeatures['ai_surgery_customisation'] && (
+                {/* Begin/Finish setup — only shown pre-completion; post-completion access is via Practice Settings */}
+                {isAdmin && onboardingFetched && !onboardingCompleted && (
                   <li>
                     <Link
                       href={`/s/${surgeryId}/admin/setup-checklist`}
                       onClick={() => close()}
-                      className={`flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-inset ${
-                        onboardingStarted && !onboardingCompleted
-                          ? 'text-amber-700 bg-amber-50 hover:bg-amber-100 focus:ring-amber-500'
-                          : 'text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue focus:ring-nhs-blue'
-                      }`}
+                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium bg-nhs-blue text-white hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-inset"
                     >
-                      {onboardingStarted && !onboardingCompleted && (
-                        <span className="w-2 h-2 rounded-full bg-amber-500 mr-2 flex-shrink-0" aria-hidden="true" />
+                      {onboardingStarted && (
+                        <span className="w-2 h-2 rounded-full bg-amber-400 mr-2 flex-shrink-0" aria-hidden="true" />
                       )}
-                      {!onboardingStarted ? 'Begin setup' : onboardingCompleted ? 'Practice setup' : 'Finish setup'}
+                      {onboardingStarted ? 'Finish setup' : 'Begin setup'}
                     </Link>
                   </li>
                 )}

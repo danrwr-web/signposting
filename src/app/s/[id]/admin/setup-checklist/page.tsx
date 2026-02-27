@@ -1,9 +1,10 @@
 import 'server-only'
-import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
+import { requireSurgeryAdmin } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinicalReviewCounts'
+import { isFeatureEnabledForSurgery } from '@/lib/features'
 import SetupChecklistClient from './SetupChecklistClient'
 import { AppointmentModelConfig } from '@/lib/api-contracts'
 
@@ -15,10 +16,10 @@ interface SetupChecklistPageProps {
 
 export default async function SetupChecklistPage({ params }: SetupChecklistPageProps) {
   const { id: surgeryId } = await params
-  
+
   try {
-    const user = await requireSurgeryAdmin(surgeryId)
-    
+    await requireSurgeryAdmin(surgeryId)
+
     // Get surgery with onboarding profile
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
@@ -55,7 +56,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
       clinicianArchetypes: [],
     }
 
-    // Check if appointment model is configured (any archetype enabled, including clinician archetypes)
+    // Check if appointment model is configured
     const gpArchetypesEnabled = Object.values({
       routineContinuityGp: appointmentModel.routineContinuityGp,
       routineGpPhone: appointmentModel.routineGpPhone,
@@ -67,7 +68,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
     const clinicianArchetypesEnabled = (appointmentModel.clinicianArchetypes || []).some(ca => ca.enabled)
     const appointmentModelConfigured = gpArchetypesEnabled || clinicianArchetypesEnabled
 
-    // Calculate pendingCount using the same logic as the Clinical Review panel
+    // Calculate review counts using the shared utility
     const allSymptoms = await getEffectiveSymptoms(surgeryId, true)
     const allReviewStatuses = await prisma.symptomReviewStatus.findMany({
       where: { surgeryId },
@@ -76,10 +77,9 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
     const statusMap = new Map(
       allReviewStatuses.map(rs => [getClinicalReviewKey(rs.symptomId, rs.ageGroup), rs])
     )
-    const { pending: pendingCount } = computeClinicalReviewCounts(allSymptoms, statusMap as any)
+    const reviewCounts = computeClinicalReviewCounts(allSymptoms, statusMap as any)
 
     // Check if AI customisation has occurred
-    // Get all symptom IDs for this surgery (base symptoms with overrides + custom symptoms)
     const baseSymptomIds = new Set(
       (await prisma.surgerySymptomOverride.findMany({
         where: { surgeryId },
@@ -93,8 +93,6 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
       })).map(c => c.id)
     )
 
-    // Check if any SymptomHistory records exist with modelUsed set (indicating AI was used)
-    // Note: SymptomHistory doesn't have a "reason" field, so we check for modelUsed being set
     const allSymptomIds = [...baseSymptomIds, ...customSymptomIds]
     let aiCustomisationOccurred = false
     if (allSymptomIds.length > 0) {
@@ -102,24 +100,101 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
         where: {
           symptomId: { in: Array.from(allSymptomIds) },
           modelUsed: { not: null },
-          NOT: {
-            modelUsed: 'REVERT'
-          }
+          NOT: { modelUsed: 'REVERT' }
         }
       })
       aiCustomisationOccurred = aiHistoryRecord !== null
     }
 
+    // New queries for enhanced checklist (run in parallel)
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+    const [
+      standardUsersCount,
+      highRiskLinksCount,
+      customHighlightCount,
+      appointmentTypeCount,
+      handbookItemCount,
+      aiFeatureEnabled,
+      handbookFeatureEnabled,
+      // Health dashboard queries
+      activeUserGroups,
+      totalViewsLast30,
+      lastReviewActivity,
+      recentlyUpdatedCount,
+    ] = await Promise.all([
+      prisma.userSurgery.count({
+        where: { surgeryId, role: { not: 'ADMIN' } }
+      }),
+      prisma.highRiskLink.count({
+        where: { surgeryId }
+      }),
+      prisma.highlightRule.count({
+        where: { surgeryId }
+      }),
+      prisma.appointmentType.count({
+        where: { surgeryId }
+      }),
+      prisma.adminItem.count({
+        where: { surgeryId, deletedAt: null }
+      }),
+      isFeatureEnabledForSurgery(surgeryId, 'ai_surgery_customisation'),
+      isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
+      // Health data
+      prisma.engagementEvent.groupBy({
+        by: ['userEmail'],
+        where: { surgeryId, createdAt: { gte: thirtyDaysAgo }, userEmail: { not: null } }
+      }).then(r => r.length).catch(() => 0),
+      prisma.engagementEvent.count({
+        where: { surgeryId, createdAt: { gte: thirtyDaysAgo }, event: 'view_symptom' }
+      }).catch(() => 0),
+      prisma.symptomReviewStatus.findFirst({
+        where: { surgeryId, lastReviewedAt: { not: null } },
+        orderBy: { lastReviewedAt: 'desc' },
+        select: { lastReviewedAt: true }
+      }).catch(() => null),
+      prisma.symptomReviewStatus.count({
+        where: { surgeryId, lastReviewedAt: { gte: thirtyDaysAgo } }
+      }).catch(() => 0),
+    ])
+
+    const highRiskConfigured = highRiskLinksCount > 0 || surgery.enableDefaultHighRisk
+    const highlightsEnabled = surgery.enableBuiltInHighlights || customHighlightCount > 0
+
+    // Build features array
+    const enabledFeatures: string[] = []
+    if (aiFeatureEnabled) enabledFeatures.push('ai_surgery_customisation')
+    if (handbookFeatureEnabled) enabledFeatures.push('admin_toolkit')
+
     return (
       <SetupChecklistClient
         surgeryId={surgeryId}
         surgeryName={surgery.name}
-        onboardingCompleted={onboardingCompleted}
-        onboardingCompletedAt={onboardingCompletedAt}
-        onboardingUpdatedAt={onboardingUpdatedAt}
-        appointmentModelConfigured={appointmentModelConfigured}
-        aiCustomisationOccurred={aiCustomisationOccurred}
-        pendingCount={pendingCount}
+        checklist={{
+          onboardingCompleted,
+          appointmentModelConfigured,
+          aiCustomisationRun: aiCustomisationOccurred,
+          pendingReviewCount: reviewCounts.pending,
+          standardUsersCount,
+          highRiskConfigured,
+          highlightsEnabled,
+          appointmentTypeCount,
+          handbookItemCount,
+        }}
+        health={{
+          pendingReviewCount: reviewCounts.pending,
+          changesRequestedCount: reviewCounts.changesRequested,
+          lastReviewActivity: lastReviewActivity?.lastReviewedAt?.toISOString() ?? null,
+          activeUsersLast30: activeUserGroups as number,
+          totalViewsLast30: totalViewsLast30 as number,
+          topSymptomId: null,
+          topSymptomCount: 0,
+          approvedCount: reviewCounts.approved,
+          recentlyUpdatedCount: recentlyUpdatedCount as number,
+        }}
+        features={enabledFeatures}
+        onboardingCompletedAt={onboardingCompletedAt?.toISOString() ?? null}
+        onboardingUpdatedAt={onboardingUpdatedAt?.toISOString() ?? null}
         standalone={true}
       />
     )
@@ -127,4 +202,3 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
     redirect('/unauthorized')
   }
 }
-

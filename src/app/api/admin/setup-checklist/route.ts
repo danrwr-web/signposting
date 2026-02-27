@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     // Check permissions
     await requireSurgeryAdmin(surgeryId)
 
-    // Get surgery with onboarding profile
+    // Get surgery with onboarding profile and config fields
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
       include: {
@@ -88,10 +88,10 @@ export async function GET(request: NextRequest) {
     const statusMap = new Map(
       allReviewStatuses.map(rs => [getClinicalReviewKey(rs.symptomId, rs.ageGroup), rs])
     )
-    const { pending: pendingCount } = computeClinicalReviewCounts(allSymptoms, statusMap as any)
+    const reviewCounts = computeClinicalReviewCounts(allSymptoms, statusMap as any)
+    const pendingCount = reviewCounts.pending
 
     // Check if AI customisation has occurred
-    // Get all symptom IDs for this surgery (base symptoms with overrides + custom symptoms)
     const baseSymptomIds = new Set(
       (await prisma.surgerySymptomOverride.findMany({
         where: { surgeryId },
@@ -105,7 +105,6 @@ export async function GET(request: NextRequest) {
       })).map(c => c.id)
     )
 
-    // Check if any SymptomHistory records exist with modelUsed set (indicating AI was used)
     const allSymptomIds = [...baseSymptomIds, ...customSymptomIds]
     let aiCustomisationOccurred = false
     if (allSymptomIds.length > 0) {
@@ -121,6 +120,77 @@ export async function GET(request: NextRequest) {
       aiCustomisationOccurred = aiHistoryRecord !== null
     }
 
+    // --- New checklist queries (run in parallel) ---
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+
+    const [
+      standardUsersCount,
+      highRiskLinksCount,
+      customHighlightCount,
+      appointmentTypeCount,
+      handbookItemCount,
+      // Health dashboard queries
+      activeUserGroups,
+      totalViewsLast30,
+      topSymptomRaw,
+      lastReviewActivity,
+      recentlyUpdatedCount,
+    ] = await Promise.all([
+      // Standard users (non-admin members)
+      prisma.userSurgery.count({
+        where: { surgeryId, role: { not: 'ADMIN' } }
+      }),
+      // High-risk links count
+      prisma.highRiskLink.count({
+        where: { surgeryId }
+      }),
+      // Custom highlight rules count
+      prisma.highlightRule.count({
+        where: { surgeryId }
+      }),
+      // Appointment types count
+      prisma.appointmentType.count({
+        where: { surgeryId }
+      }),
+      // Practice handbook items count (non-deleted)
+      prisma.adminItem.count({
+        where: { surgeryId, deletedAt: null }
+      }),
+      // Active users last 30 days (distinct userEmail from engagement events)
+      prisma.engagementEvent.groupBy({
+        by: ['userEmail'],
+        where: { surgeryId, createdAt: { gte: thirtyDaysAgo }, userEmail: { not: null } }
+      }).then(r => r.length).catch(() => 0),
+      // Total symptom views last 30 days
+      prisma.engagementEvent.count({
+        where: { surgeryId, createdAt: { gte: thirtyDaysAgo }, event: 'view_symptom' }
+      }).catch(() => 0),
+      // Most viewed symptom last 30 days
+      prisma.engagementEvent.groupBy({
+        by: ['baseId'],
+        where: { surgeryId, createdAt: { gte: thirtyDaysAgo }, event: 'view_symptom' },
+        _count: { baseId: true },
+        orderBy: { _count: { baseId: 'desc' } },
+        take: 1
+      }).catch(() => [] as Array<{ baseId: string; _count: { baseId: number } }>),
+      // Last clinical review activity
+      prisma.symptomReviewStatus.findFirst({
+        where: { surgeryId, lastReviewedAt: { not: null } },
+        orderBy: { lastReviewedAt: 'desc' },
+        select: { lastReviewedAt: true }
+      }).catch(() => null),
+      // Symptoms reviewed in last 30 days
+      prisma.symptomReviewStatus.count({
+        where: { surgeryId, lastReviewedAt: { gte: thirtyDaysAgo } }
+      }).catch(() => 0),
+    ])
+
+    // Derive high-risk configured status
+    const highRiskConfigured = highRiskLinksCount > 0 || surgery.enableDefaultHighRisk
+
+    // Derive highlights enabled status
+    const highlightsEnabled = surgery.enableBuiltInHighlights || customHighlightCount > 0
+
     return NextResponse.json({
       surgeryId,
       surgeryName: surgery.name,
@@ -131,6 +201,28 @@ export async function GET(request: NextRequest) {
       appointmentModelConfigured,
       aiCustomisationOccurred,
       pendingCount,
+      checklist: {
+        onboardingCompleted,
+        appointmentModelConfigured,
+        aiCustomisationRun: aiCustomisationOccurred,
+        pendingReviewCount: pendingCount,
+        standardUsersCount,
+        highRiskConfigured,
+        highlightsEnabled,
+        appointmentTypeCount,
+        handbookItemCount,
+      },
+      health: {
+        pendingReviewCount: pendingCount,
+        changesRequestedCount: reviewCounts.changesRequested,
+        lastReviewActivity: lastReviewActivity?.lastReviewedAt ?? null,
+        activeUsersLast30: activeUserGroups,
+        totalViewsLast30,
+        topSymptomId: (topSymptomRaw as Array<{ baseId: string; _count: { baseId: number } }>)[0]?.baseId ?? null,
+        topSymptomCount: (topSymptomRaw as Array<{ baseId: string; _count: { baseId: number } }>)[0]?._count?.baseId ?? 0,
+        approvedCount: reviewCounts.approved,
+        recentlyUpdatedCount,
+      }
     })
   } catch (error) {
     if (error instanceof Error && error.message.includes('required')) {
@@ -143,4 +235,3 @@ export async function GET(request: NextRequest) {
     )
   }
 }
-
