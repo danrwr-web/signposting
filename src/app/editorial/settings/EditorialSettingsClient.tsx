@@ -33,7 +33,19 @@ interface Tag {
   } | null
 }
 
-type TabType = 'prompts' | 'tags'
+type TabType = 'prompts' | 'tags' | 'pathway'
+
+interface LearningCategory {
+  id: string
+  name: string
+  slug: string
+  ordering: number
+  isActive: boolean
+  subsections: string[]
+  createdAt: string
+  updatedAt: string
+  _count: { cards: number }
+}
 
 export default function EditorialSettingsClient() {
   const [activeTab, setActiveTab] = useState<TabType>('prompts')
@@ -56,6 +68,27 @@ export default function EditorialSettingsClient() {
   const [tagSaving, setTagSaving] = useState(false)
   const [tagDeleting, setTagDeleting] = useState<string | null>(null)
   const [tagSeeding, setTagSeeding] = useState(false)
+
+  // Learning pathway state
+  const [categories, setCategories] = useState<LearningCategory[]>([])
+  const [categoriesLoading, setCategoriesLoading] = useState(true)
+  const [categorySeeding, setCategorySeeding] = useState(false)
+  const [categoryError, setCategoryError] = useState<string | null>(null)
+  const [categorySuccess, setCategorySuccess] = useState<string | null>(null)
+  const [newCategoryForm, setNewCategoryForm] = useState({
+    name: '',
+    slug: '',
+    ordering: 0,
+    subsectionsText: '',
+  })
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null)
+  const [editingCategoryForm, setEditingCategoryForm] = useState({
+    name: '',
+    ordering: 0,
+    subsectionsText: '',
+  })
+  const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null)
+  const [categorySaving, setCategorySaving] = useState(false)
 
   const activeTemplate = templates.find((t) => t.role === activeRole)
   const isModified = activeTemplate ? editedTemplate !== activeTemplate.template : false
@@ -195,6 +228,170 @@ export default function EditorialSettingsClient() {
       fetchTags()
     }
   }, [activeTab, fetchTags])
+
+  const fetchCategories = useCallback(async () => {
+    setCategoriesLoading(true)
+    setCategoryError(null)
+    try {
+      const response = await fetch('/api/editorial/settings/learning-categories')
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (!response.ok || !payload.ok) {
+        setCategoryError(payload?.error?.message || 'Failed to load learning categories')
+        return
+      }
+      setCategories(payload.categories || [])
+    } catch (err) {
+      setCategoryError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setCategoriesLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeTab === 'pathway') {
+      fetchCategories()
+    }
+  }, [activeTab, fetchCategories])
+
+  const handleSeedDefaultCategories = async () => {
+    setCategorySeeding(true)
+    setCategoryError(null)
+    setCategorySuccess(null)
+    try {
+      const response = await fetch('/api/editorial/settings/learning-categories/seed', {
+        method: 'POST',
+      })
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (!response.ok || !payload.ok) {
+        setCategoryError(payload?.error?.message || 'Failed to seed categories')
+        return
+      }
+      setCategorySuccess(
+        `Seeded ${payload.created} categories (${payload.skipped} already existed).`
+      )
+      await fetchCategories()
+    } catch (err) {
+      setCategoryError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setCategorySeeding(false)
+    }
+  }
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryForm.name.trim() || !newCategoryForm.slug.trim() || !newCategoryForm.subsectionsText.trim()) return
+    setCategorySaving(true)
+    setCategoryError(null)
+    setCategorySuccess(null)
+    try {
+      const subsections = newCategoryForm.subsectionsText
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const response = await fetch('/api/editorial/settings/learning-categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newCategoryForm.name.trim(),
+          slug: newCategoryForm.slug.trim(),
+          ordering: newCategoryForm.ordering,
+          subsections,
+        }),
+      })
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (!response.ok || !payload.ok) {
+        setCategoryError(payload?.error?.message || 'Failed to create category')
+        return
+      }
+      setCategorySuccess(`Category "${newCategoryForm.name}" created.`)
+      setNewCategoryForm({ name: '', slug: '', ordering: 0, subsectionsText: '' })
+      await fetchCategories()
+    } catch (err) {
+      setCategoryError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  const handleStartEditCategory = (cat: LearningCategory) => {
+    setEditingCategoryId(cat.id)
+    setEditingCategoryForm({
+      name: cat.name,
+      ordering: cat.ordering,
+      subsectionsText: cat.subsections.join('\n'),
+    })
+    setCategoryError(null)
+    setCategorySuccess(null)
+  }
+
+  const handleCancelEditCategory = () => {
+    setEditingCategoryId(null)
+  }
+
+  const handleUpdateCategory = async (id: string) => {
+    setCategorySaving(true)
+    setCategoryError(null)
+    setCategorySuccess(null)
+    try {
+      const subsections = editingCategoryForm.subsectionsText
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const response = await fetch(`/api/editorial/settings/learning-categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingCategoryForm.name.trim(),
+          ordering: editingCategoryForm.ordering,
+          subsections,
+        }),
+      })
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (!response.ok || !payload.ok) {
+        setCategoryError(payload?.error?.message || 'Failed to update category')
+        return
+      }
+      setCategorySuccess('Category updated.')
+      setEditingCategoryId(null)
+      await fetchCategories()
+    } catch (err) {
+      setCategoryError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  const handleToggleCategoryActive = async (cat: LearningCategory) => {
+    setCategorySaving(true)
+    setCategoryError(null)
+    setCategorySuccess(null)
+    try {
+      const response = await fetch(`/api/editorial/settings/learning-categories/${cat.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: !cat.isActive }),
+      })
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (!response.ok || !payload.ok) {
+        setCategoryError(payload?.error?.message || 'Failed to update category')
+        return
+      }
+      setCategorySuccess(`Category ${cat.isActive ? 'deactivated' : 'reactivated'}.`)
+      await fetchCategories()
+    } catch (err) {
+      setCategoryError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  // Auto-generate a slug from the category name
+  const generateSlug = (name: string): string =>
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, '')
+      .trim()
+      .replace(/\s+/g, '_')
+      .slice(0, 60)
 
   const handleSeedDefaultTags = async () => {
     setTagSeeding(true)
@@ -395,6 +592,26 @@ export default function EditorialSettingsClient() {
               }`}
             >
               Available Tags
+            </button>
+            <button
+              role="tab"
+              aria-selected={activeTab === 'pathway'}
+              aria-controls="tabpanel-pathway"
+              id="tab-pathway"
+              onClick={() => {
+                setActiveTab('pathway')
+                setError(null)
+                setSuccessMessage(null)
+                setCategoryError(null)
+                setCategorySuccess(null)
+              }}
+              className={`relative px-6 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'pathway'
+                  ? 'border-b-2 border-nhs-blue text-nhs-blue'
+                  : 'text-slate-600 hover:text-nhs-dark-blue'
+              }`}
+            >
+              Learning Pathway
             </button>
           </div>
         </div>
@@ -695,6 +912,264 @@ export default function EditorialSettingsClient() {
                                 </button>
                               </div>
                             </>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Learning Pathway tab panel */}
+        {activeTab === 'pathway' && (
+          <div role="tabpanel" id="tabpanel-pathway" aria-labelledby="tab-pathway" className="p-6">
+            {categoryError && (
+              <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                {categoryError}
+              </div>
+            )}
+            {categorySuccess && (
+              <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700" role="status">
+                {categorySuccess}
+              </div>
+            )}
+
+            {categoriesLoading ? (
+              <div className="flex items-center justify-center py-12 text-sm text-slate-500" aria-live="polite">
+                Loading categories…
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Seed defaults */}
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <h2 className="mb-2 text-base font-semibold text-nhs-dark-blue">Seed default categories</h2>
+                  <p className="mb-3 text-sm text-slate-600">
+                    Load the 12 standard learning pathway categories. Categories whose slug already exists are skipped.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleSeedDefaultCategories}
+                    disabled={categorySeeding || categorySaving}
+                    className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {categorySeeding ? 'Seeding…' : 'Load default categories'}
+                  </button>
+                </div>
+
+                {/* Add new category */}
+                <div className="rounded-md border border-slate-200 bg-slate-50 p-4">
+                  <h2 className="mb-3 text-base font-semibold text-nhs-dark-blue">Add new category</h2>
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="new-cat-name">
+                          Name
+                        </label>
+                        <input
+                          id="new-cat-name"
+                          type="text"
+                          value={newCategoryForm.name}
+                          onChange={(e) => {
+                            const name = e.target.value
+                            setNewCategoryForm((f) => ({
+                              ...f,
+                              name,
+                              slug: f.slug === '' || f.slug === generateSlug(f.name) ? generateSlug(name) : f.slug,
+                            }))
+                          }}
+                          placeholder="e.g. Respiratory & ENT"
+                          maxLength={100}
+                          className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div className="w-48">
+                        <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="new-cat-slug">
+                          Slug
+                        </label>
+                        <input
+                          id="new-cat-slug"
+                          type="text"
+                          value={newCategoryForm.slug}
+                          onChange={(e) => setNewCategoryForm((f) => ({ ...f, slug: e.target.value }))}
+                          placeholder="respiratory_ent"
+                          maxLength={60}
+                          pattern="[a-z0-9_]+"
+                          className="w-full rounded-md border border-slate-200 px-3 py-2 font-mono text-sm"
+                        />
+                      </div>
+                      <div className="w-24">
+                        <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="new-cat-order">
+                          Order
+                        </label>
+                        <input
+                          id="new-cat-order"
+                          type="number"
+                          min={0}
+                          value={newCategoryForm.ordering}
+                          onChange={(e) => setNewCategoryForm((f) => ({ ...f, ordering: parseInt(e.target.value, 10) || 0 }))}
+                          className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-slate-600" htmlFor="new-cat-subsections">
+                        Subsections (one per line)
+                      </label>
+                      <textarea
+                        id="new-cat-subsections"
+                        rows={4}
+                        value={newCategoryForm.subsectionsText}
+                        onChange={(e) => setNewCategoryForm((f) => ({ ...f, subsectionsText: e.target.value }))}
+                        placeholder="Asthma&#10;Sore Throat&#10;Ear Wax"
+                        className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCreateCategory}
+                      disabled={
+                        categorySaving ||
+                        !newCategoryForm.name.trim() ||
+                        !newCategoryForm.slug.trim() ||
+                        !newCategoryForm.subsectionsText.trim()
+                      }
+                      className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {categorySaving ? 'Adding…' : 'Add category'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category list */}
+                <div>
+                  <h2 className="mb-3 text-base font-semibold text-nhs-dark-blue">
+                    Categories ({categories.length})
+                  </h2>
+                  {categories.length === 0 ? (
+                    <p className="py-4 text-sm text-slate-500">
+                      No categories yet. Seed the defaults or add one above.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {categories.map((cat) => (
+                        <div
+                          key={cat.id}
+                          className={`rounded-md border bg-white ${cat.isActive ? 'border-slate-200' : 'border-slate-100 opacity-60'}`}
+                        >
+                          {editingCategoryId === cat.id ? (
+                            <div className="p-4 space-y-3">
+                              <div className="flex gap-3">
+                                <div className="flex-1">
+                                  <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
+                                  <input
+                                    type="text"
+                                    value={editingCategoryForm.name}
+                                    onChange={(e) => setEditingCategoryForm((f) => ({ ...f, name: e.target.value }))}
+                                    maxLength={100}
+                                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                                    autoFocus
+                                  />
+                                </div>
+                                <div className="w-24">
+                                  <label className="mb-1 block text-xs font-medium text-slate-600">Order</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={editingCategoryForm.ordering}
+                                    onChange={(e) => setEditingCategoryForm((f) => ({ ...f, ordering: parseInt(e.target.value, 10) || 0 }))}
+                                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="mb-1 block text-xs font-medium text-slate-600">Subsections (one per line)</label>
+                                <textarea
+                                  rows={6}
+                                  value={editingCategoryForm.subsectionsText}
+                                  onChange={(e) => setEditingCategoryForm((f) => ({ ...f, subsectionsText: e.target.value }))}
+                                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateCategory(cat.id)}
+                                  disabled={categorySaving || !editingCategoryForm.name.trim() || !editingCategoryForm.subsectionsText.trim()}
+                                  className="rounded-md bg-nhs-blue px-3 py-1.5 text-xs font-semibold text-white hover:bg-nhs-dark-blue disabled:opacity-70"
+                                >
+                                  {categorySaving ? 'Saving…' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEditCategory}
+                                  disabled={categorySaving}
+                                  className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-600 hover:border-slate-400 disabled:opacity-70"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-3">
+                              <div className="flex items-center justify-between">
+                                <div className="flex flex-1 items-center gap-3 min-w-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => setExpandedCategoryId(expandedCategoryId === cat.id ? null : cat.id)}
+                                    className="flex items-center gap-2 text-left min-w-0"
+                                    aria-expanded={expandedCategoryId === cat.id}
+                                  >
+                                    <span className="text-slate-400 text-xs select-none">
+                                      {expandedCategoryId === cat.id ? '▼' : '▶'}
+                                    </span>
+                                    <span className="font-medium text-sm text-nhs-dark-blue truncate">{cat.name}</span>
+                                  </button>
+                                  <span className="shrink-0 font-mono text-[11px] text-slate-400">{cat.slug}</span>
+                                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                                    {cat._count.cards} card{cat._count.cards !== 1 ? 's' : ''}
+                                  </span>
+                                  {!cat.isActive && (
+                                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
+                                      Inactive
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 ml-3 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditCategory(cat)}
+                                    disabled={categorySaving}
+                                    className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-600 hover:border-nhs-blue hover:text-nhs-blue disabled:opacity-70"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleCategoryActive(cat)}
+                                    disabled={categorySaving}
+                                    className={`rounded border px-2 py-1 text-xs disabled:opacity-70 ${
+                                      cat.isActive
+                                        ? 'border-amber-200 text-amber-700 hover:border-amber-400 hover:bg-amber-50'
+                                        : 'border-green-200 text-green-700 hover:border-green-400 hover:bg-green-50'
+                                    }`}
+                                  >
+                                    {cat.isActive ? 'Deactivate' : 'Reactivate'}
+                                  </button>
+                                </div>
+                              </div>
+                              {expandedCategoryId === cat.id && (
+                                <div className="mt-3 ml-5 space-y-1">
+                                  {cat.subsections.map((sub) => (
+                                    <div key={sub} className="flex items-center gap-2 text-sm text-slate-600">
+                                      <span className="text-slate-300">└</span>
+                                      {sub}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       ))}

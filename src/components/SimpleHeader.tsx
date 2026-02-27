@@ -80,6 +80,7 @@ export default function SimpleHeader({
           ? [
               { href: '/editorial', label: 'Editorial' },
               { href: '/editorial/library', label: 'Library' },
+              { href: '/editorial/pathway', label: 'Pathway' },
               { href: '/daily-dose/insights', label: 'Insights' },
             ]
           : []),

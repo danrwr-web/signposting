@@ -94,6 +94,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         publishedBy: null,
         publishedAt: null,
         // Note: clinician approval is preserved; it's set via the /approve endpoint
+        // Learning pathway assignment (null = unassign, undefined = leave unchanged)
+        ...(parsed.learningCategoryId !== undefined
+          ? { learningCategoryId: parsed.learningCategoryId }
+          : {}),
+        ...(parsed.learningSubsection !== undefined
+          ? { learningSubsection: parsed.learningSubsection }
+          : {}),
       },
     })
 

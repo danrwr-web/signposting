@@ -231,10 +231,13 @@ model DailyDoseCard {
   reviewByDate         DateTime?
   tags                 Json?
   generatedFrom        Json?
+  learningCategoryId   String?
+  learningSubsection   String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
   topic                   DailyDoseTopic            @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  learningCategory        LearningCategory?         @relation(fields: [learningCategoryId], references: [id], onDelete: SetNull)
   surgery                 Surgery?                  @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
   batch                   DailyDoseGenerationBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
   createdByUser           User?                     @relation("DailyDoseCardCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
@@ -250,6 +253,7 @@ model DailyDoseCard {
   @@index([surgeryId])
   @@index([status])
   @@index([isActive])
+  @@index([learningCategoryId])
 }
 
 model DailyDoseCardVersion {
@@ -446,6 +450,22 @@ model DailyDoseTag {
   creator User? @relation("DailyDoseTagCreatedBy", fields: [createdBy], references: [id], onDelete: SetNull)
 
   @@index([name])
+}
+
+model LearningCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "Respiratory & ENT"
+  slug        String   @unique // e.g. "respiratory_ent"
+  ordering    Int      @default(0)
+  isActive    Boolean  @default(true)
+  subsections Json // string[] — symptom/topic names that form subsections
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cards DailyDoseCard[]
+
+  @@index([isActive])
+  @@index([ordering])
 }
 
 model BaseSymptom {

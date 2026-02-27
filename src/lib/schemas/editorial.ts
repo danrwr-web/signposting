@@ -167,6 +167,9 @@ export const EditorialCardUpdateZ = z.object({
   slotLanguage: EditorialSlotLanguageZ,
   safetyNetting: z.array(z.string().min(1)).min(1),
   // Note: clinician approval is now handled separately via the /approve endpoint
+  // Learning pathway assignment
+  learningCategoryId: z.string().nullable().optional(),
+  learningSubsection: z.string().nullable().optional(),
 })
 
 export const EditorialApproveRequestZ = z.object({
@@ -205,6 +208,33 @@ export const EditorialTagDeleteZ = z.object({
 
 export const EditorialCardTagsUpdateZ = z.object({
   tags: z.array(z.string().min(1)).default([]),
+  surgeryId: z.string().optional(),
+})
+
+// Learning category management (superuser settings)
+export const LearningCategoryCreateZ = z.object({
+  name: z.string().min(1).max(100).trim(),
+  slug: z
+    .string()
+    .min(1)
+    .max(60)
+    .regex(/^[a-z0-9_]+$/, 'Slug must only contain lowercase letters, numbers and underscores')
+    .trim(),
+  ordering: z.number().int().min(0).default(0),
+  subsections: z.array(z.string().min(1)).min(1),
+})
+
+export const LearningCategoryUpdateZ = z.object({
+  name: z.string().min(1).max(100).trim().optional(),
+  ordering: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+  subsections: z.array(z.string().min(1)).min(1).optional(),
+})
+
+// Card learning-category assignment (part of card update or standalone)
+export const CardLearningCategoryUpdateZ = z.object({
+  learningCategoryId: z.string().nullable().optional(),
+  learningSubsection: z.string().nullable().optional(),
   surgeryId: z.string().optional(),
 })
 

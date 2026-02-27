@@ -9,6 +9,7 @@ import {
 } from '@/server/editorialAi'
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
 import { resolveTargetRole } from '@/lib/editorial/roleRouting'
+import { inferLearningCategory, type LearningCategoryRef } from '@/lib/editorial/inferLearningCategory'
 import { randomUUID } from 'node:crypto'
 
 /**
@@ -70,6 +71,20 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       orderBy: { name: 'asc' },
     })
     const availableTagNames = availableTags.map((t) => t.name)
+
+    // Load active learning categories for inference
+    const learningCategories = await prisma.learningCategory.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, slug: true, subsections: true },
+      orderBy: { ordering: 'asc' },
+    })
+    const categoryRefs: LearningCategoryRef[] = learningCategories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      subsections: Array.isArray(c.subsections) ? (c.subsections as string[]) : [],
+    }))
+    const inferredCategory = inferLearningCategory(job.promptText, categoryRefs)
 
     const generated = await generateEditorialBatch({
       surgeryId: job.surgeryId,
@@ -165,7 +180,17 @@ export async function runGenerationJob(jobId: string): Promise<void> {
           tags: cardTags,
           status: 'DRAFT',
           createdBy: job.createdBy,
-          generatedFrom: { type: 'prompt' },
+          generatedFrom: {
+            type: 'prompt',
+            ...(inferredCategory
+              ? {
+                  suggestedCategoryId: inferredCategory.categoryId,
+                  suggestedCategoryName: inferredCategory.categoryName,
+                  suggestedSubsection: inferredCategory.subsection,
+                  categoryConfidence: inferredCategory.confidence,
+                }
+              : {}),
+          },
           clinicianApproved: false,
           publishedAt: null,
         },

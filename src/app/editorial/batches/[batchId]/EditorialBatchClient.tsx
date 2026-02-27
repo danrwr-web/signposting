@@ -33,6 +33,23 @@ type Card = {
   clinicianApproved: boolean
   clinicianApprovedBy?: { id: string; name: string | null; email: string } | null
   clinicianApprovedAt?: string | null
+  learningCategoryId?: string | null
+  learningSubsection?: string | null
+  generatedFrom?: {
+    type: string
+    suggestedCategoryId?: string
+    suggestedCategoryName?: string
+    suggestedSubsection?: string
+    categoryConfidence?: 'high' | 'low'
+  } | null
+}
+
+type LearningCategoryOption = {
+  id: string
+  name: string
+  slug: string
+  subsections: string[]
+  isActive: boolean
 }
 
 type Quiz = {
@@ -105,6 +122,12 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [isEditingTags, setIsEditingTags] = useState(false)
   const [updatingTags, setUpdatingTags] = useState(false)
   const [reviewFrameIndex, setReviewFrameIndex] = useState(0)
+
+  // Learning category state
+  const [availableCategories, setAvailableCategories] = useState<LearningCategoryOption[]>([])
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
+  const [selectedSubsection, setSelectedSubsection] = useState<string>('')
+  const [categoryUpdating, setCategoryUpdating] = useState(false)
 
   const [cardForm, setCardForm] = useState({
     id: '',
@@ -182,6 +205,22 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     fetchTags()
   }, [])
 
+  // Fetch available learning categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/editorial/settings/learning-categories')
+        const payload = await response.json().catch(() => ({ ok: false }))
+        if (response.ok && payload.ok) {
+          setAvailableCategories((payload.categories || []).filter((c: LearningCategoryOption) => c.isActive))
+        }
+      } catch (err) {
+        // Silently fail — categories are optional
+      }
+    }
+    fetchCategories()
+  }, [])
+
   const activeCard = useMemo(
     () => (activeType === 'card' ? cards.find((card) => card.id === activeId) ?? null : null),
     [cards, activeId, activeType]
@@ -238,6 +277,12 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     // Sync editingTags with card tags
     setEditingTags(cardTags)
     setIsEditingTags(false)
+
+    // Sync learning category selection; pre-fill with AI suggestion if no assignment yet
+    const catId = activeCard.learningCategoryId ?? activeCard.generatedFrom?.suggestedCategoryId ?? ''
+    const sub = activeCard.learningSubsection ?? activeCard.generatedFrom?.suggestedSubsection ?? ''
+    setSelectedCategoryId(catId || '')
+    setSelectedSubsection(sub || '')
   }, [activeCard])
 
   // Readiness checklist - detailed requirements for approval
@@ -269,6 +314,35 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   // Note: canPublish is no longer used since we have a single "Approve and publish" button.
   // Editors with access to the editorial section are clinical approvers by default,
   // so clinician approval is not a gate for publishing.
+
+  // Save learning category assignment
+  const handleSaveCategoryAssignment = async () => {
+    if (!activeCard) return
+    setCategoryUpdating(true)
+    try {
+      const payload = buildSavePayload()
+      const response = await fetch(`/api/editorial/cards/${activeCard.id}?surgeryId=${surgeryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...payload,
+          learningCategoryId: selectedCategoryId || null,
+          learningSubsection: selectedSubsection || null,
+        }),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        toast.error(err?.error?.message || 'Failed to save category')
+        return
+      }
+      await loadBatch()
+      toast.success('Category saved')
+    } catch {
+      toast.error('Something went wrong')
+    } finally {
+      setCategoryUpdating(false)
+    }
+  }
 
   // Build the save payload from current form state
   const buildSavePayload = () => ({
@@ -743,6 +817,79 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                       </div>
                     )}
                   </div>
+                  {/* Learning Category */}
+                  {availableCategories.length > 0 && activeCard && (
+                    <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-semibold text-nhs-dark-blue mb-3">Learning Pathway</h3>
+                      {/* AI suggestion badge */}
+                      {activeCard.generatedFrom?.suggestedCategoryName && !activeCard.learningCategoryId && (
+                        <div className="mb-3 rounded-md border border-blue-200 bg-blue-50 p-2 text-xs text-blue-700">
+                          <span className="font-medium">Suggested:</span>{' '}
+                          {activeCard.generatedFrom.suggestedCategoryName}
+                          {activeCard.generatedFrom.suggestedSubsection && (
+                            <> › {activeCard.generatedFrom.suggestedSubsection}</>
+                          )}
+                          {' '}
+                          <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                            activeCard.generatedFrom.categoryConfidence === 'high'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}>
+                            {activeCard.generatedFrom.categoryConfidence === 'high' ? 'High confidence' : 'Low confidence'}
+                          </span>
+                        </div>
+                      )}
+                      <div className="space-y-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-slate-600">Category</label>
+                          <select
+                            value={selectedCategoryId}
+                            onChange={(e) => {
+                              setSelectedCategoryId(e.target.value)
+                              setSelectedSubsection('')
+                            }}
+                            className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
+                            disabled={categoryUpdating}
+                          >
+                            <option value="">— Unassigned —</option>
+                            {availableCategories.map((cat) => (
+                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {selectedCategoryId && (
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-slate-600">Subsection</label>
+                            <select
+                              value={selectedSubsection}
+                              onChange={(e) => setSelectedSubsection(e.target.value)}
+                              className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
+                              disabled={categoryUpdating}
+                            >
+                              <option value="">— None —</option>
+                              {(availableCategories.find((c) => c.id === selectedCategoryId)?.subsections ?? []).map((sub) => (
+                                <option key={sub} value={sub}>{sub}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSaveCategoryAssignment}
+                          disabled={categoryUpdating}
+                          className="w-full rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {categoryUpdating ? 'Saving…' : 'Save category'}
+                        </button>
+                      </div>
+                      {activeCard.learningCategoryId && (
+                        <p className="mt-2 text-[10px] text-slate-400">
+                          Currently: {availableCategories.find(c => c.id === activeCard.learningCategoryId)?.name ?? activeCard.learningCategoryId}
+                          {activeCard.learningSubsection && <> › {activeCard.learningSubsection}</>}
+                        </p>
+                      )}
+                    </div>
+                  )}
                   <div className="rounded-lg border border-slate-200 bg-white p-4">
                     <h3 className="text-sm font-semibold text-nhs-dark-blue mb-3">Tags</h3>
                     {isEditingTags ? (
