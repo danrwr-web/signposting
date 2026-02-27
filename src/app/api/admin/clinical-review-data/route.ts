@@ -87,6 +87,24 @@ export async function GET(request: NextRequest) {
       ])
     }
 
+    // Fetch high-risk symptom identifiers for this surgery
+    const [highRiskLinks, defaultHighRiskButtons] = await Promise.all([
+      prisma.highRiskLink.findMany({
+        where: { surgeryId },
+        select: { symptomId: true, symptomSlug: true },
+      }),
+      prisma.defaultHighRiskButtonConfig.findMany({
+        where: { isEnabled: true },
+        select: { symptomSlug: true },
+      }),
+    ])
+
+    const highRiskSymptomIds = new Set(highRiskLinks.map(l => l.symptomId).filter(Boolean))
+    const highRiskSlugs = new Set([
+      ...highRiskLinks.map(l => l.symptomSlug).filter(Boolean),
+      ...defaultHighRiskButtons.map(b => b.symptomSlug).filter(Boolean),
+    ])
+
     // Get surgery details with review information (after backfill)
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
@@ -135,7 +153,9 @@ export async function GET(request: NextRequest) {
         lastClinicalReviewAt: surgery.lastClinicalReviewAt,
         lastClinicalReviewer: surgery.lastClinicalReviewer,
       },
-      reviewStatuses: surgery.symptomReviews
+      reviewStatuses: surgery.symptomReviews,
+      highRiskSymptomIds: Array.from(highRiskSymptomIds),
+      highRiskSlugs: Array.from(highRiskSlugs),
     })
     res.headers.set('Cache-Control', 'no-store')
     return res
