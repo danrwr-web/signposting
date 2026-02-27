@@ -76,8 +76,8 @@ export default function SurgeryDashboardClient({ surgery, user, setupComplete }:
         </div>
       )}
 
-      {/* Clinical Review Warning Banner */}
-      {surgery.requiresClinicalReview && (
+      {/* Clinical Review Warning Banner — only shown to standard (non-admin) users */}
+      {surgery.requiresClinicalReview && !canManageSurgery && (
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex">
