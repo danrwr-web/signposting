@@ -143,8 +143,14 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
             Start session
           </Link>
           <Link
-            href={`/daily-dose/onboarding?surgery=${surgeryId}`}
+            href={`/daily-dose/pathway?surgery=${surgeryId}`}
             className="inline-flex items-center justify-center rounded-xl border border-nhs-blue px-6 py-3 text-sm font-semibold text-nhs-blue hover:bg-nhs-blue hover:text-white"
+          >
+            View Learning Pathway
+          </Link>
+          <Link
+            href={`/daily-dose/onboarding?surgery=${surgeryId}`}
+            className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
           >
             Update preferences
           </Link>

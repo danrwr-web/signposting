@@ -533,7 +533,13 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
             You earned <strong>{summary.xpEarned} XP</strong> and answered {summary.correctCount} of{' '}
             {summary.questionsAttempted} questions correctly.
           </p>
-          <div className="mt-6 flex flex-col gap-3">
+          <div className="mt-6 flex flex-col gap-3 w-full">
+            <Link
+              href={`/daily-dose/pathway?surgery=${surgeryId}`}
+              className="inline-flex items-center justify-center rounded-lg bg-nhs-blue px-6 py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
+            >
+              View Learning Pathway
+            </Link>
             <Link
               href={`/daily-dose/history?surgery=${surgeryId}`}
               className="inline-flex items-center justify-center rounded-lg border border-nhs-blue px-6 py-3 text-sm font-semibold text-nhs-blue hover:bg-nhs-blue hover:text-white"
@@ -542,7 +548,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
             </Link>
             <Link
               href={`/daily-dose?surgery=${surgeryId}`}
-              className="inline-flex items-center justify-center rounded-lg bg-nhs-blue px-6 py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
             >
               Back to Daily Dose
             </Link>
