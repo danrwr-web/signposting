@@ -68,19 +68,13 @@ export default function PracticeSettingsClient({
       .then(async (res) => {
         if (res.ok) {
           const data = await res.json()
-          // Calculate outstanding count
-          let outstandingCount = 0
-          if (!data.onboardingCompleted) outstandingCount += 1
-          if (!data.appointmentModelConfigured) outstandingCount += 1
-          if (!data.aiCustomisationOccurred) outstandingCount += 1
-          if (data.pendingCount > 0) outstandingCount += 1
 
           setSetupChecklistData({
             onboardingCompleted: data.onboardingCompleted,
             appointmentModelConfigured: data.appointmentModelConfigured,
             aiCustomisationOccurred: data.aiCustomisationOccurred,
             pendingCount: data.pendingCount,
-            setupChecklistOutstandingCount: outstandingCount,
+            setupChecklistOutstandingCount: 0, // computed dynamically in buildCards()
           })
         }
       })
@@ -143,9 +137,16 @@ export default function PracticeSettingsClient({
       },
     ]
 
-    // Add Setup & onboarding if ai_surgery_customisation feature is enabled
-    if (currentEnabledFeatures['ai_surgery_customisation']) {
-      const outstandingCount = setupChecklistData?.setupChecklistOutstandingCount ?? 0
+    // Setup & onboarding — available to all surgeries
+    {
+      // Compute outstanding count dynamically so the AI item is only counted when the flag is on
+      let outstandingCount = 0
+      if (setupChecklistData) {
+        if (!setupChecklistData.onboardingCompleted) outstandingCount += 1
+        if (!setupChecklistData.appointmentModelConfigured) outstandingCount += 1
+        if (currentEnabledFeatures['ai_surgery_customisation'] && !setupChecklistData.aiCustomisationOccurred) outstandingCount += 1
+        if (setupChecklistData.pendingCount > 0) outstandingCount += 1
+      }
       const isComplete = outstandingCount === 0 && setupChecklistData !== null
       cards.push({
         id: 'setup-onboarding',
@@ -194,8 +195,8 @@ export default function PracticeSettingsClient({
       })
     }
 
-    // Add Surgery Health card (only when onboarding is complete)
-    if (currentEnabledFeatures['ai_surgery_customisation'] && setupChecklistData?.onboardingCompleted) {
+    // Surgery Health card — shown for all surgeries once onboarding is complete
+    if (setupChecklistData?.onboardingCompleted) {
       cards.push({
         id: 'surgery-health',
         title: 'Surgery Health',

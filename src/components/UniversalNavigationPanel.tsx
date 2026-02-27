@@ -143,14 +143,6 @@ export default function UniversalNavigationPanel() {
       return
     }
 
-    // Only fetch if ai_surgery_customisation feature is enabled
-    if (!enabledFeatures['ai_surgery_customisation']) {
-      setOnboardingStarted(false)
-      setOnboardingCompleted(false)
-      setOnboardingFetched(true)
-      return
-    }
-
     let isCancelled = false
 
     const fetchOnboardingStatus = async () => {
@@ -175,7 +167,7 @@ export default function UniversalNavigationPanel() {
     return () => {
       isCancelled = true
     }
-  }, [surgeryId, isAdmin, enabledFeatures])
+  }, [surgeryId, isAdmin])
 
   // Handle escape key to close
   useEffect(() => {
@@ -303,7 +295,7 @@ export default function UniversalNavigationPanel() {
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto py-4">
           {/* Dashboard link — admin users only, only during active onboarding */}
-          {isAdmin && surgeryId && onboardingFetched && enabledFeatures['ai_surgery_customisation'] && !onboardingCompleted && (
+          {isAdmin && surgeryId && onboardingFetched && !onboardingCompleted && (
             <nav aria-label="Dashboard" className="mb-4">
               <ul className="px-3">
                 <li>
@@ -392,7 +384,7 @@ export default function UniversalNavigationPanel() {
                   </li>
                 ))}
                 {/* Begin/Finish setup — only shown pre-completion; post-completion access is via Practice Settings */}
-                {isAdmin && onboardingFetched && enabledFeatures['ai_surgery_customisation'] && !onboardingCompleted && (
+                {isAdmin && onboardingFetched && !onboardingCompleted && (
                   <li>
                     <Link
                       href={`/s/${surgeryId}/admin/setup-checklist`}
