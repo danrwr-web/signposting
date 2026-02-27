@@ -77,6 +77,16 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       />
     )
   } catch (error) {
+    // Don't catch NEXT_REDIRECT errors - let them propagate
+    if (
+      error &&
+      typeof error === 'object' &&
+      'digest' in error &&
+      typeof error.digest === 'string' &&
+      error.digest.startsWith('NEXT_REDIRECT')
+    ) {
+      throw error
+    }
     redirect('/unauthorized')
   }
 }
