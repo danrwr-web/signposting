@@ -105,6 +105,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         ...(parsed.learningAssignments !== undefined
           ? { learningAssignments: parsed.learningAssignments ?? [] }
           : {}),
+        // Always clear validation issues on any save (fix or explicit override)
+        validationIssues: null,
       },
     })
 

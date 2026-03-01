@@ -14,6 +14,7 @@ export interface PromptTrace {
   promptText?: string
   toolkitInjected: boolean
   matchedSymptoms: string[]
+  matchedCategoryName?: string
   toolkitContextLength: number
   promptSystem: string
   promptUser: string

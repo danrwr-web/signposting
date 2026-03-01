@@ -181,6 +181,8 @@ export const EditorialCardUpdateZ = z.object({
   learningSubsection: z.string().nullable().optional(),
   // Learning pathway assignment (multi-category)
   learningAssignments: z.array(LearningAssignmentZ).nullable().optional(),
+  // Explicit flag to clear validationIssues without changing card content
+  overrideValidationIssues: z.boolean().optional(),
 })
 
 export const EditorialApproveRequestZ = z.object({

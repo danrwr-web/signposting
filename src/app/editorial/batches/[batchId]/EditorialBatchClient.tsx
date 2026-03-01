@@ -36,6 +36,7 @@ type Card = {
   learningCategoryId?: string | null
   learningSubsection?: string | null
   learningAssignments?: Array<{ categoryId: string; categoryName: string; subsection?: string | null }> | null
+  validationIssues?: Array<{ code: string; message: string; cardTitle?: string }> | null
   generatedFrom?: {
     type: string
     suggestedAssignments?: Array<{
@@ -132,6 +133,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [pickerCategoryId, setPickerCategoryId] = useState<string>('')
   const [pickerSubsection, setPickerSubsection] = useState<string>('')
   const [categoryUpdating, setCategoryUpdating] = useState(false)
+  const [overridingValidation, setOverridingValidation] = useState(false)
 
   const [cardForm, setCardForm] = useState({
     id: '',
@@ -603,6 +605,32 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     }
   }
 
+  const handleOverrideValidation = async () => {
+    if (!activeCard) return
+    setOverridingValidation(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/editorial/cards/${activeCard.id}?surgeryId=${surgeryId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...buildSavePayload(), overrideValidationIssues: true }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(payload?.error?.message || 'Unable to override validation flag')
+      }
+      // Update local card state to clear validation issues
+      setCards((prev) =>
+        prev.map((c) => (c.id === activeCard.id ? { ...c, validationIssues: null } : c))
+      )
+      toast.success('Validation flag cleared')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setOverridingValidation(false)
+    }
+  }
+
   const regenerateSection = async () => {
     if (!cardForm.id) return
     setSaving(true)
@@ -704,7 +732,12 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">
-                  {card.status} {card.needsSourcing ? '• Needs sourcing' : ''}
+                  {card.status} {card.needsSourcing ? '• Needs sourcing' : ''}{' '}
+                  {Array.isArray(card.validationIssues) && card.validationIssues.length > 0 && (
+                    <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                      ⚠ Flagged
+                    </span>
+                  )}
                 </p>
               </button>
             ))}
@@ -1083,6 +1116,36 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                   </div>
                 </div>
               </div>
+
+              {Array.isArray(activeCard.validationIssues) && activeCard.validationIssues.length > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-4">
+                  <div className="flex items-start gap-2">
+                    <span className="mt-0.5 text-amber-600 text-lg leading-none">⚠</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-amber-800 mb-2">This card was flagged during generation</p>
+                      <ul className="space-y-1">
+                        {activeCard.validationIssues.map((issue, idx) => (
+                          <li key={idx} className="text-xs text-amber-700">
+                            <span className="font-medium">{issue.code}:</span>{' '}
+                            {issue.message}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-3 flex gap-2">
+                        <span className="text-xs text-amber-600 italic">Edit the text below to fix, or dismiss the flag:</span>
+                        <button
+                          type="button"
+                          onClick={handleOverrideValidation}
+                          disabled={overridingValidation}
+                          className="rounded border border-amber-400 bg-white px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {overridingValidation ? 'Dismissing…' : 'Override & dismiss flag'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {cardForm.riskLevel === 'HIGH' && (
                 <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">

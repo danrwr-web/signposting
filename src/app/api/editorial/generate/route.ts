@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
   let stage = 'initialization'
   let user: Awaited<ReturnType<typeof getSessionUser>> = null
   let isSuperuser = false
+  let availableTagNames: string[] = []
 
   // Top-level try/catch to prevent 502 errors
   try {
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
       select: { name: true },
       orderBy: { name: 'asc' },
     })
-    const availableTagNames = availableTags.map((t) => t.name)
+    availableTagNames = availableTags.map((t) => t.name)
 
     // Load active learning categories for category inference
     const learningCategories = await prisma.learningCategory.findMany({
@@ -143,6 +144,30 @@ export async function POST(request: NextRequest) {
     }))
     const inferredCategories = inferLearningCategories(parsed.promptText, categoryRefs)
 
+    // Fetch published card titles for this surgery+role to avoid repeating them.
+    // Match by inferred category IDs where possible, otherwise return all for the role.
+    const inferredCategoryIds = inferredCategories.map((c) => c.categoryId)
+    const existingPublishedCards = await prisma.dailyDoseCard.findMany({
+      where: {
+        surgeryId,
+        targetRole: resolvedRole,
+        status: 'PUBLISHED',
+      },
+      select: { title: true, learningAssignments: true },
+      orderBy: { publishedAt: 'desc' },
+      take: 100, // fetch more than we need, then filter/cap
+    })
+    // Prefer cards that match the inferred categories; fall back to all published cards
+    const matchingCards = inferredCategoryIds.length > 0
+      ? existingPublishedCards.filter((c) => {
+          const assignments = Array.isArray(c.learningAssignments) ? c.learningAssignments as Array<{ categoryId: string }> : []
+          return assignments.some((a) => inferredCategoryIds.includes(a.categoryId))
+        })
+      : existingPublishedCards
+    const existingTitles = (matchingCards.length > 0 ? matchingCards : existingPublishedCards)
+      .slice(0, 50)
+      .map((c) => c.title)
+
     const generated = await generateEditorialBatch({
       surgeryId,
       promptText: parsed.promptText,
@@ -155,6 +180,7 @@ export async function POST(request: NextRequest) {
       returnDebugInfo: debugEnabled,
       overrideValidation: isSuperuser && parsed.overrideValidation === true,
       availableTagNames: availableTagNames.length > 0 ? availableTagNames : undefined,
+      existingTitles: existingTitles.length > 0 ? existingTitles : undefined,
       // Superuser-only: use custom prompts instead of the auto-constructed ones
       ...(isSuperuser && parsed.systemPromptOverride ? { systemPromptOverride: parsed.systemPromptOverride } : {}),
       ...(isSuperuser && parsed.userPromptOverride ? { userPromptOverride: parsed.userPromptOverride } : {}),
@@ -330,8 +356,117 @@ export async function POST(request: NextRequest) {
 
       if (error.code === 'VALIDATION_FAILED') {
         const details = error.details as
-          | { issues?: Array<{ code: string; message: string; cardTitle?: string }>; traceId?: string; debug?: EditorialDebugInfo }
+          | {
+              issues?: Array<{ code: string; message: string; cardTitle?: string }>
+              cards?: Array<any>
+              traceId?: string
+              debug?: EditorialDebugInfo
+            }
           | undefined
+
+        // If we have the generated cards, save them as DRAFT with per-card validationIssues
+        if (details?.cards && details.cards.length > 0 && surgeryId && resolvedRole && user) {
+          try {
+            const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
+            const availableTagNames2 = availableTagNames ?? []
+            const allowedTagSet2 = new Set(availableTagNames2)
+
+            const batch = await prisma.dailyDoseGenerationBatch.create({
+              data: {
+                surgeryId,
+                createdBy: user.id,
+                promptText: promptText ?? '',
+                targetRole: resolvedRole,
+                status: 'DRAFT',
+              },
+            })
+
+            await prisma.dailyDoseGenerationAttempt.updateMany({
+              where: { requestId },
+              data: { batchId: batch.id },
+            })
+
+            const now2 = new Date()
+            const issues = details.issues ?? []
+
+            const cardCreates2 = details.cards.map((card: any) => {
+              const combined = JSON.stringify(card)
+              const inferredRisk = inferRiskLevel(combined)
+              const riskLevel = inferredRisk === 'HIGH' ? 'HIGH' : (card.riskLevel ?? 'LOW')
+              const reviewByDate = new Date(card.reviewByDate)
+              const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now2
+              const defaultReviewByDate = new Date(now2.getTime() + 180 * 24 * 60 * 60 * 1000)
+              const cardTags = (Array.isArray(card.tags) ? card.tags : [])
+                .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSet2.has(String(t).trim()))
+                .map((t: string) => t.trim())
+
+              let normalizedSources = (card.sources || []).map((source: any) => ({
+                ...source,
+                url: source.url === '' || (source.url && source.url.trim() === '') ? null : source.url,
+              }))
+              if (resolvedRole === 'ADMIN' && normalizedSources.length > 0) {
+                if (!normalizedSources[0]?.title?.startsWith('Signposting Toolkit')) {
+                  normalizedSources[0] = {
+                    title: 'Signposting Toolkit (internal)',
+                    url: normalizedSources[0]?.url ?? `/s/${surgeryId}`,
+                    publisher: 'Signposting Toolkit',
+                  }
+                }
+                normalizedSources = [
+                  normalizedSources[0],
+                  ...normalizedSources.slice(1).filter((s: any) => !s.title?.startsWith('Signposting Toolkit')),
+                ]
+              }
+
+              // Tag this card's validation issues (per-card matching on title)
+              const cardIssues = issues.filter(
+                (i) => !i.cardTitle || i.cardTitle === card.title
+              )
+
+              return prisma.dailyDoseCard.create({
+                data: {
+                  batchId: batch.id,
+                  surgeryId,
+                  targetRole: card.targetRole ?? resolvedRole,
+                  title: card.title,
+                  roleScope: [card.targetRole ?? resolvedRole],
+                  topicId,
+                  contentBlocks: card.contentBlocks ?? [],
+                  interactions: card.interactions ?? [],
+                  slotLanguage: card.slotLanguage ?? null,
+                  safetyNetting: card.safetyNetting ?? [],
+                  sources: normalizedSources,
+                  estimatedTimeMinutes: card.estimatedTimeMinutes ?? 5,
+                  riskLevel,
+                  needsSourcing: resolveNeedsSourcing(normalizedSources, card.needsSourcing) || !reviewByDateValid,
+                  reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
+                  tags: cardTags,
+                  status: 'DRAFT',
+                  createdBy: user.id,
+                  validationIssues: cardIssues.length > 0 ? cardIssues : null,
+                  clinicianApproved: false,
+                  publishedAt: null,
+                },
+              })
+            })
+
+            const savedCards = await prisma.$transaction(cardCreates2)
+
+            return NextResponse.json({
+              ok: true,
+              batchId: batch.id,
+              cardIds: savedCards.map((c) => c.id),
+              hasValidationWarnings: true,
+              validationIssues: issues,
+              traceId: details?.traceId ?? undefined,
+              ...(debugEnabled && details?.debug ? { debug: details.debug } : {}),
+            })
+          } catch (saveError) {
+            console.error('POST /api/editorial/generate: failed to save flagged cards', saveError)
+            // Fall through to return the original validation error
+          }
+        }
+
         return NextResponse.json(
           {
             ok: false,
@@ -342,7 +477,6 @@ export async function POST(request: NextRequest) {
             },
             traceId: details?.traceId ?? undefined,
             requestId,
-            // Include inline debug info (dev-only)
             ...(debugEnabled && details?.debug ? { debug: details.debug } : {}),
           },
           { status: 502 }

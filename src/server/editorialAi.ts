@@ -323,6 +323,7 @@ function buildUserPrompt(params: {
   toolkitSource?: { title: string; url: string | null; publisher: string }
   validationIssues?: AdminValidationIssue[]
   availableTagNames?: string[]
+  existingTitles?: string[]
 }) {
   const toolkitSection =
     params.targetRole === 'ADMIN' ? formatToolkitSection(params.toolkitContext, params.toolkitSource) : ''
@@ -343,7 +344,15 @@ TAGS: For each card, set "tags" to an array of 1–4 tag names chosen ONLY from 
 `
       : ''
 
-  return `${toolkitSection}${validationSection}Create ${params.count} learning cards for ${params.targetRole} staff.
+  const existingTitlesSection =
+    params.existingTitles && params.existingTitles.length > 0
+      ? `EXISTING CARDS (DO NOT REPEAT these topics or scenarios — generate cards that cover different angles, sub-topics, or patient scenarios from those listed below):
+${params.existingTitles.map((t) => `- ${t}`).join('\n')}
+
+`
+      : ''
+
+  return `${toolkitSection}${validationSection}${existingTitlesSection}Create ${params.count} learning cards for ${params.targetRole} staff.
 Prompt: ${params.promptText}
 Interactive-first: ${params.interactiveFirst ? 'yes' : 'no'}
 ${tagsSection}IMPORTANT: reviewByDate must be a future date (YYYY-MM-DD format). Use a date approximately 6 months from today. Never use past dates.
@@ -486,6 +495,44 @@ function scoreSymptom(
 }
 
 /**
+ * Match the prompt text against Learning Pathway category names.
+ * Returns the best-matching category (above a minimum score threshold) or null.
+ * Used to expand the symptom-scoring token pool with category subsection names.
+ */
+function findBestCategoryMatch(
+  promptText: string,
+  categories: Array<{ name: string; subsections: unknown }>,
+): { name: string; subsections: string[] } | null {
+  const promptTokens = tokenise(promptText)
+  if (promptTokens.length === 0) return null
+
+  let bestCategory: { name: string; subsections: string[] } | null = null
+  let bestScore = 0
+
+  for (const cat of categories) {
+    const nameTokens = tokenise(cat.name)
+    let score = 0
+    for (const pt of promptTokens) {
+      if (nameTokens.includes(pt)) {
+        score += 3
+      } else if (cat.name.toLowerCase().includes(pt)) {
+        score += 1
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score
+      bestCategory = {
+        name: cat.name,
+        subsections: Array.isArray(cat.subsections) ? (cat.subsections as string[]) : [],
+      }
+    }
+  }
+
+  // Minimum threshold: at least 2 points (avoids spurious matches on single short tokens)
+  return bestScore >= 2 ? bestCategory : null
+}
+
+/**
  * Given a card and a list of matched symptoms, return the best-matching symptom
  * for this specific card's content. Used to assign per-card source URLs.
  */
@@ -526,6 +573,7 @@ export type ToolkitAdviceResult = {
   source: { title: string; url: string | null; publisher: string }
   matchedSymptomNames: string[]
   matchedSymptomEntries: Array<{ id: string; name: string; briefInstruction: string }>
+  matchedCategoryName?: string
   fallbackUsed: boolean
   fallbackReason?: string
   totalSymptomsSearched: number
@@ -578,13 +626,34 @@ async function resolveSignpostingToolkitAdvice(params: {
       }
     }
 
+    // Category pre-match: if the prompt matches a Learning Pathway category name,
+    // expand the scoring token pool with all of that category's subsection names.
+    // This improves matching for broad prompts like "Women's Health" or "Musculoskeletal".
+    let matchedCategoryName: string | null = null
+    let scoringTokens = promptTokens
+    try {
+      const categories = await prisma.learningCategory.findMany({
+        where: { isActive: true },
+        select: { name: true, subsections: true },
+      })
+      const matchedCategory = findBestCategoryMatch(params.promptText, categories)
+      if (matchedCategory) {
+        matchedCategoryName = matchedCategory.name
+        const expandedText = [params.promptText, ...matchedCategory.subsections].join(' ')
+        scoringTokens = tokenise(expandedText)
+        console.log(`[Editorial AI] Category pre-match: "${matchedCategoryName}" → expanded to ${scoringTokens.length} tokens (subsections: [${matchedCategory.subsections.join(', ')}])`)
+      }
+    } catch (catError) {
+      console.warn('[Editorial AI] Category pre-match failed, using prompt tokens only:', catError)
+    }
+
     // Load all effective symptoms for this surgery and score them
     const allSymptoms = await getEffectiveSymptoms(params.surgeryId, false)
 
     const scored = allSymptoms
       .map((symptom) => ({
         symptom,
-        score: scoreSymptom(promptTokens, symptom.name || '', symptom.briefInstruction || ''),
+        score: scoreSymptom(scoringTokens, symptom.name || '', symptom.briefInstruction || ''),
       }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
@@ -675,13 +744,14 @@ USAGE RULES:
     }
 
     const matchedNames = matchedSymptoms.map((s) => s.name || 'Unknown').filter(Boolean)
-    console.log(`[Editorial AI] Injected toolkit context: ${matchedSymptoms.length} symptom(s) [${matchedNames.join(', ')}], ${context.length} chars, tokens: [${promptTokens.join(', ')}]`)
+    console.log(`[Editorial AI] Injected toolkit context: ${matchedSymptoms.length} symptom(s) [${matchedNames.join(', ')}], ${context.length} chars, tokens: [${scoringTokens.join(', ')}]${matchedCategoryName ? ` (via category: "${matchedCategoryName}")` : ''}`)
 
     return {
       context,
       source,
       matchedSymptomNames: matchedNames,
       matchedSymptomEntries: matchedEntries,
+      matchedCategoryName: matchedCategoryName ?? undefined,
       fallbackUsed: false,
       totalSymptomsSearched: allSymptoms.length,
       toolkitContextSnippet: context.slice(0, 500),
@@ -850,6 +920,7 @@ export async function buildEditorialPrompts(params: {
   count: number
   interactiveFirst: boolean
   availableTagNames?: string[]
+  existingTitles?: string[]
 }) {
   const toolkit = await resolveSignpostingToolkitAdvice({
     surgeryId: params.surgeryId,
@@ -866,6 +937,7 @@ export async function buildEditorialPrompts(params: {
     toolkitContext: toolkit?.context,
     toolkitSource: toolkit?.source,
     availableTagNames: params.availableTagNames,
+    existingTitles: params.existingTitles,
   })
 
   const matchedSymptomNames: string[] = toolkit?.matchedSymptomNames || []
@@ -876,6 +948,7 @@ export async function buildEditorialPrompts(params: {
     toolkitMeta: {
       toolkitInjected: !!toolkit,
       matchedSymptoms: matchedSymptomNames,
+      matchedCategoryName: toolkit?.matchedCategoryName ?? null,
       matchedSymptomEntries: toolkit?.matchedSymptomEntries ?? [],
       toolkitContextLength: toolkit?.context?.length || 0,
       fallbackUsed: toolkit?.fallbackUsed ?? false,
@@ -905,6 +978,7 @@ export async function generateEditorialBatch(params: {
   systemPromptOverride?: string // When provided (superuser only), use this instead of the constructed system prompt
   userPromptOverride?: string // When provided (superuser only), use this instead of the constructed user prompt
   availableTagNames?: string[]
+  existingTitles?: string[]
 }) {
   const traceId = params.traceId || randomUUID()
   let attemptIndex = 0
@@ -917,6 +991,7 @@ export async function generateEditorialBatch(params: {
     count: params.count,
     interactiveFirst: params.interactiveFirst,
     availableTagNames: params.availableTagNames,
+    existingTitles: params.existingTitles,
   })
 
   const toolkit = built.toolkitMeta
@@ -937,6 +1012,7 @@ export async function generateEditorialBatch(params: {
       promptText: params.promptText,
       toolkitInjected: toolkit.toolkitInjected,
       matchedSymptoms: matchedSymptomNames,
+      matchedCategoryName: toolkit.matchedCategoryName ?? undefined,
       toolkitContextLength: toolkit.toolkitContextLength,
       promptSystem: systemPrompt,
       promptUser: userPrompt,
@@ -1018,7 +1094,7 @@ export async function generateEditorialBatch(params: {
       }
     })
 
-    // If diagnose/diagnosis detected, fail early with clear error
+    // If diagnose/diagnosis detected, save cards with issues rather than hard-failing
     if (diagnoseIssues.length > 0) {
       const debugInfoForError: EditorialDebugInfo | undefined = params.returnDebugInfo
         ? {
@@ -1039,6 +1115,7 @@ export async function generateEditorialBatch(params: {
 
       throw new EditorialAiError('VALIDATION_FAILED', 'Admin output contains forbidden "diagnose/diagnosis" wording', {
         issues: diagnoseIssues,
+        cards: finalResult.data.cards,
         traceId,
         debug: debugInfoForError,
       })
@@ -1162,6 +1239,7 @@ export async function generateEditorialBatch(params: {
 
             throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
               issues: retryIssues,
+              cards: finalResult.data.cards,
               traceId,
               debug: debugInfoForError,
             })

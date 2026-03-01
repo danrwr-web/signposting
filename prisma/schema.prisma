@@ -234,6 +234,7 @@ model DailyDoseCard {
   learningCategoryId   String?
   learningSubsection   String?
   learningAssignments  Json?
+  validationIssues     Json?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

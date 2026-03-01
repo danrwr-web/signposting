@@ -20,6 +20,7 @@ interface DebugInfo {
   toolkitInjected?: boolean
   toolkitSource?: { title: string; url: string | null; publisher?: string } | null
   matchedSymptoms?: string[]
+  matchedCategoryName?: string | null
   toolkitContextLength?: number
   fallbackUsed?: boolean
   fallbackReason?: string | null
@@ -39,6 +40,7 @@ interface DebugInfo {
 interface ToolkitMeta {
   toolkitInjected: boolean
   matchedSymptoms: string[]
+  matchedCategoryName?: string | null
   toolkitContextLength: number
   fallbackUsed: boolean
   fallbackReason: string | null
@@ -458,6 +460,14 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
                     : 'Matched from surgery'
                   : 'Not injected'}
               </div>
+              {previewData.toolkitMeta.matchedCategoryName && (
+                <div>
+                  <strong className="text-slate-600">Matched category:</strong>{' '}
+                  <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                    {previewData.toolkitMeta.matchedCategoryName}
+                  </span>
+                </div>
+              )}
               <div>
                 <strong className="text-slate-600">Matched symptoms:</strong>{' '}
                 {previewData.toolkitMeta.matchedSymptoms.length > 0
@@ -634,6 +644,14 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
                         : 'Matched from surgery'
                       : 'Not injected'}
                   </div>
+                  {debugInfo.matchedCategoryName && (
+                    <div>
+                      <strong>Matched category:</strong>{' '}
+                      <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                        {debugInfo.matchedCategoryName}
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <strong>Matched symptoms:</strong>{' '}
                     {Array.isArray(debugInfo.matchedSymptoms) && debugInfo.matchedSymptoms.length > 0

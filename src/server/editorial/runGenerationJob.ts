@@ -215,6 +215,120 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       },
     })
   } catch (error) {
+    // If validation failed but we have cards, save them as DRAFT with per-card validationIssues
+    if (
+      error instanceof EditorialAiError &&
+      error.code === 'VALIDATION_FAILED'
+    ) {
+      const details = error.details as
+        | {
+            issues?: Array<{ code: string; message: string; cardTitle?: string }>
+            cards?: Array<any>
+          }
+        | undefined
+
+      if (details?.cards && details.cards.length > 0) {
+        try {
+          const resolvedRoleForSave = resolveTargetRole({
+            promptText: job.promptText,
+            requestedRole: job.targetRole as EditorialRole,
+          })
+          const topicId = await ensureEditorialTopic(job.surgeryId, resolvedRoleForSave)
+          const availableTagsForSave = await prisma.dailyDoseTag.findMany({ select: { name: true } })
+          const allowedTagSetForSave = new Set(availableTagsForSave.map((t) => t.name))
+          const issues = details.issues ?? []
+
+          const batch = await prisma.dailyDoseGenerationBatch.create({
+            data: {
+              surgeryId: job.surgeryId,
+              createdBy: job.createdBy,
+              promptText: job.promptText,
+              targetRole: resolvedRoleForSave,
+              status: 'DRAFT',
+            },
+          })
+
+          await prisma.dailyDoseGenerationAttempt.updateMany({
+            where: { requestId },
+            data: { batchId: batch.id },
+          })
+
+          const now2 = new Date()
+          const cardCreates = details.cards.map((card: any) => {
+            const reviewByDate = new Date(card.reviewByDate)
+            const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now2
+            const defaultReviewByDate = new Date(now2.getTime() + 180 * 24 * 60 * 60 * 1000)
+            const cardTags = (Array.isArray(card.tags) ? card.tags : [])
+              .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSetForSave.has(String(t).trim()))
+              .map((t: string) => t.trim())
+
+            let normalizedSources = (card.sources || []).map((source: any) => ({
+              ...source,
+              url: source.url === '' || (source.url && source.url.trim() === '') ? null : source.url,
+            }))
+            if (resolvedRoleForSave === 'ADMIN' && normalizedSources.length > 0) {
+              if (!normalizedSources[0]?.title?.startsWith('Signposting Toolkit')) {
+                normalizedSources[0] = {
+                  title: 'Signposting Toolkit (internal)',
+                  url: normalizedSources[0]?.url ?? null,
+                  publisher: 'Signposting Toolkit',
+                }
+              }
+              normalizedSources = [
+                normalizedSources[0],
+                ...normalizedSources.slice(1).filter((s: any) => !s.title?.startsWith('Signposting Toolkit')),
+              ]
+            }
+
+            const cardIssues = issues.filter(
+              (i) => !i.cardTitle || i.cardTitle === card.title
+            )
+
+            return prisma.dailyDoseCard.create({
+              data: {
+                batchId: batch.id,
+                surgeryId: job.surgeryId,
+                targetRole: card.targetRole ?? resolvedRoleForSave,
+                title: card.title,
+                roleScope: [card.targetRole ?? resolvedRoleForSave],
+                topicId,
+                contentBlocks: card.contentBlocks ?? [],
+                interactions: card.interactions ?? [],
+                slotLanguage: card.slotLanguage ?? null,
+                safetyNetting: card.safetyNetting ?? [],
+                sources: normalizedSources,
+                estimatedTimeMinutes: card.estimatedTimeMinutes ?? 5,
+                riskLevel: card.riskLevel ?? 'LOW',
+                needsSourcing: !reviewByDateValid,
+                reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
+                tags: cardTags,
+                status: 'DRAFT',
+                createdBy: job.createdBy,
+                validationIssues: cardIssues.length > 0 ? cardIssues : null,
+                clinicianApproved: false,
+                publishedAt: null,
+              },
+            })
+          })
+
+          await prisma.$transaction(cardCreates)
+
+          await prisma.dailyDoseGenerationJob.update({
+            where: { id: jobId },
+            data: {
+              status: 'COMPLETE',
+              batchId: batch.id,
+              completedAt: new Date(),
+            },
+          })
+          return
+        } catch (saveError) {
+          console.error('[runGenerationJob] Failed to save flagged cards:', saveError)
+          // Fall through to mark job as FAILED below
+        }
+      }
+    }
+
     const message =
       error instanceof EditorialAiError
         ? error.message
