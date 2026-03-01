@@ -10,6 +10,7 @@ import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
 interface DailyDoseSessionClientProps {
   surgeryId: string
+  categoryId?: string
 }
 
 type CoreCard = {
@@ -84,7 +85,7 @@ type Step =
       questionId?: string
     }
 
-export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionClientProps) {
+export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyDoseSessionClientProps) {
   const [session, setSession] = useState<SessionStartResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -108,7 +109,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     fetch('/api/daily-dose/session/start', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ surgeryId }),
+      body: JSON.stringify({ surgeryId, ...(categoryId ? { categoryId } : {}) }),
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -134,7 +135,7 @@ export default function DailyDoseSessionClient({ surgeryId }: DailyDoseSessionCl
     return () => {
       active = false
     }
-  }, [surgeryId])
+  }, [surgeryId, categoryId])
 
   // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const steps = useMemo((): Step[] => {

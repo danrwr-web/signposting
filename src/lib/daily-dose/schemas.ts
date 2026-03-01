@@ -93,6 +93,7 @@ export const DailyDoseCardUpdateZ = DailyDoseCardInputZ.partial()
 
 export const DailyDoseSessionStartZ = z.object({
   surgeryId: z.string().optional(),
+  categoryId: z.string().optional(), // if set, restrict session cards to this learning category
 })
 
 export const DailyDoseCardResultZ = z.object({

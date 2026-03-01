@@ -190,16 +190,32 @@ export async function POST(request: NextRequest) {
         status: true,
         tags: true,
         batchId: true,
+        learningAssignments: true,
       },
       orderBy: { updatedAt: 'desc' },
     })
 
-    const eligibleCards = cards
-      .map((card) => toCardPayload(card))
-      .filter((card) => {
-        const scope = card.roleScope
-        return scope.length === 0 ? true : scope.includes(role)
+    // Apply role scope filter on raw cards first so we can also apply category filter
+    // before converting to payloads (learningAssignments is not in the payload type).
+    const roleScopedCards = cards.filter((card) => {
+      const scope = normaliseRoleScope(card.roleScope)
+      return scope.length === 0 ? true : scope.includes(role)
+    })
+
+    // If a specific learning category was requested, restrict to matching cards.
+    // Fall back to the full role-scoped set if no cards match (avoids an empty session).
+    const filteredRawCards = (() => {
+      if (!parsed.categoryId) return roleScopedCards
+      const categoryFiltered = roleScopedCards.filter((card) => {
+        const assignments = Array.isArray(card.learningAssignments)
+          ? (card.learningAssignments as Array<{ categoryId: string }>)
+          : []
+        return assignments.some((a) => a.categoryId === parsed.categoryId)
       })
+      return categoryFiltered.length > 0 ? categoryFiltered : roleScopedCards
+    })()
+
+    let eligibleCards = filteredRawCards.map((card) => toCardPayload(card))
 
     if (eligibleCards.length === 0) {
       return NextResponse.json(

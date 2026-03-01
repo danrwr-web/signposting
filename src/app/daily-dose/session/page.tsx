@@ -7,7 +7,7 @@ import DailyDoseSessionClient from './DailyDoseSessionClient'
 export const dynamic = 'force-dynamic'
 
 interface SessionPageProps {
-  searchParams: Promise<{ surgery?: string }>
+  searchParams: Promise<{ surgery?: string; category?: string }>
 }
 
 export default async function DailyDoseSessionPage({ searchParams }: SessionPageProps) {
@@ -18,6 +18,7 @@ export default async function DailyDoseSessionPage({ searchParams }: SessionPage
 
   const params = await searchParams
   const surgeryId = params.surgery ?? user.defaultSurgeryId ?? user.memberships[0]?.surgeryId
+  const categoryId = params.category
 
   if (!surgeryId) {
     return (
@@ -30,5 +31,5 @@ export default async function DailyDoseSessionPage({ searchParams }: SessionPage
     )
   }
 
-  return <DailyDoseSessionClient surgeryId={surgeryId} />
+  return <DailyDoseSessionClient surgeryId={surgeryId} categoryId={categoryId} />
 }

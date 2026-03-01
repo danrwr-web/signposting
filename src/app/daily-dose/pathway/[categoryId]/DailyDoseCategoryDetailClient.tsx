@@ -58,9 +58,11 @@ function getCoverageColour(cat: CategorySummary): {
 interface Props {
   surgeryId: string
   categoryId: string
+  /** When true, the primary CTA starts a focused session filtered to this category. */
+  focusMode?: boolean
 }
 
-export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId }: Props) {
+export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId, focusMode = false }: Props) {
   const [category, setCategory] = useState<CategorySummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -97,13 +99,27 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId }:
   const coveredSubs = category ? category.subsections.filter((s) => s.totalCards > 0).length : 0
   const totalSubs = category ? category.subsections.length : 0
 
+  // Back link respects focus mode
+  const backHref = focusMode
+    ? `/daily-dose/pathway?surgery=${surgeryId}&mode=focus`
+    : `/daily-dose/pathway?surgery=${surgeryId}`
+
+  // Primary session CTA: focused session when in focus mode, otherwise generic session
+  const sessionHref = focusMode
+    ? `/daily-dose/session?surgery=${surgeryId}&category=${categoryId}`
+    : `/daily-dose/session?surgery=${surgeryId}`
+
+  const sessionLabel = focusMode
+    ? `Start a focused session`
+    : 'Start a session'
+
   return (
     <PhoneFrame>
       <div className="flex h-full flex-col">
         {/* Header bar */}
         <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
           <Link
-            href={`/daily-dose/pathway?surgery=${surgeryId}`}
+            href={backHref}
             className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-nhs-blue"
             aria-label="Back to Learning Pathway"
           >
@@ -145,12 +161,21 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId }:
                 </div>
               </div>
 
+              {/* Focus mode hint */}
+              {focusMode && (
+                <div className="mx-4 mt-3 rounded-lg border border-nhs-blue/20 bg-nhs-light-blue/30 px-4 py-2.5">
+                  <p className="text-xs text-nhs-dark-blue">
+                    Your session will focus on cards from this category.
+                  </p>
+                </div>
+              )}
+
               {/* Subsections list */}
               <div className="mt-4 px-4">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Topics in this category
                 </p>
-                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                <div className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white">
                   {category.subsections.length === 0 && (
                     <p className="px-4 py-4 text-sm text-slate-500">No subsections defined.</p>
                   )}
@@ -158,7 +183,7 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId }:
                     const status = getSubsectionStatus(sub)
                     return (
                       <div key={sub.name} className="flex items-center justify-between px-4 py-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex min-w-0 items-center gap-2.5">
                           <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${status.dot}`} />
                           <span className="truncate text-sm text-slate-800">{sub.name}</span>
                         </div>
@@ -176,16 +201,16 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId }:
                 </div>
               </div>
 
-              {/* Footer CTA */}
+              {/* Footer CTAs */}
               <div className="px-4 py-5">
                 <Link
-                  href={`/daily-dose/session?surgery=${surgeryId}`}
+                  href={sessionHref}
                   className="block w-full rounded-xl bg-nhs-blue py-3 text-center text-sm font-semibold text-white hover:bg-nhs-dark-blue"
                 >
-                  Start a session
+                  {sessionLabel}
                 </Link>
                 <Link
-                  href={`/daily-dose/pathway?surgery=${surgeryId}`}
+                  href={backHref}
                   className="mt-2 block w-full rounded-xl border border-slate-200 py-3 text-center text-sm font-semibold text-slate-600 hover:bg-slate-50"
                 >
                   Back to Pathway

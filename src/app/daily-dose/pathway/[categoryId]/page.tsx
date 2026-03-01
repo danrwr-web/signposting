@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 interface CategoryDetailPageProps {
   params: Promise<{ categoryId: string }>
-  searchParams: Promise<{ surgery?: string }>
+  searchParams: Promise<{ surgery?: string; mode?: string }>
 }
 
 export default async function DailyDoseCategoryDetailPage({
@@ -23,6 +23,7 @@ export default async function DailyDoseCategoryDetailPage({
   const { categoryId } = await params
   const sp = await searchParams
   const surgeryId = sp.surgery ?? user.defaultSurgeryId ?? user.memberships[0]?.surgeryId
+  const focusMode = sp.mode === 'focus'
 
   if (!surgeryId) {
     return (
@@ -35,5 +36,11 @@ export default async function DailyDoseCategoryDetailPage({
     )
   }
 
-  return <DailyDoseCategoryDetailClient surgeryId={surgeryId} categoryId={categoryId} />
+  return (
+    <DailyDoseCategoryDetailClient
+      surgeryId={surgeryId}
+      categoryId={categoryId}
+      focusMode={focusMode}
+    />
+  )
 }

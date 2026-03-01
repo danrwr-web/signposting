@@ -65,7 +65,13 @@ function getCoverageStyle(cat: CategorySummary): {
   }
 }
 
-export default function DailyDosePathwayClient({ surgeryId }: { surgeryId: string }) {
+interface Props {
+  surgeryId: string
+  /** When true, the grid acts as a session launcher — tiles link to the detail page in focus mode. */
+  focusMode?: boolean
+}
+
+export default function DailyDosePathwayClient({ surgeryId, focusMode = false }: Props) {
   const [data, setData] = useState<PathwayData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,21 +98,37 @@ export default function DailyDosePathwayClient({ surgeryId }: { surgeryId: strin
     fetchPathway()
   }, [fetchPathway])
 
+  const backHref = focusMode
+    ? `/daily-dose/session-start?surgery=${surgeryId}`
+    : `/daily-dose?surgery=${surgeryId}`
+
+  const tileHref = (catId: string) =>
+    focusMode
+      ? `/daily-dose/pathway/${catId}?surgery=${surgeryId}&mode=focus`
+      : `/daily-dose/pathway/${catId}?surgery=${surgeryId}`
+
   return (
     <PhoneFrame>
       <div className="flex h-full flex-col">
         {/* Header bar */}
         <div className="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
           <Link
-            href={`/daily-dose?surgery=${surgeryId}`}
+            href={backHref}
             className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-nhs-blue"
-            aria-label="Back to Daily Dose"
+            aria-label={focusMode ? 'Back to session start' : 'Back to Daily Dose'}
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <h1 className="text-base font-bold text-nhs-dark-blue">Learning Pathway</h1>
+          <div>
+            <h1 className="text-base font-bold text-nhs-dark-blue">
+              {focusMode ? 'Choose a topic' : 'Learning Pathway'}
+            </h1>
+            {focusMode && (
+              <p className="text-[11px] text-slate-500">Select a category to start a focused session</p>
+            )}
+          </div>
         </div>
 
         {/* Scrollable content */}
@@ -125,9 +147,11 @@ export default function DailyDosePathwayClient({ surgeryId }: { surgeryId: strin
 
           {!loading && !error && data && (
             <>
-              <p className="mb-4 text-xs text-slate-500">
-                {data.pathway.length} categories · tap a topic to explore
-              </p>
+              {!focusMode && (
+                <p className="mb-4 text-xs text-slate-500">
+                  {data.pathway.length} categories · tap a topic to explore
+                </p>
+              )}
 
               {/* 2-column grid inside the phone frame */}
               <div className="grid grid-cols-2 gap-2.5">
@@ -139,7 +163,7 @@ export default function DailyDosePathwayClient({ surgeryId }: { surgeryId: strin
                   return (
                     <Link
                       key={cat.id}
-                      href={`/daily-dose/pathway/${cat.id}?surgery=${surgeryId}`}
+                      href={tileHref(cat.id)}
                       className={[
                         'flex min-h-[110px] flex-col items-center justify-center gap-2 rounded-xl border-2 px-3 py-4 text-center transition',
                         'hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-1',
