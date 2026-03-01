@@ -84,7 +84,29 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       slug: c.slug,
       subsections: Array.isArray(c.subsections) ? (c.subsections as string[]) : [],
     }))
-    const inferredCategories = inferLearningCategories(job.promptText, categoryRefs)
+    let inferredCategories = inferLearningCategories(job.promptText, categoryRefs)
+
+    // Category-name fallback: if no subsection match, try matching against category names
+    if (inferredCategories.length === 0 && categoryRefs.length > 0) {
+      const promptLower = job.promptText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
+      const promptTokens = promptLower.split(/\s+/).filter((t) => t.length >= 3)
+      if (promptTokens.length > 0) {
+        let best: { id: string; name: string } | null = null
+        let bestScore = 0
+        for (const cat of categoryRefs) {
+          const nameTokens = cat.name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((t) => t.length >= 3)
+          let score = 0
+          for (const pt of promptTokens) {
+            if (nameTokens.includes(pt)) score += 3
+            else if (cat.name.toLowerCase().includes(pt)) score += 1
+          }
+          if (score > bestScore) { bestScore = score; best = { id: cat.id, name: cat.name } }
+        }
+        if (best && bestScore >= 2) {
+          inferredCategories = [{ categoryId: best.id, categoryName: best.name, subsection: '', confidence: 'low' }]
+        }
+      }
+    }
 
     const generated = await generateEditorialBatch({
       surgeryId: job.surgeryId,
@@ -122,7 +144,11 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       data: { batchId: batch.id },
     })
 
-    const allowedTagSet = new Set(availableTagNames)
+    // Build normalised tag lookup map for case/punctuation-insensitive matching
+    const tagNormMap = new Map(availableTagNames.map((n) => [
+      n.toLowerCase().replace(/[''`]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim(),
+      n,
+    ]))
     const cardCreates = generated.cards.slice(0, job.count).map((card) => {
       const combined = JSON.stringify(card)
       const inferredRisk = inferRiskLevel(combined)
@@ -132,8 +158,12 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > cardNow
       const defaultReviewByDate = new Date(cardNow.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months (180 days) from now
       const cardTags = (Array.isArray(card.tags) ? card.tags : [])
-        .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSet.has(String(t).trim()))
-        .map((t: string) => t.trim())
+        .map((t: unknown): string | null => {
+          if (typeof t !== 'string') return null
+          const key = t.toLowerCase().replace(/[''`]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
+          return tagNormMap.get(key) ?? null
+        })
+        .filter((t): t is string => t !== null)
 
       let normalizedSources = card.sources.map((source) => ({
         ...source,
@@ -235,7 +265,10 @@ export async function runGenerationJob(jobId: string): Promise<void> {
           })
           const topicId = await ensureEditorialTopic(job.surgeryId, resolvedRoleForSave)
           const availableTagsForSave = await prisma.dailyDoseTag.findMany({ select: { name: true } })
-          const allowedTagSetForSave = new Set(availableTagsForSave.map((t) => t.name))
+          const tagNormMapForSave = new Map(availableTagsForSave.map((t) => [
+            t.name.toLowerCase().replace(/[''`]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim(),
+            t.name,
+          ]))
           const issues = details.issues ?? []
 
           const batch = await prisma.dailyDoseGenerationBatch.create({
@@ -259,8 +292,12 @@ export async function runGenerationJob(jobId: string): Promise<void> {
             const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now2
             const defaultReviewByDate = new Date(now2.getTime() + 180 * 24 * 60 * 60 * 1000)
             const cardTags = (Array.isArray(card.tags) ? card.tags : [])
-              .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSetForSave.has(String(t).trim()))
-              .map((t: string) => t.trim())
+              .map((t: unknown): string | null => {
+                if (typeof t !== 'string') return null
+                const key = t.toLowerCase().replace(/[''`]/g, '').replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim()
+                return tagNormMapForSave.get(key) ?? null
+              })
+              .filter((t): t is string => t !== null)
 
             let normalizedSources = (card.sources || []).map((source: any) => ({
               ...source,

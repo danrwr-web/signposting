@@ -24,6 +24,74 @@ export const maxDuration = 300 // 5 minutes for generating multiple cards
 
 const MAX_GENERATIONS_PER_HOUR = 5
 
+/**
+ * Normalise a tag string for fuzzy matching: lowercase, strip apostrophes/punctuation,
+ * collapse whitespace. Used to match AI-proposed tags to canonical DB tag names
+ * regardless of capitalisation or minor punctuation differences.
+ */
+function normaliseTagKey(t: string): string {
+  return t
+    .toLowerCase()
+    .replace(/[''`]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Build a normalised tag lookup map from the canonical DB tag names.
+ * Key: normalised form, Value: canonical name as stored in DB.
+ */
+function buildTagNormMap(tagNames: string[]): Map<string, string> {
+  return new Map(tagNames.map((n) => [normaliseTagKey(n), n]))
+}
+
+/**
+ * Resolve card tags from AI output against the canonical tag list.
+ * Uses normalised matching so "Women's Health" matches "womens health" etc.
+ * Returns the canonical DB names for any tags that match.
+ */
+function resolveCardTags(aiTags: unknown[], tagNormMap: Map<string, string>): string[] {
+  return (Array.isArray(aiTags) ? aiTags : [])
+    .map((t): string | null => {
+      if (typeof t !== 'string') return null
+      return tagNormMap.get(normaliseTagKey(t.trim())) ?? null
+    })
+    .filter((t): t is string => t !== null)
+}
+
+/**
+ * Match a prompt against category names using token scoring.
+ * Returns the best-matching category (score ≥ 2) or null.
+ * Used as a fallback when subsection-level inference returns nothing.
+ */
+function matchCategoryByName(
+  promptText: string,
+  categories: Array<{ id: string; name: string; slug: string; subsections: string[] }>,
+): { id: string; name: string } | null {
+  const promptLower = promptText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
+  const promptTokens = promptLower.split(/\s+/).filter((t) => t.length >= 3)
+  if (promptTokens.length === 0) return null
+
+  let best: { id: string; name: string } | null = null
+  let bestScore = 0
+
+  for (const cat of categories) {
+    const nameTokens = cat.name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((t) => t.length >= 3)
+    let score = 0
+    for (const pt of promptTokens) {
+      if (nameTokens.includes(pt)) score += 3
+      else if (cat.name.toLowerCase().includes(pt)) score += 1
+    }
+    if (score > bestScore) {
+      bestScore = score
+      best = { id: cat.id, name: cat.name }
+    }
+  }
+
+  return bestScore >= 2 ? best : null
+}
+
 // Build partial debug info for early errors (before generation)
 function buildPartialDebug(params: {
   requestId: string
@@ -142,7 +210,21 @@ export async function POST(request: NextRequest) {
       slug: c.slug,
       subsections: Array.isArray(c.subsections) ? (c.subsections as string[]) : [],
     }))
-    const inferredCategories = inferLearningCategories(parsed.promptText, categoryRefs)
+    let inferredCategories = inferLearningCategories(parsed.promptText, categoryRefs)
+
+    // Category-name fallback: if no subsection-level match, try matching the prompt
+    // against category names themselves (e.g. "respiratory" → Respiratory & ENT).
+    if (inferredCategories.length === 0 && categoryRefs.length > 0) {
+      const catMatch = matchCategoryByName(parsed.promptText, categoryRefs)
+      if (catMatch) {
+        inferredCategories = [{
+          categoryId: catMatch.id,
+          categoryName: catMatch.name,
+          subsection: '',
+          confidence: 'low',
+        }]
+      }
+    }
 
     // Fetch published card titles for this surgery+role to avoid repeating them.
     // Match by inferred category IDs where possible, otherwise return all for the role.
@@ -227,7 +309,7 @@ export async function POST(request: NextRequest) {
       data: { batchId: batch.id },
     })
 
-    const allowedTagSet = new Set(availableTagNames)
+    const tagNormMap = buildTagNormMap(availableTagNames)
     const cardCreates = generated.cards.slice(0, parsed.count).map((card) => {
       const combined = JSON.stringify(card)
       const inferredRisk = inferRiskLevel(combined)
@@ -236,9 +318,7 @@ export async function POST(request: NextRequest) {
       const reviewByDate = new Date(card.reviewByDate)
       const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now
       const defaultReviewByDate = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000) // 6 months (180 days) from now
-      const cardTags = (Array.isArray(card.tags) ? card.tags : [])
-        .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSet.has(String(t).trim()))
-        .map((t: string) => t.trim())
+      const cardTags = resolveCardTags(card.tags, tagNormMap)
       
       // Post-processing: Force ADMIN sources[0] to be deterministic
       let normalizedSources = card.sources.map((source) => ({
@@ -369,7 +449,7 @@ export async function POST(request: NextRequest) {
           try {
             const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
             const availableTagNames2 = availableTagNames ?? []
-            const allowedTagSet2 = new Set(availableTagNames2)
+            const tagNormMap2 = buildTagNormMap(availableTagNames2)
 
             const batch = await prisma.dailyDoseGenerationBatch.create({
               data: {
@@ -396,9 +476,7 @@ export async function POST(request: NextRequest) {
               const reviewByDate = new Date(card.reviewByDate)
               const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now2
               const defaultReviewByDate = new Date(now2.getTime() + 180 * 24 * 60 * 60 * 1000)
-              const cardTags = (Array.isArray(card.tags) ? card.tags : [])
-                .filter((t: unknown): t is string => typeof t === 'string' && allowedTagSet2.has(String(t).trim()))
-                .map((t: string) => t.trim())
+              const cardTags = resolveCardTags(card.tags, tagNormMap2)
 
               let normalizedSources = (card.sources || []).map((source: any) => ({
                 ...source,
@@ -443,6 +521,15 @@ export async function POST(request: NextRequest) {
                   tags: cardTags,
                   status: 'DRAFT',
                   createdBy: user.id,
+                  generatedFrom: {
+                    type: 'prompt',
+                    suggestedAssignments: inferredCategories.map((c) => ({
+                      categoryId: c.categoryId,
+                      categoryName: c.categoryName,
+                      subsection: c.subsection,
+                      confidence: c.confidence,
+                    })),
+                  },
                   validationIssues: cardIssues.length > 0 ? cardIssues : null,
                   clinicianApproved: false,
                   publishedAt: null,
