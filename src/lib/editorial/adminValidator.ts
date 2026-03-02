@@ -10,18 +10,82 @@ export type AdminValidationIssue = {
   cardTitle?: string
 }
 
-const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
-  { pattern: /risk assessment/i, label: 'risk assessment' },
-  { pattern: /protective factors/i, label: 'protective factors' },
-  { pattern: /sigecaps/i, label: 'SIGECAPS' },
-  { pattern: /phq-9/i, label: 'PHQ-9' },
-  { pattern: /gad-7/i, label: 'GAD-7' },
-  { pattern: /columbia/i, label: 'Columbia' },
-  { pattern: /rcgp/i, label: 'RCGP' },
-  { pattern: /\bdiagnos(e|is|ing)?\b/i, label: 'diagnose' },
-  { pattern: /\bdifferential(s)?\b/i, label: 'differential' },
-  { pattern: /titrate/i, label: 'titrate' },
-  { pattern: /medication/i, label: 'medication' },
+// Each entry has:
+//   pattern  — the regex to test for the forbidden concept
+//   label    — human-readable name used in the issue message
+//   strip    — optional regexes to remove safe/negative uses BEFORE testing
+//              so that "do not prescribe medication" or "self-diagnosis" don't fire
+const FORBIDDEN_PATTERNS: Array<{ pattern: RegExp; label: string; strip?: RegExp[] }> = [
+  {
+    // Clinical risk-scoring tools — always forbidden for receptionist cards
+    pattern: /protective factors/i,
+    label: 'protective factors',
+  },
+  {
+    pattern: /sigecaps/i,
+    label: 'SIGECAPS',
+  },
+  {
+    pattern: /phq-9/i,
+    label: 'PHQ-9',
+  },
+  {
+    pattern: /gad-7/i,
+    label: 'GAD-7',
+  },
+  {
+    pattern: /columbia/i,
+    label: 'Columbia',
+  },
+  {
+    // "diagnose/diagnosis" — strip self-diagnosis and negative instructions before testing.
+    // This mirrors the strip logic in editorialAi.ts so the two checks agree.
+    pattern: /\bdiagnos(e|is|ed|ing)\b/i,
+    label: 'diagnose/diagnosis',
+    strip: [
+      /self-diagnos\w*/gi,
+      /\b(no|not|avoid|without|never|don'?t|do not)\s+diagnos\w*/gi,
+    ],
+  },
+  {
+    pattern: /\bdifferential(s)?\b/i,
+    label: 'differential diagnosis',
+  },
+  {
+    // "titrate" — only forbidden as an instruction; strip "do not titrate" etc.
+    pattern: /titrat\w*/i,
+    label: 'titrate/titration',
+    strip: [
+      /\b(no|not|avoid|never|don'?t|do not)\s+titrat\w*/gi,
+    ],
+  },
+  {
+    // "medication" — receptionist cards may legitimately say "ask about current medication"
+    // or "do not advise on medication". Strip those safe forms; only flag prescribing language.
+    pattern: /\bmedication\b/i,
+    label: 'medication (prescribing context)',
+    strip: [
+      // Negative instructions: "do not prescribe/change/adjust/advise on medication"
+      /\b(do not|don'?t|never|avoid|not)\s+\w*\s*(prescrib\w*|adjust\w*|chang\w*|alter\w*|advis\w*\s+on)\s+medication\w*/gi,
+      // Patient history references: "current medication", "existing medication", "their medication"
+      /\b(current|existing|regular|repeat|prescribed|patient'?s?|their|any)\s+medication\w*/gi,
+      // Asking about: "ask about medication", "enquire about medication"
+      /\b(ask|enquire|check|note|record)\s+(about|regarding|on)\s+medication\w*/gi,
+      // "medication history"
+      /medication\s+histor\w*/gi,
+      // "medication list"
+      /medication\s+list\w*/gi,
+    ],
+  },
+  {
+    // "risk assessment" — strip "this is not a risk assessment" / "do not conduct a risk assessment"
+    pattern: /risk assessment/i,
+    label: 'risk assessment (clinical)',
+    strip: [
+      /\b(this is not|not a|no|avoid|do not|don'?t|never)\s+(a\s+|conduct\s+a?\s+|perform\s+a?\s+)?risk assessment/gi,
+    ],
+  },
+  // Note: RCGP is checked separately as a source URL check below — not duplicated here
 ]
 
 const TRIAGE_TERMS = [
@@ -83,8 +147,14 @@ export function validateAdminCards(params: {
   params.cards.forEach((card) => {
     const combined = combineCardText(card)
 
-    FORBIDDEN_PATTERNS.forEach(({ pattern, label }) => {
-      if (pattern.test(combined)) {
+    FORBIDDEN_PATTERNS.forEach(({ pattern, label, strip }) => {
+      // Strip known-safe negative/contextual forms before testing so that phrases
+      // like "do not prescribe medication" or "this is not a risk assessment" don't fire.
+      const testText = strip
+        ? strip.reduce((text, stripPattern) => text.replace(stripPattern, ''), combined)
+        : combined
+
+      if (pattern.test(testText)) {
         issues.push({
           code: 'FORBIDDEN_PATTERN',
           message: `Forbidden content detected: ${label}`,

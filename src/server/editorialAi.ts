@@ -846,10 +846,12 @@ async function resolveGenerationResult(params: {
   const issues = params.attempt.parseResult.issues
   const rawJson = params.attempt.parseResult.rawJson
   if (!rawJson) {
+    // No parseable JSON at all — nothing to save, hard fail is correct
     throw new EditorialAiError('SCHEMA_MISMATCH', 'Generated output did not match schema', {
       requestId: params.requestId,
       traceId: params.traceId,
       issues,
+      rawJson: null,
       rawSnippet: toRawSnippet(params.attempt.rawOutput),
     })
   }
@@ -865,10 +867,12 @@ async function resolveGenerationResult(params: {
   })
 
   if (!retryAttempt.parseResult.success) {
+    // Include rawJson from the retry so the catch handler can attempt to save partial cards
     throw new EditorialAiError('SCHEMA_MISMATCH', 'Generated output did not match schema after retry', {
       requestId: params.requestId,
       traceId: params.traceId,
       issues: retryAttempt.parseResult.issues,
+      rawJson: retryAttempt.parseResult.rawJson ?? rawJson,
       rawSnippet: toRawSnippet(retryAttempt.rawOutput),
     })
   }

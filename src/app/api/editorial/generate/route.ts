@@ -412,8 +412,94 @@ export async function POST(request: NextRequest) {
     if (error instanceof EditorialAiError) {
       if (error.code === 'SCHEMA_MISMATCH') {
         const details = error.details as
-          | { requestId?: string; issues?: Array<{ path: string; message: string }>; rawSnippet?: string; traceId?: string; debug?: EditorialDebugInfo }
+          | {
+              requestId?: string
+              issues?: Array<{ path: string; message: string }>
+              rawSnippet?: string
+              traceId?: string
+              debug?: EditorialDebugInfo
+              rawJson?: unknown
+            }
           | undefined
+
+        // If partial card data exists in rawJson, try to save whatever we can as DRAFT
+        const rawCards = Array.isArray((details?.rawJson as any)?.cards)
+          ? (details?.rawJson as any).cards
+          : null
+
+        if (rawCards && rawCards.length > 0 && surgeryId && resolvedRole && user) {
+          try {
+            const topicId = await ensureEditorialTopic(surgeryId, resolvedRole)
+            const tagNormMapSM = buildTagNormMap(availableTagNames ?? [])
+            const schemaBatch = await prisma.dailyDoseGenerationBatch.create({
+              data: {
+                surgeryId,
+                createdBy: user.id,
+                promptText: promptText ?? '',
+                targetRole: resolvedRole,
+                status: 'DRAFT',
+              },
+            })
+            await prisma.dailyDoseGenerationAttempt.updateMany({
+              where: { requestId },
+              data: { batchId: schemaBatch.id },
+            })
+            const now3 = new Date()
+            const schemaIssue = [{ code: 'SCHEMA_MISMATCH', message: 'Card output did not fully match expected schema — review all fields carefully before publishing.' }]
+            const cardCreates3 = rawCards.map((card: any) => {
+              const reviewByDate = new Date(card.reviewByDate)
+              const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now3
+              const defaultReviewByDate = new Date(now3.getTime() + 180 * 24 * 60 * 60 * 1000)
+              return prisma.dailyDoseCard.create({
+                data: {
+                  batchId: schemaBatch.id,
+                  surgeryId,
+                  targetRole: card.targetRole ?? resolvedRole,
+                  title: card.title ?? 'Untitled (schema error)',
+                  roleScope: [card.targetRole ?? resolvedRole],
+                  topicId,
+                  contentBlocks: Array.isArray(card.contentBlocks) ? card.contentBlocks : [],
+                  interactions: Array.isArray(card.interactions) ? card.interactions : [],
+                  slotLanguage: card.slotLanguage ?? null,
+                  safetyNetting: Array.isArray(card.safetyNetting) ? card.safetyNetting : [],
+                  sources: Array.isArray(card.sources) ? card.sources : [],
+                  estimatedTimeMinutes: card.estimatedTimeMinutes ?? 5,
+                  riskLevel: card.riskLevel ?? 'LOW',
+                  needsSourcing: true,
+                  reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
+                  tags: resolveCardTags(card.tags ?? [], tagNormMapSM),
+                  status: 'DRAFT',
+                  createdBy: user.id,
+                  generatedFrom: {
+                    type: 'prompt',
+                    suggestedAssignments: (inferredCategories ?? []).map((c) => ({
+                      categoryId: c.categoryId,
+                      categoryName: c.categoryName,
+                      subsection: c.subsection,
+                      confidence: c.confidence,
+                    })),
+                  },
+                  validationIssues: schemaIssue,
+                  clinicianApproved: false,
+                  publishedAt: null,
+                },
+              })
+            })
+            const savedSMCards = await prisma.$transaction(cardCreates3)
+            return NextResponse.json({
+              ok: true,
+              batchId: schemaBatch.id,
+              cardIds: savedSMCards.map((c) => c.id),
+              hasValidationWarnings: true,
+              validationIssues: schemaIssue,
+              traceId: details?.traceId ?? undefined,
+            })
+          } catch (saveErr) {
+            console.error('POST /api/editorial/generate: failed to save partial schema-mismatch cards', saveErr)
+            // Fall through to the error response below
+          }
+        }
+
         const includeRawSnippet = isSuperuser || process.env.NODE_ENV !== 'production'
         return NextResponse.json(
           {

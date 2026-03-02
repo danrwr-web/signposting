@@ -366,6 +366,83 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       }
     }
 
+    // SCHEMA_MISMATCH: if rawJson contains partial card data, save as DRAFT rather than losing content
+    if (
+      error instanceof EditorialAiError &&
+      error.code === 'SCHEMA_MISMATCH'
+    ) {
+      const smDetails = error.details as
+        | { rawJson?: unknown; issues?: Array<{ path: string; message: string }> }
+        | undefined
+      const rawCards = Array.isArray((smDetails?.rawJson as any)?.cards)
+        ? (smDetails?.rawJson as any).cards
+        : null
+
+      if (rawCards && rawCards.length > 0) {
+        try {
+          const resolvedRoleForSave = resolveTargetRole({
+            promptText: job.promptText,
+            requestedRole: job.targetRole as EditorialRole,
+          })
+          const topicId = await ensureEditorialTopic(job.surgeryId, resolvedRoleForSave)
+          const smBatch = await prisma.dailyDoseGenerationBatch.create({
+            data: {
+              surgeryId: job.surgeryId,
+              createdBy: job.createdBy,
+              promptText: job.promptText,
+              targetRole: resolvedRoleForSave,
+              status: 'DRAFT',
+            },
+          })
+          await prisma.dailyDoseGenerationAttempt.updateMany({
+            where: { requestId },
+            data: { batchId: smBatch.id },
+          })
+          const now3 = new Date()
+          const schemaIssue = [{ code: 'SCHEMA_MISMATCH', message: 'Card output did not fully match expected schema — review all fields carefully before publishing.' }]
+          const smCardCreates = rawCards.map((card: any) => {
+            const reviewByDate = new Date(card.reviewByDate)
+            const reviewByDateValid = !Number.isNaN(reviewByDate.getTime()) && reviewByDate > now3
+            const defaultReviewByDate = new Date(now3.getTime() + 180 * 24 * 60 * 60 * 1000)
+            return prisma.dailyDoseCard.create({
+              data: {
+                batchId: smBatch.id,
+                surgeryId: job.surgeryId,
+                targetRole: card.targetRole ?? resolvedRoleForSave,
+                title: card.title ?? 'Untitled (schema error)',
+                roleScope: [card.targetRole ?? resolvedRoleForSave],
+                topicId,
+                contentBlocks: Array.isArray(card.contentBlocks) ? card.contentBlocks : [],
+                interactions: Array.isArray(card.interactions) ? card.interactions : [],
+                slotLanguage: card.slotLanguage ?? null,
+                safetyNetting: Array.isArray(card.safetyNetting) ? card.safetyNetting : [],
+                sources: Array.isArray(card.sources) ? card.sources : [],
+                estimatedTimeMinutes: card.estimatedTimeMinutes ?? 5,
+                riskLevel: card.riskLevel ?? 'LOW',
+                needsSourcing: true,
+                reviewByDate: reviewByDateValid ? reviewByDate : defaultReviewByDate,
+                tags: [],
+                status: 'DRAFT',
+                createdBy: job.createdBy,
+                validationIssues: schemaIssue,
+                clinicianApproved: false,
+                publishedAt: null,
+              },
+            })
+          })
+          await prisma.$transaction(smCardCreates)
+          await prisma.dailyDoseGenerationJob.update({
+            where: { id: jobId },
+            data: { status: 'COMPLETE', batchId: smBatch.id, completedAt: new Date() },
+          })
+          return
+        } catch (smSaveError) {
+          console.error('[runGenerationJob] Failed to save schema-mismatch cards:', smSaveError)
+          // Fall through to mark job as FAILED below
+        }
+      }
+    }
+
     const message =
       error instanceof EditorialAiError
         ? error.message
