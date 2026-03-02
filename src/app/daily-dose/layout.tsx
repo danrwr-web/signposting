@@ -20,7 +20,7 @@ export default async function DailyDoseLayout({ children }: { children: React.Re
   const currentSurgeryId = user.defaultSurgeryId ?? user.memberships[0]?.surgeryId
 
   return (
-    <div className="min-h-screen bg-nhs-light-grey">
+    <div className="md:min-h-screen md:bg-nhs-light-grey">
       <div className="hidden md:block">
         <SimpleHeader 
           surgeries={surgeries} 

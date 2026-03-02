@@ -15,13 +15,12 @@ interface PhoneFrameProps {
 // Base/reference size for the phone frame (maintains aspect ratio when scaled)
 const BASE_WIDTH = 400
 const BASE_HEIGHT = 711 // 400 * 16/9 ≈ 711 (9:16 aspect ratio)
-// On desktop the header is visible (~120px); on mobile the header is hidden so
-// only a tiny margin is needed. 768px matches Tailwind's md: breakpoint.
+// On desktop the header is visible (~120px)
 const RESERVE_SPACE_DESKTOP = 120
-const RESERVE_SPACE_MOBILE = 16
 
 export default function PhoneFrame({ children, actions, className = '', alignActions = true }: PhoneFrameProps) {
   const [scale, setScale] = useState(1)
+  const [isMobile, setIsMobile] = useState(false)
 
   useEffect(() => {
     const calculateScale = () => {
@@ -29,19 +28,23 @@ export default function PhoneFrame({ children, actions, className = '', alignAct
 
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
-      const isMobile = viewportWidth < 768
-      const reserveSpace = isMobile ? RESERVE_SPACE_MOBILE : RESERVE_SPACE_DESKTOP
+      const mobile = viewportWidth < 768
+      setIsMobile(mobile)
 
-      const availableWidth = viewportWidth * (isMobile ? 1 : 0.9) // full width on mobile
-      const availableHeight = viewportHeight - reserveSpace
+      if (mobile) {
+        // On mobile the frame IS the screen — no scaling needed
+        setScale(1)
+        return
+      }
 
-      // Calculate scale factors based on width and height constraints
+      const availableWidth = viewportWidth * 0.9
+      const availableHeight = viewportHeight - RESERVE_SPACE_DESKTOP
+
       const scaleByWidth = availableWidth / BASE_WIDTH
       const scaleByHeight = availableHeight / BASE_HEIGHT
 
-      // Use the smaller scale to ensure it fits both dimensions
-      const newScale = Math.min(scaleByWidth, scaleByHeight, 1) // Never scale up beyond 1x
-      setScale(Math.max(0.3, newScale)) // Minimum scale of 0.3x to prevent it being too tiny
+      const newScale = Math.min(scaleByWidth, scaleByHeight, 1)
+      setScale(Math.max(0.3, newScale))
     }
 
     calculateScale()
@@ -50,8 +53,24 @@ export default function PhoneFrame({ children, actions, className = '', alignAct
   }, [])
 
   const scaledWidth = BASE_WIDTH * scale
-  const scaledHeight = BASE_HEIGHT * scale
 
+  // On mobile: true full-screen — fixed, no border, no rounded corners, no padding
+  if (isMobile) {
+    return (
+      <>
+        <div className="fixed inset-0 z-10 overflow-hidden bg-white">
+          <div className="h-full overflow-y-auto">{children}</div>
+        </div>
+        {actions ? (
+          <div className="fixed bottom-0 left-0 right-0 z-20 flex flex-wrap justify-center gap-2 bg-white p-3 shadow-[0_-2px_8px_rgba(0,0,0,0.08)]">
+            {actions}
+          </div>
+        ) : null}
+      </>
+    )
+  }
+
+  // On desktop: the decorative phone shell with scaling
   return (
     <div className={`flex flex-col items-center gap-4 p-4 ${className}`}>
       <div
