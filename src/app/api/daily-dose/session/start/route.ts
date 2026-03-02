@@ -9,6 +9,7 @@ import { buildSessionQuiz } from '@/lib/daily-dose/buildSessionQuiz'
 import { selectSessionCards, selectWarmupRecallCards } from '@/lib/daily-dose/sessionSelection'
 import { getRecentQuestionIds, getCardsFromRecentSessions } from '@/lib/daily-dose/questionExclusion'
 import { extractQuestionsFromBlocks, extractQuestionsFromInteractions } from '@/lib/daily-dose/questions'
+import { getQuestionId } from '@/lib/daily-dose/questionId'
 import { normaliseRoleScope, uniqueBy, toCardPayload } from '@/lib/daily-dose/utils'
 import {
   DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
@@ -271,11 +272,22 @@ export async function POST(request: NextRequest) {
       excludeLastNSessions: QUIZ_EXCLUSION_SESSIONS,
     })
 
+    // Build the set of question IDs already shown in this session's learning block
+    // so the end-of-session quiz never repeats a question the user just answered.
+    const sessionInteractionQuestionIds = new Set<string>()
+    for (const card of sessionCards) {
+      for (const q of [...extractQuestionsFromBlocks(card), ...extractQuestionsFromInteractions(card)]) {
+        sessionInteractionQuestionIds.add(q.questionId ?? getQuestionId(q))
+      }
+    }
+    // Merge with the history-based exclusion set
+    const mergedExcludeIds = new Set([...excludeQuestionIds, ...sessionInteractionQuestionIds])
+
     const quizQuestions = buildSessionQuiz({
       sessionCards,
       recentSessionCards,
       recallCards: warmupRecallCards,
-      excludeQuestionIds,
+      excludeQuestionIds: mergedExcludeIds,
       targetLength: DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
     })
 

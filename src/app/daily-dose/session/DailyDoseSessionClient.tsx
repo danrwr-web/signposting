@@ -611,13 +611,13 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
               })}
             </div>
             <div className="mt-4 space-y-3">
-              {hasQuiz ? (
+              {isLastCard && hasQuiz ? (
                 <button
                   type="button"
                   onClick={goNext}
                   className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
                 >
-                  Continue to quiz
+                  Next question
                 </button>
               ) : isLastCard ? (
                 <button
