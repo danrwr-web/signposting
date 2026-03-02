@@ -2,6 +2,11 @@
 
 import LearningCardOptionCard from '@/components/daily-dose/LearningCardOptionCard'
 
+/** Describes which part of the preview was clicked for inline editing */
+export type InlineEditTarget =
+  | { type: 'contentBlock'; blockIndex: number; field: 'text' | 'items'; label: string }
+  | { type: 'interaction'; interactionIndex: number; field: 'question' | 'options' | 'explanation'; label: string }
+
 export type SessionPreviewContentBlock =
   | { type: 'text' | 'callout'; text: string }
   | { type: 'steps' | 'do-dont'; items: string[] }
@@ -28,6 +33,9 @@ interface SessionStyleCardPreviewProps {
   reviewByDate?: string | null
   /** When set, only this frame is shown (0 = question, 1 = feedback+sources, 2 = additional content). Enables Back/Next navigation. */
   frameIndex?: number
+  /** When true, content blocks and interactions are clickable; onEdit is called with target and current value */
+  editable?: boolean
+  onEdit?: (target: InlineEditTarget, value: string) => void
 }
 
 /** Number of frames for a card: 2 (question, feedback+sources) or 3 (+ additional content). */
@@ -41,6 +49,32 @@ export function getSessionPreviewFrameCount(contentBlocks: SessionPreviewContent
  * shown with green styling and a tick (review mode).
  * When frameIndex is provided, only that frame is shown (no scroll).
  */
+function EditableRegion({
+  children,
+  onClick,
+  editable,
+  label,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  editable?: boolean
+  label: string
+}) {
+  if (!editable || !onClick) return <>{children}</>
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full text-left rounded-md -m-1 p-1 hover:bg-nhs-light-blue/50 hover:ring-1 hover:ring-nhs-blue/30 transition-colors cursor-pointer group"
+      aria-label={`Edit ${label}`}
+      title={`Click to edit ${label}`}
+    >
+      {children}
+      <span className="block mt-1 text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">Click to edit</span>
+    </button>
+  )
+}
+
 export default function SessionStyleCardPreview({
   title,
   headerText,
@@ -49,6 +83,8 @@ export default function SessionStyleCardPreview({
   sources = [],
   reviewByDate,
   frameIndex,
+  editable = false,
+  onEdit,
 }: SessionStyleCardPreviewProps) {
   const totalFrames = contentBlocks.length > 0 ? 3 : 2
   const useFrames = frameIndex !== undefined
@@ -68,16 +104,38 @@ export default function SessionStyleCardPreview({
           {header}
           {interactions.map((interaction, i) => (
             <div key={i} className="space-y-4">
-              <p className="text-sm font-semibold text-slate-700">{interaction.question}</p>
-              <div className="space-y-2">
-                {interaction.options.map((option, j) => (
-                  <LearningCardOptionCard
-                    key={j}
-                    label={option}
-                    reviewCorrect={j === interaction.correctIndex}
-                  />
-                ))}
-              </div>
+              <EditableRegion
+                editable={editable}
+                label={`question ${i + 1}`}
+                onClick={() =>
+                  onEdit?.(
+                    { type: 'interaction', interactionIndex: i, field: 'question', label: `Question ${i + 1}` },
+                    interaction.question
+                  )
+                }
+              >
+                <p className="text-sm font-semibold text-slate-700">{interaction.question}</p>
+              </EditableRegion>
+              <EditableRegion
+                editable={editable}
+                label={`answer options ${i + 1}`}
+                onClick={() =>
+                  onEdit?.(
+                    { type: 'interaction', interactionIndex: i, field: 'options', label: `Answer options ${i + 1}` },
+                    interaction.options.join('\n')
+                  )
+                }
+              >
+                <div className="space-y-2">
+                  {interaction.options.map((option, j) => (
+                    <LearningCardOptionCard
+                      key={j}
+                      label={option}
+                      reviewCorrect={j === interaction.correctIndex}
+                    />
+                  ))}
+                </div>
+              </EditableRegion>
             </div>
           ))}
         </>
@@ -87,11 +145,23 @@ export default function SessionStyleCardPreview({
         <>
           {useFrames && header}
           {interactions.map((interaction, i) => (
-            <div key={i} className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-              <p className="text-sm font-medium text-emerald-800">
-                ✓ Correct. {interaction.explanation}
-              </p>
-            </div>
+            <EditableRegion
+              key={i}
+              editable={editable}
+              label={`feedback ${i + 1}`}
+              onClick={() =>
+                onEdit?.(
+                  { type: 'interaction', interactionIndex: i, field: 'explanation', label: `Feedback ${i + 1}` },
+                  interaction.explanation
+                )
+              }
+            >
+              <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-sm font-medium text-emerald-800">
+                  ✓ Correct. {interaction.explanation}
+                </p>
+              </div>
+            </EditableRegion>
           ))}
           {sources.length > 0 && (
             <div className="border-t border-slate-200 pt-3">
@@ -134,28 +204,51 @@ export default function SessionStyleCardPreview({
             {contentBlocks.map((block, i) => {
               if (block.type === 'text' || block.type === 'callout') {
                 return (
-                  <div
+                  <EditableRegion
                     key={i}
-                    className={`rounded-lg border p-4 ${
-                      block.type === 'callout' ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200 bg-white'
-                    }`}
+                    editable={editable}
+                    label={`scenario ${i + 1}`}
+                    onClick={() =>
+                      onEdit?.(
+                        { type: 'contentBlock', blockIndex: i, field: 'text', label: `Scenario ${i + 1}` },
+                        block.text
+                      )
+                    }
                   >
-                    <p className="text-slate-700">{block.text}</p>
-                  </div>
+                    <div
+                      className={`rounded-lg border p-4 ${
+                        block.type === 'callout' ? 'border-amber-200 bg-amber-50/50' : 'border-slate-200 bg-white'
+                      }`}
+                    >
+                      <p className="text-slate-700">{block.text}</p>
+                    </div>
+                  </EditableRegion>
                 )
               }
               if (block.type === 'steps' || block.type === 'do-dont') {
                 return (
-                  <div key={i} className="rounded-lg border border-slate-200 bg-white p-4">
-                    <ul className="space-y-2 text-slate-700">
-                      {block.items.map((item, j) => (
-                        <li key={j} className="flex gap-2">
-                          <span className="text-nhs-blue">•</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  <EditableRegion
+                    key={i}
+                    editable={editable}
+                    label={`content block ${i + 1}`}
+                    onClick={() =>
+                      onEdit?.(
+                        { type: 'contentBlock', blockIndex: i, field: 'items', label: `Content block ${i + 1}` },
+                        block.items.join('\n')
+                      )
+                    }
+                  >
+                    <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <ul className="space-y-2 text-slate-700">
+                        {block.items.map((item, j) => (
+                          <li key={j} className="flex gap-2">
+                            <span className="text-nhs-blue">•</span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </EditableRegion>
                 )
               }
               return null

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
-import SessionStyleCardPreview from '@/components/daily-dose/SessionStyleCardPreview'
+import SessionStyleCardPreview, { type InlineEditTarget } from '@/components/daily-dose/SessionStyleCardPreview'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 import Modal from '@/components/appointments/Modal'
 
@@ -134,6 +134,10 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [pickerSubsection, setPickerSubsection] = useState<string>('')
   const [categoryUpdating, setCategoryUpdating] = useState(false)
   const [overridingValidation, setOverridingValidation] = useState(false)
+  const [inlineEdit, setInlineEdit] = useState<{
+    target: InlineEditTarget
+    value: string
+  } | null>(null)
 
   const [cardForm, setCardForm] = useState({
     id: '',
@@ -452,6 +456,39 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       .map((item) => item.trim())
       .filter(Boolean),
   })
+
+  const handleApplyInlineEdit = useCallback(() => {
+    if (!inlineEdit) return
+    const { target, value } = inlineEdit
+    if (target.type === 'contentBlock') {
+      setCardForm((prev) => {
+        const blocks = [...prev.blocks]
+        if (target.blockIndex >= blocks.length) return prev
+        const block = blocks[target.blockIndex]
+        if (target.field === 'text' && ('text' in block)) {
+          blocks[target.blockIndex] = { ...block, text: value }
+        } else if (target.field === 'items' && ('itemsText' in block)) {
+          blocks[target.blockIndex] = { ...block, itemsText: value }
+        }
+        return { ...prev, blocks }
+      })
+    } else {
+      setCardForm((prev) => {
+        const interactions = [...prev.interactions]
+        if (target.interactionIndex >= interactions.length) return prev
+        const ia = interactions[target.interactionIndex]
+        if (target.field === 'question') {
+          interactions[target.interactionIndex] = { ...ia, question: value }
+        } else if (target.field === 'options') {
+          interactions[target.interactionIndex] = { ...ia, optionsText: value }
+        } else if (target.field === 'explanation') {
+          interactions[target.interactionIndex] = { ...ia, explanation: value }
+        }
+        return { ...prev, interactions }
+      })
+    }
+    setInlineEdit(null)
+  }, [inlineEdit])
 
   // Save draft and return success status
   const doSave = async (): Promise<boolean> => {
@@ -876,6 +913,8 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     }))}
                     reviewByDate={cardForm.reviewByDate || null}
                     frameIndex={reviewFrameIndex}
+                    editable={cardForm.status !== 'PUBLISHED'}
+                    onEdit={(target, value) => setInlineEdit({ target, value })}
                   />
                 </PhoneFrame>
                   <button
@@ -1755,6 +1794,53 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
           )}
         </section>
       </div>
+
+      {inlineEdit && (
+        <Modal
+          title={`Edit ${inlineEdit.target.label}`}
+          onClose={() => setInlineEdit(null)}
+          widthClassName="max-w-xl"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Changes update the preview below. Use Approve and publish to save to the card.
+            </p>
+            <textarea
+              value={inlineEdit.value}
+              onChange={(e) =>
+                setInlineEdit((prev) => (prev ? { ...prev, value: e.target.value } : null))
+              }
+              rows={inlineEdit.target.field === 'options' || inlineEdit.target.field === 'items' ? 6 : 4}
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+              placeholder={
+                inlineEdit.target.field === 'options' || inlineEdit.target.field === 'items'
+                  ? 'One item per line'
+                  : undefined
+              }
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setInlineEdit(null)}
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleApplyInlineEdit()
+                  toast.success('Updated')
+                }}
+                className="rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {showCompletionModal && (
         <Modal
