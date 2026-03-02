@@ -108,6 +108,12 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
   return (
     <PhoneFrame>
       <div className="flex h-full flex-col justify-between p-6">
+        {/* Mobile-only app name bar — shown instead of the hidden header */}
+        <div className="mb-2 flex items-center justify-between md:hidden">
+          <span className="text-xs font-semibold tracking-wide text-nhs-blue uppercase">Daily Dose</span>
+          <span className="text-xs text-slate-400">Signposting Toolkit</span>
+        </div>
+
         {/* Stats at top */}
         <div className="flex justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-center">
           <div className="flex-1">
@@ -153,6 +159,15 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
             className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50"
           >
             Update preferences
+          </Link>
+          <Link
+            href={`/s/${surgeryId}`}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl px-6 py-2.5 text-xs font-medium text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Return to Signposting Toolkit
           </Link>
         </div>
       </div>

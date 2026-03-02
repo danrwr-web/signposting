@@ -15,7 +15,10 @@ interface PhoneFrameProps {
 // Base/reference size for the phone frame (maintains aspect ratio when scaled)
 const BASE_WIDTH = 400
 const BASE_HEIGHT = 711 // 400 * 16/9 ≈ 711 (9:16 aspect ratio)
-const RESERVE_SPACE = 120 // Space reserved for compact header, actions, padding
+// On desktop the header is visible (~120px); on mobile the header is hidden so
+// only a tiny margin is needed. 768px matches Tailwind's md: breakpoint.
+const RESERVE_SPACE_DESKTOP = 120
+const RESERVE_SPACE_MOBILE = 16
 
 export default function PhoneFrame({ children, actions, className = '', alignActions = true }: PhoneFrameProps) {
   const [scale, setScale] = useState(1)
@@ -26,8 +29,11 @@ export default function PhoneFrame({ children, actions, className = '', alignAct
 
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
-      const availableWidth = viewportWidth * 0.9 // 90% of viewport width
-      const availableHeight = viewportHeight - RESERVE_SPACE
+      const isMobile = viewportWidth < 768
+      const reserveSpace = isMobile ? RESERVE_SPACE_MOBILE : RESERVE_SPACE_DESKTOP
+
+      const availableWidth = viewportWidth * (isMobile ? 1 : 0.9) // full width on mobile
+      const availableHeight = viewportHeight - reserveSpace
 
       // Calculate scale factors based on width and height constraints
       const scaleByWidth = availableWidth / BASE_WIDTH

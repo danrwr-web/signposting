@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
 type HistoryResponse = {
@@ -92,6 +93,19 @@ export default function DailyDoseHistoryClient({ surgeryId }: { surgeryId: strin
   return (
     <PhoneFrame>
       <div className="flex h-full flex-col overflow-auto p-6">
+        {/* Mobile-only back button — header nav is hidden on small screens */}
+        <div className="mb-3 md:hidden">
+          <Link
+            href={`/daily-dose?surgery=${surgeryId}`}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-nhs-blue hover:text-nhs-dark-blue"
+          >
+            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Daily Dose
+          </Link>
+        </div>
+
         <h1 className="text-xl font-bold text-nhs-dark-blue">Your progress</h1>
         <div className="mt-4 grid grid-cols-3 gap-2">
           <div className="rounded-lg border border-slate-200 p-3 text-center">

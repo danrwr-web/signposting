@@ -21,12 +21,14 @@ export default async function DailyDoseLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader 
-        surgeries={surgeries} 
-        currentSurgeryId={currentSurgeryId ?? undefined}
-        showDailyDoseNav={true}
-      />
-      <main className="mx-auto w-full max-w-6xl px-4 py-2 sm:px-6 lg:px-8">{children}</main>
+      <div className="hidden md:block">
+        <SimpleHeader 
+          surgeries={surgeries} 
+          currentSurgeryId={currentSurgeryId ?? undefined}
+          showDailyDoseNav={true}
+        />
+      </div>
+      <main className="mx-auto w-full max-w-6xl px-4 py-0 md:py-2 sm:px-6 lg:px-8">{children}</main>
     </div>
   )
 }
