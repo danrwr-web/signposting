@@ -1048,6 +1048,9 @@ export async function generateEditorialBatch(params: {
     const matchedSymptomEntries = toolkit.matchedSymptomEntries ?? []
     const toolkitTitle = toolkit.toolkitSource?.title ?? 'Signposting Toolkit (internal)'
 
+    // Matches "diagnose/diagnosis" etc. but NOT when preceded by "self-" (e.g. "self-diagnosis")
+    // or when clearly used in a negative/advisory context ("no diagnosis", "avoid diagnosis").
+    // We strip known safe compound forms before testing.
     const diagnosePattern = /\bdiagnos(e|is|ed|ing)\b/i
     const diagnoseIssues: Array<{ code: string; message: string; cardTitle?: string }> = []
 
@@ -1071,11 +1074,18 @@ export async function generateEditorialBatch(params: {
       const nonToolkitSources = normalizedSources.filter((s) => !s.title?.startsWith('Signposting Toolkit'))
       normalizedSources = [toolkitSource, ...nonToolkitSources]
 
-      // Check for forbidden "diagnose/diagnosis" wording
+      // Check for forbidden "diagnose/diagnosis" wording.
+      // Strip known safe compound/negative forms before testing so that phrases like
+      // "self-diagnosis", "no diagnosis", "do not diagnose", "avoid diagnosis" do not
+      // trigger the flag — these are instructional negations, not clinical claims.
       const cardText = JSON.stringify(card)
-      if (diagnosePattern.test(cardText)) {
-        // Extract the offending snippet (50 chars around match)
-        const match = cardText.match(diagnosePattern)
+      const strippedText = cardText
+        .replace(/self-diagnos\w*/gi, '')           // "self-diagnosis", "self-diagnose" etc.
+        .replace(/\b(no|not|avoid|without|never|don't|do not)\s+diagnos\w*/gi, '') // negative forms
+
+      if (diagnosePattern.test(strippedText)) {
+        // Extract the offending snippet (50 chars around match) from original text
+        const match = strippedText.match(diagnosePattern)
         if (match && match.index !== undefined) {
           const start = Math.max(0, match.index - 25)
           const end = Math.min(cardText.length, match.index + match[0].length + 25)
