@@ -1137,128 +1137,51 @@ export async function generateEditorialBatch(params: {
 
     const issues = validateAdminCards({ cards: finalResult.data.cards, promptText: params.promptText })
     if (issues.length > 0) {
-      // Superuser override: skip retry and throw, proceed with current cards
+      if (process.env.NODE_ENV !== 'production') {
+        promptTraceStore.update(traceId, {
+          safetyValidationPassed: false,
+          safetyValidationErrors: issues.map((issue) => ({
+            code: issue.code,
+            message: issue.message,
+            cardTitle: issue.cardTitle,
+          })),
+        })
+      }
+
       if (params.overrideValidation) {
+        // Superuser override: keep the cards and proceed, flagging issues as overridden
         validationOverriddenIssues = issues
-        if (process.env.NODE_ENV !== 'production') {
-          promptTraceStore.update(traceId, {
-            safetyValidationPassed: false,
-            safetyValidationErrors: issues.map((issue) => ({
-              code: issue.code,
-              message: issue.message,
-              cardTitle: issue.cardTitle,
-            })),
-          })
-        }
       } else {
-        // Store initial safety validation failure in trace (before retry)
-        if (process.env.NODE_ENV !== 'production') {
-          promptTraceStore.update(traceId, {
-            safetyValidationPassed: false,
-            safetyValidationErrors: issues.map((issue) => ({
-              code: issue.code,
-              message: issue.message,
-              cardTitle: issue.cardTitle,
-            })),
-          })
-        }
-        // Reuse the same toolkit context for retry (no need to refetch)
-        const retryPrompt = buildUserPrompt({
-          promptText: params.promptText,
-          targetRole: params.targetRole,
-          count: params.count,
-          interactiveFirst: params.interactiveFirst,
-          toolkitContext: built._rawToolkitContext,
-          toolkitSource: built._rawToolkitSource,
-          validationIssues: issues,
-        })
-
-        const strictSystemPrompt = buildSystemPrompt({ role: params.targetRole, strictAdmin: true })
-        const strictResult = await runGenerationAttempt({
-          systemPrompt: strictSystemPrompt,
-          userPrompt: retryPrompt,
-          requestId: params.requestId,
-          attemptIndex: attemptIndex++,
-          traceId,
-          onAttempt: params.onAttempt,
-        })
-
-        finalResult = await resolveGenerationResult({
-          attempt: strictResult,
-          requestId: params.requestId,
-          attemptIndex: () => attemptIndex++,
-          systemPrompt: strictSystemPrompt,
-          traceId,
-          onAttempt: params.onAttempt,
-        })
-
-        // Re-normalise sources after retry (same per-card logic as before retry)
-        finalResult.data.cards = finalResult.data.cards.map((card) => {
-          let normalizedSources = card.sources.map((source) => ({
-            ...source,
-            url: source.url && source.url.trim() ? source.url.trim() : null,
-          }))
-          const bestMatch = bestSymptomForCard(card, matchedSymptomEntries)
-          const toolkitSource = {
-            title: toolkitTitle,
-            url: bestMatch ? `/symptom/${bestMatch.id}?surgery=${params.surgeryId}` : `/s/${params.surgeryId}`,
-            publisher: 'Signposting Toolkit',
-          }
-          const nonToolkitSources = normalizedSources.filter((s) => !s.title?.startsWith('Signposting Toolkit'))
-          normalizedSources = [toolkitSource, ...nonToolkitSources]
-          return { ...card, sources: normalizedSources }
-        })
-
-        const retryIssues = validateAdminCards({
-          cards: finalResult.data.cards,
-          promptText: params.promptText,
-        })
-        if (retryIssues.length > 0) {
-          // Superuser override: skip throw, proceed with current cards
-          if (params.overrideValidation) {
-            validationOverriddenIssues = retryIssues
-          } else {
-            // Store safety validation failure in trace before throwing
-            if (process.env.NODE_ENV !== 'production') {
-              promptTraceStore.update(traceId, {
-                safetyValidationPassed: false,
-                safetyValidationErrors: retryIssues.map((issue) => ({
-                  code: issue.code,
-                  message: issue.message,
-                  cardTitle: issue.cardTitle,
-                })),
-              })
-            }
-            // Build debug info for error response
-            const debugInfoForError: EditorialDebugInfo | undefined = params.returnDebugInfo
-              ? {
-                  stage: 'safety_validation',
-                  requestId: params.requestId,
-                  traceId,
-                  toolkitInjected: toolkit.toolkitInjected,
-                  toolkitSource: toolkit.toolkitSource,
-                  matchedSymptoms: matchedSymptomNames,
-                  toolkitContextLength: toolkit.toolkitContextLength,
-                  promptSystem: systemPrompt,
-                  promptUser: userPrompt,
-                  modelRawJson: finalResult.data,
-                  modelNormalisedJson: finalResult.data,
-                  safetyErrors: retryIssues.map((issue) => ({
-                    code: issue.code,
-                    message: issue.message,
-                    cardTitle: issue.cardTitle,
-                  })),
-                }
-              : undefined
-
-            throw new EditorialAiError('VALIDATION_FAILED', 'Admin output failed safety validation', {
-              issues: retryIssues,
-              cards: finalResult.data.cards,
+        // Save cards as DRAFT with flagged issues rather than wasting a second LLM call.
+        // The catch handlers in generate/route.ts and runGenerationJob.ts will persist
+        // the cards and return a 200 with hasValidationWarnings: true.
+        const debugInfoForError: EditorialDebugInfo | undefined = params.returnDebugInfo
+          ? {
+              stage: 'safety_validation',
+              requestId: params.requestId,
               traceId,
-              debug: debugInfoForError,
-            })
-          }
-        }
+              toolkitInjected: toolkit.toolkitInjected,
+              toolkitSource: toolkit.toolkitSource,
+              matchedSymptoms: matchedSymptomNames,
+              toolkitContextLength: toolkit.toolkitContextLength,
+              promptSystem: systemPrompt,
+              promptUser: userPrompt,
+              modelRawJson: finalResult.data,
+              modelNormalisedJson: finalResult.data,
+              safetyErrors: issues.map((issue) => ({
+                code: issue.code,
+                message: issue.message,
+                cardTitle: issue.cardTitle,
+              })),
+            }
+          : undefined
+
+        throw new EditorialAiError('VALIDATION_FAILED', 'Admin output contains flagged content', {
+          issues,
+          cards: finalResult.data.cards,
+          traceId,
+          debug: debugInfoForError,
+        })
       }
     }
     

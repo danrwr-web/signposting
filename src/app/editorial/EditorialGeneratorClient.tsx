@@ -63,7 +63,8 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
   const [targetRole, setTargetRole] = useState('ADMIN')
   const [count, setCount] = useState(5)
   const [loading, setLoading] = useState(false)
-  const [generateInBackground, setGenerateInBackground] = useState(false)
+  // Background job is default for 3+ cards; user can force inline for 1-2 cards
+  const [generateInBackground, setGenerateInBackground] = useState(true)
   const [overrideValidation, setOverrideValidation] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [errorDetails, setErrorDetails] = useState<{
@@ -75,6 +76,9 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
   } | null>(null)
   const [debugInfo, setDebugInfo] = useState<DebugInfo | null>(null)
   const [debugPanelOpen, setDebugPanelOpen] = useState(false)
+  // Streaming progress state (inline mode only)
+  const [streamStage, setStreamStage] = useState<string | null>(null)
+  const [streamTokens, setStreamTokens] = useState(0)
   // Superusers always see insights; other admins only in non-production
   const [isDevMode, setIsDevMode] = useState(false)
 
@@ -192,39 +196,62 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
         return
       }
 
-      const response = await fetch('/api/editorial/generate', {
+      // Inline streaming path for 1-2 cards
+      setStreamStage('preparing')
+      setStreamTokens(0)
+
+      const streamResponse = await fetch('/api/editorial/generate/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       })
 
-      const payload = await response.json().catch(() => ({ ok: false, error: { code: 'PARSE_ERROR', message: 'Failed to parse response' } }))
-      
-      if (payload?.debug) {
-        setDebugInfo(payload.debug as DebugInfo)
-      }
-      
-      if (!response.ok || payload?.ok === false) {
-        const errorCode = payload?.error?.code || payload?.errorCode || 'UNKNOWN_ERROR'
-        const errorMessage = payload?.error?.message || payload?.error?.message || 'Unable to generate drafts'
-        
-        setError(errorMessage)
-        setErrorDetails({
-          requestId: payload?.requestId || payload?.debug?.requestId,
-          traceId: payload?.traceId || payload?.debug?.traceId,
-          issues: Array.isArray(payload?.error?.details) 
-            ? payload.error.details 
-            : Array.isArray(payload?.issues) 
-              ? payload.issues 
-              : [],
-          rawSnippet: payload?.rawSnippet,
-        })
-        setDebugPanelOpen(true)
+      if (!streamResponse.ok || !streamResponse.body) {
+        const errPayload = await streamResponse.json().catch(() => ({}))
+        setError(errPayload?.error?.message || 'Unable to generate drafts')
+        setStreamStage(null)
         return
       }
 
-      router.push(`/editorial/batches/${payload.batchId}?surgery=${surgeryId}`)
+      const reader = streamResponse.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const event = JSON.parse(line.slice(6)) as { type: string; [key: string]: unknown }
+            if (event.type === 'status') {
+              setStreamStage((event.message as string) ?? event.stage as string ?? null)
+            } else if (event.type === 'progress') {
+              setStreamTokens(event.tokenCount as number ?? 0)
+            } else if (event.type === 'complete') {
+              setStreamStage(null)
+              const batchId = event.batchId as string
+              router.push(`/editorial/batches/${batchId}?surgery=${surgeryId}`)
+              return
+            } else if (event.type === 'error') {
+              setStreamStage(null)
+              setError((event.message as string) || 'Something went wrong')
+              setErrorDetails({
+                issues: Array.isArray(event.details) ? (event.details as Array<{ path?: string; code?: string; message: string }>) : [],
+              })
+              return
+            }
+          } catch {
+            // Skip malformed SSE lines
+          }
+        }
+      }
     } catch (err) {
+      setStreamStage(null)
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setLoading(false)
@@ -235,12 +262,13 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
     setPromptText('')
     setCount(5)
     setTargetRole('ADMIN')
-    setInteractiveFirst(true)
     setOverrideValidation(false)
     setError(null)
     setErrorDetails(null)
     setDebugInfo(null)
     setDebugPanelOpen(false)
+    setStreamStage(null)
+    setStreamTokens(0)
     // Reset preview state
     setPreviewData(null)
     setEditedSystemPrompt('')
@@ -362,20 +390,48 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
                 min={1}
                 max={10}
                 value={count}
-                onChange={(event) => setCount(Number(event.target.value))}
+                onChange={(event) => {
+                  const n = Number(event.target.value)
+                  setCount(n)
+                  // Auto-switch: background is required for 3+ cards; allow inline for 1-2
+                  if (n >= 3) setGenerateInBackground(true)
+                }}
                 className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
               />
             </label>
 
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={generateInBackground}
-                onChange={(event) => setGenerateInBackground(event.target.checked)}
-                className="accent-nhs-blue"
-              />
-              Run in background (continue reviewing cards while generating; you will be notified when ready)
-            </label>
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+              {count >= 3 ? (
+                <div className="flex items-start gap-2">
+                  <svg className="mt-0.5 h-4 w-4 shrink-0 text-nhs-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <div>
+                    <p className="font-medium text-nhs-dark-blue">Running in background</p>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      For {count} cards this takes ~{count * 8}–{count * 12}s. You&apos;ll be taken to the library and notified when ready — continue reviewing other cards in the meantime.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={generateInBackground}
+                      onChange={(event) => setGenerateInBackground(event.target.checked)}
+                      className="accent-nhs-blue"
+                    />
+                    <span>Run in background</span>
+                  </label>
+                  <p className="text-xs text-slate-500">
+                    {generateInBackground
+                      ? 'You\'ll be taken to the library and notified when ready.'
+                      : `Inline mode — wait ~${count * 8}–${count * 12}s on this page for results.`}
+                  </p>
+                </div>
+              )}
+            </div>
 
             {isSuperuser && (
               <label className="flex items-center gap-2 text-sm">
@@ -397,8 +453,17 @@ export default function EditorialGeneratorClient({ surgeryId, isSuperuser = fals
             disabled={loading || previewLoading}
             className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {loading ? 'Generating…' : 'Generate drafts'}
+            {loading && generateInBackground ? 'Starting…' : loading ? 'Generating…' : 'Generate drafts'}
           </button>
+          {loading && !generateInBackground && streamStage && (
+            <div className="flex items-center gap-2 text-sm text-slate-600">
+              <svg className="h-4 w-4 animate-spin text-nhs-blue" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <span>{streamStage}{streamTokens > 0 ? ` (${streamTokens} tokens)` : ''}</span>
+            </div>
+          )}
           {isSuperuser && (
             <button
               type="button"
