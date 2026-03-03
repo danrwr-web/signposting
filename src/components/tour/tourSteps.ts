@@ -10,6 +10,8 @@ export interface TourStepConfig {
   requiresElement?: boolean
   /** Marks the step as the cross-page transition point */
   isPageTransition?: boolean
+  /** Prevent the user from clicking the highlighted element */
+  disableActiveInteraction?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -47,10 +49,11 @@ export const ONBOARDING_PAGE1_STEPS: TourStepConfig[] = [
     element: '[data-tour="symptom-card"]',
     title: 'Symptom cards',
     description:
-      "Each card shows the symptom name, age group, and a brief instruction. Let\u2019s open one to see the full guidance.",
+      'Each card shows the symptom name, age group, and a brief instruction. Click Next to open this card and see the full guidance.',
     side: 'bottom',
     requiresElement: true,
     isPageTransition: true,
+    disableActiveInteraction: true,
   },
   {
     id: 'alphabet',
@@ -131,10 +134,11 @@ export const DEMO_PAGE1_STEPS: TourStepConfig[] = [
     element: '[data-tour="symptom-card"]',
     title: 'Clinically-approved guidance',
     description:
-      'Every symptom card contains brief, clinically-approved instructions. Let\u2019s look at a full example.',
+      'Every symptom card contains brief, clinically-approved instructions. Click Next to see a full example.',
     side: 'bottom',
     requiresElement: true,
     isPageTransition: true,
+    disableActiveInteraction: true,
   },
   {
     id: 'demo-search',
@@ -215,6 +219,9 @@ export function toDriverSteps(
 ): DriveStep[] {
   return steps.map((step, i) => ({
     element: step.element,
+    ...(step.disableActiveInteraction
+      ? { disableActiveInteraction: true }
+      : {}),
     popover: {
       title: step.title,
       description: step.description,

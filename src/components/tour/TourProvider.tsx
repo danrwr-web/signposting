@@ -26,7 +26,8 @@ const TOUR_SESSION_KEY = 'signposting-tour-state'
 interface TourSessionState {
   tourKey: 'onboarding' | 'demo'
   page: 1 | 2
-  firstSymptomId?: string
+  /** How many steps were visible on page 1 (used to calculate offset on page 2) */
+  page1StepCount?: number
 }
 
 interface TourContextValue {
@@ -137,9 +138,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           const key = sessionState?.tourKey ?? tourKey
           steps =
             key === 'demo' ? DEMO_PAGE2_STEPS : ONBOARDING_PAGE2_STEPS
-          const page1Steps =
-            key === 'demo' ? DEMO_PAGE1_STEPS : ONBOARDING_PAGE1_STEPS
-          stepOffset = filterVisibleSteps(page1Steps).length
+          // Use the saved page 1 step count (accurate), not filterVisibleSteps
+          // which would incorrectly re-evaluate page 1 elements on the detail page.
+          stepOffset = sessionState?.page1StepCount ?? 0
           totalSteps = stepOffset + steps.length
           tourKey = key as 'onboarding' | 'demo'
         } else {
@@ -164,13 +165,16 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
           return
         }
 
-        // Recalculate totalSteps with filtered page1
+        // Recalculate totalSteps after filtering
         if (!isPage2) {
           const page2Steps =
             tourKey === 'demo'
               ? DEMO_PAGE2_STEPS
               : ONBOARDING_PAGE2_STEPS
           totalSteps = visibleSteps.length + page2Steps.length
+        } else {
+          // Page 2: recalculate with actual visible steps
+          totalSteps = stepOffset + visibleSteps.length
         }
 
         // Find the transition step index (if any)
@@ -199,7 +203,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
               transitionIdx >= 0 &&
               currentIdx === transitionIdx
             ) {
-              handlePageTransition(tourKey)
+              handlePageTransition(tourKey, visibleSteps.length)
               return
             }
 
@@ -263,7 +267,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
   // ----- Handle cross-page transition -----
   const handlePageTransition = useCallback(
-    (tourKey: 'onboarding' | 'demo') => {
+    (tourKey: 'onboarding' | 'demo', page1StepCount: number) => {
       // Find the first symptom card link on the page
       const firstCard = document.querySelector(
         '[data-tour="symptom-card"]'
@@ -276,13 +280,12 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       if (href) {
         // Destroy current driver instance
         if (driverRef.current) {
-          // Remove event listeners without triggering onDestroyStarted
           driverRef.current.destroy()
           driverRef.current = null
         }
 
-        // Save state for page 2
-        setSessionState({ tourKey, page: 2 })
+        // Save state for page 2 (including page 1 count for progress text)
+        setSessionState({ tourKey, page: 2, page1StepCount })
 
         // Navigate to symptom detail with tour resume param
         const url = new URL(href, window.location.origin)
@@ -409,6 +412,26 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
 
     return () => clearTimeout(timer)
   }, [isTourResumeParam, isSymptomDetailPage, isActive, startTour])
+
+  // ----- Auto-trigger: requested from TourTrigger (via sessionStorage) -----
+  useEffect(() => {
+    if (!isSignpostingPage) return
+    if (isActive) return
+
+    try {
+      const trigger = sessionStorage.getItem('signposting-tour-trigger')
+      if (!trigger) return
+      sessionStorage.removeItem('signposting-tour-trigger')
+
+      const timer = setTimeout(
+        () => startTour(trigger as 'onboarding' | 'demo'),
+        800
+      )
+      return () => clearTimeout(timer)
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [isSignpostingPage, isActive, startTour])
 
   // ----- Cleanup on unmount -----
   useEffect(() => {

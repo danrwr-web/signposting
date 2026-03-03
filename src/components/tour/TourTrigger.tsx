@@ -22,23 +22,24 @@ export default function TourTrigger() {
     close()
 
     const surgeryId = surgery?.id
-    const isOnSignpostingPage =
-      pathname !== null &&
-      surgeryId &&
-      pathname === `/s/${surgeryId}`
+    if (!surgeryId) return
 
-    // Small delay to let the nav panel slide out before starting the tour
-    setTimeout(() => {
-      if (!isOnSignpostingPage && surgeryId) {
-        // Navigate to signposting page first, then start tour
-        router.push(`/s/${surgeryId}`)
-        // Tour will auto-start because hasCompletedOnboarding will be reset
-        // We trigger it manually after a longer delay to let the page render
-        setTimeout(() => startTour('onboarding'), 1200)
-      } else {
-        startTour('onboarding')
+    const isOnSignpostingPage =
+      pathname !== null && pathname === `/s/${surgeryId}`
+
+    if (!isOnSignpostingPage) {
+      // Save a trigger flag so TourProvider starts the tour after navigation
+      try {
+        sessionStorage.setItem('signposting-tour-trigger', 'onboarding')
+      } catch {
+        // Ignore
       }
-    }, 250)
+      // Small delay to let the nav panel slide out before navigating
+      setTimeout(() => router.push(`/s/${surgeryId}`), 250)
+    } else {
+      // Already on the signposting page — just start the tour
+      setTimeout(() => startTour('onboarding'), 250)
+    }
   }, [close, startTour, surgery?.id, pathname, router])
 
   return (
