@@ -67,6 +67,11 @@ SLOT LANGUAGE (REQUIRED for ADMIN cards):
 - slotLanguage.guidance MUST have at least one entry with slot (Red/Orange/Pink-Purple/Green) and rule.
 - Extract the slot choice and action from the scenario (e.g. "Pink-Purple: Book telephone appointment for routine vertigo" or "Red: Escalate immediately for stroke symptoms").
 - Even when the scenario involves "task GP" or "Epley manoeuvre", include slot guidance from the toolkit (e.g. Pink-Purple for routine, Red for urgent).
+
+MCQ CONTEXT REQUIREMENTS:
+- Read and understand the full toolkit guidance before writing any MCQ.
+- Each MCQ should be concise: short question, short options. Do not replicate or summarise the entire page in a single question.
+- Correct and incorrect answers must be logically consistent with the complete instructions. Do not base answers on a single sentence without considering the rest of the guidance.
 `
 
 const ADMIN_SOURCE_RULES = `
@@ -724,12 +729,19 @@ This guidance is from ${surgery?.name || 'this practice'}'s approved Signposting
 
 ${contextItems.join('\n\n---\n\n')}
 
+BEFORE CREATING CARDS:
+1. Read each symptom's full instructions from start to finish so you understand the complete workflow: slot choices, red flags, escalation steps, safety netting, and what NOT to do.
+2. Base your understanding on the whole page, not isolated sentences. A single sentence can be ambiguous without the rest of the context.
+3. Only then create cards and MCQs. Each MCQ should be concise (short question, short options). The correctness of the answer must align with your understanding of the full guidance—but you do not need to include all the guidance in the question or options.
+
 USAGE RULES:
 - Use this wording verbatim for slot choices (Red/Orange/Pink-Purple/Green) and escalation steps
 - Do not invent new slot colours or escalation routes
 - Preserve exact phrasing for safety netting and red flags
 - If a symptom is mentioned, use the exact instruction text above
-- If guidance contradicts generic knowledge, prefer the internal guidance`
+- If guidance contradicts generic knowledge, prefer the internal guidance
+- Read the full instructions for each symptom before creating any card or MCQ
+- If instructions span multiple conditions (e.g. "If X do A, if Y do B"), ensure MCQs test understanding of the whole logic, not a single branch`
 
     const matchedEntries = matchedSymptoms.map((s) => ({
       id: s.id,
