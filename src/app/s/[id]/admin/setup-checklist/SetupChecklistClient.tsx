@@ -296,14 +296,14 @@ function ChecklistView({
             complete={checklist.appointmentTypeCount > 0}
             title="Appointment directory"
             description="Add local services and appointment types so staff can search them"
-            actionHref={`/s/${surgeryId}/appointments/admin`}
+            actionHref={`/s/${surgeryId}/appointments`}
             actionLabel="Set up"
           />
           <RecommendedItem
             complete={checklist.highlightsEnabled}
             title="Highlight rules"
             description="Enable colour-coded highlights to draw attention to urgent phrases"
-            actionHref={`/s/${surgeryId}/admin/signposting-settings#highlights`}
+            actionHref={`/admin?tab=highlights`}
             actionLabel="Configure"
           />
           {handbookEnabled && (
