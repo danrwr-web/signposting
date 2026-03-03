@@ -268,7 +268,9 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       const firstCard = document.querySelector(
         '[data-tour="symptom-card"]'
       )
-      const link = firstCard?.closest('a')
+      // The <a> is a child of the data-tour div (rendered by SymptomCard's <Link>),
+      // so use querySelector (searches descendants) not closest (searches ancestors).
+      const link = firstCard?.querySelector('a')
       const href = link?.getAttribute('href')
 
       if (href) {
