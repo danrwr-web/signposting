@@ -264,7 +264,7 @@ function ChecklistView({
             title="High-risk buttons"
             incompleteDescription="Configure high-risk quick-access buttons for urgent symptoms like chest pain and stroke"
             completeDescription="Configured"
-            actionHref={`/s/${surgeryId}/admin/signposting-settings`}
+            actionHref={`/admin?tab=highrisk`}
             actionLabel="Configure"
           />
           {aiEnabled && (
