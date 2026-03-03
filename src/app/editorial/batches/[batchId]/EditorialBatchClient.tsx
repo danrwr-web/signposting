@@ -138,6 +138,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     target: InlineEditTarget
     value: string
   } | null>(null)
+  const [editFormExpanded, setEditFormExpanded] = useState(false)
 
   const [cardForm, setCardForm] = useState({
     id: '',
@@ -462,7 +463,14 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         if (target.field === 'question') {
           interactions[target.interactionIndex] = { ...ia, question: value }
         } else if (target.field === 'options') {
-          interactions[target.interactionIndex] = { ...ia, optionsText: value }
+          const lines = value.split('\n')
+          const optionCount = Math.max(1, lines.length)
+          const clampedIndex = Math.min(target.correctIndex, optionCount - 1)
+          interactions[target.interactionIndex] = {
+            ...ia,
+            optionsText: value,
+            correctIndex: clampedIndex,
+          }
         } else if (target.field === 'explanation') {
           interactions[target.interactionIndex] = { ...ia, explanation: value }
         }
@@ -818,52 +826,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     <span className="text-lg leading-none" aria-hidden>←</span>
                     <span className="text-[10px] font-medium">Back</span>
                   </button>
-                  <PhoneFrame
-                  alignActions={false}
-                  actions={
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="flex flex-wrap justify-center gap-2">
-                        {cardForm.status !== 'PUBLISHED' && (
-                          <button
-                            type="button"
-                            onClick={handleApproveAndPublish}
-                            disabled={saving || !canApprove}
-                            className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
-                              canApprove
-                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                            } disabled:cursor-not-allowed disabled:opacity-70`}
-                            title={canApprove ? 'Approve and publish this card' : 'Complete all checklist items first'}
-                          >
-                            {saving ? 'Processing…' : 'Approve and publish'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={handleDelete}
-                          disabled={saving}
-                          className="rounded-xl border border-red-600 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
-                          title="Delete this card permanently"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                      {cardForm.status !== 'PUBLISHED' && (
-                        <label className="flex items-center gap-2 cursor-pointer text-sm">
-                          <input
-                            type="checkbox"
-                            checked={!cardForm.needsSourcing}
-                            onChange={(event) => setCardForm((prev) => ({ ...prev, needsSourcing: !event.target.checked }))}
-                            className="accent-emerald-600"
-                          />
-                          <span className={readinessChecks.sourcesVerified ? 'text-slate-700' : 'text-slate-600 font-medium'}>
-                            Sources verified and accurate
-                          </span>
-                        </label>
-                      )}
-                    </div>
-                  }
-                >
+                  <PhoneFrame alignActions={false}>
                   <SessionStyleCardPreview
                     title={cardForm.title}
                     headerText={`${cardForm.targetRole} · ${cardForm.riskLevel} risk`}
@@ -1083,6 +1046,49 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                       </div>
                     )}
                   </div>
+
+                  {/* Action buttons - visible without scrolling */}
+                  <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {cardForm.status !== 'PUBLISHED' && (
+                        <button
+                          type="button"
+                          onClick={handleApproveAndPublish}
+                          disabled={saving || !canApprove}
+                          className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                            canApprove
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                          title={canApprove ? 'Approve and publish this card' : 'Complete all checklist items first'}
+                        >
+                          {saving ? 'Processing…' : 'Approve and publish'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleDelete}
+                        disabled={saving}
+                        className="rounded-xl border border-red-600 bg-white px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                        title="Delete this card permanently"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    {cardForm.status !== 'PUBLISHED' && (
+                      <label className="flex items-center gap-2 cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={!cardForm.needsSourcing}
+                          onChange={(event) => setCardForm((prev) => ({ ...prev, needsSourcing: !event.target.checked }))}
+                          className="accent-emerald-600"
+                        />
+                        <span className={readinessChecks.sourcesVerified ? 'text-slate-700' : 'text-slate-600 font-medium'}>
+                          Sources verified and accurate
+                        </span>
+                      </label>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1122,8 +1128,19 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 </div>
               )}
 
-              <div className="rounded-lg border border-slate-200 bg-white p-6">
-                <h3 className="text-lg font-semibold text-nhs-dark-blue">Edit card</h3>
+              <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+                {editFormExpanded ? (
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-nhs-dark-blue">Edit card</h3>
+                      <button
+                        type="button"
+                        onClick={() => setEditFormExpanded(false)}
+                        className="text-sm text-nhs-blue hover:text-nhs-dark-blue hover:underline"
+                      >
+                        Hide details
+                      </button>
+                    </div>
                 <label className="mt-4 block text-sm">
                   Title
                   <input
@@ -1717,7 +1734,20 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                   </div>
                 </div>
               </div>
-            </div>
+                  </div>
+                ) : (
+                  <div className="px-4 py-3 flex items-center justify-between">
+                    <span className="text-sm text-slate-600">Title, metadata, sources, AI tools, and more</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditFormExpanded(true)}
+                      className="text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue hover:underline"
+                    >
+                      Expand to edit details
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <p className="text-sm text-slate-600">Select a card to edit.</p>
@@ -1749,6 +1779,42 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
               }
               autoFocus
             />
+            {inlineEdit.target.type === 'interaction' &&
+              inlineEdit.target.field === 'options' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Which option is correct?
+                  </label>
+                  <select
+                    value={(() => {
+                      const lines = inlineEdit.value.split('\n')
+                      const maxIdx = Math.max(0, lines.length - 1)
+                      return Math.min(inlineEdit.target.correctIndex, maxIdx)
+                    })()}
+                    onChange={(e) => {
+                      const idx = Number(e.target.value)
+                      setInlineEdit((prev) =>
+                        prev && prev.target.type === 'interaction' && prev.target.field === 'options'
+                          ? { ...prev, target: { ...prev.target, correctIndex: idx } }
+                          : prev
+                      )
+                    }}
+                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    {(() => {
+                      const lines = inlineEdit.value.split('\n')
+                      if (lines.length === 0 || lines.every((l) => !l.trim())) {
+                        return <option value={0}>Option 1 (add options above)</option>
+                      }
+                      return lines.map((line, i) => (
+                        <option key={i} value={i}>
+                          {line.trim() || `Option ${i + 1}`}
+                        </option>
+                      ))
+                    })()}
+                  </select>
+                </div>
+              )}
             <div className="flex justify-end gap-2">
               <button
                 type="button"

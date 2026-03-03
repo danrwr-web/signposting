@@ -8,6 +8,8 @@ interface LearningCardOptionCardProps {
   correct?: boolean
   /** In editorial review: show this option as the correct answer (green + tick) without requiring a click */
   reviewCorrect?: boolean
+  /** When true, render as div instead of button (avoids nested buttons in editable regions) */
+  static?: boolean
   'aria-pressed'?: boolean
   'aria-checked'?: boolean
   role?: 'button' | 'radio' | 'checkbox'
@@ -20,6 +22,7 @@ export default function LearningCardOptionCard({
   selected = false,
   correct,
   reviewCorrect = false,
+  static: isStatic = false,
   role = 'button',
   ...ariaProps
 }: LearningCardOptionCardProps) {
@@ -43,6 +46,24 @@ export default function LearningCardOptionCard({
         ? 'border-nhs-blue bg-nhs-light-blue text-nhs-dark-blue'
         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 active:bg-slate-100'
 
+  const content = (
+    <>
+      <span className="flex-1 text-left">{label}</span>
+      {isReviewCorrect && <span className="text-emerald-600 font-semibold shrink-0" aria-hidden>✓</span>}
+    </>
+  )
+
+  if (isStatic) {
+    return (
+      <div
+        className={`${baseClasses} ${stateClasses} cursor-default`}
+        aria-label={isReviewCorrect ? `${label} (correct answer)` : undefined}
+      >
+        {content}
+      </div>
+    )
+  }
+
   return (
     <button
       type="button"
@@ -55,8 +76,7 @@ export default function LearningCardOptionCard({
       aria-label={isReviewCorrect ? `${label} (correct answer)` : undefined}
       {...ariaProps}
     >
-      <span className="flex-1 text-left">{label}</span>
-      {isReviewCorrect && <span className="text-emerald-600 font-semibold shrink-0" aria-hidden>✓</span>}
+      {content}
     </button>
   )
 }

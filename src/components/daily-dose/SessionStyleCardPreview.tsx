@@ -5,7 +5,8 @@ import LearningCardOptionCard from '@/components/daily-dose/LearningCardOptionCa
 /** Describes which part of the preview was clicked for inline editing */
 export type InlineEditTarget =
   | { type: 'contentBlock'; blockIndex: number; field: 'text' | 'items'; label: string }
-  | { type: 'interaction'; interactionIndex: number; field: 'question' | 'options' | 'explanation'; label: string }
+  | { type: 'interaction'; interactionIndex: number; field: 'question' | 'explanation'; label: string }
+  | { type: 'interaction'; interactionIndex: number; field: 'options'; label: string; correctIndex: number }
 
 export type SessionPreviewContentBlock =
   | { type: 'text' | 'callout'; text: string }
@@ -62,16 +63,23 @@ function EditableRegion({
 }) {
   if (!editable || !onClick) return <>{children}</>
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
-      className="w-full text-left rounded-md -m-1 p-1 hover:bg-nhs-light-blue/50 hover:ring-1 hover:ring-nhs-blue/30 transition-colors cursor-pointer group"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      className="w-full text-left rounded-md -m-1 p-1 hover:bg-nhs-light-blue/50 hover:ring-1 hover:ring-nhs-blue/30 transition-colors cursor-pointer group focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-1"
       aria-label={`Edit ${label}`}
       title={`Click to edit ${label}`}
     >
       {children}
       <span className="block mt-1 text-[10px] text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">Click to edit</span>
-    </button>
+    </div>
   )
 }
 
@@ -121,7 +129,13 @@ export default function SessionStyleCardPreview({
                 label={`answer options ${i + 1}`}
                 onClick={() =>
                   onEdit?.(
-                    { type: 'interaction', interactionIndex: i, field: 'options', label: `Answer options ${i + 1}` },
+                    {
+                      type: 'interaction',
+                      interactionIndex: i,
+                      field: 'options',
+                      label: `Answer options ${i + 1}`,
+                      correctIndex: interaction.correctIndex,
+                    },
                     interaction.options.join('\n')
                   )
                 }
@@ -132,6 +146,7 @@ export default function SessionStyleCardPreview({
                       key={j}
                       label={option}
                       reviewCorrect={j === interaction.correctIndex}
+                      static={editable}
                     />
                   ))}
                 </div>
