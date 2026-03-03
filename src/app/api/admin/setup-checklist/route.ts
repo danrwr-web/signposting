@@ -126,6 +126,7 @@ export async function GET(request: NextRequest) {
     const [
       standardUsersCount,
       highRiskLinksCount,
+      defaultHighRiskEnabledCount,
       customHighlightCount,
       appointmentTypeCount,
       handbookItemCount,
@@ -140,9 +141,13 @@ export async function GET(request: NextRequest) {
       prisma.userSurgery.count({
         where: { surgeryId, role: { not: 'ADMIN' } }
       }),
-      // High-risk links count
+      // High-risk links count (custom)
       prisma.highRiskLink.count({
         where: { surgeryId }
+      }),
+      // Default high-risk buttons enabled count
+      prisma.defaultHighRiskButtonConfig.count({
+        where: { surgeryId, isEnabled: true }
       }),
       // Custom highlight rules count
       prisma.highlightRule.count({
@@ -186,7 +191,7 @@ export async function GET(request: NextRequest) {
     ])
 
     // Derive high-risk configured status
-    const highRiskConfigured = highRiskLinksCount > 0 || surgery.enableDefaultHighRisk
+    const highRiskConfigured = highRiskLinksCount > 0 || defaultHighRiskEnabledCount > 0
 
     // Derive highlights enabled status
     const highlightsEnabled = surgery.enableBuiltInHighlights || customHighlightCount > 0
