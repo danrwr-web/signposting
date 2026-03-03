@@ -112,6 +112,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
     const [
       standardUsersCount,
       highRiskLinksCount,
+      defaultHighRiskEnabledCount,
       customHighlightCount,
       appointmentTypeCount,
       handbookItemCount,
@@ -128,6 +129,9 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
       }),
       prisma.highRiskLink.count({
         where: { surgeryId }
+      }),
+      prisma.defaultHighRiskButtonConfig.count({
+        where: { surgeryId, isEnabled: true }
       }),
       prisma.highlightRule.count({
         where: { surgeryId }
@@ -158,7 +162,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
       }).catch(() => 0),
     ])
 
-    const highRiskConfigured = highRiskLinksCount > 0 || surgery.enableDefaultHighRisk
+    const highRiskConfigured = highRiskLinksCount > 0 || defaultHighRiskEnabledCount > 0 || surgery.enableDefaultHighRisk
     const highlightsEnabled = surgery.enableBuiltInHighlights || customHighlightCount > 0
 
     // Build features array
