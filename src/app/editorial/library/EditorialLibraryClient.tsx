@@ -73,6 +73,7 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
   const [typeDeleteValue, setTypeDeleteValue] = useState('')
   const [activeJobId, setActiveJobId] = useState<string | null>(initialJobId ?? null)
   const pollAbortRef = useRef<AbortController | null>(null)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -156,6 +157,13 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
       setActiveJobId(null)
     }
 
+    const stopPolling = () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+    }
+
     const poll = async () => {
       try {
         const response = await fetch(`/api/editorial/generate/status/${jobId}`, { cache: 'no-store' })
@@ -163,6 +171,7 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
         if (!response.ok || !payload?.ok) return
 
         if (payload.status === 'COMPLETE') {
+          stopPolling() // Stop immediately to prevent repeated notifications
           playNotificationSound()
           toast.success('New batch ready! You can review the cards below.', { duration: 5000, icon: '✨' })
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -177,6 +186,7 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
         }
 
         if (payload.status === 'FAILED') {
+          stopPolling()
           toast.error(payload.errorMessage || 'Generation failed')
           clearJobFromUrl()
           return
@@ -187,10 +197,10 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
     }
 
     poll()
-    const interval = setInterval(poll, POLL_INTERVAL_MS)
+    pollIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS)
 
     return () => {
-      clearInterval(interval)
+      stopPolling()
       pollAbortRef.current?.abort()
     }
   }, [activeJobId, searchParams, router, loadCards])

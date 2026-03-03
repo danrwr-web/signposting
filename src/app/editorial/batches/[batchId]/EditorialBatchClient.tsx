@@ -130,8 +130,8 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   // Learning category state
   const [availableCategories, setAvailableCategories] = useState<LearningCategoryOption[]>([])
   const [selectedAssignments, setSelectedAssignments] = useState<Array<{ categoryId: string; categoryName: string; subsection: string }>>([])
-  const [pickerCategoryId, setPickerCategoryId] = useState<string>('')
-  const [pickerSubsection, setPickerSubsection] = useState<string>('')
+  const [editingAssignments, setEditingAssignments] = useState<Array<{ categoryId: string; categoryName: string; subsection: string }>>([])
+  const [isEditingCategories, setIsEditingCategories] = useState(false)
   const [categoryUpdating, setCategoryUpdating] = useState(false)
   const [overridingValidation, setOverridingValidation] = useState(false)
   const [inlineEdit, setInlineEdit] = useState<{
@@ -302,11 +302,9 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       setSelectedAssignments(
         suggestions
           .filter((s) => s.confidence === 'high')
-          .map((s) => ({ categoryId: s.categoryId, categoryName: s.categoryName, subsection: s.subsection })),
+          .map((s) => ({ categoryId: s.categoryId, categoryName: s.categoryName, subsection: s.subsection ?? '' })),
       )
     }
-    setPickerCategoryId('')
-    setPickerSubsection('')
   }, [activeCard])
 
   // Readiness checklist - detailed requirements for approval
@@ -339,8 +337,24 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   // Editors with access to the editorial section are clinical approvers by default,
   // so clinician approval is not a gate for publishing.
 
-  // Save multi-category learning assignments
-  const handleSaveCategoryAssignment = async () => {
+  // Flat list of category+subsection options for multi-select (matches Tags pattern)
+  const categoryOptions = useMemo(() => {
+    return availableCategories.flatMap((cat) => {
+      const subs = Array.isArray(cat.subsections) ? cat.subsections : []
+      if (subs.length > 0) {
+        return subs.map((sub) => ({
+          value: `${cat.id}::${sub}`,
+          label: `${cat.name} › ${sub}`,
+          categoryId: cat.id,
+          categoryName: cat.name,
+          subsection: sub,
+        }))
+      }
+      return [{ value: `${cat.id}::`, label: cat.name, categoryId: cat.id, categoryName: cat.name, subsection: '' }]
+    })
+  }, [availableCategories])
+
+  const handleSaveCategoriesFromEdit = async () => {
     if (!activeCard) return
     setCategoryUpdating(true)
     try {
@@ -350,7 +364,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...payload,
-          learningAssignments: selectedAssignments.map((a) => ({
+          learningAssignments: editingAssignments.map((a) => ({
             categoryId: a.categoryId,
             categoryName: a.categoryName,
             subsection: a.subsection || null,
@@ -364,44 +378,12 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       }
       await loadBatch()
       toast.success('Categories saved')
+      setIsEditingCategories(false)
     } catch {
       toast.error('Something went wrong')
     } finally {
       setCategoryUpdating(false)
     }
-  }
-
-  // Add an assignment from the picker dropdowns
-  const handleAddAssignment = () => {
-    if (!pickerCategoryId) return
-    const cat = availableCategories.find((c) => c.id === pickerCategoryId)
-    if (!cat) return
-    const key = `${pickerCategoryId}::${pickerSubsection}`
-    if (selectedAssignments.some((a) => `${a.categoryId}::${a.subsection}` === key)) return
-    setSelectedAssignments((prev) => [
-      ...prev,
-      { categoryId: cat.id, categoryName: cat.name, subsection: pickerSubsection },
-    ])
-    setPickerCategoryId('')
-    setPickerSubsection('')
-  }
-
-  // Toggle an AI-suggested assignment on/off
-  const handleToggleSuggestion = (suggestion: { categoryId: string; categoryName: string; subsection: string }) => {
-    const key = `${suggestion.categoryId}::${suggestion.subsection}`
-    const exists = selectedAssignments.some((a) => `${a.categoryId}::${a.subsection}` === key)
-    if (exists) {
-      setSelectedAssignments((prev) => prev.filter((a) => `${a.categoryId}::${a.subsection}` !== key))
-    } else {
-      setSelectedAssignments((prev) => [...prev, suggestion])
-    }
-  }
-
-  // Remove an assignment pill
-  const handleRemoveAssignment = (categoryId: string, subsection: string) => {
-    setSelectedAssignments((prev) =>
-      prev.filter((a) => !(a.categoryId === categoryId && a.subsection === subsection)),
-    )
   }
 
   // Build the save payload from current form state
@@ -943,140 +925,88 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                       </div>
                     )}
                   </div>
-                  {/* Learning Pathway — multi-category assignment */}
+                  {/* Learning Pathway — same pattern as Tags */}
                   {availableCategories.length > 0 && activeCard && (
-                    <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
-                      <h3 className="text-sm font-semibold text-nhs-dark-blue">Learning Pathway</h3>
-
-                      {/* AI suggestions as toggle checkboxes */}
-                      {(activeCard.generatedFrom?.suggestedAssignments ?? []).length > 0 && (
-                        <div>
-                          <p className="mb-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wide">AI suggestions</p>
-                          <div className="space-y-1">
-                            {(activeCard.generatedFrom!.suggestedAssignments!).map((s) => {
-                              const key = `${s.categoryId}::${s.subsection}`
-                              const checked = selectedAssignments.some(
-                                (a) => `${a.categoryId}::${a.subsection}` === key,
-                              )
-                              return (
-                                <label
-                                  key={key}
-                                  className={`flex cursor-pointer items-center gap-2 rounded-md border px-2 py-1.5 text-xs ${
-                                    checked
-                                      ? 'border-nhs-blue bg-nhs-light-blue text-nhs-dark-blue'
-                                      : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                                  }`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() =>
-                                      handleToggleSuggestion({
-                                        categoryId: s.categoryId,
-                                        categoryName: s.categoryName,
-                                        subsection: s.subsection,
-                                      })
-                                    }
-                                    className="h-3 w-3 accent-nhs-blue"
-                                    disabled={categoryUpdating}
-                                  />
-                                  <span className="flex-1 truncate">
-                                    <span className="font-medium">{s.categoryName}</span>
-                                    {s.subsection && <span className="text-slate-400"> › {s.subsection}</span>}
-                                  </span>
-                                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                                    s.confidence === 'high'
-                                      ? 'bg-emerald-100 text-emerald-700'
-                                      : 'bg-amber-100 text-amber-700'
-                                  }`}>
-                                    {s.confidence === 'high' ? 'High' : 'Low'}
-                                  </span>
-                                </label>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Current assignments (pills) */}
-                      {selectedAssignments.length > 0 && (
-                        <div>
-                          <p className="mb-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wide">Assigned</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedAssignments.map((a) => (
-                              <span
-                                key={`${a.categoryId}::${a.subsection}`}
-                                className="inline-flex items-center gap-1 rounded-full bg-nhs-light-blue px-2 py-0.5 text-xs text-nhs-dark-blue"
-                              >
-                                <span className="max-w-[140px] truncate">
-                                  {a.categoryName}{a.subsection ? ` › ${a.subsection}` : ''}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveAssignment(a.categoryId, a.subsection)}
-                                  disabled={categoryUpdating}
-                                  className="ml-0.5 rounded-full text-nhs-blue hover:text-red-600 disabled:opacity-50"
-                                  aria-label={`Remove ${a.categoryName}`}
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Add another — category + subsection picker */}
-                      <div>
-                        <p className="mb-1.5 text-[11px] font-medium text-slate-500 uppercase tracking-wide">Add category</p>
-                        <div className="space-y-1.5">
+                    <div className="rounded-lg border border-slate-200 bg-white p-4">
+                      <h3 className="text-sm font-semibold text-nhs-dark-blue mb-3">Learning Pathway</h3>
+                      {isEditingCategories ? (
+                        <div className="space-y-3">
                           <select
-                            value={pickerCategoryId}
+                            multiple
+                            value={editingAssignments.map((a) => `${a.categoryId}::${a.subsection}`)}
                             onChange={(e) => {
-                              setPickerCategoryId(e.target.value)
-                              setPickerSubsection('')
+                              const selected = Array.from(e.target.selectedOptions, (opt) => opt.value)
+                              setEditingAssignments(
+                                selected.map((val) => {
+                                  const opt = categoryOptions.find((o) => o.value === val)
+                                  return opt
+                                    ? { categoryId: opt.categoryId, categoryName: opt.categoryName, subsection: opt.subsection }
+                                    : { categoryId: '', categoryName: '', subsection: '' }
+                                }).filter((o) => o.categoryId),
+                              )
                             }}
-                            className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
+                            size={Math.min(categoryOptions.length, 6)}
+                            className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm"
+                            style={{ minHeight: '80px' }}
                             disabled={categoryUpdating}
                           >
-                            <option value="">— Select category —</option>
-                            {availableCategories.map((cat) => (
-                              <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            {categoryOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
                             ))}
                           </select>
-                          {pickerCategoryId && (
-                            <select
-                              value={pickerSubsection}
-                              onChange={(e) => setPickerSubsection(e.target.value)}
-                              className="w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm"
+                          <p className="text-[10px] text-slate-500">Hold Ctrl/Cmd to select multiple</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleSaveCategoriesFromEdit}
                               disabled={categoryUpdating}
+                              className="flex-1 rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
                             >
-                              <option value="">— No subsection —</option>
-                              {(availableCategories.find((c) => c.id === pickerCategoryId)?.subsections ?? []).map((sub) => (
-                                <option key={sub} value={sub}>{sub}</option>
-                              ))}
-                            </select>
-                          )}
+                              {categoryUpdating ? 'Saving…' : 'Save'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsEditingCategories(false)
+                                setEditingAssignments([...selectedAssignments])
+                              }}
+                              disabled={categoryUpdating}
+                              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
+                            {selectedAssignments.length > 0 ? (
+                              selectedAssignments.map((a) => (
+                                <span
+                                  key={`${a.categoryId}::${a.subsection}`}
+                                  className="inline-flex items-center rounded-full bg-nhs-light-blue px-2 py-0.5 text-xs font-medium text-nhs-blue"
+                                >
+                                  {a.categoryName}{a.subsection ? ` › ${a.subsection}` : ''}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-xs text-slate-400">No categories</span>
+                            )}
+                          </div>
                           <button
                             type="button"
-                            onClick={handleAddAssignment}
-                            disabled={categoryUpdating || !pickerCategoryId}
-                            className="w-full rounded-md border border-nhs-blue px-3 py-1.5 text-xs font-semibold text-nhs-blue hover:bg-nhs-light-blue disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => {
+                              setIsEditingCategories(true)
+                              setEditingAssignments([...selectedAssignments])
+                            }}
+                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-nhs-blue hover:bg-nhs-light-blue hover:border-nhs-blue"
                           >
-                            + Add
+                            {selectedAssignments.length > 0 ? 'Edit categories' : 'Add categories'}
                           </button>
                         </div>
-                      </div>
-
-                      {/* Save */}
-                      <button
-                        type="button"
-                        onClick={handleSaveCategoryAssignment}
-                        disabled={categoryUpdating}
-                        className="w-full rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {categoryUpdating ? 'Saving…' : 'Save categories'}
-                      </button>
+                      )}
                     </div>
                   )}
                   <div className="rounded-lg border border-slate-200 bg-white p-4">
