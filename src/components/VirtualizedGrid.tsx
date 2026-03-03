@@ -151,8 +151,8 @@ export default function VirtualizedGrid({
   const visibleSymptoms = sortedSymptoms.slice(visibleRange.start, visibleRange.end)
 
   const renderSymptom = useCallback(
-    (symptom: EffectiveSymptom, key?: string) => (
-      <div key={key ?? symptom.id}>
+    (symptom: EffectiveSymptom, key?: string, index?: number) => (
+      <div key={key ?? symptom.id} {...(index === 0 ? { 'data-tour': 'symptom-card' } : {})}>
         <SymptomCard
           symptom={symptom}
           surgeryId={effectiveSurgeryId || undefined}
@@ -168,8 +168,8 @@ export default function VirtualizedGrid({
   if (sortedSymptoms.length <= 150) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {sortedSymptoms.map((symptom) => (
-          renderSymptom(symptom, symptom.id)
+        {sortedSymptoms.map((symptom, idx) => (
+          renderSymptom(symptom, symptom.id, idx)
         ))}
       </div>
     )
@@ -202,7 +202,7 @@ export default function VirtualizedGrid({
                 height: resolvedItemHeight
               }}
             >
-              {renderSymptom(symptom)}
+              {renderSymptom(symptom, undefined, globalIndex)}
             </div>
           )
         })}

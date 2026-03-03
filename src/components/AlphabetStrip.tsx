@@ -66,7 +66,7 @@ export default function AlphabetStrip({ selected = 'All', onSelect, size = 'md',
   const containerClasses = className ?? 'grid grid-cols-9 gap-2 justify-items-center'
 
   return (
-    <div className={containerClasses}>
+    <div className={containerClasses} data-tour="alphabet-strip">
       {LETTERS.map((letter, index) => {
         const isSelected = letter === selected
         const isFocused = index === focusedIndex

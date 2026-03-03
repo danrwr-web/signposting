@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
+import { useTour } from '@/components/tour/TourProvider'
 
 const STORAGE_KEY = 'hasSeenNavUpdate'
 
@@ -15,6 +16,7 @@ interface NavUpdateTooltipProps {
  * Shows once per user, then never again after dismissal.
  */
 export default function NavUpdateTooltip({ triggerRef }: NavUpdateTooltipProps) {
+  const { isActive: isTourActive } = useTour()
   const [isVisible, setIsVisible] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
@@ -117,7 +119,7 @@ export default function NavUpdateTooltip({ triggerRef }: NavUpdateTooltipProps) 
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isVisible, dismiss, triggerRef])
 
-  if (!isVisible) return null
+  if (!isVisible || isTourActive) return null
 
   return (
     <>

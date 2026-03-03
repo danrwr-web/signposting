@@ -251,7 +251,7 @@ export default function SurgeryFiltersHeader({
 
               {/* centre: alphabet */}
               <div className="flex-1 flex justify-center">
-                <div className="grid grid-cols-9 gap-2 max-w-lg">
+                <div className="grid grid-cols-9 gap-2 max-w-lg" data-tour="alphabet-strip">
                   {LETTERS.map((letter) => {
                     const isSelected = selectedLetter === letter
                     return (

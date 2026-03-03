@@ -62,6 +62,7 @@ export default function AgeFilter({ value, onChange, className, orientation = 'v
       aria-label="Age filter"
       aria-orientation={orientation}
       className={containerClasses}
+      data-tour="age-filter"
     >
       {bands.map((band) => (
         <button

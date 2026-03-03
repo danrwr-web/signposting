@@ -9,6 +9,7 @@ import { useSurgery } from '@/context/SurgeryContext'
 import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from '@/navigation/modules'
 import HelpPanel, { HELP_PANEL_ID } from './HelpPanel'
 import UserPreferencesModal from './UserPreferencesModal'
+import TourTrigger from './tour/TourTrigger'
 
 interface ModuleDisabledInfo {
   moduleName: string
@@ -415,8 +416,11 @@ export default function UniversalNavigationPanel() {
           )}
         </div>
 
-        {/* Preferences & Sign Out - Fixed at bottom */}
+        {/* Tour, Preferences & Sign Out - Fixed at bottom */}
         <div className="border-t border-gray-200 p-4 flex-shrink-0 space-y-2">
+          {/* Take the tour */}
+          <TourTrigger />
+
           {/* Preferences Button */}
           <button
             onClick={() => {

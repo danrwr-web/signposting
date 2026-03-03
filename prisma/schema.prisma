@@ -36,6 +36,9 @@ model User {
   // Feature flags
   userFeatureFlags UserFeatureFlag[]
 
+  // Tour state
+  tourStates UserTourState[]
+
   // Admin Toolkit
   adminItemEditors             AdminItemEditor[]
   adminItemOwnership           AdminItem[]                   @relation("AdminItemOwner")
@@ -1043,4 +1046,21 @@ enum WorkflowActionKey {
   SEND_STANDARD_LETTER
   CODE_AND_FILE
   OTHER
+}
+
+// Tour / onboarding walkthrough state per user
+model UserTourState {
+  id          String    @id @default(cuid())
+  userId      String
+  tourKey     String    // "onboarding" | "demo" — extensible for future tours
+  completedAt DateTime?
+  skippedAt   DateTime?
+  lastStepIdx Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tourKey])
+  @@index([userId])
 }

@@ -34,7 +34,7 @@ const SearchBox = forwardRef<HTMLInputElement, SearchBoxProps>(({
   }, [localValue, onChange, debounceMs, value])
 
   return (
-    <div className="relative">
+    <div className="relative" data-tour="search-box">
       <input
         ref={ref}
         type="text"

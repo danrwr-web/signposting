@@ -9,6 +9,9 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import Providers from '@/components/Providers'
 import UniversalNavigationPanel from '@/components/UniversalNavigationPanel'
+import { TourProvider } from '@/components/tour/TourProvider'
+import 'driver.js/dist/driver.css'
+import '@/components/tour/tourStyles.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -68,8 +71,10 @@ export default async function RootLayout({
           <CardStyleProvider>
             <SurgeryProvider initialSurgery={initialSurgery} availableSurgeries={surgeries}>
               <NavigationPanelProvider>
-                <UniversalNavigationPanel />
-                {children}
+                <TourProvider>
+                  <UniversalNavigationPanel />
+                  {children}
+                </TourProvider>
               </NavigationPanelProvider>
             </SurgeryProvider>
           </CardStyleProvider>

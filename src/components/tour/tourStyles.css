@@ -1,0 +1,171 @@
+/* NHS-branded Driver.js theme overrides */
+
+/* Overlay — matches UniversalNavigationPanel backdrop */
+.driver-overlay {
+  background-color: rgba(66, 85, 99, 0.5) !important;
+  z-index: 9000 !important;
+}
+
+/* Highlighted element */
+.driver-active-element {
+  z-index: 9001 !important;
+}
+
+/* Popover container */
+.driver-popover.tour-popover-nhs {
+  z-index: 9002 !important;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #005eb8; /* nhs-blue accent */
+  padding: 20px;
+  max-width: 380px;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  animation: tourPopoverIn 200ms ease-out;
+}
+
+/* Arrow */
+.driver-popover.tour-popover-nhs .driver-popover-arrow {
+  border-color: white !important;
+}
+
+.driver-popover.tour-popover-nhs .driver-popover-arrow-side-left {
+  border-left-color: white !important;
+}
+
+.driver-popover.tour-popover-nhs .driver-popover-arrow-side-right {
+  border-right-color: white !important;
+}
+
+.driver-popover.tour-popover-nhs .driver-popover-arrow-side-top {
+  border-top-color: white !important;
+}
+
+.driver-popover.tour-popover-nhs .driver-popover-arrow-side-bottom {
+  border-bottom-color: white !important;
+}
+
+/* Title */
+.driver-popover.tour-popover-nhs .driver-popover-title {
+  color: #003087; /* nhs-dark-blue */
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0;
+  padding: 0;
+}
+
+/* Description */
+.driver-popover.tour-popover-nhs .driver-popover-description {
+  color: #425563; /* nhs-grey */
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+/* Progress text */
+.driver-popover.tour-popover-nhs .driver-popover-progress-text {
+  color: #768692; /* lighter grey */
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Footer / button area */
+.driver-popover.tour-popover-nhs .driver-popover-footer {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Navigation buttons */
+.driver-popover.tour-popover-nhs .driver-popover-navigation-btns {
+  display: flex;
+  gap: 8px;
+}
+
+/* Previous button */
+.driver-popover.tour-popover-nhs .driver-popover-prev-btn {
+  background: white;
+  color: #425563;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms, border-color 150ms;
+  font-family: inherit;
+}
+
+.driver-popover.tour-popover-nhs .driver-popover-prev-btn:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+/* Next / Done button */
+.driver-popover.tour-popover-nhs .driver-popover-next-btn {
+  background: #005eb8; /* nhs-blue */
+  color: white;
+  border: 1px solid #005eb8;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms;
+  font-family: inherit;
+}
+
+.driver-popover.tour-popover-nhs .driver-popover-next-btn:hover {
+  background: #003087; /* nhs-dark-blue */
+  border-color: #003087;
+}
+
+/* Close / skip button */
+.driver-popover.tour-popover-nhs .driver-popover-close-btn {
+  color: #768692;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 150ms;
+}
+
+.driver-popover.tour-popover-nhs .driver-popover-close-btn:hover {
+  color: #425563;
+}
+
+/* Focus styles for accessibility */
+.driver-popover.tour-popover-nhs .driver-popover-prev-btn:focus-visible,
+.driver-popover.tour-popover-nhs .driver-popover-next-btn:focus-visible,
+.driver-popover.tour-popover-nhs .driver-popover-close-btn:focus-visible {
+  outline: 2px solid #005eb8;
+  outline-offset: 2px;
+}
+
+/* Entry animation */
+@keyframes tourPopoverIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .driver-popover.tour-popover-nhs {
+    animation: none;
+  }
+
+  .driver-overlay {
+    transition: none !important;
+  }
+}

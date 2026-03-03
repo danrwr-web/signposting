@@ -944,7 +944,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         {/* Header */}
         <div className={headerContainerClasses}>
           <div className="flex items-start justify-between mb-4">
-            <h1 className={`text-3xl font-bold ${showBlueHeader ? 'text-white' : 'text-nhs-dark-blue'}`}>
+            <h1 className={`text-3xl font-bold ${showBlueHeader ? 'text-white' : 'text-nhs-dark-blue'}`} data-tour="symptom-title">
               {symptom.name}
             </h1>
             <div className="flex items-center gap-3">
@@ -1046,7 +1046,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           </div>
         ) : (
           symptom.highlightedText && (
-            <div className="bg-red-50 border-l-4 border-nhs-red rounded-lg p-6 mb-6">
+            <div className="bg-red-50 border-l-4 border-nhs-red rounded-lg p-6 mb-6" data-tour="highlighted-text">
               <h3 className="text-lg font-semibold text-nhs-red mb-2">
                 Important Notice
               </h3>
@@ -1064,7 +1064,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         {hasVariants && !isEditingInstructions && !isEditingAll && (
           <>
             {(!variants.position || variants.position === 'before') && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+              <div className="bg-white rounded-lg shadow-md p-6 mb-6" data-tour="variant-selector">
                 {(variants.heading && variants.heading.trim() !== '') && (
                   <h3 className="text-lg font-semibold text-nhs-dark-blue mb-4">
                     {variants.heading}
@@ -1105,7 +1105,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         )}
 
         {/* Main Instructions */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6" data-tour="instructions-body">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <h2 className="text-xl font-semibold text-nhs-dark-blue">

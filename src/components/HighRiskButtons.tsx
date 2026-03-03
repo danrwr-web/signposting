@@ -94,7 +94,7 @@ export default function HighRiskButtons({ surgeryId, className, variant = 'class
   }
 
   return (
-    <div className={containerClasses}>
+    <div className={containerClasses} data-tour="high-risk-buttons">
       {highRiskLinks
         .sort((a, b) => a.orderIndex - b.orderIndex)
         .map((link) => {

@@ -19,6 +19,7 @@ const NavigationPanelTrigger = forwardRef<HTMLButtonElement, NavigationPanelTrig
         aria-label={isOpen ? 'Close navigation menu' : 'Open navigation menu'}
         aria-expanded={isOpen}
         aria-controls="navigation-panel"
+        data-tour="nav-trigger"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
