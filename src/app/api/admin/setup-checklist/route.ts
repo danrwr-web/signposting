@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
     ])
 
     // Derive high-risk configured status
-    const highRiskConfigured = highRiskLinksCount > 0 || defaultHighRiskEnabledCount > 0
+    const highRiskConfigured = highRiskLinksCount > 0 || defaultHighRiskEnabledCount > 0 || surgery.enableDefaultHighRisk
 
     // Derive highlights enabled status
     const highlightsEnabled = surgery.enableBuiltInHighlights || customHighlightCount > 0
