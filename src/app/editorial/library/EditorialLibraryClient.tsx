@@ -212,7 +212,7 @@ export default function EditorialLibraryClient({
           await loadCards()
         }
 
-        if (payload.status === 'COMPLETE' || payload.status === 'CANCELLED') {
+        if (payload.status === 'COMPLETE') {
           if (bulkPollIntervalRef.current) {
             clearInterval(bulkPollIntervalRef.current)
             bulkPollIntervalRef.current = null
@@ -238,6 +238,10 @@ export default function EditorialLibraryClient({
         }
 
         if (payload.status === 'CANCELLED') {
+          if (bulkPollIntervalRef.current) {
+            clearInterval(bulkPollIntervalRef.current)
+            bulkPollIntervalRef.current = null
+          }
           toast('Bulk generation was stopped.')
         }
       } catch {
@@ -535,7 +539,7 @@ export default function EditorialLibraryClient({
   const filteredCards = cards
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '—'
+    if (!dateStr) return '-'
     return new Date(dateStr).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -766,7 +770,7 @@ export default function EditorialLibraryClient({
               className="rounded-md border border-slate-200 px-2 py-1.5 text-sm hover:bg-slate-50"
               aria-label={`Sort ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
             >
-              {sortOrder === 'asc' ? '↑' : '↓'}
+              {sortOrder === 'asc' ? '^' : 'v'}
             </button>
           </div>
         </div>
