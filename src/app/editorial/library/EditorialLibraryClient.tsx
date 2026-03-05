@@ -484,7 +484,7 @@ export default function EditorialLibraryClient({
         toast.error(`Deleted ${deletedCount} of ${requested} cards. Some could not be deleted. You can try again.`)
         await loadCards()
       } else {
-        toast.success(`Deleted ${deletedCount} card${deletedCount !== 1 ? 's' : ''}`)
+        toast.success(deletedCount === 1 ? `Deleted 1 card` : `Deleted ${deletedCount} cards`)
         setSelectedIds(new Set())
         await loadCards()
       }
@@ -514,7 +514,11 @@ export default function EditorialLibraryClient({
     if (anyHighRisk) {
       setDeleteConfirm({ type: 'bulk', count: selectedIds.size })
       setTypeDeleteValue('')
-    } else if (typeof window !== 'undefined' && window.confirm(`Delete ${selectedIds.size} card${selectedIds.size !== 1 ? 's' : ''} permanently? This cannot be undone.`)) {
+    } else if (typeof window !== 'undefined' && window.confirm(
+        selectedIds.size === 1
+          ? 'Delete 1 card permanently? This cannot be undone.'
+          : `Delete ${selectedIds.size} cards permanently? This cannot be undone.`
+      )) {
       void handleBulkDelete()
     }
   }
@@ -1164,7 +1168,7 @@ export default function EditorialLibraryClient({
       {/* Summary */}
       {!loading && filteredCards.length > 0 && (
         <div className="text-sm text-slate-500">
-          Showing {filteredCards.length} card{filteredCards.length !== 1 ? 's' : ''}
+          {`Showing ${filteredCards.length} card${filteredCards.length !== 1 ? 's' : ''}`}
         </div>
       )}
     </div>
