@@ -212,9 +212,7 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
             body: JSON.stringify({
               temperature: DEFAULT_TEMPERATURE,
-              max_completion_tokens: 4096,
               stream: true,
-              stream_options: { include_usage: true },
               messages: [
                 { role: 'system', content: systemPrompt.trim() },
                 { role: 'user', content: userPrompt.trim() },
@@ -389,7 +387,7 @@ export async function POST(request: NextRequest) {
         if (err instanceof z.ZodError) {
           emit('error', { code: 'INVALID_INPUT', message: 'Invalid input', details: err.issues })
         } else if (err instanceof EditorialAiError) {
-          emit('error', { code: err.code, message: err.message })
+          emit('error', { code: err.code, message: err.message, azureDetail: err.details ?? undefined })
         } else {
           console.error('POST /api/editorial/generate/stream error', err)
           emit('error', { code: 'SERVER_ERROR', message: 'Internal server error' })
