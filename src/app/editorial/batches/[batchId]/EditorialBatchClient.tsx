@@ -132,6 +132,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [selectedAssignments, setSelectedAssignments] = useState<Array<{ categoryId: string; categoryName: string; subsection: string }>>([])
   const [editingAssignments, setEditingAssignments] = useState<Array<{ categoryId: string; categoryName: string; subsection: string }>>([])
   const [isEditingCategories, setIsEditingCategories] = useState(false)
+  const [categorySearch, setCategorySearch] = useState('')
   const [categoryUpdating, setCategoryUpdating] = useState(false)
   const [overridingValidation, setOverridingValidation] = useState(false)
   const [inlineEdit, setInlineEdit] = useState<{
@@ -338,22 +339,15 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   // Editors with access to the editorial section are clinical approvers by default,
   // so clinician approval is not a gate for publishing.
 
-  // Flat list of category+subsection options for multi-select (matches Tags pattern)
-  const categoryOptions = useMemo(() => {
-    return availableCategories.flatMap((cat) => {
+  const filteredCategoriesForModal = useMemo(() => {
+    if (!categorySearch.trim()) return availableCategories
+    const q = categorySearch.trim().toLowerCase()
+    return availableCategories.filter((cat) => {
+      if (cat.name.toLowerCase().includes(q)) return true
       const subs = Array.isArray(cat.subsections) ? cat.subsections : []
-      if (subs.length > 0) {
-        return subs.map((sub) => ({
-          value: `${cat.id}::${sub}`,
-          label: `${cat.name} › ${sub}`,
-          categoryId: cat.id,
-          categoryName: cat.name,
-          subsection: sub,
-        }))
-      }
-      return [{ value: `${cat.id}::`, label: cat.name, categoryId: cat.id, categoryName: cat.name, subsection: '' }]
+      return subs.some((sub) => sub.toLowerCase().includes(q))
     })
-  }, [availableCategories])
+  }, [availableCategories, categorySearch])
 
   const handleSaveCategoriesFromEdit = async () => {
     if (!activeCard) return
@@ -888,88 +882,37 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                       </div>
                     )}
                   </div>
-                  {/* Learning Pathway — same pattern as Tags */}
+                  {/* Learning Pathway — modal for selection */}
                   {availableCategories.length > 0 && activeCard && (
                     <div className="rounded-lg border border-slate-200 bg-white p-4">
                       <h3 className="text-sm font-semibold text-nhs-dark-blue mb-3">Learning Pathway</h3>
-                      {isEditingCategories ? (
-                        <div className="space-y-3">
-                          <select
-                            multiple
-                            value={editingAssignments.map((a) => `${a.categoryId}::${a.subsection}`)}
-                            onChange={(e) => {
-                              const selected = Array.from(e.target.selectedOptions, (opt) => opt.value)
-                              setEditingAssignments(
-                                selected.map((val) => {
-                                  const opt = categoryOptions.find((o) => o.value === val)
-                                  return opt
-                                    ? { categoryId: opt.categoryId, categoryName: opt.categoryName, subsection: opt.subsection }
-                                    : { categoryId: '', categoryName: '', subsection: '' }
-                                }).filter((o) => o.categoryId),
-                              )
-                            }}
-                            size={Math.min(categoryOptions.length, 6)}
-                            className="w-full rounded-md border border-slate-200 px-2 py-1 text-sm"
-                            style={{ minHeight: '80px' }}
-                            disabled={categoryUpdating}
-                          >
-                            {categoryOptions.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                          <p className="text-[10px] text-slate-500">Hold Ctrl/Cmd to select multiple</p>
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleSaveCategoriesFromEdit}
-                              disabled={categoryUpdating}
-                              className="flex-1 rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                              {categoryUpdating ? 'Saving…' : 'Save'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsEditingCategories(false)
-                                setEditingAssignments([...selectedAssignments])
-                              }}
-                              disabled={categoryUpdating}
-                              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                              Cancel
-                            </button>
-                          </div>
+                      <div className="space-y-3">
+                        <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
+                          {selectedAssignments.length > 0 ? (
+                            selectedAssignments.map((a) => (
+                              <span
+                                key={`${a.categoryId}::${a.subsection}`}
+                                className="inline-flex items-center rounded-full bg-nhs-light-blue px-2 py-0.5 text-xs font-medium text-nhs-blue"
+                              >
+                                {a.categoryName}{a.subsection ? ` › ${a.subsection}` : ''}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-400">No categories</span>
+                          )}
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
-                            {selectedAssignments.length > 0 ? (
-                              selectedAssignments.map((a) => (
-                                <span
-                                  key={`${a.categoryId}::${a.subsection}`}
-                                  className="inline-flex items-center rounded-full bg-nhs-light-blue px-2 py-0.5 text-xs font-medium text-nhs-blue"
-                                >
-                                  {a.categoryName}{a.subsection ? ` › ${a.subsection}` : ''}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-xs text-slate-400">No categories</span>
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsEditingCategories(true)
-                              setEditingAssignments([...selectedAssignments])
-                            }}
-                            className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-nhs-blue hover:bg-nhs-light-blue hover:border-nhs-blue"
-                          >
-                            {selectedAssignments.length > 0 ? 'Edit categories' : 'Add categories'}
-                          </button>
-                        </div>
-                      )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEditingCategories(true)
+                            setCategorySearch('')
+                            setEditingAssignments([...selectedAssignments])
+                          }}
+                          className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-sm text-nhs-blue hover:bg-nhs-light-blue hover:border-nhs-blue"
+                        >
+                          {selectedAssignments.length > 0 ? 'Edit categories' : 'Add categories'}
+                        </button>
+                      </div>
                     </div>
                   )}
                   <div className="rounded-lg border border-slate-200 bg-white p-4">
@@ -1832,6 +1775,121 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                 className="rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
               >
                 Apply
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {isEditingCategories && activeCard && (
+        <Modal
+          title="Assign Learning Pathway categories"
+          onClose={() => {
+            setIsEditingCategories(false)
+            setCategorySearch('')
+            setEditingAssignments([...selectedAssignments])
+          }}
+          widthClassName="max-w-lg"
+        >
+          <div className="space-y-4">
+            <input
+              type="text"
+              value={categorySearch}
+              onChange={(e) => setCategorySearch(e.target.value)}
+              placeholder="Search categories…"
+              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+            />
+            <div className="max-h-[40vh] overflow-y-auto rounded-md border border-slate-200 space-y-2 p-2">
+              {filteredCategoriesForModal.length === 0 ? (
+                <p className="text-sm text-slate-500 py-4 text-center">No matching categories</p>
+              ) : (
+                filteredCategoriesForModal.map((cat) => {
+                  const subs = Array.isArray(cat.subsections) ? cat.subsections : []
+                  const hasSubsections = subs.length > 0
+                  return (
+                    <div key={cat.id} className="space-y-1.5">
+                      <p className="text-xs font-semibold text-slate-600 pt-1">{cat.name}</p>
+                      {hasSubsections ? (
+                        <div className="pl-2 space-y-1">
+                          {subs.map((sub) => {
+                            const value = `${cat.id}::${sub}`
+                            const isChecked = editingAssignments.some(
+                              (a) => a.categoryId === cat.id && a.subsection === sub
+                            )
+                            return (
+                              <label
+                                key={value}
+                                className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:bg-slate-50 rounded px-2 py-1 -mx-2"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setEditingAssignments((prev) => [
+                                        ...prev.filter((a) => !(a.categoryId === cat.id && a.subsection === sub)),
+                                        { categoryId: cat.id, categoryName: cat.name, subsection: sub },
+                                      ])
+                                    } else {
+                                      setEditingAssignments((prev) =>
+                                        prev.filter((a) => !(a.categoryId === cat.id && a.subsection === sub))
+                                      )
+                                    }
+                                  }}
+                                  className="accent-nhs-blue rounded"
+                                />
+                                {sub}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:bg-slate-50 rounded px-2 py-1 -mx-2">
+                          <input
+                            type="checkbox"
+                            checked={editingAssignments.some((a) => a.categoryId === cat.id && a.subsection === '')}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditingAssignments((prev) => [
+                                  ...prev.filter((a) => !(a.categoryId === cat.id && a.subsection === '')),
+                                  { categoryId: cat.id, categoryName: cat.name, subsection: '' },
+                                ])
+                              } else {
+                                setEditingAssignments((prev) =>
+                                  prev.filter((a) => !(a.categoryId === cat.id && a.subsection === ''))
+                                )
+                              }
+                            }}
+                            className="accent-nhs-blue rounded"
+                          />
+                          (All)
+                        </label>
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleSaveCategoriesFromEdit}
+                disabled={categoryUpdating}
+                className="flex-1 rounded-md bg-nhs-blue px-3 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {categoryUpdating ? 'Saving…' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditingCategories(false)
+                  setCategorySearch('')
+                  setEditingAssignments([...selectedAssignments])
+                }}
+                disabled={categoryUpdating}
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-600 hover:border-slate-400 disabled:cursor-not-allowed"
+              >
+                Cancel
               </button>
             </div>
           </div>
