@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef } from 'react'
+import { createPortal } from 'react-dom'
 
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
@@ -42,7 +43,7 @@ export default function Modal({
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
 
@@ -92,7 +93,7 @@ export default function Modal({
     }
   }, [initialFocusRef])
 
-  return (
+  const content = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/40"
@@ -106,7 +107,6 @@ export default function Modal({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        tabIndex={-1}
       >
         <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-4">
           <div className="flex-1">
@@ -146,5 +146,8 @@ export default function Modal({
       </div>
     </div>
   )
+
+  if (typeof document === 'undefined') return content
+  return createPortal(content, document.body)
 }
 
