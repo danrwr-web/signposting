@@ -33,8 +33,11 @@ interface EditorialLibraryClientProps {
   userName: string
   /** When true, show delete (single + bulk) actions. Same gating as other editorial actions (SUPERUSER or ADMIN for surgery). */
   canAdmin: boolean
+  isSuperuser?: boolean
   /** When present, poll for job completion and notify when ready. */
   initialJobId?: string
+  /** When present, show bulk generation progress and poll status. */
+  initialBulkRunId?: string
 }
 
 const statusStyles: Record<string, string> = {
@@ -58,7 +61,16 @@ const roleLabels: Record<string, string> = {
 
 const POLL_INTERVAL_MS = 3000
 
-export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, initialJobId }: EditorialLibraryClientProps) {
+const BULK_POLL_INTERVAL_MS = 5000
+
+export default function EditorialLibraryClient({
+  surgeryId,
+  userName,
+  canAdmin,
+  isSuperuser = false,
+  initialJobId,
+  initialBulkRunId,
+}: EditorialLibraryClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [cards, setCards] = useState<Card[]>([])
@@ -74,6 +86,21 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
   const [activeJobId, setActiveJobId] = useState<string | null>(initialJobId ?? null)
   const pollAbortRef = useRef<AbortController | null>(null)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Bulk generation
+  const [canRunBulk, setCanRunBulk] = useState<boolean | null>(null)
+  const [canRunBulkReason, setCanRunBulkReason] = useState<string | null>(null)
+  const [activeBulkRunId, setActiveBulkRunId] = useState<string | null>(initialBulkRunId ?? null)
+  const [bulkRunStatus, setBulkRunStatus] = useState<{
+    status: string
+    totalSubsections: number
+    completedCount: number
+    failedCount: number
+    failedSubsections: Array<{ categoryName: string; subsection: string }>
+  } | null>(null)
+  const [bulkGenerateLoading, setBulkGenerateLoading] = useState(false)
+  const [bulkCancelLoading, setBulkCancelLoading] = useState(false)
+  const bulkPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -136,6 +163,152 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
   useEffect(() => {
     loadCards()
   }, [loadCards])
+
+  // Fetch can-run for bulk generate (no override - we need real state; superusers can override on click)
+  useEffect(() => {
+    if (!canAdmin) return
+    fetch(`/api/editorial/bulk-generate/can-run?surgeryId=${surgeryId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setCanRunBulk(data.canRun === true)
+        setCanRunBulkReason(data.reason ?? null)
+      })
+      .catch(() => {
+        setCanRunBulk(false)
+        setCanRunBulkReason('Unable to check prerequisites')
+      })
+  }, [canAdmin, surgeryId])
+
+  // Sync bulkRunId from URL
+  useEffect(() => {
+    const fromUrl = searchParams.get('bulkRunId')
+    if (fromUrl && fromUrl !== activeBulkRunId) {
+      setActiveBulkRunId(fromUrl)
+    }
+  }, [searchParams])
+
+  // Poll for bulk run status
+  useEffect(() => {
+    if (!activeBulkRunId) return
+
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `/api/editorial/bulk-generate/status?bulkRunId=${activeBulkRunId}`,
+          { cache: 'no-store' }
+        )
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || !payload?.ok) return
+
+        setBulkRunStatus({
+          status: payload.status,
+          totalSubsections: payload.totalSubsections ?? 0,
+          completedCount: payload.completedCount ?? 0,
+          failedCount: payload.failedCount ?? 0,
+          failedSubsections: payload.failedSubsections ?? [],
+        })
+
+        if (payload.status === 'RUNNING' && payload.completedCount > 0) {
+          await loadCards()
+        }
+
+        if (payload.status === 'COMPLETE' || payload.status === 'CANCELLED') {
+          if (bulkPollIntervalRef.current) {
+            clearInterval(bulkPollIntervalRef.current)
+            bulkPollIntervalRef.current = null
+          }
+          playNotificationSound()
+          const created = payload.completedCount ?? 0
+          const failed = payload.failedCount ?? 0
+          if (failed > 0) {
+            toast.success(`Bulk generation complete. ${created} cards created, ${failed} failed.`, {
+              duration: 6000,
+              icon: '✨',
+            })
+          } else {
+            toast.success(`Bulk generation complete. ${created} cards created.`, { duration: 5000, icon: '✨' })
+          }
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('Daily Dose', {
+              body: `Bulk generation complete. ${created} cards created.`,
+              icon: '/favicon.ico',
+            })
+          }
+          await loadCards()
+        }
+
+        if (payload.status === 'CANCELLED') {
+          toast('Bulk generation was stopped.', { icon: '⏹' })
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
+    poll()
+    bulkPollIntervalRef.current = setInterval(poll, BULK_POLL_INTERVAL_MS)
+    return () => {
+      if (bulkPollIntervalRef.current) {
+        clearInterval(bulkPollIntervalRef.current)
+      }
+    }
+  }, [activeBulkRunId, loadCards])
+
+  const handleBulkGenerate = async (override = false) => {
+    setBulkGenerateLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/editorial/bulk-generate/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surgeryId, override }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload?.ok) {
+        const msg = payload?.error?.message ?? 'Unable to start bulk generation'
+        toast.error(msg)
+        return
+      }
+      toast.success('Bulk generation started. Cards will appear as they are created.')
+      setActiveBulkRunId(payload.bulkRunId)
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('bulkRunId', payload.bulkRunId)
+      router.replace(`?${params.toString()}`, { scroll: false })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to start bulk generation')
+    } finally {
+      setBulkGenerateLoading(false)
+    }
+  }
+
+  const handleBulkCancel = async () => {
+    if (!activeBulkRunId) return
+    setBulkCancelLoading(true)
+    try {
+      const response = await fetch('/api/editorial/bulk-generate/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bulkRunId: activeBulkRunId }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload?.ok) {
+        toast.error(payload?.error ?? 'Unable to cancel bulk generation')
+        return
+      }
+      setBulkRunStatus((prev) =>
+        prev ? { ...prev, status: 'CANCELLED' } : null
+      )
+      if (bulkPollIntervalRef.current) {
+        clearInterval(bulkPollIntervalRef.current)
+        bulkPollIntervalRef.current = null
+      }
+      toast.success('Bulk generation stopped. Remaining jobs will not run.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to cancel')
+    } finally {
+      setBulkCancelLoading(false)
+    }
+  }
 
   // Poll for background generation job completion
   useEffect(() => {
@@ -381,6 +554,81 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
           LIBRARY UI VERSION: delete-enabled
         </div>
       )}
+
+      {/* Bulk generation progress indicator */}
+      {activeBulkRunId && (
+        <div className="rounded-lg border border-nhs-blue bg-nhs-light-blue/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h2 className="text-sm font-semibold text-nhs-dark-blue">Bulk generation</h2>
+              <p className="mt-1 text-sm text-slate-700">
+                {!bulkRunStatus ? (
+                  'Loading…'
+                ) : bulkRunStatus.status === 'COMPLETE' ? (
+                  <>
+                    Complete. {bulkRunStatus.completedCount} cards created
+                    {bulkRunStatus.failedCount > 0 && (
+                      <>, {bulkRunStatus.failedCount} failed</>
+                    )}
+                  </>
+                ) : bulkRunStatus.status === 'CANCELLED' ? (
+                  <>
+                    Stopped. {bulkRunStatus.completedCount} cards created before cancellation
+                    {bulkRunStatus.failedCount > 0 && (
+                      <>, {bulkRunStatus.failedCount} failed</>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {bulkRunStatus.completedCount} of {bulkRunStatus.totalSubsections} done
+                    {bulkRunStatus.failedCount > 0 && (
+                      <> ({bulkRunStatus.failedCount} failed)</>
+                    )}
+                  </>
+                )}
+              </p>
+              {bulkRunStatus && bulkRunStatus.status === 'RUNNING' && bulkRunStatus.totalSubsections > 0 && (
+                <div className="mt-2 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+                  <div
+                    className="h-full bg-nhs-blue transition-all duration-300"
+                    style={{
+                      width: `${Math.round(
+                        (100 * (bulkRunStatus.completedCount + bulkRunStatus.failedCount)) /
+                          bulkRunStatus.totalSubsections
+                      )}%`,
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+            {bulkRunStatus && bulkRunStatus.status === 'RUNNING' && canAdmin && (
+              <button
+                type="button"
+                onClick={handleBulkCancel}
+                disabled={bulkCancelLoading}
+                className="rounded-lg border border-red-500 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {bulkCancelLoading ? 'Stopping…' : 'Stop'}
+              </button>
+            )}
+            {bulkRunStatus && bulkRunStatus.status === 'COMPLETE' && bulkRunStatus.failedSubsections.length > 0 && (
+              <details className="text-xs text-slate-600">
+                <summary className="cursor-pointer font-medium hover:text-nhs-blue">
+                  View failed subsections ({bulkRunStatus.failedSubsections.length})
+                </summary>
+                <ul className="mt-2 max-h-32 overflow-y-auto space-y-0.5">
+                  {bulkRunStatus.failedSubsections.map((f, i) => (
+                    <li key={i}>
+                      {f.categoryName} › {f.subsection}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -389,7 +637,31 @@ export default function EditorialLibraryClient({ surgeryId, userName, canAdmin, 
               Browse, edit, and manage Daily Dose learning cards.
             </p>
           </div>
-          <Link
+          <div className="flex flex-wrap items-center gap-2">
+            {canAdmin && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => handleBulkGenerate(canRunBulk === false && isSuperuser)}
+                  disabled={
+                    bulkGenerateLoading ||
+                    (canRunBulk === false && !isSuperuser) ||
+                    (activeBulkRunId && bulkRunStatus?.status === 'RUNNING')
+                  }
+                  title={
+                    canRunBulk === false && !isSuperuser
+                      ? canRunBulkReason ?? undefined
+                      : activeBulkRunId && bulkRunStatus?.status === 'RUNNING'
+                        ? 'Bulk generation in progress'
+                        : 'Create a full library (one card per pathway subsection)'
+                  }
+                  className="rounded-lg border border-nhs-blue bg-white px-3 py-2 text-sm font-semibold text-nhs-blue hover:bg-nhs-light-blue disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white"
+                >
+                  {bulkGenerateLoading ? 'Starting…' : 'Bulk generate'}
+                </button>
+              </>
+            )}
+            <Link
             href={`/editorial?surgery=${surgeryId}`}
             className="rounded-md bg-nhs-blue px-4 py-2 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
           >

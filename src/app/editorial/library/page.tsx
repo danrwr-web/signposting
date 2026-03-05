@@ -7,7 +7,7 @@ import EditorialLibraryClient from './EditorialLibraryClient'
 export const dynamic = 'force-dynamic'
 
 interface EditorialLibraryPageProps {
-  searchParams: Promise<{ surgery?: string; jobId?: string }>
+  searchParams: Promise<{ surgery?: string; jobId?: string; bulkRunId?: string }>
 }
 
 export default async function EditorialLibraryPage({ searchParams }: EditorialLibraryPageProps) {
@@ -19,6 +19,8 @@ export default async function EditorialLibraryPage({ searchParams }: EditorialLi
   const params = await searchParams
   const surgeryId = params.surgery ?? user.defaultSurgeryId ?? user.memberships[0]?.surgeryId
   const jobId = params.jobId ?? undefined
+  const bulkRunId = params.bulkRunId ?? undefined
+  const isSuperuser = user.globalRole === 'SUPERUSER'
 
   if (!surgeryId) {
     return (
@@ -44,7 +46,9 @@ export default async function EditorialLibraryPage({ searchParams }: EditorialLi
       surgeryId={surgeryId}
       userName={user.name ?? user.email}
       canAdmin={canAdmin}
+      isSuperuser={isSuperuser}
       initialJobId={jobId}
+      initialBulkRunId={bulkRunId}
     />
   )
 }
