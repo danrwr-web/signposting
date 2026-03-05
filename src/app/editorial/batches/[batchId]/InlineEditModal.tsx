@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useLayoutEffect } from 'react'
 import Modal from '@/components/appointments/Modal'
 import type { InlineEditTarget } from '@/components/daily-dose/SessionStyleCardPreview'
 
@@ -20,6 +20,11 @@ export function InlineEditModal({ target, initialValue, onApply, onCancel }: Inl
   const [correctIndex, setCorrectIndex] = useState(
     target.type === 'interaction' && target.field === 'options' ? target.correctIndex : 0
   )
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useLayoutEffect(() => {
+    textareaRef.current?.focus()
+  })
 
   const isOptionsField =
     target.type === 'interaction' && target.field === 'options'
@@ -49,6 +54,7 @@ export function InlineEditModal({ target, initialValue, onApply, onCancel }: Inl
           Changes update the preview below. Use Approve and publish to save to the card.
         </p>
         <textarea
+          ref={textareaRef}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           rows={isMultiline ? 6 : 4}
