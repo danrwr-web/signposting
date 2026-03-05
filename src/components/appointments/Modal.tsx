@@ -25,6 +25,8 @@ export default function Modal({
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const previousFocusRef = useRef<Element | null>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
   const titleId = useId()
   const descriptionId = description ? `${titleId}-description` : undefined
 
@@ -88,7 +90,7 @@ export default function Modal({
         previousFocusRef.current.focus()
       }
     }
-  }, [initialFocusRef, onClose])
+  }, [initialFocusRef])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
