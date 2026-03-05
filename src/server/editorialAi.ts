@@ -1385,6 +1385,7 @@ async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: strin
       },
       body: JSON.stringify({
         temperature: DEFAULT_TEMPERATURE,
+        max_completion_tokens: 4096,
         messages: [
           { role: 'system', content: params.systemPrompt.trim() },
           { role: 'user', content: params.userPrompt.trim() },
