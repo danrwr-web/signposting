@@ -406,7 +406,7 @@ Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.3,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     }),
   })
 
