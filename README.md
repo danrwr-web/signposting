@@ -112,6 +112,22 @@ Comprehensive documentation is available in the repository:
 
 Visit `http://localhost:3000` to view the application.
 
+### Quick start (run locally)
+
+```bash
+npm install
+```
+
+Create `.env.local` with `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, then:
+
+```bash
+npm run db:generate
+npm run db:push
+npm run dev
+```
+
+Open `http://localhost:3000` in your browser.
+
 ---
 
 ## Testing

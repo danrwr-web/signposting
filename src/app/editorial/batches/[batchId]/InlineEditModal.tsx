@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useLayoutEffect } from 'react'
+import { useState, useRef } from 'react'
 import Modal from '@/components/appointments/Modal'
 import type { InlineEditTarget } from '@/components/daily-dose/SessionStyleCardPreview'
 
@@ -21,10 +21,6 @@ export function InlineEditModal({ target, initialValue, onApply, onCancel }: Inl
     target.type === 'interaction' && target.field === 'options' ? target.correctIndex : 0
   )
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  useLayoutEffect(() => {
-    textareaRef.current?.focus()
-  })
 
   const isOptionsField =
     target.type === 'interaction' && target.field === 'options'
@@ -48,6 +44,7 @@ export function InlineEditModal({ target, initialValue, onApply, onCancel }: Inl
       title={`Edit ${target.label}`}
       onClose={onCancel}
       widthClassName="max-w-xl"
+      initialFocusRef={textareaRef}
     >
       <div className="space-y-4">
         <p className="text-sm text-slate-600">
@@ -60,7 +57,6 @@ export function InlineEditModal({ target, initialValue, onApply, onCancel }: Inl
           rows={isMultiline ? 6 : 4}
           className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
           placeholder={isMultiline ? 'One item per line' : undefined}
-          autoFocus
         />
         {isOptionsField && (
           <div>
