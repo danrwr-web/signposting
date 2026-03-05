@@ -86,14 +86,38 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    await inngest.send({
-      name: 'editorial/bulk.generate.start',
-      data: {
-        bulkRunId: run.id,
-        surgeryId,
-        createdBy: user.id,
-      },
-    })
+    try {
+      await inngest.send({
+        name: 'editorial/bulk.generate.start',
+        data: {
+          bulkRunId: run.id,
+          surgeryId,
+          createdBy: user.id,
+        },
+      })
+    } catch (sendError) {
+      console.error('inngest.send failed', sendError)
+      const msg = sendError instanceof Error ? sendError.message : String(sendError)
+      if (
+        msg.includes('INNGEST') ||
+        msg.includes('event key') ||
+        msg.includes('EventKey') ||
+        msg.includes('fetch')
+      ) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: {
+              code: 'BACKGROUND_JOBS_NOT_CONFIGURED',
+              message:
+                'Background job service is not configured. Add INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY to your deployment, or install the Inngest Vercel integration.',
+            },
+          },
+          { status: 503 }
+        )
+      }
+      throw sendError
+    }
 
     return NextResponse.json({
       ok: true,
