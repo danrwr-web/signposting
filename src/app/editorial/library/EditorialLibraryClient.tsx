@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
@@ -570,30 +570,13 @@ export default function EditorialLibraryClient({
             <div>
               <h2 className="text-sm font-semibold text-nhs-dark-blue">Bulk generation</h2>
               <p className="mt-1 text-sm text-slate-700">
-                {!bulkRunStatus ? (
-                  'Loading...'
-                ) : bulkRunStatus.status === 'COMPLETE' ? (
-                  <>
-                    Complete. {bulkRunStatus.completedCount} cards created
-                    {bulkRunStatus.failedCount > 0 && (
-                      <>, {bulkRunStatus.failedCount} failed</>
-                    )}
-                  </>
-                ) : bulkRunStatus.status === 'CANCELLED' ? (
-                  <>
-                    Stopped. {bulkRunStatus.completedCount} cards created before cancellation
-                    {bulkRunStatus.failedCount > 0 && (
-                      <>, {bulkRunStatus.failedCount} failed</>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {bulkRunStatus.completedCount} of {bulkRunStatus.totalSubsections} done
-                    {bulkRunStatus.failedCount > 0 && (
-                      <> ({bulkRunStatus.failedCount} failed)</>
-                    )}
-                  </>
-                )}
+                {!bulkRunStatus
+                  ? 'Loading...'
+                  : bulkRunStatus.status === 'COMPLETE'
+                    ? `Complete. ${bulkRunStatus.completedCount} cards created${bulkRunStatus.failedCount > 0 ? `, ${bulkRunStatus.failedCount} failed` : ''}`
+                    : bulkRunStatus.status === 'CANCELLED'
+                      ? `Stopped. ${bulkRunStatus.completedCount} cards created before cancellation${bulkRunStatus.failedCount > 0 ? `, ${bulkRunStatus.failedCount} failed` : ''}`
+                      : `${bulkRunStatus.completedCount} of ${bulkRunStatus.totalSubsections} done${bulkRunStatus.failedCount > 0 ? ` (${bulkRunStatus.failedCount} failed)` : ''}`}
               </p>
               {bulkRunStatus && bulkRunStatus.status === 'RUNNING' && bulkRunStatus.totalSubsections > 0 && (
                 <div className="mt-2 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
@@ -647,7 +630,7 @@ export default function EditorialLibraryClient({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {canAdmin && (
-              <>
+              <React.Fragment>
                 <button
                   type="button"
                   onClick={() => handleBulkGenerate(canRunBulk === false && isSuperuser)}
@@ -667,7 +650,7 @@ export default function EditorialLibraryClient({
                 >
                   {bulkGenerateLoading ? 'Starting...' : 'Bulk generate'}
                 </button>
-              </>
+              </React.Fragment>
             )}
             <Link
             href={`/editorial?surgery=${surgeryId}`}
