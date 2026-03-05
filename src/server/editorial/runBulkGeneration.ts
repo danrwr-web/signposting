@@ -41,8 +41,14 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
       data: { status: 'RUNNING', totalSubsections: subsections.length },
     })
 
-    // Process each subsection sequentially
+    // Process each subsection sequentially with throttling to avoid Azure 429s
+    const THROTTLE_MS = 2_000
+    let isFirstItem = true
     for (const item of subsections) {
+      if (!isFirstItem) {
+        await new Promise(resolve => setTimeout(resolve, THROTTLE_MS))
+      }
+      isFirstItem = false
       // Check for cancellation before each card
       const currentRun = await prisma.bulkGenerationRun.findUnique({
         where: { id: bulkRunId },
