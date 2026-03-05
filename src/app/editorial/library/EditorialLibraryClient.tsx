@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Modal from '@/components/appointments/Modal'
 import { playNotificationSound } from '@/lib/notificationSound'
+import { BulkGenerationProgress } from './BulkGenerationProgress'
 
 type Card = {
   id: string
@@ -563,61 +564,13 @@ export default function EditorialLibraryClient({
         </div>
       )}
 
-      {/* Bulk generation progress indicator */}
       {activeBulkRunId && (
-        <div className="rounded-lg border border-nhs-blue bg-nhs-light-blue/30 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-sm font-semibold text-nhs-dark-blue">Bulk generation</h2>
-              <p className="mt-1 text-sm text-slate-700">
-                {!bulkRunStatus
-                  ? 'Loading...'
-                  : bulkRunStatus.status === 'COMPLETE'
-                    ? `Complete. ${bulkRunStatus.completedCount} cards created${bulkRunStatus.failedCount > 0 ? `, ${bulkRunStatus.failedCount} failed` : ''}`
-                    : bulkRunStatus.status === 'CANCELLED'
-                      ? `Stopped. ${bulkRunStatus.completedCount} cards created before cancellation${bulkRunStatus.failedCount > 0 ? `, ${bulkRunStatus.failedCount} failed` : ''}`
-                      : `${bulkRunStatus.completedCount} of ${bulkRunStatus.totalSubsections} done${bulkRunStatus.failedCount > 0 ? ` (${bulkRunStatus.failedCount} failed)` : ''}`}
-              </p>
-              {bulkRunStatus && bulkRunStatus.status === 'RUNNING' && bulkRunStatus.totalSubsections > 0 && (
-                <div className="mt-2 h-2 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    className="h-full bg-nhs-blue transition-all duration-300"
-                    style={{
-                      width: `${Math.round(
-                        (100 * (bulkRunStatus.completedCount + bulkRunStatus.failedCount)) /
-                          bulkRunStatus.totalSubsections
-                      )}%`,
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-            {bulkRunStatus && bulkRunStatus.status === 'RUNNING' && canAdmin && (
-              <button
-                type="button"
-                onClick={handleBulkCancel}
-                disabled={bulkCancelLoading}
-                className="rounded-lg border border-red-500 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {bulkCancelLoading ? 'Stopping...' : 'Stop'}
-              </button>
-            )}
-            {bulkRunStatus && bulkRunStatus.status === 'COMPLETE' && bulkRunStatus.failedSubsections.length > 0 && (
-              <details className="text-xs text-slate-600">
-                <summary className="cursor-pointer font-medium hover:text-nhs-blue">
-                  View failed subsections ({bulkRunStatus.failedSubsections.length})
-                </summary>
-                <ul className="mt-2 max-h-32 overflow-y-auto space-y-0.5">
-                  {bulkRunStatus.failedSubsections.map((f, i) => (
-                    <li key={i}>
-                      {f.categoryName} / {f.subsection}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </div>
-        </div>
+        <BulkGenerationProgress
+          bulkRunStatus={bulkRunStatus}
+          canAdmin={canAdmin}
+          cancelLoading={bulkCancelLoading}
+          onCancel={handleBulkCancel}
+        />
       )}
 
       <div className="rounded-lg border border-slate-200 bg-white p-6">
