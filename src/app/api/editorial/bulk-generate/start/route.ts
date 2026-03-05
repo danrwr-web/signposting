@@ -1,15 +1,16 @@
 import 'server-only'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
-import { inngest } from '@/inngest/client'
+import { runBulkGeneration } from '@/server/editorial/runBulkGeneration'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 
 const PREREQUISITE_MESSAGE =
   'Please complete clinical approval of the toolkit before creating your learning card library.'
@@ -86,38 +87,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    try {
-      await inngest.send({
-        name: 'editorial/bulk.generate.start',
-        data: {
-          bulkRunId: run.id,
-          surgeryId,
-          createdBy: user.id,
-        },
-      })
-    } catch (sendError) {
-      console.error('inngest.send failed', sendError)
-      const msg = sendError instanceof Error ? sendError.message : String(sendError)
-      if (
-        msg.includes('INNGEST') ||
-        msg.includes('event key') ||
-        msg.includes('EventKey') ||
-        msg.includes('fetch')
-      ) {
-        return NextResponse.json(
-          {
-            ok: false,
-            error: {
-              code: 'BACKGROUND_JOBS_NOT_CONFIGURED',
-              message:
-                'Background job service is not configured. Add INNGEST_EVENT_KEY and INNGEST_SIGNING_KEY to your deployment, or install the Inngest Vercel integration.',
-            },
-          },
-          { status: 503 }
-        )
-      }
-      throw sendError
-    }
+    after(async () => {
+      await runBulkGeneration(run.id)
+    })
 
     return NextResponse.json({
       ok: true,
