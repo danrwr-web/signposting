@@ -114,8 +114,7 @@ REQUIRED:
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.4,
-        max_tokens: 900,
+        max_completion_tokens: 900,
       }),
     })
 

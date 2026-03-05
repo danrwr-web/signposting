@@ -18,7 +18,7 @@ import {
 import { promptTraceStore } from '@/lib/editorial/promptTraceStore'
 import { z } from 'zod'
 
-const DEFAULT_TEMPERATURE = 0.2
+// gpt-5-mini only supports temperature=1 (the default), so we omit it from requests
 
 const OUTPUT_RULES = `
 OUTPUT RULES:
@@ -1357,7 +1357,10 @@ Return ONLY valid JSON. No markdown, no commentary.
   }
 }
 
-async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: string }) {
+const MAX_RETRIES = 3
+const RETRY_BASE_MS = 2_000
+
+async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: string }, attempt = 0) {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_API_KEY
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
@@ -1381,7 +1384,6 @@ async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: strin
         'api-key': apiKey,
       },
       body: JSON.stringify({
-        temperature: DEFAULT_TEMPERATURE,
         messages: [
           { role: 'system', content: params.systemPrompt.trim() },
           { role: 'user', content: params.userPrompt.trim() },
@@ -1393,6 +1395,15 @@ async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: strin
 
     if (!response.ok) {
       const errorText = await response.text()
+      // Retry on 429 (rate limit) with exponential backoff
+      if (response.status === 429 && attempt < MAX_RETRIES) {
+        const retryAfter = response.headers.get('Retry-After')
+        const delayMs = retryAfter ? Math.min(parseInt(retryAfter, 10) * 1000, 60_000) : RETRY_BASE_MS * Math.pow(2, attempt)
+        console.warn(`[callAzureOpenAi] 429 rate limited, retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`)
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        return callAzureOpenAi(params, attempt + 1)
+      }
+      console.error(`[callAzureOpenAi] Azure error ${response.status}:`, errorText)
       throw new EditorialAiError('LLM_FAILED', `AI request failed: ${response.status}`, errorText)
     }
 

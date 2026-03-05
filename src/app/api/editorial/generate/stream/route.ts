@@ -18,7 +18,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-const DEFAULT_TEMPERATURE = 0.2
+// gpt-5-mini only supports temperature=1 (the default), so we omit it from requests
 const MAX_GENERATIONS_PER_HOUR = 5
 
 function sseEvent(type: string, data: unknown): string {
@@ -203,34 +203,48 @@ export async function POST(request: NextRequest) {
         const abortController = new AbortController()
         const timeoutId = setTimeout(() => abortController.abort(), 240000)
 
-        const aiResponse = await fetch(apiUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
-          body: JSON.stringify({
-            temperature: DEFAULT_TEMPERATURE,
-            stream: true,
-            messages: [
-              { role: 'system', content: systemPrompt.trim() },
-              { role: 'user', content: userPrompt.trim() },
-            ],
-          }),
-          signal: abortController.signal,
-        })
+        const MAX_STREAM_RETRIES = 3
+        const RETRY_BASE_MS = 2000
+        let aiResponse: Response | null = null
+        for (let attempt = 0; attempt <= MAX_STREAM_RETRIES; attempt++) {
+          const resp = await fetch(apiUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+            body: JSON.stringify({
+              stream: true,
+              messages: [
+                { role: 'system', content: systemPrompt.trim() },
+                { role: 'user', content: userPrompt.trim() },
+              ],
+            }),
+            signal: abortController.signal,
+          })
+          if (resp.status === 429 && attempt < MAX_STREAM_RETRIES) {
+            const retryAfter = resp.headers.get('Retry-After')
+            const delayMs = retryAfter ? Math.min(parseInt(retryAfter, 10) * 1000, 60_000) : RETRY_BASE_MS * Math.pow(2, attempt)
+            console.warn(`[stream] 429 rate limited, retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_STREAM_RETRIES})`)
+            await new Promise(resolve => setTimeout(resolve, delayMs))
+            continue
+          }
+          aiResponse = resp
+          break
+        }
         clearTimeout(timeoutId)
 
-        if (!aiResponse.ok) {
-          const errorText = await aiResponse.text()
-          throw new EditorialAiError('LLM_FAILED', `AI request failed: ${aiResponse.status}`, errorText)
+        if (!aiResponse!.ok) {
+          const errorText = await aiResponse!.text()
+          console.error('[stream] Azure OpenAI error:', aiResponse!.status, errorText)
+          throw new EditorialAiError('LLM_FAILED', `AI request failed: ${aiResponse!.status}`, errorText)
         }
 
-        if (!aiResponse.body) {
+        if (!aiResponse!.body) {
           throw new EditorialAiError('LLM_EMPTY', 'AI returned empty stream')
         }
 
         // Collect the full streamed output while emitting progress ticks
         let fullContent = ''
         let tokenCount = 0
-        const reader = aiResponse.body.getReader()
+        const reader = aiResponse!.body!.getReader()
         const textDecoder = new TextDecoder()
 
         while (true) {
@@ -372,7 +386,7 @@ export async function POST(request: NextRequest) {
         if (err instanceof z.ZodError) {
           emit('error', { code: 'INVALID_INPUT', message: 'Invalid input', details: err.issues })
         } else if (err instanceof EditorialAiError) {
-          emit('error', { code: err.code, message: err.message })
+          emit('error', { code: err.code, message: err.message, azureDetail: err.details ?? undefined })
         } else {
           console.error('POST /api/editorial/generate/stream error', err)
           emit('error', { code: 'SERVER_ERROR', message: 'Internal server error' })

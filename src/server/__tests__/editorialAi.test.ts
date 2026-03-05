@@ -9,7 +9,7 @@ describe('editorialAi', () => {
     process.env.AZURE_OPENAI_ENDPOINT = 'https://example.openai.azure.com/'
     process.env.AZURE_OPENAI_API_KEY = 'test-key'
     process.env.AZURE_OPENAI_DEPLOYMENT = 'test-deployment'
-    process.env.AZURE_OPENAI_API_VERSION = '2024-02-15-preview'
+    process.env.AZURE_OPENAI_API_VERSION = '2025-04-01-preview'
   })
 
   it('parses generated cards and quiz', async () => {
