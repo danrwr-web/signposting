@@ -18,7 +18,7 @@ import {
 import { promptTraceStore } from '@/lib/editorial/promptTraceStore'
 import { z } from 'zod'
 
-const DEFAULT_TEMPERATURE = 0.2
+// gpt-5-mini only supports temperature=1 (the default), so we omit it from requests
 
 const OUTPUT_RULES = `
 OUTPUT RULES:
@@ -1384,7 +1384,6 @@ async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: strin
         'api-key': apiKey,
       },
       body: JSON.stringify({
-        temperature: DEFAULT_TEMPERATURE,
         messages: [
           { role: 'system', content: params.systemPrompt.trim() },
           { role: 'user', content: params.userPrompt.trim() },

@@ -145,7 +145,6 @@ Do not include any other keys, explanations, markdown code fences, or commentary
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
-        temperature: 0.3,
         max_completion_tokens: 1200,
       }),
     })

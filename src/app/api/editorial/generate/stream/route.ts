@@ -18,7 +18,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
 
-const DEFAULT_TEMPERATURE = 0.2
+// gpt-5-mini only supports temperature=1 (the default), so we omit it from requests
 const MAX_GENERATIONS_PER_HOUR = 5
 
 function sseEvent(type: string, data: unknown): string {
@@ -211,7 +211,6 @@ export async function POST(request: NextRequest) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
             body: JSON.stringify({
-              temperature: DEFAULT_TEMPERATURE,
               stream: true,
               messages: [
                 { role: 'system', content: systemPrompt.trim() },
