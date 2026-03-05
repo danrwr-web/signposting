@@ -85,6 +85,7 @@ export default function EditorialLibraryClient({
   >(null)
   const [typeDeleteValue, setTypeDeleteValue] = useState('')
   const [activeJobId, setActiveJobId] = useState<string | null>(initialJobId ?? null)
+  const handledJobIdsRef = useRef<Set<string>>(new Set())
   const pollAbortRef = useRef<AbortController | null>(null)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -320,6 +321,9 @@ export default function EditorialLibraryClient({
     const jobId = activeJobId ?? searchParams.get('jobId')
     if (!jobId) return
 
+    // Prevent re-polling a job we already handled (COMPLETE/FAILED)
+    if (handledJobIdsRef.current.has(jobId)) return
+
     if (!activeJobId) setActiveJobId(jobId)
 
     // Request notification permission when user has a background job (for when tab is in background)
@@ -350,6 +354,7 @@ export default function EditorialLibraryClient({
 
         if (payload.status === 'COMPLETE') {
           stopPolling() // Stop immediately to prevent repeated notifications
+          handledJobIdsRef.current.add(jobId)
           playNotificationSound()
           toast.success('New batch ready! You can review the cards below.', { duration: 5000, icon: '✨' })
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
@@ -365,6 +370,7 @@ export default function EditorialLibraryClient({
 
         if (payload.status === 'FAILED') {
           stopPolling()
+          handledJobIdsRef.current.add(jobId)
           toast.error(payload.errorMessage || 'Generation failed')
           clearJobFromUrl()
           return

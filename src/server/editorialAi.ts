@@ -1385,7 +1385,6 @@ async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: strin
       },
       body: JSON.stringify({
         temperature: DEFAULT_TEMPERATURE,
-        max_completion_tokens: 4096,
         messages: [
           { role: 'system', content: params.systemPrompt.trim() },
           { role: 'user', content: params.userPrompt.trim() },
@@ -1405,6 +1404,7 @@ async function callAzureOpenAi(params: { systemPrompt: string; userPrompt: strin
         await new Promise(resolve => setTimeout(resolve, delayMs))
         return callAzureOpenAi(params, attempt + 1)
       }
+      console.error(`[callAzureOpenAi] Azure error ${response.status}:`, errorText)
       throw new EditorialAiError('LLM_FAILED', `AI request failed: ${response.status}`, errorText)
     }
 
