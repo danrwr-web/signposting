@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import SessionStyleCardPreview, { type InlineEditTarget } from '@/components/daily-dose/SessionStyleCardPreview'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 import Modal from '@/components/appointments/Modal'
+import { InlineEditModal } from './InlineEditModal'
 
 type Batch = {
   id: string
@@ -434,10 +435,9 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       .filter(Boolean),
   })
 
-  const handleApplyInlineEdit = useCallback(() => {
-    if (!inlineEdit) return
-    const { target, value } = inlineEdit
-    if (target.type === 'contentBlock') {
+  const handleApplyInlineEdit = useCallback(
+    (value: string, target: InlineEditTarget) => {
+      if (target.type === 'contentBlock') {
       setCardForm((prev) => {
         const blocks = [...prev.blocks]
         if (target.blockIndex >= blocks.length) return prev
@@ -472,7 +472,9 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       })
     }
     setInlineEdit(null)
-  }, [inlineEdit])
+  },
+    []
+  )
 
   // Save draft and return success status
   const doSave = async (): Promise<boolean> => {
@@ -1699,86 +1701,15 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       </div>
 
       {inlineEdit && (
-        <Modal
-          title={`Edit ${inlineEdit.target.label}`}
-          onClose={() => setInlineEdit(null)}
-          widthClassName="max-w-xl"
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-slate-600">
-              Changes update the preview below. Use Approve and publish to save to the card.
-            </p>
-            <textarea
-              value={inlineEdit.value}
-              onChange={(e) =>
-                setInlineEdit((prev) => (prev ? { ...prev, value: e.target.value } : null))
-              }
-              rows={inlineEdit.target.field === 'options' || inlineEdit.target.field === 'items' ? 6 : 4}
-              className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-              placeholder={
-                inlineEdit.target.field === 'options' || inlineEdit.target.field === 'items'
-                  ? 'One item per line'
-                  : undefined
-              }
-              autoFocus
-            />
-            {inlineEdit.target.type === 'interaction' &&
-              inlineEdit.target.field === 'options' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">
-                    Which option is correct?
-                  </label>
-                  <select
-                    value={(() => {
-                      const lines = inlineEdit.value.split('\n')
-                      const maxIdx = Math.max(0, lines.length - 1)
-                      return Math.min(inlineEdit.target.correctIndex, maxIdx)
-                    })()}
-                    onChange={(e) => {
-                      const idx = Number(e.target.value)
-                      setInlineEdit((prev) =>
-                        prev && prev.target.type === 'interaction' && prev.target.field === 'options'
-                          ? { ...prev, target: { ...prev.target, correctIndex: idx } }
-                          : prev
-                      )
-                    }}
-                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
-                  >
-                    {(() => {
-                      const lines = inlineEdit.value.split('\n')
-                      if (lines.length === 0 || lines.every((l) => !l.trim())) {
-                        return <option value={0}>Option 1 (add options above)</option>
-                      }
-                      return lines.map((line, i) => (
-                        <option key={i} value={i}>
-                          {line.trim() || `Option ${i + 1}`}
-                        </option>
-                      ))
-                    })()}
-                  </select>
-                </div>
-              )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setInlineEdit(null)}
-                className="rounded-md border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  handleApplyInlineEdit()
-                  toast.success('Updated')
-                }}
-                className="rounded-md bg-nhs-blue px-3 py-1.5 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
-              >
-                Apply
-              </button>
-            </div>
-          </div>
-        </Modal>
+        <InlineEditModal
+          target={inlineEdit.target}
+          initialValue={inlineEdit.value}
+          onApply={(value, target) => {
+            handleApplyInlineEdit(value, target)
+            toast.success('Updated')
+          }}
+          onCancel={() => setInlineEdit(null)}
+        />
       )}
 
       {isEditingCategories && activeCard && (
