@@ -68,8 +68,21 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
         },
       })
 
+      // runGenerationJob catches errors internally and sets job status to FAILED
+      // without re-throwing, so we must check the job's actual DB status afterwards.
       try {
         await runGenerationJob(job.id)
+      } catch (error) {
+        console.error('[runBulkGeneration] runGenerationJob threw for subsection:', item.categoryName, item.subsection, error)
+      }
+
+      const finishedJob = await prisma.dailyDoseGenerationJob.findUnique({
+        where: { id: job.id },
+        select: { status: true },
+      })
+      const jobSucceeded = finishedJob?.status === 'COMPLETE'
+
+      if (jobSucceeded) {
         await prisma.$transaction(async (tx) => {
           const updated = await tx.bulkGenerationRun.update({
             where: { id: bulkRunId },
@@ -83,8 +96,7 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
             })
           }
         })
-      } catch (error) {
-        console.error('[runBulkGeneration] Failed for subsection:', item.categoryName, item.subsection, error)
+      } else {
         const failedEntry = { categoryName: item.categoryName, subsection: item.subsection || '(All)' }
         await prisma.$transaction(async (tx) => {
           const current = await tx.bulkGenerationRun.findUnique({
@@ -100,11 +112,11 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
               failedSubsections: [...failed, failedEntry] as object[],
             },
           })
-          const after = await tx.bulkGenerationRun.findUnique({
+          const afterUpdate = await tx.bulkGenerationRun.findUnique({
             where: { id: bulkRunId },
             select: { completedCount: true, failedCount: true, totalSubsections: true },
           })
-          if (after && after.completedCount + after.failedCount >= after.totalSubsections) {
+          if (afterUpdate && afterUpdate.completedCount + afterUpdate.failedCount >= afterUpdate.totalSubsections) {
             await tx.bulkGenerationRun.update({
               where: { id: bulkRunId },
               data: { status: 'COMPLETE', completedAt: new Date() },
