@@ -238,7 +238,7 @@ export default function EditorialLibraryClient({
         }
 
         if (payload.status === 'CANCELLED') {
-          toast('Bulk generation was stopped.', { icon: '⏹' })
+          toast('Bulk generation was stopped.')
         }
       } catch {
         // Ignore
@@ -563,7 +563,7 @@ export default function EditorialLibraryClient({
               <h2 className="text-sm font-semibold text-nhs-dark-blue">Bulk generation</h2>
               <p className="mt-1 text-sm text-slate-700">
                 {!bulkRunStatus ? (
-                  'Loading…'
+                  'Loading...'
                 ) : bulkRunStatus.status === 'COMPLETE' ? (
                   <>
                     Complete. {bulkRunStatus.completedCount} cards created
@@ -608,7 +608,7 @@ export default function EditorialLibraryClient({
                 disabled={bulkCancelLoading}
                 className="rounded-lg border border-red-500 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {bulkCancelLoading ? 'Stopping…' : 'Stop'}
+                {bulkCancelLoading ? 'Stopping...' : 'Stop'}
               </button>
             )}
             {bulkRunStatus && bulkRunStatus.status === 'COMPLETE' && bulkRunStatus.failedSubsections.length > 0 && (
@@ -619,7 +619,7 @@ export default function EditorialLibraryClient({
                 <ul className="mt-2 max-h-32 overflow-y-auto space-y-0.5">
                   {bulkRunStatus.failedSubsections.map((f, i) => (
                     <li key={i}>
-                      {f.categoryName} › {f.subsection}
+                      {f.categoryName} / {f.subsection}
                     </li>
                   ))}
                 </ul>
@@ -657,7 +657,7 @@ export default function EditorialLibraryClient({
                   }
                   className="rounded-lg border border-nhs-blue bg-white px-3 py-2 text-sm font-semibold text-nhs-blue hover:bg-nhs-light-blue disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white"
                 >
-                  {bulkGenerateLoading ? 'Starting…' : 'Bulk generate'}
+                  {bulkGenerateLoading ? 'Starting...' : 'Bulk generate'}
                 </button>
               </>
             )}
@@ -682,7 +682,7 @@ export default function EditorialLibraryClient({
             aria-live="polite"
           >
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-nhs-blue" aria-hidden />
-            Generating cards in the background… You can review published cards below. We will notify you when ready.
+            Generating cards in the background... You can review published cards below. We will notify you when ready.
           </div>
         )}
       </div>
@@ -798,7 +798,7 @@ export default function EditorialLibraryClient({
             disabled={bulkDeleteLoading}
             className="text-sm font-medium text-red-700 hover:text-red-800 disabled:opacity-50"
           >
-            {bulkDeleteLoading ? 'Deleting…' : `Delete selected (${selectedIds.size})`}
+            {bulkDeleteLoading ? 'Deleting...' : `Delete selected (${selectedIds.size})`}
           </button>
         </div>
       )}
@@ -806,7 +806,7 @@ export default function EditorialLibraryClient({
       {/* Cards Table */}
       <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
         {loading ? (
-          <div className="p-6 text-center text-slate-600">Loading cards…</div>
+          <div className="p-6 text-center text-slate-600">Loading cards...</div>
         ) : filteredCards.length === 0 ? (
           <div className="p-6 text-center text-slate-600">
             No cards found. <Link href={`/editorial?surgery=${surgeryId}`} className="text-nhs-blue hover:underline">Generate some cards</Link> to get started.
@@ -1061,7 +1061,7 @@ export default function EditorialLibraryClient({
                               className="text-xs font-medium text-emerald-600 hover:underline disabled:opacity-50"
                               title="Approve and publish in one step"
                             >
-                              {actionLoading === card.id ? '…' : 'Approve & publish'}
+                              {actionLoading === card.id ? '...' : 'Approve & publish'}
                             </button>
                           )}
                           {canArchive && (
@@ -1071,7 +1071,7 @@ export default function EditorialLibraryClient({
                               disabled={actionLoading === card.id}
                               className="text-xs text-slate-500 hover:underline disabled:opacity-50"
                             >
-                              {actionLoading === card.id ? '…' : 'Archive'}
+                              {actionLoading === card.id ? '...' : 'Archive'}
                             </button>
                           )}
                           {canAdmin && (
@@ -1082,7 +1082,7 @@ export default function EditorialLibraryClient({
                               className="text-xs text-red-700 hover:underline disabled:opacity-50 font-medium"
                               title="Delete card permanently"
                             >
-                              {isDeleting ? '…' : 'Delete'}
+                              {isDeleting ? '...' : 'Delete'}
                             </button>
                           )}
                         </div>
