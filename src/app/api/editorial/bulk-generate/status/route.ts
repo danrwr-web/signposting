@@ -1,16 +1,22 @@
 import 'server-only'
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { prisma } from '@/lib/prisma'
+import { runBulkGeneration } from '@/server/editorial/runBulkGeneration'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 300
 
 /**
  * GET /api/editorial/bulk-generate/status?bulkRunId=xxx
  * Returns progress for a bulk generation run.
+ *
+ * Also acts as the continuation driver: if the run is RUNNING and there
+ * are PENDING jobs with no currently-RUNNING job (meaning the previous
+ * worker's time budget expired), it kicks off another batch via after().
  */
 export async function GET(request: NextRequest) {
   try {
@@ -62,6 +68,23 @@ export async function GET(request: NextRequest) {
         { ok: false, error: 'Access denied' },
         { status: 403 }
       )
+    }
+
+    // Continuation: if run is RUNNING and no worker is active, resume
+    if (run.status === 'RUNNING') {
+      const [pendingCount, runningCount] = await Promise.all([
+        prisma.dailyDoseGenerationJob.count({
+          where: { bulkRunId, status: 'PENDING' },
+        }),
+        prisma.dailyDoseGenerationJob.count({
+          where: { bulkRunId, status: 'RUNNING' },
+        }),
+      ])
+      if (pendingCount > 0 && runningCount === 0) {
+        after(async () => {
+          await runBulkGeneration(bulkRunId)
+        })
+      }
     }
 
     const failedSubsections = Array.isArray(run.failedSubsections)

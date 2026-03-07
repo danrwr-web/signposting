@@ -29,6 +29,9 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       tags: true,
       interactiveFirst: true,
       status: true,
+      categoryId: true,
+      categoryName: true,
+      subsection: true,
     },
   })
 
@@ -219,6 +222,16 @@ export async function runGenerationJob(jobId: string): Promise<void> {
               confidence: c.confidence,
             })),
           },
+          // Auto-assign to learning category when job has explicit category (bulk generation)
+          ...(job.categoryId && job.categoryName
+            ? {
+                learningAssignments: [{
+                  categoryId: job.categoryId,
+                  categoryName: job.categoryName,
+                  subsection: job.subsection || null,
+                }],
+              }
+            : {}),
           clinicianApproved: false,
           publishedAt: null,
         },
@@ -342,6 +355,15 @@ export async function runGenerationJob(jobId: string): Promise<void> {
                 status: 'DRAFT',
                 createdBy: job.createdBy,
                 validationIssues: cardIssues.length > 0 ? cardIssues : null,
+                ...(job.categoryId && job.categoryName
+                  ? {
+                      learningAssignments: [{
+                        categoryId: job.categoryId,
+                        categoryName: job.categoryName,
+                        subsection: job.subsection || null,
+                      }],
+                    }
+                  : {}),
                 clinicianApproved: false,
                 publishedAt: null,
               },
@@ -425,6 +447,15 @@ export async function runGenerationJob(jobId: string): Promise<void> {
                 status: 'DRAFT',
                 createdBy: job.createdBy,
                 validationIssues: schemaIssue,
+                ...(job.categoryId && job.categoryName
+                  ? {
+                      learningAssignments: [{
+                        categoryId: job.categoryId,
+                        categoryName: job.categoryName,
+                        subsection: job.subsection || null,
+                      }],
+                    }
+                  : {}),
                 clinicianApproved: false,
                 publishedAt: null,
               },
