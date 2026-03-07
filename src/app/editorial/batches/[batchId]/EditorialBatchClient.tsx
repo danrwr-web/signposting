@@ -117,8 +117,6 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const [error, setError] = useState<string | null>(null)
   const [regenSection, setRegenSection] = useState('mcq')
   const [regenNote, setRegenNote] = useState('')
-  const [showCompletionModal, setShowCompletionModal] = useState(false)
-  const [nextBatchId, setNextBatchId] = useState<string | null>(null)
 
   // Tag management state
   const [availableTags, setAvailableTags] = useState<Array<{ id: string; name: string }>>([])
@@ -552,22 +550,20 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
 
   const findNextUnapprovedBatch = async () => {
     try {
-      // Fetch library to find batches with unpublished cards
       const response = await fetch(`/api/editorial/library?surgeryId=${surgeryId}&status=DRAFT`, {
         cache: 'no-store',
       })
       const payload = await response.json().catch(() => ({}))
       if (response.ok && payload.cards && payload.cards.length > 0) {
-        // Find first batch ID that's not the current batch
         const nextBatch = payload.cards.find((card: Card) => card.batchId !== batchId)
         if (nextBatch) {
-          setNextBatchId(nextBatch.batchId)
+          router.push(`/editorial/batches/${nextBatch.batchId}?surgery=${surgeryId}`)
+          return
         }
       }
-      setShowCompletionModal(true)
-    } catch (err) {
-      // If we can't find next batch, still show modal
-      setShowCompletionModal(true)
+      router.push(`/editorial?surgery=${surgeryId}`)
+    } catch {
+      router.push(`/editorial?surgery=${surgeryId}`)
     }
   }
 
@@ -1827,53 +1823,6 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         </Modal>
       )}
 
-      {showCompletionModal && (
-        <Modal
-          title="All cards published!"
-          onClose={() => setShowCompletionModal(false)}
-          widthClassName="max-w-md"
-        >
-          <div className="space-y-4">
-            <p className="text-slate-700">
-              All cards in this batch have been published. What would you like to do next?
-            </p>
-            <div className="flex flex-col gap-3">
-              {nextBatchId && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowCompletionModal(false)
-                    router.push(`/editorial/batches/${nextBatchId}?surgery=${surgeryId}`)
-                  }}
-                  className="w-full rounded-xl bg-nhs-blue px-4 py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue"
-                >
-                  Review next unapproved batch
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCompletionModal(false)
-                  router.push(`/editorial?surgery=${surgeryId}`)
-                }}
-                className="w-full rounded-xl border border-nhs-blue bg-white px-4 py-3 text-sm font-semibold text-nhs-blue hover:bg-nhs-blue hover:text-white"
-              >
-                Create a new batch
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowCompletionModal(false)
-                  router.push(`/daily-dose/session?surgery=${surgeryId}`)
-                }}
-                className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Start a learning session
-              </button>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }
