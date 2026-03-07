@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { EditorialGenerationOutputZ } from '@/lib/schemas/editorial'
+import { applyRedSlotWording } from '@/lib/editorial/redSlotWording'
 
 export type GenerationValidationIssue = {
   path: string
@@ -140,7 +141,7 @@ function normaliseGenerationOutput(raw: unknown) {
     output.quiz = quiz
   }
 
-  return output
+  return applyRedSlotWording(output) as typeof output
 }
 
 function stripJsonFences(value: string) {

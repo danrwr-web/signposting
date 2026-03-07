@@ -15,6 +15,7 @@ import {
   parseAndValidateGeneration,
   type GenerationValidationIssue,
 } from '@/lib/editorial/generationParsing'
+import { applyRedSlotWording } from '@/lib/editorial/redSlotWording'
 import { promptTraceStore } from '@/lib/editorial/promptTraceStore'
 import { z } from 'zod'
 
@@ -1300,7 +1301,7 @@ Return ONLY valid JSON. No markdown, no commentary.
     userPrompt,
   })
 
-  const parsed = parseJson(result.content)
+  const parsed = applyRedSlotWording(parseJson(result.content))
   const validation = z.object({ cards: z.array(EditorialLearningCardZ).min(1) }).safeParse(parsed)
   if (!validation.success) {
     throw new EditorialAiError('INVALID_JSON', 'Variation output did not match schema', validation.error)
@@ -1352,7 +1353,7 @@ Return ONLY valid JSON. No markdown, no commentary.
   })
 
   return {
-    patch: parseJson(result.content),
+    patch: applyRedSlotWording(parseJson(result.content)),
     modelUsed: result.modelUsed,
   }
 }

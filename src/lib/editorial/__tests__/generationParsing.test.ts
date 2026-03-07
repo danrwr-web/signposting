@@ -143,4 +143,62 @@ Here is the JSON you asked for:
     expect(result.data.cards[0].safetyNetting).toHaveLength(1)
     expect(result.data.cards[0].safetyNetting[0]).toContain('symptoms worsen')
   })
+
+  it('replaces "Book a red slot" with full escalation wording in MCQ options', () => {
+    const output = JSON.stringify({
+      cards: [
+        {
+          targetRole: 'ADMIN',
+          title: 'Urgent slot booking',
+          estimatedTimeMinutes: 5,
+          tags: ['urgent'],
+          riskLevel: 'HIGH',
+          needsSourcing: false,
+          reviewByDate: '2026-02-01',
+          sources: [{ title: 'NHS', url: 'https://www.nhs.uk/' }],
+          contentBlocks: [{ type: 'text', text: 'Patient needs urgent care.' }],
+          interactions: [
+            {
+              type: 'mcq',
+              question: 'What is the correct action?',
+              options: ['Book a red slot', 'Book a green slot'],
+              correctIndex: 0,
+              explanation: 'Book a red slot for urgent cases.',
+            },
+          ],
+          slotLanguage: { relevant: true, guidance: [{ slot: 'Red', rule: 'Book a red slot for same-day urgent.' }] },
+          safetyNetting: ['Escalate if needed.'],
+        },
+      ],
+      quiz: {
+        title: 'Quick check',
+        questions: [
+          {
+            type: 'mcq',
+            question: 'Which action?',
+            options: ['Book a red slot', 'Book green'],
+            correctIndex: 0,
+            explanation: 'Red slot.',
+          },
+        ],
+      },
+    })
+
+    const result = parseAndValidateGeneration(output)
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    const cardOptions = result.data.cards[0].interactions[0].options
+    expect(cardOptions[0]).toBe(
+      'Book a red slot (or pink/purple today if any remaining) - Remember to IM the GP'
+    )
+    expect(result.data.cards[0].interactions[0].explanation).toContain(
+      'Book a red slot (or pink/purple today if any remaining)'
+    )
+    expect(result.data.cards[0].slotLanguage.guidance[0].rule).toContain(
+      'Book a red slot (or pink/purple today if any remaining)'
+    )
+    expect(result.data.quiz.questions[0].options[0]).toBe(
+      'Book a red slot (or pink/purple today if any remaining) - Remember to IM the GP'
+    )
+  })
 })
