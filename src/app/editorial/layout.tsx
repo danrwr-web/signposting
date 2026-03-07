@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import SimpleHeader from '@/components/SimpleHeader'
+import { EditorialLayoutClient } from './EditorialLayoutClient'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,7 +27,9 @@ export default async function EditorialLayout({ children }: { children: React.Re
         currentSurgeryId={currentSurgeryId ?? undefined}
         showDailyDoseNav={true}
       />
-      <main className="mx-auto w-full max-w-7xl px-4 py-2 sm:px-6 lg:px-8">{children}</main>
+      <main className="mx-auto w-full max-w-7xl px-4 py-2 sm:px-6 lg:px-8">
+        <EditorialLayoutClient>{children}</EditorialLayoutClient>
+      </main>
     </div>
   )
 }

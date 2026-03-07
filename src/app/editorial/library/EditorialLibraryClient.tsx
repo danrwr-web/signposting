@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Modal from '@/components/appointments/Modal'
 import { playNotificationSound } from '@/lib/notificationSound'
-import { BulkGenerationProgress } from './BulkGenerationProgress'
 
 type Card = {
   id: string
@@ -101,7 +100,6 @@ export default function EditorialLibraryClient({
     failedSubsections: Array<{ categoryName: string; subsection: string }>
   } | null>(null)
   const [bulkGenerateLoading, setBulkGenerateLoading] = useState(false)
-  const [bulkCancelLoading, setBulkCancelLoading] = useState(false)
   const bulkPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Filters
@@ -181,13 +179,17 @@ export default function EditorialLibraryClient({
       })
   }, [canAdmin, surgeryId])
 
-  // Sync bulkRunId from URL
+  // Sync bulkRunId from URL and persist to sessionStorage so banner stays visible when navigating
+  const BULK_STORAGE_KEY = `editorial-bulk-run-${surgeryId}`
   useEffect(() => {
     const fromUrl = searchParams.get('bulkRunId')
     if (fromUrl && fromUrl !== activeBulkRunId) {
       setActiveBulkRunId(fromUrl)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(BULK_STORAGE_KEY, fromUrl)
+      }
     }
-  }, [searchParams])
+  }, [searchParams, surgeryId, activeBulkRunId])
 
   // Poll for bulk run status
   useEffect(() => {
@@ -219,6 +221,10 @@ export default function EditorialLibraryClient({
             clearInterval(bulkPollIntervalRef.current)
             bulkPollIntervalRef.current = null
           }
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem(`editorial-bulk-run-${surgeryId}`)
+          }
+          setActiveBulkRunId(null)
           playNotificationSound()
           const created = payload.completedCount ?? 0
           const failed = payload.failedCount ?? 0
@@ -244,6 +250,10 @@ export default function EditorialLibraryClient({
             clearInterval(bulkPollIntervalRef.current)
             bulkPollIntervalRef.current = null
           }
+          if (typeof window !== 'undefined') {
+            sessionStorage.removeItem(`editorial-bulk-run-${surgeryId}`)
+          }
+          setActiveBulkRunId(null)
           toast('Bulk generation was stopped.')
         }
       } catch {
@@ -277,6 +287,9 @@ export default function EditorialLibraryClient({
       }
       toast.success('Bulk generation started. Cards will appear as they are created.')
       setActiveBulkRunId(payload.bulkRunId)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`editorial-bulk-run-${surgeryId}`, payload.bulkRunId)
+      }
       const params = new URLSearchParams(searchParams.toString())
       params.set('bulkRunId', payload.bulkRunId)
       router.replace(`?${params.toString()}`, { scroll: false })
@@ -284,35 +297,6 @@ export default function EditorialLibraryClient({
       toast.error(err instanceof Error ? err.message : 'Failed to start bulk generation')
     } finally {
       setBulkGenerateLoading(false)
-    }
-  }
-
-  const handleBulkCancel = async () => {
-    if (!activeBulkRunId) return
-    setBulkCancelLoading(true)
-    try {
-      const response = await fetch('/api/editorial/bulk-generate/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bulkRunId: activeBulkRunId }),
-      })
-      const payload = await response.json().catch(() => ({}))
-      if (!response.ok || !payload?.ok) {
-        toast.error(payload?.error ?? 'Unable to cancel bulk generation')
-        return
-      }
-      setBulkRunStatus((prev) =>
-        prev ? { ...prev, status: 'CANCELLED' } : null
-      )
-      if (bulkPollIntervalRef.current) {
-        clearInterval(bulkPollIntervalRef.current)
-        bulkPollIntervalRef.current = null
-      }
-      toast.success('Bulk generation stopped. Remaining jobs will not run.')
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to cancel')
-    } finally {
-      setBulkCancelLoading(false)
     }
   }
 
@@ -568,15 +552,6 @@ export default function EditorialLibraryClient({
         >
           LIBRARY UI VERSION: delete-enabled
         </div>
-      )}
-
-      {activeBulkRunId && (
-        <BulkGenerationProgress
-          bulkRunStatus={bulkRunStatus}
-          canAdmin={canAdmin}
-          cancelLoading={bulkCancelLoading}
-          onCancel={handleBulkCancel}
-        />
       )}
 
       <div className="rounded-lg border border-slate-200 bg-white p-6">
