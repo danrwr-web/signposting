@@ -6,7 +6,7 @@ import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/acce
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
-import { runBulkGeneration } from '@/server/editorial/runBulkGeneration'
+import { runBulkGenerationChunk } from '@/server/editorial/runBulkGeneration'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     })
 
     after(async () => {
-      await runBulkGeneration(run.id)
+      await runBulkGenerationChunk(run.id)
     })
 
     return NextResponse.json({

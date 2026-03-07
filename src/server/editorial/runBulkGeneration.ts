@@ -3,58 +3,88 @@ import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { runGenerationJob } from '@/server/editorial/runGenerationJob'
 
+/** Process this many subsections per chunk (~4 min at ~40s each + 2s throttle). */
+const CHUNK_SIZE = 6
+const THROTTLE_MS = 2_000
+
+function buildSubsectionsList(
+  categories: Array<{ id: string; name: string; subsections: unknown }>
+): Array<{ categoryId: string; categoryName: string; subsection: string }> {
+  const subsections: Array<{ categoryId: string; categoryName: string; subsection: string }> = []
+  for (const cat of categories) {
+    const subs = Array.isArray(cat.subsections) ? (cat.subsections as string[]) : []
+    if (subs.length > 0) {
+      for (const sub of subs) {
+        subsections.push({ categoryId: cat.id, categoryName: cat.name, subsection: sub })
+      }
+    } else {
+      subsections.push({ categoryId: cat.id, categoryName: cat.name, subsection: '' })
+    }
+  }
+  return subsections
+}
+
 /**
- * Runs a full bulk generation sequentially inside an after() callback.
- * Merges the orchestrator (fetch categories, build subsection list) and
- * child (create job, run generation, update counts) logic that previously
- * lived in Inngest functions.
+ * Process one chunk of bulk generation. On completion, if more subsections
+ * remain and run is not cancelled, invokes the continue endpoint to process the next chunk.
  */
-export async function runBulkGeneration(bulkRunId: string): Promise<void> {
+export async function runBulkGenerationChunk(bulkRunId: string): Promise<void> {
   try {
     const run = await prisma.bulkGenerationRun.findUnique({
       where: { id: bulkRunId },
-      select: { id: true, surgeryId: true, createdBy: true, status: true },
+      select: {
+        id: true,
+        surgeryId: true,
+        createdBy: true,
+        status: true,
+        totalSubsections: true,
+        completedCount: true,
+        failedCount: true,
+      },
     })
     if (!run || run.status === 'CANCELLED') return
 
-    // Build flat list of subsections from active learning categories
+    // Build flat list of subsections (deterministic, same order every time)
     const categories = await prisma.learningCategory.findMany({
       where: { isActive: true },
       select: { id: true, name: true, subsections: true },
       orderBy: { ordering: 'asc' },
     })
+    const subsections = buildSubsectionsList(categories)
 
-    const subsections: Array<{ categoryId: string; categoryName: string; subsection: string }> = []
-    for (const cat of categories) {
-      const subs = Array.isArray(cat.subsections) ? (cat.subsections as string[]) : []
-      if (subs.length > 0) {
-        for (const sub of subs) {
-          subsections.push({ categoryId: cat.id, categoryName: cat.name, subsection: sub })
-        }
-      } else {
-        subsections.push({ categoryId: cat.id, categoryName: cat.name, subsection: '' })
-      }
+    const totalSubsections = subsections.length
+    const startIdx = run.completedCount + run.failedCount
+
+    // First chunk: set total and status
+    if (run.totalSubsections === 0) {
+      await prisma.bulkGenerationRun.update({
+        where: { id: bulkRunId },
+        data: { status: 'RUNNING', totalSubsections },
+      })
     }
 
-    await prisma.bulkGenerationRun.update({
-      where: { id: bulkRunId },
-      data: { status: 'RUNNING', totalSubsections: subsections.length },
-    })
+    if (startIdx >= totalSubsections) {
+      await prisma.bulkGenerationRun.update({
+        where: { id: bulkRunId },
+        data: { status: 'COMPLETE', completedAt: new Date() },
+      })
+      return
+    }
 
-    // Process each subsection sequentially with throttling to avoid Azure 429s
-    const THROTTLE_MS = 2_000
-    let isFirstItem = true
-    for (const item of subsections) {
-      if (!isFirstItem) {
-        await new Promise(resolve => setTimeout(resolve, THROTTLE_MS))
+    const endIdx = Math.min(startIdx + CHUNK_SIZE, totalSubsections)
+    const chunk = subsections.slice(startIdx, endIdx)
+
+    for (let i = 0; i < chunk.length; i++) {
+      const item = chunk[i]
+      if (i > 0) {
+        await new Promise((resolve) => setTimeout(resolve, THROTTLE_MS))
       }
-      isFirstItem = false
-      // Check for cancellation before each card
+
       const currentRun = await prisma.bulkGenerationRun.findUnique({
         where: { id: bulkRunId },
         select: { status: true },
       })
-      if (!currentRun || currentRun.status === 'CANCELLED') break
+      if (!currentRun || currentRun.status === 'CANCELLED') return
 
       const promptText = item.subsection || item.categoryName
       const job = await prisma.dailyDoseGenerationJob.create({
@@ -74,12 +104,15 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
         },
       })
 
-      // runGenerationJob catches errors internally and sets job status to FAILED
-      // without re-throwing, so we must check the job's actual DB status afterwards.
       try {
         await runGenerationJob(job.id)
       } catch (error) {
-        console.error('[runBulkGeneration] runGenerationJob threw for subsection:', item.categoryName, item.subsection, error)
+        console.error(
+          '[runBulkGenerationChunk] runGenerationJob threw for subsection:',
+          item.categoryName,
+          item.subsection,
+          error
+        )
       }
 
       const finishedJob = await prisma.dailyDoseGenerationJob.findUnique({
@@ -95,7 +128,9 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
             data: { completedCount: { increment: 1 } },
             select: { completedCount: true, failedCount: true, totalSubsections: true },
           })
-          if (updated.completedCount + updated.failedCount >= updated.totalSubsections) {
+          if (
+            updated.completedCount + updated.failedCount >= updated.totalSubsections
+          ) {
             await tx.bulkGenerationRun.update({
               where: { id: bulkRunId },
               data: { status: 'COMPLETE', completedAt: new Date() },
@@ -103,14 +138,24 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
           }
         })
       } else {
-        const failedEntry = { categoryName: item.categoryName, subsection: item.subsection || '(All)' }
+        const failedEntry = {
+          categoryName: item.categoryName,
+          subsection: item.subsection || '(All)',
+        }
         await prisma.$transaction(async (tx) => {
           const current = await tx.bulkGenerationRun.findUnique({
             where: { id: bulkRunId },
-            select: { failedSubsections: true, completedCount: true, failedCount: true, totalSubsections: true },
+            select: {
+              failedSubsections: true,
+              completedCount: true,
+              failedCount: true,
+              totalSubsections: true,
+            },
           })
           if (!current) return
-          const failed = Array.isArray(current.failedSubsections) ? (current.failedSubsections as object[]) : []
+          const failed = Array.isArray(current.failedSubsections)
+            ? (current.failedSubsections as object[])
+            : []
           await tx.bulkGenerationRun.update({
             where: { id: bulkRunId },
             data: {
@@ -120,9 +165,17 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
           })
           const afterUpdate = await tx.bulkGenerationRun.findUnique({
             where: { id: bulkRunId },
-            select: { completedCount: true, failedCount: true, totalSubsections: true },
+            select: {
+              completedCount: true,
+              failedCount: true,
+              totalSubsections: true,
+            },
           })
-          if (afterUpdate && afterUpdate.completedCount + afterUpdate.failedCount >= afterUpdate.totalSubsections) {
+          if (
+            afterUpdate &&
+            afterUpdate.completedCount + afterUpdate.failedCount >=
+              afterUpdate.totalSubsections
+          ) {
             await tx.bulkGenerationRun.update({
               where: { id: bulkRunId },
               data: { status: 'COMPLETE', completedAt: new Date() },
@@ -132,27 +185,57 @@ export async function runBulkGeneration(bulkRunId: string): Promise<void> {
       }
     }
 
-    // Safety net: if loop finished naturally and status is still RUNNING, mark COMPLETE
+    // More subsections remain and not cancelled? Invoke continue endpoint
     const finalRun = await prisma.bulkGenerationRun.findUnique({
       where: { id: bulkRunId },
-      select: { status: true },
+      select: { status: true, completedCount: true, failedCount: true, totalSubsections: true },
     })
-    if (finalRun && finalRun.status === 'RUNNING') {
+    if (
+      finalRun &&
+      finalRun.status === 'RUNNING' &&
+      finalRun.completedCount + finalRun.failedCount < finalRun.totalSubsections
+    ) {
+      await invokeBulkContinue(bulkRunId)
+    } else if (
+      finalRun &&
+      finalRun.status === 'RUNNING' &&
+      finalRun.completedCount + finalRun.failedCount >= finalRun.totalSubsections
+    ) {
       await prisma.bulkGenerationRun.update({
         where: { id: bulkRunId },
         data: { status: 'COMPLETE', completedAt: new Date() },
       })
     }
   } catch (outerError) {
-    // Crash recovery: mark run COMPLETE so it doesn't get stuck in RUNNING forever
-    console.error('[runBulkGeneration] Unexpected top-level error for run:', bulkRunId, outerError)
+    console.error('[runBulkGenerationChunk] Unexpected error for run:', bulkRunId, outerError)
     try {
       await prisma.bulkGenerationRun.update({
         where: { id: bulkRunId },
         data: { status: 'COMPLETE', completedAt: new Date() },
       })
     } catch {
-      // Nothing more we can do
+      // ignore
     }
+  }
+}
+
+/** Call the bulk-generate/continue endpoint to process the next chunk. */
+async function invokeBulkContinue(bulkRunId: string): Promise<void> {
+  const base =
+    process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXTAUTH_URL || 'http://localhost:3000'
+  const url = `${base}/api/editorial/bulk-generate/continue`
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bulkRunId }),
+    })
+    if (!res.ok) {
+      console.error('[runBulkGenerationChunk] Continue request failed:', res.status, await res.text())
+    }
+  } catch (err) {
+    console.error('[runBulkGenerationChunk] Failed to invoke continue:', err)
   }
 }
