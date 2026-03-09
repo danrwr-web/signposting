@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams, useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { playNotificationSound } from '@/lib/notificationSound'
 import { BulkGenerationProgress } from './library/BulkGenerationProgress'
@@ -16,6 +16,7 @@ function getStorageKey(surgeryId: string) {
 export function EditorialBulkProgressBanner() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const surgeryId = searchParams.get('surgery') ?? ''
   const bulkRunIdFromUrl = searchParams.get('bulkRunId')
 
@@ -118,6 +119,9 @@ export function EditorialBulkProgressBanner() {
           }
           clearStorage()
           setActiveBulkRunId(null)
+          const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+          params.delete('bulkRunId')
+          router.replace(params.toString() ? `?${params.toString()}` : pathnameRef.current, { scroll: false })
           if (pathnameRef.current !== '/editorial/library') {
             toast('Bulk generation was stopped.')
           }
@@ -160,6 +164,9 @@ export function EditorialBulkProgressBanner() {
         clearInterval(pollIntervalRef.current)
         pollIntervalRef.current = null
       }
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+      params.delete('bulkRunId')
+      router.replace(params.toString() ? `?${params.toString()}` : pathname, { scroll: false })
       toast.success('Bulk generation stopped. Remaining jobs will not run.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel')

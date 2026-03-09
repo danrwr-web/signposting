@@ -225,6 +225,9 @@ export default function EditorialLibraryClient({
             sessionStorage.removeItem(`editorial-bulk-run-${surgeryId}`)
           }
           setActiveBulkRunId(null)
+          const params = new URLSearchParams(searchParams.toString())
+          params.delete('bulkRunId')
+          router.replace(params.toString() ? `?${params.toString()}` : window.location.pathname, { scroll: false })
           playNotificationSound()
           const created = payload.completedCount ?? 0
           const failed = payload.failedCount ?? 0
@@ -254,6 +257,9 @@ export default function EditorialLibraryClient({
             sessionStorage.removeItem(`editorial-bulk-run-${surgeryId}`)
           }
           setActiveBulkRunId(null)
+          const params = new URLSearchParams(searchParams.toString())
+          params.delete('bulkRunId')
+          router.replace(params.toString() ? `?${params.toString()}` : window.location.pathname, { scroll: false })
           toast('Bulk generation was stopped.')
         }
       } catch {
@@ -268,7 +274,7 @@ export default function EditorialLibraryClient({
         clearInterval(bulkPollIntervalRef.current)
       }
     }
-  }, [activeBulkRunId, loadCards])
+  }, [activeBulkRunId, loadCards, searchParams, router, surgeryId])
 
   const handleBulkGenerate = async (override = false) => {
     setBulkGenerateLoading(true)
