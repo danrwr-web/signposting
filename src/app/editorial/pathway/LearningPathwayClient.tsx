@@ -69,18 +69,32 @@ function getCoverageColour(cat: CategorySummary): {
   }
 }
 
-export default function LearningPathwayClient({ surgeryId }: { surgeryId: string }) {
+type PathwayRole = 'ADMIN' | 'GP' | 'NURSE'
+
+interface LearningPathwayClientProps {
+  surgeryId: string
+  isSuperuser?: boolean
+}
+
+export default function LearningPathwayClient({
+  surgeryId,
+  isSuperuser = false,
+}: LearningPathwayClientProps) {
   const [data, setData] = useState<PathwayData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [applyLoading, setApplyLoading] = useState(false)
+  const [profileRole, setProfileRole] = useState<PathwayRole | null>(null)
+  const [selectedRole, setSelectedRole] = useState<PathwayRole>('ADMIN')
 
-  const fetchPathway = useCallback(async () => {
+  const effectiveRole = isSuperuser ? selectedRole : (profileRole ?? 'ADMIN')
+
+  const fetchPathway = useCallback(async (role: PathwayRole) => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/editorial/pathway')
+      const response = await fetch(`/api/editorial/pathway?role=${role}`)
       const payload = await response.json().catch(() => ({ ok: false }))
       if (!response.ok || !payload.ok) {
         setError(payload?.error?.message || 'Failed to load learning pathway')
@@ -95,8 +109,21 @@ export default function LearningPathwayClient({ surgeryId }: { surgeryId: string
   }, [])
 
   useEffect(() => {
-    fetchPathway()
-  }, [fetchPathway])
+    fetch(`/api/daily-dose/profile?surgeryId=${surgeryId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const role = d?.profile?.role
+        if (role === 'ADMIN' || role === 'GP' || role === 'NURSE') {
+          setProfileRole(role)
+          if (!isSuperuser) setSelectedRole(role)
+        }
+      })
+      .catch(() => {})
+  }, [surgeryId, isSuperuser])
+
+  useEffect(() => {
+    fetchPathway(effectiveRole)
+  }, [fetchPathway, effectiveRole])
 
   const toggleExpanded = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id))
@@ -117,7 +144,7 @@ export default function LearningPathwayClient({ surgeryId }: { surgeryId: string
       const updated = payload.updated ?? 0
       if (updated > 0) {
         toast.success(`Applied AI suggestions to ${updated} card${updated !== 1 ? 's' : ''}`)
-        await fetchPathway()
+        await fetchPathway(effectiveRole)
       } else {
         toast('No unassigned cards had AI suggestions')
       }
@@ -126,7 +153,7 @@ export default function LearningPathwayClient({ surgeryId }: { surgeryId: string
     } finally {
       setApplyLoading(false)
     }
-  }, [surgeryId, fetchPathway])
+  }, [surgeryId, fetchPathway, effectiveRole])
 
   if (loading) {
     return (
@@ -156,7 +183,28 @@ export default function LearningPathwayClient({ surgeryId }: { surgeryId: string
           <h1 className="text-2xl font-bold text-nhs-dark-blue">Learning Pathway</h1>
           <p className="mt-1 text-sm text-slate-500">
             {data?.pathway.length ?? 0} active categories · {totalPublished} published cards · {totalCards} total cards assigned
+            {effectiveRole && (
+              <span className="ml-1">({effectiveRole === 'ADMIN' ? 'Admin' : effectiveRole})</span>
+            )}
           </p>
+          {isSuperuser && (
+            <div className="mt-2 flex gap-1">
+              {(['ADMIN', 'GP', 'NURSE'] as const).map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setSelectedRole(r)}
+                  className={`rounded px-3 py-1 text-xs font-medium ${
+                    selectedRole === r
+                      ? 'bg-nhs-blue text-white'
+                      : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {r === 'ADMIN' ? 'Admin' : r}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <Link
           href={`/editorial/settings?surgery=${surgeryId}`}

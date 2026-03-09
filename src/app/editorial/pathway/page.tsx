@@ -24,5 +24,6 @@ export default async function LearningPathwayPage({ searchParams }: PageProps) {
     redirect('/unauthorized')
   }
 
-  return <LearningPathwayClient surgeryId={surgeryId} />
+  const isSuperuser = user.globalRole === 'SUPERUSER'
+  return <LearningPathwayClient surgeryId={surgeryId} isSuperuser={isSuperuser} />
 }

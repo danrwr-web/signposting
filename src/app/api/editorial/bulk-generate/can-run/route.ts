@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+    const targetRole = (searchParams.get('targetRole') === 'GP' || searchParams.get('targetRole') === 'NURSE')
+      ? searchParams.get('targetRole')
+      : 'ADMIN'
     const surgeryId = resolveSurgeryIdForUser({
       requestedId: searchParams.get('surgeryId') ?? undefined,
       user,
@@ -43,6 +46,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // GP/NURSE have no prerequisite; ADMIN requires toolkit + approval (or superuser override)
+    if (targetRole !== 'ADMIN') {
+      return NextResponse.json({ canRun: true })
+    }
     if (isSuperuser && override) {
       return NextResponse.json({ canRun: true })
     }

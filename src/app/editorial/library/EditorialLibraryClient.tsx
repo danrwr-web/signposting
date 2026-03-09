@@ -166,10 +166,10 @@ export default function EditorialLibraryClient({
     loadCards()
   }, [loadCards])
 
-  // Fetch can-run for bulk generate (no override - we need real state; superusers can override on click)
+  // Fetch can-run for Admin bulk (GP/Nurse have no prerequisite)
   useEffect(() => {
     if (!canAdmin) return
-    fetch(`/api/editorial/bulk-generate/can-run?surgeryId=${surgeryId}`)
+    fetch(`/api/editorial/bulk-generate/can-run?surgeryId=${surgeryId}&targetRole=ADMIN`)
       .then((r) => r.json())
       .then((data) => {
         setCanRunBulk(data.canRun === true)
@@ -298,14 +298,14 @@ export default function EditorialLibraryClient({
     }
   }, [activeBulkRunId, loadCards, searchParams, router, surgeryId])
 
-  const handleBulkGenerate = async (override = false) => {
+  const handleBulkGenerate = async (targetRole: 'ADMIN' | 'GP' | 'NURSE', override = false) => {
     setBulkGenerateLoading(true)
     setError(null)
     try {
       const response = await fetch('/api/editorial/bulk-generate/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ surgeryId, override }),
+        body: JSON.stringify({ surgeryId, targetRole, override }),
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok || !payload?.ok) {
@@ -313,7 +313,8 @@ export default function EditorialLibraryClient({
         toast.error(msg)
         return
       }
-      toast.success('Bulk generation started. Cards will appear as they are created.')
+      const roleLabel = targetRole === 'ADMIN' ? 'Admin' : targetRole === 'GP' ? 'GP' : 'Nurse'
+      toast.success(`Bulk generation for ${roleLabel} started. Cards will appear as they are created.`)
       setActiveBulkRunId(payload.bulkRunId)
       if (typeof window !== 'undefined') {
         sessionStorage.setItem(`editorial-bulk-run-${surgeryId}`, payload.bulkRunId)
@@ -595,7 +596,7 @@ export default function EditorialLibraryClient({
               <React.Fragment>
                 <button
                   type="button"
-                  onClick={() => handleBulkGenerate(canRunBulk === false && isSuperuser)}
+                  onClick={() => handleBulkGenerate('ADMIN', canRunBulk === false && isSuperuser)}
                   disabled={
                     bulkGenerateLoading ||
                     (canRunBulk === false && !isSuperuser) ||
@@ -606,11 +607,43 @@ export default function EditorialLibraryClient({
                       ? canRunBulkReason ?? undefined
                       : activeBulkRunId && bulkRunStatus?.status === 'RUNNING'
                         ? 'Bulk generation in progress'
-                        : 'Create a full library (one card per pathway subsection)'
+                        : 'One card per pathway subsection'
                   }
                   className="rounded-lg border border-nhs-blue bg-white px-3 py-2 text-sm font-semibold text-nhs-blue hover:bg-nhs-light-blue disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white"
                 >
-                  {bulkGenerateLoading ? 'Starting...' : 'Bulk generate'}
+                  {bulkGenerateLoading ? 'Starting...' : 'Bulk generate for Admin'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkGenerate('GP')}
+                  disabled={
+                    bulkGenerateLoading ||
+                    (activeBulkRunId && bulkRunStatus?.status === 'RUNNING')
+                  }
+                  title={
+                    activeBulkRunId && bulkRunStatus?.status === 'RUNNING'
+                      ? 'Bulk generation in progress'
+                      : 'One card per pathway subsection for GPs'
+                  }
+                  className="rounded-lg border border-nhs-blue bg-white px-3 py-2 text-sm font-semibold text-nhs-blue hover:bg-nhs-light-blue disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white"
+                >
+                  {bulkGenerateLoading ? 'Starting...' : 'Bulk generate for GP'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkGenerate('NURSE')}
+                  disabled={
+                    bulkGenerateLoading ||
+                    (activeBulkRunId && bulkRunStatus?.status === 'RUNNING')
+                  }
+                  title={
+                    activeBulkRunId && bulkRunStatus?.status === 'RUNNING'
+                      ? 'Bulk generation in progress'
+                      : 'One card per pathway subsection for Nurses'
+                  }
+                  className="rounded-lg border border-nhs-blue bg-white px-3 py-2 text-sm font-semibold text-nhs-blue hover:bg-nhs-light-blue disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-white"
+                >
+                  {bulkGenerateLoading ? 'Starting...' : 'Bulk generate for Nurses'}
                 </button>
               </React.Fragment>
             )}

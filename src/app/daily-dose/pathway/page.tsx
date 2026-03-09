@@ -31,5 +31,12 @@ export default async function DailyDosePathwayPage({ searchParams }: PathwayPage
     )
   }
 
-  return <DailyDosePathwayClient surgeryId={surgeryId} focusMode={focusMode} />
+  const isSuperuser = user.globalRole === 'SUPERUSER'
+  return (
+    <DailyDosePathwayClient
+      surgeryId={surgeryId}
+      focusMode={focusMode}
+      isSuperuser={isSuperuser}
+    />
+  )
 }

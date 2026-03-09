@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json().catch(() => ({}))
+    const targetRole = (body.targetRole === 'GP' || body.targetRole === 'NURSE')
+      ? body.targetRole
+      : 'ADMIN'
     const surgeryId = resolveSurgeryIdForUser({
       requestedId: body.surgeryId ?? undefined,
       user,
@@ -45,7 +48,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!isSuperuser || !override) {
+    // ADMIN requires toolkit + clinical approval; GP/NURSE do not
+    if (targetRole === 'ADMIN' && (!isSuperuser || !override)) {
       const [toolkitEnabled, pendingCount] = await Promise.all([
         isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
         (async () => {
@@ -82,6 +86,7 @@ export async function POST(request: NextRequest) {
       data: {
         surgeryId,
         createdBy: user.id,
+        targetRole,
         status: 'PENDING',
         totalSubsections: 0,
       },

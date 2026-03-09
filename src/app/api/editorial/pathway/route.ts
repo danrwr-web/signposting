@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 
@@ -17,11 +17,9 @@ interface StoredAssignment {
  * GET /api/editorial/pathway
  *
  * Returns the full learning pathway structure with per-subsection card counts.
- * Counts are derived from the learningAssignments JSON array on each card,
- * which supports a card belonging to multiple categories simultaneously.
- * Available to any authenticated editorial user.
+ * Optional ?role=ADMIN|GP|NURSE filters counts to that role only.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getSessionUser()
   if (!user) {
     return NextResponse.json(
@@ -30,7 +28,14 @@ export async function GET() {
     )
   }
 
+  const roleParam = request.nextUrl.searchParams.get('role')
+  const targetRole =
+    roleParam === 'GP' || roleParam === 'NURSE' || roleParam === 'ADMIN' ? roleParam : null
+
   try {
+    const cardWhere: { isActive: boolean; targetRole?: string } = { isActive: true }
+    if (targetRole) cardWhere.targetRole = targetRole
+
     const [categories, cards] = await Promise.all([
       prisma.learningCategory.findMany({
         where: { isActive: true },
@@ -44,7 +49,7 @@ export async function GET() {
         },
       }),
       prisma.dailyDoseCard.findMany({
-        where: { isActive: true },
+        where: cardWhere,
         select: {
           id: true,
           status: true,

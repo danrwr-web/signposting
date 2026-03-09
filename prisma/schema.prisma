@@ -326,6 +326,7 @@ model BulkGenerationRun {
   id                String    @id @default(cuid())
   surgeryId         String
   createdBy         String?
+  targetRole        String    @default("ADMIN") // ADMIN | GP | NURSE
   status            String    @default("PENDING") // PENDING | RUNNING | COMPLETE | CANCELLED
   totalSubsections  Int       @default(0)
   completedCount    Int       @default(0)

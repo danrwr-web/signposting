@@ -121,6 +121,23 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       }
     }
 
+    // For GP/NURSE, pass existing card titles to reduce duplicates
+    let existingTitles: string[] | undefined
+    if (resolvedRole === 'GP' || resolvedRole === 'NURSE') {
+      const existing = await prisma.dailyDoseCard.findMany({
+        where: {
+          surgeryId: job.surgeryId,
+          targetRole: resolvedRole,
+          status: 'PUBLISHED',
+        },
+        select: { title: true },
+        orderBy: { publishedAt: 'desc' },
+        take: 50,
+      })
+      existingTitles = existing.map((c) => c.title).filter(Boolean)
+      if (existingTitles.length === 0) existingTitles = undefined
+    }
+
     const generated = await generateEditorialBatch({
       surgeryId: job.surgeryId,
       promptText: job.promptText,
@@ -132,6 +149,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       onAttempt: recordAttempt,
       returnDebugInfo: false,
       availableTagNames: availableTagNames.length > 0 ? availableTagNames : undefined,
+      existingTitles,
     })
 
     const topicId = await ensureEditorialTopic(job.surgeryId, resolvedRole)

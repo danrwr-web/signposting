@@ -65,38 +65,64 @@ function getCoverageStyle(cat: CategorySummary): {
   }
 }
 
+type PathwayRole = 'ADMIN' | 'GP' | 'NURSE'
+
 interface Props {
   surgeryId: string
-  /** When true, the grid acts as a session launcher — tiles link to the detail page in focus mode. */
   focusMode?: boolean
+  isSuperuser?: boolean
 }
 
-export default function DailyDosePathwayClient({ surgeryId, focusMode = false }: Props) {
+export default function DailyDosePathwayClient({
+  surgeryId,
+  focusMode = false,
+  isSuperuser = false,
+}: Props) {
   const [data, setData] = useState<PathwayData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [profileRole, setProfileRole] = useState<PathwayRole | null>(null)
+  const [selectedRole, setSelectedRole] = useState<PathwayRole>('ADMIN')
 
-  const fetchPathway = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetch('/api/editorial/pathway')
-      const payload = await response.json().catch(() => ({ ok: false }))
-      if (!response.ok || !payload.ok) {
-        setError(payload?.error?.message || 'Failed to load learning pathway')
-        return
+  const effectiveRole = isSuperuser ? selectedRole : (profileRole ?? 'ADMIN')
+
+  const fetchPathway = useCallback(
+    async (role: PathwayRole) => {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(`/api/editorial/pathway?role=${role}`)
+        const payload = await response.json().catch(() => ({ ok: false }))
+        if (!response.ok || !payload.ok) {
+          setError(payload?.error?.message || 'Failed to load learning pathway')
+          return
+        }
+        setData(payload)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Something went wrong')
+      } finally {
+        setLoading(false)
       }
-      setData(payload)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+    },
+    []
+  )
 
   useEffect(() => {
-    fetchPathway()
-  }, [fetchPathway])
+    fetch(`/api/daily-dose/profile?surgeryId=${surgeryId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const role = d?.profile?.role
+        if (role === 'ADMIN' || role === 'GP' || role === 'NURSE') {
+          setProfileRole(role)
+          if (!isSuperuser) setSelectedRole(role)
+        }
+      })
+      .catch(() => {})
+  }, [surgeryId, isSuperuser])
+
+  useEffect(() => {
+    fetchPathway(effectiveRole)
+  }, [fetchPathway, effectiveRole])
 
   const backHref = focusMode
     ? `/daily-dose/session-start?surgery=${surgeryId}`
@@ -121,12 +147,30 @@ export default function DailyDosePathwayClient({ surgeryId, focusMode = false }:
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-base font-bold text-nhs-dark-blue">
               {focusMode ? 'Choose a topic' : 'Learning Pathway'}
             </h1>
             {focusMode && (
               <p className="text-[11px] text-slate-500">Select a category to start a focused session</p>
+            )}
+            {isSuperuser && (
+              <div className="mt-2 flex gap-1">
+                {(['ADMIN', 'GP', 'NURSE'] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setSelectedRole(r)}
+                    className={`rounded px-2 py-0.5 text-[11px] font-medium ${
+                      selectedRole === r
+                        ? 'bg-nhs-blue text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {r === 'ADMIN' ? 'Admin' : r}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
