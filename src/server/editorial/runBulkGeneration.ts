@@ -49,16 +49,50 @@ export async function runBulkGenerationChunk(
     })
     if (!run || run.status === 'CANCELLED') return
 
-    // Build flat list of subsections (deterministic, same order every time)
+    const targetRole = (run.targetRole === 'GP' || run.targetRole === 'NURSE') ? run.targetRole : 'ADMIN'
+
+    // Build flat list of subsections
     const categories = await prisma.learningCategory.findMany({
       where: { isActive: true },
       select: { id: true, name: true, subsections: true },
       orderBy: { ordering: 'asc' },
     })
-    const subsections = buildSubsectionsList(categories)
+    const allSubsections = buildSubsectionsList(categories)
 
-    const totalSubsections = subsections.length
-    const startIdx = run.completedCount + run.failedCount
+    // Subsections already attempted this run (from jobs)
+    const attemptedJobs = await prisma.dailyDoseGenerationJob.findMany({
+      where: { bulkRunId },
+      select: { categoryId: true, subsection: true },
+    })
+    const attemptedKey = (cid: string, sub: string) => `${cid}::${sub}`
+    const attemptedSet = new Set(attemptedJobs.map((j) => attemptedKey(j.categoryId ?? '', j.subsection ?? '')))
+
+    // Card count per (categoryId, subsection) for this surgery + role
+    const cards = await prisma.dailyDoseCard.findMany({
+      where: { surgeryId: run.surgeryId, targetRole, isActive: true },
+      select: { learningAssignments: true },
+    })
+    const countMap = new Map<string, number>()
+    for (const card of cards) {
+      const assignments = Array.isArray(card.learningAssignments) ? card.learningAssignments as Array<{ categoryId?: string; subsection?: string | null }> : []
+      for (const a of assignments) {
+        if (!a?.categoryId) continue
+        const key = attemptedKey(a.categoryId, a.subsection ?? '')
+        countMap.set(key, (countMap.get(key) ?? 0) + 1)
+      }
+    }
+
+    // Filter to not-yet-attempted and sort by count ascending (prioritise gaps)
+    const remaining = allSubsections
+      .filter((s) => !attemptedSet.has(attemptedKey(s.categoryId, s.subsection)))
+      .sort((a, b) => {
+        const countA = countMap.get(attemptedKey(a.categoryId, a.subsection)) ?? 0
+        const countB = countMap.get(attemptedKey(b.categoryId, b.subsection)) ?? 0
+        return countA - countB
+      })
+
+    const totalSubsections = allSubsections.length
+    const chunk = remaining.slice(0, CHUNK_SIZE)
 
     // First chunk: set total and status
     if (run.totalSubsections === 0) {
@@ -68,16 +102,14 @@ export async function runBulkGenerationChunk(
       })
     }
 
-    if (startIdx >= totalSubsections) {
+    // No remaining subsections to process this run
+    if (chunk.length === 0) {
       await prisma.bulkGenerationRun.update({
         where: { id: bulkRunId },
         data: { status: 'COMPLETE', completedAt: new Date() },
       })
       return
     }
-
-    const endIdx = Math.min(startIdx + CHUNK_SIZE, totalSubsections)
-    const chunk = subsections.slice(startIdx, endIdx)
 
     for (let i = 0; i < chunk.length; i++) {
       const item = chunk[i]
@@ -99,7 +131,7 @@ export async function runBulkGenerationChunk(
           bulkRunId,
           status: 'PENDING',
           promptText,
-          targetRole: (run.targetRole === 'GP' || run.targetRole === 'NURSE') ? run.targetRole : 'ADMIN',
+          targetRole,
           count: 1,
           tags: [],
           interactiveFirst: true,
