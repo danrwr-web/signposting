@@ -27,8 +27,12 @@ function buildSubsectionsList(
 /**
  * Process one chunk of bulk generation. On completion, if more subsections
  * remain and run is not cancelled, invokes the continue endpoint to process the next chunk.
+ * @param baseUrl - Origin of the app (e.g. https://app.vercel.app) for self-invocation. If omitted, uses VERCEL_URL or NEXTAUTH_URL.
  */
-export async function runBulkGenerationChunk(bulkRunId: string): Promise<void> {
+export async function runBulkGenerationChunk(
+  bulkRunId: string,
+  baseUrl?: string
+): Promise<void> {
   try {
     const run = await prisma.bulkGenerationRun.findUnique({
       where: { id: bulkRunId },
@@ -195,7 +199,7 @@ export async function runBulkGenerationChunk(bulkRunId: string): Promise<void> {
       finalRun.status === 'RUNNING' &&
       finalRun.completedCount + finalRun.failedCount < finalRun.totalSubsections
     ) {
-      await invokeBulkContinue(bulkRunId)
+      await invokeBulkContinue(bulkRunId, baseUrl)
     } else if (
       finalRun &&
       finalRun.status === 'RUNNING' &&
@@ -220,12 +224,13 @@ export async function runBulkGenerationChunk(bulkRunId: string): Promise<void> {
 }
 
 /** Call the bulk-generate/continue endpoint to process the next chunk. */
-async function invokeBulkContinue(bulkRunId: string): Promise<void> {
+async function invokeBulkContinue(bulkRunId: string, baseUrl?: string): Promise<void> {
   const base =
-    process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXTAUTH_URL || 'http://localhost:3000'
-  const url = `${base}/api/editorial/bulk-generate/continue`
+    baseUrl ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ??
+    process.env.NEXTAUTH_URL ??
+    'http://localhost:3000'
+  const url = `${base.replace(/\/$/, '')}/api/editorial/bulk-generate/continue`
   try {
     const res = await fetch(url, {
       method: 'POST',

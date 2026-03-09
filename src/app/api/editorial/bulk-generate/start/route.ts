@@ -87,8 +87,9 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const baseUrl = new URL(request.url).origin
     after(async () => {
-      await runBulkGenerationChunk(run.id)
+      await runBulkGenerationChunk(run.id, baseUrl)
     })
 
     return NextResponse.json({

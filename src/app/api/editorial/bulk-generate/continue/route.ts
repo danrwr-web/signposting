@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, message: 'Run already complete.' })
     }
 
+    const baseUrl = new URL(request.url).origin
     after(async () => {
-      await runBulkGenerationChunk(bulkRunId)
+      await runBulkGenerationChunk(bulkRunId, baseUrl)
     })
 
     return NextResponse.json({

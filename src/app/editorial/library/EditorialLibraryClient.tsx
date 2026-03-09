@@ -101,6 +101,8 @@ export default function EditorialLibraryClient({
   } | null>(null)
   const [bulkGenerateLoading, setBulkGenerateLoading] = useState(false)
   const bulkPollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const bulkLastCountRef = useRef<number>(0)
+  const bulkLastCountAtRef = useRef<number>(0)
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -204,15 +206,35 @@ export default function EditorialLibraryClient({
         const payload = await response.json().catch(() => ({}))
         if (!response.ok || !payload?.ok) return
 
+        const completedCount = payload.completedCount ?? 0
+        const failedCount = payload.failedCount ?? 0
+        const totalSubsections = payload.totalSubsections ?? 0
+        const currentCount = completedCount + failedCount
+
         setBulkRunStatus({
           status: payload.status,
-          totalSubsections: payload.totalSubsections ?? 0,
-          completedCount: payload.completedCount ?? 0,
-          failedCount: payload.failedCount ?? 0,
+          totalSubsections,
+          completedCount,
+          failedCount,
           failedSubsections: payload.failedSubsections ?? [],
         })
 
-        if (payload.status === 'RUNNING' && payload.completedCount > 0) {
+        // Fallback: if RUNNING and stuck (no progress for 2 min), client calls continue
+        if (payload.status === 'RUNNING' && currentCount < totalSubsections) {
+          if (currentCount !== bulkLastCountRef.current) {
+            bulkLastCountRef.current = currentCount
+            bulkLastCountAtRef.current = Date.now()
+          } else if (Date.now() - bulkLastCountAtRef.current > 120_000) {
+            bulkLastCountAtRef.current = Date.now()
+            fetch('/api/editorial/bulk-generate/continue', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bulkRunId: activeBulkRunId }),
+            }).catch(() => {})
+          }
+        }
+
+        if (payload.status === 'RUNNING' && completedCount > 0) {
           await loadCards()
         }
 

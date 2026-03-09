@@ -32,6 +32,8 @@ export function EditorialBulkProgressBanner() {
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pathnameRef = useRef(pathname)
   pathnameRef.current = pathname
+  const lastCountRef = useRef<number>(0)
+  const lastCountAtRef = useRef<number>(0)
 
   // Only show on editorial routes
   const isEditorial = pathname.startsWith('/editorial')
@@ -71,13 +73,36 @@ export function EditorialBulkProgressBanner() {
         const payload = await response.json().catch(() => ({}))
         if (!response.ok || !payload?.ok) return
 
+        const completedCount = payload.completedCount ?? 0
+        const failedCount = payload.failedCount ?? 0
+        const totalSubsections = payload.totalSubsections ?? 0
+        const currentCount = completedCount + failedCount
+
         setBulkRunStatus({
           status: payload.status,
-          totalSubsections: payload.totalSubsections ?? 0,
-          completedCount: payload.completedCount ?? 0,
-          failedCount: payload.failedCount ?? 0,
+          totalSubsections,
+          completedCount,
+          failedCount,
           failedSubsections: payload.failedSubsections ?? [],
         })
+
+        // Fallback: if RUNNING and stuck (no progress for 2 min), client calls continue
+        if (
+          payload.status === 'RUNNING' &&
+          currentCount < totalSubsections
+        ) {
+          if (currentCount !== lastCountRef.current) {
+            lastCountRef.current = currentCount
+            lastCountAtRef.current = Date.now()
+          } else if (Date.now() - lastCountAtRef.current > 120_000) {
+            lastCountAtRef.current = Date.now()
+            fetch('/api/editorial/bulk-generate/continue', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ bulkRunId: activeBulkRunId }),
+            }).catch(() => {})
+          }
+        }
 
         if (payload.status === 'COMPLETE') {
           if (pollIntervalRef.current) {
