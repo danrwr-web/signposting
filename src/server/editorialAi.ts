@@ -35,6 +35,7 @@ CONTENT RULES:
 - Every card must include at least one interaction with an explanation.
 - interactions MUST be an array. quiz.questions MUST be an array.
 - correctIndex MUST be a number.
+- Card titles MUST describe the scenario or topic only. Do NOT include the correct MCQ answer, slot choice, or recommended action in the title (e.g. avoid "Book a red slot for chest pain" if the MCQ asks which slot to choose).
 `
 
 const GENERAL_SOURCE_RULES = `
