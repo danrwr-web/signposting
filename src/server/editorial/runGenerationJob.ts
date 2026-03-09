@@ -29,6 +29,9 @@ export async function runGenerationJob(jobId: string): Promise<void> {
       tags: true,
       interactiveFirst: true,
       status: true,
+      categoryId: true,
+      categoryName: true,
+      subsection: true,
     },
   })
 
@@ -86,8 +89,18 @@ export async function runGenerationJob(jobId: string): Promise<void> {
     }))
     let inferredCategories = inferLearningCategories(job.promptText, categoryRefs)
 
-    // Category-name fallback: if no subsection match, try matching against category names
-    if (inferredCategories.length === 0 && categoryRefs.length > 0) {
+    // Bulk generation: job has explicit categoryId/categoryName/subsection — use them directly
+    if (job.categoryId && job.categoryName) {
+      inferredCategories = [
+        {
+          categoryId: job.categoryId,
+          categoryName: job.categoryName,
+          subsection: job.subsection ?? '',
+          confidence: 'high' as const,
+        },
+      ]
+    } else if (inferredCategories.length === 0 && categoryRefs.length > 0) {
+      // Category-name fallback: if no subsection match, try matching against category names
       const promptLower = job.promptText.toLowerCase().replace(/[^a-z0-9\s]/g, ' ')
       const promptTokens = promptLower.split(/\s+/).filter((t) => t.length >= 3)
       if (promptTokens.length > 0) {
