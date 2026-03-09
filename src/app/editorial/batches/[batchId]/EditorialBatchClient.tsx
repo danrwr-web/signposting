@@ -478,10 +478,18 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
   const doSave = async (): Promise<boolean> => {
     if (!cardForm.id) return false
     try {
+      const payload = {
+        ...buildSavePayload(),
+        learningAssignments: selectedAssignments.map((a) => ({
+          categoryId: a.categoryId,
+          categoryName: a.categoryName,
+          subsection: a.subsection || null,
+        })),
+      }
       const response = await fetch(`/api/editorial/cards/${cardForm.id}?surgeryId=${surgeryId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildSavePayload()),
+        body: JSON.stringify(payload),
       })
       const resPayload = await response.json().catch(() => ({}))
       if (!response.ok) {

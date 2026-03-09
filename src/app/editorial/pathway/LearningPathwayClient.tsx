@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 
 interface SubsectionSummary {
   name: string
@@ -73,6 +74,7 @@ export default function LearningPathwayClient({ surgeryId }: { surgeryId: string
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [applyLoading, setApplyLoading] = useState(false)
 
   const fetchPathway = useCallback(async () => {
     setLoading(true)
@@ -99,6 +101,32 @@ export default function LearningPathwayClient({ surgeryId }: { surgeryId: string
   const toggleExpanded = (id: string) => {
     setExpandedId((prev) => (prev === id ? null : id))
   }
+
+  const handleApplySuggestions = useCallback(async () => {
+    setApplyLoading(true)
+    try {
+      const response = await fetch(
+        `/api/editorial/pathway/apply-suggestions?surgeryId=${encodeURIComponent(surgeryId)}`,
+        { method: 'POST' }
+      )
+      const payload = await response.json().catch(() => ({ ok: false }))
+      if (!response.ok || !payload.ok) {
+        toast.error(payload?.error?.message || 'Failed to apply suggestions')
+        return
+      }
+      const updated = payload.updated ?? 0
+      if (updated > 0) {
+        toast.success(`Applied AI suggestions to ${updated} card${updated !== 1 ? 's' : ''}`)
+        await fetchPathway()
+      } else {
+        toast('No unassigned cards had AI suggestions')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setApplyLoading(false)
+    }
+  }, [surgeryId, fetchPathway])
 
   if (loading) {
     return (
@@ -239,14 +267,26 @@ export default function LearningPathwayClient({ surgeryId }: { surgeryId: string
       {/* Unassigned cards notice */}
       {(data?.unassignedCount ?? 0) > 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          <strong>{data!.unassignedCount}</strong> card{data!.unassignedCount !== 1 ? 's are' : ' is'} not assigned to any learning category.
-          {' '}
-          <Link
-            href={`/editorial/library?surgery=${surgeryId}`}
-            className="font-medium underline hover:no-underline"
-          >
-            Review in Library →
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <span>
+              <strong>{data!.unassignedCount}</strong> card{data!.unassignedCount !== 1 ? 's are' : ' is'} not assigned to any learning category.
+              {' '}
+              <Link
+                href={`/editorial/library?surgery=${surgeryId}`}
+                className="font-medium underline hover:no-underline"
+              >
+                Review in Library →
+              </Link>
+            </span>
+            <button
+              type="button"
+              onClick={handleApplySuggestions}
+              disabled={applyLoading}
+              className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+            >
+              {applyLoading ? 'Applying…' : 'Apply AI suggestions'}
+            </button>
+          </div>
         </div>
       )}
     </div>
