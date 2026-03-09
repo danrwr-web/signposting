@@ -582,16 +582,17 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       if (!response.ok) {
         throw new Error(payload?.error?.message || 'Failed to delete card')
       }
-      // Navigate back or reload batch
-      await loadBatch()
-      // Clear active card if it was deleted
-      const remainingCards = cards.filter((c) => c.id !== cardForm.id)
-      if (remainingCards.length > 0) {
-        setActiveId(remainingCards[0].id)
-        setActiveType('card')
-      } else {
-        setActiveId(null)
-      }
+      await loadBatch((updatedCards) => {
+        // updatedCards excludes the deleted card (fresh fetch)
+        const unpublished = updatedCards.filter((c) => c.status !== 'PUBLISHED')
+        const nextCard = unpublished[0] ?? updatedCards[0]
+        if (nextCard) {
+          setActiveId(nextCard.id)
+          setActiveType('card')
+        } else {
+          findNextUnapprovedBatch()
+        }
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
