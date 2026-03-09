@@ -41,25 +41,20 @@ export async function POST(request: NextRequest) {
 
     const cards = await prisma.dailyDoseCard.findMany({
       where: {
-        AND: [
-          { OR: [{ surgeryId }, { surgeryId: null }] },
-          { isActive: true },
-          {
-            OR: [
-              { learningAssignments: null },
-              { learningAssignments: { equals: [] } },
-            ],
-          },
-        ],
+        OR: [{ surgeryId }, { surgeryId: null }],
+        isActive: true,
       },
       select: {
         id: true,
+        learningAssignments: true,
         generatedFrom: true,
       },
     })
 
-    // Filter to cards with non-empty suggestedAssignments
+    // Filter to cards with no saved assignments but with suggestedAssignments
     const toUpdate = cards.filter((card) => {
+      const assignments = Array.isArray(card.learningAssignments) ? card.learningAssignments : []
+      if (assignments.length > 0) return false
       const gf = card.generatedFrom as { suggestedAssignments?: SuggestedAssignment[] } | null
       const suggestions = Array.isArray(gf?.suggestedAssignments) ? gf.suggestedAssignments : []
       return suggestions.length > 0
