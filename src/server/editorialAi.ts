@@ -268,9 +268,14 @@ ${params.strictAdmin ? 'STRICT ADMIN MODE: Remove clinician-only content and fol
 `.trim()
   }
 
+  const clinicalOnlyNote =
+    params.role === 'GP' || params.role === 'NURSE'
+      ? `These cards are for ${params.role} clinicians — NOT for reception or admin staff. Do NOT include signposting, triage slot language (Red/Orange/Pink-Purple/Green), or booking guidance.\n`
+      : ''
+
   return `
 You are an editorial assistant for Daily Dose learning cards in UK general practice.
-${OUTPUT_RULES}
+${clinicalOnlyNote}${OUTPUT_RULES}
 ${SHARED_CONTENT_RULES}
 ${GENERAL_SOURCE_RULES}
 ${roleProfile}
@@ -335,6 +340,16 @@ function buildUserPrompt(params: {
   const toolkitSection =
     params.targetRole === 'ADMIN' ? formatToolkitSection(params.toolkitContext, params.toolkitSource) : ''
 
+  const clinicalRoleSection =
+    params.targetRole === 'GP' || params.targetRole === 'NURSE'
+      ? `
+CRITICAL — CLINICAL CARDS (not reception triage):
+- These cards are for ${params.targetRole} clinicians. Do NOT include reception signposting, slot choice (Red/Orange/Pink-Purple/Green), or booking/booking guidance.
+- Focus on clinical assessment, management, differentials, and evidence-based care. Use NICE, RCGP, BNF, NHS as sources.
+- Set slotLanguage.relevant to false. Do not add slotLanguage.guidance entries.
+`
+      : ''
+
   const validationSection =
     params.validationIssues && params.validationIssues.length > 0
       ? `VALIDATION FAILURES TO FIX:
@@ -359,7 +374,7 @@ ${params.existingTitles.map((t) => `- ${t}`).join('\n')}
 `
       : ''
 
-  return `${toolkitSection}${validationSection}${existingTitlesSection}Create ${params.count} learning cards for ${params.targetRole} staff.
+  return `${toolkitSection}${clinicalRoleSection}${validationSection}${existingTitlesSection}Create ${params.count} learning cards for ${params.targetRole} staff.
 Prompt: ${params.promptText}
 Interactive-first: ${params.interactiveFirst ? 'yes' : 'no'}
 ${tagsSection}IMPORTANT: reviewByDate must be a future date (YYYY-MM-DD format). Use a date approximately 6 months from today. Never use past dates.
