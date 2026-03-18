@@ -64,6 +64,18 @@ const sections: Array<{
         answer:
           'No. The toolkit is designed for guidance and routing. It does not store patient-identifiable information.',
       },
+      {
+        id: 'mhra-medical-device',
+        question: 'Is the Signposting Toolkit MHRA certified or a medical device?',
+        answer:
+          'No — the Signposting Toolkit is not currently classified as a medical device and does not require MHRA certification.\n\nIt is designed as a care navigation and operational support tool for practice staff. It:\n• provides structured, practice-approved guidance\n• supports consistent patient routing (for example GP, Pharmacy First, nurse, or admin pathways)\n• does not diagnose, risk stratify, or recommend treatment\n• does not process or store patient data\n\nAll content is governed through local clinical review and sign-off within the practice.\n\nWe keep this position under review as the platform evolves.',
+      },
+      {
+        id: 'practice-access-privacy',
+        question: 'Who can access our practice\u2019s toolkit and data?',
+        answer:
+          'Each practice\u2019s toolkit is completely separate and private.\n\n• Other practices cannot see or access your content\n• Your symptom edits, workflows, and handbook content remain your own\n\nThe Signposting Toolkit does not store patient-identifiable data.\n\nAccess from our side is:\n• restricted to authorised developers only\n• not routine\n• used only for support, maintenance, or requested changes\n• auditable and controlled\n\nWe follow a least-privilege access approach, meaning we only access a practice environment when necessary to support the system.',
+      },
     ],
   },
   {
