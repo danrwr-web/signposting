@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Button, Card, Badge, AlertBanner } from '@/components/ui'
+import DeveloperResetPanel from '@/components/admin/DeveloperResetPanel'
 
 // --- Types ---
 
@@ -168,6 +169,10 @@ export default function SetupChecklistClient({
           onboardingCompletedAt={onboardingCompletedAt}
           onboardingUpdatedAt={onboardingUpdatedAt}
         />
+      )}
+
+      {surgeryName === 'Test Surgery' && (
+        <DeveloperResetPanel surgeryId={surgeryId} checklist={checklist} />
       )}
     </>
   )
