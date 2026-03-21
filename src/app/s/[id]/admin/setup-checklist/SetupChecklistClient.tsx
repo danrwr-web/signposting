@@ -240,7 +240,7 @@ function ChecklistView({
             title="Practice questionnaire"
             incompleteDescription="Tell us about your surgery so AI customisation works correctly"
             completeDescription={getOnboardingDescription(onboardingCompletedAt, onboardingUpdatedAt)}
-            actionHref={`/s/${surgeryId}/admin/onboarding`}
+            actionHref={`/s/${surgeryId}/admin/onboarding?from=setup`}
             actionLabel={checklist.onboardingCompleted ? 'Edit' : 'Start'}
           />
           <EssentialItem
@@ -248,7 +248,7 @@ function ChecklistView({
             title="Appointment model"
             incompleteDescription="Define the appointment types and clinicians available at your surgery"
             completeDescription="Configured"
-            actionHref={`/s/${surgeryId}/admin/onboarding?step=2.5`}
+            actionHref={`/s/${surgeryId}/admin/onboarding?step=2.5&from=setup`}
             actionLabel="Edit"
           />
           <EssentialItem
@@ -256,7 +256,7 @@ function ChecklistView({
             title="Add team members"
             incompleteDescription="Add at least one reception or care navigation user so staff can log in"
             completeDescription={`${checklist.standardUsersCount} user${checklist.standardUsersCount === 1 ? '' : 's'} added`}
-            actionHref={`/s/${surgeryId}/admin/users`}
+            actionHref={`/s/${surgeryId}/admin/users?from=setup`}
             actionLabel="Manage users"
           />
           <EssentialItem
@@ -264,7 +264,7 @@ function ChecklistView({
             title="High-risk buttons"
             incompleteDescription="Configure high-risk quick-access buttons for urgent symptoms like chest pain and stroke"
             completeDescription="Configured"
-            actionHref={`/admin?tab=highrisk`}
+            actionHref={`/admin?tab=highrisk&from=setup&surgeryId=${surgeryId}`}
             actionLabel="Configure"
           />
           {aiEnabled && (
@@ -273,13 +273,14 @@ function ChecklistView({
               title="AI customisation"
               incompleteDescription="Run AI customisation to tailor symptom instructions to your appointment model"
               completeDescription="AI customisation has been run"
-              actionHref={`/s/${surgeryId}/admin/ai-setup`}
+              actionHref={`/s/${surgeryId}/admin/ai-setup?from=setup`}
               actionLabel="Open AI Setup"
             />
           )}
           <ClinicalReviewItem
             pendingCount={checklist.pendingReviewCount}
             surgeryId={surgeryId}
+            fromSetup
           />
         </div>
       </div>
@@ -379,11 +380,14 @@ function EssentialItem({
 function ClinicalReviewItem({
   pendingCount,
   surgeryId,
+  fromSetup,
 }: {
   pendingCount: number
   surgeryId: string
+  fromSetup?: boolean
 }) {
   const complete = pendingCount < 10
+  const setupParams = fromSetup ? `&from=setup&surgeryId=${surgeryId}` : ''
 
   return (
     <div
@@ -422,13 +426,13 @@ function ClinicalReviewItem({
                 <ol className="list-decimal list-inside space-y-1.5 ml-2">
                   <li>
                     Use &quot;High-risk symptoms first&quot; sort to review chest pain, stroke, sepsis and similar urgent symptoms.
-                    <Link href="/admin?tab=clinical-review&sort=high-risk-first" className="ml-1 text-nhs-blue hover:underline">
+                    <Link href={`/admin?tab=clinical-review&sort=high-risk-first${setupParams}`} className="ml-1 text-nhs-blue hover:underline">
                       Open with this sort
                     </Link>
                   </li>
                   <li>
                     Use &quot;Clinician-type symptoms first&quot; to review symptoms routed to ANP, FCP or pharmacist.
-                    <Link href="/admin?tab=clinical-review&sort=clinician-type-first" className="ml-1 text-nhs-blue hover:underline">
+                    <Link href={`/admin?tab=clinical-review&sort=clinician-type-first${setupParams}`} className="ml-1 text-nhs-blue hover:underline">
                       Open with this sort
                     </Link>
                   </li>
@@ -439,7 +443,7 @@ function ClinicalReviewItem({
           </div>
         </div>
         <div className="flex-shrink-0 ml-4">
-          <Link href={`/admin?tab=clinical-review`}>
+          <Link href={`/admin?tab=clinical-review${setupParams}`}>
             <Button variant={complete ? 'secondary' : 'primary'} size="sm">
               {complete ? 'View' : 'Review now'}
             </Button>
