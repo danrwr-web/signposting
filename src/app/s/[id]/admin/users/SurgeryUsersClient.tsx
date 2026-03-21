@@ -6,6 +6,8 @@ import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import KebabMenu from '@/components/admin/KebabMenu'
 import { formatRelativeDate } from '@/lib/formatRelativeDate'
+import toast from 'react-hot-toast'
+import SetupChecklistBackLink from '@/components/SetupChecklistBackLink'
 
 interface Surgery {
   id: string
@@ -87,8 +89,8 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
       })
 
       if (response.ok) {
-        // Refresh the page to show the new user
-        window.location.reload()
+        toast.success('User added successfully')
+        setTimeout(() => window.location.reload(), 500)
       } else {
         const error = await response.json()
         alert(`Failed to add user: ${error.error}`)
@@ -252,6 +254,7 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
     <div className="min-h-screen bg-gray-50">
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <SetupChecklistBackLink surgeryId={surgery.id} />
         {/* Page header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900">

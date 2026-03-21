@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { signOut } from 'next-auth/react'
+import Link from 'next/link'
 import SimpleHeader from '@/components/SimpleHeader'
 import HighlightConfig from '@/components/HighlightConfig'
 import HighRiskConfig from '@/components/HighRiskConfig'
@@ -787,6 +788,16 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       <SimpleHeader surgeries={surgeries} currentSurgeryId={selectedSurgery} onSurgeryChange={setSelectedSurgery} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {searchParams.get('from') === 'setup' && (searchParams.get('surgeryId') || session.surgeryId) && (
+          <div className="mb-4">
+            <Link
+              href={`/s/${searchParams.get('surgeryId') || session.surgeryId}/admin/setup-checklist`}
+              className="inline-flex items-center text-sm text-nhs-blue hover:text-nhs-dark-blue"
+            >
+              &larr; Back to Setup Checklist
+            </Link>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-nhs-dark-blue">

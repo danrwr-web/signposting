@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Button, Card, Badge, AlertBanner } from '@/components/ui'
@@ -112,6 +113,8 @@ export default function SetupChecklistClient({
     handbookEnabled ? checklist.handbookItemCount > 0 : true,
   ]
   const recommendedComplete = recommendedItems.every(Boolean)
+  const recommendedCount = recommendedItems.filter(Boolean).length
+  const recommendedTotal = recommendedItems.length
 
   // Determine page mode
   const mode: PageMode = previewMode === 'health'
@@ -160,6 +163,8 @@ export default function SetupChecklistClient({
           handbookEnabled={handbookEnabled}
           essentialCount={essentialCount}
           essentialTotal={essentialTotal}
+          recommendedCount={recommendedCount}
+          recommendedTotal={recommendedTotal}
           onboardingCompletedAt={onboardingCompletedAt}
           onboardingUpdatedAt={onboardingUpdatedAt}
         />
@@ -190,6 +195,8 @@ function ChecklistView({
   handbookEnabled,
   essentialCount,
   essentialTotal,
+  recommendedCount,
+  recommendedTotal,
   onboardingCompletedAt,
   onboardingUpdatedAt,
 }: {
@@ -201,18 +208,34 @@ function ChecklistView({
   handbookEnabled: boolean
   essentialCount: number
   essentialTotal: number
+  recommendedCount: number
+  recommendedTotal: number
   onboardingCompletedAt: string | null
   onboardingUpdatedAt: string | null
 }) {
+  const [bannerDismissed, setBannerDismissed] = useState(false)
   return (
     <>
-      {mode === 'nearly-there' && (
-        <AlertBanner variant="info" className="mb-6">
-          <div>
-            <p className="font-semibold">All essential steps complete — your surgery is ready to go live.</p>
-            <p className="mt-1">A few recommended steps remain to get the most from the toolkit.</p>
-          </div>
-        </AlertBanner>
+      {mode === 'nearly-there' && !bannerDismissed && (
+        <div className="relative mb-6">
+          <AlertBanner variant="success">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-semibold">All essential steps complete — your surgery is ready to go live.</p>
+                <p className="mt-1">A few recommended steps remain to get the most from the toolkit.</p>
+              </div>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="ml-4 flex-shrink-0 text-green-600 hover:text-green-800"
+                aria-label="Dismiss"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </div>
+          </AlertBanner>
+        </div>
       )}
 
       {/* Essential Steps */}
@@ -240,7 +263,7 @@ function ChecklistView({
             title="Practice questionnaire"
             incompleteDescription="Tell us about your surgery so AI customisation works correctly"
             completeDescription={getOnboardingDescription(onboardingCompletedAt, onboardingUpdatedAt)}
-            actionHref={`/s/${surgeryId}/admin/onboarding`}
+            actionHref={`/s/${surgeryId}/admin/onboarding?from=setup`}
             actionLabel={checklist.onboardingCompleted ? 'Edit' : 'Start'}
           />
           <EssentialItem
@@ -248,7 +271,7 @@ function ChecklistView({
             title="Appointment model"
             incompleteDescription="Define the appointment types and clinicians available at your surgery"
             completeDescription="Configured"
-            actionHref={`/s/${surgeryId}/admin/onboarding?step=2.5`}
+            actionHref={`/s/${surgeryId}/admin/onboarding?step=2.5&from=setup`}
             actionLabel="Edit"
           />
           <EssentialItem
@@ -256,7 +279,7 @@ function ChecklistView({
             title="Add team members"
             incompleteDescription="Add at least one reception or care navigation user so staff can log in"
             completeDescription={`${checklist.standardUsersCount} user${checklist.standardUsersCount === 1 ? '' : 's'} added`}
-            actionHref={`/s/${surgeryId}/admin/users`}
+            actionHref={`/s/${surgeryId}/admin/users?from=setup`}
             actionLabel="Manage users"
           />
           <EssentialItem
@@ -264,7 +287,7 @@ function ChecklistView({
             title="High-risk buttons"
             incompleteDescription="Configure high-risk quick-access buttons for urgent symptoms like chest pain and stroke"
             completeDescription="Configured"
-            actionHref={`/admin?tab=highrisk`}
+            actionHref={`/admin?tab=highrisk&from=setup&surgeryId=${surgeryId}`}
             actionLabel="Configure"
           />
           {aiEnabled && (
@@ -273,13 +296,16 @@ function ChecklistView({
               title="AI customisation"
               incompleteDescription="Run AI customisation to tailor symptom instructions to your appointment model"
               completeDescription="AI customisation has been run"
-              actionHref={`/s/${surgeryId}/admin/ai-setup`}
+              actionHref={`/s/${surgeryId}/admin/ai-setup?from=setup`}
               actionLabel="Open AI Setup"
+              helperText={!checklist.onboardingCompleted ? 'Complete the practice questionnaire first' : undefined}
+              disabled={!checklist.onboardingCompleted}
             />
           )}
           <ClinicalReviewItem
             pendingCount={checklist.pendingReviewCount}
             surgeryId={surgeryId}
+            fromSetup
           />
         </div>
       </div>
@@ -290,6 +316,12 @@ function ChecklistView({
         <p className="text-sm text-nhs-grey mb-4">
           These steps aren&apos;t required to go live, but will improve your team&apos;s experience.
         </p>
+
+        <div className="mb-4">
+          <span className="text-sm font-medium text-nhs-grey">
+            {recommendedCount} of {recommendedTotal} recommended steps complete
+          </span>
+        </div>
 
         <div className="space-y-3">
           <RecommendedItem
@@ -330,6 +362,8 @@ function EssentialItem({
   completeDescription,
   actionHref,
   actionLabel,
+  helperText,
+  disabled,
 }: {
   complete: boolean
   title: string
@@ -337,6 +371,8 @@ function EssentialItem({
   completeDescription: string
   actionHref: string
   actionLabel: string
+  helperText?: string
+  disabled?: boolean
 }) {
   return (
     <div
@@ -360,14 +396,23 @@ function EssentialItem({
             <p className="text-sm text-nhs-grey mt-0.5">
               {complete ? completeDescription : incompleteDescription}
             </p>
+            {helperText && (
+              <p className="text-xs text-amber-600 mt-1">{helperText}</p>
+            )}
           </div>
         </div>
         <div className="flex-shrink-0 ml-4">
-          <Link href={actionHref}>
-            <Button variant={complete ? 'secondary' : 'primary'} size="sm">
+          {disabled ? (
+            <Button variant="secondary" size="sm" disabled>
               {actionLabel}
             </Button>
-          </Link>
+          ) : (
+            <Link href={actionHref}>
+              <Button variant={complete ? 'secondary' : 'primary'} size="sm">
+                {actionLabel}
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>
@@ -379,11 +424,14 @@ function EssentialItem({
 function ClinicalReviewItem({
   pendingCount,
   surgeryId,
+  fromSetup,
 }: {
   pendingCount: number
   surgeryId: string
+  fromSetup?: boolean
 }) {
   const complete = pendingCount < 10
+  const setupParams = fromSetup ? `&from=setup&surgeryId=${surgeryId}` : ''
 
   return (
     <div
@@ -422,13 +470,13 @@ function ClinicalReviewItem({
                 <ol className="list-decimal list-inside space-y-1.5 ml-2">
                   <li>
                     Use &quot;High-risk symptoms first&quot; sort to review chest pain, stroke, sepsis and similar urgent symptoms.
-                    <Link href="/admin?tab=clinical-review&sort=high-risk-first" className="ml-1 text-nhs-blue hover:underline">
+                    <Link href={`/admin?tab=clinical-review&sort=high-risk-first${setupParams}`} className="ml-1 text-nhs-blue hover:underline">
                       Open with this sort
                     </Link>
                   </li>
                   <li>
                     Use &quot;Clinician-type symptoms first&quot; to review symptoms routed to ANP, FCP or pharmacist.
-                    <Link href="/admin?tab=clinical-review&sort=clinician-type-first" className="ml-1 text-nhs-blue hover:underline">
+                    <Link href={`/admin?tab=clinical-review&sort=clinician-type-first${setupParams}`} className="ml-1 text-nhs-blue hover:underline">
                       Open with this sort
                     </Link>
                   </li>
@@ -439,7 +487,7 @@ function ClinicalReviewItem({
           </div>
         </div>
         <div className="flex-shrink-0 ml-4">
-          <Link href={`/admin?tab=clinical-review`}>
+          <Link href={`/admin?tab=clinical-review${setupParams}`}>
             <Button variant={complete ? 'secondary' : 'primary'} size="sm">
               {complete ? 'View' : 'Review now'}
             </Button>
