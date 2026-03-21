@@ -171,7 +171,7 @@ export default function SetupChecklistClient({
         />
       )}
 
-      {surgeryName === 'Test Surgery' && (
+      {surgeryName.toLowerCase() === 'test surgery' && (
         <DeveloperResetPanel surgeryId={surgeryId} checklist={checklist} />
       )}
     </>

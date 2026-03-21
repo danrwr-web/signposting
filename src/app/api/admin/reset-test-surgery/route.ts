@@ -6,8 +6,6 @@ import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 
 export const runtime = 'nodejs'
 
-const TEST_SURGERY_NAME = 'Test Surgery'
-
 const VALID_STATES = [
   'fresh',
   'checklist-started',
@@ -108,7 +106,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (surgery.name !== TEST_SURGERY_NAME) {
+    if (surgery.name.toLowerCase() !== 'test surgery') {
       return NextResponse.json(
         { error: 'This endpoint can only be used with the Test Surgery' },
         { status: 403 }
