@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Button, Card, Badge, AlertBanner } from '@/components/ui'
@@ -112,6 +113,8 @@ export default function SetupChecklistClient({
     handbookEnabled ? checklist.handbookItemCount > 0 : true,
   ]
   const recommendedComplete = recommendedItems.every(Boolean)
+  const recommendedCount = recommendedItems.filter(Boolean).length
+  const recommendedTotal = recommendedItems.length
 
   // Determine page mode
   const mode: PageMode = previewMode === 'health'
@@ -160,6 +163,8 @@ export default function SetupChecklistClient({
           handbookEnabled={handbookEnabled}
           essentialCount={essentialCount}
           essentialTotal={essentialTotal}
+          recommendedCount={recommendedCount}
+          recommendedTotal={recommendedTotal}
           onboardingCompletedAt={onboardingCompletedAt}
           onboardingUpdatedAt={onboardingUpdatedAt}
         />
@@ -190,6 +195,8 @@ function ChecklistView({
   handbookEnabled,
   essentialCount,
   essentialTotal,
+  recommendedCount,
+  recommendedTotal,
   onboardingCompletedAt,
   onboardingUpdatedAt,
 }: {
@@ -201,18 +208,34 @@ function ChecklistView({
   handbookEnabled: boolean
   essentialCount: number
   essentialTotal: number
+  recommendedCount: number
+  recommendedTotal: number
   onboardingCompletedAt: string | null
   onboardingUpdatedAt: string | null
 }) {
+  const [bannerDismissed, setBannerDismissed] = useState(false)
   return (
     <>
-      {mode === 'nearly-there' && (
-        <AlertBanner variant="info" className="mb-6">
-          <div>
-            <p className="font-semibold">All essential steps complete — your surgery is ready to go live.</p>
-            <p className="mt-1">A few recommended steps remain to get the most from the toolkit.</p>
-          </div>
-        </AlertBanner>
+      {mode === 'nearly-there' && !bannerDismissed && (
+        <div className="relative mb-6">
+          <AlertBanner variant="success">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="font-semibold">All essential steps complete — your surgery is ready to go live.</p>
+                <p className="mt-1">A few recommended steps remain to get the most from the toolkit.</p>
+              </div>
+              <button
+                onClick={() => setBannerDismissed(true)}
+                className="ml-4 flex-shrink-0 text-green-600 hover:text-green-800"
+                aria-label="Dismiss"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                </svg>
+              </button>
+            </div>
+          </AlertBanner>
+        </div>
       )}
 
       {/* Essential Steps */}
@@ -275,6 +298,8 @@ function ChecklistView({
               completeDescription="AI customisation has been run"
               actionHref={`/s/${surgeryId}/admin/ai-setup?from=setup`}
               actionLabel="Open AI Setup"
+              helperText={!checklist.onboardingCompleted ? 'Complete the practice questionnaire first' : undefined}
+              disabled={!checklist.onboardingCompleted}
             />
           )}
           <ClinicalReviewItem
@@ -291,6 +316,12 @@ function ChecklistView({
         <p className="text-sm text-nhs-grey mb-4">
           These steps aren&apos;t required to go live, but will improve your team&apos;s experience.
         </p>
+
+        <div className="mb-4">
+          <span className="text-sm font-medium text-nhs-grey">
+            {recommendedCount} of {recommendedTotal} recommended steps complete
+          </span>
+        </div>
 
         <div className="space-y-3">
           <RecommendedItem
@@ -331,6 +362,8 @@ function EssentialItem({
   completeDescription,
   actionHref,
   actionLabel,
+  helperText,
+  disabled,
 }: {
   complete: boolean
   title: string
@@ -338,6 +371,8 @@ function EssentialItem({
   completeDescription: string
   actionHref: string
   actionLabel: string
+  helperText?: string
+  disabled?: boolean
 }) {
   return (
     <div
@@ -361,14 +396,23 @@ function EssentialItem({
             <p className="text-sm text-nhs-grey mt-0.5">
               {complete ? completeDescription : incompleteDescription}
             </p>
+            {helperText && (
+              <p className="text-xs text-amber-600 mt-1">{helperText}</p>
+            )}
           </div>
         </div>
         <div className="flex-shrink-0 ml-4">
-          <Link href={actionHref}>
-            <Button variant={complete ? 'secondary' : 'primary'} size="sm">
+          {disabled ? (
+            <Button variant="secondary" size="sm" disabled>
               {actionLabel}
             </Button>
-          </Link>
+          ) : (
+            <Link href={actionHref}>
+              <Button variant={complete ? 'secondary' : 'primary'} size="sm">
+                {actionLabel}
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </div>

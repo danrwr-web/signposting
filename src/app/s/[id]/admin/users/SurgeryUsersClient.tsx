@@ -6,6 +6,7 @@ import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import KebabMenu from '@/components/admin/KebabMenu'
 import { formatRelativeDate } from '@/lib/formatRelativeDate'
+import toast from 'react-hot-toast'
 import SetupChecklistBackLink from '@/components/SetupChecklistBackLink'
 
 interface Surgery {
@@ -88,8 +89,8 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
       })
 
       if (response.ok) {
-        // Refresh the page to show the new user
-        window.location.reload()
+        toast.success('User added successfully')
+        setTimeout(() => window.location.reload(), 500)
       } else {
         const error = await response.json()
         alert(`Failed to add user: ${error.error}`)
