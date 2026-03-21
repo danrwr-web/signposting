@@ -1027,6 +1027,16 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <p className="text-nhs-grey mb-6">
                   Review symptoms for clinical approval.
                 </p>
+                <p className="mb-4">
+                  <a
+                    href="https://docs.signpostingtool.co.uk/getting-started#how-to-work-through-the-review-efficiently"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
+                  >
+                    New to clinical review? View the step-by-step guide &rarr;
+                  </a>
+                </p>
                 {(() => {
                   const isSuper = session?.type === 'superuser'
                   const surgeryIdForReview = isSuper ? (selectedSurgery || null) : (session?.surgeryId || null)
