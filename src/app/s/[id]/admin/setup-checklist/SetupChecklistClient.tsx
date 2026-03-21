@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Button, Card, Badge, AlertBanner } from '@/components/ui'
+import DeveloperResetPanel from '@/components/admin/DeveloperResetPanel'
 
 // --- Types ---
 
@@ -135,7 +136,7 @@ export default function SetupChecklistClient({
           <h1 className="text-3xl font-bold text-nhs-dark-blue mb-2">
             {pageTitle}
           </h1>
-          <p className="text-nhs-grey">{pageDescription}</p>
+          {mode !== 'health' && <p className="text-nhs-grey">{pageDescription}</p>}
         </div>
       )}
       {!standalone && (
@@ -143,7 +144,7 @@ export default function SetupChecklistClient({
           <h2 className="text-xl font-semibold text-nhs-dark-blue mb-2">
             {pageTitle}
           </h2>
-          <p className="text-nhs-grey">{pageDescription}</p>
+          {mode !== 'health' && <p className="text-nhs-grey">{pageDescription}</p>}
         </div>
       )}
 
@@ -168,6 +169,10 @@ export default function SetupChecklistClient({
           onboardingCompletedAt={onboardingCompletedAt}
           onboardingUpdatedAt={onboardingUpdatedAt}
         />
+      )}
+
+      {surgeryName.toLowerCase() === 'test surgery' && (
+        <DeveloperResetPanel surgeryId={surgeryId} checklist={checklist} />
       )}
     </>
   )
@@ -560,41 +565,125 @@ function HealthDashboard({
   health: HealthData
   aiEnabled: boolean
 }) {
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false)
+
+  const isNewSurgery =
+    health.activeUsersLast30 === 0 &&
+    health.totalViewsLast30 === 0 &&
+    health.pendingReviewCount === 0
+
+  const statusTier: 'healthy' | 'attention' | 'action-required' =
+    health.pendingReviewCount >= 10
+      ? 'action-required'
+      : health.pendingReviewCount > 0 || health.changesRequestedCount > 0
+        ? 'attention'
+        : 'healthy'
+
+  const attentionTotal = health.pendingReviewCount + health.changesRequestedCount
+
+  const governanceBorderColor =
+    health.pendingReviewCount === 0 && health.changesRequestedCount === 0
+      ? 'border-l-green-500'
+      : health.pendingReviewCount >= 10
+        ? 'border-l-red-500'
+        : 'border-l-amber-400'
+
   return (
     <>
+      {/* Status Banner */}
+      <div
+        className={`rounded-lg p-4 mb-6 flex items-center gap-3 ${
+          statusTier === 'healthy'
+            ? 'bg-green-50 border border-green-200 text-green-800'
+            : statusTier === 'attention'
+              ? 'bg-yellow-50 border border-yellow-200 text-yellow-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+        }`}
+        role="status"
+      >
+        <svg className="h-6 w-6 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          {statusTier === 'healthy' ? (
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+          ) : (
+            <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+          )}
+        </svg>
+        <p className="font-semibold">
+          {statusTier === 'healthy' && 'Your surgery is set up and running well.'}
+          {statusTier === 'attention' &&
+            `A few items need your attention \u2014 ${attentionTotal} symptom${attentionTotal === 1 ? '' : 's'} need${attentionTotal === 1 ? 's' : ''} review.`}
+          {statusTier === 'action-required' &&
+            `Clinical review needs attention \u2014 ${health.pendingReviewCount} symptoms are pending approval.`}
+        </p>
+      </div>
+
+      {/* Welcome message for new surgeries */}
+      {isNewSurgery && !welcomeDismissed && (
+        <div className="relative bg-blue-50 border border-blue-200 rounded-lg p-5 mb-6">
+          <button
+            onClick={() => setWelcomeDismissed(true)}
+            className="absolute top-3 right-3 text-gray-400 hover:text-nhs-dark-blue"
+            aria-label="Dismiss"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+            </svg>
+          </button>
+          <h3 className="text-base font-semibold text-nhs-dark-blue mb-1">You&apos;re all set!</h3>
+          <p className="text-sm text-nhs-grey">
+            Your surgery is fully configured. Share the tool with your team and usage data will appear here as they start using it.
+          </p>
+        </div>
+      )}
+
+      {/* Metric Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Governance Card */}
-        <Card elevation="raised" padding="lg">
+        {/* Clinical Governance Card */}
+        <Card elevation="elevated" padding="lg" className={`border-l-4 ${governanceBorderColor}`}>
           <div className="flex items-center gap-2 mb-4">
             <svg className="h-5 w-5 text-nhs-blue" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path fillRule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clipRule="evenodd" />
             </svg>
             <h3 className="text-base font-bold text-nhs-dark-blue">Clinical Governance</h3>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-nhs-grey">Pending review</span>
-              <Link href={`/admin?tab=clinical-review`} className="hover:underline">
-                <span className={`text-sm font-semibold ${getPendingColor(health.pendingReviewCount)}`}>
-                  {health.pendingReviewCount}
+
+          {health.pendingReviewCount === 0 && health.changesRequestedCount === 0 ? (
+            <div className="flex items-center gap-2 text-green-700">
+              <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm font-semibold">All clear &mdash; no reviews outstanding</span>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {health.pendingReviewCount > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-nhs-grey">Pending review</span>
+                  <Link href="/admin?tab=clinical-review" className="hover:underline flex items-center gap-1.5">
+                    <Badge color={getPendingBadgeColor(health.pendingReviewCount)} size="sm">
+                      {health.pendingReviewCount}
+                    </Badge>
+                    <span className="text-xs text-nhs-blue">Review &rarr;</span>
+                  </Link>
+                </div>
+              )}
+              {health.changesRequestedCount > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-nhs-grey">Changes requested</span>
+                  <Link href="/admin?tab=clinical-review" className="hover:underline flex items-center gap-1.5">
+                    <Badge color="amber" size="sm">{health.changesRequestedCount}</Badge>
+                    <span className="text-xs text-nhs-blue">View &rarr;</span>
+                  </Link>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-nhs-grey">Last review activity</span>
+                <span className="text-sm text-nhs-dark-blue">
+                  {daysAgo(health.lastReviewActivity)}
                 </span>
-              </Link>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-nhs-grey">Changes requested</span>
-              <Link href={`/admin?tab=clinical-review`} className="hover:underline">
-                <span className="text-sm font-semibold text-nhs-dark-blue">
-                  {health.changesRequestedCount}
-                </span>
-              </Link>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-nhs-grey">Last review activity</span>
-              <span className="text-sm text-nhs-dark-blue">
-                {daysAgo(health.lastReviewActivity)}
-              </span>
-            </div>
-          </div>
+          )}
         </Card>
 
         {/* Usage Card */}
@@ -605,26 +694,33 @@ function HealthDashboard({
             </svg>
             <h3 className="text-base font-bold text-nhs-dark-blue">Usage (last 30 days)</h3>
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-nhs-grey">Active users</span>
-              <span className="text-sm font-semibold text-nhs-dark-blue">
-                {health.activeUsersLast30 > 0 ? `${health.activeUsersLast30} active` : '\u2014'}
-              </span>
+
+          {health.activeUsersLast30 === 0 && health.totalViewsLast30 === 0 ? (
+            <p className="text-sm text-nhs-grey">
+              No usage data yet &mdash; share the tool with your team to get started.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-nhs-grey">Active users</span>
+                <span className="text-sm font-semibold text-nhs-dark-blue">
+                  {health.activeUsersLast30}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-nhs-grey">Symptom views</span>
+                <span className="text-sm font-semibold text-nhs-dark-blue">
+                  {health.totalViewsLast30}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-nhs-grey">Most viewed</span>
+                <Link href={`/s/${surgeryId}/analytics`} className="text-sm text-nhs-blue hover:underline">
+                  View analytics &rarr;
+                </Link>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-nhs-grey">Symptom views</span>
-              <span className="text-sm font-semibold text-nhs-dark-blue">
-                {health.totalViewsLast30 > 0 ? `${health.totalViewsLast30} views` : '\u2014'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-nhs-grey">Most viewed</span>
-              <Link href={`/s/${surgeryId}/analytics`} className="text-sm text-nhs-blue hover:underline">
-                View analytics &rarr;
-              </Link>
-            </div>
-          </div>
+          )}
         </Card>
 
         {/* Content Health Card */}
@@ -639,18 +735,28 @@ function HealthDashboard({
             <div className="flex items-center justify-between">
               <span className="text-sm text-nhs-grey">Approved symptoms</span>
               <span className="text-sm font-semibold text-nhs-dark-blue">
-                {health.approvedCount > 0 ? `${health.approvedCount} approved` : '\u2014'}
+                {health.approvedCount > 0 ? health.approvedCount : '\u2014'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-nhs-grey">Recently updated</span>
+              <span className="text-sm text-nhs-grey">Symptoms reviewed this month</span>
               <span className="text-sm font-semibold text-nhs-dark-blue">
-                {health.recentlyUpdatedCount > 0 ? `${health.recentlyUpdatedCount} in last 30 days` : '\u2014'}
+                {health.recentlyUpdatedCount > 0 ? health.recentlyUpdatedCount : '\u2014'}
               </span>
             </div>
+            {health.approvedCount > 0 && health.recentlyUpdatedCount === 0 && (
+              <p className="text-xs text-amber-600">
+                No symptoms have been updated recently. Consider reviewing older content.
+              </p>
+            )}
+            {health.approvedCount > 0 && health.recentlyUpdatedCount > 0 && health.recentlyUpdatedCount >= health.approvedCount * 0.5 && (
+              <p className="text-xs text-green-600">
+                Content is actively maintained &mdash; over half of approved symptoms were updated this month.
+              </p>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-sm text-nhs-grey">Pending review</span>
-              <Link href={`/admin?tab=clinical-review`} className="hover:underline">
+              <Link href="/admin?tab=clinical-review" className="hover:underline">
                 <span className={`text-sm font-semibold ${getPendingColor(health.pendingReviewCount)}`}>
                   {health.pendingReviewCount}
                 </span>
@@ -662,25 +768,27 @@ function HealthDashboard({
 
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-3">
-        <Link href={`/admin?tab=clinical-review`}>
-          <Button variant={health.pendingReviewCount > 0 ? 'primary' : 'secondary'} size="md">
-            Review pending ({health.pendingReviewCount})
-          </Button>
-        </Link>
+        {health.pendingReviewCount > 0 && (
+          <Link href="/admin?tab=clinical-review">
+            <Button variant="secondary" size="md">
+              Review pending ({health.pendingReviewCount})
+            </Button>
+          </Link>
+        )}
         <Link href={`/s/${surgeryId}/admin/onboarding`}>
-          <Button variant="secondary" size="md">
+          <Button variant="ghost" size="md">
             Edit practice profile
           </Button>
         </Link>
         {aiEnabled && (
           <Link href={`/s/${surgeryId}/admin/ai-setup`}>
-            <Button variant="secondary" size="md">
+            <Button variant="ghost" size="md">
               Open AI Setup
             </Button>
           </Link>
         )}
         <Link href={`/s/${surgeryId}/admin/users`}>
-          <Button variant="secondary" size="md">
+          <Button variant="ghost" size="md">
             Manage users
           </Button>
         </Link>
