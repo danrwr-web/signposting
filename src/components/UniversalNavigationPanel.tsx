@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { signOut, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -9,6 +9,33 @@ import { useSurgery } from '@/context/SurgeryContext'
 import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from '@/navigation/modules'
 import HelpPanel, { HELP_PANEL_ID } from './HelpPanel'
 import UserPreferencesModal from './UserPreferencesModal'
+
+const iconClass = "w-5 h-5"
+
+function Icon({ d }: { d: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={iconClass} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+    </svg>
+  )
+}
+
+const MODULE_ICONS: Record<string, ReactNode> = {
+  signposting: <Icon d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />,
+  workflow: <Icon d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />,
+  handbook: <Icon d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />,
+  appointments: <Icon d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v7.5" />,
+  help: <Icon d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" />,
+}
+
+const MANAGEMENT_ICONS: Record<string, ReactNode> = {
+  'practice-settings': <Icon d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />,
+  'signposting-settings': <Icon d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />,
+}
+
+const DASHBOARD_ICON = <Icon d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+
+const SYSTEM_MGMT_ICON = <Icon d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.049.58.025 1.194-.14 1.743Z" />
 
 interface ModuleDisabledInfo {
   moduleName: string
@@ -266,11 +293,12 @@ export default function UniversalNavigationPanel() {
         style={{ height: '100dvh' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-gray-200 flex-shrink-0">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-base font-semibold text-nhs-grey truncate">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+          <div className="flex-1 min-w-0 border-l-[3px] border-nhs-blue pl-3">
+            <h2 className="text-base font-semibold text-nhs-dark-grey truncate">
               {surgeryName}
             </h2>
+            <p className="text-xs text-gray-400 mt-0.5">NHS Signposting Toolkit</p>
           </div>
           <button
             ref={closeButtonRef}
@@ -302,8 +330,9 @@ export default function UniversalNavigationPanel() {
                   <Link
                     href={`/s/${surgeryId}/dashboard`}
                     onClick={() => close()}
-                    className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                    className="group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
                   >
+                    <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">{DASHBOARD_ICON}</span>
                     Dashboard
                   </Link>
                 </li>
@@ -313,7 +342,7 @@ export default function UniversalNavigationPanel() {
 
           {/* Modules Section */}
           <nav aria-label="Modules">
-            <h3 className="px-5 text-xs font-semibold text-nhs-grey uppercase tracking-wider mb-2">
+            <h3 className="px-5 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
               Modules
             </h3>
             <ul className="space-y-1 px-3">
@@ -332,15 +361,18 @@ export default function UniversalNavigationPanel() {
                         aria-haspopup="dialog"
                         aria-expanded={showHelpPanel}
                         aria-controls={HELP_PANEL_ID}
-                        className="flex w-full items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                        className="group flex w-full items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
                       >
+                        {MODULE_ICONS[module.id] && (
+                          <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">{MODULE_ICONS[module.id]}</span>
+                        )}
                         {module.label}
                       </button>
                     ) : (
                       <Link
                         href={enabled ? href : '#'}
                         onClick={(e) => handleModuleClick(e, module)}
-                        className={`flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset ${
+                        className={`group flex items-center px-3 py-2.5 rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset ${
                           !enabled
                             ? 'text-gray-400 cursor-not-allowed font-medium'
                             : isActive
@@ -350,6 +382,11 @@ export default function UniversalNavigationPanel() {
                         aria-disabled={!enabled}
                         aria-current={isActive ? 'page' : undefined}
                       >
+                        {MODULE_ICONS[module.id] && (
+                          <span className={`mr-3 flex-shrink-0 ${
+                            !enabled ? 'text-gray-300' : isActive ? 'text-nhs-blue' : 'text-gray-400 group-hover:text-nhs-blue'
+                          }`} aria-hidden="true">{MODULE_ICONS[module.id]}</span>
+                        )}
                         {module.label}
                         {!enabled && !featuresLoading && (
                           <span className="ml-2 text-xs text-gray-400 italic font-normal">
@@ -367,7 +404,7 @@ export default function UniversalNavigationPanel() {
           {/* Management Section - Only visible to admins */}
           {canSeeManagement && surgeryId && (
             <nav aria-label="Management" className="mt-8 pt-6 border-t border-gray-100">
-              <h3 className="px-5 text-xs font-semibold text-nhs-grey uppercase tracking-wider mb-2">
+              <h3 className="px-5 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
                 Management
               </h3>
               <ul className="space-y-1 px-3">
@@ -377,8 +414,11 @@ export default function UniversalNavigationPanel() {
                     <Link
                       href={resolveHref(item.href)}
                       onClick={() => close()}
-                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                      className="group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
                     >
+                      {MANAGEMENT_ICONS[item.id] && (
+                        <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">{MANAGEMENT_ICONS[item.id]}</span>
+                      )}
                       {item.label}
                     </Link>
                   </li>
@@ -404,8 +444,9 @@ export default function UniversalNavigationPanel() {
                     <Link
                       href="/admin/system"
                       onClick={() => close()}
-                      className="flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+                      className="group flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-nhs-light-blue hover:text-nhs-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
                     >
+                      <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">{SYSTEM_MGMT_ICON}</span>
                       System management
                     </Link>
                   </li>
@@ -416,46 +457,48 @@ export default function UniversalNavigationPanel() {
         </div>
 
         {/* Preferences & Sign Out - Fixed at bottom */}
-        <div className="border-t border-gray-200 p-4 flex-shrink-0 space-y-2">
+        <div className="border-t border-gray-200 px-3 py-3 flex-shrink-0 space-y-1">
           {/* Preferences Button */}
           <button
             onClick={() => {
               close()
               setShowPreferencesModal(true)
             }}
-            className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-nhs-grey border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+            className="group w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-5 h-5 mr-2"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
+            <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            </span>
             Preferences
           </button>
 
           {/* Sign Out Button */}
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-medium text-nhs-grey border border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+            className="group w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-              className="w-5 h-5 mr-2"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-            </svg>
+            <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+              </svg>
+            </span>
             Sign out
           </button>
         </div>
