@@ -148,6 +148,17 @@ export default function SetupChecklistClient({
         </div>
       )}
 
+      <p className="mb-4">
+        <a
+          href="https://docs.signpostingtool.co.uk/getting-started"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
+        >
+          Need help? View the setup guide &rarr;
+        </a>
+      </p>
+
       {mode === 'health' ? (
         <HealthDashboard
           surgeryId={surgeryId}
