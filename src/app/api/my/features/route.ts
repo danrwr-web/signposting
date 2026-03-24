@@ -2,33 +2,36 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
-import { isFeatureEnabledForUser } from '@/lib/features'
 
-// GET /api/my/features
+// GET /api/my/features?surgeryId=<optional>
 // Returns the current user's effective feature flags (from surgery + user level)
+// If surgeryId is provided, resolves features for that specific surgery.
+// Otherwise, falls back to the user's defaultSurgeryId (superusers get all features enabled).
 export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser()
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // If the user is a superuser, return all features as enabled
-    if (user.globalRole === 'SUPERUSER') {
+    const querySurgeryId = request.nextUrl.searchParams.get('surgeryId')
+
+    // If the user is a superuser with no specific surgery context, return all features as enabled
+    if (user.globalRole === 'SUPERUSER' && !querySurgeryId) {
       const features = await prisma.feature.findMany({
         select: {
           key: true
         }
       })
-      
+
       return NextResponse.json({
         features: features.map(f => ({ key: f.key, enabled: true }))
       })
     }
 
-    // Get the user's surgery ID
-    const surgeryId = user.defaultSurgeryId
+    // Use the query param surgery ID, falling back to user's default
+    const surgeryId = querySurgeryId || user.defaultSurgeryId
     if (!surgeryId) {
       return NextResponse.json({
         features: []

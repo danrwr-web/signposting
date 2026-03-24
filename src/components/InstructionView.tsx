@@ -143,16 +143,20 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     loadHighlightRules()
   }, [surgeryId, symptom.briefInstruction])
 
-  // Load feature flags
+  // Load feature flags for the current surgery
+  const effectiveSurgeryId = surgeryId || currentSurgeryId
   useEffect(() => {
     const loadFeatures = async () => {
       try {
-        const res = await fetch('/api/my/features', { cache: 'no-store' })
+        const url = effectiveSurgeryId
+          ? `/api/my/features?surgeryId=${effectiveSurgeryId}`
+          : '/api/my/features'
+        const res = await fetch(url, { cache: 'no-store' })
         if (!res.ok) return
-        
+
         const data = await res.json()
         const features = data.features || []
-        
+
         setCanUseAiInstructions(!!features.find((f: any) => f.key === 'ai_instructions' && f.enabled))
         setCanUseAiTraining(!!features.find((f: any) => f.key === 'ai_training' && f.enabled))
       } catch {
@@ -161,7 +165,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       }
     }
     loadFeatures()
-  }, [])
+  }, [effectiveSurgeryId])
 
   // Note: do not call `/api/revertInstruction` on page load/prefetch.
   // Any revert check/update must only happen on explicit user action, and only for permitted users.
