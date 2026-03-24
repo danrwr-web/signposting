@@ -1,6 +1,6 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
-import { callAzureOpenAI } from '@/server/azureOpenAI'
+import { callAzureOpenAI, extractJson } from '@/server/azureOpenAI'
 
 export interface CustomisedInstructionResult {
   briefInstruction: string
@@ -423,7 +423,7 @@ Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_tokens: 2000,
+    max_tokens: 4096,
   })
 
   const rawContent = aiResponse.content
@@ -431,12 +431,12 @@ Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
   let briefInstruction = ''
   let instructionsHtml = ''
 
-  try {
-    const parsed = JSON.parse(rawContent)
-    briefInstruction = parsed.briefInstruction || baseSymptom.briefInstruction || ''
-    instructionsHtml = parsed.instructionsHtml || ''
-  } catch (err) {
-    console.error('Failed to parse AI response as JSON:', err)
+  const parsed = extractJson(rawContent)
+  if (parsed) {
+    briefInstruction = (parsed.briefInstruction as string) || baseSymptom.briefInstruction || ''
+    instructionsHtml = (parsed.instructionsHtml as string) || ''
+  } else {
+    console.error('Failed to parse AI response as JSON:', rawContent.slice(0, 500))
     throw new Error('Invalid AI response format')
   }
 

@@ -110,7 +110,10 @@ export async function callAzureOpenAI(
         // use max_completion_tokens. Detect by deployment name convention or
         // allow callers to omit temperature to use the model default.
         ...(options.temperature != null ? { temperature: options.temperature } : {}),
-        max_completion_tokens: options.max_tokens ?? 1200,
+        // Reasoning models (o1/o3-mini) use max_completion_tokens for BOTH
+        // internal chain-of-thought AND visible output, so we need a generous
+        // default to avoid truncated responses.
+        max_completion_tokens: options.max_tokens ?? 4096,
       }),
     })
   } catch (err) {
@@ -138,7 +141,7 @@ export async function callAzureOpenAI(
   }
 
   const data = await response.json()
-  const content = data.choices?.[0]?.message?.content || ''
+  const content = stripReasoningPrefix(data.choices?.[0]?.message?.content || '')
   const model = data.model || deployment
 
   return {
@@ -150,6 +153,71 @@ export async function callAzureOpenAI(
       total_tokens: data.usage?.total_tokens ?? 0,
     },
   }
+}
+
+// ---------------------------------------------------------------------------
+// Reasoning-model helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip `<think>…</think>` blocks that reasoning models (o1/o3-mini) may
+ * prepend to their visible output.
+ */
+function stripReasoningPrefix(raw: string): string {
+  const trimmed = raw.trim()
+  const thinkOpen = trimmed.indexOf('<think>')
+  if (thinkOpen === -1) return trimmed
+
+  const thinkClose = trimmed.indexOf('</think>')
+  if (thinkClose !== -1) {
+    return trimmed.slice(thinkClose + '</think>'.length).trim()
+  }
+
+  // Truncated thinking block — try to find start of actual payload
+  const jsonStart = trimmed.indexOf('{', thinkOpen + 7)
+  if (jsonStart !== -1) return trimmed.slice(jsonStart).trim()
+
+  const htmlStart = trimmed.indexOf('<h', thinkOpen + 7)
+  if (htmlStart !== -1) return trimmed.slice(htmlStart).trim()
+
+  return trimmed
+}
+
+/**
+ * Try to parse a JSON object from a string that may contain surrounding text
+ * (e.g. markdown fences, reasoning prefixes, or trailing commentary).
+ *
+ * Returns the parsed object or `null` if extraction fails.
+ */
+export function extractJson(raw: string): Record<string, unknown> | null {
+  // Clean markdown fences
+  let cleaned = raw.trim()
+  cleaned = cleaned.replace(/^```json\s*/i, '')
+  cleaned = cleaned.replace(/^```\s*/i, '')
+  cleaned = cleaned.replace(/\s*```\s*$/, '')
+  cleaned = cleaned.trim()
+
+  // Try direct parse first
+  try {
+    return JSON.parse(cleaned) as Record<string, unknown>
+  } catch {
+    // Fall through to brace extraction
+  }
+
+  // Extract substring between first { and last }
+  const firstBrace = cleaned.indexOf('{')
+  const lastBrace = cleaned.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    try {
+      const result = JSON.parse(cleaned.slice(firstBrace, lastBrace + 1)) as Record<string, unknown>
+      console.warn('extractJson: recovered JSON via brace extraction')
+      return result
+    } catch {
+      // Fall through
+    }
+  }
+
+  return null
 }
 
 // ---------------------------------------------------------------------------

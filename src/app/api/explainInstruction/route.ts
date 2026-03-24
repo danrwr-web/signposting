@@ -105,7 +105,7 @@ REQUIRED:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      max_tokens: 900,
+      max_tokens: 4096,
     })
 
     let explanationHtml = aiResponse.content

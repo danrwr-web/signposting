@@ -4,7 +4,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { isFeatureEnabledForUser } from '@/lib/features'
-import { callAzureOpenAI, AzureOpenAIError } from '@/server/azureOpenAI'
+import { callAzureOpenAI, AzureOpenAIError, extractJson } from '@/server/azureOpenAI'
 
 export const runtime = 'nodejs'
 
@@ -134,39 +134,34 @@ IMPORTANT:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      max_tokens: 1200,
+      max_tokens: 4096,
     })
 
-    let rawContent = aiResponse.content
-    
+    const rawContent = aiResponse.content
+
     if (!rawContent) {
       console.error('AI response missing content')
       return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
     }
 
-    // Strip markdown code fences if present
-    rawContent = rawContent.trim()
-    rawContent = rawContent.replace(/^```json\s*/i, '')
-    rawContent = rawContent.replace(/^```\s*/i, '')
-    rawContent = rawContent.replace(/\s*```\s*$/, '')
-    rawContent = rawContent.trim()
-
-    // Parse JSON safely
-    let questionPrompts: QuestionPromptsResponse
-    try {
-      questionPrompts = JSON.parse(rawContent) as QuestionPromptsResponse
-    } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', rawContent)
-      return NextResponse.json({ 
+    // Parse JSON with fallback extraction (handles markdown fences, reasoning prefixes, etc.)
+    const parsed = extractJson(rawContent)
+    if (!parsed) {
+      console.error('Failed to parse AI response as JSON:', rawContent.slice(0, 500))
+      return NextResponse.json({
         error: 'Failed to parse AI response. The service returned invalid JSON.',
-        details: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
       }, { status: 500 })
     }
 
-    // Validate the structure
-    if (!questionPrompts.symptom || !questionPrompts.ageGroup || !Array.isArray(questionPrompts.groups)) {
-      console.error('Invalid question prompts structure:', questionPrompts)
-      return NextResponse.json({ 
+    const questionPrompts = parsed as unknown as QuestionPromptsResponse
+
+    // Fill in missing fields from request data rather than failing
+    questionPrompts.symptom = questionPrompts.symptom || symptomName
+    questionPrompts.ageGroup = questionPrompts.ageGroup || ageGroup
+
+    if (!Array.isArray(questionPrompts.groups)) {
+      console.error('Invalid question prompts structure (missing groups):', parsed)
+      return NextResponse.json({
         error: 'Invalid response structure from AI service'
       }, { status: 500 })
     }

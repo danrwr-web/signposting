@@ -4,7 +4,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { isFeatureEnabledForUser } from '@/lib/features'
-import { callAzureOpenAI, AzureOpenAIError } from '@/server/azureOpenAI'
+import { callAzureOpenAI, AzureOpenAIError, extractJson } from '@/server/azureOpenAI'
 
 export const runtime = 'nodejs'
 
@@ -136,20 +136,20 @@ Do not include any other keys, explanations, markdown code fences, or commentary
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      max_tokens: 1200,
+      max_tokens: 4096,
     })
 
     const rawContent = aiResponse.content
-    
+
     let aiBrief = ''
     let aiFullHtml = ''
-    
-    try {
-      const parsed = JSON.parse(rawContent)
-      aiBrief = parsed.briefInstruction || ''
-      aiFullHtml = parsed.fullInstructionHtml || ''
-    } catch (err) {
-      // fallback if the model didn't return JSON for some reason
+
+    const parsed = extractJson(rawContent)
+    if (parsed) {
+      aiBrief = (parsed.briefInstruction as string) || ''
+      aiFullHtml = (parsed.fullInstructionHtml as string) || ''
+    } else {
+      // Fallback if the model didn't return JSON
       aiFullHtml = rawContent
     }
     
