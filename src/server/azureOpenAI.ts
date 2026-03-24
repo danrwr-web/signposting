@@ -106,14 +106,8 @@ export async function callAzureOpenAI(
       },
       body: JSON.stringify({
         messages: options.messages,
-        // Reasoning models (o1, o3-mini, etc.) only support temperature=1 and
-        // use max_completion_tokens. Detect by deployment name convention or
-        // allow callers to omit temperature to use the model default.
         ...(options.temperature != null ? { temperature: options.temperature } : {}),
-        // Reasoning models (o1/o3-mini) use max_completion_tokens for BOTH
-        // internal chain-of-thought AND visible output, so we need a generous
-        // default to avoid truncated responses.
-        max_completion_tokens: options.max_tokens ?? 4096,
+        max_tokens: options.max_tokens ?? 2000,
       }),
     })
   } catch (err) {
@@ -141,7 +135,7 @@ export async function callAzureOpenAI(
   }
 
   const data = await response.json()
-  const content = stripReasoningPrefix(data.choices?.[0]?.message?.content || '')
+  const content = (data.choices?.[0]?.message?.content || '').trim()
   const model = data.model || deployment
 
   return {
@@ -153,34 +147,6 @@ export async function callAzureOpenAI(
       total_tokens: data.usage?.total_tokens ?? 0,
     },
   }
-}
-
-// ---------------------------------------------------------------------------
-// Reasoning-model helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Strip `<think>…</think>` blocks that reasoning models (o1/o3-mini) may
- * prepend to their visible output.
- */
-function stripReasoningPrefix(raw: string): string {
-  const trimmed = raw.trim()
-  const thinkOpen = trimmed.indexOf('<think>')
-  if (thinkOpen === -1) return trimmed
-
-  const thinkClose = trimmed.indexOf('</think>')
-  if (thinkClose !== -1) {
-    return trimmed.slice(thinkClose + '</think>'.length).trim()
-  }
-
-  // Truncated thinking block — try to find start of actual payload
-  const jsonStart = trimmed.indexOf('{', thinkOpen + 7)
-  if (jsonStart !== -1) return trimmed.slice(jsonStart).trim()
-
-  const htmlStart = trimmed.indexOf('<h', thinkOpen + 7)
-  if (htmlStart !== -1) return trimmed.slice(htmlStart).trim()
-
-  return trimmed
 }
 
 /**
