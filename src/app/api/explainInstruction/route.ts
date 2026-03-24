@@ -164,7 +164,8 @@ REQUIRED:
     })
   } catch (error) {
     if (error instanceof AzureOpenAIError) {
-      return NextResponse.json({ error: error.clientMessage }, { status: 500 })
+      const httpStatus = error.status === 0 ? 503 : 500
+      return NextResponse.json({ error: error.clientMessage }, { status: httpStatus })
     }
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues)
