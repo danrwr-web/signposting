@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { isFeatureEnabledForUser } from '@/lib/features'
+import { callAzureOpenAI, AzureOpenAIError } from '@/server/azureOpenAI'
 
 export const runtime = 'nodejs'
 
@@ -51,19 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Instructions text or HTML is required' }, { status: 400 })
     }
 
-    // Get Azure OpenAI configuration from environment variables
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT
-    const apiKey = process.env.AZURE_OPENAI_API_KEY
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION
-
-    if (!endpoint || !apiKey || !deployment || !apiVersion) {
-      console.error('Missing Azure OpenAI configuration')
-      return NextResponse.json({ error: 'AI service configuration error' }, { status: 500 })
-    }
-
-    // Construct the API URL - Azure OpenAI chat completions endpoint
-    const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
+    // Azure OpenAI configuration is read by the shared helper
 
     // Create the prompt
     const systemPrompt = `You are an assistant helping non-clinical GP admin and reception staff by generating PATIENT-FRIENDLY QUESTIONS based on written signposting instructions.
@@ -133,35 +122,20 @@ IMPORTANT:
 - Questions should be complete sentences that can be asked directly to patients.
 `
 
-    // Call Azure OpenAI API
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey,
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.4,
-        max_tokens: 1200,
-      }),
+    // Call Azure OpenAI API via shared helper
+    const aiResponse = await callAzureOpenAI({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.4,
+      max_tokens: 1200,
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Azure OpenAI API error:', response.status, errorText)
-      return NextResponse.json({ error: 'AI service error' }, { status: 500 })
-    }
-
-    const data = await response.json()
-    
-    let rawContent = data.choices?.[0]?.message?.content || ''
+    let rawContent = aiResponse.content
     
     if (!rawContent) {
-      console.error('AI response missing content:', data)
+      console.error('AI response missing content')
       return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
     }
 
@@ -192,7 +166,7 @@ IMPORTANT:
       }, { status: 500 })
     }
 
-    const model = data.model || deployment
+    const model = aiResponse.model
     const timestamp = new Date().toISOString()
 
     // Log audit information
@@ -200,14 +174,11 @@ IMPORTANT:
 
     // Log token usage (non-blocking)
     try {
-      const promptTokens = data.usage?.prompt_tokens ?? 0
-      const completionTokens = data.usage?.completion_tokens ?? 0
-      const totalTokens = data.usage?.total_tokens ?? (promptTokens + completionTokens)
+      const { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens } = aiResponse.usage
 
       const inputRate = parseFloat(process.env.AZURE_OPENAI_COST_INPUT_PER_1K_USD || '0')
       const outputRate = parseFloat(process.env.AZURE_OPENAI_COST_OUTPUT_PER_1K_USD || '0')
 
-      // cost = (promptTokens * inputRate + completionTokens * outputRate) / 1000
       const estimatedCostUsd =
         ((promptTokens * inputRate) + (completionTokens * outputRate)) / 1000
 
@@ -234,16 +205,19 @@ IMPORTANT:
       timestamp,
     })
   } catch (error) {
+    if (error instanceof AzureOpenAIError) {
+      return NextResponse.json({ error: error.clientMessage }, { status: 500 })
+    }
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues)
-      return NextResponse.json({ 
-        error: 'Invalid input', 
+      return NextResponse.json({
+        error: 'Invalid input',
         details: error.issues
       }, { status: 400 })
     }
-    
+
     console.error('Error in questionPrompts:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
