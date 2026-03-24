@@ -381,12 +381,21 @@ Return ONLY valid JSON with these exact fields:
 
 Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is clean and suitable for sanitisation. Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).`
 
+  // Truncate input to prevent exceeding model context window
+  // The system prompt here is large (~4000+ chars with appointment model), so use a lower limit
+  const MAX_INPUT_CHARS = 6000
+  let safeInstructionsHtml = baseSymptom.instructionsHtml || '(none)'
+  if (safeInstructionsHtml.length > MAX_INPUT_CHARS) {
+    console.warn(`customiseInstructions: truncating instructionsHtml from ${safeInstructionsHtml.length} to ${MAX_INPUT_CHARS} chars`)
+    safeInstructionsHtml = safeInstructionsHtml.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
+  }
+
   // Build user prompt with symptom and profile data
   const userPrompt = `SYMPTOM TO CUSTOMISE:
 Name: ${baseSymptom.name}
 Age Group: ${baseSymptom.ageGroup}
 Brief Instruction: ${baseSymptom.briefInstruction || '(none)'}
-Full Instructions: ${baseSymptom.instructionsHtml || '(none)'}
+Full Instructions: ${safeInstructionsHtml}
 
 SURGERY ONBOARDING PROFILE:
 ${JSON.stringify(onboardingProfile, null, 2)}

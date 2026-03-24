@@ -32,6 +32,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { symptomId, briefInstruction, currentText } = explainInstructionSchema.parse(body)
 
+    // Truncate input to prevent exceeding model context window
+    const MAX_INPUT_CHARS = 8000
+    let safeCurrentText = currentText
+    if (safeCurrentText.length > MAX_INPUT_CHARS) {
+      console.warn(`explainInstruction: truncating currentText from ${safeCurrentText.length} to ${MAX_INPUT_CHARS} chars`)
+      safeCurrentText = safeCurrentText.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
+    }
+
     // Azure OpenAI configuration is read by the shared helper
 
     // Create the prompt
@@ -49,7 +57,7 @@ BRIEF INSTRUCTION (routing label used by staff, not spoken to the patient):
 """${briefInstruction || '(none)'}"""
 
 FULL INSTRUCTION (internal guidance for staff, not read out word-for-word to the patient):
-"""${currentText}"""
+"""${safeCurrentText}"""
 
 Your job is to create a short training explanation that helps a NEW, NON-CLINICAL GP RECEPTIONIST understand:
 - why this rule exists

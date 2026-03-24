@@ -46,7 +46,13 @@ export async function POST(request: NextRequest) {
     const { symptomName, ageGroup, briefInstruction, instructionsText, instructionsHtml } = questionPromptsSchema.parse(body)
 
     // Get the instructions text - prefer HTML if available, fallback to plain text
-    const instructionsContent = instructionsHtml || instructionsText || ''
+    // Truncate to prevent exceeding model context window
+    const MAX_INPUT_CHARS = 8000
+    let instructionsContent = instructionsHtml || instructionsText || ''
+    if (instructionsContent.length > MAX_INPUT_CHARS) {
+      console.warn(`question-prompts: truncating instructions from ${instructionsContent.length} to ${MAX_INPUT_CHARS} chars`)
+      instructionsContent = instructionsContent.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
+    }
 
     if (!instructionsContent.trim()) {
       return NextResponse.json({ error: 'Instructions text or HTML is required' }, { status: 400 })

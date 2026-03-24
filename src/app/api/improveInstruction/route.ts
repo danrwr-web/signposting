@@ -35,6 +35,14 @@ export async function POST(request: NextRequest) {
 
     // Azure OpenAI configuration is read by the shared helper
 
+    // Truncate input to prevent exceeding model context window
+    const MAX_INPUT_CHARS = 8000
+    let safeCurrentText = currentText || ''
+    if (safeCurrentText.length > MAX_INPUT_CHARS) {
+      console.warn(`improveInstruction: truncating currentText from ${safeCurrentText.length} to ${MAX_INPUT_CHARS} chars`)
+      safeCurrentText = safeCurrentText.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
+    }
+
     // Create the prompt
     // Allow limited icons (emoji) to improve scan-ability for reception staff.
     // Icons must be from the approved list and must not change clinical meaning.
@@ -91,7 +99,7 @@ BRIEF INSTRUCTION:
 """${briefInstruction || '(none provided)'}"""
 
 FULL INSTRUCTION:
-"""${currentText || '(none provided)'}"""
+"""${safeCurrentText || '(none provided)'}"""
 
 TASK:
 1. Improve BOTH sections for clarity and consistency for non-clinical GP reception/admin staff.
