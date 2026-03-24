@@ -93,7 +93,8 @@ Comprehensive documentation is available in the repository:
    
    AZURE_OPENAI_ENDPOINT=""
    AZURE_OPENAI_API_KEY=""
-   AZURE_OPENAI_DEPLOYMENT_NAME=""
+   AZURE_OPENAI_DEPLOYMENT=""
+   AZURE_OPENAI_API_VERSION=""
    
    NEXT_PUBLIC_APP_VERSION="v1.1"
    ```

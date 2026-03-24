@@ -375,7 +375,8 @@ Required:
 - `NEXTAUTH_URL` — Application URL
 - `AZURE_OPENAI_ENDPOINT` — AI endpoint (if using)
 - `AZURE_OPENAI_API_KEY` — AI key (if using)
-- `AZURE_OPENAI_DEPLOYMENT_NAME` — AI deployment (if using)
+- `AZURE_OPENAI_DEPLOYMENT` — AI deployment name (if using)
+- `AZURE_OPENAI_API_VERSION` — AI API version (if using)
 
 ---
 
