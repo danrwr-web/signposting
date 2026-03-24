@@ -1,5 +1,6 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
+import { callAzureOpenAI, extractJson } from '@/server/azureOpenAI'
 
 export interface CustomisedInstructionResult {
   briefInstruction: string
@@ -90,17 +91,7 @@ export async function customiseInstructions(
   onboardingProfile: OnboardingProfileJson,
   userEmail: string
 ): Promise<CustomisedInstructionResult> {
-  // Get Azure OpenAI configuration
-  const endpoint = process.env.AZURE_OPENAI_ENDPOINT
-  const apiKey = process.env.AZURE_OPENAI_API_KEY
-  const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
-  const apiVersion = process.env.AZURE_OPENAI_API_VERSION
-
-  if (!endpoint || !apiKey || !deployment || !apiVersion) {
-    throw new Error('Missing Azure OpenAI configuration')
-  }
-
-  const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
+  // Azure OpenAI configuration is read by the shared helper
 
   // Extract appointment model (with defaults for backwards compatibility)
   const appointmentModel = onboardingProfile.appointmentModel || {
@@ -390,12 +381,21 @@ Return ONLY valid JSON with these exact fields:
 
 Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is clean and suitable for sanitisation. Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).`
 
+  // Truncate input to prevent exceeding model context window
+  // The system prompt here is large (~4000+ chars with appointment model), so use a lower limit
+  const MAX_INPUT_CHARS = 6000
+  let safeInstructionsHtml = baseSymptom.instructionsHtml || '(none)'
+  if (safeInstructionsHtml.length > MAX_INPUT_CHARS) {
+    console.warn(`customiseInstructions: truncating instructionsHtml from ${safeInstructionsHtml.length} to ${MAX_INPUT_CHARS} chars`)
+    safeInstructionsHtml = safeInstructionsHtml.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
+  }
+
   // Build user prompt with symptom and profile data
   const userPrompt = `SYMPTOM TO CUSTOMISE:
 Name: ${baseSymptom.name}
 Age Group: ${baseSymptom.ageGroup}
 Brief Instruction: ${baseSymptom.briefInstruction || '(none)'}
-Full Instructions: ${baseSymptom.instructionsHtml || '(none)'}
+Full Instructions: ${safeInstructionsHtml}
 
 SURGERY ONBOARDING PROFILE:
 ${JSON.stringify(onboardingProfile, null, 2)}
@@ -417,41 +417,26 @@ IMPORTANT:
 
 Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
 
-  // Call Azure OpenAI API
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-key': apiKey,
-    },
-    body: JSON.stringify({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.3,
-      max_tokens: 2000,
-    }),
+  // Call Azure OpenAI API via shared helper
+  const aiResponse = await callAzureOpenAI({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    max_tokens: 4096,
   })
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    console.error('Azure OpenAI API error:', response.status, errorText)
-    throw new Error(`AI service error: ${response.status}`)
-  }
-
-  const data = await response.json()
-  const rawContent = data.choices?.[0]?.message?.content || ''
+  const rawContent = aiResponse.content
 
   let briefInstruction = ''
   let instructionsHtml = ''
 
-  try {
-    const parsed = JSON.parse(rawContent)
-    briefInstruction = parsed.briefInstruction || baseSymptom.briefInstruction || ''
-    instructionsHtml = parsed.instructionsHtml || ''
-  } catch (err) {
-    console.error('Failed to parse AI response as JSON:', err)
+  const parsed = extractJson(rawContent)
+  if (parsed) {
+    briefInstruction = (parsed.briefInstruction as string) || baseSymptom.briefInstruction || ''
+    instructionsHtml = (parsed.instructionsHtml as string) || ''
+  } else {
+    console.error('Failed to parse AI response as JSON:', rawContent.slice(0, 500))
     throw new Error('Invalid AI response format')
   }
 
@@ -459,13 +444,11 @@ Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
     throw new Error('AI response missing instructionsHtml')
   }
 
-  const modelUsed = data.model || deployment
+  const modelUsed = aiResponse.model
 
   // Log token usage (non-blocking)
   try {
-    const promptTokens = data.usage?.prompt_tokens ?? 0
-    const completionTokens = data.usage?.completion_tokens ?? 0
-    const totalTokens = data.usage?.total_tokens ?? (promptTokens + completionTokens)
+    const { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens } = aiResponse.usage
 
     const inputRate = parseFloat(process.env.AZURE_OPENAI_COST_INPUT_PER_1K_USD || '0')
     const outputRate = parseFloat(process.env.AZURE_OPENAI_COST_OUTPUT_PER_1K_USD || '0')

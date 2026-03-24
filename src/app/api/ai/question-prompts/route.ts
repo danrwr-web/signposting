@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { isFeatureEnabledForUser } from '@/lib/features'
+import { callAzureOpenAI, AzureOpenAIError, extractJson } from '@/server/azureOpenAI'
 
 export const runtime = 'nodejs'
 
@@ -45,25 +46,19 @@ export async function POST(request: NextRequest) {
     const { symptomName, ageGroup, briefInstruction, instructionsText, instructionsHtml } = questionPromptsSchema.parse(body)
 
     // Get the instructions text - prefer HTML if available, fallback to plain text
-    const instructionsContent = instructionsHtml || instructionsText || ''
+    // Truncate to prevent exceeding model context window
+    const MAX_INPUT_CHARS = 8000
+    let instructionsContent = instructionsHtml || instructionsText || ''
+    if (instructionsContent.length > MAX_INPUT_CHARS) {
+      console.warn(`question-prompts: truncating instructions from ${instructionsContent.length} to ${MAX_INPUT_CHARS} chars`)
+      instructionsContent = instructionsContent.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
+    }
 
     if (!instructionsContent.trim()) {
       return NextResponse.json({ error: 'Instructions text or HTML is required' }, { status: 400 })
     }
 
-    // Get Azure OpenAI configuration from environment variables
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT
-    const apiKey = process.env.AZURE_OPENAI_API_KEY
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION
-
-    if (!endpoint || !apiKey || !deployment || !apiVersion) {
-      console.error('Missing Azure OpenAI configuration')
-      return NextResponse.json({ error: 'AI service configuration error' }, { status: 500 })
-    }
-
-    // Construct the API URL - Azure OpenAI chat completions endpoint
-    const apiUrl = `${endpoint}openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
+    // Azure OpenAI configuration is read by the shared helper
 
     // Create the prompt
     const systemPrompt = `You are an assistant helping non-clinical GP admin and reception staff by generating PATIENT-FRIENDLY QUESTIONS based on written signposting instructions.
@@ -133,66 +128,45 @@ IMPORTANT:
 - Questions should be complete sentences that can be asked directly to patients.
 `
 
-    // Call Azure OpenAI API
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey,
-      },
-      body: JSON.stringify({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.4,
-        max_tokens: 1200,
-      }),
+    // Call Azure OpenAI API via shared helper
+    const aiResponse = await callAzureOpenAI({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: 4096,
     })
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error('Azure OpenAI API error:', response.status, errorText)
-      return NextResponse.json({ error: 'AI service error' }, { status: 500 })
-    }
+    const rawContent = aiResponse.content
 
-    const data = await response.json()
-    
-    let rawContent = data.choices?.[0]?.message?.content || ''
-    
     if (!rawContent) {
-      console.error('AI response missing content:', data)
+      console.error('AI response missing content')
       return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
     }
 
-    // Strip markdown code fences if present
-    rawContent = rawContent.trim()
-    rawContent = rawContent.replace(/^```json\s*/i, '')
-    rawContent = rawContent.replace(/^```\s*/i, '')
-    rawContent = rawContent.replace(/\s*```\s*$/, '')
-    rawContent = rawContent.trim()
-
-    // Parse JSON safely
-    let questionPrompts: QuestionPromptsResponse
-    try {
-      questionPrompts = JSON.parse(rawContent) as QuestionPromptsResponse
-    } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', rawContent)
-      return NextResponse.json({ 
+    // Parse JSON with fallback extraction (handles markdown fences, reasoning prefixes, etc.)
+    const parsed = extractJson(rawContent)
+    if (!parsed) {
+      console.error('Failed to parse AI response as JSON:', rawContent.slice(0, 500))
+      return NextResponse.json({
         error: 'Failed to parse AI response. The service returned invalid JSON.',
-        details: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
       }, { status: 500 })
     }
 
-    // Validate the structure
-    if (!questionPrompts.symptom || !questionPrompts.ageGroup || !Array.isArray(questionPrompts.groups)) {
-      console.error('Invalid question prompts structure:', questionPrompts)
-      return NextResponse.json({ 
+    const questionPrompts = parsed as unknown as QuestionPromptsResponse
+
+    // Fill in missing fields from request data rather than failing
+    questionPrompts.symptom = questionPrompts.symptom || symptomName
+    questionPrompts.ageGroup = questionPrompts.ageGroup || ageGroup
+
+    if (!Array.isArray(questionPrompts.groups)) {
+      console.error('Invalid question prompts structure (missing groups):', parsed)
+      return NextResponse.json({
         error: 'Invalid response structure from AI service'
       }, { status: 500 })
     }
 
-    const model = data.model || deployment
+    const model = aiResponse.model
     const timestamp = new Date().toISOString()
 
     // Log audit information
@@ -200,14 +174,11 @@ IMPORTANT:
 
     // Log token usage (non-blocking)
     try {
-      const promptTokens = data.usage?.prompt_tokens ?? 0
-      const completionTokens = data.usage?.completion_tokens ?? 0
-      const totalTokens = data.usage?.total_tokens ?? (promptTokens + completionTokens)
+      const { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens } = aiResponse.usage
 
       const inputRate = parseFloat(process.env.AZURE_OPENAI_COST_INPUT_PER_1K_USD || '0')
       const outputRate = parseFloat(process.env.AZURE_OPENAI_COST_OUTPUT_PER_1K_USD || '0')
 
-      // cost = (promptTokens * inputRate + completionTokens * outputRate) / 1000
       const estimatedCostUsd =
         ((promptTokens * inputRate) + (completionTokens * outputRate)) / 1000
 
@@ -234,16 +205,19 @@ IMPORTANT:
       timestamp,
     })
   } catch (error) {
+    if (error instanceof AzureOpenAIError) {
+      return NextResponse.json({ error: error.clientMessage }, { status: 500 })
+    }
     if (error instanceof z.ZodError) {
       console.error('Validation error:', error.issues)
-      return NextResponse.json({ 
-        error: 'Invalid input', 
+      return NextResponse.json({
+        error: 'Invalid input',
         details: error.issues
       }, { status: 400 })
     }
-    
+
     console.error('Error in questionPrompts:', error)
-    return NextResponse.json({ 
+    return NextResponse.json({
       error: 'Internal server error',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
