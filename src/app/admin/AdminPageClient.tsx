@@ -967,7 +967,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             )}
 
             {/* High-Risk Buttons Tab */}
-            {activeTab === 'highrisk' && (
+            {activeTab === 'highrisk' && selectedSurgery && (
               <div className="space-y-6">
                 <HighRiskConfig 
                   surgeryId={selectedSurgery} 
