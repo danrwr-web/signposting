@@ -154,7 +154,25 @@ export async function callAzureOpenAI(
 // ---------------------------------------------------------------------------
 
 function classifyAzureError(status: number, deployment: string, errorText: string): string {
+  const apiVersion = process.env.AZURE_OPENAI_API_VERSION || '(not set)'
+
   switch (status) {
+    case 400: {
+      // 400 Bad Request — most commonly caused by a retired API version or
+      // an unsupported parameter for the deployed model.
+      if (errorText.includes('api-version') || errorText.includes('ApiVersionNotSupported') || errorText.includes('retired')) {
+        return `AI service rejected the request: API version "${apiVersion}" is not supported or has been retired. Please update AZURE_OPENAI_API_VERSION to a current GA version (e.g. "2024-10-21").`
+      }
+      if (errorText.includes('content_filter') || errorText.includes('ContentFilter')) {
+        return 'AI service blocked the request due to content filtering. Please try rephrasing the input.'
+      }
+      if (errorText.includes('max_tokens') || errorText.includes('context_length')) {
+        return 'AI service rejected the request: the input is too long for the deployed model. Please try with shorter content.'
+      }
+      // Generic 400 — surface enough detail to help debug
+      const snippet = errorText.length > 200 ? errorText.slice(0, 200) + '…' : errorText
+      return `AI service rejected the request (400 Bad Request). This is often caused by a retired API version. Current API version: "${apiVersion}". Azure response: ${snippet}`
+    }
     case 401:
       return 'AI service authentication failed. The API key may be invalid or expired. Please contact your administrator.'
     case 403:
