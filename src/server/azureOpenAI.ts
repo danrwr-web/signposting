@@ -106,10 +106,10 @@ export async function callAzureOpenAI(
       },
       body: JSON.stringify({
         messages: options.messages,
-        temperature: options.temperature ?? 0.3,
-        // Newer models (o-series, gpt-4o-mini on recent API versions) require
-        // max_completion_tokens instead of max_tokens. Send both for broad
-        // compatibility — the API ignores the one it doesn't recognise.
+        // Reasoning models (o1, o3-mini, etc.) only support temperature=1 and
+        // use max_completion_tokens. Detect by deployment name convention or
+        // allow callers to omit temperature to use the model default.
+        ...(options.temperature != null ? { temperature: options.temperature } : {}),
         max_completion_tokens: options.max_tokens ?? 1200,
       }),
     })
