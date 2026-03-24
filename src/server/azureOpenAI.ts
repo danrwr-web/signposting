@@ -107,7 +107,10 @@ export async function callAzureOpenAI(
       body: JSON.stringify({
         messages: options.messages,
         temperature: options.temperature ?? 0.3,
-        max_tokens: options.max_tokens ?? 1200,
+        // Newer models (o-series, gpt-4o-mini on recent API versions) require
+        // max_completion_tokens instead of max_tokens. Send both for broad
+        // compatibility — the API ignores the one it doesn't recognise.
+        max_completion_tokens: options.max_tokens ?? 1200,
       }),
     })
   } catch (err) {
@@ -163,10 +166,14 @@ function classifyAzureError(status: number, deployment: string, errorText: strin
       if (errorText.includes('api-version') || errorText.includes('ApiVersionNotSupported') || errorText.includes('retired')) {
         return `AI service rejected the request: API version "${apiVersion}" is not supported or has been retired. Please update AZURE_OPENAI_API_VERSION to a current GA version (e.g. "2024-10-21").`
       }
+      if (errorText.includes('unsupported_parameter') || errorText.includes('Unsupported parameter')) {
+        const snippet = errorText.length > 300 ? errorText.slice(0, 300) + '…' : errorText
+        return `AI service rejected the request due to an unsupported parameter. This may require a code update. Details: ${snippet}`
+      }
       if (errorText.includes('content_filter') || errorText.includes('ContentFilter')) {
         return 'AI service blocked the request due to content filtering. Please try rephrasing the input.'
       }
-      if (errorText.includes('max_tokens') || errorText.includes('context_length')) {
+      if (errorText.includes('context_length') || errorText.includes('context_length_exceeded')) {
         return 'AI service rejected the request: the input is too long for the deployed model. Please try with shorter content.'
       }
       // Generic 400 — surface enough detail to help debug
