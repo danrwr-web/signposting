@@ -414,6 +414,25 @@ export default function DocumentTemplates() {
                 </code>
               ))}
             </div>
+
+            <h4 className="text-sm font-semibold text-gray-700 mt-4 mb-2">
+              Auto-generated
+            </h4>
+            <p className="text-xs text-gray-500 mb-3">
+              These are populated automatically at generation time.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <code className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded text-xs font-mono">
+                {'{{currentDate}}'}
+              </code>
+              <code className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded text-xs font-mono">
+                {'{{currentYear}}'}
+              </code>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {'{{currentDate}}'} inserts today&apos;s date (e.g. &ldquo;25 March 2026&rdquo;).{' '}
+              {'{{currentYear}}'} inserts the four-digit year (e.g. &ldquo;2026&rdquo;).
+            </p>
           </div>
         </div>
       </div>

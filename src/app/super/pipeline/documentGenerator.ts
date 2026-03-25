@@ -53,6 +53,14 @@ export async function generateDocument(
     nullGetter: () => '',
   })
 
+  const now = new Date()
+  const currentDate = now.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  })
+  const currentYear = now.getFullYear().toString()
+
   doc.render({
     practiceName: details.practiceName || '[Practice Name]',
     practiceAddress: details.practiceAddress || '[Practice Address]',
@@ -62,6 +70,8 @@ export async function generateDocument(
     listSize: details.listSize || '[List Size]',
     estimatedFee: details.estimatedFee || '[Estimated Fee]',
     contractStartDate: details.contractStartDate || '[Contract Start Date]',
+    currentDate,
+    currentYear,
   })
 
   // 3. Generate the output .docx blob
