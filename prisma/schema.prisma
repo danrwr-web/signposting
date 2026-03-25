@@ -130,6 +130,9 @@ model Surgery {
   adminCategoryVisibleUsers    AdminCategoryVisibleUser[]
   adminItemEditGrants          AdminItemEditGrant[]
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
+
+  // Sales Pipeline
+  pipelineEntry SalesPipeline? @relation("PipelineSurgery")
 }
 
 model BaseSymptom {
@@ -1043,4 +1046,120 @@ enum WorkflowActionKey {
   SEND_STANDARD_LETTER
   CODE_AND_FILE
   OTHER
+}
+
+// ── Sales Pipeline ──────────────────────────────────────────────────
+
+enum PipelineStatus {
+  Enquiry
+  DemoBooked
+  DemoCompleted
+  ProposalSent
+  DocumentsSent
+  Contracted
+  OnHold
+  Lost
+}
+
+model SalesPipeline {
+  id                String         @id @default(cuid())
+  practiceName      String
+  practiceAddress   String?
+  townCity          String?
+  pcnName           String?
+  listSize          Int?
+  estimatedFeeGbp   Float?         // listSize × 0.07, stored for reporting
+  contactName       String?
+  contactRole       String?
+  contactEmail      String?
+
+  status            PipelineStatus @default(Enquiry)
+
+  // Milestone dates
+  dateEnquiry                DateTime?
+  dateDemoBooked             DateTime?
+  dateDemoCompleted          DateTime?
+  dateProposalSent           DateTime?
+  dateOnboardingFormSent     DateTime?
+  dateSaasAgreementSent      DateTime?
+  dateSaasAgreementSigned    DateTime?
+  dateDpaSent                DateTime?
+  dateDpaSigned              DateTime?
+  dateContractStart          DateTime?
+
+  // Trial
+  freeTrial         Boolean        @default(false)
+  trialEndDate      DateTime?
+
+  // Financials
+  annualValueGbp    Float?
+
+  // Contract
+  contractVariantLabel String?    // Legacy free-text field; will be dropped once all entries use contractVariantId
+  contractVariantId    String?
+  contractVariant      ContractVariant? @relation("PipelineVariant", fields: [contractVariantId], references: [id])
+
+  // Notes
+  notes             String?
+
+  // Link to provisioned surgery
+  linkedSurgeryId   String?        @unique
+  linkedSurgery     Surgery?       @relation("PipelineSurgery", fields: [linkedSurgeryId], references: [id])
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([status])
+  @@index([linkedSurgeryId])
+  @@index([contractVariantId])
+}
+
+// ── Pipeline Email Templates ────────────────────────────────────────
+
+model PipelineEmailTemplate {
+  id        String   @id @default(cuid())
+  stage     String   @unique // 'enquiry', 'demo_booked', etc.
+  label     String            // 'Enquiry Received', 'Demo Booked', etc.
+  subject   String
+  body      String            // plain text with {{placeholders}}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ── Contract Variants & Document Templates ──────────────────────────
+
+enum DocumentType {
+  Proposal
+  SaasAgreement
+  Dpa
+  HostingOverview
+  IgSecurityPack
+}
+
+model ContractVariant {
+  id        String   @id @default(cuid())
+  name      String   @unique // "Standard 12-month", "6-month free trial", etc.
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  templates DocumentTemplate[]
+  pipelines SalesPipeline[]    @relation("PipelineVariant")
+}
+
+model DocumentTemplate {
+  id                String          @id @default(cuid())
+  contractVariantId String
+  documentType      DocumentType
+  contentHtml       String?         // Legacy HTML (unused for generation, kept for migration)
+  contentJson       String?         // Legacy ProseMirror JSON (unused for generation)
+  templateDocx      Bytes?          // Raw .docx file bytes (source of truth for generation)
+  fileName          String?         // Original upload filename for UI display
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  contractVariant   ContractVariant @relation(fields: [contractVariantId], references: [id], onDelete: Cascade)
+
+  @@unique([contractVariantId, documentType])
+  @@index([contractVariantId])
 }
