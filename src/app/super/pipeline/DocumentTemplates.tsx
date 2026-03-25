@@ -9,11 +9,11 @@ import RichTextEditor from '@/components/rich-text/RichTextEditor'
 // ── Placeholders per document type ──────────────────────────────────
 
 const DOC_PLACEHOLDERS: Record<DocumentType, string[]> = {
-  Proposal: ['{{practiceName}}', '{{contactName}}', '{{listSize}}', '{{estimatedFee}}', '{{contractStartDate}}'],
-  SaasAgreement: ['{{practiceName}}', '{{contactName}}', '{{contactRole}}', '{{contractStartDate}}'],
-  Dpa: ['{{practiceName}}', '{{contactName}}'],
-  HostingOverview: ['{{practiceName}}'],
-  IgSecurityPack: ['{{practiceName}}'],
+  Proposal: ['{{practiceName}}', '{{practiceAddress}}', '{{contactName}}', '{{listSize}}', '{{estimatedFee}}', '{{contractStartDate}}'],
+  SaasAgreement: ['{{practiceName}}', '{{practiceAddress}}', '{{contactName}}', '{{contactRole}}', '{{contractStartDate}}'],
+  Dpa: ['{{practiceName}}', '{{practiceAddress}}', '{{contactName}}'],
+  HostingOverview: ['{{practiceName}}', '{{practiceAddress}}'],
+  IgSecurityPack: ['{{practiceName}}', '{{practiceAddress}}'],
 }
 
 // ── Types ───────────────────────────────────────────────────────────

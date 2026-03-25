@@ -54,6 +54,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
   function getDefaults(e: PipelineEntry | null) {
     return {
       practiceName: e?.practiceName ?? '',
+      practiceAddress: e?.practiceAddress ?? '',
       townCity: e?.townCity ?? '',
       pcnName: e?.pcnName ?? '',
       listSize: e?.listSize?.toString() ?? '',
@@ -123,6 +124,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     const listSize = form.listSize ? parseInt(form.listSize, 10) : undefined
     const body: Record<string, unknown> = {
       practiceName: form.practiceName,
+      practiceAddress: form.practiceAddress || undefined,
       townCity: form.townCity || undefined,
       pcnName: form.pcnName || undefined,
       listSize: listSize || undefined,
@@ -209,6 +211,13 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
               value={form.practiceName}
               onChange={(e) => setField('practiceName', e.target.value)}
               required
+            />
+          </FormField>
+          <FormField label="Practice Address">
+            <Input
+              value={form.practiceAddress}
+              onChange={(e) => setField('practiceAddress', e.target.value)}
+              placeholder="e.g. 123 High Street, Townville, AB1 2CD"
             />
           </FormField>
           <FormField label="Town / City">

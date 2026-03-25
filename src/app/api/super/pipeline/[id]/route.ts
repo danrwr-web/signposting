@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 const updatePipelineSchema = z.object({
   practiceName: z.string().min(1).optional(),
+  practiceAddress: z.string().nullable().optional(),
   townCity: z.string().nullable().optional(),
   pcnName: z.string().nullable().optional(),
   listSize: z.number().int().positive().nullable().optional(),

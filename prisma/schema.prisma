@@ -1064,6 +1064,7 @@ enum PipelineStatus {
 model SalesPipeline {
   id                String         @id @default(cuid())
   practiceName      String
+  practiceAddress   String?
   townCity          String?
   pcnName           String?
   listSize          Int?

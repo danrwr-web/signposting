@@ -23,6 +23,7 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
   // ── Sheet 1: Pipeline Tracker ─────────────────────────────────────
   const trackerRows = entries.map((e) => ({
     'Practice Name': e.practiceName,
+    'Practice Address': e.practiceAddress ?? '',
     'Town/City': e.townCity ?? '',
     PCN: e.pcnName ?? '',
     'List Size': e.listSize ?? '',

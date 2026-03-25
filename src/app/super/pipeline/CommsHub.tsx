@@ -333,6 +333,7 @@ export default function CommsHub({ entries, setEntries }: Props) {
           practiceName: fields.practiceName,
           contactName: fields.contactName,
           contactRole: '',
+          practiceAddress: entries.find((e) => e.id === selectedPracticeId)?.practiceAddress ?? '',
           contactEmail: fields.contactEmail,
           listSize: fields.listSize,
           estimatedFee: fields.estimatedFee,

@@ -1,6 +1,7 @@
 export interface PipelineEntry {
   id: string
   practiceName: string
+  practiceAddress: string | null
   townCity: string | null
   pcnName: string | null
   listSize: number | null
