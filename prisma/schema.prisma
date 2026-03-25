@@ -1151,8 +1151,10 @@ model DocumentTemplate {
   id                String          @id @default(cuid())
   contractVariantId String
   documentType      DocumentType
-  contentHtml       String          // HTML from SafeTipTapEditor (primary editing format)
-  contentJson       String?         // ProseMirror JSON (stored as string, generated from HTML)
+  contentHtml       String?         // Legacy HTML (unused for generation, kept for migration)
+  contentJson       String?         // Legacy ProseMirror JSON (unused for generation)
+  templateDocx      Bytes?          // Raw .docx file bytes (source of truth for generation)
+  fileName          String?         // Original upload filename for UI display
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 

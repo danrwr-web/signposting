@@ -1,16 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
-import { z } from 'zod'
 
 const VALID_TYPES = ['Proposal', 'SaasAgreement', 'Dpa', 'HostingOverview', 'IgSecurityPack'] as const
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
-const upsertTemplateSchema = z.object({
-  contentHtml: z.string().min(1, 'Content is required'),
-  contentJson: z.string().optional(),
-})
+function validateType(type: string): type is typeof VALID_TYPES[number] {
+  return VALID_TYPES.includes(type as typeof VALID_TYPES[number])
+}
 
-// PUT /api/super/pipeline/contract-variants/[id]/templates/[type] — Create or update a template
+// GET /api/super/pipeline/contract-variants/[id]/templates/[type] — Download template .docx
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string; type: string }> }
+) {
+  try {
+    await requireSuperuser()
+    const { id, type } = await params
+
+    if (!validateType(type)) {
+      return NextResponse.json({ error: `Invalid document type: ${type}` }, { status: 400 })
+    }
+
+    const template = await prisma.documentTemplate.findUnique({
+      where: { contractVariantId_documentType: { contractVariantId: id, documentType: type } },
+      select: { templateDocx: true, fileName: true },
+    })
+
+    if (!template?.templateDocx) {
+      return NextResponse.json({ error: 'No template uploaded' }, { status: 404 })
+    }
+
+    const fileName = template.fileName || `${type}.docx`
+    return new NextResponse(template.templateDocx, {
+      headers: {
+        'Content-Type': DOCX_MIME,
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+      },
+    })
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// PUT /api/super/pipeline/contract-variants/[id]/templates/[type] — Upload .docx template
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; type: string }> }
@@ -19,37 +55,54 @@ export async function PUT(
     await requireSuperuser()
     const { id, type } = await params
 
-    // Validate document type
-    if (!VALID_TYPES.includes(type as typeof VALID_TYPES[number])) {
+    if (!validateType(type)) {
       return NextResponse.json({ error: `Invalid document type: ${type}` }, { status: 400 })
     }
-    const documentType = type as typeof VALID_TYPES[number]
 
-    // Validate variant exists
     const variant = await prisma.contractVariant.findUnique({ where: { id } })
     if (!variant) {
       return NextResponse.json({ error: 'Variant not found' }, { status: 404 })
     }
 
-    const body = await request.json()
-    const { contentHtml, contentJson } = upsertTemplateSchema.parse(body)
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 })
+    }
+
+    if (!file.name.endsWith('.docx')) {
+      return NextResponse.json({ error: 'Only .docx files are accepted' }, { status: 400 })
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
 
     const template = await prisma.documentTemplate.upsert({
       where: {
-        contractVariantId_documentType: {
-          contractVariantId: id,
-          documentType,
-        },
+        contractVariantId_documentType: { contractVariantId: id, documentType: type },
       },
       create: {
         contractVariantId: id,
-        documentType,
-        contentHtml,
-        contentJson: contentJson ?? null,
+        documentType: type,
+        templateDocx: buffer,
+        fileName: file.name,
+        contentHtml: null,
+        contentJson: null,
       },
       update: {
-        contentHtml,
-        contentJson: contentJson ?? null,
+        templateDocx: buffer,
+        fileName: file.name,
+        contentHtml: null,
+        contentJson: null,
+      },
+      select: {
+        id: true,
+        contractVariantId: true,
+        documentType: true,
+        fileName: true,
+        createdAt: true,
+        updatedAt: true,
       },
     })
 
@@ -58,8 +111,39 @@ export async function PUT(
     if (error instanceof Error && error.message.includes('required')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Invalid input', details: error.issues }, { status: 400 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+// DELETE /api/super/pipeline/contract-variants/[id]/templates/[type] — Delete template
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string; type: string }> }
+) {
+  try {
+    await requireSuperuser()
+    const { id, type } = await params
+
+    if (!validateType(type)) {
+      return NextResponse.json({ error: `Invalid document type: ${type}` }, { status: 400 })
+    }
+
+    const existing = await prisma.documentTemplate.findUnique({
+      where: { contractVariantId_documentType: { contractVariantId: id, documentType: type } },
+    })
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Template not found' }, { status: 404 })
+    }
+
+    await prisma.documentTemplate.delete({
+      where: { contractVariantId_documentType: { contractVariantId: id, documentType: type } },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('required')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

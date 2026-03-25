@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Input, Dialog, FormField, Badge, Select, AlertBanner } from '@/components/ui'
 import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, type DocumentType } from './types'
-import RichTextEditor from '@/components/rich-text/RichTextEditor'
 
 // ── Placeholders per document type ──────────────────────────────────
 
@@ -29,8 +28,9 @@ interface DocTemplate {
   id: string
   contractVariantId: string
   documentType: string
-  contentHtml: string
-  contentJson: string | null
+  fileName: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 // ── Component ───────────────────────────────────────────────────────
@@ -41,10 +41,8 @@ export default function DocumentTemplates() {
   const [selectedDocType, setSelectedDocType] = useState<DocumentType>('Proposal')
   const [templates, setTemplates] = useState<DocTemplate[]>([])
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [editorContent, setEditorContent] = useState('')
-  const [dirty, setDirty] = useState(false)
-  const [editorKey, setEditorKey] = useState(0) // Incremented to force editor remount
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Create variant dialog
   const [showCreateVariant, setShowCreateVariant] = useState(false)
@@ -59,7 +57,6 @@ export default function DocumentTemplates() {
       .then((data) => {
         if (Array.isArray(data)) {
           setVariants(data)
-          // Select the default variant initially
           const defaultV = data.find((v: ContractVariant) => v.isDefault) || data[0]
           if (defaultV) setSelectedVariantId(defaultV.id)
         }
@@ -74,48 +71,40 @@ export default function DocumentTemplates() {
     fetch(`/api/super/pipeline/contract-variants/${variantId}/templates`)
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) {
-          setTemplates(data)
-        }
+        if (Array.isArray(data)) setTemplates(data)
       })
       .catch(() => toast.error('Failed to load templates'))
   }, [])
 
   useEffect(() => {
-    if (selectedVariantId) {
-      fetchTemplates(selectedVariantId)
-    }
+    if (selectedVariantId) fetchTemplates(selectedVariantId)
   }, [selectedVariantId, fetchTemplates])
-
-  // Load current template content into editor when doc type or templates change.
-  // Bump editorKey to force SafeTipTapEditor to remount with the new content,
-  // since it only hydrates on docId change, not on value/initialHtml change.
-  useEffect(() => {
-    const tpl = templates.find((t) => t.documentType === selectedDocType)
-    setEditorContent(tpl?.contentHtml ?? '')
-    setDirty(false)
-    setEditorKey((k) => k + 1)
-  }, [selectedDocType, templates])
 
   const currentTemplate = templates.find((t) => t.documentType === selectedDocType)
   const selectedVariant = variants.find((v) => v.id === selectedVariantId)
 
-  async function handleSave() {
+  // ── Upload handler ────────────────────────────────────────────────
+
+  async function handleUpload(file: File) {
+    if (!file.name.endsWith('.docx')) {
+      toast.error('Only .docx files are accepted')
+      return
+    }
     if (!selectedVariantId) return
-    setSaving(true)
+
+    setUploading(true)
     try {
+      const formData = new FormData()
+      formData.append('file', file)
+
       const res = await fetch(
         `/api/super/pipeline/contract-variants/${selectedVariantId}/templates/${selectedDocType}`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ contentHtml: editorContent }),
-        }
+        { method: 'PUT', body: formData }
       )
 
       if (!res.ok) {
         const data = await res.json()
-        toast.error(data.error || 'Failed to save')
+        toast.error(data.error || 'Upload failed')
         return
       }
 
@@ -129,14 +118,63 @@ export default function DocumentTemplates() {
         }
         return [...prev, saved]
       })
-      setDirty(false)
-      toast.success('Template saved')
+      toast.success('Template uploaded')
     } catch {
       toast.error('An error occurred')
     } finally {
-      setSaving(false)
+      setUploading(false)
+      // Reset file input so the same file can be re-uploaded
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
+
+  function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) handleUpload(file)
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const file = e.dataTransfer.files[0]
+    if (file) handleUpload(file)
+  }
+
+  // ── Download handler ──────────────────────────────────────────────
+
+  function handleDownload() {
+    if (!selectedVariantId || !currentTemplate) return
+    window.open(
+      `/api/super/pipeline/contract-variants/${selectedVariantId}/templates/${selectedDocType}`,
+      '_blank'
+    )
+  }
+
+  // ── Delete handler ────────────────────────────────────────────────
+
+  async function handleDelete() {
+    if (!selectedVariantId || !currentTemplate) return
+    if (!confirm(`Delete the ${DOCUMENT_TYPE_LABELS[selectedDocType]} template?`)) return
+
+    try {
+      const res = await fetch(
+        `/api/super/pipeline/contract-variants/${selectedVariantId}/templates/${selectedDocType}`,
+        { method: 'DELETE' }
+      )
+
+      if (!res.ok) {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to delete')
+        return
+      }
+
+      setTemplates((prev) => prev.filter((t) => t.documentType !== selectedDocType))
+      toast.success('Template deleted')
+    } catch {
+      toast.error('An error occurred')
+    }
+  }
+
+  // ── Variant management ────────────────────────────────────────────
 
   async function handleCreateVariant(e: React.FormEvent) {
     e.preventDefault()
@@ -156,7 +194,6 @@ export default function DocumentTemplates() {
 
       const created = await res.json()
       setVariants((prev) => {
-        // If new variant is default, unset others
         const updated = newVariantDefault
           ? prev.map((v) => ({ ...v, isDefault: false }))
           : prev
@@ -214,10 +251,7 @@ export default function DocumentTemplates() {
           <FormField label="Contract Variant" className="flex-1 mb-0">
             <Select
               value={selectedVariantId}
-              onChange={(e) => {
-                if (dirty && !confirm('You have unsaved changes. Discard them?')) return
-                setSelectedVariantId(e.target.value)
-              }}
+              onChange={(e) => setSelectedVariantId(e.target.value)}
             >
               {variants.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -246,10 +280,7 @@ export default function DocumentTemplates() {
               return (
                 <button
                   key={dt}
-                  onClick={() => {
-                    if (dirty && !confirm('You have unsaved changes. Discard them?')) return
-                    setSelectedDocType(dt)
-                  }}
+                  onClick={() => setSelectedDocType(dt)}
                   className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-b-0 transition-colors flex items-center justify-between ${
                     selectedDocType === dt
                       ? 'bg-nhs-blue text-white'
@@ -266,39 +297,101 @@ export default function DocumentTemplates() {
           </nav>
         </div>
 
-        {/* Editor */}
+        {/* Upload / template management */}
         <div className="lg:col-span-3 space-y-4">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-nhs-dark-blue">
                 {DOCUMENT_TYPE_LABELS[selectedDocType]}
               </h3>
-              <div className="flex items-center gap-2">
-                {currentTemplate && (
-                  <Badge color="green" size="sm">Template exists</Badge>
-                )}
-                <Button onClick={handleSave} loading={saving} disabled={!dirty && !!currentTemplate}>
-                  {saving ? 'Saving...' : currentTemplate ? 'Save Changes' : 'Create Template'}
-                </Button>
-              </div>
+              {currentTemplate && (
+                <Badge color="green" size="sm">Template uploaded</Badge>
+              )}
             </div>
 
-            {dirty && (
-              <AlertBanner variant="info" className="mb-4">
-                You have unsaved changes.
-              </AlertBanner>
+            {currentTemplate ? (
+              /* ── Template exists ──────────────────────────────────── */
+              <div className="space-y-4">
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {currentTemplate.fileName || 'template.docx'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Uploaded {new Date(currentTemplate.updatedAt).toLocaleDateString('en-GB', {
+                          day: '2-digit', month: 'short', year: 'numeric',
+                        })}{' '}at{' '}
+                        {new Date(currentTemplate.updatedAt).toLocaleTimeString('en-GB', {
+                          hour: '2-digit', minute: '2-digit',
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="sm" onClick={handleDownload}>
+                        Download
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => fileInputRef.current?.click()}
+                        loading={uploading}
+                      >
+                        Replace
+                      </Button>
+                      <Button variant="danger-soft" size="sm" onClick={handleDelete}>
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <AlertBanner variant="info">
+                  To edit, download the template, modify it in Word, then re-upload.
+                </AlertBanner>
+              </div>
+            ) : (
+              /* ── No template — upload drop zone ───────────────────── */
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-nhs-blue transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-10 h-10 mx-auto text-gray-400 mb-3"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                <p className="text-sm text-gray-600 mb-1">
+                  Drag and drop a .docx template here, or
+                </p>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  loading={uploading}
+                >
+                  Choose File
+                </Button>
+                <p className="text-xs text-gray-400 mt-2">
+                  Upload a Word document containing {'{{'}placeholders{'}}'}  that will be
+                  substituted with practice details at generation time.
+                </p>
+              </div>
             )}
 
-            <RichTextEditor
-              key={editorKey}
-              docId={`doc-template:${selectedVariantId}:${selectedDocType}:${editorKey}`}
-              value={editorContent}
-              onChange={(html) => {
-                setEditorContent(html)
-                setDirty(true)
-              }}
-              height={450}
-              placeholder="Start writing your document template..."
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".docx"
+              className="hidden"
+              onChange={handleFileInput}
             />
           </div>
 
@@ -308,7 +401,7 @@ export default function DocumentTemplates() {
               Available Placeholders
             </h4>
             <p className="text-xs text-gray-500 mb-3">
-              Type these anywhere in the template. They will be replaced with the
+              Use these in your Word template. They will be replaced with the
               practice&apos;s details when the document is generated.
             </p>
             <div className="flex flex-wrap gap-2">
@@ -321,22 +414,6 @@ export default function DocumentTemplates() {
                 </code>
               ))}
             </div>
-
-            <h4 className="text-sm font-semibold text-gray-700 mt-4 mb-2">
-              Special Blocks
-            </h4>
-            <p className="text-xs text-gray-500 mb-3">
-              These insert structured elements into the generated document.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <code className="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-1 rounded text-xs font-mono">
-                {'{{signature_block}}'}
-              </code>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              Inserts a two-column signature table (Provider / Practice) with
-              ruled lines for Signature, Name, and Date.
-            </p>
           </div>
         </div>
       </div>

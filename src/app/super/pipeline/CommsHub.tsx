@@ -8,7 +8,6 @@ import { generateDocument } from './documentGenerator'
 import {
   DEFAULT_EMAIL_TEMPLATES,
   STAGE_TO_TEMPLATE_KEY,
-  type DefaultEmailTemplate,
 } from './emailTemplateDefaults'
 
 // ── Stage definitions ───────────────────────────────────────────────
@@ -219,32 +218,29 @@ export default function CommsHub({ entries, setEntries }: Props) {
       })
   }, [])
 
-  // Document templates for the selected practice's contract variant
-  const [docTemplates, setDocTemplates] = useState<Record<string, string>>({}) // documentType -> contentHtml
-  const [docVariantName, setDocVariantName] = useState('')
+  // Document templates: track which document types have an uploaded .docx
+  const [docTemplateTypes, setDocTemplateTypes] = useState<Set<string>>(new Set())
+  const [docVariantId, setDocVariantId] = useState('')
 
-  // Fetch document templates when practice selection changes
+  // Fetch document template list when practice selection changes
   useEffect(() => {
     const entry = entries.find((e) => e.id === selectedPracticeId)
     const variantId = entry?.contractVariantId
     if (!variantId) {
-      setDocTemplates({})
-      setDocVariantName('')
+      setDocTemplateTypes(new Set())
+      setDocVariantId('')
       return
     }
+    setDocVariantId(variantId)
     fetch(`/api/super/pipeline/contract-variants/${variantId}/templates`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          const map: Record<string, string> = {}
-          for (const t of data) map[t.documentType] = t.contentHtml
-          setDocTemplates(map)
+          // The list endpoint returns templates that exist — each has a fileName if uploaded
+          setDocTemplateTypes(new Set(data.map((t: { documentType: string }) => t.documentType)))
         }
       })
-      .catch(() => setDocTemplates({}))
-    // Also get variant name
-    const variant = entry?.contractVariant
-    setDocVariantName(variant?.name ?? '')
+      .catch(() => setDocTemplateTypes(new Set()))
   }, [selectedPracticeId, entries])
 
   // When practice selection changes, pre-fill fields and default stage
@@ -322,26 +318,24 @@ export default function CommsHub({ entries, setEntries }: Props) {
     !stageUpdated
 
   async function handleGenerateDoc(docType: DocumentType) {
-    const templateHtml = docTemplates[docType]
-    if (!templateHtml) return
+    if (!docVariantId || !docTemplateTypes.has(docType)) return
 
     try {
       await generateDocument(
-        templateHtml,
+        docVariantId,
         docType,
         {
           practiceName: fields.practiceName,
+          practiceAddress: entries.find((e) => e.id === selectedPracticeId)?.practiceAddress ?? '',
           contactName: fields.contactName,
           contactRole: '',
-          practiceAddress: entries.find((e) => e.id === selectedPracticeId)?.practiceAddress ?? '',
           contactEmail: fields.contactEmail,
           listSize: fields.listSize,
           estimatedFee: fields.estimatedFee,
           contractStartDate: fields.contractStartDate
             ? formatDateForEmail(fields.contractStartDate)
             : '',
-        },
-        docVariantName
+        }
       )
       toast.success(`${DOCUMENT_TYPE_LABELS[docType]} downloaded`)
     } catch {
@@ -458,7 +452,7 @@ export default function CommsHub({ entries, setEntries }: Props) {
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Documents</h3>
               <div className="space-y-2">
                 {documents.map((docType) => {
-                  const hasTemplate = !!docTemplates[docType]
+                  const hasTemplate = docTemplateTypes.has(docType)
                   return (
                     <div
                       key={docType}
@@ -485,7 +479,7 @@ export default function CommsHub({ entries, setEntries }: Props) {
                     Select a practice from the dropdown to enable document generation.
                   </p>
                 )}
-                {selectedPracticeId !== 'manual' && Object.keys(docTemplates).length === 0 && (
+                {selectedPracticeId !== 'manual' && docTemplateTypes.size === 0 && (
                   <p className="text-xs text-gray-400 mt-1">
                     No document templates configured for this practice&apos;s contract variant.
                     Set up templates in the Templates tab.

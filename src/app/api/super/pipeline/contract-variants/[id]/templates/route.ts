@@ -16,9 +16,18 @@ export async function GET(
       return NextResponse.json({ error: 'Variant not found' }, { status: 404 })
     }
 
+    // Exclude templateDocx bytes from list response — they can be large
     const templates = await prisma.documentTemplate.findMany({
       where: { contractVariantId: id },
       orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        contractVariantId: true,
+        documentType: true,
+        fileName: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     })
 
     return NextResponse.json(templates)
