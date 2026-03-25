@@ -303,10 +303,10 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
                       </td>
                       <td className="px-4 py-3 text-sm">
                         <Link
-                          href={`/s/${entry.linkedSurgeryId}/admin`}
+                          href={`/s/${entry.linkedSurgeryId}/dashboard`}
                           className="text-nhs-blue hover:text-nhs-dark-blue font-medium"
                         >
-                          Open Surgery Admin &rarr;
+                          Open Surgery Dashboard &rarr;
                         </Link>
                       </td>
                     </tr>
@@ -362,10 +362,10 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
             </div>
 
             <Link
-              href={`/s/${provisionedResult.surgeryId}/admin`}
+              href={`/s/${provisionedResult.surgeryId}/dashboard`}
               className="inline-flex items-center text-sm font-medium text-nhs-blue hover:text-nhs-dark-blue"
             >
-              Open Surgery Admin &rarr;
+              Open Surgery Dashboard &rarr;
             </Link>
           </div>
         ) : (
