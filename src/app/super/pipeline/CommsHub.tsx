@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Select, Input, FormField, Badge, AlertBanner } from '@/components/ui'
-import { PipelineEntry, PipelineStatus, STATUS_LABELS, DocumentType, DOCUMENT_TYPE_LABELS } from './types'
+import { PipelineEntry, PipelineStatus, STATUS_LABELS, DocumentType, DOCUMENT_TYPE_LABELS, SHARED_DOC_TYPES } from './types'
 import { generateDocument } from './documentGenerator'
 import {
   DEFAULT_EMAIL_TEMPLATES,
@@ -219,29 +219,86 @@ export default function CommsHub({ entries, setEntries }: Props) {
   }, [])
 
   // Document templates: track which document types have an uploaded .docx
+  // Variant-specific types use the practice's variant; shared types use the default variant
   const [docTemplateTypes, setDocTemplateTypes] = useState<Set<string>>(new Set())
   const [docVariantId, setDocVariantId] = useState('')
+  const [defaultVariantId, setDefaultVariantId] = useState('')
+  // Map from documentType to the variantId that owns the template (for generation)
+  const [docVariantMap, setDocVariantMap] = useState<Record<string, string>>({})
 
-  // Fetch document template list when practice selection changes
+  // Fetch default variant ID on mount
   useEffect(() => {
-    const entry = entries.find((e) => e.id === selectedPracticeId)
-    const variantId = entry?.contractVariantId
-    if (!variantId) {
-      setDocTemplateTypes(new Set())
-      setDocVariantId('')
-      return
-    }
-    setDocVariantId(variantId)
-    fetch(`/api/super/pipeline/contract-variants/${variantId}/templates`)
+    fetch('/api/super/pipeline/contract-variants')
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          // The list endpoint returns templates that exist — each has a fileName if uploaded
-          setDocTemplateTypes(new Set(data.map((t: { documentType: string }) => t.documentType)))
+          const def = data.find((v: { isDefault: boolean }) => v.isDefault)
+          if (def) setDefaultVariantId(def.id)
         }
       })
-      .catch(() => setDocTemplateTypes(new Set()))
-  }, [selectedPracticeId, entries])
+      .catch(() => {})
+  }, [])
+
+  // Fetch document template lists when practice selection or default variant changes
+  useEffect(() => {
+    const entry = entries.find((e) => e.id === selectedPracticeId)
+    const variantId = entry?.contractVariantId
+    if (!variantId && !defaultVariantId) {
+      setDocTemplateTypes(new Set())
+      setDocVariantId('')
+      setDocVariantMap({})
+      return
+    }
+
+    setDocVariantId(variantId || defaultVariantId)
+    const available = new Set<string>()
+    const varMap: Record<string, string> = {}
+
+    const fetches: Promise<void>[] = []
+
+    // Fetch variant-specific templates from the practice's variant
+    if (variantId) {
+      fetches.push(
+        fetch(`/api/super/pipeline/contract-variants/${variantId}/templates`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (Array.isArray(data)) {
+              for (const t of data) {
+                if (!SHARED_DOC_TYPES.includes(t.documentType)) {
+                  available.add(t.documentType)
+                  varMap[t.documentType] = variantId
+                }
+              }
+            }
+          })
+          .catch(() => {})
+      )
+    }
+
+    // Fetch shared templates from the default variant
+    if (defaultVariantId) {
+      fetches.push(
+        fetch(`/api/super/pipeline/contract-variants/${defaultVariantId}/templates`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (Array.isArray(data)) {
+              for (const t of data) {
+                if (SHARED_DOC_TYPES.includes(t.documentType)) {
+                  available.add(t.documentType)
+                  varMap[t.documentType] = defaultVariantId
+                }
+              }
+            }
+          })
+          .catch(() => {})
+      )
+    }
+
+    Promise.all(fetches).then(() => {
+      setDocTemplateTypes(available)
+      setDocVariantMap(varMap)
+    })
+  }, [selectedPracticeId, entries, defaultVariantId])
 
   // When practice selection changes, pre-fill fields and default stage
   useEffect(() => {
@@ -318,11 +375,12 @@ export default function CommsHub({ entries, setEntries }: Props) {
     !stageUpdated
 
   async function handleGenerateDoc(docType: DocumentType) {
-    if (!docVariantId || !docTemplateTypes.has(docType)) return
+    const templateVariantId = docVariantMap[docType]
+    if (!templateVariantId || !docTemplateTypes.has(docType)) return
 
     try {
       await generateDocument(
-        docVariantId,
+        templateVariantId,
         docType,
         {
           practiceName: fields.practiceName,

@@ -88,6 +88,12 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   IgSecurityPack: 'IG & Security Response Pack',
 }
 
+/** Document types whose template varies by contract variant */
+export const VARIANT_SPECIFIC_TYPES: DocumentType[] = ['Proposal', 'SaasAgreement']
+
+/** Document types that use a single shared template across all variants */
+export const SHARED_DOC_TYPES: DocumentType[] = ['Dpa', 'HostingOverview', 'IgSecurityPack']
+
 export const STATUS_BADGE_COLOURS: Record<PipelineStatus, string> = {
   Enquiry: 'gray',
   DemoBooked: 'blue',

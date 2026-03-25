@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Input, Dialog, FormField, Badge, Select, AlertBanner } from '@/components/ui'
-import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, type DocumentType } from './types'
+import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, VARIANT_SPECIFIC_TYPES, SHARED_DOC_TYPES, type DocumentType } from './types'
 
 // ── Placeholders per document type ──────────────────────────────────
 
@@ -65,23 +65,47 @@ export default function DocumentTemplates() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Fetch templates when variant changes
-  const fetchTemplates = useCallback((variantId: string) => {
+  // Fetch templates: variant-specific from selected variant, shared from default variant
+  const fetchTemplates = useCallback((variantId: string, allVariants: ContractVariant[]) => {
     if (!variantId) return
-    fetch(`/api/super/pipeline/contract-variants/${variantId}/templates`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setTemplates(data)
-      })
-      .catch(() => toast.error('Failed to load templates'))
+    const defId = allVariants.find((v) => v.isDefault)?.id ?? variantId
+    const ids = new Set([variantId, defId])
+
+    Promise.all(
+      Array.from(ids).map((vid) =>
+        fetch(`/api/super/pipeline/contract-variants/${vid}/templates`)
+          .then((r) => r.json())
+          .then((data) => (Array.isArray(data) ? data.map((t: DocTemplate) => ({ ...t, contractVariantId: vid })) : []))
+          .catch(() => [] as DocTemplate[])
+      )
+    ).then((results) => {
+      const merged: DocTemplate[] = []
+      const seen = new Set<string>()
+      for (const list of results) {
+        for (const t of list) {
+          // For shared types, only accept from default variant; for variant-specific, only from selected
+          const isShared = SHARED_DOC_TYPES.includes(t.documentType as DocumentType)
+          const wantedVid = isShared ? defId : variantId
+          if (t.contractVariantId === wantedVid && !seen.has(t.documentType)) {
+            seen.add(t.documentType)
+            merged.push(t)
+          }
+        }
+      }
+      setTemplates(merged)
+    })
   }, [])
 
   useEffect(() => {
-    if (selectedVariantId) fetchTemplates(selectedVariantId)
-  }, [selectedVariantId, fetchTemplates])
+    if (selectedVariantId && variants.length > 0) fetchTemplates(selectedVariantId, variants)
+  }, [selectedVariantId, fetchTemplates, variants])
 
   const currentTemplate = templates.find((t) => t.documentType === selectedDocType)
   const selectedVariant = variants.find((v) => v.id === selectedVariantId)
+  const defaultVariantId = variants.find((v) => v.isDefault)?.id ?? selectedVariantId
+  const isSharedType = SHARED_DOC_TYPES.includes(selectedDocType)
+  // Shared types always use the default variant; variant-specific types use the selected variant
+  const effectiveVariantId = isSharedType ? defaultVariantId : selectedVariantId
 
   // ── Upload handler ────────────────────────────────────────────────
 
@@ -98,7 +122,7 @@ export default function DocumentTemplates() {
       formData.append('file', file)
 
       const res = await fetch(
-        `/api/super/pipeline/contract-variants/${selectedVariantId}/templates/${selectedDocType}`,
+        `/api/super/pipeline/contract-variants/${effectiveVariantId}/templates/${selectedDocType}`,
         { method: 'PUT', body: formData }
       )
 
@@ -144,7 +168,7 @@ export default function DocumentTemplates() {
   function handleDownload() {
     if (!selectedVariantId || !currentTemplate) return
     window.open(
-      `/api/super/pipeline/contract-variants/${selectedVariantId}/templates/${selectedDocType}`,
+      `/api/super/pipeline/contract-variants/${effectiveVariantId}/templates/${selectedDocType}`,
       '_blank'
     )
   }
@@ -157,7 +181,7 @@ export default function DocumentTemplates() {
 
     try {
       const res = await fetch(
-        `/api/super/pipeline/contract-variants/${selectedVariantId}/templates/${selectedDocType}`,
+        `/api/super/pipeline/contract-variants/${effectiveVariantId}/templates/${selectedDocType}`,
         { method: 'DELETE' }
       )
 
@@ -275,7 +299,32 @@ export default function DocumentTemplates() {
         {/* Document type nav */}
         <div className="lg:col-span-1">
           <nav className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            {DOCUMENT_TYPES.map((dt) => {
+            <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+              Variant-specific
+            </div>
+            {VARIANT_SPECIFIC_TYPES.map((dt) => {
+              const hasTemplate = templates.some((t) => t.documentType === dt)
+              return (
+                <button
+                  key={dt}
+                  onClick={() => setSelectedDocType(dt)}
+                  className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 transition-colors flex items-center justify-between ${
+                    selectedDocType === dt
+                      ? 'bg-nhs-blue text-white'
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <span>{DOCUMENT_TYPE_LABELS[dt]}</span>
+                  {hasTemplate && selectedDocType !== dt && (
+                    <Badge color="green" size="sm">Ready</Badge>
+                  )}
+                </button>
+              )
+            })}
+            <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 border-t">
+              Shared (all variants)
+            </div>
+            {SHARED_DOC_TYPES.map((dt) => {
               const hasTemplate = templates.some((t) => t.documentType === dt)
               return (
                 <button
@@ -304,10 +353,20 @@ export default function DocumentTemplates() {
               <h3 className="text-lg font-semibold text-nhs-dark-blue">
                 {DOCUMENT_TYPE_LABELS[selectedDocType]}
               </h3>
-              {currentTemplate && (
-                <Badge color="green" size="sm">Template uploaded</Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {isSharedType && (
+                  <Badge color="blue" size="sm">Shared</Badge>
+                )}
+                {currentTemplate && (
+                  <Badge color="green" size="sm">Template uploaded</Badge>
+                )}
+              </div>
             </div>
+            {isSharedType && (
+              <p className="text-xs text-gray-500 mb-3">
+                This template is shared across all contract variants.
+              </p>
+            )}
 
             {currentTemplate ? (
               /* ── Template exists ──────────────────────────────────── */
