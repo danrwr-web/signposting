@@ -34,9 +34,14 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
   const isEdit = !!entry
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(getDefaults(entry))
+  const [feeManuallyEdited, setFeeManuallyEdited] = useState(false)
 
   useEffect(() => {
-    if (open) setForm(getDefaults(entry))
+    if (open) {
+      setForm(getDefaults(entry))
+      // If the entry already has a fee, treat it as manually set
+      setFeeManuallyEdited(!!entry?.estimatedFeeGbp)
+    }
   }, [open, entry])
 
   function getDefaults(e: PipelineEntry | null) {
@@ -70,8 +75,38 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
   }
 
   function setField(key: string, value: string | boolean) {
-    setForm((prev) => ({ ...prev, [key]: value }))
+    setForm((prev) => {
+      const next = { ...prev, [key]: value }
+
+      // Auto-calculate fee when list size changes and fee hasn't been manually overridden
+      if (key === 'listSize' && !feeManuallyEdited) {
+        const size = parseInt(value as string, 10)
+        next.estimatedFeeGbp = size > 0 ? (size * 0.07).toFixed(2) : ''
+      }
+
+      return next
+    })
   }
+
+  function handleFeeChange(value: string) {
+    setFeeManuallyEdited(true)
+    setForm((prev) => ({ ...prev, estimatedFeeGbp: value }))
+  }
+
+  function recalculateFee() {
+    const size = parseInt(form.listSize, 10)
+    setFeeManuallyEdited(false)
+    setForm((prev) => ({
+      ...prev,
+      estimatedFeeGbp: size > 0 ? (size * 0.07).toFixed(2) : '',
+    }))
+  }
+
+  const autoFee = form.listSize
+    ? (parseInt(form.listSize, 10) * 0.07).toFixed(2)
+    : ''
+  const showRecalculate =
+    feeManuallyEdited && form.listSize && form.estimatedFeeGbp !== autoFee
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -192,9 +227,18 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
               type="number"
               step="0.01"
               value={form.estimatedFeeGbp}
-              onChange={(e) => setField('estimatedFeeGbp', e.target.value)}
+              onChange={(e) => handleFeeChange(e.target.value)}
               placeholder="Auto-calculated from list size"
             />
+            {showRecalculate && (
+              <button
+                type="button"
+                onClick={recalculateFee}
+                className="mt-1 text-xs text-nhs-blue hover:text-nhs-dark-blue"
+              >
+                Recalculate (£{autoFee})
+              </button>
+            )}
           </FormField>
           <FormField label="Annual Value (£)">
             <Input
