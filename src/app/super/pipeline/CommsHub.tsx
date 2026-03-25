@@ -4,6 +4,11 @@ import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Select, Input, FormField, Badge, AlertBanner } from '@/components/ui'
 import { PipelineEntry, PipelineStatus, STATUS_LABELS } from './types'
+import {
+  DEFAULT_EMAIL_TEMPLATES,
+  STAGE_TO_TEMPLATE_KEY,
+  type DefaultEmailTemplate,
+} from './emailTemplateDefaults'
 
 // ── Stage definitions ───────────────────────────────────────────────
 
@@ -93,28 +98,7 @@ const STAGE_DOCUMENTS: Partial<Record<CommsStage, string[]>> = {
   ],
 }
 
-// ── Email templates ─────────────────────────────────────────────────
-
-function placeholder(val: string | undefined, name: string): string {
-  if (val && val.trim()) return val
-  return `[${name}]`
-}
-
-function hasPlaceholders(text: string): boolean {
-  return /\[[^\]]+\]/.test(text)
-}
-
-function highlightPlaceholders(text: string): React.ReactNode[] {
-  const parts = text.split(/(\[[^\]]+\])/)
-  return parts.map((part, i) => {
-    if (/^\[.*\]$/.test(part)) {
-      return (
-        <span key={i} className="text-red-500 font-medium">{part}</span>
-      )
-    }
-    return <span key={i}>{part}</span>
-  })
-}
+// ── Email template substitution ─────────────────────────────────────
 
 interface Fields {
   practiceName: string
@@ -142,121 +126,52 @@ function formatTimeForEmail(timeStr: string): string {
   return `${display}${m !== '00' ? `:${m}` : ''}${suffix}`
 }
 
-function getEmailTemplate(
-  stage: CommsStage,
-  f: Fields
-): { subject: string; body: string } {
-  const name = placeholder(f.contactName, 'Contact Name')
-  const practice = placeholder(f.practiceName, 'Practice Name')
-  const fee = placeholder(f.estimatedFee, 'Monthly Fee')
-  const listSize = placeholder(f.listSize, 'List Size')
-  const demoDate = placeholder(f.demoDate ? formatDateForEmail(f.demoDate) : '', 'Demo Date')
-  const demoTime = placeholder(f.demoTime ? formatTimeForEmail(f.demoTime) : '', 'Demo Time')
-  const startDate = placeholder(
-    f.contractStartDate ? formatDateForEmail(f.contractStartDate) : '',
-    'Contract Start Date'
-  )
-
-  switch (stage) {
-    case 'Enquiry':
-      return {
-        subject: `Signposting Toolkit — Enquiry from ${practice}`,
-        body: `Dear ${name},
-
-Thank you for your enquiry about the Signposting Toolkit. We'd love to show you how it can help your reception team at ${practice} direct patients to the right service, first time.
-
-Would you have 20 minutes for a short online demo? I'm flexible on times and happy to work around your schedule.
-
-I look forward to hearing from you.
-
-Kind regards,
-Dan`,
-      }
-
-    case 'DemoBooked':
-      return {
-        subject: `Signposting Toolkit Demo — ${demoDate} at ${demoTime}`,
-        body: `Dear ${name},
-
-Great to speak with you. I've booked your demo for ${demoDate} at ${demoTime}.
-
-I'll send a Teams invite shortly. The demo takes around 20 minutes and I'll walk through how the Signposting Toolkit works in practice, with real examples relevant to ${practice}.
-
-If you need to reschedule, just let me know.
-
-Kind regards,
-Dan`,
-      }
-
-    case 'DemoCompleted':
-      return {
-        subject: `Signposting Toolkit — Proposal for ${practice}`,
-        body: `Dear ${name},
-
-Thank you for taking the time to see the Signposting Toolkit in action. As discussed, I've attached a proposal tailored to ${practice}.
-
-Based on your list size of ${listSize} patients, the monthly fee would be £${fee}.
-
-The proposal covers what's included, how onboarding works, and the timeline to get your team up and running. I'm happy to answer any questions or arrange a follow-up call.
-
-Kind regards,
-Dan`,
-      }
-
-    case 'ProposalSent':
-      return {
-        subject: `Signposting Toolkit — Documents for ${practice}`,
-        body: `Dear ${name},
-
-Following on from our proposal, I've attached the formal documents for your review:
-
-1. SaaS Agreement
-2. Data Processing Agreement (DPA)
-3. Hosting & Information Governance Overview
-4. IG & Security Response Pack
-
-These cover the contractual terms, data handling, and security arrangements. Everything is designed to meet NHS IG and DTAC standards.
-
-If you have any questions or need anything reviewed by your practice manager or Caldicott Guardian, I'm happy to help.
-
-Kind regards,
-Dan`,
-      }
-
-    case 'DocumentsSent':
-      return {
-        subject: `Signposting Toolkit — Next steps for ${practice}`,
-        body: `Dear ${name},
-
-Just checking in on the documents I sent across. Have you had a chance to review them? I'm happy to jump on a call if anything needs clarifying.
-
-Once the agreements are signed, we can get ${practice} set up and your team trained. The onboarding process typically takes around 1–2 weeks from contract start.
-
-Looking forward to hearing from you.
-
-Kind regards,
-Dan`,
-      }
-
-    case 'Contracted':
-      return {
-        subject: `Welcome to the Signposting Toolkit — ${practice}`,
-        body: `Dear ${name},
-
-Welcome aboard! I'm delighted that ${practice} has chosen the Signposting Toolkit.
-
-Your contract start date is ${startDate}. Here's what happens next:
-
-1. I'll set up your surgery on the platform and send you admin login details
-2. We'll schedule a short onboarding call to configure your practice's settings
-3. I'll provide training materials for your reception team
-
-I'll be in touch shortly with your login details. In the meantime, if you have any questions at all, don't hesitate to reach out.
-
-Kind regards,
-Dan`,
-      }
+/** Replace {{placeholders}} with field values, showing [Label] for missing ones */
+function substituteTemplate(template: string, f: Fields): string {
+  const replacements: Record<string, { value: string; label: string }> = {
+    '{{contactName}}': { value: f.contactName, label: 'Contact Name' },
+    '{{practiceName}}': { value: f.practiceName, label: 'Practice Name' },
+    '{{listSize}}': { value: f.listSize, label: 'List Size' },
+    '{{estimatedFee}}': { value: f.estimatedFee, label: 'Monthly Fee' },
+    '{{demoDate}}': { value: f.demoDate ? formatDateForEmail(f.demoDate) : '', label: 'Demo Date' },
+    '{{demoTime}}': { value: f.demoTime ? formatTimeForEmail(f.demoTime) : '', label: 'Demo Time' },
+    '{{contractStartDate}}': {
+      value: f.contractStartDate ? formatDateForEmail(f.contractStartDate) : '',
+      label: 'Contract Start Date',
+    },
   }
+
+  let result = template
+  for (const [placeholder, { value, label }] of Object.entries(replacements)) {
+    const replacement = value.trim() ? value : `[${label}]`
+    result = result.split(placeholder).join(replacement)
+  }
+  return result
+}
+
+function hasPlaceholders(text: string): boolean {
+  return /\[[^\]]+\]/.test(text)
+}
+
+function highlightPlaceholders(text: string): React.ReactNode[] {
+  const parts = text.split(/(\[[^\]]+\])/)
+  return parts.map((part, i) => {
+    if (/^\[.*\]$/.test(part)) {
+      return (
+        <span key={i} className="text-red-500 font-medium">{part}</span>
+      )
+    }
+    return <span key={i}>{part}</span>
+  })
+}
+
+/** Build fallback template map from hardcoded defaults */
+function buildDefaultTemplateMap(): Record<string, { subject: string; body: string }> {
+  const map: Record<string, { subject: string; body: string }> = {}
+  for (const tpl of DEFAULT_EMAIL_TEMPLATES) {
+    map[tpl.stage] = { subject: tpl.subject, body: tpl.body }
+  }
+  return map
 }
 
 // ── Component ───────────────────────────────────────────────────────
@@ -286,6 +201,27 @@ export default function CommsHub({ entries, setEntries }: Props) {
     contractStartDate: '',
   })
   const [stageUpdated, setStageUpdated] = useState(false)
+  const [templateMap, setTemplateMap] = useState<Record<string, { subject: string; body: string }>>(
+    buildDefaultTemplateMap
+  )
+
+  // Fetch customised templates on mount — fall back to defaults on failure
+  useEffect(() => {
+    fetch('/api/super/pipeline/email-templates')
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const map: Record<string, { subject: string; body: string }> = {}
+          for (const tpl of data) {
+            map[tpl.stage] = { subject: tpl.subject, body: tpl.body }
+          }
+          setTemplateMap((prev) => ({ ...prev, ...map }))
+        }
+      })
+      .catch(() => {
+        // Silently fall back to hardcoded defaults
+      })
+  }, [])
 
   // When practice selection changes, pre-fill fields and default stage
   useEffect(() => {
@@ -336,8 +272,16 @@ export default function CommsHub({ entries, setEntries }: Props) {
     ? (parseInt(fields.listSize, 10) * 0.07).toFixed(2)
     : ''
 
-  // Email template
-  const email = useMemo(() => getEmailTemplate(stage, fields), [stage, fields])
+  // Email template — look up from API templates, substitute field values
+  const email = useMemo(() => {
+    const key = STAGE_TO_TEMPLATE_KEY[stage]
+    const tpl = templateMap[key] ?? buildDefaultTemplateMap()[key]
+    if (!tpl) return { subject: '', body: '' }
+    return {
+      subject: substituteTemplate(tpl.subject, fields),
+      body: substituteTemplate(tpl.body, fields),
+    }
+  }, [stage, fields, templateMap])
   const hasMissing = hasPlaceholders(email.body)
 
   // Documents for this stage

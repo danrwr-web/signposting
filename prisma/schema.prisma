@@ -1109,3 +1109,15 @@ model SalesPipeline {
   @@index([status])
   @@index([linkedSurgeryId])
 }
+
+// ── Pipeline Email Templates ────────────────────────────────────────
+
+model PipelineEmailTemplate {
+  id        String   @id @default(cuid())
+  stage     String   @unique // 'enquiry', 'demo_booked', etc.
+  label     String            // 'Enquiry Received', 'Demo Booked', etc.
+  subject   String
+  body      String            // plain text with {{placeholders}}
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

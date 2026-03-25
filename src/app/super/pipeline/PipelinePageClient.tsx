@@ -7,8 +7,9 @@ import { PipelineEntry } from './types'
 import PipelineTable from './PipelineTable'
 import CommsHub from './CommsHub'
 import ProvisionSurgery from './ProvisionSurgery'
+import EmailTemplates from './EmailTemplates'
 
-const TABS = ['Pipeline Tracker', 'Comms Hub', 'Provision Surgery'] as const
+const TABS = ['Pipeline Tracker', 'Comms Hub', 'Provision Surgery', 'Email Templates'] as const
 type Tab = (typeof TABS)[number]
 
 interface Props {
@@ -70,6 +71,10 @@ export default function PipelinePageClient({ initialEntries }: Props) {
 
         {activeTab === 'Provision Surgery' && (
           <ProvisionSurgery entries={entries} setEntries={setEntries} />
+        )}
+
+        {activeTab === 'Email Templates' && (
+          <EmailTemplates />
         )}
       </main>
     </div>
