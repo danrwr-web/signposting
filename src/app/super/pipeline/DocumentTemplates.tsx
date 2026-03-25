@@ -44,6 +44,7 @@ export default function DocumentTemplates() {
   const [saving, setSaving] = useState(false)
   const [editorContent, setEditorContent] = useState('')
   const [dirty, setDirty] = useState(false)
+  const [editorKey, setEditorKey] = useState(0) // Incremented to force editor remount
 
   // Create variant dialog
   const [showCreateVariant, setShowCreateVariant] = useState(false)
@@ -86,11 +87,14 @@ export default function DocumentTemplates() {
     }
   }, [selectedVariantId, fetchTemplates])
 
-  // Load current template content into editor when doc type or templates change
+  // Load current template content into editor when doc type or templates change.
+  // Bump editorKey to force SafeTipTapEditor to remount with the new content,
+  // since it only hydrates on docId change, not on value/initialHtml change.
   useEffect(() => {
     const tpl = templates.find((t) => t.documentType === selectedDocType)
     setEditorContent(tpl?.contentHtml ?? '')
     setDirty(false)
+    setEditorKey((k) => k + 1)
   }, [selectedDocType, templates])
 
   const currentTemplate = templates.find((t) => t.documentType === selectedDocType)
@@ -286,7 +290,8 @@ export default function DocumentTemplates() {
             )}
 
             <RichTextEditor
-              docId={`doc-template:${selectedVariantId}:${selectedDocType}`}
+              key={editorKey}
+              docId={`doc-template:${selectedVariantId}:${selectedDocType}:${editorKey}`}
               value={editorContent}
               onChange={(html) => {
                 setEditorContent(html)
@@ -316,6 +321,22 @@ export default function DocumentTemplates() {
                 </code>
               ))}
             </div>
+
+            <h4 className="text-sm font-semibold text-gray-700 mt-4 mb-2">
+              Special Blocks
+            </h4>
+            <p className="text-xs text-gray-500 mb-3">
+              These insert structured elements into the generated document.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <code className="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-1 rounded text-xs font-mono">
+                {'{{signature_block}}'}
+              </code>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Inserts a two-column signature table (Provider / Practice) with
+              ruled lines for Signature, Name, and Date.
+            </p>
           </div>
         </div>
       </div>

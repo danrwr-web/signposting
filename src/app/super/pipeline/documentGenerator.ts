@@ -12,7 +12,7 @@ import {
   Packer,
   Paragraph,
   TextRun,
-  AlignmentType,
+  ImageRun,
   Table,
   TableRow,
   TableCell,
@@ -25,6 +25,8 @@ import {
   ShadingType,
   TableLayoutType,
   VerticalAlign,
+  TabStopPosition,
+  TabStopType,
 } from 'docx'
 import { DOCUMENT_TYPE_LABELS, type DocumentType } from './types'
 
@@ -46,6 +48,10 @@ const SIZE_TITLE = 40        // 20pt
 const SIZE_SUBTITLE = 24     // 12pt
 
 const FONT = 'Arial'
+
+// ── Signature block placeholder sentinel ────────────────────────────
+
+const SIGNATURE_PLACEHOLDER = '{{signature_block}}'
 
 // ── Borders ─────────────────────────────────────────────────────────
 
@@ -77,9 +83,6 @@ const SIG_LINE_BORDER = {
   right: { style: BorderStyle.NONE, size: 0, color: '000000' },
 }
 
-// Documents that need a signature block
-const SIGNATURE_DOC_TYPES: DocumentType[] = ['SaasAgreement', 'Dpa']
-
 // ── Placeholder substitution ────────────────────────────────────────
 
 export interface PracticeDetails {
@@ -93,6 +96,11 @@ export interface PracticeDetails {
   contractStartDate: string
 }
 
+/**
+ * Substitute all data placeholders. {{signature_block}} is left intact
+ * so it can be detected during HTML-to-docx conversion and replaced
+ * with a Table element.
+ */
 function substitutePlaceholders(html: string, details: PracticeDetails): string {
   const replacements: Record<string, string> = {
     '{{practiceName}}': details.practiceName || '[Practice Name]',
@@ -109,6 +117,7 @@ function substitutePlaceholders(html: string, details: PracticeDetails): string 
   for (const [placeholder, value] of Object.entries(replacements)) {
     result = result.split(placeholder).join(value)
   }
+  // Do NOT substitute {{signature_block}} — it's handled during conversion
   return result
 }
 
@@ -125,6 +134,24 @@ function cssColorToHex(color: string): string | undefined {
     return `${r}${g}${b}`.toUpperCase()
   }
   return undefined
+}
+
+// ── Logo fetch ──────────────────────────────────────────────────────
+
+let cachedLogoBuffer: ArrayBuffer | null = null
+let logoFetchAttempted = false
+
+async function fetchLogoBuffer(): Promise<ArrayBuffer | null> {
+  if (logoFetchAttempted) return cachedLogoBuffer
+  logoFetchAttempted = true
+  try {
+    const res = await fetch('/images/signposting_logo_head.png')
+    if (!res.ok) return null
+    cachedLogoBuffer = await res.arrayBuffer()
+    return cachedLogoBuffer
+  } catch {
+    return null
+  }
 }
 
 // ── Title block ─────────────────────────────────────────────────────
@@ -182,29 +209,56 @@ function buildTitleBlock(
   })
 }
 
-// ── Page header ─────────────────────────────────────────────────────
+// ── Page header (with optional logo) ────────────────────────────────
 
-function buildPageHeader(documentType: DocumentType): Header {
+function buildPageHeader(
+  documentType: DocumentType,
+  logoBuffer: ArrayBuffer | null
+): Header {
+  const children: (TextRun | ImageRun)[] = []
+
+  if (logoBuffer) {
+    children.push(
+      new ImageRun({
+        data: logoBuffer,
+        transformation: { width: 75, height: 25 },
+        type: 'png',
+      })
+    )
+    children.push(
+      new TextRun({
+        text: '   ',
+        font: FONT,
+        size: SIZE_SMALL,
+      })
+    )
+  }
+
+  children.push(
+    new TextRun({
+      text: 'Signposting Toolkit',
+      font: FONT,
+      size: SIZE_SMALL,
+      bold: true,
+      color: NHS_DARK_BLUE,
+    })
+  )
+  children.push(
+    new TextRun({
+      text: `  |  ${DOCUMENT_TYPE_LABELS[documentType]}`,
+      font: FONT,
+      size: SIZE_SMALL,
+      color: LIGHT_GREY,
+    })
+  )
+
   return new Header({
     children: [
       new Paragraph({
         border: TEAL_BOTTOM,
         spacing: { after: 200 },
-        children: [
-          new TextRun({
-            text: 'Signposting Toolkit',
-            font: FONT,
-            size: SIZE_SMALL,
-            bold: true,
-            color: NHS_DARK_BLUE,
-          }),
-          new TextRun({
-            text: `  |  ${DOCUMENT_TYPE_LABELS[documentType]}`,
-            font: FONT,
-            size: SIZE_SMALL,
-            color: LIGHT_GREY,
-          }),
-        ],
+        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+        children,
       }),
     ],
   })
@@ -249,7 +303,7 @@ function buildPageFooter(): Footer {
 // ── Signature block ─────────────────────────────────────────────────
 
 function buildSignatureBlock(): Table {
-  const sigCell = (label: string, party: string): TableCell =>
+  const sigCell = (party: string): TableCell =>
     new TableCell({
       borders: NO_BORDERS,
       width: { size: 50, type: WidthType.PERCENTAGE },
@@ -301,10 +355,7 @@ function buildSignatureBlock(): Table {
     layout: TableLayoutType.FIXED,
     rows: [
       new TableRow({
-        children: [
-          sigCell('Provider', 'Provider'),
-          sigCell('Practice', 'Practice'),
-        ],
+        children: [sigCell('Provider'), sigCell('Practice')],
       }),
     ],
   })
@@ -365,21 +416,36 @@ function htmlToDocxContent(html: string): (Paragraph | Table)[] {
     return /^\d+\.\s/.test(text)
   }
 
+  // Check if an element's text content contains the signature placeholder
+  function containsSignaturePlaceholder(el: HTMLElement): boolean {
+    return (el.textContent || '').includes(SIGNATURE_PLACEHOLDER)
+  }
+
   function processNode(node: Node): void {
     if (node.nodeType === Node.TEXT_NODE) {
       const text = node.textContent?.trim()
-      if (text) {
-        content.push(new Paragraph({
-          spacing: { after: 120 },
-          children: [new TextRun({ text, font: FONT, size: SIZE_BODY, color: BODY_GREY })],
-        }))
+      if (!text) return
+      // Check for signature placeholder in bare text nodes
+      if (text.includes(SIGNATURE_PLACEHOLDER)) {
+        content.push(buildSignatureBlock())
+        return
       }
+      content.push(new Paragraph({
+        spacing: { after: 120 },
+        children: [new TextRun({ text, font: FONT, size: SIZE_BODY, color: BODY_GREY })],
+      }))
       return
     }
 
     if (node.nodeType !== Node.ELEMENT_NODE) return
     const el = node as HTMLElement
     const tag = el.tagName.toLowerCase()
+
+    // If this element contains the signature placeholder, insert the table
+    if (containsSignaturePlaceholder(el)) {
+      content.push(buildSignatureBlock())
+      return
+    }
 
     switch (tag) {
       case 'h1':
@@ -424,7 +490,6 @@ function htmlToDocxContent(html: string): (Paragraph | Table)[] {
         break
 
       case 'p': {
-        // Clause headings: bold paragraphs starting with "1. ", "2. " etc.
         if (isClauseHeading(el)) {
           content.push(new Paragraph({
             spacing: { before: 300, after: 100 },
@@ -510,6 +575,9 @@ export async function generateDocument(
   details: PracticeDetails,
   variantName: string
 ): Promise<void> {
+  // Fetch logo (cached after first call, fails gracefully)
+  const logoBuffer = await fetchLogoBuffer()
+
   const filledHtml = substitutePlaceholders(templateHtml, details)
   const bodyContent = htmlToDocxContent(filledHtml)
 
@@ -520,18 +588,12 @@ export async function generateDocument(
     year: 'numeric',
   })
 
-  // Build section children: title block + spacer + body + optional signature
+  // Build section children: title block + spacer + body (signature block inserted inline via placeholder)
   const children: (Paragraph | Table)[] = [
     buildTitleBlock(documentType, details.practiceName || '[Practice Name]', dateStr),
     new Paragraph({ spacing: { before: 400, after: 200 }, children: [] }),
     ...bodyContent,
   ]
-
-  // Add signature block for SaaS Agreement and DPA
-  if (SIGNATURE_DOC_TYPES.includes(documentType)) {
-    children.push(new Paragraph({ spacing: { before: 600, after: 200 }, children: [] }))
-    children.push(buildSignatureBlock())
-  }
 
   const doc = new Document({
     creator: 'Signposting Toolkit',
@@ -552,7 +614,7 @@ export async function generateDocument(
       properties: {
         page: {
           margin: {
-            top: 1440,    // 1 inch
+            top: 1440,
             right: 1440,
             bottom: 1440,
             left: 1440,
@@ -564,7 +626,7 @@ export async function generateDocument(
         },
       },
       headers: {
-        default: buildPageHeader(documentType),
+        default: buildPageHeader(documentType, logoBuffer),
       },
       footers: {
         default: buildPageFooter(),
