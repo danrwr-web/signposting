@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { PipelineEntry } from './types'
 import PipelineTable from './PipelineTable'
+import CommsHub from './CommsHub'
 import ProvisionSurgery from './ProvisionSurgery'
 
 const TABS = ['Pipeline Tracker', 'Comms Hub', 'Provision Surgery'] as const
@@ -61,9 +62,7 @@ export default function PipelinePageClient({ initialEntries }: Props) {
         )}
 
         {activeTab === 'Comms Hub' && (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-            <p className="text-gray-500">Comms Hub — coming soon</p>
-          </div>
+          <CommsHub entries={entries} setEntries={setEntries} />
         )}
 
         {activeTab === 'Provision Surgery' && (
