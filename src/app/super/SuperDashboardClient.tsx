@@ -6,6 +6,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { toast } from 'react-hot-toast'
 import { Surgery } from '@/lib/api-contracts'
 import { Button, Dialog, Input } from '@/components/ui'
@@ -117,6 +118,22 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
           <h1 className="text-3xl font-bold text-gray-900">Super Dashboard</h1>
           <p className="mt-2 text-gray-600">Manage surgeries and admin accounts</p>
         </div>
+
+        {/* Pipeline link */}
+        <Link
+          href="/super/pipeline"
+          className="mb-6 block rounded-lg border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-nhs-dark-blue">Sales Pipeline</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Track prospects, generate documents, and provision new surgeries
+              </p>
+            </div>
+            <span className="text-nhs-blue text-xl">&rarr;</span>
+          </div>
+        </Link>
 
         <div className="bg-white shadow rounded-lg">
           <div className="px-6 py-4 border-b border-gray-200">
