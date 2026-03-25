@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import SimpleHeader from '@/components/SimpleHeader'
 import { PipelineEntry } from './types'
 import PipelineTable from './PipelineTable'
 import CommsHub from './CommsHub'
@@ -19,21 +20,23 @@ export default function PipelinePageClient({ initialEntries }: Props) {
   const [entries, setEntries] = useState<PipelineEntry[]>(initialEntries)
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
+    <div className="min-h-screen bg-nhs-light-grey">
+      <SimpleHeader surgeries={[]} currentSurgeryId={undefined} />
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Page header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Sales Pipeline</h1>
-            <p className="mt-1 text-gray-600">
+            <h1 className="text-3xl font-bold text-nhs-dark-blue">Sales Pipeline</h1>
+            <p className="mt-1 text-nhs-grey">
               Track practices, generate documents, and provision new surgeries
             </p>
           </div>
           <Link
-            href="/super"
+            href="/admin/system"
             className="text-sm text-nhs-blue hover:text-nhs-dark-blue font-medium"
           >
-            &larr; Back to Super Dashboard
+            &larr; Back to System Management
           </Link>
         </div>
 
@@ -68,7 +71,7 @@ export default function PipelinePageClient({ initialEntries }: Props) {
         {activeTab === 'Provision Surgery' && (
           <ProvisionSurgery entries={entries} setEntries={setEntries} />
         )}
-      </div>
+      </main>
     </div>
   )
 }
