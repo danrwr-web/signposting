@@ -8,9 +8,12 @@ import PipelineTable from './PipelineTable'
 import CommsHub from './CommsHub'
 import ProvisionSurgery from './ProvisionSurgery'
 import EmailTemplates from './EmailTemplates'
+import DocumentTemplates from './DocumentTemplates'
 
-const TABS = ['Pipeline Tracker', 'Comms Hub', 'Provision Surgery', 'Email Templates'] as const
+const TABS = ['Pipeline Tracker', 'Comms Hub', 'Provision Surgery', 'Templates'] as const
 type Tab = (typeof TABS)[number]
+
+type TemplateSubTab = 'email' | 'document'
 
 interface Props {
   initialEntries: PipelineEntry[]
@@ -19,6 +22,7 @@ interface Props {
 export default function PipelinePageClient({ initialEntries }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('Pipeline Tracker')
   const [entries, setEntries] = useState<PipelineEntry[]>(initialEntries)
+  const [templateSubTab, setTemplateSubTab] = useState<TemplateSubTab>('email')
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
@@ -73,8 +77,35 @@ export default function PipelinePageClient({ initialEntries }: Props) {
           <ProvisionSurgery entries={entries} setEntries={setEntries} />
         )}
 
-        {activeTab === 'Email Templates' && (
-          <EmailTemplates />
+        {activeTab === 'Templates' && (
+          <>
+            {/* Sub-tab nav */}
+            <div className="flex gap-2 mb-6">
+              <button
+                onClick={() => setTemplateSubTab('email')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  templateSubTab === 'email'
+                    ? 'bg-nhs-blue text-white'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Email Templates
+              </button>
+              <button
+                onClick={() => setTemplateSubTab('document')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  templateSubTab === 'document'
+                    ? 'bg-nhs-blue text-white'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                Document Templates
+              </button>
+            </div>
+
+            {templateSubTab === 'email' && <EmailTemplates />}
+            {templateSubTab === 'document' && <DocumentTemplates />}
+          </>
         )}
       </main>
     </div>
