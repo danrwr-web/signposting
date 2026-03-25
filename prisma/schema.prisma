@@ -130,6 +130,9 @@ model Surgery {
   adminCategoryVisibleUsers    AdminCategoryVisibleUser[]
   adminItemEditGrants          AdminItemEditGrant[]
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
+
+  // Sales Pipeline
+  pipelineEntry SalesPipeline? @relation("PipelineSurgery")
 }
 
 model BaseSymptom {
@@ -1043,4 +1046,66 @@ enum WorkflowActionKey {
   SEND_STANDARD_LETTER
   CODE_AND_FILE
   OTHER
+}
+
+// ── Sales Pipeline ──────────────────────────────────────────────────
+
+enum PipelineStatus {
+  Enquiry
+  DemoBooked
+  DemoCompleted
+  ProposalSent
+  DocumentsSent
+  Contracted
+  OnHold
+  Lost
+}
+
+model SalesPipeline {
+  id                String         @id @default(cuid())
+  practiceName      String
+  townCity          String?
+  pcnName           String?
+  listSize          Int?
+  estimatedFeeGbp   Float?         // listSize × 0.07, stored for reporting
+  contactName       String?
+  contactRole       String?
+  contactEmail      String?
+
+  status            PipelineStatus @default(Enquiry)
+
+  // Milestone dates
+  dateEnquiry                DateTime?
+  dateDemoBooked             DateTime?
+  dateDemoCompleted          DateTime?
+  dateProposalSent           DateTime?
+  dateOnboardingFormSent     DateTime?
+  dateSaasAgreementSent      DateTime?
+  dateSaasAgreementSigned    DateTime?
+  dateDpaSent                DateTime?
+  dateDpaSigned              DateTime?
+  dateContractStart          DateTime?
+
+  // Trial
+  freeTrial         Boolean        @default(false)
+  trialEndDate      DateTime?
+
+  // Financials
+  annualValueGbp    Float?
+
+  // Contract
+  contractVariant   String?        // e.g. "Standard", "6-month free trial", "6-month break clause"
+
+  // Notes
+  notes             String?
+
+  // Link to provisioned surgery
+  linkedSurgeryId   String?        @unique
+  linkedSurgery     Surgery?       @relation("PipelineSurgery", fields: [linkedSurgeryId], references: [id])
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([status])
+  @@index([linkedSurgeryId])
 }
