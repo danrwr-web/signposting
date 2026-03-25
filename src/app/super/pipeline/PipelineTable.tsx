@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { toast } from 'react-hot-toast'
-import { Button, Badge } from '@/components/ui'
+import { Button, Badge, AlertBanner } from '@/components/ui'
 import type { BadgeColor } from '@/components/ui/Badge'
 import PipelineDialog from './PipelineDialog'
 import { exportPipelineToExcel } from './pipelineExport'
@@ -94,8 +94,42 @@ export default function PipelineTable({ entries, setEntries }: Props) {
     return { total, contracted: contracted.length, inProgress: inProgress.length, contractedListSize, contractedArr, pipelineArr }
   }, [entries])
 
+  // Renewals alert: contracted entries with trialEndDate within 60 days
+  const renewalAlerts = useMemo(() => {
+    const now = new Date()
+    const cutoff = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
+    return entries
+      .filter(
+        (e) =>
+          e.status === 'Contracted' &&
+          e.trialEndDate &&
+          new Date(e.trialEndDate) >= now &&
+          new Date(e.trialEndDate) <= cutoff
+      )
+      .sort((a, b) => new Date(a.trialEndDate!).getTime() - new Date(b.trialEndDate!).getTime())
+  }, [entries])
+
   return (
     <>
+      {/* Renewals alert */}
+      {renewalAlerts.length > 0 && (
+        <AlertBanner variant="warning" className="mb-4">
+          <span className="font-medium">Upcoming trial renewals:</span>
+          <ul className="mt-1 ml-4 list-disc text-sm">
+            {renewalAlerts.map((e) => (
+              <li key={e.id}>
+                {e.practiceName} — trial ends{' '}
+                {new Date(e.trialEndDate!).toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </li>
+            ))}
+          </ul>
+        </AlertBanner>
+      )}
+
       {/* Actions bar */}
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-gray-600">{entries.length} practices</p>
