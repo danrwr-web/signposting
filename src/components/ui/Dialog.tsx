@@ -73,6 +73,11 @@ export function Dialog({
   const titleId = useId()
   const descId = description ? `${titleId}-desc` : undefined
 
+  // Keep a stable ref to onClose so the effect doesn't re-run on every render
+  // when callers pass inline arrow functions (which would steal focus from inputs).
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   /* ------ Focus management & keyboard -------------------------------- */
   useEffect(() => {
     if (!open) return
@@ -96,7 +101,7 @@ export function Dialog({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
 
@@ -136,7 +141,7 @@ export function Dialog({
         previousFocusRef.current.focus()
       }
     }
-  }, [open, initialFocusRef, onClose])
+  }, [open, initialFocusRef])
 
   /* ------ Render ----------------------------------------------------- */
   if (!open) return null
