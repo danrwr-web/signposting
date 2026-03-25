@@ -31,6 +31,7 @@ const updatePipelineSchema = z.object({
   annualValueGbp: z.number().nullable().optional(),
   contractVariant: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  linkedSurgeryId: z.string().nullable().optional(),
 })
 
 // GET /api/super/pipeline/[id] — Get a single pipeline entry

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
-import { Button, Dialog, Input, FormField, Badge, AlertBanner } from '@/components/ui'
+import { Button, Dialog, Input, Select, FormField, Badge, AlertBanner } from '@/components/ui'
 import { PipelineEntry } from './types'
 
 interface Feature {
@@ -37,6 +37,14 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
   const [tempPassword, setTempPassword] = useState('')
   const [selectedFlags, setSelectedFlags] = useState<Set<string>>(new Set())
   const [provisionedResult, setProvisionedResult] = useState<{ surgeryId: string } | null>(null)
+
+  // Link-to-existing state
+  const [linkingEntry, setLinkingEntry] = useState<PipelineEntry | null>(null)
+  const [existingSurgeries, setExistingSurgeries] = useState<Array<{ id: string; name: string }>>([])
+  const [surgeriesLoaded, setSurgeriesLoaded] = useState(false)
+  const [selectedSurgeryId, setSelectedSurgeryId] = useState('')
+  const [surgerySearch, setSurgerySearch] = useState('')
+  const [linkSaving, setLinkSaving] = useState(false)
 
   // Filter to contracted entries without a linked surgery
   const unprovisionedEntries = useMemo(
@@ -132,6 +140,71 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
     toast.success('Password copied to clipboard')
   }
 
+  // ── Link to existing surgery ────────────────────────────────────
+
+  function openLinkDialog(entry: PipelineEntry) {
+    setLinkingEntry(entry)
+    setSelectedSurgeryId('')
+    setSurgerySearch('')
+
+    // Fetch surgeries on first open
+    if (!surgeriesLoaded) {
+      fetch('/api/admin/surgeries')
+        .then((r) => r.json())
+        .then((data) => {
+          // The API returns an array of surgery objects
+          const list = (Array.isArray(data) ? data : []).map((s: { id: string; name: string }) => ({
+            id: s.id,
+            name: s.name,
+          }))
+          setExistingSurgeries(list)
+          setSurgeriesLoaded(true)
+        })
+        .catch(() => toast.error('Failed to load surgeries'))
+    }
+  }
+
+  // Surgeries already linked to a pipeline entry shouldn't be selectable
+  const linkedSurgeryIds = useMemo(
+    () => new Set(entries.filter((e) => e.linkedSurgeryId).map((e) => e.linkedSurgeryId!)),
+    [entries]
+  )
+
+  const filteredSurgeries = useMemo(() => {
+    const available = existingSurgeries.filter((s) => !linkedSurgeryIds.has(s.id))
+    if (!surgerySearch.trim()) return available
+    const q = surgerySearch.toLowerCase()
+    return available.filter((s) => s.name.toLowerCase().includes(q))
+  }, [existingSurgeries, linkedSurgeryIds, surgerySearch])
+
+  async function handleLinkSurgery() {
+    if (!linkingEntry || !selectedSurgeryId) return
+
+    setLinkSaving(true)
+    try {
+      const res = await fetch(`/api/super/pipeline/${linkingEntry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ linkedSurgeryId: selectedSurgeryId }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        toast.error(data.error || 'Failed to link surgery')
+        return
+      }
+
+      const updated = await res.json()
+      setEntries((prev) => prev.map((e) => (e.id === linkingEntry.id ? updated : e)))
+      toast.success('Pipeline entry linked to existing surgery')
+      setLinkingEntry(null)
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setLinkSaving(false)
+    }
+  }
+
   return (
     <>
       {unprovisionedEntries.length === 0 ? (
@@ -183,9 +256,14 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
                       : '—'}
                   </td>
                   <td className="px-4 py-3 text-sm text-right">
-                    <Button size="sm" onClick={() => openProvision(entry)}>
-                      Provision
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" variant="secondary" onClick={() => openLinkDialog(entry)}>
+                        Link Existing
+                      </Button>
+                      <Button size="sm" onClick={() => openProvision(entry)}>
+                        Provision
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -363,6 +441,64 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
               )}
             </div>
           </form>
+        )}
+      </Dialog>
+
+      {/* Link to Existing Surgery Dialog */}
+      <Dialog
+        open={!!linkingEntry}
+        onClose={() => setLinkingEntry(null)}
+        title={`Link: ${linkingEntry?.practiceName ?? ''}`}
+        width="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setLinkingEntry(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleLinkSurgery}
+              loading={linkSaving}
+              disabled={!selectedSurgeryId}
+            >
+              {linkSaving ? 'Linking...' : 'Link Surgery'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600 mb-4">
+          Select an existing surgery to link to this pipeline entry. Use this for
+          founding practices or surgeries that were set up before this pipeline
+          record was created.
+        </p>
+
+        <FormField label="Search surgeries">
+          <Input
+            value={surgerySearch}
+            onChange={(e) => setSurgerySearch(e.target.value)}
+            placeholder="Type to filter..."
+          />
+        </FormField>
+
+        <FormField label="Surgery">
+          <Select
+            value={selectedSurgeryId}
+            onChange={(e) => setSelectedSurgeryId(e.target.value)}
+          >
+            <option value="">-- Select a surgery --</option>
+            {filteredSurgeries.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </Select>
+        </FormField>
+
+        {surgeriesLoaded && filteredSurgeries.length === 0 && (
+          <p className="text-sm text-gray-400 mt-2">
+            {surgerySearch
+              ? 'No matching surgeries found.'
+              : 'No available surgeries to link.'}
+          </p>
         )}
       </Dialog>
     </>
