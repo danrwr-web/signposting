@@ -35,12 +35,19 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(getDefaults(entry))
   const [feeManuallyEdited, setFeeManuallyEdited] = useState(false)
+  const [variants, setVariants] = useState<Array<{ id: string; name: string; isDefault: boolean }>>([])
 
   useEffect(() => {
     if (open) {
       setForm(getDefaults(entry))
-      // If the entry already has a fee, treat it as manually set
       setFeeManuallyEdited(!!entry?.estimatedFeeGbp)
+      // Fetch variants for the dropdown
+      fetch('/api/super/pipeline/contract-variants')
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) setVariants(data)
+        })
+        .catch(() => {})
     }
   }, [open, entry])
 
@@ -58,6 +65,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       freeTrial: e?.freeTrial ?? false,
       trialEndDate: toDateInputValue(e?.trialEndDate ?? null),
       annualValueGbp: e?.annualValueGbp?.toString() ?? '',
+      contractVariantId: e?.contractVariantId ?? '',
       contractVariantLabel: e?.contractVariantLabel ?? '',
       notes: e?.notes ?? '',
       // milestone dates
@@ -124,6 +132,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       status: form.status,
       freeTrial: form.freeTrial,
       annualValueGbp: form.annualValueGbp ? parseFloat(form.annualValueGbp) : undefined,
+      contractVariantId: form.contractVariantId || null,
       contractVariantLabel: form.contractVariantLabel || undefined,
       notes: form.notes || undefined,
     }
@@ -288,11 +297,17 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
             </Select>
           </FormField>
           <FormField label="Contract Variant">
-            <Input
-              value={form.contractVariantLabel}
-              onChange={(e) => setField('contractVariantLabel', e.target.value)}
-              placeholder="e.g. Standard, 6-month free trial"
-            />
+            <Select
+              value={form.contractVariantId}
+              onChange={(e) => setField('contractVariantId', e.target.value)}
+            >
+              <option value="">-- None --</option>
+              {variants.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}{v.isDefault ? ' (default)' : ''}
+                </option>
+              ))}
+            </Select>
           </FormField>
           <FormField label="Free Trial">
             <div className="flex items-center h-[38px]">

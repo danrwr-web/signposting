@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Select, Input, FormField, Badge, AlertBanner } from '@/components/ui'
-import { PipelineEntry, PipelineStatus, STATUS_LABELS } from './types'
+import { PipelineEntry, PipelineStatus, STATUS_LABELS, DocumentType, DOCUMENT_TYPE_LABELS } from './types'
+import { generateDocument } from './documentGenerator'
 import {
   DEFAULT_EMAIL_TEMPLATES,
   STAGE_TO_TEMPLATE_KEY,
@@ -86,16 +87,11 @@ const STAGE_FIELDS: Record<CommsStage, FieldDef[]> = {
   ],
 }
 
-// ── Document definitions (placeholder only) ─────────────────────────
+// ── Document definitions ─────────────────────────────────────────────
 
-const STAGE_DOCUMENTS: Partial<Record<CommsStage, string[]>> = {
-  DemoCompleted: ['Post-Demo Proposal'],
-  ProposalSent: [
-    'SaaS Agreement',
-    'Data Processing Agreement',
-    'Hosting & IG Overview',
-    'IG & Security Response Pack',
-  ],
+const STAGE_DOCUMENTS: Partial<Record<CommsStage, DocumentType[]>> = {
+  DemoCompleted: ['Proposal'],
+  ProposalSent: ['SaasAgreement', 'Dpa', 'HostingOverview', 'IgSecurityPack'],
 }
 
 // ── Email template substitution ─────────────────────────────────────
@@ -223,6 +219,34 @@ export default function CommsHub({ entries, setEntries }: Props) {
       })
   }, [])
 
+  // Document templates for the selected practice's contract variant
+  const [docTemplates, setDocTemplates] = useState<Record<string, string>>({}) // documentType -> contentHtml
+  const [docVariantName, setDocVariantName] = useState('')
+
+  // Fetch document templates when practice selection changes
+  useEffect(() => {
+    const entry = entries.find((e) => e.id === selectedPracticeId)
+    const variantId = entry?.contractVariantId
+    if (!variantId) {
+      setDocTemplates({})
+      setDocVariantName('')
+      return
+    }
+    fetch(`/api/super/pipeline/contract-variants/${variantId}/templates`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const map: Record<string, string> = {}
+          for (const t of data) map[t.documentType] = t.contentHtml
+          setDocTemplates(map)
+        }
+      })
+      .catch(() => setDocTemplates({}))
+    // Also get variant name
+    const variant = entry?.contractVariant
+    setDocVariantName(variant?.name ?? '')
+  }, [selectedPracticeId, entries])
+
   // When practice selection changes, pre-fill fields and default stage
   useEffect(() => {
     if (selectedPracticeId === 'manual') {
@@ -296,6 +320,33 @@ export default function CommsHub({ entries, setEntries }: Props) {
     selectedEntry.status !== stage &&
     COMMS_STAGES.includes(stage) &&
     !stageUpdated
+
+  async function handleGenerateDoc(docType: DocumentType) {
+    const templateHtml = docTemplates[docType]
+    if (!templateHtml) return
+
+    try {
+      await generateDocument(
+        templateHtml,
+        docType,
+        {
+          practiceName: fields.practiceName,
+          contactName: fields.contactName,
+          contactRole: '',
+          contactEmail: fields.contactEmail,
+          listSize: fields.listSize,
+          estimatedFee: fields.estimatedFee,
+          contractStartDate: fields.contractStartDate
+            ? formatDateForEmail(fields.contractStartDate)
+            : '',
+        },
+        docVariantName
+      )
+      toast.success(`${DOCUMENT_TYPE_LABELS[docType]} downloaded`)
+    } catch {
+      toast.error('Failed to generate document')
+    }
+  }
 
   async function copyToClipboard(text: string, label: string) {
     try {
@@ -405,22 +456,40 @@ export default function CommsHub({ entries, setEntries }: Props) {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Documents</h3>
               <div className="space-y-2">
-                {documents.map((doc) => (
-                  <div
-                    key={doc}
-                    className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
-                  >
-                    <span className="text-sm text-gray-700">{doc}</span>
-                    <span title="Coming soon — document templates not yet configured">
-                      <Button variant="secondary" size="sm" disabled>
-                        Generate &amp; Download
-                      </Button>
-                    </span>
-                  </div>
-                ))}
-                <p className="text-xs text-gray-400 mt-1">
-                  Document generation will be available when the template system is configured.
-                </p>
+                {documents.map((docType) => {
+                  const hasTemplate = !!docTemplates[docType]
+                  return (
+                    <div
+                      key={docType}
+                      className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
+                    >
+                      <span className="text-sm text-gray-700">
+                        {DOCUMENT_TYPE_LABELS[docType]}
+                      </span>
+                      <span title={hasTemplate ? undefined : 'No template configured for this variant'}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={!hasTemplate}
+                          onClick={() => handleGenerateDoc(docType)}
+                        >
+                          Generate &amp; Download
+                        </Button>
+                      </span>
+                    </div>
+                  )
+                })}
+                {selectedPracticeId === 'manual' && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Select a practice from the dropdown to enable document generation.
+                  </p>
+                )}
+                {selectedPracticeId !== 'manual' && Object.keys(docTemplates).length === 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    No document templates configured for this practice&apos;s contract variant.
+                    Set up templates in the Templates tab.
+                  </p>
+                )}
               </div>
             </div>
           )}
