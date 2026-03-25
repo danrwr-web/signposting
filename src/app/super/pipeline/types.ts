@@ -67,7 +67,7 @@ export const STATUS_BADGE_COLOURS: Record<PipelineStatus, string> = {
   DemoBooked: 'blue',
   DemoCompleted: 'green',
   ProposalSent: 'purple',
-  DocumentsSent: 'nhs-green',
+  DocumentsSent: 'blue',
   Contracted: 'nhs-green',
   OnHold: 'amber',
   Lost: 'red',

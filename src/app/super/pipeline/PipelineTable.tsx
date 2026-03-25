@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast'
 import { Button, Badge } from '@/components/ui'
 import type { BadgeColor } from '@/components/ui/Badge'
 import PipelineDialog from './PipelineDialog'
+import { exportPipelineToExcel } from './pipelineExport'
 import {
   PipelineEntry,
   PipelineStatus,
@@ -98,7 +99,12 @@ export default function PipelineTable({ entries, setEntries }: Props) {
       {/* Actions bar */}
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-gray-600">{entries.length} practices</p>
-        <Button onClick={openCreate}>Add Practice</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => exportPipelineToExcel(entries)}>
+            Export to Excel
+          </Button>
+          <Button onClick={openCreate}>Add Practice</Button>
+        </div>
       </div>
 
       {/* Table */}
@@ -127,7 +133,7 @@ export default function PipelineTable({ entries, setEntries }: Props) {
               </tr>
             )}
             {entries.map((entry) => {
-              const days = daysSince(entry.createdAt)
+              const days = daysSince(entry.dateEnquiry)
               return (
                 <tr
                   key={entry.id}
