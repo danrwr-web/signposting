@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // Auto-calculate estimatedFeeGbp if listSize provided and fee not explicit
     const estimatedFeeGbp =
-      data.estimatedFeeGbp ?? (data.listSize ? data.listSize * 0.07 : undefined)
+      data.estimatedFeeGbp ?? (data.listSize ? Math.round(data.listSize * 7) / 100 : undefined)
 
     // Normalise empty contactEmail to null
     const contactEmail = data.contactEmail === '' ? null : data.contactEmail

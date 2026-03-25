@@ -67,17 +67,17 @@ const STAGE_FIELDS: Record<CommsStage, FieldDef[]> = {
   DemoCompleted: [
     ...COMMON_FIELDS,
     { key: 'listSize', label: 'List Size', type: 'number', placeholder: 'e.g. 8500' },
-    { key: 'estimatedFee', label: 'Estimated Monthly Fee (£)', type: 'number', placeholder: 'Auto-calculated' },
+    { key: 'estimatedFee', label: 'Estimated Annual Fee (£)', type: 'number', placeholder: 'Auto-calculated' },
   ],
   ProposalSent: [
     ...COMMON_FIELDS,
     { key: 'listSize', label: 'List Size', type: 'number' },
-    { key: 'estimatedFee', label: 'Estimated Monthly Fee (£)', type: 'number' },
+    { key: 'estimatedFee', label: 'Estimated Annual Fee (£)', type: 'number' },
   ],
   DocumentsSent: [
     ...COMMON_FIELDS,
     { key: 'listSize', label: 'List Size', type: 'number' },
-    { key: 'estimatedFee', label: 'Estimated Monthly Fee (£)', type: 'number' },
+    { key: 'estimatedFee', label: 'Estimated Annual Fee (£)', type: 'number' },
     { key: 'contractStartDate', label: 'Contract Start Date', type: 'date' },
   ],
   Contracted: [
@@ -127,7 +127,7 @@ function substituteTemplate(template: string, f: Fields): string {
     '{{contactName}}': { value: f.contactName, label: 'Contact Name' },
     '{{practiceName}}': { value: f.practiceName, label: 'Practice Name' },
     '{{listSize}}': { value: f.listSize, label: 'List Size' },
-    '{{estimatedFee}}': { value: f.estimatedFee, label: 'Monthly Fee' },
+    '{{estimatedFee}}': { value: f.estimatedFee, label: 'Annual Fee' },
     '{{demoDate}}': { value: f.demoDate ? formatDateForEmail(f.demoDate) : '', label: 'Demo Date' },
     '{{demoTime}}': { value: f.demoTime ? formatTimeForEmail(f.demoTime) : '', label: 'Demo Time' },
     '{{contractStartDate}}': {
@@ -326,7 +326,7 @@ export default function CommsHub({ entries, setEntries }: Props) {
       contactName: entry.contactName ?? '',
       contactEmail: entry.contactEmail ?? '',
       listSize: entry.listSize?.toString() ?? '',
-      estimatedFee: entry.estimatedFeeGbp?.toString() ?? '',
+      estimatedFee: entry.estimatedFeeGbp != null ? entry.estimatedFeeGbp.toFixed(2) : '',
       demoDate: entry.dateDemoBooked?.slice(0, 10) ?? '',
       demoTime: '',
       contractStartDate: entry.dateContractStart?.slice(0, 10) ?? '',
@@ -346,7 +346,7 @@ export default function CommsHub({ entries, setEntries }: Props) {
     STAGE_FIELDS[stage].some((f) => f.key === 'estimatedFee')
 
   const autoFee = fields.listSize
-    ? (parseInt(fields.listSize, 10) * 0.07).toFixed(2)
+    ? (Math.round(parseInt(fields.listSize, 10) * 7) / 100).toFixed(2)
     : ''
 
   // Email template — look up from API templates, substitute field values

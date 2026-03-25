@@ -59,7 +59,7 @@ Dan`,
 
 Thank you for taking the time to see the Signposting Toolkit in action. As discussed, I've attached a proposal tailored to {{practiceName}}.
 
-Based on your list size of {{listSize}} patients, the monthly fee would be £{{estimatedFee}}.
+Based on your list size of {{listSize}} patients, the annual fee would be £{{estimatedFee}}.
 
 The proposal covers what's included, how onboarding works, and the timeline to get your team up and running. I'm happy to answer any questions or arrange a follow-up call.
 

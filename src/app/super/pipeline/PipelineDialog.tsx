@@ -58,7 +58,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       townCity: e?.townCity ?? '',
       pcnName: e?.pcnName ?? '',
       listSize: e?.listSize?.toString() ?? '',
-      estimatedFeeGbp: e?.estimatedFeeGbp?.toString() ?? '',
+      estimatedFeeGbp: e?.estimatedFeeGbp != null ? e.estimatedFeeGbp.toFixed(2) : '',
       contactName: e?.contactName ?? '',
       contactRole: e?.contactRole ?? '',
       contactEmail: e?.contactEmail ?? '',
@@ -90,7 +90,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       // Auto-calculate fee when list size changes and fee hasn't been manually overridden
       if (key === 'listSize' && !feeManuallyEdited) {
         const size = parseInt(value as string, 10)
-        next.estimatedFeeGbp = size > 0 ? (size * 0.07).toFixed(2) : ''
+        next.estimatedFeeGbp = size > 0 ? (Math.round(size * 7) / 100).toFixed(2) : ''
       }
 
       return next
@@ -107,12 +107,12 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     setFeeManuallyEdited(false)
     setForm((prev) => ({
       ...prev,
-      estimatedFeeGbp: size > 0 ? (size * 0.07).toFixed(2) : '',
+      estimatedFeeGbp: size > 0 ? (Math.round(size * 7) / 100).toFixed(2) : '',
     }))
   }
 
   const autoFee = form.listSize
-    ? (parseInt(form.listSize, 10) * 0.07).toFixed(2)
+    ? (Math.round(parseInt(form.listSize, 10) * 7) / 100).toFixed(2)
     : ''
   const showRecalculate =
     feeManuallyEdited && form.listSize && form.estimatedFeeGbp !== autoFee
@@ -240,7 +240,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
               min={0}
             />
           </FormField>
-          <FormField label="Estimated Fee (£)">
+          <FormField label="Estimated Annual Fee (£)">
             <Input
               type="number"
               step="0.01"

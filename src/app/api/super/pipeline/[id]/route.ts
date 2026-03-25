@@ -90,7 +90,7 @@ export async function PATCH(
     // Auto-recalculate estimatedFeeGbp when listSize changes and fee not explicitly provided
     let estimatedFeeGbp = data.estimatedFeeGbp
     if (data.listSize !== undefined && !('estimatedFeeGbp' in body)) {
-      estimatedFeeGbp = data.listSize !== null ? data.listSize * 0.07 : null
+      estimatedFeeGbp = data.listSize !== null ? Math.round(data.listSize * 7) / 100 : null
     }
 
     // Normalise empty contactEmail to null
