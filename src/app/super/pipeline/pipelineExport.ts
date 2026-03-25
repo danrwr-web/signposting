@@ -44,7 +44,7 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     'Free Trial': e.freeTrial ? 'Yes' : 'No',
     'Trial End Date': toDateStr(e.trialEndDate),
     'Annual Value (£)': e.annualValueGbp ?? '',
-    'Contract Variant': e.contractVariant ?? '',
+    'Contract Variant': e.contractVariant?.name ?? e.contractVariantLabel ?? '',
     'Days in Pipeline': daysBetween(e.dateEnquiry, now),
     Notes: e.notes ?? '',
   }))

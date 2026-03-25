@@ -22,7 +22,9 @@ export interface PipelineEntry {
   freeTrial: boolean
   trialEndDate: string | null
   annualValueGbp: number | null
-  contractVariant: string | null
+  contractVariantLabel: string | null
+  contractVariantId: string | null
+  contractVariant: { id: string; name: string } | null
   notes: string | null
   linkedSurgeryId: string | null
   linkedSurgery: { id: string; name: string; slug: string | null } | null
@@ -60,6 +62,29 @@ export const STATUS_LABELS: Record<PipelineStatus, string> = {
   Contracted: 'Contracted',
   OnHold: 'On Hold',
   Lost: 'Lost',
+}
+
+export type DocumentType =
+  | 'Proposal'
+  | 'SaasAgreement'
+  | 'Dpa'
+  | 'HostingOverview'
+  | 'IgSecurityPack'
+
+export const DOCUMENT_TYPES: DocumentType[] = [
+  'Proposal',
+  'SaasAgreement',
+  'Dpa',
+  'HostingOverview',
+  'IgSecurityPack',
+]
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  Proposal: 'Post-Demo Proposal',
+  SaasAgreement: 'SaaS Agreement',
+  Dpa: 'Data Processing Agreement',
+  HostingOverview: 'Hosting & IG Overview',
+  IgSecurityPack: 'IG & Security Response Pack',
 }
 
 export const STATUS_BADGE_COLOURS: Record<PipelineStatus, string> = {

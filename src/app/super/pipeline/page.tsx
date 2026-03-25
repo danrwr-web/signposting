@@ -14,6 +14,9 @@ export default async function PipelinePage() {
       linkedSurgery: {
         select: { id: true, name: true, slug: true },
       },
+      contractVariant: {
+        select: { id: true, name: true },
+      },
     },
   })
 

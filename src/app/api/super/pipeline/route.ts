@@ -29,7 +29,8 @@ const createPipelineSchema = z.object({
   freeTrial: z.boolean().default(false),
   trialEndDate: z.coerce.date().optional(),
   annualValueGbp: z.number().optional(),
-  contractVariant: z.string().optional(),
+  contractVariantLabel: z.string().optional(),
+  contractVariantId: z.string().optional(),
   notes: z.string().optional(),
 })
 
@@ -43,6 +44,9 @@ export async function GET() {
       include: {
         linkedSurgery: {
           select: { id: true, name: true, slug: true },
+        },
+        contractVariant: {
+          select: { id: true, name: true },
         },
       },
     })
@@ -80,6 +84,9 @@ export async function POST(request: NextRequest) {
       include: {
         linkedSurgery: {
           select: { id: true, name: true, slug: true },
+        },
+        contractVariant: {
+          select: { id: true, name: true },
         },
       },
     })

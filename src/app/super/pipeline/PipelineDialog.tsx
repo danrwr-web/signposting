@@ -58,7 +58,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       freeTrial: e?.freeTrial ?? false,
       trialEndDate: toDateInputValue(e?.trialEndDate ?? null),
       annualValueGbp: e?.annualValueGbp?.toString() ?? '',
-      contractVariant: e?.contractVariant ?? '',
+      contractVariantLabel: e?.contractVariantLabel ?? '',
       notes: e?.notes ?? '',
       // milestone dates
       dateEnquiry: toDateInputValue(e?.dateEnquiry ?? null),
@@ -124,7 +124,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       status: form.status,
       freeTrial: form.freeTrial,
       annualValueGbp: form.annualValueGbp ? parseFloat(form.annualValueGbp) : undefined,
-      contractVariant: form.contractVariant || undefined,
+      contractVariantLabel: form.contractVariantLabel || undefined,
       notes: form.notes || undefined,
     }
 
@@ -289,8 +289,8 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
           </FormField>
           <FormField label="Contract Variant">
             <Input
-              value={form.contractVariant}
-              onChange={(e) => setField('contractVariant', e.target.value)}
+              value={form.contractVariantLabel}
+              onChange={(e) => setField('contractVariantLabel', e.target.value)}
               placeholder="e.g. Standard, 6-month free trial"
             />
           </FormField>

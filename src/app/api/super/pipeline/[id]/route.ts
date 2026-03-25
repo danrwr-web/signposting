@@ -29,7 +29,8 @@ const updatePipelineSchema = z.object({
   freeTrial: z.boolean().optional(),
   trialEndDate: z.coerce.date().nullable().optional(),
   annualValueGbp: z.number().nullable().optional(),
-  contractVariant: z.string().nullable().optional(),
+  contractVariantLabel: z.string().nullable().optional(),
+  contractVariantId: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   linkedSurgeryId: z.string().nullable().optional(),
 })
@@ -48,6 +49,9 @@ export async function GET(
       include: {
         linkedSurgery: {
           select: { id: true, name: true, slug: true },
+        },
+        contractVariant: {
+          select: { id: true, name: true },
         },
       },
     })
@@ -110,6 +114,9 @@ export async function PATCH(
       include: {
         linkedSurgery: {
           select: { id: true, name: true, slug: true },
+        },
+        contractVariant: {
+          select: { id: true, name: true },
         },
       },
     })
