@@ -124,19 +124,19 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     const listSize = form.listSize ? parseInt(form.listSize, 10) : undefined
     const body: Record<string, unknown> = {
       practiceName: form.practiceName,
-      practiceAddress: form.practiceAddress || undefined,
-      townCity: form.townCity || undefined,
-      pcnName: form.pcnName || undefined,
-      listSize: listSize || undefined,
-      contactName: form.contactName || undefined,
-      contactRole: form.contactRole || undefined,
-      contactEmail: form.contactEmail || undefined,
+      practiceAddress: form.practiceAddress || null,
+      townCity: form.townCity || null,
+      pcnName: form.pcnName || null,
+      listSize: listSize || null,
+      contactName: form.contactName || null,
+      contactRole: form.contactRole || null,
+      contactEmail: form.contactEmail || null,
       status: form.status,
       freeTrial: form.freeTrial,
-      annualValueGbp: form.annualValueGbp ? parseFloat(form.annualValueGbp) : undefined,
+      annualValueGbp: form.annualValueGbp ? parseFloat(form.annualValueGbp) : null,
       contractVariantId: form.contractVariantId || null,
-      contractVariantLabel: form.contractVariantLabel || undefined,
-      notes: form.notes || undefined,
+      contractVariantLabel: form.contractVariantLabel || null,
+      notes: form.notes || null,
     }
 
     // Only include estimatedFeeGbp if explicitly filled (otherwise let API auto-calculate)
