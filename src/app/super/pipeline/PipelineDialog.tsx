@@ -121,22 +121,25 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     e.preventDefault()
     setSaving(true)
 
+    // In edit mode, send null for cleared fields so the API clears stale data.
+    // In create mode, send undefined (omit) since the POST schema uses .optional() not .nullable().
+    const empty = isEdit ? null : undefined
     const listSize = form.listSize ? parseInt(form.listSize, 10) : undefined
     const body: Record<string, unknown> = {
       practiceName: form.practiceName,
-      practiceAddress: form.practiceAddress || null,
-      townCity: form.townCity || null,
-      pcnName: form.pcnName || null,
-      listSize: listSize || null,
-      contactName: form.contactName || null,
-      contactRole: form.contactRole || null,
-      contactEmail: form.contactEmail || null,
+      practiceAddress: form.practiceAddress || empty,
+      townCity: form.townCity || empty,
+      pcnName: form.pcnName || empty,
+      listSize: listSize || empty,
+      contactName: form.contactName || empty,
+      contactRole: form.contactRole || empty,
+      contactEmail: form.contactEmail || empty,
       status: form.status,
       freeTrial: form.freeTrial,
-      annualValueGbp: form.annualValueGbp ? parseFloat(form.annualValueGbp) : null,
+      annualValueGbp: form.annualValueGbp ? parseFloat(form.annualValueGbp) : empty,
       contractVariantId: form.contractVariantId || null,
-      contractVariantLabel: form.contractVariantLabel || null,
-      notes: form.notes || null,
+      contractVariantLabel: form.contractVariantLabel || empty,
+      notes: form.notes || empty,
     }
 
     // Only include estimatedFeeGbp if explicitly filled (otherwise let API auto-calculate)
