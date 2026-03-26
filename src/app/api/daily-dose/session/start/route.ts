@@ -250,9 +250,13 @@ export async function POST(request: NextRequest) {
       now,
     })
 
+    // Prevent same-session repetition by excluding warm-up cards from the learning block pool.
+    const warmupCardIds = new Set(warmupRecallCards.map((card) => card.id))
+    const mainEligibleCards = eligibleCards.filter((card) => !warmupCardIds.has(card.id))
+
     // Select 3-5 cards for the learning block (prefer same batch/learning unit)
     const sessionCards = selectSessionCards({
-      eligibleCards,
+      eligibleCards: mainEligibleCards.length > 0 ? mainEligibleCards : eligibleCards,
       cardStates: stateMap,
       targetCount: DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
       now,
@@ -280,8 +284,20 @@ export async function POST(request: NextRequest) {
         sessionInteractionQuestionIds.add(q.questionId ?? getQuestionId(q))
       }
     }
-    // Merge with the history-based exclusion set
-    const mergedExcludeIds = new Set([...excludeQuestionIds, ...sessionInteractionQuestionIds])
+    // Also exclude warm-up question IDs so end quiz does not repeat warm-up questions.
+    const warmupQuestionIds = new Set<string>()
+    for (const card of warmupRecallCards) {
+      for (const q of [...extractQuestionsFromBlocks(card), ...extractQuestionsFromInteractions(card)]) {
+        warmupQuestionIds.add(q.questionId ?? getQuestionId(q))
+      }
+    }
+
+    // Merge with history-based exclusion set and same-session exclusions.
+    const mergedExcludeIds = new Set([
+      ...excludeQuestionIds,
+      ...sessionInteractionQuestionIds,
+      ...warmupQuestionIds,
+    ])
 
     const quizQuestions = buildSessionQuiz({
       sessionCards,
