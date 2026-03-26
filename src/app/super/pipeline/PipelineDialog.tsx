@@ -130,7 +130,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       practiceAddress: form.practiceAddress || empty,
       townCity: form.townCity || empty,
       pcnName: form.pcnName || empty,
-      listSize: listSize || empty,
+      listSize: listSize ?? empty,
       contactName: form.contactName || empty,
       contactRole: form.contactRole || empty,
       contactEmail: form.contactEmail || empty,
