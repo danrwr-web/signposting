@@ -89,6 +89,15 @@ export async function POST(
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '')
 
+    // Check for slug uniqueness before starting the transaction
+    const existingSlug = await prisma.surgery.findUnique({ where: { slug } })
+    if (existingSlug) {
+      return NextResponse.json(
+        { error: `A surgery with the slug "${slug}" already exists. Please use a different surgery name.` },
+        { status: 400 }
+      )
+    }
+
     // Hash the temporary password
     const hashedPassword = await bcrypt.hash(temporaryPassword, 12)
 

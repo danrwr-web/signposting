@@ -370,6 +370,8 @@ export default function CommsHub({ entries, setEntries }: Props) {
   // Whether the pipeline status differs from the selected comms stage
   const canUpdateStage =
     selectedEntry &&
+    selectedEntry.status !== 'Lost' &&
+    selectedEntry.status !== 'OnHold' &&
     selectedEntry.status !== stage &&
     COMMS_STAGES.includes(stage) &&
     !stageUpdated
