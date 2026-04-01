@@ -18,10 +18,10 @@ const updateAppointmentSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     
     // Get existing appointment to check surgeryId
     const existing = await prisma.appointmentType.findUnique({
@@ -97,10 +97,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     
     // Get existing appointment to check surgeryId
     const existing = await prisma.appointmentType.findUnique({

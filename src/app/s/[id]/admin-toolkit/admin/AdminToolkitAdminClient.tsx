@@ -348,9 +348,7 @@ function RoleCardsEditor({
   setForm: React.Dispatch<React.SetStateAction<PageFormState>>
   editorKey: string
 }) {
-  if (form.type !== 'PAGE') return null
-
-  const enabled = form.roleCardsEnabled
+  const enabled = form.type === 'PAGE' && form.roleCardsEnabled
   const hasRoleCards =
     enabled &&
     (((form.roleCardsCards ?? []).length > 0) ||
@@ -370,6 +368,8 @@ function RoleCardsEditor({
     // Do not force-close when empty.
     if (hasRoleCards) setOpen(true)
   }, [hasRoleCards, editorKey])
+
+  if (form.type !== 'PAGE') return null
 
   const setEnabled = (next: boolean) => {
     setForm((prev) => {

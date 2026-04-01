@@ -56,10 +56,10 @@ const getDefaultProfile = (): z.infer<typeof SurgeryOnboardingProfileJsonZ> => (
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
     clinicianArchetypes: [
-      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null },
-      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null },
-      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null },
-      { key: 'OTHER', enabled: false, localName: null, role: null, description: null },
+      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null, conditions: [] },
+      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null, conditions: [] },
+      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null, conditions: [] },
+      { key: 'OTHER', enabled: false, localName: null, role: null, description: null, conditions: [] },
     ],
   },
 })

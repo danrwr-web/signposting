@@ -1381,7 +1381,7 @@ export default function WorkflowDiagramClient({
         },
       }
     })
-  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection, openDetailsForNode, effectiveAdmin])
+  }, [template.nodes, selectedNodeId, nodeHasOutgoingEdges, toggleNodeSelection, openDetailsForNode, effectiveAdmin, styleDefaultsByType, surgeryDefaultsByType])
 
   const connectionCount = useMemo(
     () =>
@@ -1733,15 +1733,16 @@ export default function WorkflowDiagramClient({
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const resizeEndTimeouts = resizeEndTimeoutRef.current
     return () => {
       if (positionUpdateTimeoutRef.current) {
         clearTimeout(positionUpdateTimeoutRef.current)
       }
       // Clear all resize-end timeouts
-      resizeEndTimeoutRef.current.forEach((timeout) => {
+      resizeEndTimeouts.forEach((timeout) => {
         clearTimeout(timeout)
       })
-      resizeEndTimeoutRef.current.clear()
+      resizeEndTimeouts.clear()
     }
   }, [])
   
@@ -2139,7 +2140,7 @@ export default function WorkflowDiagramClient({
       console.error('Error creating node:', error)
       alert('Failed to create node')
     }
-  }, [createNodeAction, nodes, isAdmin, setNodes, getSpawnPosition])
+  }, [createNodeAction, nodes, isAdmin, setNodes, getSpawnPosition, openDetailsForNode, router])
 
   // Handle saving node edits
   const handleSaveNode = useCallback(async () => {
@@ -2389,7 +2390,7 @@ export default function WorkflowDiagramClient({
       console.error('Error creating connected node:', error)
       alert('Failed to create connected node')
     }
-  }, [isAdmin, createNodeAction, createAnswerOptionAction, detailsNode, nodes, setNodes, setEdges])
+  }, [isAdmin, createNodeAction, createAnswerOptionAction, detailsNode, nodes, setNodes, setEdges, effectiveAdmin, openDetailsForNode])
 
   // Handle deleting node
   const handleDeleteNode = useCallback(async () => {

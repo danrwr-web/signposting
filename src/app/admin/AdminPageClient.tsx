@@ -166,6 +166,9 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           setFeatureFlagsLoading(false)
         })
     }
+  // featureFlagsLoading intentionally omitted — including it would re-trigger the effect
+  // after the flag is set to true, creating an infinite loop. The guard acts as a load-once check.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.type, session.surgeryId])
 
   // Load highlight rules from API
@@ -305,6 +308,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     if (editingMode === 'base' || (editingMode === 'override' && selectedSurgery)) {
       loadEffectiveSymptoms()
     }
+  // loadEffectiveSymptoms is an unstable closure; the effect should only re-run when these deps change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSurgery, editingMode])
 
   // Load override data when symptom is selected
@@ -312,6 +317,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     if (selectedSymptom && (editingMode === 'override' ? selectedSurgery : true)) {
       loadOverrideData()
     }
+  // loadOverrideData is an unstable closure; the effect should only re-run when these deps change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymptom, selectedSurgery, editingMode])
 
   const handleLogout = async () => {
