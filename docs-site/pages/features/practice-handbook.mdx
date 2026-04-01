@@ -1,0 +1,131 @@
+# Practice Handbook
+
+The Practice Handbook is your surgery's internal knowledge base — a single, always-accessible place for staff to find rotas, policies, procedures, contact lists, and operational guidance. It stores *how your surgery runs*: who is on call today, what to do with a discharge letter, how repeat prescriptions are handled. It complements the Signposting Library (which focuses on where to direct patients) by covering everything about how the practice itself operates.
+
+The Handbook is accessible from the main navigation and is always one click away, regardless of which module staff are in.
+
+---
+
+## The Staff View
+
+### Main page layout
+
+When a staff member opens the Handbook they see:
+
+- A **categories sidebar** on the left showing all visible categories. Clicking a category loads its items in the main area.
+- A **main content area** showing the selected category's items as cards, each displaying the item title, type, and a brief summary.
+- **Quick Access buttons** near the top of the page — configurable shortcuts to frequently used items such as "Today's rota" or "Phone Numbers".
+- An **operational info panel** at the bottom of the page showing the current on-take GP and other configurable operational information (see [Pinned panel](#pinned-panel) below). This panel defaults to collapsed; it auto-expands when the on-take GP changes, and remembers each user's preference.
+
+### Quick Access buttons
+
+Quick Access buttons appear at the top of the staff page and provide direct shortcuts to specific Handbook items. They are especially useful for the things staff reach for every day. Each button shows the item's title by default, but can have a custom label. Buttons support custom background and text colours — useful for making high-priority shortcuts stand out. Buttons are configured and reordered by admins in Structure & Settings (see below).
+
+---
+
+## Item types
+
+The Handbook supports two item types: **PAGE** and **LIST**.
+
+### PAGE items
+
+PAGE is the standard item type for narrative guidance content — policies, procedures, clinical protocols, and contact information structured by role. A PAGE item contains:
+
+- A **title**
+- Optional **Intro text** shown above the role cards, providing a summary or context for the policy
+- One or more **Role Cards** — sections of guidance targeted at specific roles (e.g. Receptionist, HCA, Nurse, GP)
+- Optional **Additional notes** below the role cards for links, exceptions, or caveats
+
+PAGE items are the right choice for most guidance content: anything that needs explanation, role-specific steps, or structured narrative.
+
+### LIST items
+
+A LIST is a simple editable table for structured data that changes regularly and doesn't require narrative explanation. Good examples: the duty rota, on-call contact numbers, frequently called departments, or a list of local service referral criteria.
+
+Standard users with editing permission can update LIST items directly from the staff view, without accessing the admin dashboard. This makes it practical for the rota, for example, to be maintained by a non-admin staff member.
+
+---
+
+## Admin: Handbook Library
+
+Admins access the Handbook via **Manage handbook → Handbook Library**.
+
+The admin area has four tabs: **Handbook Library**, **Structure & Settings**, **Engagement**, and **Audit**.
+
+The **Handbook Library tab** is the main content management area. It shows all handbook items in a searchable, filterable list grouped by category. A split-panel layout presents the item picker on the left and the editor on the right. From here, admins can:
+
+- **Create** a new PAGE or LIST item using the new-item form in the editor panel
+- **Edit** any existing item by searching or browsing the left-hand picker and selecting it
+- **Set per-item editing permissions** — individual items can be marked as editable by standard users, allowing specific people (for example, a receptionist maintaining the rota) to update that item without accessing the full admin dashboard
+
+When creating a PAGE item, the editor includes:
+
+- **Type** — PAGE (guidance) or LIST
+- **Title**
+- **Category** — assign to a category from a dropdown
+- **Warning badge** (optional) — a short label such as "Urgent" displayed on the item card in the staff view
+- **Last reviewed** (optional) — a date field to support clinical governance review processes and signal to staff when content was last checked
+
+---
+
+## Admin: Structure & Settings
+
+The **Structure & Settings tab** is the configuration hub for the Handbook. It is laid out as a settings dashboard with section navigation on the left. Sections include: **Categories**, **Quick access buttons**, **Pinned panel**, and **On-take rota (weekly)**.
+
+### Categories
+
+Categories organise items in the staff sidebar. Each category can have:
+
+- A **name**
+- **Visibility controls** — a category can be restricted so only certain staff roles can see it
+- **Hierarchy** — categories can be nested; subcategories are shown indented under their parent in the sidebar
+- Categories are searchable within the settings area and can be reordered using arrow buttons
+
+### Quick access buttons
+
+Configure which items appear as Quick Access buttons on the staff front page. Uses a searchable item picker. Each button supports a custom label, custom background colour, and custom text colour, with a live preview showing how the button will appear to staff. Buttons are reorderable from this panel.
+
+### Pinned panel
+
+The Pinned panel is the operational info section at the bottom of the staff page. It is configured here with structured fields. Examples of configurable fields include:
+
+- **Task buddy system** — e.g. short steps for staff including who covers who during the session
+- **Post route** — e.g. what to do after the call
+
+The panel includes a live preview so admins can see how content will appear to staff before saving.
+
+### On-take rota (weekly)
+
+The on-take rota is a separate settings section that allows admins to record the on-take GP for each week (Monday to Sunday). The current week's on-take GP is surfaced automatically in the Pinned panel on the staff page. Admins can view and set upcoming weeks in advance.
+
+---
+
+## Engagement
+
+The **Engagement tab** shows which Handbook items are most viewed and which staff members are most active. Results are filterable by time period: 7 days, 30 days, 90 days, or all time.
+
+Engagement data helps admins understand whether new content is being found and whether frequently-needed items are surfaced prominently. If an important item shows low engagement, it may be worth adding a Quick Access button or checking its category placement.
+
+---
+
+## Audit trail
+
+The **Audit tab** shows a chronological feed of changes to the Handbook: who changed what, and when. It is filterable by time period and change type.
+
+The audit trail supports governance review and helps diagnose unexpected changes. Because Handbook changes take effect immediately for all staff (there is no draft/approval workflow as there is in the Symptom Library), the audit tab provides the key accountability record.
+
+Per-item editing permissions mean that specific items (typically operational lists such as rotas) can be maintained by standard users without admin access — the audit trail records these changes too.
+
+---
+
+## Related pages
+
+- [Symptom Library](/features/symptom-library) — The main care navigation and patient signposting tool
+- [Workflow Guidance](/features/workflow-guidance) — Step-by-step process workflows for clinical and administrative tasks; where the Handbook stores static policies, Workflow Guidance handles structured decision-making processes
+- [Analytics](/features/analytics) — Surgery-wide engagement analytics across all modules
+- [Clinical Governance](/governance/clinical-governance) — How the Symptom Library's clinician review workflow operates
+- [Admin Guide](/governance/admin-guide) — Managing users, roles, and surgery-level settings
+
+---
+
+*Last updated: April 2026*
