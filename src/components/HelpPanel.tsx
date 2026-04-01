@@ -46,7 +46,7 @@ const HELP_LINKS: HelpLink[] = [
   {
     id: 'practice-handbook',
     title: 'Practice Handbook',
-    url: `${DOCS_BASE_URL}/governance/admin-guide#practice-handbook`,
+    url: `${DOCS_BASE_URL}/features/practice-handbook`,
     description: 'Local guidance pages for your practice.',
     keywords: ['admin toolkit', 'handbook', 'local guidance', 'rota'],
     section: 'quick',
