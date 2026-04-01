@@ -60,7 +60,7 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
   // Get user info from session
   const user = session?.user as any
   const isSuperuser = user?.globalRole === 'SUPERUSER'
-  const memberships = user?.memberships || []
+  const memberships = useMemo(() => user?.memberships || [], [user?.memberships])
 
   // On mount: apply precedence URL > cookie > localStorage > user's default surgery
   useEffect(() => {

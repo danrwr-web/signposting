@@ -108,7 +108,7 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
     }
 
     // Get the first segment after /s/[surgeryId] - this is the module
-    const module = pathParts[3]
+    const navModule = pathParts[3]
 
     // Map modules to their safe landing pages
     // These are accessible to all surgery members (not admin-only)
@@ -121,8 +121,8 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
     }
 
     // Navigate to the module landing page if we recognize the module
-    if (module && module in moduleLandingPages) {
-      const landingPage = moduleLandingPages[module]
+    if (navModule && navModule in moduleLandingPages) {
+      const landingPage = moduleLandingPages[navModule]
       return landingPage ? `${basePath}/${landingPage}` : basePath
     }
 

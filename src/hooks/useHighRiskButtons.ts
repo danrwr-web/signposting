@@ -22,13 +22,13 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     ? surgeries.find(s => s.id === surgeryId)?.slug || null
     : null
 
-  const buildApiUrl = (endpoint: string, includeSurgery = true) => {
+  const buildApiUrl = useCallback((endpoint: string, includeSurgery = true) => {
     const baseUrl = `/api/admin/${endpoint}`
     if (includeSurgery && surgerySlug) {
       return `${baseUrl}?surgery=${encodeURIComponent(surgerySlug)}`
     }
     return baseUrl
-  }
+  }, [surgerySlug])
 
   const loadHighRiskLinks = useCallback(async () => {
     try {
@@ -48,7 +48,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       console.error('Error loading high-risk links:', error)
       toast.error('Failed to load high-risk buttons')
     }
-  }, [surgerySlug])
+  }, [buildApiUrl])
 
   const loadDefaultButtons = useCallback(async () => {
     try {
@@ -73,7 +73,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
     } finally {
       setIsLoading(false)
     }
-  }, [surgerySlug])
+  }, [buildApiUrl])
 
   const toggleDefaultButtons = useCallback(async () => {
     try {
@@ -102,7 +102,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       console.error('Error toggling default buttons:', error)
       toast.error('Failed to toggle default buttons')
     }
-  }, [enableDefaultHighRisk, surgerySlug, loadHighRiskLinks])
+  }, [enableDefaultHighRisk, buildApiUrl, loadHighRiskLinks, loadDefaultButtons])
 
   const toggleIndividualButton = useCallback(async (buttonKey: string, isEnabled: boolean) => {
     try {
@@ -130,7 +130,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       console.error('Error toggling individual button:', error)
       toast.error('Failed to toggle button')
     }
-  }, [surgerySlug, loadHighRiskLinks])
+  }, [buildApiUrl, loadHighRiskLinks, loadDefaultButtons])
 
   const updateButton = useCallback(async (buttonKey: string, label: string, symptomSlug: string) => {
     try {
@@ -161,7 +161,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to update button')
       return false
     }
-  }, [surgerySlug, loadHighRiskLinks])
+  }, [buildApiUrl, loadHighRiskLinks, loadDefaultButtons])
 
   const addCustomLink = useCallback(async (newLink: { label?: string; symptomId: string; symptomSlug?: string; orderIndex: number }) => {
     if (!newLink.symptomId && !newLink.symptomSlug) {
@@ -196,7 +196,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to add high-risk button')
       return false
     }
-  }, [surgerySlug, loadHighRiskLinks])
+  }, [buildApiUrl, loadHighRiskLinks])
 
   const deleteLink = useCallback(async (id: string) => {
     try {
@@ -221,7 +221,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to delete high-risk button')
       return false
     }
-  }, [surgerySlug, loadHighRiskLinks])
+  }, [buildApiUrl, loadHighRiskLinks])
 
   const updateOrder = useCallback(async (id: string, newOrder: number) => {
     try {
@@ -245,7 +245,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       console.error('Error updating order:', error)
     }
     return false
-  }, [surgerySlug, loadHighRiskLinks])
+  }, [buildApiUrl, loadHighRiskLinks])
 
   const addGlobalDefaultButton = useCallback(async (buttonKey: string, label: string, symptomSlug: string) => {
     try {
@@ -280,7 +280,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to add global default button')
       return false
     }
-  }, [loadDefaultButtons])
+  }, [buildApiUrl, loadDefaultButtons])
 
   const deleteDefaultButton = useCallback(async (buttonKey: string) => {
     try {
@@ -311,7 +311,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to delete default button')
       return false
     }
-  }, [loadDefaultButtons, loadHighRiskLinks])
+  }, [buildApiUrl, loadDefaultButtons, loadHighRiskLinks])
 
   const reorderDefaultButton = useCallback(async (buttonKey: string, newOrder: number) => {
     try {
@@ -341,7 +341,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
       toast.error('Failed to reorder button')
       return false
     }
-  }, [loadDefaultButtons, loadHighRiskLinks])
+  }, [buildApiUrl, loadDefaultButtons, loadHighRiskLinks])
 
   return {
     highRiskLinks,

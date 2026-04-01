@@ -255,10 +255,10 @@ const getDefaultProfile = (): SurgeryOnboardingProfileJson => ({
     urgentSameDayF2F: { enabled: false, localName: '', clinicianRole: '', description: '' },
     otherClinicianDirect: { enabled: false, localName: '', clinicianRole: '', description: '' },
     clinicianArchetypes: [
-      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null, restrictions: null, acceptsUnderFives: null },
-      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null, restrictions: null, acceptsUnderFives: null },
-      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null, restrictions: null, acceptsUnderFives: null },
-      { key: 'OTHER', enabled: false, localName: null, role: null, description: null, restrictions: null, acceptsUnderFives: null },
+      { key: 'ANP', enabled: false, localName: null, role: 'ANP', description: null, restrictions: null, acceptsUnderFives: null, conditions: [] },
+      { key: 'PHARMACIST', enabled: false, localName: null, role: 'Clinical Pharmacist', description: null, restrictions: null, acceptsUnderFives: null, conditions: [] },
+      { key: 'FCP', enabled: false, localName: null, role: 'First Contact Physiotherapist', description: null, restrictions: null, acceptsUnderFives: null, conditions: [] },
+      { key: 'OTHER', enabled: false, localName: null, role: null, description: null, restrictions: null, acceptsUnderFives: null, conditions: [] },
     ],
   },
 })
@@ -931,9 +931,9 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                   // Ensure clinicianArchetypes array exists
                   const clinicianArchetypes = profile.appointmentModel.clinicianArchetypes || []
                   const archetypeIndex = clinicianArchetypes.findIndex((ca: any) => ca.key === archetype.key)
-                  const config = archetypeIndex >= 0 
+                  const config = archetypeIndex >= 0
                     ? clinicianArchetypes[archetypeIndex]
-                    : { key: archetype.key, enabled: false, localName: null, role: archetype.key === 'ANP' ? 'ANP' : archetype.key === 'PHARMACIST' ? 'Clinical Pharmacist' : archetype.key === 'FCP' ? 'First Contact Physiotherapist' : null, description: null }
+                    : { key: archetype.key, enabled: false, localName: null, role: archetype.key === 'ANP' ? 'ANP' : archetype.key === 'PHARMACIST' ? 'Clinical Pharmacist' : archetype.key === 'FCP' ? 'First Contact Physiotherapist' : null, description: null, conditions: [] as string[] }
 
                   return (
                     <div key={archetype.key} className="border border-gray-200 rounded-lg p-6 space-y-4 mb-4">
@@ -968,6 +968,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                   localName: null,
                                   role: config.role,
                                   description: nextEnabled && archetype.key !== 'ANP' ? archetype.suggestedDescription : null,
+                                  conditions: [],
                                 })
                               }
 
@@ -1018,6 +1019,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                     localName: e.target.value || null,
                                     role: config.role,
                                     description: config.description,
+                                    conditions: [],
                                   })
                                 }
                                 updateProfile({
@@ -1053,6 +1055,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                     localName: config.localName,
                                     role: e.target.value || null,
                                     description: config.description,
+                                    conditions: [],
                                   })
                                 }
                                 updateProfile({
@@ -1141,6 +1144,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                       localName: config.localName,
                                       role: config.role,
                                       description: archetype.suggestedDescription,
+                                      conditions: [],
                                     })
                                   }
                                   updateProfile({
@@ -1171,6 +1175,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                     localName: config.localName,
                                     role: config.role,
                                     description: e.target.value || null,
+                                    conditions: [],
                                   })
                                 }
                                 updateProfile({
@@ -1208,6 +1213,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                       description: config.description,
                                       restrictions: config.restrictions,
                                       acceptsUnderFives: e.target.checked,
+                                      conditions: [],
                                     })
                                   }
                                   updateProfile({
@@ -1250,6 +1256,7 @@ export default function OnboardingWizardClient({ surgeryId, surgeryName, user, i
                                     description: config.description,
                                     restrictions: e.target.value || null,
                                     acceptsUnderFives: config.acceptsUnderFives,
+                                    conditions: [],
                                   })
                                 }
                                 updateProfile({

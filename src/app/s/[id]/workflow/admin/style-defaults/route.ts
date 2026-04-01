@@ -9,9 +9,9 @@ import { WorkflowNodeType } from '@prisma/client'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 /**
@@ -20,7 +20,7 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id: surgeryId } = params
+    const { id: surgeryId } = await params
 
     // Check superuser access
     const user = await getSessionUser()
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id: surgeryId } = params
+    const { id: surgeryId } = await params
 
     // Check superuser access
     const user = await getSessionUser()
@@ -156,7 +156,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id: surgeryId } = params
+    const { id: surgeryId } = await params
 
     // Check superuser access
     const user = await getSessionUser()

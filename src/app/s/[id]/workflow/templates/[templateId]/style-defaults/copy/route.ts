@@ -8,10 +8,10 @@ import { revalidatePath } from 'next/cache'
 export const dynamic = 'force-dynamic'
 
 interface RouteParams {
-  params: {
+  params: Promise<{
     id: string
     templateId: string
-  }
+  }>
 }
 
 /**
@@ -20,7 +20,7 @@ interface RouteParams {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
-    const { id: surgeryId, templateId } = params
+    const { id: surgeryId, templateId } = await params
 
     // Check superuser access
     const user = await getSessionUser()
