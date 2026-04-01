@@ -1,6 +1,6 @@
 # Workflow Guidance
 
-Workflow Guidance lets you build and run visual step-by-step process workflows for clinical and administrative tasks. Workflows are flowcharts — sequences of instructions, decision points, and outcomes — that guide staff through structured processes such as handling a discharge summary, processing a fit note, or triaging an incoming task. Each workflow is displayed as an interactive canvas that staff read and navigate in real time.
+Workflow Guidance lets you build and run visual step-by-step process workflows for clinical and administrative tasks. Workflows are flowcharts — sequences of instructions, decision points, and outcomes — that guide staff through structured processes such as handling a discharge summary, processing a clinic letter, or triaging an incoming task. Each workflow is displayed as an interactive canvas that staff navigate in real time.
 
 Where the [Practice Handbook](/features/practice-handbook) stores static policies and reference information, Workflow Guidance handles processes that require decision-making: *if this, then that*.
 
@@ -8,101 +8,115 @@ Where the [Practice Handbook](/features/practice-handbook) stores static policie
 
 ## The staff experience
 
-Staff access Workflow Guidance from the main navigation. The landing page shows available workflows grouped into two sections:
+Staff access Workflow Guidance from the main navigation. The landing page is headed **"What type of document are you processing?"** with the subtitle "Choose a workflow below to see the exact steps to follow."
 
-- **Common documents (daily)** — the Primary workflows used regularly by most staff
-- **Less common / specialist** — Supporting workflows for less frequent tasks, or for handling specific parts of a larger process
+Workflows are grouped into two sections:
 
-An **Admin** section at the bottom of the landing page provides links to Manage Templates, Engagement, and Node styling defaults (visible to admins only).
+- **Common documents (daily)** — workflows used regularly by most staff, shown first
+- **Less common / specialist** — workflows for less frequent tasks or specific sub-processes
 
-To use a workflow, staff click **Start workflow** on the relevant card. This opens the workflow canvas in Viewing mode. The canvas is the staff experience — there is no separate step-by-step modal. Staff read the flowchart, follow the decision paths, and tap the **ℹ button** on any node to open its detailed body text in the Details panel on the right. The Details panel also contains an expandable **Diagram legend** explaining the node types.
+Each workflow card shows the workflow name, a short description, and a **Start workflow** button. Cards for Global templates that haven't yet been customised also show a **Customise workflow** button. Cards for surgery-customised or surgery-created workflows show only Start workflow.
 
-When starting a workflow, staff can optionally add:
+Clicking **Start workflow** navigates directly to the workflow canvas. There is no intermediate dialog — the canvas opens immediately in Viewing mode.
 
-- A **reference** (e.g. "Cardiology letter — JS 12 Jan") — this helps locate the instance later in the audit trail
-- A **category** (e.g. "Hospital Letter") — this filters engagement analytics
+A **Management** section at the bottom of the landing page (visible to admins only) provides links to Manage Templates, Engagement, and Node styling defaults.
+
+---
+
+## The canvas
+
+The canvas is the staff experience. It shows the full flowchart — all nodes, connections, and outcome labels — and staff follow the diagram as they work through the document or task.
+
+The **Details panel** on the right is closed by default. Staff interact with the canvas in two main ways:
+
+1. **Click any node** to select it and bring it into focus on the canvas.
+2. **Click the "i" button** on a node (visible on nodes that have body content) to open the Details panel and read the detailed guidance for that step. The panel shows the node's type badge, title, and full body text. Click **Clear details** to return to the default panel state.
+
+The default Details panel state shows a Mode toggle (Viewing / Editing), a prompt to click a node's "i" button, and a **Diagram legend** toggle that explains the node shape conventions.
 
 ---
 
 ## Canvas modes
 
-The workflow canvas has two modes, toggled from the Details panel:
+The canvas has two modes, toggled from the Details panel:
 
-**Viewing mode** — Read-only. Shows the full flowchart with all nodes, connections, and outcome labels. Staff work in Viewing mode. The Details panel shows the Diagram legend and, when a node is selected, that node's reference details and body text.
+**Viewing mode** — The standard staff mode. The editing toolbar is hidden. Staff read the flowchart and use the "i" buttons to access node detail. The Details panel is closed by default and can be opened via the "Open details panel" button.
 
-**Editing mode** — Full edit mode for admins building or modifying a workflow. The canvas shows an orange border and an "Editing mode active" indicator. The toolbar above the canvas becomes active, showing buttons to add each node type. Drag nodes to reposition them; hold Shift to lock to an axis.
+**Editing mode** — Full edit mode for building or modifying a workflow. The canvas shows an orange border and an "Editing mode active" indicator. The toolbar above the canvas becomes active, showing buttons to add each node type. The Details panel opens automatically showing "Getting started" guidance.
 
 ---
 
 ## Node types
 
-Workflows are built from five node types. Each serves a distinct purpose.
+Workflows are built from five node types.
 
-| Node type | Canvas shape | When to use |
+| Node type | Canvas shape | Use for |
 |---|---|---|
-| Instruction | Rectangle | Any step where staff need to read or check something before proceeding |
-| Question | Diamond | When the next action depends on the answer to something — signals a decision point |
-| Outcome | Rounded rectangle (shown as "END") | When a workflow path is complete — always end each path with an Outcome |
-| Panel | Background container | To group related steps visually; does not affect workflow logic |
-| Reference | Sidebar card | Supporting information staff might need, shown alongside the flow |
+| Instruction | Rectangle | A step where staff need to read, check, or act on something |
+| Question | Diamond | A decision point — the next step depends on the answer |
+| Outcome | Rounded rectangle (labelled "END") | The end of a workflow path |
+| Panel | Background container | Grouping related steps visually |
+| Reference | Sidebar card | Supporting information shown alongside the flow |
 
 ### Instruction
 
-Use for steps where staff need to read, check, or act on something before continuing. Instruction nodes can contain a detailed body (visible when staff tap ℹ) including checklists, guidance text, or diagnosis codes.
+Use for steps where staff need to read, check, or act before continuing. Instruction nodes support detailed body text (checklists, diagnosis codes, guidance steps) visible when staff click the "i" button.
 
-*Example:* "Code Diagnoses — check the discharge summary diagnosis matches one of the listed codes and code if appropriate."
+*Example:* "Code Diagnoses — check that the discharge summary diagnosis matches one of the listed codes and code if appropriate."
 
 ### Question
 
-Use when the next action depends on the answer to something. The diamond shape signals a decision point with branching paths.
+Use when the next action depends on the answer to something. The diamond shape signals a decision point with two or more branching paths.
 
-*Example:* "GP Actions?" with Yes → a further instruction node, No → proceed to outcome.
+*Example:* "GP Actions?" branching Yes / No.
 
 ### Outcome
 
-Use when a workflow path is complete. Always end each path with an Outcome node so staff know what to do with the document or task. Outcome nodes display a title and an "Outcome:" sub-line summarising the action. On the canvas, Outcome nodes are labelled **END**.
+Use to mark the end of a workflow path. Outcome nodes show a title and an "Outcome:" sub-line summarising what staff should do with the document. On the canvas, Outcome nodes are labelled **END**. Outcome nodes support body text accessible via the "i" button.
+
+*Example:* "Forward to GP — Outcome: forward this document to the GP inbox."
 
 ### Panel
 
-Use to group related steps visually, especially in complex workflows where it helps to separate phases (e.g. "Initial Triage", "Clinical Review", "Action"). Panels do not affect workflow logic — they are purely visual organisers.
+Use to group related steps visually, especially in complex workflows where it helps to separate phases (e.g. "Initial Triage", "Clinical Review", "Action"). Panels do not affect workflow logic.
 
 ### Reference
 
-Use for supporting information that staff might need but that isn't part of the decision flow — for example, a reference card listing local referral criteria, shown alongside the workflow.
+Use for supporting information that staff might need but that isn't part of the decision flow — for example, a list of referral criteria shown alongside the workflow.
 
 ### Node options
 
 All node types support:
 
 - **Node styling** — custom background and text colours, configurable per-node
-- **STAMP badge** — a short badge label displayed on the node in the canvas view
+- **STAMP badge** — a short badge label displayed on the node in the canvas
 
-Instruction nodes additionally support **linked workflows** — cross-references to other workflow templates that are accessible from the Details panel when that node is selected.
+Instruction nodes additionally support **linked workflows** — cross-references to other workflow templates, accessible from the Details panel when that node is selected.
 
 ---
 
 ## Workflow types and landing sections
 
-Each workflow template has a **type** that controls where it appears on the staff landing page:
+Each template has a **type** that determines which landing section it appears in:
 
-- **Primary** — Shown in "Common documents (daily)". These are the workflows most staff use regularly.
-- **Supporting** — Shown in "Less common / specialist". These are used less frequently or are designed to be linked from other workflows to handle a specific sub-process.
+- **Primary** — appears in "Common documents (daily)"
+- **Supporting** — appears in "Less common / specialist"
 
-Templates also carry a **source** badge:
+Templates also carry a **source** badge in the Manage Templates table:
 
-- **Global** — Provided centrally; not customised by the surgery
-- **Customised** — A surgery-modified version of a global template (shown on both the landing page card and the template list)
-- No badge — Created entirely by the surgery
+- **Global** — provided centrally
+- **Customised** — a surgery-modified version of a Global template
+- No badge — created by the surgery
 
 ---
 
 ## Creating and editing workflows
 
-Admins manage workflow templates from **Manage templates** (accessible from the landing page or the Admin section).
+Admins manage templates via **Manage Templates** on the landing page or via the Management section.
 
-To create a new workflow: select **New template**, choose a type (Primary or Supporting), and add a title. The canvas opens in Editing mode ready to build.
+To create a new template: click **Create workflow…**, choose a type (Primary or Supporting), and add a title. The canvas opens in Editing mode.
 
-To edit an existing workflow: open the template and switch to Editing mode from the Details panel. The toolbar above the canvas shows:
+To edit an existing template: open it and switch to Editing mode from the Details panel. The toolbar shows:
 
 - **Add instruction** — adds an Instruction node
 - **Add question** — adds a Question node
@@ -110,31 +124,19 @@ To edit an existing workflow: open the template and switch to Editing mode from 
 - **Add panel** — adds a Panel container
 - **Add reference** — adds a Reference card
 
-Drag nodes to position them on the canvas. Connect nodes by drawing from one node's output handle to another's input handle. Hold Shift while dragging to lock movement to a horizontal or vertical axis.
+Drag nodes to reposition them on the canvas. Connect nodes by dragging from one node's output handle to another's input handle. Hold Shift while dragging to lock movement to a horizontal or vertical axis.
 
-When a node is selected in Editing mode, the Details panel on the right shows the node editor where you can set the node's title, body text, styling, STAMP badge, and (for Instruction nodes) any linked workflows.
+With a node selected in Editing mode, the Details panel shows the node editor where you can set the title, body text, styling, STAMP badge, and (for Instruction nodes) any linked workflows.
 
----
-
-## Draft and approval lifecycle
-
-Workflow templates move through a defined lifecycle:
-
-**Draft** — A template being built or revised. Not visible to staff. Admins can edit a Draft template freely.
-
-**Approved** — A template that has been reviewed and published. Visible to staff on the landing page.
-
-**Superseded** — A template that was previously Approved but has been replaced by a newer version. The previous version is retained for audit purposes and is visible in the template history, but is no longer shown to staff as an active workflow.
-
-To publish a Draft template, an admin with appropriate permissions marks it as Approved. Any subsequent edits create a new Draft version; approving that new Draft supersedes the previous Approved version.
+To customise a Global template for your surgery: click **Customise workflow** on the landing page card. This creates a surgery-specific copy that you can edit freely without affecting the global version.
 
 ---
 
-## Engagement analytics
+## Engagement
 
-The Engagement section (accessible from the Admin area on the landing page) shows how often each workflow is being used and by which staff members. Results are filterable by time period.
+The **Engagement** section (linked from the Management area on the landing page) shows how often each workflow is being used and by which staff members, filterable by time period.
 
-If certain workflows show low engagement, it may indicate they aren't being found — consider adding a link from the Practice Handbook, or surfacing them via a Quick Access button. If a workflow is used very frequently, it may be a candidate for review and optimisation.
+If certain workflows show low engagement, they may not be visible enough — consider their placement in Primary vs Supporting, or whether a link from the Practice Handbook would help.
 
 ---
 
@@ -143,7 +145,7 @@ If certain workflows show low engagement, it may indicate they aren't being foun
 - [Practice Handbook](/features/practice-handbook) — For storing static policies, guidance, and reference content that doesn't require step-by-step navigation
 - [Symptom Library](/features/symptom-library) — The main care navigation and patient signposting tool
 - [Analytics](/features/analytics) — Surgery-wide engagement analytics
-- [Clinical Governance](/governance/clinical-governance) — How clinical content review workflows operate in the Symptom Library
+- [Admin Guide](/governance/admin-guide) — Feature flags and admin settings
 
 ---
 
