@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       bySymptomId.set(rs.symptomId, arr)
     }
 
-    const toCreate: Array<{ surgeryId: string; symptomId: string; ageGroup: string; status: 'APPROVED' }> = []
+    const toCreate: Array<{ surgeryId: string; symptomId: string; ageGroup: string; status: 'PENDING' }> = []
     const toUpdateAgeGroup: Array<{ id: string; ageGroup: string }> = []
     const toDeleteIds: string[] = []
 
@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
         continue
       }
 
-      // No row at all for this symptom: backfill as APPROVED (legacy default).
-      toCreate.push({ surgeryId, symptomId: s.id, ageGroup: targetAgeGroup, status: 'APPROVED' })
+      // No row at all for this symptom: backfill as PENDING so it requires explicit review.
+      toCreate.push({ surgeryId, symptomId: s.id, ageGroup: targetAgeGroup, status: 'PENDING' })
     }
 
     if (toDeleteIds.length || toUpdateAgeGroup.length || toCreate.length) {
