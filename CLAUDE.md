@@ -48,6 +48,9 @@ npm run build:dev    # Dev build (generates + pushes schema + builds)
 | AI             | Azure OpenAI (gpt-4o-mini)                         |
 | Deployment     | Vercel (serverless)                                |
 | Validation     | Zod 4                                              |
+| Documents      | docxtemplater + pizzip (DOCX), xlsx (Excel)        |
+| Notifications  | react-hot-toast                                    |
+| Markdown       | react-markdown + remark/rehype plugins             |
 
 ## Directory Structure
 
@@ -56,7 +59,7 @@ src/
 ├── app/                    # Next.js App Router
 │   ├── (auth)/             # Login pages (admin-login, super-login)
 │   ├── admin/              # Superuser admin dashboard
-│   ├── api/                # REST API route handlers (~50 endpoint dirs)
+│   ├── api/                # REST API route handlers (~47 endpoint dirs)
 │   ├── s/[id]/             # Surgery-scoped pages (main app shell)
 │   │   ├── signposting/    # Symptom directory
 │   │   ├── admin/          # Surgery admin settings
@@ -75,6 +78,7 @@ src/
 │   ├── appointments/       # Appointment management
 │   ├── editor/             # SafeTipTapEditor
 │   ├── marketing/          # Landing page components
+│   ├── rich-text/          # Rich text rendering components
 │   ├── workflow/           # Workflow canvas nodes & icons
 │   └── __tests__/          # Component tests
 ├── context/                # React Context providers
@@ -82,21 +86,35 @@ src/
 │   ├── CardStyleContext.tsx # Card display preferences
 │   └── NavigationPanelContext.tsx
 ├── hooks/                  # Custom React hooks
-├── lib/                    # Shared utilities
+├── lib/                    # Shared utilities (~25 files; selection below)
 │   ├── auth.ts             # NextAuth configuration
 │   ├── rbac.ts             # Role-based access control
+│   ├── roles.ts            # Role constants/helpers
 │   ├── prisma.ts           # Prisma client singleton
 │   ├── api-contracts.ts    # Shared TypeScript types for APIs
 │   ├── features.ts         # Feature flag resolution
+│   ├── ensureFeatures.ts   # Feature flag bootstrapping
 │   ├── highlighting.ts     # Highlight rule engine
 │   ├── adminToolkitPermissions.ts  # Admin Toolkit RBAC
+│   ├── clinicalReviewCounts.ts     # Clinical review count queries
+│   ├── commonReasons.ts    # Common consultation reasons
+│   ├── email.ts            # Email sending utility
+│   ├── excel-parser.ts     # Excel file parsing
+│   ├── debounce.ts         # Debounce utility
 │   └── sanitizeHtml.ts     # HTML sanitization
-├── server/                 # Server-only utilities
+├── server/                 # Server-only utilities (~13 files; selection below)
 │   ├── effectiveSymptoms.ts    # Resolve base + overrides + custom symptoms
 │   ├── effectiveWorkflows.ts   # Resolve workflow templates & instances
 │   ├── adminToolkit.ts         # Admin Toolkit queries
 │   ├── highlights.ts           # Compute active highlight rules
-│   └── aiCustomiseInstructions.ts  # AI integration
+│   ├── auth.ts                 # Server-side auth utilities
+│   ├── azureOpenAI.ts          # Azure OpenAI client configuration
+│   ├── aiCustomiseInstructions.ts  # AI integration
+│   ├── updateRequiresClinicalReview.ts  # Detect changes needing clinical review
+│   ├── symptomSlug.ts          # Slug generation for symptoms
+│   ├── recentlyChangedSymptoms.ts      # "What's changed" symptom queries
+│   ├── recentlyChangedHandbookItems.ts # "What's changed" handbook queries
+│   └── highRiskTags.ts         # High-risk tag management
 ├── navigation/             # Navigation module definitions
 ├── types/                  # TypeScript type extensions
 │   ├── global.d.ts
@@ -105,7 +123,7 @@ src/
 ```
 
 Key non-src directories:
-- `prisma/` - Database schema (`schema.prisma`, ~1050 lines) and seed script
+- `prisma/` - Database schema (`schema.prisma`, ~1165 lines) and seed script
 - `scripts/` - Build helpers and data migration scripts
 - `docs/` - User/admin documentation (GitHub Pages)
 - `public/images/` - Logos, favicons, OG images
@@ -118,15 +136,22 @@ Every surgery is an isolated tenant identified by a UUID. Routes under `/s/[id]/
 
 ### Authentication & Authorization
 
-Three-level role hierarchy:
-1. **SUPERUSER** - Full system access across all surgeries
-2. **ADMIN** - Surgery-level admin (manages symptoms, users, settings for their surgery)
-3. **STANDARD** - Regular user within a surgery
+Roles are split across two enums:
+- **Global role** (`User.globalRole`): `USER` (default) or `SUPERUSER`
+- **Surgery membership role** (`UserSurgery.role`): `STANDARD` (default) or `ADMIN`
+
+Effective access:
+1. **SUPERUSER** - Global role; full system access across all surgeries
+2. **ADMIN** - Surgery membership role; manages symptoms, users, settings for that surgery
+3. **STANDARD** - Surgery membership role; regular user within a surgery
 
 Key auth patterns:
 - `getSessionUser()` in `src/lib/rbac.ts` - retrieves authenticated user with memberships
-- `can(user).manageSurgery(surgeryId)` - permission checks via `PermissionChecker`
-- `requireAuth()`, `requireSuperuser()`, `requireSurgeryAdmin(surgeryId)` - guard functions that throw on failure
+- `can(user).manageSurgery(surgeryId)` / `can(user).viewSurgery(surgeryId)` - permission checks via `PermissionChecker`
+- Guard functions that throw on failure:
+  - `requireAuth()`, `requireSuperuser()`
+  - `requireSurgeryAdmin(surgeryId)`, `requireSurgeryAccess(surgeryId)`, `requireSurgeryMembership(surgeryId)`
+  - `requireSuperuserOrSurgeryAdmin(surgeryId)`
 - Middleware at `src/middleware.ts` enforces route-level protection
 
 ### API Route Pattern
@@ -178,7 +203,7 @@ Database-driven feature flags with two levels:
 
 ### Prisma Schema
 
-The schema is at `prisma/schema.prisma` (~1050 lines, 40+ models). PostgreSQL is required (not SQLite).
+The schema is at `prisma/schema.prisma` (~1165 lines, 50+ models). PostgreSQL is required (not SQLite).
 
 Key conventions:
 - Cascade deletes on child records when parent is deleted
@@ -231,7 +256,7 @@ Always run `npm run db:generate` after schema changes to regenerate the Prisma c
 **Always use the shared UI primitives** from `src/components/ui/` instead of writing inline Tailwind for common elements. Import from `@/components/ui`:
 
 ```typescript
-import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertBanner } from '@/components/ui'
+import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertBanner, Skeleton, EmptyState } from '@/components/ui'
 ```
 
 | Component | Use instead of | Key props |
@@ -245,6 +270,8 @@ import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertB
 | `Card` | `<div className="bg-white rounded-lg shadow-md...">` | `elevation` (`flat`\|`raised`\|`elevated`\|`floating`), `hoverable`, `padding` |
 | `Dialog` | Custom `<div className="fixed inset-0 z-50...">` modals | `open`, `onClose`, `title`, `description`, `width`, `footer`, `initialFocusRef` |
 | `AlertBanner` | `<div className="bg-red-50 border-l-4...">` | `variant` (`error`\|`warning`\|`success`\|`info`) |
+| `Skeleton` | `<div className="animate-pulse bg-gray-200...">` loading placeholders | Base: `width`, `height`, `rounded`. Compound variants: `SkeletonText` (`lines`), `SkeletonCard`, `SkeletonTable` (`columns`, `rows`), `SkeletonCardGrid` (`count`, `gridCols`), `SkeletonWorkflowCard`, `SkeletonAdminToolkit` |
+| `EmptyState` | Custom empty-state `<div>` with icon + text | `title`, `description`, `illustration` (7 presets: `search`\|`documents`\|`calendar`\|`clipboard`\|`folder`\|`users`\|`workflow`), `action`, `secondaryAction` |
 
 **Do NOT** create new inline modal/dialog implementations — always use `Dialog`. It handles portal rendering, focus trapping, Escape key, body scroll lock, and ARIA attributes automatically.
 
