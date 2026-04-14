@@ -123,6 +123,36 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
     }
   }, [searchParams, user, isSuperuser, memberships, availableSurgeries])
 
+  // Extract surgery id from /s/<id>/... pathname (if any). Treated as the
+  // authoritative surgery whenever the user is on a surgery-scoped route, so
+  // that the header label and any consumer of useSurgery() match the URL
+  // rather than a stale cookie/localStorage selection.
+  const pathSurgeryId = useMemo(() => {
+    if (!pathname) return null
+    const match = pathname.match(/^\/s\/([^\/]+)/)
+    if (!match) return null
+    const id = match[1]
+    if (id === 'select') return null
+    return id
+  }, [pathname])
+
+  // Sync context state to the URL path's surgery when present.
+  useEffect(() => {
+    if (!pathSurgeryId) return
+    if (surgery?.id === pathSurgeryId) return
+    const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === pathSurgeryId)
+    if (!hasAccess) return
+    const surgeryData = availableSurgeries.find(s => s.id === pathSurgeryId)
+    const next: SurgeryState = surgeryData || { id: pathSurgeryId, slug: pathSurgeryId, name: '' }
+    isSettingRef.current = true
+    setSurgeryState(next)
+    writeCookie(COOKIE_KEY, pathSurgeryId, COOKIE_MAX_AGE)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+    }
+    isSettingRef.current = false
+  }, [pathSurgeryId, surgery?.id, isSuperuser, memberships, availableSurgeries])
+
   // Cross-tab sync via storage event
   useEffect(() => {
     const handler = (e: StorageEvent) => {

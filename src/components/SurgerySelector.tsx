@@ -19,17 +19,19 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
   const pathname = usePathname()
   const { clearSurgery, surgery } = useSurgery()
   const { data: session } = useSession()
-  // Use surgery from context as source of truth, fallback to currentSurgeryId prop
-  const actualSurgeryId = surgery?.id || currentSurgeryId || ''
+  // Prefer the URL-derived currentSurgeryId prop over the context so the
+  // dropdown label always matches the surgery the page is actually scoped to,
+  // even during the first paint before SurgeryContext syncs to the URL.
+  const actualSurgeryId = currentSurgeryId || surgery?.id || ''
   const [selectedId, setSelectedId] = useState(actualSurgeryId)
   const selectRef = useRef<HTMLSelectElement>(null)
-  
+
   // Check if user is a superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
 
-  // Sync selectedId with context surgery when it changes
+  // Sync selectedId with the URL-derived prop first, falling back to context.
   useEffect(() => {
-    const newId = surgery?.id || currentSurgeryId || ''
+    const newId = currentSurgeryId || surgery?.id || ''
     setSelectedId(newId)
   }, [surgery?.id, currentSurgeryId])
 
@@ -132,7 +134,9 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
 
   // If not superuser, just show the surgery name
   if (!isSuperuser) {
-    const currentSurgery = surgery || surgeries.find(s => s.id === currentSurgeryId)
+    const currentSurgery =
+      (currentSurgeryId ? surgeries.find(s => s.id === currentSurgeryId) : null)
+      || surgery
     return (
       <div className="flex items-center">
         <span className="text-sm font-medium text-nhs-grey">
