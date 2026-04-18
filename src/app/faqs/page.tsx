@@ -65,6 +65,12 @@ const sections: Array<{
           'No. The toolkit is designed for guidance and routing. It does not store patient-identifiable information.',
       },
       {
+        id: 'dpia-required',
+        question: 'Do we need to complete a Data Protection Impact Assessment (DPIA)?',
+        answer:
+          'A formal DPIA is unlikely to be required for your practice in relation to the Signposting Toolkit. The platform does not process any patient-identifiable data — it is used entirely by reception and care navigation staff to guide their decision-making. The only personal data processed is staff data (names, login credentials, and usage activity), which is standard for any web-based workforce tool.\n\nUnder UK GDPR Article 35, a DPIA is required where processing is likely to result in high risk to individuals. As no patient data is involved, that threshold is not met here.\n\nAs good practice, we recommend reviewing our Data Processing Agreement and recording your assessment within your practice\u2019s ROPA. Your DPO or Caldicott Guardian may wish to confirm this.',
+      },
+      {
         id: 'mhra-medical-device',
         question: 'Is the Signposting Toolkit MHRA certified or a medical device?',
         answer:
