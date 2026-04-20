@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast'
 import { Button, Badge, AlertBanner } from '@/components/ui'
 import type { BadgeColor } from '@/components/ui/Badge'
 import PipelineDialog from './PipelineDialog'
+import InlineDateCell from './InlineDateCell'
 import { exportPipelineToExcel } from './pipelineExport'
 import {
   PipelineEntry,
@@ -146,7 +147,7 @@ export default function PipelineTable({ entries, setEntries }: Props) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {['Practice Name', 'PCN', 'List Size', 'Est. Fee', 'Contact', 'Status', 'Contract Start', 'Days', 'Notes', ''].map(
+              {['Practice Name', 'PCN', 'List Size', 'Est. Fee', 'Contact', 'Status', 'Contract Start', 'Days', 'Invoice Generated', 'Invoice Paid', 'Notes', ''].map(
                 (h) => (
                   <th
                     key={h}
@@ -161,7 +162,7 @@ export default function PipelineTable({ entries, setEntries }: Props) {
           <tbody className="divide-y divide-gray-200">
             {entries.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-sm text-gray-500">
+                <td colSpan={12} className="px-4 py-8 text-center text-sm text-gray-500">
                   No pipeline entries yet. Click &ldquo;Add Practice&rdquo; to get started.
                 </td>
               </tr>
@@ -199,6 +200,22 @@ export default function PipelineTable({ entries, setEntries }: Props) {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                     {days !== null ? days : '—'}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <InlineDateCell
+                      entryId={entry.id}
+                      field="invoiceGeneratedAt"
+                      value={entry.invoiceGeneratedAt}
+                      onUpdated={handleSaved}
+                    />
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                    <InlineDateCell
+                      entryId={entry.id}
+                      field="invoicePaidAt"
+                      value={entry.invoicePaidAt}
+                      onUpdated={handleSaved}
+                    />
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500 max-w-[200px] truncate">
                     {entry.notes || '—'}

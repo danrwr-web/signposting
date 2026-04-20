@@ -1094,6 +1094,10 @@ model SalesPipeline {
   // Financials
   annualValueGbp    Float?
 
+  // Invoice tracking
+  invoiceGeneratedAt   DateTime?
+  invoicePaidAt        DateTime?
+
   // Contract
   contractVariantLabel String?    // Legacy free-text field; will be dropped once all entries use contractVariantId
   contractVariantId    String?
@@ -1134,6 +1138,7 @@ enum DocumentType {
   Dpa
   HostingOverview
   IgSecurityPack
+  SetupGuide
 }
 
 model ContractVariant {
@@ -1148,17 +1153,17 @@ model ContractVariant {
 }
 
 model DocumentTemplate {
-  id                String          @id @default(cuid())
-  contractVariantId String
+  id                String           @id @default(cuid())
+  contractVariantId String?          // Nullable: SetupGuide templates are not variant-specific
   documentType      DocumentType
-  contentHtml       String?         // Legacy HTML (unused for generation, kept for migration)
-  contentJson       String?         // Legacy ProseMirror JSON (unused for generation)
-  templateDocx      Bytes?          // Raw .docx file bytes (source of truth for generation)
-  fileName          String?         // Original upload filename for UI display
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  contentHtml       String?          // Legacy HTML (unused for generation, kept for migration)
+  contentJson       String?          // Legacy ProseMirror JSON (unused for generation)
+  templateDocx      Bytes?           // Raw .docx file bytes (source of truth for generation)
+  fileName          String?          // Original upload filename for UI display
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-  contractVariant   ContractVariant @relation(fields: [contractVariantId], references: [id], onDelete: Cascade)
+  contractVariant   ContractVariant? @relation(fields: [contractVariantId], references: [id], onDelete: Cascade)
 
   @@unique([contractVariantId, documentType])
   @@index([contractVariantId])

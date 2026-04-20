@@ -23,6 +23,8 @@ export interface PipelineEntry {
   freeTrial: boolean
   trialEndDate: string | null
   annualValueGbp: number | null
+  invoiceGeneratedAt: string | null
+  invoicePaidAt: string | null
   contractVariantLabel: string | null
   contractVariantId: string | null
   contractVariant: { id: string; name: string } | null
@@ -71,6 +73,7 @@ export type DocumentType =
   | 'Dpa'
   | 'HostingOverview'
   | 'IgSecurityPack'
+  | 'SetupGuide'
 
 export const DOCUMENT_TYPES: DocumentType[] = [
   'Proposal',
@@ -78,6 +81,7 @@ export const DOCUMENT_TYPES: DocumentType[] = [
   'Dpa',
   'HostingOverview',
   'IgSecurityPack',
+  'SetupGuide',
 ]
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
@@ -86,6 +90,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   Dpa: 'Data Processing Agreement',
   HostingOverview: 'Hosting & IG Overview',
   IgSecurityPack: 'IG & Security Response Pack',
+  SetupGuide: 'Practice Setup Guide',
 }
 
 /** Document types whose template varies by contract variant */
@@ -93,6 +98,9 @@ export const VARIANT_SPECIFIC_TYPES: DocumentType[] = ['Proposal', 'SaasAgreemen
 
 /** Document types that use a single shared template across all variants */
 export const SHARED_DOC_TYPES: DocumentType[] = ['Dpa', 'HostingOverview', 'IgSecurityPack']
+
+/** Document types that stand alone with no variant (one template total) */
+export const STANDALONE_DOC_TYPES: DocumentType[] = ['SetupGuide']
 
 export const STATUS_BADGE_COLOURS: Record<PipelineStatus, string> = {
   Enquiry: 'gray',

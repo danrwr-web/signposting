@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { toast } from 'react-hot-toast'
-import { Button, Select, Input, FormField, Badge, AlertBanner } from '@/components/ui'
+import { Button, Select, Input, FormField, Badge, AlertBanner, Dialog } from '@/components/ui'
 import { PipelineEntry, PipelineStatus, STATUS_LABELS, DocumentType, DOCUMENT_TYPE_LABELS, SHARED_DOC_TYPES } from './types'
 import { generateDocument } from './documentGenerator'
 import {
@@ -200,6 +200,20 @@ export default function CommsHub({ entries, setEntries }: Props) {
     buildDefaultTemplateMap
   )
 
+  // Setup Guide state
+  const [setupGuideTemplateExists, setSetupGuideTemplateExists] = useState(false)
+  const [showSetupGuideConfirm, setShowSetupGuideConfirm] = useState(false)
+  const [generatingSetupGuide, setGeneratingSetupGuide] = useState(false)
+  const [setupGuideGenerated, setSetupGuideGenerated] = useState(false)
+
+  // Check whether a setup guide template exists on mount. HEAD avoids
+  // downloading the template bytes.
+  useEffect(() => {
+    fetch('/api/super/pipeline/setup-guide-template', { method: 'HEAD' })
+      .then((r) => setSetupGuideTemplateExists(r.ok))
+      .catch(() => setSetupGuideTemplateExists(false))
+  }, [])
+
   // Fetch customised templates on mount — fall back to defaults on failure
   useEffect(() => {
     fetch('/api/super/pipeline/email-templates')
@@ -302,6 +316,8 @@ export default function CommsHub({ entries, setEntries }: Props) {
 
   // When practice selection changes, pre-fill fields and default stage
   useEffect(() => {
+    setSetupGuideGenerated(false)
+
     if (selectedPracticeId === 'manual') {
       setFields({
         practiceName: '',
@@ -400,6 +416,38 @@ export default function CommsHub({ entries, setEntries }: Props) {
       toast.success(`${DOCUMENT_TYPE_LABELS[docType]} downloaded`)
     } catch {
       toast.error('Failed to generate document')
+    }
+  }
+
+  async function handleGenerateSetupGuide() {
+    if (!selectedEntry) return
+    setGeneratingSetupGuide(true)
+    try {
+      const res = await fetch(
+        `/api/super/pipeline/${selectedEntry.id}/generate-setup-guide`,
+        { method: 'POST' }
+      )
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Failed to generate' }))
+        toast.error(data.error || 'Failed to generate setup guide')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `Setup Guide - ${selectedEntry.practiceName}.docx`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      setSetupGuideGenerated(true)
+      setShowSetupGuideConfirm(false)
+      toast.success('Setup guide generated')
+    } catch {
+      toast.error('An error occurred')
+    } finally {
+      setGeneratingSetupGuide(false)
     }
   }
 
@@ -548,6 +596,40 @@ export default function CommsHub({ entries, setEntries }: Props) {
               </div>
             </div>
           )}
+
+          {/* Setup Guide — only visible once the practice has been provisioned */}
+          {selectedEntry?.linkedSurgeryId && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Setup Guide</h3>
+              {!setupGuideTemplateExists ? (
+                <p className="text-sm text-gray-500">
+                  No setup guide template uploaded yet. Upload a{' '}
+                  <span className="font-medium">Practice Setup Guide</span> in the
+                  Templates &rarr; Document Templates tab first.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-600 mb-3">
+                    Generate a personalised setup guide for the practice admin.
+                    This resets the admin user&apos;s password and embeds the new
+                    password in the document only.
+                  </p>
+                  {setupGuideGenerated && (
+                    <AlertBanner variant="success" className="mb-3">
+                      Setup guide generated. The admin user&apos;s password has
+                      been reset and is embedded in the document only.
+                    </AlertBanner>
+                  )}
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowSetupGuideConfirm(true)}
+                  >
+                    Generate Setup Guide
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right column — email draft */}
@@ -623,6 +705,42 @@ export default function CommsHub({ entries, setEntries }: Props) {
           )}
         </div>
       </div>
+
+      {/* Setup Guide confirmation dialog */}
+      <Dialog
+        open={showSetupGuideConfirm}
+        onClose={() => setShowSetupGuideConfirm(false)}
+        title="Generate Setup Guide"
+        description="This will reset the admin user's password."
+        width="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setShowSetupGuideConfirm(false)}
+              disabled={generatingSetupGuide}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleGenerateSetupGuide} loading={generatingSetupGuide}>
+              Generate &amp; Download
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3 text-sm text-gray-700">
+          <p>
+            A new temporary password will be generated for{' '}
+            <span className="font-medium">{selectedEntry?.practiceName}</span>
+            &apos;s admin user. The plaintext password is embedded in the
+            downloaded document only — it is never stored.
+          </p>
+          <p>
+            The admin&apos;s existing password will be replaced immediately. They
+            will need the new password from the setup guide to sign in.
+          </p>
+        </div>
+      </Dialog>
     </div>
   )
 }
