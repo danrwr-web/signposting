@@ -59,7 +59,7 @@ src/
 │   ├── api/                # REST API route handlers (~50 endpoint dirs)
 │   ├── s/[id]/             # Surgery-scoped pages (main app shell)
 │   │   ├── signposting/    # Symptom directory
-│   │   ├── admin/          # Surgery admin settings
+│   │   ├── admin/          # Surgery admin settings (ai-setup, onboarding, setup-checklist, users)
 │   │   ├── admin-toolkit/  # Practice Handbook
 │   │   ├── clinical-review/# Approval workflows
 │   │   ├── appointments/   # Appointment directory
@@ -67,6 +67,7 @@ src/
 │   │   ├── analytics/      # Usage analytics
 │   │   └── dashboard/      # Surgery dashboard
 │   ├── super/              # Superuser dashboard
+│   │   └── pipeline/       # Sales pipeline, comms hub, provisioning
 │   └── symptom/[id]/       # Public symptom detail
 ├── components/             # React components (organized by feature)
 │   ├── ui/                 # Shared UI primitives (Button, Input, Dialog, etc.)
@@ -178,7 +179,7 @@ Database-driven feature flags with two levels:
 
 ### Prisma Schema
 
-The schema is at `prisma/schema.prisma` (~1050 lines, 40+ models). PostgreSQL is required (not SQLite).
+The schema is at `prisma/schema.prisma` (~1170 lines, 50+ models). PostgreSQL is required (not SQLite).
 
 Key conventions:
 - Cascade deletes on child records when parent is deleted
@@ -231,7 +232,7 @@ Always run `npm run db:generate` after schema changes to regenerate the Prisma c
 **Always use the shared UI primitives** from `src/components/ui/` instead of writing inline Tailwind for common elements. Import from `@/components/ui`:
 
 ```typescript
-import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertBanner } from '@/components/ui'
+import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertBanner, Skeleton, EmptyState } from '@/components/ui'
 ```
 
 | Component | Use instead of | Key props |
@@ -245,6 +246,8 @@ import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertB
 | `Card` | `<div className="bg-white rounded-lg shadow-md...">` | `elevation` (`flat`\|`raised`\|`elevated`\|`floating`), `hoverable`, `padding` |
 | `Dialog` | Custom `<div className="fixed inset-0 z-50...">` modals | `open`, `onClose`, `title`, `description`, `width`, `footer`, `initialFocusRef` |
 | `AlertBanner` | `<div className="bg-red-50 border-l-4...">` | `variant` (`error`\|`warning`\|`success`\|`info`) |
+| `Skeleton` | Custom `<div className="animate-pulse bg-gray-200...">` placeholders | `width`, `height`, `rounded` (`sm`\|`md`\|`lg`\|`full`\|`xl`); also exports `SkeletonText`, `SkeletonCard`, `SkeletonTable`, `SkeletonCardGrid`, `SkeletonWorkflowCard`, `SkeletonAdminToolkit` |
+| `EmptyState` | Custom empty-list/no-results placeholders | `title`, `description`, `illustration` (`search`\|`documents`\|`calendar`\|`clipboard`\|`folder`\|`users`\|`workflow`), `action`, `secondaryAction` |
 
 **Do NOT** create new inline modal/dialog implementations — always use `Dialog`. It handles portal rendering, focus trapping, Escape key, body scroll lock, and ARIA attributes automatically.
 
@@ -296,6 +299,8 @@ See `env.example` for the full list. Key variables:
 - **Admin Toolkit** - A practice handbook for internal documentation and procedures
 - **Workflow** - Document processing workflows built on a React Flow canvas
 - **Signposting** - The core act of directing a patient to the right service
+- **Setup Checklist** - Guided onboarding flow for new surgeries at `/s/[id]/admin/setup-checklist` tracking feature adoption and governance steps
+- **Sales Pipeline** - Superuser-only CRM at `/super/pipeline` covering prospect tracking, comms templates, and surgery provisioning
 
 ## Common Pitfalls
 
@@ -305,6 +310,7 @@ See `env.example` for the full list. Key variables:
 4. **Content format consistency** - When updating symptom instructions, update all three format fields (markdown, JSON, HTML)
 5. **Surgery scoping** - Always filter queries by `surgeryId` to maintain tenant isolation
 6. **Redirect errors** - Next.js `redirect()` throws an error internally; do not wrap calls in try-catch that would swallow `NEXT_REDIRECT`
+7. **Skeleton/EmptyState for loading and empty states** - Don't hand-roll `<div className="animate-pulse...">` placeholders or bespoke "no results" screens. Use the shared `Skeleton` variants (`SkeletonCardGrid`, `SkeletonTable`, etc.) and `EmptyState` with an illustration preset instead, so loading/empty UX stays consistent.
 
 ## Documentation Updates
 
