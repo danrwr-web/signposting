@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Input, Dialog, FormField, Badge, Select, AlertBanner } from '@/components/ui'
-import { DOCUMENT_TYPES, DOCUMENT_TYPE_LABELS, VARIANT_SPECIFIC_TYPES, SHARED_DOC_TYPES, type DocumentType } from './types'
+import { DOCUMENT_TYPE_LABELS, VARIANT_SPECIFIC_TYPES, SHARED_DOC_TYPES, STANDALONE_DOC_TYPES, type DocumentType } from './types'
 
 // ── Placeholders per document type ──────────────────────────────────
 
@@ -13,6 +13,7 @@ const DOC_PLACEHOLDERS: Record<DocumentType, string[]> = {
   Dpa: ['{{practiceName}}', '{{practiceAddress}}', '{{contactName}}'],
   HostingOverview: ['{{practiceName}}', '{{practiceAddress}}'],
   IgSecurityPack: ['{{practiceName}}', '{{practiceAddress}}'],
+  SetupGuide: ['{{practiceName}}', '{{date}}', '{{adminName}}', '{{adminEmail}}', '{{tempPassword}}'],
 }
 
 // ── Types ───────────────────────────────────────────────────────────
@@ -65,25 +66,44 @@ export default function DocumentTemplates() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Fetch templates: variant-specific from selected variant, shared from default variant
+  // Fetch templates: variant-specific from selected variant, shared from default variant,
+  // and standalone (SetupGuide) from its dedicated endpoint.
   const fetchTemplates = useCallback((variantId: string, allVariants: ContractVariant[]) => {
     if (!variantId) return
     const defId = allVariants.find((v) => v.isDefault)?.id ?? variantId
     const ids = new Set([variantId, defId])
 
-    Promise.all(
-      Array.from(ids).map((vid) =>
-        fetch(`/api/super/pipeline/contract-variants/${vid}/templates`)
-          .then((r) => r.json())
-          .then((data) => (Array.isArray(data) ? data.map((t: DocTemplate) => ({ ...t, contractVariantId: vid })) : []))
-          .catch(() => [] as DocTemplate[])
+    const variantFetches = Array.from(ids).map((vid) =>
+      fetch(`/api/super/pipeline/contract-variants/${vid}/templates`)
+        .then((r) => r.json())
+        .then((data) => (Array.isArray(data) ? data.map((t: DocTemplate) => ({ ...t, contractVariantId: vid })) : []))
+        .catch(() => [] as DocTemplate[])
+    )
+
+    // Check if the standalone SetupGuide template exists
+    const setupGuideFetch = fetch('/api/super/pipeline/setup-guide-template', { method: 'HEAD' })
+      .then((r): DocTemplate | null =>
+        r.ok
+          ? {
+              id: 'setup-guide',
+              contractVariantId: '',
+              documentType: 'SetupGuide',
+              fileName: null,
+              createdAt: '',
+              updatedAt: '',
+            }
+          : null
       )
-    ).then((results) => {
+      .catch(() => null)
+
+    Promise.all([...variantFetches, setupGuideFetch]).then((results) => {
       const merged: DocTemplate[] = []
       const seen = new Set<string>()
-      for (const list of results) {
+
+      // Variant-based results (first N entries)
+      for (let i = 0; i < variantFetches.length; i++) {
+        const list = results[i] as DocTemplate[]
         for (const t of list) {
-          // For shared types, only accept from default variant; for variant-specific, only from selected
           const isShared = SHARED_DOC_TYPES.includes(t.documentType as DocumentType)
           const wantedVid = isShared ? defId : variantId
           if (t.contractVariantId === wantedVid && !seen.has(t.documentType)) {
@@ -92,6 +112,13 @@ export default function DocumentTemplates() {
           }
         }
       }
+
+      // Standalone setup guide result
+      const setupGuideResult = results[results.length - 1] as DocTemplate | null
+      if (setupGuideResult && !seen.has(setupGuideResult.documentType)) {
+        merged.push(setupGuideResult)
+      }
+
       setTemplates(merged)
     })
   }, [])
@@ -104,8 +131,15 @@ export default function DocumentTemplates() {
   const selectedVariant = variants.find((v) => v.id === selectedVariantId)
   const defaultVariantId = variants.find((v) => v.isDefault)?.id ?? selectedVariantId
   const isSharedType = SHARED_DOC_TYPES.includes(selectedDocType)
-  // Shared types always use the default variant; variant-specific types use the selected variant
+  const isStandaloneType = STANDALONE_DOC_TYPES.includes(selectedDocType)
+  // Shared types always use the default variant; variant-specific types use the selected variant.
+  // Standalone types (SetupGuide) use a dedicated endpoint with no variant.
   const effectiveVariantId = isSharedType ? defaultVariantId : selectedVariantId
+
+  // Build the API URL for the currently selected document type
+  const templateEndpoint = isStandaloneType
+    ? '/api/super/pipeline/setup-guide-template'
+    : `/api/super/pipeline/contract-variants/${effectiveVariantId}/templates/${selectedDocType}`
 
   // ── Upload handler ────────────────────────────────────────────────
 
@@ -114,17 +148,14 @@ export default function DocumentTemplates() {
       toast.error('Only .docx files are accepted')
       return
     }
-    if (!selectedVariantId) return
+    if (!isStandaloneType && !selectedVariantId) return
 
     setUploading(true)
     try {
       const formData = new FormData()
       formData.append('file', file)
 
-      const res = await fetch(
-        `/api/super/pipeline/contract-variants/${effectiveVariantId}/templates/${selectedDocType}`,
-        { method: 'PUT', body: formData }
-      )
+      const res = await fetch(templateEndpoint, { method: 'PUT', body: formData })
 
       if (!res.ok) {
         const data = await res.json()
@@ -166,24 +197,20 @@ export default function DocumentTemplates() {
   // ── Download handler ──────────────────────────────────────────────
 
   function handleDownload() {
-    if (!selectedVariantId || !currentTemplate) return
-    window.open(
-      `/api/super/pipeline/contract-variants/${effectiveVariantId}/templates/${selectedDocType}`,
-      '_blank'
-    )
+    if (!currentTemplate) return
+    if (!isStandaloneType && !selectedVariantId) return
+    window.open(templateEndpoint, '_blank')
   }
 
   // ── Delete handler ────────────────────────────────────────────────
 
   async function handleDelete() {
-    if (!selectedVariantId || !currentTemplate) return
+    if (!currentTemplate) return
+    if (!isStandaloneType && !selectedVariantId) return
     if (!confirm(`Delete the ${DOCUMENT_TYPE_LABELS[selectedDocType]} template?`)) return
 
     try {
-      const res = await fetch(
-        `/api/super/pipeline/contract-variants/${effectiveVariantId}/templates/${selectedDocType}`,
-        { method: 'DELETE' }
-      )
+      const res = await fetch(templateEndpoint, { method: 'DELETE' })
 
       if (!res.ok) {
         const data = await res.json()
@@ -269,31 +296,33 @@ export default function DocumentTemplates() {
 
   return (
     <div className="space-y-6">
-      {/* Variant selector bar */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
-        <div className="flex items-end gap-4">
-          <FormField label="Contract Variant" className="flex-1 mb-0">
-            <Select
-              value={selectedVariantId}
-              onChange={(e) => setSelectedVariantId(e.target.value)}
-            >
-              {variants.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}{v.isDefault ? ' (default)' : ''}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <Button variant="secondary" onClick={() => setShowCreateVariant(true)}>
-            New Variant
-          </Button>
-          {selectedVariant && !selectedVariant.isDefault && (
-            <Button variant="danger-soft" size="sm" onClick={handleDeleteVariant}>
-              Delete
+      {/* Variant selector bar — hidden for standalone document types (e.g. SetupGuide) */}
+      {!isStandaloneType && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5">
+          <div className="flex items-end gap-4">
+            <FormField label="Contract Variant" className="flex-1 mb-0">
+              <Select
+                value={selectedVariantId}
+                onChange={(e) => setSelectedVariantId(e.target.value)}
+              >
+                {variants.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}{v.isDefault ? ' (default)' : ''}
+                  </option>
+                ))}
+              </Select>
+            </FormField>
+            <Button variant="secondary" onClick={() => setShowCreateVariant(true)}>
+              New Variant
             </Button>
-          )}
+            {selectedVariant && !selectedVariant.isDefault && (
+              <Button variant="danger-soft" size="sm" onClick={handleDeleteVariant}>
+                Delete
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Document type nav */}
@@ -330,6 +359,28 @@ export default function DocumentTemplates() {
                 <button
                   key={dt}
                   onClick={() => setSelectedDocType(dt)}
+                  className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 transition-colors flex items-center justify-between ${
+                    selectedDocType === dt
+                      ? 'bg-nhs-blue text-white'
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <span>{DOCUMENT_TYPE_LABELS[dt]}</span>
+                  {hasTemplate && selectedDocType !== dt && (
+                    <Badge color="green" size="sm">Ready</Badge>
+                  )}
+                </button>
+              )
+            })}
+            <div className="px-3 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 border-t">
+              Practice Onboarding
+            </div>
+            {STANDALONE_DOC_TYPES.map((dt) => {
+              const hasTemplate = templates.some((t) => t.documentType === dt)
+              return (
+                <button
+                  key={dt}
+                  onClick={() => setSelectedDocType(dt)}
                   className={`w-full text-left px-4 py-3 text-sm border-b border-gray-100 last:border-b-0 transition-colors flex items-center justify-between ${
                     selectedDocType === dt
                       ? 'bg-nhs-blue text-white'
@@ -357,6 +408,9 @@ export default function DocumentTemplates() {
                 {isSharedType && (
                   <Badge color="blue" size="sm">Shared</Badge>
                 )}
+                {isStandaloneType && (
+                  <Badge color="purple" size="sm">Onboarding</Badge>
+                )}
                 {currentTemplate && (
                   <Badge color="green" size="sm">Template uploaded</Badge>
                 )}
@@ -365,6 +419,11 @@ export default function DocumentTemplates() {
             {isSharedType && (
               <p className="text-xs text-gray-500 mb-3">
                 This template is shared across all contract variants.
+              </p>
+            )}
+            {isStandaloneType && (
+              <p className="text-xs text-gray-500 mb-3">
+                This template is used once per practice after provisioning, regardless of contract variant.
               </p>
             )}
 
@@ -474,24 +533,35 @@ export default function DocumentTemplates() {
               ))}
             </div>
 
-            <h4 className="text-sm font-semibold text-gray-700 mt-4 mb-2">
-              Auto-generated
-            </h4>
-            <p className="text-xs text-gray-500 mb-3">
-              These are populated automatically at generation time.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <code className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded text-xs font-mono">
-                {'{{currentDate}}'}
-              </code>
-              <code className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded text-xs font-mono">
-                {'{{currentYear}}'}
-              </code>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">
-              {'{{currentDate}}'} inserts today&apos;s date (e.g. &ldquo;25 March 2026&rdquo;).{' '}
-              {'{{currentYear}}'} inserts the four-digit year (e.g. &ldquo;2026&rdquo;).
-            </p>
+            {isStandaloneType ? (
+              <p className="text-xs text-gray-400 mt-3">
+                {'{{tempPassword}}'} is generated at download time and embedded
+                in the document only — it is never stored in plaintext.{' '}
+                {'{{date}}'} is formatted as D MMMM YYYY (e.g.{' '}
+                &ldquo;25 March 2026&rdquo;).
+              </p>
+            ) : (
+              <>
+                <h4 className="text-sm font-semibold text-gray-700 mt-4 mb-2">
+                  Auto-generated
+                </h4>
+                <p className="text-xs text-gray-500 mb-3">
+                  These are populated automatically at generation time.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <code className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded text-xs font-mono">
+                    {'{{currentDate}}'}
+                  </code>
+                  <code className="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded text-xs font-mono">
+                    {'{{currentYear}}'}
+                  </code>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {'{{currentDate}}'} inserts today&apos;s date (e.g. &ldquo;25 March 2026&rdquo;).{' '}
+                  {'{{currentYear}}'} inserts the four-digit year (e.g. &ldquo;2026&rdquo;).
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

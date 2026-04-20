@@ -23,6 +23,8 @@ const dateFields = [
   { key: 'dateDpaSent', label: 'DPA Sent' },
   { key: 'dateDpaSigned', label: 'DPA Signed' },
   { key: 'dateContractStart', label: 'Contract Start' },
+  { key: 'invoiceGeneratedAt', label: 'Invoice Generated' },
+  { key: 'invoicePaidAt', label: 'Invoice Paid' },
 ] as const
 
 function toDateInputValue(iso: string | null): string {
@@ -80,6 +82,8 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       dateDpaSent: toDateInputValue(e?.dateDpaSent ?? null),
       dateDpaSigned: toDateInputValue(e?.dateDpaSigned ?? null),
       dateContractStart: toDateInputValue(e?.dateContractStart ?? null),
+      invoiceGeneratedAt: toDateInputValue(e?.invoiceGeneratedAt ?? null),
+      invoicePaidAt: toDateInputValue(e?.invoicePaidAt ?? null),
     }
   }
 

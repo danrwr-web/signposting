@@ -29,6 +29,8 @@ const updatePipelineSchema = z.object({
   dateContractStart: z.coerce.date().nullable().optional(),
   freeTrial: z.boolean().optional(),
   trialEndDate: z.coerce.date().nullable().optional(),
+  invoiceGeneratedAt: z.coerce.date().nullable().optional(),
+  invoicePaidAt: z.coerce.date().nullable().optional(),
   annualValueGbp: z.number().nullable().optional(),
   contractVariantLabel: z.string().nullable().optional(),
   contractVariantId: z.string().nullable().optional(),

@@ -45,6 +45,8 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     'Free Trial': e.freeTrial ? 'Yes' : 'No',
     'Trial End Date': toDateStr(e.trialEndDate),
     'Annual Value (£)': e.annualValueGbp ?? '',
+    'Invoice Generated': toDateStr(e.invoiceGeneratedAt),
+    'Invoice Paid': toDateStr(e.invoicePaidAt),
     'Contract Variant': e.contractVariant?.name ?? e.contractVariantLabel ?? '',
     'Days in Pipeline': daysBetween(e.dateEnquiry, now),
     Notes: e.notes ?? '',
@@ -76,6 +78,8 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     { wch: 10 }, // Free Trial
     { wch: 14 }, // Trial End Date
     { wch: 14 }, // Annual Value
+    { wch: 18 }, // Invoice Generated
+    { wch: 14 }, // Invoice Paid
     { wch: 22 }, // Contract Variant
     { wch: 14 }, // Days in Pipeline
     { wch: 30 }, // Notes
