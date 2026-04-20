@@ -1165,6 +1165,10 @@ model DocumentTemplate {
 
   contractVariant   ContractVariant? @relation(fields: [contractVariantId], references: [id], onDelete: Cascade)
 
+  // NOTE: A partial unique index (documentType) WHERE contractVariantId IS NULL
+  // is added via raw SQL in migration 20260421120000_add_setup_guide_partial_unique
+  // to guarantee at most one standalone SetupGuide template. Prisma cannot
+  // express partial indexes in schema.prisma today.
   @@unique([contractVariantId, documentType])
   @@index([contractVariantId])
 }

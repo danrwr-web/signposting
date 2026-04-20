@@ -94,15 +94,12 @@ export async function POST(
       )
     }
 
-    // Generate and persist the hashed password; the plaintext is only embedded
-    // in the generated document below and never stored.
+    // Generate the plaintext password up-front; it is only embedded in the
+    // generated document and never stored. The hashed password is written to
+    // the DB *after* the document has been rendered successfully so a render
+    // failure does not leave the admin locked out without credentials.
     const tempPassword = generateTempPassword(12)
     const hashed = await hashPassword(tempPassword)
-
-    await prisma.user.update({
-      where: { id: adminUser.id },
-      data: { password: hashed },
-    })
 
     const zip = new PizZip(template.templateDocx as unknown as Buffer)
     const doc = new Docxtemplater(zip, {
@@ -121,6 +118,11 @@ export async function POST(
     })
 
     const output = doc.getZip().generate({ type: 'nodebuffer' }) as Buffer
+
+    await prisma.user.update({
+      where: { id: adminUser.id },
+      data: { password: hashed },
+    })
 
     return new NextResponse(output as unknown as BodyInit, {
       status: 200,

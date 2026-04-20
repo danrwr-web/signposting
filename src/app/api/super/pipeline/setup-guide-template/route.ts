@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 
@@ -59,48 +60,60 @@ export async function PUT(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer)
 
     // Upsert by finding existing first; can't use findUnique on a compound key
-    // that contains a nullable column in Prisma.
-    const existing = await prisma.documentTemplate.findFirst({
-      where: { documentType: 'SetupGuide', contractVariantId: null },
-      select: { id: true },
-    })
+    // that contains a nullable column in Prisma. A partial unique index on
+    // (documentType) WHERE contractVariantId IS NULL prevents duplicates at
+    // the DB level; on a concurrent-write race we catch P2002 from create
+    // and fall back to updating the row the other writer inserted.
+    const selectFields = {
+      id: true,
+      contractVariantId: true,
+      documentType: true,
+      fileName: true,
+      createdAt: true,
+      updatedAt: true,
+    } as const
 
-    const saved = existing
-      ? await prisma.documentTemplate.update({
+    const updateData = {
+      templateDocx: buffer,
+      fileName: file.name,
+      contentHtml: null,
+      contentJson: null,
+    }
+
+    const writeTemplate = async () => {
+      const existing = await prisma.documentTemplate.findFirst({
+        where: { documentType: 'SetupGuide', contractVariantId: null },
+        select: { id: true },
+      })
+
+      if (existing) {
+        return prisma.documentTemplate.update({
           where: { id: existing.id },
-          data: {
-            templateDocx: buffer,
-            fileName: file.name,
-            contentHtml: null,
-            contentJson: null,
-          },
-          select: {
-            id: true,
-            contractVariantId: true,
-            documentType: true,
-            fileName: true,
-            createdAt: true,
-            updatedAt: true,
-          },
+          data: updateData,
+          select: selectFields,
         })
-      : await prisma.documentTemplate.create({
-          data: {
-            contractVariantId: null,
-            documentType: 'SetupGuide',
-            templateDocx: buffer,
-            fileName: file.name,
-            contentHtml: null,
-            contentJson: null,
-          },
-          select: {
-            id: true,
-            contractVariantId: true,
-            documentType: true,
-            fileName: true,
-            createdAt: true,
-            updatedAt: true,
-          },
-        })
+      }
+
+      return prisma.documentTemplate.create({
+        data: {
+          contractVariantId: null,
+          documentType: 'SetupGuide',
+          ...updateData,
+        },
+        select: selectFields,
+      })
+    }
+
+    let saved
+    try {
+      saved = await writeTemplate()
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        saved = await writeTemplate()
+      } else {
+        throw err
+      }
+    }
 
     return NextResponse.json(saved)
   } catch (error) {
