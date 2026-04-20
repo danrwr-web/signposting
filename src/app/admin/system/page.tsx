@@ -4,11 +4,13 @@ export const revalidate = 0
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { computeSurgerySetupSnapshotsBatch } from '@/server/surgerySetup'
+import { evaluateFlags } from '@/server/surgerySetupFlags'
 import SystemManagementClient from './SystemManagementClient'
 
 export default async function SystemManagementPage() {
   const user = await getSessionUser()
-  
+
   if (!user) {
     redirect('/login')
   }
@@ -18,11 +20,20 @@ export default async function SystemManagementPage() {
     redirect('/unauthorized')
   }
 
-  // Get surgery count for display
-  const surgeryCount = await prisma.surgery.count()
+  const [surgeryCount, userCount, trackerSnapshots] = await Promise.all([
+    prisma.surgery.count(),
+    prisma.user.count(),
+    computeSurgerySetupSnapshotsBatch(),
+  ])
 
-  // Get user count for display
-  const userCount = await prisma.user.count()
+  const now = new Date()
+  let flaggedCount = 0
+  let criticalCount = 0
+  for (const snap of trackerSnapshots) {
+    const flags = evaluateFlags(snap, now)
+    if (flags.length > 0) flaggedCount += 1
+    if (flags.some(f => f.severity === 'critical')) criticalCount += 1
+  }
 
   // Get global defaults (if any exist)
   // For now, we'll use the hardcoded default from recentlyChangedSymptoms.ts
@@ -32,10 +43,11 @@ export default async function SystemManagementPage() {
   }
 
   return (
-    <SystemManagementClient 
+    <SystemManagementClient
       surgeryCount={surgeryCount}
       userCount={userCount}
       globalDefaults={globalDefaults}
+      setupTracker={{ flaggedCount, criticalCount }}
     />
   )
 }

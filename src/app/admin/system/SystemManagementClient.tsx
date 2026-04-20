@@ -9,6 +9,10 @@ interface SystemManagementClientProps {
   globalDefaults: {
     recentChangesWindowDays: number
   }
+  setupTracker: {
+    flaggedCount: number
+    criticalCount: number
+  }
 }
 
 interface ManagementCard {
@@ -24,7 +28,13 @@ export default function SystemManagementClient({
   surgeryCount,
   userCount,
   globalDefaults,
+  setupTracker,
 }: SystemManagementClientProps) {
+  const trackerStat = setupTracker.criticalCount > 0
+    ? `${setupTracker.criticalCount} critical · ${setupTracker.flaggedCount} flagged`
+    : setupTracker.flaggedCount > 0
+      ? `${setupTracker.flaggedCount} flagged`
+      : 'No flags raised'
   const cards: ManagementCard[] = [
     {
       id: 'surgeries',
@@ -35,6 +45,18 @@ export default function SystemManagementClient({
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
+        </svg>
+      ),
+    },
+    {
+      id: 'setup-tracker',
+      title: 'Surgery setup tracker',
+      description: 'See how each surgery is progressing through onboarding and setup, and spot surgeries that look stuck or need proactive support.',
+      href: '/admin/system/setup-tracker',
+      stats: trackerStat,
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
     },
