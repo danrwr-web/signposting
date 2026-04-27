@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import NewSymptomModal from '@/components/NewSymptomModal'
+import { Dialog, Button, FormField, Input } from '@/components/ui'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 
@@ -61,6 +62,12 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
   const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(surgeryId)
+
+  // Rename dialog state (superuser-only, renames the base symptom globally)
+  const [renameTarget, setRenameTarget] = useState<{ baseSymptomId: string; currentName: string } | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renameSaving, setRenameSaving] = useState(false)
+  const renameInputRef = useRef<HTMLInputElement>(null)
 
   const effectiveSurgeryId = useMemo(() => {
     if (isSuperuser) return selectedSurgeryId || surgeryId || null
@@ -139,6 +146,52 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       toast.error('Operation failed')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const openRename = (baseSymptomId: string, currentName: string) => {
+    setRenameTarget({ baseSymptomId, currentName })
+    setRenameValue(currentName)
+  }
+
+  const closeRename = () => {
+    if (renameSaving) return
+    setRenameTarget(null)
+    setRenameValue('')
+  }
+
+  const submitRename = async () => {
+    if (!renameTarget) return
+    const trimmed = renameValue.trim()
+    if (!trimmed) {
+      toast.error('Name cannot be empty')
+      return
+    }
+    if (trimmed === renameTarget.currentName) {
+      closeRename()
+      return
+    }
+    setRenameSaving(true)
+    try {
+      const res = await fetch(`/api/admin/symptoms/${renameTarget.baseSymptomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: 'base', name: trimmed }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err?.error || err?.message || 'Rename failed')
+        return
+      }
+      toast.success('Renamed')
+      setRenameTarget(null)
+      setRenameValue('')
+      if (effectiveSurgeryId) await loadLibraryData(effectiveSurgeryId)
+    } catch (e) {
+      console.error(e)
+      toast.error('Rename failed')
+    } finally {
+      setRenameSaving(false)
     }
   }
 
@@ -465,6 +518,16 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                           Enable at this surgery
                         </button>
                       )}
+                      {isSuperuser && row.baseSymptomId && (row.status === 'BASE' || row.status === 'MODIFIED') && (
+                        <button
+                          onClick={() => openRename(row.baseSymptomId!, row.name)}
+                          className={btnBlue}
+                          disabled={loading}
+                          aria-label={`Rename ${row.name} (base)`}
+                        >
+                          Rename
+                        </button>
+                      )}
                       {row.kind === 'inuse' && row.canRevertToBase && (
                         <button
                           onClick={() => handleAction('REVERT_TO_BASE', {
@@ -567,6 +630,42 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
           onCreated={() => { setIsAddOpen(false); if (effectiveSurgeryId) loadLibraryData(effectiveSurgeryId) }}
         />
       )}
+
+      {/* Rename base symptom (superuser only) */}
+      <Dialog
+        open={renameTarget !== null}
+        onClose={closeRename}
+        title="Rename base symptom"
+        description="Renames this symptom across every surgery. Affects existing overrides only if they don't already set their own custom name."
+        width="md"
+        initialFocusRef={renameInputRef}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeRename} disabled={renameSaving}>Cancel</Button>
+            <Button variant="primary" onClick={submitRename} loading={renameSaving} disabled={!renameValue.trim()}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <FormField label="Display name" required htmlFor="rename-symptom-input">
+          <Input
+            id="rename-symptom-input"
+            ref={renameInputRef}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !renameSaving && renameValue.trim()) {
+                e.preventDefault()
+                submitRename()
+              }
+            }}
+            placeholder="e.g. Abscess"
+            disabled={renameSaving}
+            autoFocus
+          />
+        </FormField>
+      </Dialog>
     </div>
   )
 }

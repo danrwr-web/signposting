@@ -31,10 +31,14 @@ export async function PATCH(
         ageGroup,
         briefInstruction,
         instructions,
-        instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
         instructionsHtml,
         highlightedText,
         linkToPage,
+      }
+      // Only touch instructionsJson when the caller actually sent it — otherwise
+      // a partial update (e.g. rename-only) would blank the stored ProseMirror JSON.
+      if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
+        updateData.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
       }
       // Only update variants if explicitly provided; otherwise leave unchanged
       if (Object.prototype.hasOwnProperty.call(data, 'variants')) {
@@ -62,21 +66,24 @@ export async function PATCH(
       await requireSurgeryAdmin(surgeryId)
 
       // Update custom symptom
+      const customUpdateData: any = {
+        name,
+        ageGroup,
+        briefInstruction,
+        instructions,
+        instructionsHtml,
+        highlightedText,
+        linkToPage,
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
+        customUpdateData.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
+      }
       const updatedSymptom = await prisma.surgeryCustomSymptom.update({
         where: {
           id,
           surgeryId: surgeryId
         },
-        data: {
-          name,
-          ageGroup,
-          briefInstruction,
-          instructions,
-          instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
-          highlightedText,
-          linkToPage,
-        }
+        data: customUpdateData
       })
 
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
@@ -107,6 +114,18 @@ export async function PATCH(
         )
       }
 
+      const overrideUpdate: any = {
+        name,
+        ageGroup,
+        briefInstruction,
+        instructions,
+        instructionsHtml,
+        highlightedText,
+        linkToPage,
+      }
+      if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
+        overrideUpdate.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
+      }
       const updatedOverride = await prisma.surgerySymptomOverride.upsert({
         where: {
           surgeryId_baseSymptomId: {
@@ -114,27 +133,11 @@ export async function PATCH(
             baseSymptomId: id,
           }
         },
-        update: {
-          name,
-          ageGroup,
-          briefInstruction,
-          instructions,
-          instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
-          highlightedText,
-          linkToPage,
-        },
+        update: overrideUpdate,
         create: {
           surgeryId: surgeryId,
           baseSymptomId: id,
-          name,
-          ageGroup,
-          briefInstruction,
-          instructions,
-          instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
-          highlightedText,
-          linkToPage,
+          ...overrideUpdate,
         }
       })
 
