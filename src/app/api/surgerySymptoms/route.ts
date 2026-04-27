@@ -19,6 +19,8 @@ type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 interface InUseSymptom {
   symptomId: string
   name: string
+  /** Underlying BaseSymptom.name when this row originates from a base symptom (BASE / MODIFIED / DISABLED). */
+  baseName?: string
   status: SymptomStatus
   isEnabled: boolean
   canRevertToBase: boolean
@@ -135,6 +137,8 @@ export async function GET(request: NextRequest) {
       if (!statusBySymptomId.has(sid)) statusBySymptomId.set(sid, status)
     }
 
+    const baseNameById = new Map(baseSymptoms.map((b) => [b.id, b.name]))
+
     const inUse: InUseSymptom[] = allEffective.map((s) => {
       const isEnabled = enabledIds.has(s.id)
       const statusRow = statusBySymptomId.get(s.id)
@@ -147,6 +151,10 @@ export async function GET(request: NextRequest) {
       return {
         symptomId: s.id,
         name: s.name,
+        // For BASE/MODIFIED/DISABLED rows the symptomId is the BaseSymptom.id, so we can
+        // surface the underlying base name to clients (used by the superuser Rename action,
+        // which must operate on the base name not the surgery-specific override).
+        baseName: s.source === 'custom' ? undefined : baseNameById.get(s.id),
         status,
         isEnabled,
         canRevertToBase: status === 'MODIFIED',
