@@ -32,6 +32,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [isSavingInstructions, setIsSavingInstructions] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isEditingAll, setIsEditingAll] = useState(false)
+  const [editedName, setEditedName] = useState('')
   const [editedBriefInstruction, setEditedBriefInstruction] = useState('')
   const [editedHighlightedText, setEditedHighlightedText] = useState('')
   const [editedLinkToPage, setEditedLinkToPage] = useState('')
@@ -697,6 +698,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   }
 
   const handleEditAll = () => {
+    setEditedName(symptom.name || '')
     setEditedBriefInstruction(symptom.briefInstruction || '')
     setEditedHighlightedText(symptom.highlightedText || '')
     setEditedLinkToPage(symptom.linkToPage || '')
@@ -722,6 +724,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
 
   const handleCancelEditAll = () => {
     setIsEditingAll(false)
+    setEditedName('')
     setEditedBriefInstruction('')
     setEditedHighlightedText('')
     setEditedLinkToPage('')
@@ -830,10 +833,19 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         }
       }
 
+      // Practice admins customising a base symptom or editing their override can rename
+      // it for their practice. An empty value clears the override and falls back to the
+      // base name (the merge logic in effectiveSymptoms.ts treats empty as inherit).
+      const canCustomiseName = isPracticeAdmin && (symptom.source === 'base' || symptom.source === 'override')
+      const trimmedName = editedName.trim()
+      const nameForPayload = canCustomiseName
+        ? (trimmedName === '' ? null : trimmedName)
+        : symptom.name
+
       const payload: any = {
         source: apiSource,
         surgeryId: apiSurgeryId,
-        name: symptom.name, // Keep existing name
+        name: nameForPayload,
         ageGroup: symptom.ageGroup, // Keep existing age group
         briefInstruction: editedBriefInstruction.trim(),
         instructions: sanitizedInstructions, // Keep legacy field for compatibility
@@ -859,6 +871,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       }
 
       // Update the symptom object locally
+      if (canCustomiseName && trimmedName !== '') {
+        symptom.name = trimmedName
+      }
       symptom.briefInstruction = editedBriefInstruction.trim()
       symptom.highlightedText = editedHighlightedText.trim()
       symptom.linkToPage = editedLinkToPage.trim()
@@ -867,6 +882,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       symptom.source = apiSource // Update source if override was created
 
       setIsEditingAll(false)
+      setEditedName('')
       setEditedBriefInstruction('')
       setEditedHighlightedText('')
       setEditedLinkToPage('')
@@ -983,7 +999,25 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                   </p>
                 </div>
               )}
-              
+
+              {isPracticeAdmin && (symptom.source === 'base' || symptom.source === 'override') && (
+                <div>
+                  <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
+                    Display name (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                    placeholder={symptom.name || 'Enter display name...'}
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Customise how this symptom is named for your practice. Leave blank to use the standard name.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
                   Brief Instruction
