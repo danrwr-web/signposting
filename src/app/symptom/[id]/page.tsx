@@ -133,13 +133,14 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
       baseSymptomId = symptom.baseSymptomId || symptom.id
     }
     
-    if (baseSymptomId) {
+    if (baseSymptomId && refParam !== 'clinical-review') {
       await prisma.engagementEvent.create({
         data: {
           surgeryId,
           baseId: baseSymptomId,
           event: 'view_symptom',
-          userEmail: sessionUser?.email || null
+          userEmail: sessionUser?.email || null,
+          ref: refParam ?? null
         }
       })
     }

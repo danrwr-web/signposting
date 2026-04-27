@@ -232,10 +232,13 @@ model EngagementEvent {
   baseId    String
   userEmail String?
   event     String // "view_symptom"
+  ref       String?
   createdAt DateTime @default(now())
 
   surgery Surgery?    @relation(fields: [surgeryId], references: [id])
   base    BaseSymptom @relation(fields: [baseId], references: [id], onDelete: Cascade)
+
+  @@index([surgeryId, ref])
 }
 
 model HighlightRule {
