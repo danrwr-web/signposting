@@ -10,6 +10,7 @@ type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 interface InUseSymptom {
   symptomId: string
   name: string
+  baseName?: string
   status: SymptomStatus
   isEnabled: boolean
   canRevertToBase: boolean
@@ -256,6 +257,8 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     key: string
     kind: 'inuse' | 'available'
     name: string
+    /** Underlying BaseSymptom.name for rows backed by a base symptom; differs from name when an override sets a custom name. */
+    baseName?: string
     status: SymptomStatus | 'AVAILABLE'
     isEnabled: boolean
     canRevertToBase?: boolean
@@ -273,6 +276,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       key: `in-${s.symptomId}`,
       kind: 'inuse',
       name: s.name,
+      baseName: s.baseName,
       status: s.status,
       isEnabled: s.isEnabled,
       canRevertToBase: s.canRevertToBase,
@@ -287,6 +291,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       key: `av-${s.baseSymptomId}`,
       kind: 'available',
       name: s.name,
+      baseName: s.name,
       status: 'AVAILABLE',
       isEnabled: false,
       baseSymptomId: s.baseSymptomId
@@ -518,12 +523,12 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                           Enable at this surgery
                         </button>
                       )}
-                      {isSuperuser && row.baseSymptomId && (row.status === 'BASE' || row.status === 'MODIFIED') && (
+                      {isSuperuser && row.baseSymptomId && (row.status === 'BASE' || row.status === 'MODIFIED') && row.baseName && (
                         <button
-                          onClick={() => openRename(row.baseSymptomId!, row.name)}
+                          onClick={() => openRename(row.baseSymptomId!, row.baseName!)}
                           className={btnBlue}
                           disabled={loading}
-                          aria-label={`Rename ${row.name} (base)`}
+                          aria-label={`Rename ${row.baseName} (base)`}
                         >
                           Rename
                         </button>
