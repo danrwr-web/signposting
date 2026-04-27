@@ -17,7 +17,7 @@ interface SymptomPageProps {
   }>
   searchParams: Promise<{
     surgery?: string
-    ref?: string
+    ref?: string | string[]
   }>
 }
 
@@ -26,7 +26,8 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const { id } = resolvedParams
   const resolvedSearchParams = await searchParams
   const surgeryParam = resolvedSearchParams.surgery
-  const refParam = resolvedSearchParams.ref
+  const rawRef = resolvedSearchParams.ref
+  const refParam = Array.isArray(rawRef) ? rawRef[0] : rawRef
 
   // Get surgery ID from param (canonical id, with slug compatibility)
   let surgeryId: string | undefined
