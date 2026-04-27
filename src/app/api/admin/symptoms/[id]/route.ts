@@ -46,6 +46,9 @@ export async function PATCH(
         data: updateData,
       })
 
+      // Base symptom changes affect every surgery's effective list.
+      revalidateTag('symptoms')
+
       return NextResponse.json(updatedSymptom)
     } else if (source === 'custom') {
       // Only surgery admins can update custom symptoms
@@ -75,6 +78,10 @@ export async function PATCH(
           linkToPage,
         }
       })
+
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
 
       return NextResponse.json(updatedSymptom)
     } else if (source === 'override') {
@@ -130,6 +137,12 @@ export async function PATCH(
           linkToPage,
         }
       })
+
+      // Without this the home page's cached effective symptoms keep showing
+      // the base name/fields for up to 5 minutes after the override is saved.
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
 
       return NextResponse.json(updatedOverride)
     }
