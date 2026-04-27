@@ -44,6 +44,7 @@ npm run build:dev    # Dev build (generates + pushes schema + builds)
 | Styling        | Tailwind CSS 3 with NHS color palette              |
 | Rich Text      | TipTap (ProseMirror-based)                         |
 | Workflow Canvas| React Flow 11                                      |
+| Documents      | docxtemplater + PizZip (client-side .docx generation) |
 | Testing        | Jest 30 + Testing Library + ts-jest                |
 | AI             | Azure OpenAI (gpt-4o-mini)                         |
 | Deployment     | Vercel (serverless)                                |
@@ -56,6 +57,7 @@ src/
 ├── app/                    # Next.js App Router
 │   ├── (auth)/             # Login pages (admin-login, super-login)
 │   ├── admin/              # Superuser admin dashboard
+│   │   └── system/         # System-level tools (setup-tracker, ai-usage, changes, defaults, features)
 │   ├── api/                # REST API route handlers (~50 endpoint dirs)
 │   ├── s/[id]/             # Surgery-scoped pages (main app shell)
 │   │   ├── signposting/    # Symptom directory
@@ -76,6 +78,7 @@ src/
 │   ├── appointments/       # Appointment management
 │   ├── editor/             # SafeTipTapEditor
 │   ├── marketing/          # Landing page components
+│   ├── rich-text/          # Standalone rich text editor
 │   ├── workflow/           # Workflow canvas nodes & icons
 │   └── __tests__/          # Component tests
 ├── context/                # React Context providers
@@ -300,7 +303,8 @@ See `env.example` for the full list. Key variables:
 - **Workflow** - Document processing workflows built on a React Flow canvas
 - **Signposting** - The core act of directing a patient to the right service
 - **Setup Checklist** - Guided onboarding flow for new surgeries at `/s/[id]/admin/setup-checklist` tracking feature adoption and governance steps
-- **Sales Pipeline** - Superuser-only CRM at `/super/pipeline` covering prospect tracking, comms templates, and surgery provisioning
+- **Sales Pipeline** - Superuser-only CRM at `/super/pipeline` covering prospect tracking, comms templates, contract-variant document templates (including SetupGuide .docx generation via docxtemplater/PizZip), and surgery provisioning
+- **Surgery Setup Tracker** - Superuser-only cross-surgery dashboard at `/admin/system/setup-tracker` surfacing each surgery's setup completion and health (built on `computeSurgerySetupSnapshotsBatch` in `src/server/surgerySetup.ts`)
 
 ## Common Pitfalls
 
