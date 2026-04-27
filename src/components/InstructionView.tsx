@@ -833,26 +833,14 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         }
       }
 
-      // Two rename flows share the same input:
-      //  - Practice-admin override flow: editing a base or existing override creates/updates
-      //    a SurgerySymptomOverride. Empty input clears the override name so the merge
-      //    logic in effectiveSymptoms.ts falls back to the base.
-      //  - Direct edit flow (superuser on a base/override, or anyone editing a custom
-      //    symptom): writes name straight onto BaseSymptom or SurgeryCustomSymptom, both
-      //    of which require a non-null name. Empty input keeps the existing name.
-      const isOverrideRenameFlow = isPracticeAdmin && (symptom.source === 'base' || symptom.source === 'override')
-      const canEditName = canEditInstructions
+      // Practice admins customising a base symptom or editing their override can rename
+      // it for their practice. An empty value clears the override and falls back to the
+      // base name (the merge logic in effectiveSymptoms.ts treats empty as inherit).
+      const canCustomiseName = isPracticeAdmin && (symptom.source === 'base' || symptom.source === 'override')
       const trimmedName = editedName.trim()
-      let nameForPayload: string | null
-      if (canEditName) {
-        if (isOverrideRenameFlow) {
-          nameForPayload = trimmedName === '' ? null : trimmedName
-        } else {
-          nameForPayload = trimmedName === '' ? symptom.name : trimmedName
-        }
-      } else {
-        nameForPayload = symptom.name
-      }
+      const nameForPayload = canCustomiseName
+        ? (trimmedName === '' ? null : trimmedName)
+        : symptom.name
 
       const payload: any = {
         source: apiSource,
@@ -883,7 +871,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       }
 
       // Update the symptom object locally
-      if (canEditName && trimmedName !== '') {
+      if (canCustomiseName && trimmedName !== '') {
         symptom.name = trimmedName
       }
       symptom.briefInstruction = editedBriefInstruction.trim()
@@ -1012,26 +1000,20 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 </div>
               )}
 
-              {canEditInstructions && (
+              {isPracticeAdmin && (symptom.source === 'base' || symptom.source === 'override') && (
                 <div>
                   <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
-                    {isPracticeAdmin && (symptom.source === 'base' || symptom.source === 'override')
-                      ? 'Display name (optional)'
-                      : 'Symptom name'}
+                    Display name (optional)
                   </label>
                   <input
                     type="text"
                     value={editedName}
                     onChange={(e) => setEditedName(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
-                    placeholder={symptom.name || 'Enter symptom name...'}
+                    placeholder={symptom.name || 'Enter display name...'}
                   />
                   <p className="text-sm text-gray-500 mt-1">
-                    {isPracticeAdmin && (symptom.source === 'base' || symptom.source === 'override')
-                      ? 'Customise how this symptom is named for your practice. Leave blank to use the standard name.'
-                      : isSuperuser && symptom.source === 'base'
-                        ? 'This is the symptom name shown to every practice. Use this to fix typos in the base library.'
-                        : 'The symptom name shown to users in this practice.'}
+                    Customise how this symptom is named for your practice. Leave blank to use the standard name.
                   </p>
                 </div>
               )}
