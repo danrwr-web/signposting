@@ -114,6 +114,10 @@ export async function PATCH(
         )
       }
 
+      // Tri-state semantics for prose fields:
+      //   key absent from `data` -> destructured as undefined -> Prisma skips
+      //   value === null         -> writes NULL -> read path inherits base
+      //   value is a string      -> writes the string (including "" = blank)
       const overrideUpdate: any = {
         name,
         ageGroup,

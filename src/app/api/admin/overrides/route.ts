@@ -84,12 +84,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Remove null/undefined values but keep empty strings (they represent "inherit from base")
-    // Also remove fields that shouldn't be in the update/create objects
+    // Tri-state semantics for prose fields:
+    //   undefined = field not in payload, leave row untouched
+    //   null      = inherit from base (read path falls back to BaseSymptom)
+    //   string    = explicit override value (including "" = blank by choice)
     const allowedFields = ['name', 'ageGroup', 'briefInstruction', 'highlightedText', 'instructions', 'linkToPage', 'isHidden']
     const cleanData = Object.fromEntries(
-      Object.entries(overrideData).filter(([key, value]) => 
-        allowedFields.includes(key) && value !== null && value !== undefined
+      Object.entries(overrideData).filter(([key, value]) =>
+        allowedFields.includes(key) && value !== undefined
       )
     )
 
