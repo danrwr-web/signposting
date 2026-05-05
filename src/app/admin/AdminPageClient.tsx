@@ -493,17 +493,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           // Find the base symptom from effective symptoms
           const baseSymptom = effectiveSymptoms.find(s => s.id === selectedSymptom)
           if (baseSymptom) {
+            // Prose fields default to null = inherit from base under the
+            // tri-state semantics in src/server/effectiveSymptoms.ts. "" would
+            // be persisted as an explicit blank.
             setOverrideData({
               baseSymptom: baseSymptom,
-              // Initialize override fields as empty (will inherit from base)
               name: '',
               ageGroup: '',
-              briefInstruction: '',
-              instructions: '',
-              highlightedText: '',
-          linkToPage: '',
-          variants: null
-        })
+              briefInstruction: null,
+              instructions: null,
+              highlightedText: null,
+              linkToPage: '',
+              variants: null
+            })
           } else {
             toast.error('Symptom not found')
           }
@@ -568,7 +570,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
         // Save override
         // Filter out non-schema fields like baseSymptom
         const { baseSymptom, ...overrideFields } = overrideData
-        
+
+        // Tri-state contract: "" on the wire means "explicit blank". This
+        // surface has no Reset-to-default control, so coerce blank prose
+        // back to null to preserve the historical "leave blank to inherit"
+        // behaviour. name/ageGroup/linkToPage retain their existing
+        // trim-empty-as-inherit semantics in effectiveSymptoms.ts.
+        const proseFields = ['briefInstruction', 'instructions', 'instructionsHtml', 'highlightedText'] as const
+        for (const f of proseFields) {
+          if (typeof overrideFields[f] === 'string' && overrideFields[f].trim() === '') {
+            overrideFields[f] = null
+          }
+        }
+
         const response = await fetch('/api/admin/overrides', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
