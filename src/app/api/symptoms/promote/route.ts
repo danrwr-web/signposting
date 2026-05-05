@@ -24,19 +24,40 @@ export async function POST(req: NextRequest) {
     if (!custom) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     const created = await prisma.$transaction(async (tx) => {
+      // Promote with structurally-global fields only. Tenant-flavoured prose
+      // stays with the originating surgery as an override so it does not leak
+      // to other surgeries via the base-symptom fallback.
       const base = await tx.baseSymptom.create({
         data: {
           name: custom.name,
           slug: custom.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-          briefInstruction: custom.briefInstruction,
-          instructions: custom.instructions,
-          instructionsHtml: custom.instructionsHtml,
-          instructionsJson: custom.instructionsJson,
-          highlightedText: custom.highlightedText,
-          linkToPage: custom.linkToPage,
           ageGroup: custom.ageGroup,
+          linkToPage: custom.linkToPage,
         }
       })
+
+      const hasProse =
+        (custom.briefInstruction ?? '') !== '' ||
+        (custom.instructions ?? '') !== '' ||
+        (custom.instructionsHtml ?? '') !== '' ||
+        (custom.instructionsJson ?? '') !== '' ||
+        (custom.highlightedText ?? '') !== ''
+
+      if (hasProse) {
+        await tx.surgerySymptomOverride.create({
+          data: {
+            surgeryId: custom.surgeryId,
+            baseSymptomId: base.id,
+            briefInstruction: custom.briefInstruction,
+            instructions: custom.instructions,
+            instructionsHtml: custom.instructionsHtml,
+            instructionsJson: custom.instructionsJson,
+            highlightedText: custom.highlightedText,
+            lastEditedBy: user.name || user.email,
+            lastEditedAt: new Date(),
+          }
+        })
+      }
 
       // Update status: point to baseSymptomId, keep enabled
       await tx.surgerySymptomStatus.updateMany({
