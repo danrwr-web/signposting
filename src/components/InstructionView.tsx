@@ -36,6 +36,15 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const [editedBriefInstruction, setEditedBriefInstruction] = useState('')
   const [editedHighlightedText, setEditedHighlightedText] = useState('')
   const [editedLinkToPage, setEditedLinkToPage] = useState('')
+  // Tri-state override tracking. Captured on edit-open, used on save to decide
+  // per field whether to send the field at all (unchanged), send a string
+  // (explicit override, including "" = blank), or send null (reset to default).
+  const [originalBriefInstruction, setOriginalBriefInstruction] = useState('')
+  const [originalHighlightedText, setOriginalHighlightedText] = useState('')
+  const [originalInstructions, setOriginalInstructions] = useState('')
+  const [briefInstructionReset, setBriefInstructionReset] = useState(false)
+  const [highlightedTextReset, setHighlightedTextReset] = useState(false)
+  const [instructionsReset, setInstructionsReset] = useState(false)
   const [isSavingAll, setIsSavingAll] = useState(false)
   const [isHidingSymptom, setIsHidingSymptom] = useState(false)
   const [hideError, setHideError] = useState<string | null>(null)
@@ -96,6 +105,11 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   // Can edit if superuser or practice admin
   const canEditInstructions = isSuperuser || isPracticeAdmin
   const canApplyAiChanges = canEditInstructions
+
+  // Tri-state "Reset to default" affordance only makes sense when the save
+  // will land in a SurgerySymptomOverride row (the read path then falls back
+  // to BaseSymptom on null). Editing base or custom directly has no default.
+  const isOverrideContext = symptom.source === 'override' || (isPracticeAdmin && symptom.source === 'base')
 
   // Parse variant data and determine active variant
   const variants = symptom.variants as any
@@ -682,11 +696,13 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const handleEditInstructions = () => {
     // For practice admins editing base symptoms, start with base content
     // For superusers or when editing overrides/custom, use current content
-    const contentToEdit = (isPracticeAdmin && symptom.source === 'base') 
+    const contentToEdit = (isPracticeAdmin && symptom.source === 'base')
       ? (symptom.instructionsHtml || symptom.instructions || '')
       : (symptom.instructionsHtml || symptom.instructions || '')
-    
+
     setEditedInstructions(contentToEdit)
+    setOriginalInstructions(contentToEdit)
+    setInstructionsReset(false)
     setIsEditingInstructions(true)
     setSaveError(null)
   }
@@ -694,15 +710,25 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
   const handleCancelEdit = () => {
     setIsEditingInstructions(false)
     setEditedInstructions('')
+    setInstructionsReset(false)
     setSaveError(null)
   }
 
   const handleEditAll = () => {
+    const initialBrief = symptom.briefInstruction || ''
+    const initialHighlighted = symptom.highlightedText || ''
+    const initialInstructions = symptom.instructionsHtml || symptom.instructions || ''
     setEditedName(symptom.name || '')
-    setEditedBriefInstruction(symptom.briefInstruction || '')
-    setEditedHighlightedText(symptom.highlightedText || '')
+    setEditedBriefInstruction(initialBrief)
+    setEditedHighlightedText(initialHighlighted)
     setEditedLinkToPage(symptom.linkToPage || '')
-    setEditedInstructions(symptom.instructionsHtml || symptom.instructions || '')
+    setEditedInstructions(initialInstructions)
+    setOriginalBriefInstruction(initialBrief)
+    setOriginalHighlightedText(initialHighlighted)
+    setOriginalInstructions(initialInstructions)
+    setBriefInstructionReset(false)
+    setHighlightedTextReset(false)
+    setInstructionsReset(false)
     // Prefill variants when superuser editing base
     if (isSuperuser && symptom.source === 'base') {
       const v: any = (symptom as any).variants
@@ -729,6 +755,9 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setEditedHighlightedText('')
     setEditedLinkToPage('')
     setEditedInstructions('')
+    setBriefInstructionReset(false)
+    setHighlightedTextReset(false)
+    setInstructionsReset(false)
     setSaveError(null)
   }
 
@@ -765,17 +794,26 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         }
       }
 
+      // Tri-state: null = reset to base default, omit = unchanged, string = override.
+      const instructionsPayload: string | null | undefined = instructionsReset
+        ? null
+        : (sanitizedHtml === originalInstructions ? undefined : sanitizedHtml)
+
+      const body: any = {
+        source: apiSource,
+        surgeryId: apiSurgeryId,
+      }
+      if (instructionsPayload !== undefined) {
+        body.instructions = instructionsPayload // Legacy field
+        body.instructionsHtml = instructionsPayload
+      }
+
       const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          source: apiSource,
-          surgeryId: apiSurgeryId,
-          instructionsHtml: sanitizedHtml,
-          instructions: sanitizedHtml, // Keep legacy field for compatibility
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!response.ok) {
@@ -784,11 +822,14 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
       }
 
       // Update the symptom object locally
-      symptom.instructionsHtml = sanitizedHtml
-      symptom.instructions = sanitizedHtml
+      if (!instructionsReset) {
+        symptom.instructionsHtml = sanitizedHtml
+        symptom.instructions = sanitizedHtml
+      }
 
       setIsEditingInstructions(false)
       setEditedInstructions('')
+      setInstructionsReset(false)
       
       // Refresh the page to show updated content
       router.refresh()
@@ -842,16 +883,32 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         ? (trimmedName === '' ? null : trimmedName)
         : symptom.name
 
+      // Tri-state per-field: omit when unchanged, null when user clicked
+      // "Reset to default", string otherwise (including "" = explicit blank).
+      const briefTrimmed = editedBriefInstruction.trim()
+      const highlightedTrimmed = editedHighlightedText.trim()
+      const briefPayload: string | null | undefined = briefInstructionReset
+        ? null
+        : (briefTrimmed === originalBriefInstruction.trim() ? undefined : briefTrimmed)
+      const highlightedPayload: string | null | undefined = highlightedTextReset
+        ? null
+        : (highlightedTrimmed === originalHighlightedText.trim() ? undefined : highlightedTrimmed)
+      const instructionsPayload: string | null | undefined = instructionsReset
+        ? null
+        : (sanitizedInstructions === originalInstructions ? undefined : sanitizedInstructions)
+
       const payload: any = {
         source: apiSource,
         surgeryId: apiSurgeryId,
         name: nameForPayload,
         ageGroup: symptom.ageGroup, // Keep existing age group
-        briefInstruction: editedBriefInstruction.trim(),
-        instructions: sanitizedInstructions, // Keep legacy field for compatibility
-        instructionsHtml: sanitizedInstructions,
-        highlightedText: editedHighlightedText.trim(),
         linkToPage: editedLinkToPage.trim(),
+      }
+      if (briefPayload !== undefined) payload.briefInstruction = briefPayload
+      if (highlightedPayload !== undefined) payload.highlightedText = highlightedPayload
+      if (instructionsPayload !== undefined) {
+        payload.instructions = instructionsPayload // Legacy field
+        payload.instructionsHtml = instructionsPayload
       }
       if (typeof variantsPayload !== 'undefined') {
         payload.variants = variantsPayload
@@ -1022,13 +1079,35 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
                   Brief Instruction
                 </label>
-                <textarea
-                  value={editedBriefInstruction}
-                  onChange={(e) => setEditedBriefInstruction(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
-                  rows={2}
-                  placeholder="Enter brief instruction..."
-                />
+                {briefInstructionReset ? (
+                  <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-600 italic">
+                    Will reset to default text on save.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setBriefInstructionReset(false)}
+                      className="text-nhs-blue underline hover:text-nhs-dark-blue not-italic"
+                    >
+                      Undo
+                    </button>
+                  </div>
+                ) : (
+                  <textarea
+                    value={editedBriefInstruction}
+                    onChange={(e) => setEditedBriefInstruction(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                    rows={2}
+                    placeholder="Enter brief instruction..."
+                  />
+                )}
+                {isOverrideContext && !briefInstructionReset && (
+                  <button
+                    type="button"
+                    onClick={() => setBriefInstructionReset(true)}
+                    className="text-sm text-nhs-blue hover:underline mt-1"
+                  >
+                    Reset to default
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -1070,13 +1149,35 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
               <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
                 Important Notice (Highlighted Text)
               </label>
-              <textarea
-                value={editedHighlightedText}
-                onChange={(e) => setEditedHighlightedText(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
-                rows={3}
-                placeholder="Enter important notice text..."
-              />
+              {highlightedTextReset ? (
+                <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-600 italic">
+                  Will reset to default text on save.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setHighlightedTextReset(false)}
+                    className="text-nhs-blue underline hover:text-nhs-dark-blue not-italic"
+                  >
+                    Undo
+                  </button>
+                </div>
+              ) : (
+                <textarea
+                  value={editedHighlightedText}
+                  onChange={(e) => setEditedHighlightedText(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
+                  rows={3}
+                  placeholder="Enter important notice text..."
+                />
+              )}
+              {isOverrideContext && !highlightedTextReset && (
+                <button
+                  type="button"
+                  onClick={() => setHighlightedTextReset(true)}
+                  className="text-sm text-nhs-blue hover:underline mt-1"
+                >
+                  Reset to default
+                </button>
+              )}
               <p className="text-sm text-gray-500 mt-1">
                 This text will appear in a red highlighted box above the main instructions.
               </p>
@@ -1208,13 +1309,35 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                 <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
                   Detailed Instructions
                 </label>
-                <RichTextEditor
-                  docId={`symptom:${symptom.id}:instructions`}
-                  value={editedInstructions}
-                  onChange={setEditedInstructions}
-                  placeholder="Enter detailed instructions with formatting..."
-                  height={300}
-                />
+                {instructionsReset ? (
+                  <div className="px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm text-gray-600 italic">
+                    Will reset to default instructions on save.{' '}
+                    <button
+                      type="button"
+                      onClick={() => setInstructionsReset(false)}
+                      className="text-nhs-blue underline hover:text-nhs-dark-blue not-italic"
+                    >
+                      Undo
+                    </button>
+                  </div>
+                ) : (
+                  <RichTextEditor
+                    docId={`symptom:${symptom.id}:instructions`}
+                    value={editedInstructions}
+                    onChange={setEditedInstructions}
+                    placeholder="Enter detailed instructions with formatting..."
+                    height={300}
+                  />
+                )}
+                {isOverrideContext && !instructionsReset && (
+                  <button
+                    type="button"
+                    onClick={() => setInstructionsReset(true)}
+                    className="text-sm text-nhs-blue hover:underline mt-1"
+                  >
+                    Reset to default
+                  </button>
+                )}
               </div>
 
               {isSuperuser && symptom.source === 'base' && (
