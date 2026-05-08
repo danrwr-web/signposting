@@ -36,6 +36,10 @@ jest.mock('@/lib/prisma', () => ({
     dailyDoseCardVersion: {
       create: jest.fn(),
     },
+    userCategoryProgress: {
+      findMany: jest.fn(),
+      upsert: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }))
@@ -81,10 +85,9 @@ describe('Daily Dose flow smoke tests', () => {
       role: 'ADMIN',
       preferences: { chosenFocusTopicIds: [] },
     })
-    // start/route calls findFirst twice: same-day guard, then incomplete session check
+    // start/route checks for a recent incomplete session
     ;(prisma.dailyDoseSession.findFirst as jest.Mock)
-      .mockResolvedValueOnce(null) // same-day guard: no completed session today
-      .mockResolvedValueOnce(null) // incomplete session check: no incomplete session
+      .mockResolvedValueOnce(null)
     ;(prisma.dailyDoseTopic.findMany as jest.Mock).mockResolvedValue([
       { id: 'topic-1', name: 'Demo', roleScope: ['ADMIN'], ordering: 0 },
     ])
@@ -123,16 +126,17 @@ describe('Daily Dose flow smoke tests', () => {
     const startResponse = await postStart(startRequest)
     expect(startResponse.status).toBe(200)
 
-    // complete/route calls findFirst twice: session validation, then same-day guard
+    // complete/route validates session exists and is not already completed
     ;(prisma.dailyDoseSession.findFirst as jest.Mock)
-      .mockResolvedValueOnce({ id: 'session-1', completedAt: null }) // session validation
-      .mockResolvedValueOnce(null) // same-day guard: no other completed session today
+      .mockResolvedValueOnce({ id: 'session-1', completedAt: null })
 
     const tx = {
       dailyDoseSession: { update: jest.fn() },
       dailyDoseUserCardState: { update: jest.fn(), create: jest.fn() },
+      userCategoryProgress: { upsert: jest.fn() },
     }
     ;(prisma.$transaction as jest.Mock).mockImplementation(async (callback: any) => callback(tx))
+    ;(prisma.userCategoryProgress.findMany as jest.Mock).mockResolvedValue([])
 
     const completeRequest = createJsonRequest({
       sessionId: 'session-1',

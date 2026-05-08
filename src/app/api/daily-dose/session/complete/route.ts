@@ -7,9 +7,21 @@ import { resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { DailyDoseSessionCompleteZ } from '@/lib/daily-dose/schemas'
 import { applyReviewOutcome } from '@/lib/daily-dose/scheduler'
 import { calculateAccuracy, calculateSessionXp } from '@/lib/daily-dose/scoring'
+import {
+  calculateAccuracyPercent,
+  deriveMasteryState,
+  updateProgressAccumulator,
+  type LearningUnitLevel,
+} from '@/lib/daily-dose/mastery'
 import { z } from 'zod'
 
 const CARD_CORRECT_THRESHOLD = 0.7
+const UNKNOWN_SUBSECTION = 'Uncategorised'
+
+type LearningAssignment = {
+  categoryId: string
+  subsection?: string | null
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +69,18 @@ export async function POST(request: NextRequest) {
     })
 
     const cardIds = parsed.cardResults.map((result) => result.cardId)
+    const cards = await prisma.dailyDoseCard.findMany({
+      where: { id: { in: cardIds } },
+      select: {
+        id: true,
+        learningCategoryId: true,
+        learningSubsection: true,
+        learningAssignments: true,
+        unitLevel: true,
+      },
+    })
+    const cardMap = new Map(cards.map((card) => [card.id, card]))
+
     const existingStates = await prisma.dailyDoseUserCardState.findMany({
       where: {
         userId: user.id,
@@ -66,6 +90,81 @@ export async function POST(request: NextRequest) {
     })
     const stateMap = new Map(existingStates.map((state) => [state.cardId, state]))
     const now = new Date()
+
+    const progressInputMap = new Map<
+      string,
+      {
+        categoryId: string
+        subsection: string
+        unitLevel: LearningUnitLevel
+        attemptedQuestions: number
+        correctQuestions: number
+        reinforcedAt: Date | null
+      }
+    >()
+
+    for (const result of parsed.cardResults) {
+      const card = cardMap.get(result.cardId)
+      if (!card) continue
+
+      const assignments = (() => {
+        const list = Array.isArray(card.learningAssignments)
+          ? (card.learningAssignments as LearningAssignment[])
+          : []
+        if (list.length > 0) return list
+        if (card.learningCategoryId) {
+          return [{ categoryId: card.learningCategoryId, subsection: card.learningSubsection }]
+        }
+        return []
+      })()
+
+      if (assignments.length === 0) continue
+      const reinforcedAt = stateMap.get(result.cardId)?.lastReviewedAt ? now : null
+
+      for (const assignment of assignments) {
+        if (!assignment?.categoryId) continue
+        const subsection = assignment.subsection?.trim() || card.learningSubsection?.trim() || UNKNOWN_SUBSECTION
+        const key = `${assignment.categoryId}::${subsection}`
+        const current = progressInputMap.get(key)
+        if (!current) {
+          progressInputMap.set(key, {
+            categoryId: assignment.categoryId,
+            subsection,
+            unitLevel: card.unitLevel as LearningUnitLevel,
+            attemptedQuestions: result.questionCount,
+            correctQuestions: result.correctCount,
+            reinforcedAt,
+          })
+          continue
+        }
+        const merged = updateProgressAccumulator({
+          current,
+          sessionAttemptedQuestions: result.questionCount,
+          sessionCorrectQuestions: result.correctCount,
+          reinforcedAt,
+        })
+        progressInputMap.set(key, {
+          ...current,
+          attemptedQuestions: merged.attemptedQuestions,
+          correctQuestions: merged.correctQuestions,
+          reinforcedAt: merged.reinforcedAt,
+        })
+      }
+    }
+
+    const categoryIds = Array.from(new Set(Array.from(progressInputMap.values()).map((v) => v.categoryId)))
+    const existingProgress = categoryIds.length
+      ? await prisma.userCategoryProgress.findMany({
+          where: {
+            userId: user.id,
+            surgeryId,
+            categoryId: { in: categoryIds },
+          },
+        })
+      : []
+    const progressMap = new Map(
+      existingProgress.map((row) => [`${row.categoryId}::${row.subsection}`, row])
+    )
 
     await prisma.$transaction(async (tx) => {
       await tx.dailyDoseSession.update({
@@ -119,6 +218,64 @@ export async function POST(request: NextRequest) {
             },
           })
         }
+      }
+
+      for (const value of progressInputMap.values()) {
+        const key = `${value.categoryId}::${value.subsection}`
+        const existing = progressMap.get(key)
+
+        const merged = updateProgressAccumulator({
+          current: {
+            attemptedQuestions: existing?.attemptedQuestions ?? 0,
+            correctQuestions: existing?.correctQuestions ?? 0,
+            reinforcedAt: existing?.reinforcedAt ?? null,
+          },
+          sessionAttemptedQuestions: value.attemptedQuestions,
+          sessionCorrectQuestions: value.correctQuestions,
+          reinforcedAt: value.reinforcedAt,
+        })
+        const accuracyPct = calculateAccuracyPercent(
+          merged.correctQuestions,
+          merged.attemptedQuestions
+        )
+        const masteryState = deriveMasteryState({
+          attemptedQuestions: merged.attemptedQuestions,
+          correctQuestions: merged.correctQuestions,
+          reinforcedAt: merged.reinforcedAt,
+        })
+
+        await tx.userCategoryProgress.upsert({
+          where: {
+            userId_surgeryId_categoryId_subsection: {
+              userId: user.id,
+              surgeryId,
+              categoryId: value.categoryId,
+              subsection: value.subsection,
+            },
+          },
+          update: {
+            unitLevel: value.unitLevel,
+            attemptedQuestions: merged.attemptedQuestions,
+            correctQuestions: merged.correctQuestions,
+            accuracyPct,
+            reinforcedAt: merged.reinforcedAt,
+            masteryState,
+            lastActivityAt: now,
+          },
+          create: {
+            userId: user.id,
+            surgeryId,
+            categoryId: value.categoryId,
+            subsection: value.subsection,
+            unitLevel: value.unitLevel,
+            attemptedQuestions: merged.attemptedQuestions,
+            correctQuestions: merged.correctQuestions,
+            accuracyPct,
+            reinforcedAt: merged.reinforcedAt,
+            masteryState,
+            lastActivityAt: now,
+          },
+        })
       }
     })
 

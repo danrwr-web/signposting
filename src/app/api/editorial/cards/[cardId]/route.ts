@@ -55,6 +55,79 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
+    const assignmentCategoryIds = new Set<string>()
+    if (parsed.learningCategoryId) assignmentCategoryIds.add(parsed.learningCategoryId)
+    if (Array.isArray(parsed.learningAssignments)) {
+      for (const assignment of parsed.learningAssignments) {
+        assignmentCategoryIds.add(assignment.categoryId)
+      }
+    }
+
+    const categoriesById = assignmentCategoryIds.size
+      ? new Map(
+          (
+            await prisma.learningCategory.findMany({
+              where: { id: { in: Array.from(assignmentCategoryIds) }, isActive: true },
+              select: { id: true, subsections: true, name: true },
+            })
+          ).map((cat) => [cat.id, cat])
+        )
+      : new Map()
+
+    if (parsed.learningCategoryId && !categoriesById.has(parsed.learningCategoryId)) {
+      return NextResponse.json(
+        { error: { code: 'INVALID_INPUT', message: 'Selected learning category is not active or does not exist' } },
+        { status: 400 }
+      )
+    }
+
+    if (parsed.learningCategoryId && parsed.learningSubsection) {
+      const category = categoriesById.get(parsed.learningCategoryId)
+      const subsections = Array.isArray(category?.subsections) ? (category!.subsections as string[]) : []
+      if (subsections.length > 0 && !subsections.includes(parsed.learningSubsection)) {
+        return NextResponse.json(
+          {
+            error: {
+              code: 'INVALID_INPUT',
+              message: `Subsection "${parsed.learningSubsection}" is not valid for category "${category?.name ?? 'Unknown'}"`,
+            },
+          },
+          { status: 400 }
+        )
+      }
+    }
+
+    if (Array.isArray(parsed.learningAssignments)) {
+      for (const assignment of parsed.learningAssignments) {
+        const category = categoriesById.get(assignment.categoryId)
+        if (!category) {
+          return NextResponse.json(
+            {
+              error: {
+                code: 'INVALID_INPUT',
+                message: `Assigned category "${assignment.categoryName}" is not active or does not exist`,
+              },
+            },
+            { status: 400 }
+          )
+        }
+        const subsection = assignment.subsection?.trim()
+        if (!subsection) continue
+        const subsections = Array.isArray(category.subsections) ? (category.subsections as string[]) : []
+        if (subsections.length > 0 && !subsections.includes(subsection)) {
+          return NextResponse.json(
+            {
+              error: {
+                code: 'INVALID_INPUT',
+                message: `Subsection "${subsection}" is not valid for category "${category.name}"`,
+              },
+            },
+            { status: 400 }
+          )
+        }
+      }
+    }
+
     const combined = JSON.stringify({
       title: parsed.title,
       contentBlocks: parsed.contentBlocks,
@@ -107,6 +180,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           : {}),
         // Always clear validation issues on any save (fix or explicit override)
         validationIssues: null,
+        unitLevel: parsed.unitLevel,
       },
     })
 

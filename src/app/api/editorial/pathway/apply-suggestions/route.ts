@@ -51,6 +51,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    const categories = await prisma.learningCategory.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, subsections: true },
+    })
+    const categoriesById = new Map(categories.map((c) => [c.id, c]))
+
     // Filter to cards with no saved assignments but with suggestedAssignments
     const toUpdate = cards.filter((card) => {
       const assignments = Array.isArray(card.learningAssignments) ? card.learningAssignments : []
@@ -65,12 +71,21 @@ export async function POST(request: NextRequest) {
       const gf = card.generatedFrom as { suggestedAssignments: SuggestedAssignment[] }
       const suggestions = gf.suggestedAssignments
       const learningAssignments = suggestions
-        .filter((s) => s?.categoryId && s?.categoryName)
-        .map((s) => ({
-          categoryId: s.categoryId,
-          categoryName: s.categoryName,
-          subsection: s.subsection ?? null,
-        }))
+        .filter((s) => s?.categoryId && categoriesById.has(s.categoryId))
+        .map((s) => {
+          const category = categoriesById.get(s.categoryId)!
+          const subsection = s.subsection?.trim()
+          const validSubsections = Array.isArray(category.subsections)
+            ? (category.subsections as string[])
+            : []
+          const normalisedSubsection =
+            subsection && validSubsections.includes(subsection) ? subsection : null
+          return {
+            categoryId: s.categoryId,
+            categoryName: category.name,
+            subsection: normalisedSubsection,
+          }
+        })
       if (learningAssignments.length > 0) {
         await prisma.dailyDoseCard.update({
           where: { id: card.id },

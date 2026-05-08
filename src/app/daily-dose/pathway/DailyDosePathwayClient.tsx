@@ -8,6 +8,8 @@ interface SubsectionSummary {
   name: string
   totalCards: number
   publishedCards: number
+  masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+  accuracyPct: number
 }
 
 interface CategorySummary {
@@ -17,16 +19,34 @@ interface CategorySummary {
   ordering: number
   totalCards: number
   publishedCards: number
+  masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+  secureSubsections: number
+  totalSubsections: number
+  securePercent: number
+  recommendedNext: {
+    subsection: string
+    unitLevel: 'INTRO' | 'CORE' | 'STRETCH'
+    masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+    accuracyPct: number
+  } | null
   subsections: SubsectionSummary[]
 }
 
 interface PathwayData {
   pathway: CategorySummary[]
   unassignedCount: number
+  recommendedNext: {
+    categoryId: string
+    categoryName: string
+    subsection: string
+    unitLevel: 'INTRO' | 'CORE' | 'STRETCH'
+    masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+    accuracyPct: number
+  } | null
 }
 
 /**
- * Returns Red / Amber / Green colour classes based on subsection coverage.
+ * Returns style classes based on user mastery state.
  */
 function getCoverageStyle(cat: CategorySummary): {
   bg: string
@@ -35,10 +55,7 @@ function getCoverageStyle(cat: CategorySummary): {
   dot: string
   label: string
 } {
-  const totalSubs = cat.subsections.length
-  const coveredSubs = cat.subsections.filter((s) => s.totalCards > 0).length
-
-  if (totalSubs === 0 || coveredSubs === 0) {
+  if (cat.masteryState === 'NOT_STARTED') {
     return {
       bg: 'bg-red-50',
       border: 'border-red-300',
@@ -47,7 +64,7 @@ function getCoverageStyle(cat: CategorySummary): {
       label: 'Not started',
     }
   }
-  if (coveredSubs < totalSubs) {
+  if (cat.masteryState === 'IN_PROGRESS') {
     return {
       bg: 'bg-amber-50',
       border: 'border-amber-300',
@@ -61,7 +78,7 @@ function getCoverageStyle(cat: CategorySummary): {
     border: 'border-emerald-300',
     text: 'text-emerald-900',
     dot: 'bg-emerald-500',
-    label: 'Complete',
+    label: 'Secure',
   }
 }
 
@@ -91,7 +108,7 @@ export default function DailyDosePathwayClient({
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(`/api/editorial/pathway?role=${role}`)
+        const response = await fetch(`/api/editorial/pathway?role=${role}&surgeryId=${surgeryId}`)
         const payload = await response.json().catch(() => ({ ok: false }))
         if (!response.ok || !payload.ok) {
           setError(payload?.error?.message || 'Failed to load learning pathway')
@@ -104,7 +121,7 @@ export default function DailyDosePathwayClient({
         setLoading(false)
       }
     },
-    []
+    [surgeryId]
   )
 
   useEffect(() => {
@@ -152,7 +169,7 @@ export default function DailyDosePathwayClient({
               {focusMode ? 'Choose a topic' : 'Learning Pathway'}
             </h1>
             {focusMode && (
-              <p className="text-[11px] text-slate-500">Select a category to start a focused session</p>
+              <p className="text-[11px] text-slate-500">Select a category to start a focused learning session</p>
             )}
             {isSuperuser && (
               <div className="mt-2 flex gap-1">
@@ -193,16 +210,27 @@ export default function DailyDosePathwayClient({
             <>
               {!focusMode && (
                 <p className="mb-4 text-xs text-slate-500">
-                  {data.pathway.length} categories · tap a topic to explore
+                  {data.pathway.length} categories · your progress is private to you
                 </p>
+              )}
+              {!focusMode && data.recommendedNext && (
+                <div className="mb-4 rounded-lg border border-nhs-blue/20 bg-nhs-light-blue/30 p-3">
+                  <p className="text-[11px] font-semibold text-nhs-dark-blue">Recommended next</p>
+                  <p className="text-xs text-slate-700">
+                    {data.recommendedNext.categoryName} — {data.recommendedNext.subsection} ({data.recommendedNext.unitLevel})
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    A supportive suggestion based on your pathway progress.
+                  </p>
+                </div>
               )}
 
               {/* 2-column grid inside the phone frame */}
               <div className="grid grid-cols-2 gap-2.5">
                 {data.pathway.map((cat) => {
                   const style = getCoverageStyle(cat)
-                  const totalSubs = cat.subsections.length
-                  const coveredSubs = cat.subsections.filter((s) => s.totalCards > 0).length
+                  const totalSubs = cat.totalSubsections
+                  const coveredSubs = cat.secureSubsections
 
                   return (
                     <Link
@@ -217,9 +245,10 @@ export default function DailyDosePathwayClient({
                       ].join(' ')}
                     >
                       <span className="text-[13px] font-bold leading-tight">{cat.name}</span>
+                      <span className="text-[11px] opacity-80">{style.label}</span>
                       <span className="flex items-center gap-1 text-[11px] opacity-80">
                         <span className={`inline-block h-1.5 w-1.5 rounded-full ${style.dot}`} />
-                        {coveredSubs}/{totalSubs} topics
+                        {coveredSubs}/{totalSubs} secure
                       </span>
                     </Link>
                   )

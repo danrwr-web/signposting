@@ -8,6 +8,9 @@ interface SubsectionSummary {
   name: string
   totalCards: number
   publishedCards: number
+  masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+  accuracyPct: number
+  unitLevel: 'INTRO' | 'CORE' | 'STRETCH'
 }
 
 interface CategorySummary {
@@ -17,25 +20,43 @@ interface CategorySummary {
   ordering: number
   totalCards: number
   publishedCards: number
+  masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+  secureSubsections: number
+  totalSubsections: number
+  securePercent: number
+  recommendedNext: {
+    subsection: string
+    unitLevel: 'INTRO' | 'CORE' | 'STRETCH'
+    masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+    accuracyPct: number
+  } | null
   subsections: SubsectionSummary[]
 }
 
 interface PathwayData {
   pathway: CategorySummary[]
   unassignedCount: number
+  recommendedNext: {
+    categoryId: string
+    categoryName: string
+    subsection: string
+    unitLevel: 'INTRO' | 'CORE' | 'STRETCH'
+    masteryState: 'NOT_STARTED' | 'IN_PROGRESS' | 'SECURE'
+    accuracyPct: number
+  } | null
 }
 
 function getSubsectionStatus(sub: SubsectionSummary): {
   dot: string
   label: string
 } {
-  if (sub.totalCards === 0) {
-    return { dot: 'bg-red-400', label: 'No cards' }
+  if (sub.masteryState === 'NOT_STARTED') {
+    return { dot: 'bg-red-400', label: 'Not started' }
   }
-  if (sub.publishedCards === 0) {
-    return { dot: 'bg-amber-400', label: 'Draft only' }
+  if (sub.masteryState === 'IN_PROGRESS') {
+    return { dot: 'bg-amber-400', label: 'In progress' }
   }
-  return { dot: 'bg-emerald-500', label: `${sub.publishedCards} published` }
+  return { dot: 'bg-emerald-500', label: 'Secure' }
 }
 
 function getCoverageColour(cat: CategorySummary): {
@@ -44,12 +65,10 @@ function getCoverageColour(cat: CategorySummary): {
   text: string
   dot: string
 } {
-  const totalSubs = cat.subsections.length
-  const coveredSubs = cat.subsections.filter((s) => s.totalCards > 0).length
-  if (totalSubs === 0 || coveredSubs === 0) {
+  if (cat.masteryState === 'NOT_STARTED') {
     return { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-900', dot: 'bg-red-400' }
   }
-  if (coveredSubs < totalSubs) {
+  if (cat.masteryState === 'IN_PROGRESS') {
     return { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-900', dot: 'bg-amber-400' }
   }
   return { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-900', dot: 'bg-emerald-500' }
@@ -71,7 +90,7 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId, f
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/editorial/pathway')
+      const response = await fetch(`/api/editorial/pathway?surgeryId=${surgeryId}`)
       const payload = await response.json().catch(() => ({ ok: false }))
       if (!response.ok || !payload.ok) {
         setError(payload?.error?.message || 'Failed to load pathway data')
@@ -89,15 +108,15 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId, f
     } finally {
       setLoading(false)
     }
-  }, [categoryId])
+  }, [categoryId, surgeryId])
 
   useEffect(() => {
     fetchCategory()
   }, [fetchCategory])
 
   const colour = category ? getCoverageColour(category) : null
-  const coveredSubs = category ? category.subsections.filter((s) => s.totalCards > 0).length : 0
-  const totalSubs = category ? category.subsections.length : 0
+  const coveredSubs = category ? category.secureSubsections : 0
+  const totalSubs = category ? category.totalSubsections : 0
 
   // Back link respects focus mode
   const backHref = focusMode
@@ -154,7 +173,7 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId, f
                   <div>
                     <p className={`text-sm font-semibold ${colour.text}`}>{category.name}</p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {coveredSubs}/{totalSubs} subsections covered · {category.totalCards} cards
+                      {coveredSubs}/{totalSubs} secure · {Math.round(category.securePercent)}% secure
                     </p>
                   </div>
                   <span className={`inline-block h-3 w-3 rounded-full ${colour.dot}`} />
@@ -166,6 +185,18 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId, f
                 <div className="mx-4 mt-3 rounded-lg border border-nhs-blue/20 bg-nhs-light-blue/30 px-4 py-2.5">
                   <p className="text-xs text-nhs-dark-blue">
                     Your session will focus on cards from this category.
+                  </p>
+                </div>
+              )}
+
+              {category.recommendedNext && (
+                <div className="mx-4 mt-3 rounded-lg border border-nhs-blue/20 bg-nhs-light-blue/30 px-4 py-2.5">
+                  <p className="text-xs font-semibold text-nhs-dark-blue">Recommended next</p>
+                  <p className="text-xs text-slate-700">
+                    {category.recommendedNext.subsection} ({category.recommendedNext.unitLevel}) · {Math.round(category.recommendedNext.accuracyPct)}%
+                  </p>
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    A gentle next step to build confidence.
                   </p>
                 </div>
               )}
@@ -189,11 +220,9 @@ export default function DailyDoseCategoryDetailClient({ surgeryId, categoryId, f
                         </div>
                         <div className="ml-3 shrink-0 text-right">
                           <span className="text-xs text-slate-500">
-                            {sub.totalCards} card{sub.totalCards !== 1 ? 's' : ''}
+                            {sub.unitLevel} · {Math.round(sub.accuracyPct)}%
                           </span>
-                          {sub.publishedCards > 0 && (
-                            <p className="text-[11px] text-emerald-600">{status.label}</p>
-                          )}
+                          <p className="text-[11px] text-slate-600">{status.label}</p>
                         </div>
                       </div>
                     )

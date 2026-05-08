@@ -23,11 +23,21 @@ type HistoryResponse = {
   reviewQueue: Array<{ cardId: string }>
 }
 
+type PathwayResponse = {
+  recommendedNext: {
+    categoryId: string
+    categoryName: string
+    subsection: string
+    unitLevel: 'INTRO' | 'CORE' | 'STRETCH'
+  } | null
+}
+
 export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHomeClientProps) {
   const [profile, setProfile] = useState<ProfileResponse['profile'] | null>(null)
   const [history, setHistory] = useState<HistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [pathway, setPathway] = useState<PathwayResponse | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -37,16 +47,19 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
     Promise.all([
       fetch(`/api/daily-dose/profile?surgeryId=${surgeryId}`, { cache: 'no-store' }),
       fetch(`/api/daily-dose/history?surgeryId=${surgeryId}`, { cache: 'no-store' }),
+      fetch(`/api/editorial/pathway?surgeryId=${surgeryId}`, { cache: 'no-store' }),
     ])
-      .then(async ([profileRes, historyRes]) => {
+      .then(async ([profileRes, historyRes, pathwayRes]) => {
         if (!profileRes.ok) {
           throw new Error('Unable to load Daily Dose profile')
         }
         const profileJson = (await profileRes.json()) as ProfileResponse
         const historyJson = historyRes.ok ? ((await historyRes.json()) as HistoryResponse) : null
+        const pathwayJson = pathwayRes.ok ? ((await pathwayRes.json()) as PathwayResponse) : null
         if (!isMounted) return
         setProfile(profileJson.profile)
         setHistory(historyJson)
+        setPathway(pathwayJson)
       })
       .catch((err) => {
         if (!isMounted) return
@@ -137,6 +150,14 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
           </h1>
           <p className="mt-3 text-slate-600">
             Keep your learning streak ticking with a short Daily Dose session.
+          </p>
+          {pathway?.recommendedNext && (
+            <p className="mt-2 text-xs text-slate-500">
+              Recommended next: {pathway.recommendedNext.categoryName} — {pathway.recommendedNext.subsection}
+            </p>
+          )}
+          <p className="mt-1 text-[11px] text-slate-400">
+            Your pathway progress is private to you.
           </p>
         </div>
 

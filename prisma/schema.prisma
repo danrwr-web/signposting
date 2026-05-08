@@ -78,6 +78,7 @@ model User {
   bulkGenerationRunsCreated       BulkGenerationRun[]          @relation("BulkGenerationRunCreatedBy")
   dailyDosePromptTemplatesEdited  DailyDosePromptTemplate[]    @relation("PromptTemplateEditor")
   dailyDoseTagsCreated            DailyDoseTag[]                @relation("DailyDoseTagCreatedBy")
+  categoryProgress                UserCategoryProgress[]
 }
 
 model UserSurgery {
@@ -151,6 +152,7 @@ model Surgery {
   dailyDoseGenerationAttempts DailyDoseGenerationAttempt[]
   dailyDoseGenerationJobs     DailyDoseGenerationJob[]
   bulkGenerationRuns          BulkGenerationRun[]
+  categoryProgress            UserCategoryProgress[]
 
   // Admin Toolkit
   adminCategories              AdminCategory[]
@@ -235,6 +237,7 @@ model DailyDoseCard {
   generatedFrom        Json?
   learningCategoryId   String?
   learningSubsection   String?
+  unitLevel            LearningUnitLevel @default(CORE)
   learningAssignments  Json?
   validationIssues     Json?
   createdAt            DateTime  @default(now())
@@ -495,9 +498,46 @@ model LearningCategory {
   updatedAt   DateTime @updatedAt
 
   cards DailyDoseCard[]
+  progress UserCategoryProgress[]
 
   @@index([isActive])
   @@index([ordering])
+}
+
+enum LearningUnitLevel {
+  INTRO
+  CORE
+  STRETCH
+}
+
+enum MasteryState {
+  NOT_STARTED
+  IN_PROGRESS
+  SECURE
+}
+
+model UserCategoryProgress {
+  id             String           @id @default(cuid())
+  userId         String
+  surgeryId      String
+  categoryId     String
+  subsection     String
+  unitLevel      LearningUnitLevel @default(CORE)
+  masteryState   MasteryState      @default(NOT_STARTED)
+  accuracyPct    Float            @default(0)
+  attemptedQuestions Int          @default(0)
+  correctQuestions   Int          @default(0)
+  reinforcedAt   DateTime?
+  lastActivityAt DateTime?
+  updatedAt      DateTime         @updatedAt
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  surgery  Surgery          @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  category LearningCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, surgeryId, categoryId, subsection])
+  @@index([userId, surgeryId])
+  @@index([categoryId, masteryState])
 }
 
 model BaseSymptom {

@@ -37,6 +37,7 @@ type Card = {
   learningCategoryId?: string | null
   learningSubsection?: string | null
   learningAssignments?: Array<{ categoryId: string; categoryName: string; subsection?: string | null }> | null
+  unitLevel?: 'INTRO' | 'CORE' | 'STRETCH'
   validationIssues?: Array<{ code: string; message: string; cardTitle?: string }> | null
   generatedFrom?: {
     type: string
@@ -156,6 +157,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
     safetyNettingText: '',
     sources: [] as SourceState[],
     status: 'DRAFT',
+    unitLevel: 'CORE' as 'INTRO' | 'CORE' | 'STRETCH',
   })
 
   const loadBatch = useCallback(async (onComplete?: (cards: Card[]) => void) => {
@@ -284,6 +286,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
         accessedDate: source.accessedDate ?? '',
       })),
       status: activeCard.status,
+      unitLevel: activeCard.unitLevel ?? 'CORE',
     })
     // Sync editingTags with card tags
     setEditingTags(cardTags)
@@ -431,6 +434,7 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
       .split('\n')
       .map((item) => item.trim())
       .filter(Boolean),
+    unitLevel: cardForm.unitLevel,
   })
 
   const handleApplyInlineEdit = useCallback(
@@ -1161,6 +1165,23 @@ export default function EditorialBatchClient({ batchId, surgeryId }: { batchId: 
                     <option value="LOW">Low</option>
                     <option value="MED">Medium</option>
                     <option value="HIGH">High</option>
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  Unit level
+                  <select
+                    value={cardForm.unitLevel}
+                    onChange={(event) =>
+                      setCardForm((prev) => ({
+                        ...prev,
+                        unitLevel: event.target.value as 'INTRO' | 'CORE' | 'STRETCH',
+                      }))
+                    }
+                    className="mt-2 w-full rounded-md border border-slate-200 px-3 py-2 text-sm"
+                  >
+                    <option value="INTRO">Intro</option>
+                    <option value="CORE">Core</option>
+                    <option value="STRETCH">Stretch</option>
                   </select>
                 </label>
               </div>

@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const EditorialRoleZ = z.enum(['ADMIN', 'GP', 'NURSE'])
 export const EditorialStatusZ = z.enum(['DRAFT', 'APPROVED', 'PUBLISHED', 'ARCHIVED'])
 export const EditorialRiskZ = z.enum(['LOW', 'MED', 'HIGH'])
+export const LearningUnitLevelZ = z.enum(['INTRO', 'CORE', 'STRETCH'])
 
 export const EditorialSourceZ = z.object({
   title: z.string().min(1),
@@ -179,6 +180,7 @@ export const EditorialCardUpdateZ = z.object({
   // Learning pathway assignment (single, legacy — kept for compatibility)
   learningCategoryId: z.string().nullable().optional(),
   learningSubsection: z.string().nullable().optional(),
+  unitLevel: LearningUnitLevelZ.default('CORE'),
   // Learning pathway assignment (multi-category)
   learningAssignments: z.array(LearningAssignmentZ).nullable().optional(),
   // Explicit flag to clear validationIssues without changing card content
