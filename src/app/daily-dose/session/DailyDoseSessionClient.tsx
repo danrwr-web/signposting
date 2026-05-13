@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { DailyDoseContentBlock, DailyDoseQuizQuestion } from '@/lib/daily-dose/types'
 import { getQuestionId } from '@/lib/daily-dose/questionId'
-import { QUIZ_CONTEXT_SINGLE_PAGE_MAX_CHARS } from '@/lib/daily-dose/constants'
 import LearningCardOptionCard from '@/components/daily-dose/LearningCardOptionCard'
 import PhoneFrame from '@/components/daily-dose/PhoneFrame'
 
@@ -99,7 +98,6 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
     correctCount: number
     questionsAttempted: number
   } | null>(null)
-  const [contextViewedForQuiz, setContextViewedForQuiz] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     let active = true
@@ -253,27 +251,12 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
       }
     }
 
-    // 3. Session-end quiz
-    if (session.quizQuestions && session.quizQuestions.length > 0) {
-      const totalQuizQuestions = session.quizQuestions.length
-      for (let i = 0; i < session.quizQuestions.length; i++) {
-        const question = session.quizQuestions[i]
-        out.push({
-          type: 'quiz',
-          question,
-          quizProgress: { current: i + 1, total: totalQuizQuestions },
-          questionId: question.questionId,
-        })
-      }
-    }
-
     return out
   }, [
     session?.sessionId,
     session?.sessionCards?.length,
     session?.coreCard?.id,
     session?.warmupQuestions?.length,
-    session?.quizQuestions?.length,
   ])
 
   const handleAnswer = async (params: {
@@ -571,8 +554,7 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
             block.type !== 'question'
         )
         
-        const isLastCard = currentStep.cardProgress?.current === currentStep.cardProgress?.total
-        const hasQuiz = session.quizQuestions.length > 0
+        const isLastStep = stepIndex === steps.length - 1
         
         return (
           <div className="flex h-full flex-col justify-between p-6">
@@ -611,15 +593,7 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
               })}
             </div>
             <div className="mt-4 space-y-3">
-              {isLastCard && hasQuiz ? (
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-                >
-                  Next question
-                </button>
-              ) : isLastCard ? (
+              {isLastStep ? (
                 <button
                   type="button"
                   disabled={saving}
@@ -663,8 +637,7 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
           const isLastQuestionForCard = !steps.slice(stepIndex + 1).some(
             (s) => s.type === 'question' && 'cardId' in s && s.cardId === currentStep.cardId
           )
-          const isLastCard = currentStep.cardProgress?.current === currentStep.cardProgress?.total
-          const hasQuiz = session.quizQuestions.length > 0
+          const isLastStep = stepIndex === steps.length - 1
           
           return (
             <div className="flex h-full flex-col justify-between p-6">
@@ -716,19 +689,28 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
                 )}
               </div>
               <div className="mt-4 space-y-3">
-                <button
-                  type="button"
-                  onClick={goNext}
-                  className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-                >
-                  {hasAdditionalContent
-                    ? 'Continue'
-                    : isLastQuestionForCard && isLastCard && !hasQuiz
-                    ? 'Finish session'
-                    : isLastQuestionForCard
-                    ? 'Next card'
-                    : 'Next question'}
-                </button>
+                {isLastStep ? (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={handleComplete}
+                    className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue disabled:opacity-70 focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
+                  >
+                    {saving ? 'Saving…' : 'Finish session'}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={goNext}
+                    className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
+                  >
+                    {hasAdditionalContent
+                      ? 'Continue'
+                      : isLastQuestionForCard
+                      ? 'Next card'
+                      : 'Next question'}
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={handleFlag}
@@ -784,33 +766,6 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
         const q = currentStep.question
         const quizKey = `quiz:${q.cardId}:${q.source}:${q.blockIndex}`
         const result = questionResults[quizKey]
-        const quizStart = steps.findIndex((s) => s.type === 'quiz')
-        const currentQuizIndex = stepIndex - quizStart
-        const needsContextPage =
-          q.context &&
-          q.context.length > QUIZ_CONTEXT_SINGLE_PAGE_MAX_CHARS &&
-          !contextViewedForQuiz[quizKey]
-
-        if (needsContextPage) {
-          return (
-            <div className="flex h-full flex-col justify-between p-6">
-              <div className="flex-1 overflow-y-auto">
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-sm text-slate-700">{q.context}</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setContextViewedForQuiz((prev) => ({ ...prev, [quizKey]: true }))
-                }
-                className="mt-4 w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
-              >
-                Continue
-              </button>
-            </div>
-          )
-        }
 
         if (result) {
           return (
@@ -818,7 +773,7 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
               <div>
                 {currentStep.quizProgress && (
                   <p className="mb-2 text-xs text-slate-500">
-                    {currentStep.isWarmup ? 'Warm-up' : 'Quiz'} Q {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
+                    Warm-up {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
                   </p>
                 )}
                 {q.context && (
@@ -833,40 +788,14 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
                   </p>
                 </div>
               </div>
-              <div className="mt-4 flex gap-3">
+              <div className="mt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (currentQuizIndex > 0) {
-                      setStepIndex(quizStart + currentQuizIndex - 1)
-                    } else {
-                      // Go back to last card's additional content or last question
-                      const lastCardStepIndex = steps.findLastIndex((s) => s.type === 'question' || s.type === 'additionalContent')
-                      setStepIndex(Math.max(0, lastCardStepIndex))
-                    }
-                  }}
-                  className="flex-1 rounded-xl border border-slate-300 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue"
+                  onClick={goNext}
+                  className="w-full rounded-xl bg-nhs-blue py-4 text-base font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2"
                 >
-                  Back
+                  Next
                 </button>
-                {currentQuizIndex < session.quizQuestions.length - 1 ? (
-                  <button
-                    type="button"
-                    onClick={() => setStepIndex((i) => i + 1)}
-                    className="flex-1 rounded-xl bg-nhs-blue py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue"
-                  >
-                    Next question
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={handleComplete}
-                    className="flex-1 rounded-xl bg-nhs-blue py-3 text-sm font-semibold text-white hover:bg-nhs-dark-blue disabled:opacity-70"
-                  >
-                    {saving ? 'Saving…' : 'Finish session'}
-                  </button>
-                )}
               </div>
             </div>
           )
@@ -874,13 +803,9 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
         return (
           <div className="flex h-full flex-col justify-between p-6">
             <div>
-              {currentStep.quizProgress ? (
+              {currentStep.quizProgress && (
                 <p className="text-xs text-slate-500">
-                  {currentStep.isWarmup ? 'Warm-up' : 'Quiz'} Q {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
-                </p>
-              ) : (
-                <p className="text-xs text-slate-500">
-                  Question {currentQuizIndex + 1} of {session.quizQuestions.length}
+                  Warm-up {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
                 </p>
               )}
               {q.context && (

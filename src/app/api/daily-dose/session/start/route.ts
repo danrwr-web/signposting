@@ -5,17 +5,12 @@ import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { DailyDoseSessionStartZ } from '@/lib/daily-dose/schemas'
-import { buildSessionQuiz } from '@/lib/daily-dose/buildSessionQuiz'
 import { selectSessionCards, selectWarmupRecallCards } from '@/lib/daily-dose/sessionSelection'
-import { getRecentQuestionIds, getCardsFromRecentSessions } from '@/lib/daily-dose/questionExclusion'
 import { extractQuestionsFromBlocks, extractQuestionsFromInteractions } from '@/lib/daily-dose/questions'
-import { getQuestionId } from '@/lib/daily-dose/questionId'
 import { normaliseRoleScope, uniqueBy, toCardPayload } from '@/lib/daily-dose/utils'
 import {
   DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
   DAILY_DOSE_WARMUP_RECALL_MAX,
-  DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
-  QUIZ_EXCLUSION_SESSIONS,
 } from '@/lib/daily-dose/constants'
 import { z } from 'zod'
 import type { DailyDoseCardPayload, DailyDoseQuizQuestion } from '@/lib/daily-dose/types'
@@ -93,33 +88,14 @@ export async function POST(request: NextRequest) {
       const orderedCards = storedCardIds.map((id) => cardMap.get(id)).filter(Boolean) as DailyDoseCardPayload[]
 
       if (orderedCards.length > 0) {
-        // For resumed sessions, treat all cards as session cards
         const sessionCards = orderedCards
         const warmupQuestions: DailyDoseQuizQuestion[] = []
-        
-        const recentSessionCards = await getCardsFromRecentSessions({
-          userId: user.id,
-          surgeryId,
-        })
-        const excludeQuestionIds = await getRecentQuestionIds({
-          userId: user.id,
-          surgeryId,
-          excludeLastNSessions: QUIZ_EXCLUSION_SESSIONS,
-        })
-
-        const quizQuestions = buildSessionQuiz({
-          sessionCards,
-          recentSessionCards,
-          recallCards: [],
-          excludeQuestionIds,
-          targetLength: DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
-        })
 
         return NextResponse.json({
           sessionId: recentSession.id,
           sessionCards,
           warmupQuestions,
-          quizQuestions,
+          quizQuestions: [],
           resumed: true,
         })
       }
@@ -249,53 +225,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No Daily Dose cards available for this role yet' }, { status: 404 })
     }
 
-    const recentSessionCards = await getCardsFromRecentSessions({
-      userId: user.id,
-      surgeryId,
-    })
-    const excludeQuestionIds = await getRecentQuestionIds({
-      userId: user.id,
-      surgeryId,
-      excludeLastNSessions: QUIZ_EXCLUSION_SESSIONS,
-    })
-
-    // Build the set of question IDs already shown in this session's learning block
-    // so the end-of-session quiz never repeats a question the user just answered.
-    const sessionInteractionQuestionIds = new Set<string>()
-    for (const card of sessionCards) {
-      for (const q of [...extractQuestionsFromBlocks(card), ...extractQuestionsFromInteractions(card)]) {
-        sessionInteractionQuestionIds.add(q.questionId ?? getQuestionId(q))
-      }
-    }
-    // Also exclude warm-up question IDs so end quiz does not repeat warm-up questions.
-    const warmupQuestionIds = new Set<string>()
-    for (const card of warmupRecallCards) {
-      for (const q of [...extractQuestionsFromBlocks(card), ...extractQuestionsFromInteractions(card)]) {
-        warmupQuestionIds.add(q.questionId ?? getQuestionId(q))
-      }
-    }
-
-    // Merge with history-based exclusion set and same-session exclusions.
-    const mergedExcludeIds = new Set([
-      ...excludeQuestionIds,
-      ...sessionInteractionQuestionIds,
-      ...warmupQuestionIds,
-    ])
-
-    const quizQuestions = buildSessionQuiz({
-      sessionCards,
-      recentSessionCards,
-      recallCards: warmupRecallCards,
-      excludeQuestionIds: mergedExcludeIds,
-      targetLength: DAILY_DOSE_QUIZ_LENGTH_DEFAULT,
-    })
-
     // Collect all card IDs for session tracking
     const sessionCardIds = uniqueBy(
       [
         ...sessionCards.map((card) => card.id),
         ...warmupRecallCards.map((card) => card.id),
-        ...quizQuestions.map((question) => question.cardId),
       ],
       (value) => value
     )
@@ -325,9 +259,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       sessionId: session.id,
-      sessionCards, // Multiple cards for learning block
-      warmupQuestions, // 0-2 questions for warm-up recall
-      quizQuestions, // Session-end quiz
+      sessionCards,
+      warmupQuestions,
+      quizQuestions: [],
       resumed: false,
     })
   } catch (error) {
