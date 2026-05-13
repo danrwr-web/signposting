@@ -152,13 +152,16 @@ export default function DailyDoseHomeClient({ surgeryId, userName }: DailyDoseHo
             Keep your learning streak ticking with a short Daily Dose session.
           </p>
           {pathway?.recommendedNext && (
-            <p className="mt-2 text-xs text-slate-500">
-              Recommended next: {pathway.recommendedNext.categoryName} — {pathway.recommendedNext.subsection}
-            </p>
+            <Link
+              href={`/daily-dose/session?surgery=${surgeryId}&category=${pathway.recommendedNext.categoryId}`}
+              className="mt-3 block rounded-lg border border-nhs-blue/20 bg-nhs-light-blue/30 p-3 transition hover:bg-nhs-light-blue/50 hover:shadow-sm"
+            >
+              <p className="text-[11px] font-semibold text-nhs-dark-blue">Recommended next</p>
+              <p className="text-xs text-slate-700">
+                {pathway.recommendedNext.categoryName} — {pathway.recommendedNext.subsection}
+              </p>
+            </Link>
           )}
-          <p className="mt-1 text-[11px] text-slate-400">
-            Your pathway progress is private to you.
-          </p>
         </div>
 
         {/* Buttons at bottom */}

@@ -214,15 +214,15 @@ export default function DailyDosePathwayClient({
                 </p>
               )}
               {!focusMode && data.recommendedNext && (
-                <div className="mb-4 rounded-lg border border-nhs-blue/20 bg-nhs-light-blue/30 p-3">
+                <Link
+                  href={`/daily-dose/session?surgery=${surgeryId}&category=${data.recommendedNext.categoryId}`}
+                  className="mb-4 block rounded-lg border border-nhs-blue/20 bg-nhs-light-blue/30 p-3 transition hover:bg-nhs-light-blue/50 hover:shadow-sm"
+                >
                   <p className="text-[11px] font-semibold text-nhs-dark-blue">Recommended next</p>
                   <p className="text-xs text-slate-700">
                     {data.recommendedNext.categoryName} — {data.recommendedNext.subsection} ({data.recommendedNext.unitLevel})
                   </p>
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    A supportive suggestion based on your pathway progress.
-                  </p>
-                </div>
+                </Link>
               )}
 
               {/* 2-column grid inside the phone frame */}
