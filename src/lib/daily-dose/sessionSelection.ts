@@ -8,17 +8,37 @@ import {
 
 type CardWithBatchId = DailyDoseCardPayload & { batchId?: string | null }
 
+// Anti-repetition: penalise categories that appeared in recent sessions
+const ANTI_REPETITION_PENALTY = 0.3
+
 /**
- * Select multiple cards for a session, prioritizing cards from the same batch/learning unit.
- * Falls back to cards from different batches if needed.
+ * Select multiple cards for a session, prioritising cards from the same
+ * batch/learning unit. When toolkit relevance scores and/or anti-repetition
+ * data are provided, new/unseen cards are sorted by a combined score so
+ * that learning is steered toward topics the user engages with day-to-day.
  */
 export function selectSessionCards(params: {
   eligibleCards: CardWithBatchId[]
   cardStates: Map<string, { dueAt: Date; incorrectStreak: number; lastReviewedAt?: Date | null }>
   targetCount?: number
   now: Date
+  /** Per-card relevance score (0-1) from toolkit engagement. */
+  cardRelevanceScores?: Map<string, number>
+  /** Category IDs that appeared in the user's recent sessions (for anti-repetition). */
+  recentCategoryIds?: Set<string>
+  /** Per-card category IDs used for anti-repetition lookup. */
+  cardCategoryIds?: Map<string, string[]>
 }): CardWithBatchId[] {
-  const { eligibleCards, cardStates, targetCount = DAILY_DOSE_CARDS_PER_SESSION_DEFAULT, now } = params
+  const {
+    eligibleCards,
+    cardStates,
+    targetCount = DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
+    now,
+    cardRelevanceScores,
+    recentCategoryIds,
+    cardCategoryIds,
+  } = params
+
   const count = Math.max(
     DAILY_DOSE_CARDS_PER_SESSION_MIN,
     Math.min(DAILY_DOSE_CARDS_PER_SESSION_MAX, targetCount)
@@ -26,7 +46,7 @@ export function selectSessionCards(params: {
 
   if (eligibleCards.length === 0) return []
 
-  // Categorize cards
+  // Categorise cards into priority buckets
   const dueCards = eligibleCards.filter((card) => {
     const state = cardStates.get(card.id)
     return state ? state.dueAt <= now : false
@@ -39,8 +59,16 @@ export function selectSessionCards(params: {
     return state && state.incorrectStreak > 0
   })
 
-  // Try to find cards from the same batch
-  // Priority: due/new cards first, then incorrect answers
+  // Score and sort new cards when relevance data is available
+  if (cardRelevanceScores && cardRelevanceScores.size > 0) {
+    newCards.sort((a, b) => {
+      const scoreA = computeCardScore(a.id, cardRelevanceScores, recentCategoryIds, cardCategoryIds)
+      const scoreB = computeCardScore(b.id, cardRelevanceScores, recentCategoryIds, cardCategoryIds)
+      return scoreB - scoreA
+    })
+  }
+
+  // Due cards first (spaced repetition), then scored new cards, then incorrect
   const priorityCards = [...dueCards, ...newCards, ...cardsWithIncorrectAnswers] as CardWithBatchId[]
 
   // Group by batchId
@@ -53,20 +81,40 @@ export function selectSessionCards(params: {
     cardsByBatch.get(batchId)!.push(card)
   }
 
-  // Find the largest batch with enough cards
+  // Pick the best batch — prefer batches with higher average relevance
   let selectedCards: DailyDoseCardPayload[] = []
-  for (const [batchId, batchCards] of cardsByBatch.entries()) {
-    if (batchId !== 'no-batch' && batchCards.length >= count) {
-      // Found a batch with enough cards - take first N
-      selectedCards = batchCards.slice(0, count)
-      break
+  const batchCandidates = Array.from(cardsByBatch.entries())
+    .filter(([bid]) => bid !== 'no-batch')
+
+  if (cardRelevanceScores && cardRelevanceScores.size > 0 && batchCandidates.length > 0) {
+    const scoredBatches = batchCandidates
+      .filter(([, cards]) => cards.length >= count)
+      .map(([bid, cards]) => {
+        const avgScore = cards.reduce(
+          (sum, c) => sum + (cardRelevanceScores.get(c.id) ?? 0), 0,
+        ) / cards.length
+        return { bid, cards, avgScore }
+      })
+      .sort((a, b) => b.avgScore - a.avgScore)
+
+    if (scoredBatches.length > 0) {
+      selectedCards = scoredBatches[0].cards.slice(0, count)
     }
   }
 
-  // If no single batch has enough cards, try to fill from largest batch
+  // Fallback: original batch selection (first batch with enough cards)
   if (selectedCards.length === 0) {
-    const largestBatch = Array.from(cardsByBatch.entries())
-      .filter(([bid]) => bid !== 'no-batch')
+    for (const [batchId, batchCards] of batchCandidates) {
+      if (batchCards.length >= count) {
+        selectedCards = batchCards.slice(0, count)
+        break
+      }
+    }
+  }
+
+  // If no single batch has enough cards, try the largest batch
+  if (selectedCards.length === 0) {
+    const largestBatch = batchCandidates
       .sort(([, a], [, b]) => b.length - a.length)[0]
 
     if (largestBatch) {
@@ -74,7 +122,7 @@ export function selectSessionCards(params: {
     }
   }
 
-  // If still not enough, fill from priority cards regardless of batch
+  // Fill remaining slots from priority cards regardless of batch
   if (selectedCards.length < count) {
     const remaining = count - selectedCards.length
     const selectedIds = new Set(selectedCards.map((c) => c.id))
@@ -94,6 +142,29 @@ export function selectSessionCards(params: {
   }
 
   return selectedCards.slice(0, count)
+}
+
+/**
+ * Compute a combined score for a card based on toolkit relevance and
+ * anti-repetition penalty. Higher = more desirable.
+ */
+function computeCardScore(
+  cardId: string,
+  relevanceScores: Map<string, number>,
+  recentCategoryIds?: Set<string>,
+  cardCategoryIds?: Map<string, string[]>,
+): number {
+  const relevance = relevanceScores.get(cardId) ?? 0
+
+  let penalty = 0
+  if (recentCategoryIds && recentCategoryIds.size > 0 && cardCategoryIds) {
+    const cats = cardCategoryIds.get(cardId) ?? []
+    if (cats.some((catId) => recentCategoryIds.has(catId))) {
+      penalty = ANTI_REPETITION_PENALTY
+    }
+  }
+
+  return relevance - penalty
 }
 
 /**

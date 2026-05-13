@@ -7,6 +7,8 @@ import { resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
 import { DailyDoseSessionStartZ } from '@/lib/daily-dose/schemas'
 import { selectSessionCards, selectWarmupRecallCards } from '@/lib/daily-dose/sessionSelection'
 import { extractQuestionsFromBlocks, extractQuestionsFromInteractions } from '@/lib/daily-dose/questions'
+import { computeToolkitRelevanceScores } from '@/lib/daily-dose/toolkitRelevance'
+import { getRecentSessionCategoryIds } from '@/lib/daily-dose/recentCategories'
 import { normaliseRoleScope, uniqueBy, toCardPayload } from '@/lib/daily-dose/utils'
 import {
   DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
@@ -184,10 +186,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const cardStates = await prisma.dailyDoseUserCardState.findMany({
-      where: { userId: user.id, surgeryId },
-      select: { cardId: true, dueAt: true, incorrectStreak: true, lastReviewedAt: true },
-    })
+    const [cardStates, toolkitScores, recentCategoryIds] = await Promise.all([
+      prisma.dailyDoseUserCardState.findMany({
+        where: { userId: user.id, surgeryId },
+        select: { cardId: true, dueAt: true, incorrectStreak: true, lastReviewedAt: true },
+      }),
+      computeToolkitRelevanceScores({ surgeryId, userId: user.id }),
+      getRecentSessionCategoryIds({ userId: user.id, surgeryId, sessionCount: 3 }),
+    ])
 
     // Build state map with proper Date objects
     const stateMap = new Map(
@@ -201,6 +207,29 @@ export async function POST(request: NextRequest) {
       ])
     )
 
+    // Build per-card relevance scores + category-ID lookups from raw card data
+    const cardRelevanceScores = new Map<string, number>()
+    const cardCategoryIds = new Map<string, string[]>()
+
+    for (const card of filteredRawCards) {
+      const assignments = Array.isArray(card.learningAssignments)
+        ? (card.learningAssignments as Array<{ categoryId?: string }>)
+        : []
+      const catIds = assignments.map((a) => a.categoryId).filter(Boolean) as string[]
+      cardCategoryIds.set(card.id, catIds)
+
+      let maxRelevance = 0
+      for (const catId of catIds) {
+        const scores = toolkitScores.get(catId)
+        if (scores && scores.combined > maxRelevance) {
+          maxRelevance = scores.combined
+        }
+      }
+      if (maxRelevance > 0) {
+        cardRelevanceScores.set(card.id, maxRelevance)
+      }
+    }
+
     // Select warm-up recall cards (0-2 questions at start)
     const warmupRecallCards = selectWarmupRecallCards({
       eligibleCards,
@@ -213,12 +242,15 @@ export async function POST(request: NextRequest) {
     const warmupCardIds = new Set(warmupRecallCards.map((card) => card.id))
     const mainEligibleCards = eligibleCards.filter((card) => !warmupCardIds.has(card.id))
 
-    // Select 3-5 cards for the learning block (prefer same batch/learning unit)
+    // Select 3-5 cards for the learning block, steered by toolkit relevance
     const sessionCards = selectSessionCards({
       eligibleCards: mainEligibleCards.length > 0 ? mainEligibleCards : eligibleCards,
       cardStates: stateMap,
       targetCount: DAILY_DOSE_CARDS_PER_SESSION_DEFAULT,
       now,
+      cardRelevanceScores,
+      recentCategoryIds,
+      cardCategoryIds,
     })
 
     if (sessionCards.length === 0) {

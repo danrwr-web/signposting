@@ -10,6 +10,7 @@ import {
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
 import { resolveTargetRole } from '@/lib/editorial/roleRouting'
 import { inferLearningCategories, type LearningCategoryRef } from '@/lib/editorial/inferLearningCategory'
+import { matchRelatedAdminItems } from '@/lib/daily-dose/matchAdminItems'
 import { randomUUID } from 'node:crypto'
 
 /**
@@ -120,6 +121,12 @@ export async function runGenerationJob(jobId: string): Promise<void> {
         }
       }
     }
+
+    // Match AdminItem pages related to this prompt for toolkit-driven recommendations
+    const relatedAdminItemIds = await matchRelatedAdminItems({
+      surgeryId: job.surgeryId,
+      promptText: job.promptText,
+    })
 
     // For GP/NURSE, pass existing card titles to reduce duplicates
     let existingTitles: string[] | undefined
@@ -250,6 +257,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
               confidence: c.confidence,
             })),
           },
+          sourceAdminItemIds: relatedAdminItemIds.length > 0 ? relatedAdminItemIds : undefined,
           clinicianApproved: false,
           publishedAt: null,
         },
@@ -373,6 +381,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
                 status: 'DRAFT',
                 createdBy: job.createdBy,
                 validationIssues: cardIssues.length > 0 ? cardIssues : null,
+                sourceAdminItemIds: relatedAdminItemIds.length > 0 ? relatedAdminItemIds : undefined,
                 clinicianApproved: false,
                 publishedAt: null,
               },
@@ -456,6 +465,7 @@ export async function runGenerationJob(jobId: string): Promise<void> {
                 status: 'DRAFT',
                 createdBy: job.createdBy,
                 validationIssues: schemaIssue,
+                sourceAdminItemIds: relatedAdminItemIds.length > 0 ? relatedAdminItemIds : undefined,
                 clinicianApproved: false,
                 publishedAt: null,
               },

@@ -14,6 +14,7 @@ import {
 import { inferRiskLevel, resolveNeedsSourcing } from '@/lib/editorial/guards'
 import { resolveTargetRole } from '@/lib/editorial/roleRouting'
 import { inferLearningCategories, type LearningCategoryRef } from '@/lib/editorial/inferLearningCategory'
+import { matchRelatedAdminItems } from '@/lib/daily-dose/matchAdminItems'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
 
@@ -226,6 +227,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Match AdminItem pages related to this prompt for toolkit-driven recommendations
+    const relatedAdminItemIds = await matchRelatedAdminItems({
+      surgeryId,
+      promptText: parsed.promptText,
+    })
+
     // Fetch published card titles for this surgery+role to avoid repeating them.
     // Match by inferred category IDs where possible, otherwise return all for the role.
     const inferredCategoryIds = inferredCategories.map((c) => c.categoryId)
@@ -374,6 +381,7 @@ export async function POST(request: NextRequest) {
               confidence: c.confidence,
             })),
           },
+          sourceAdminItemIds: relatedAdminItemIds.length > 0 ? relatedAdminItemIds : undefined,
           clinicianApproved: false,
           publishedAt: null,
         },
@@ -479,6 +487,7 @@ export async function POST(request: NextRequest) {
                       confidence: c.confidence,
                     })),
                   },
+                  sourceAdminItemIds: relatedAdminItemIds.length > 0 ? relatedAdminItemIds : undefined,
                   validationIssues: schemaIssue,
                   clinicianApproved: false,
                   publishedAt: null,
@@ -616,6 +625,7 @@ export async function POST(request: NextRequest) {
                       confidence: c.confidence,
                     })),
                   },
+                  sourceAdminItemIds: relatedAdminItemIds.length > 0 ? relatedAdminItemIds : undefined,
                   validationIssues: cardIssues.length > 0 ? cardIssues : null,
                   clinicianApproved: false,
                   publishedAt: null,
