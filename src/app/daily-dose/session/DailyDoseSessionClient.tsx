@@ -557,8 +557,8 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
         const isLastStep = stepIndex === steps.length - 1
         
         return (
-          <div className="flex h-full flex-col justify-between p-6">
-            <div className="space-y-4">
+          <div className="flex h-full flex-col p-6">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
               {additionalBlocks.map((block, i) => {
                 if (block.type === 'paragraph' || block.type === 'text' || block.type === 'callout') {
                   return (
@@ -592,7 +592,7 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
                 return null
               })}
             </div>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 shrink-0 space-y-3">
               {isLastStep ? (
                 <button
                   type="button"
@@ -640,8 +640,8 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
           const isLastStep = stepIndex === steps.length - 1
           
           return (
-            <div className="flex h-full flex-col justify-between p-6">
-              <div>
+            <div className="flex h-full flex-col p-6">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-xs text-slate-500">{currentStep.headerText}</p>
                   {currentStep.cardProgress && (
@@ -688,7 +688,7 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
                   </div>
                 )}
               </div>
-              <div className="mt-4 space-y-3">
+              <div className="mt-4 shrink-0 space-y-3">
                 {isLastStep ? (
                   <button
                     type="button"
@@ -726,8 +726,8 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
         
         // View 1: Show title + question + answers
         return (
-          <div className="flex h-full flex-col justify-between p-6">
-            <div>
+          <div className="flex h-full flex-col p-6">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs text-slate-500">{currentStep.headerText}</p>
                 {currentStep.cardProgress && (
@@ -769,8 +769,8 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
 
         if (result) {
           return (
-            <div className="flex h-full flex-col justify-between p-6">
-              <div>
+            <div className="flex h-full flex-col p-6">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 {currentStep.quizProgress && (
                   <p className="mb-2 text-xs text-slate-500">
                     Warm-up {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
@@ -788,7 +788,7 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
                   </p>
                 </div>
               </div>
-              <div className="mt-4">
+              <div className="mt-4 shrink-0">
                 <button
                   type="button"
                   onClick={goNext}
@@ -801,8 +801,8 @@ export default function DailyDoseSessionClient({ surgeryId, categoryId }: DailyD
           )
         }
         return (
-          <div className="flex h-full flex-col justify-between p-6">
-            <div>
+          <div className="flex h-full flex-col p-6">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               {currentStep.quizProgress && (
                 <p className="text-xs text-slate-500">
                   Warm-up {currentStep.quizProgress.current} of {currentStep.quizProgress.total}
