@@ -44,23 +44,13 @@ export async function POST(
     const { surgeryName, adminEmail, adminName, temporaryPassword, featureFlagIds } =
       provisionSchema.parse(body)
 
-    // Check for name/email uniqueness before starting the transaction
+    // Check for surgery name uniqueness before starting the transaction
     const existingSurgery = await prisma.surgery.findUnique({
       where: { name: surgeryName },
     })
     if (existingSurgery) {
       return NextResponse.json(
         { error: 'A surgery with this name already exists' },
-        { status: 400 }
-      )
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { email: adminEmail },
-    })
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'A user with this email already exists' },
         { status: 400 }
       )
     }
@@ -98,9 +88,6 @@ export async function POST(
       )
     }
 
-    // Hash the temporary password
-    const hashedPassword = await bcrypt.hash(temporaryPassword, 12)
-
     // Initialise "What's changed" baseline dates
     const todayIso = new Date().toISOString()
     const initialUiConfig = {
@@ -120,16 +107,48 @@ export async function POST(
         },
       })
 
-      // 2. Create admin User
-      const user = await tx.user.create({
-        data: {
-          email: adminEmail,
-          name: adminName,
-          password: hashedPassword,
-          globalRole: 'USER',
-          defaultSurgeryId: surgery.id,
-        },
+      // 2. Reuse an existing admin User if one already has this email,
+      //    otherwise create a fresh account. Reusing covers cases such as a
+      //    trial account that was removed from its previous surgery — the
+      //    User row persists (no account deletion) and would otherwise block
+      //    provisioning. A reused account keeps its existing password, unless
+      //    it has none: a passwordless account can never sign in (see
+      //    src/lib/auth.ts), so the temporary password is set for it.
+      const existingUser = await tx.user.findUnique({
+        where: { email: adminEmail },
       })
+      const reusedExistingAccount = Boolean(existingUser)
+
+      let user
+      let temporaryPasswordSet: boolean
+      if (existingUser) {
+        user = existingUser
+        temporaryPasswordSet = existingUser.password === null
+        const updateData: { defaultSurgeryId?: string; password?: string } = {}
+        if (existingUser.defaultSurgeryId === null) {
+          updateData.defaultSurgeryId = surgery.id
+        }
+        if (temporaryPasswordSet) {
+          updateData.password = await bcrypt.hash(temporaryPassword, 12)
+        }
+        if (Object.keys(updateData).length > 0) {
+          await tx.user.update({
+            where: { id: existingUser.id },
+            data: updateData,
+          })
+        }
+      } else {
+        user = await tx.user.create({
+          data: {
+            email: adminEmail,
+            name: adminName,
+            password: await bcrypt.hash(temporaryPassword, 12),
+            globalRole: 'USER',
+            defaultSurgeryId: surgery.id,
+          },
+        })
+        temporaryPasswordSet = true
+      }
 
       // 3. Create SurgeryMembership with ADMIN role
       await tx.userSurgery.create({
@@ -157,13 +176,20 @@ export async function POST(
         data: { linkedSurgeryId: surgery.id },
       })
 
-      return { surgeryId: surgery.id, userId: user.id }
+      return {
+        surgeryId: surgery.id,
+        userId: user.id,
+        reusedExistingAccount,
+        temporaryPasswordSet,
+      }
     })
 
     return NextResponse.json(
       {
         surgeryId: result.surgeryId,
         userId: result.userId,
+        reusedExistingAccount: result.reusedExistingAccount,
+        temporaryPasswordSet: result.temporaryPasswordSet,
         message: 'Surgery provisioned successfully',
       },
       { status: 201 }

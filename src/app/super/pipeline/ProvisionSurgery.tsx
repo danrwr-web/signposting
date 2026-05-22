@@ -36,7 +36,11 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
   const [adminName, setAdminName] = useState('')
   const [tempPassword, setTempPassword] = useState('')
   const [selectedFlags, setSelectedFlags] = useState<Set<string>>(new Set())
-  const [provisionedResult, setProvisionedResult] = useState<{ surgeryId: string } | null>(null)
+  const [provisionedResult, setProvisionedResult] = useState<{
+    surgeryId: string
+    reusedExistingAccount: boolean
+    temporaryPasswordSet: boolean
+  } | null>(null)
 
   // Link-to-existing state
   const [linkingEntry, setLinkingEntry] = useState<PipelineEntry | null>(null)
@@ -126,7 +130,11 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
         )
       )
 
-      setProvisionedResult({ surgeryId: data.surgeryId })
+      setProvisionedResult({
+        surgeryId: data.surgeryId,
+        reusedExistingAccount: Boolean(data.reusedExistingAccount),
+        temporaryPasswordSet: Boolean(data.temporaryPasswordSet),
+      })
       toast.success('Surgery provisioned successfully')
     } catch {
       toast.error('An error occurred')
@@ -346,19 +354,29 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
               Surgery has been created and the admin account is ready.
             </AlertBanner>
 
+            {provisionedResult.reusedExistingAccount && (
+              <AlertBanner variant="info">
+                {provisionedResult.temporaryPasswordSet
+                  ? 'An existing account was already registered for this email but had no password set. It has been added as the surgery admin with the temporary password below.'
+                  : 'An existing account was already registered for this email, so it has been added as the surgery admin. They sign in with their existing password — no temporary password was set.'}
+              </AlertBanner>
+            )}
+
             <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
               <p><span className="font-medium text-gray-700">Surgery:</span> {surgeryName}</p>
               <p><span className="font-medium text-gray-700">Admin Email:</span> {adminEmail}</p>
               <p><span className="font-medium text-gray-700">Admin Name:</span> {adminName}</p>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-gray-700">Temporary Password:</span>
-                <code className="bg-white border border-gray-200 px-2 py-0.5 rounded text-sm font-mono">
-                  {tempPassword}
-                </code>
-                <Button variant="ghost" size="sm" onClick={copyPassword}>
-                  Copy
-                </Button>
-              </div>
+              {provisionedResult.temporaryPasswordSet && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-700">Temporary Password:</span>
+                  <code className="bg-white border border-gray-200 px-2 py-0.5 rounded text-sm font-mono">
+                    {tempPassword}
+                  </code>
+                  <Button variant="ghost" size="sm" onClick={copyPassword}>
+                    Copy
+                  </Button>
+                </div>
+              )}
             </div>
 
             <Link
