@@ -111,19 +111,30 @@ export async function POST(
       //    otherwise create a fresh account. Reusing covers cases such as a
       //    trial account that was removed from its previous surgery — the
       //    User row persists (no account deletion) and would otherwise block
-      //    provisioning. A reused account keeps its existing password.
+      //    provisioning. A reused account keeps its existing password, unless
+      //    it has none: a passwordless account can never sign in (see
+      //    src/lib/auth.ts), so the temporary password is set for it.
       const existingUser = await tx.user.findUnique({
         where: { email: adminEmail },
       })
       const reusedExistingAccount = Boolean(existingUser)
 
       let user
+      let temporaryPasswordSet: boolean
       if (existingUser) {
         user = existingUser
+        temporaryPasswordSet = existingUser.password === null
+        const updateData: { defaultSurgeryId?: string; password?: string } = {}
         if (existingUser.defaultSurgeryId === null) {
+          updateData.defaultSurgeryId = surgery.id
+        }
+        if (temporaryPasswordSet) {
+          updateData.password = await bcrypt.hash(temporaryPassword, 12)
+        }
+        if (Object.keys(updateData).length > 0) {
           await tx.user.update({
             where: { id: existingUser.id },
-            data: { defaultSurgeryId: surgery.id },
+            data: updateData,
           })
         }
       } else {
@@ -136,6 +147,7 @@ export async function POST(
             defaultSurgeryId: surgery.id,
           },
         })
+        temporaryPasswordSet = true
       }
 
       // 3. Create SurgeryMembership with ADMIN role
@@ -164,7 +176,12 @@ export async function POST(
         data: { linkedSurgeryId: surgery.id },
       })
 
-      return { surgeryId: surgery.id, userId: user.id, reusedExistingAccount }
+      return {
+        surgeryId: surgery.id,
+        userId: user.id,
+        reusedExistingAccount,
+        temporaryPasswordSet,
+      }
     })
 
     return NextResponse.json(
@@ -172,6 +189,7 @@ export async function POST(
         surgeryId: result.surgeryId,
         userId: result.userId,
         reusedExistingAccount: result.reusedExistingAccount,
+        temporaryPasswordSet: result.temporaryPasswordSet,
         message: 'Surgery provisioned successfully',
       },
       { status: 201 }

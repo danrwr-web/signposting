@@ -39,6 +39,7 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
   const [provisionedResult, setProvisionedResult] = useState<{
     surgeryId: string
     reusedExistingAccount: boolean
+    temporaryPasswordSet: boolean
   } | null>(null)
 
   // Link-to-existing state
@@ -132,6 +133,7 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
       setProvisionedResult({
         surgeryId: data.surgeryId,
         reusedExistingAccount: Boolean(data.reusedExistingAccount),
+        temporaryPasswordSet: Boolean(data.temporaryPasswordSet),
       })
       toast.success('Surgery provisioned successfully')
     } catch {
@@ -354,9 +356,9 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
 
             {provisionedResult.reusedExistingAccount && (
               <AlertBanner variant="info">
-                An existing account was already registered for this email, so it
-                has been added as the surgery admin. They sign in with their
-                existing password — no temporary password was set.
+                {provisionedResult.temporaryPasswordSet
+                  ? 'An existing account was already registered for this email but had no password set. It has been added as the surgery admin with the temporary password below.'
+                  : 'An existing account was already registered for this email, so it has been added as the surgery admin. They sign in with their existing password — no temporary password was set.'}
               </AlertBanner>
             )}
 
@@ -364,7 +366,7 @@ export default function ProvisionSurgery({ entries, setEntries }: Props) {
               <p><span className="font-medium text-gray-700">Surgery:</span> {surgeryName}</p>
               <p><span className="font-medium text-gray-700">Admin Email:</span> {adminEmail}</p>
               <p><span className="font-medium text-gray-700">Admin Name:</span> {adminName}</p>
-              {!provisionedResult.reusedExistingAccount && (
+              {provisionedResult.temporaryPasswordSet && (
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-gray-700">Temporary Password:</span>
                   <code className="bg-white border border-gray-200 px-2 py-0.5 rounded text-sm font-mono">
