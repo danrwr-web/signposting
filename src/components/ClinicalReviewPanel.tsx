@@ -496,6 +496,15 @@ export default function ClinicalReviewPanel({
     }
   }, [symptoms, reviewStatuses])
 
+  // Breakdown of the "All" total into in-use vs disabled so the headline figure
+  // reconciles with the Symptom Library "In use" count. Disabled symptoms are the
+  // ones present in the all-symptoms list but absent from the enabled-only list.
+  const disabledCount = useMemo(() => {
+    if (symptoms.length === 0) return 0
+    return symptoms.filter((s) => !enabledSymptomKeys.has(`${s.id}-${s.ageGroup || ''}`)).length
+  }, [symptoms, enabledSymptomKeys])
+  const inUseCount = Math.max(0, counts.all - disabledCount)
+
   // Filter and sort rows
   type Row = {
     symptom: EffectiveSymptom
@@ -628,7 +637,14 @@ export default function ClinicalReviewPanel({
                 activeFilter === item.key ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'hover:bg-gray-50'
               }`}
             >
-              <span>{item.label}</span>
+              <span className="min-w-0">
+                <span className="block">{item.label}</span>
+                {item.key === 'all' && disabledCount > 0 && (
+                  <span className="block text-[11px] font-normal text-gray-500">
+                    {inUseCount} in use · {disabledCount} disabled
+                  </span>
+                )}
+              </span>
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                 {counts[item.key] ?? 0}
               </span>
