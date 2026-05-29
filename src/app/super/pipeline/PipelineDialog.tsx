@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Dialog, Input, Select, Textarea, FormField } from '@/components/ui'
-import { PipelineEntry, PIPELINE_STATUSES, STATUS_LABELS } from './types'
+import { PipelineEntry, PipelineStatus, PIPELINE_STATUSES, STATUS_LABELS } from './types'
 
 interface Props {
   open: boolean
@@ -120,6 +120,12 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     : ''
   const showRecalculate =
     feeManuallyEdited && form.listSize && form.estimatedFeeGbp !== autoFee
+
+  // A contract variant drives the generated proposal/contract documents, so it
+  // becomes mandatory once a practice reaches the proposal stage. Earlier
+  // stages (enquiry, demo) leave it optional since the variant is often unknown.
+  const VARIANT_REQUIRED_STATUSES: PipelineStatus[] = ['ProposalSent', 'DocumentsSent', 'Contracted']
+  const variantRequired = VARIANT_REQUIRED_STATUSES.includes(form.status as PipelineStatus)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -312,19 +318,26 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
               ))}
             </Select>
           </FormField>
-          <FormField label="Contract Variant" required>
+          <FormField label="Contract Variant" required={variantRequired}>
             <Select
               value={form.contractVariantId}
               onChange={(e) => setField('contractVariantId', e.target.value)}
-              required
+              required={variantRequired}
             >
-              <option value="" disabled>-- Select a variant --</option>
+              <option value="" disabled={variantRequired}>
+                {variantRequired ? '-- Select a variant --' : '-- None --'}
+              </option>
               {variants.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name}{v.isDefault ? ' (default)' : ''}
                 </option>
               ))}
             </Select>
+            {variantRequired && (
+              <p className="mt-1 text-xs text-gray-500">
+                Required at this stage — used to generate proposal &amp; contract documents.
+              </p>
+            )}
           </FormField>
           <FormField label="Free Trial">
             <div className="flex items-center h-[38px]">
