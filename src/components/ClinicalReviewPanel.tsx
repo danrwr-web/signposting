@@ -65,6 +65,7 @@ export default function ClinicalReviewPanel({
   const [loading, setLoading] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterKey>('pending')
   const [search, setSearch] = useState('')
+  const [hideDisabled, setHideDisabled] = useState(false)
   const [sort, setSort] = useState<SortKey>(() => {
     const validSet: Record<string, boolean> = {}
     for (const s of VALID_SORTS) validSet[s] = true
@@ -510,13 +511,15 @@ export default function ClinicalReviewPanel({
     symptom: EffectiveSymptom
     status: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED'
     reviewStatus: SymptomReviewStatus | null
+    isDisabled: boolean
   }
 
   const filteredRows: Row[] = useMemo(() => {
     let rows: Row[] = symptoms.map(symptom => {
       const reviewStatus = getReviewStatusForSymptom(symptom as any, reviewStatuses as any) as any
       const status = reviewStatus?.status || 'PENDING'
-      return { symptom, status, reviewStatus }
+      const isDisabled = !enabledSymptomKeys.has(`${symptom.id}-${symptom.ageGroup || ''}`)
+      return { symptom, status, reviewStatus, isDisabled }
     })
 
     // Apply filter
@@ -533,6 +536,11 @@ export default function ClinicalReviewPanel({
       case 'all':
         // Show all
         break
+    }
+
+    // Optionally hide disabled symptoms (e.g. to focus on pending + in-use items)
+    if (hideDisabled) {
+      rows = rows.filter(r => !r.isDisabled)
     }
 
     // Apply search
@@ -565,7 +573,7 @@ export default function ClinicalReviewPanel({
     })
 
     return rows
-  }, [symptoms, reviewStatuses, activeFilter, search, sort, highRiskSymptomIds, highRiskSlugs])
+  }, [symptoms, reviewStatuses, activeFilter, search, sort, highRiskSymptomIds, highRiskSlugs, hideDisabled, enabledSymptomKeys])
 
   const debugMismatch = useMemo(() => {
     const isDev = process.env.NODE_ENV !== 'production'
@@ -723,6 +731,18 @@ export default function ClinicalReviewPanel({
 
           {/* Right group: search + sort */}
           <div className="flex items-center gap-2 min-w-0 justify-end flex-nowrap max-[900px]:flex-wrap max-[900px]:w-full">
+            <label
+              className="h-10 inline-flex items-center gap-2 px-3 border border-gray-300 rounded-md text-sm text-gray-700 whitespace-nowrap cursor-pointer hover:bg-gray-50"
+              title="Hide disabled symptoms to focus on the ones currently in use. Combine with the Pending filter to see only pending, in-use symptoms."
+            >
+              <input
+                type="checkbox"
+                checked={hideDisabled}
+                onChange={e => setHideDisabled(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Hide disabled
+            </label>
             <input
               type="text"
               placeholder="Search symptoms..."
@@ -786,12 +806,22 @@ export default function ClinicalReviewPanel({
                 return (
                   <tr key={row.symptom.id}>
                     <td className="px-4 py-3">
-                      <a 
-                        href={`/symptom/${row.symptom.id}?surgery=${effectiveSurgeryId}&ref=clinical-review`}
-                        className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
-                      >
-                        {row.symptom.name}
-                      </a>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`/symptom/${row.symptom.id}?surgery=${effectiveSurgeryId}&ref=clinical-review`}
+                          className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline"
+                        >
+                          {row.symptom.name}
+                        </a>
+                        {row.isDisabled && (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
+                            title="This symptom is disabled and not currently shown to your reception team."
+                          >
+                            Disabled
+                          </span>
+                        )}
+                      </div>
                       {row.reviewStatus?.reviewNote && (
                         <p className="text-xs text-red-700 mt-1 whitespace-pre-wrap break-words">
                           Reviewer note: {row.reviewStatus.reviewNote}
