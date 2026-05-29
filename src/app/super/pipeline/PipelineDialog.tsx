@@ -312,12 +312,13 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
               ))}
             </Select>
           </FormField>
-          <FormField label="Contract Variant">
+          <FormField label="Contract Variant" required>
             <Select
               value={form.contractVariantId}
               onChange={(e) => setField('contractVariantId', e.target.value)}
+              required
             >
-              <option value="">-- None --</option>
+              <option value="" disabled>-- Select a variant --</option>
               {variants.map((v) => (
                 <option key={v.id} value={v.id}>
                   {v.name}{v.isDefault ? ' (default)' : ''}
