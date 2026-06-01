@@ -12,13 +12,16 @@ export const runtime = 'nodejs'
 const bulkApproveSchema = z.object({
   surgeryId: z.string().min(1),
   search: z.string().optional(),
+  // When true, pending disabled symptoms are left untouched (mirrors the
+  // clinical review "Hide disabled" filter so we don't approve hidden rows).
+  excludeDisabled: z.boolean().optional(),
 })
 
 // POST /api/admin/clinical-review/bulk-approve
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { surgeryId, search } = bulkApproveSchema.parse(body)
+    const { surgeryId, search, excludeDisabled } = bulkApproveSchema.parse(body)
     
     // RBAC: SUPERUSER can approve any surgery, surgery admin can approve only their own
     const user = await requireSurgeryAdmin(surgeryId)
@@ -35,8 +38,10 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Get all effective symptoms for this surgery
-    const symptoms = await getEffectiveSymptoms(surgeryId, true) // includeDisabled = true
+    // Get effective symptoms for this surgery. When excludeDisabled is set we
+    // resolve only the enabled symptoms, so disabled pending items are never
+    // approved (keeps bulk approve consistent with the "Hide disabled" view).
+    const symptoms = await getEffectiveSymptoms(surgeryId, !excludeDisabled)
     
     // Get all review statuses for this surgery
     const allReviewStatuses = await prisma.symptomReviewStatus.findMany({
