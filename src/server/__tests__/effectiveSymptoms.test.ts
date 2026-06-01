@@ -160,4 +160,55 @@ describe('effectiveSymptoms tri-state briefInstruction merge', () => {
       expect(result?.briefInstruction).toBe('')
     })
   })
+
+  describe('disabled flag (Hide disabled / count reconciliation)', () => {
+    const disabledStatusRow = {
+      id: 'status-1',
+      baseSymptomId: 'base-gout',
+      customSymptomId: null,
+      isEnabled: false,
+    }
+    const setupTx = (statuses: any[]) => {
+      ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        [baseGout],
+        [], // no overrides
+        [], // no customs
+        statuses,
+      ])
+    }
+
+    it('flags a disabled base symptom with disabled:true when includeDisabled is true', async () => {
+      setupTx([disabledStatusRow])
+      const result = await getEffectiveSymptoms('surgery-imperial', true)
+      expect(result).toHaveLength(1)
+      expect(result[0].id).toBe('base-gout')
+      expect(result[0].disabled).toBe(true)
+    })
+
+    it('excludes the disabled symptom entirely when includeDisabled is false', async () => {
+      setupTx([disabledStatusRow])
+      const result = await getEffectiveSymptoms('surgery-imperial', false)
+      expect(result).toHaveLength(0)
+    })
+
+    it('marks an enabled symptom with disabled:false', async () => {
+      setupTx([]) // no status rows => enabled
+      const result = await getEffectiveSymptoms('surgery-imperial', true)
+      expect(result).toHaveLength(1)
+      expect(result[0].disabled).toBe(false)
+    })
+
+    it('flags a disabled symptom that also has an override', async () => {
+      ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        [baseGout],
+        [overrideRow('Imperial-specific guidance')],
+        [],
+        [disabledStatusRow],
+      ])
+      const result = await getEffectiveSymptoms('surgery-imperial', true)
+      expect(result).toHaveLength(1)
+      expect(result[0].source).toBe('override')
+      expect(result[0].disabled).toBe(true)
+    })
+  })
 })
