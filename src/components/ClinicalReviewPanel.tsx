@@ -320,9 +320,9 @@ export default function ClinicalReviewPanel({
 
   const handleApprove = (symptomId: string, ageGroup: string | null) => {
     // Check if symptom is disabled
-    const key = `${symptomId}-${ageGroup || ''}`
-    const isDisabled = !enabledSymptomKeys.has(key)
-    
+    const symptom = symptoms.find(s => s.id === symptomId && (s.ageGroup || null) === (ageGroup || null))
+    const isDisabled = !!(symptom as any)?.disabled
+
     if (isDisabled) {
       // Show confirmation dialog to re-enable
       setConfirmDialog({
@@ -501,9 +501,8 @@ export default function ClinicalReviewPanel({
   // reconciles with the Symptom Library "In use" count. Disabled symptoms are the
   // ones present in the all-symptoms list but absent from the enabled-only list.
   const disabledCount = useMemo(() => {
-    if (symptoms.length === 0) return 0
-    return symptoms.filter((s) => !enabledSymptomKeys.has(`${s.id}-${s.ageGroup || ''}`)).length
-  }, [symptoms, enabledSymptomKeys])
+    return symptoms.filter((s) => (s as any).disabled).length
+  }, [symptoms])
   const inUseCount = Math.max(0, counts.all - disabledCount)
 
   // Filter and sort rows
@@ -518,7 +517,7 @@ export default function ClinicalReviewPanel({
     let rows: Row[] = symptoms.map(symptom => {
       const reviewStatus = getReviewStatusForSymptom(symptom as any, reviewStatuses as any) as any
       const status = reviewStatus?.status || 'PENDING'
-      const isDisabled = !enabledSymptomKeys.has(`${symptom.id}-${symptom.ageGroup || ''}`)
+      const isDisabled = !!(symptom as any).disabled
       return { symptom, status, reviewStatus, isDisabled }
     })
 
@@ -573,7 +572,7 @@ export default function ClinicalReviewPanel({
     })
 
     return rows
-  }, [symptoms, reviewStatuses, activeFilter, search, sort, highRiskSymptomIds, highRiskSlugs, hideDisabled, enabledSymptomKeys])
+  }, [symptoms, reviewStatuses, activeFilter, search, sort, highRiskSymptomIds, highRiskSlugs, hideDisabled])
 
   const debugMismatch = useMemo(() => {
     const isDev = process.env.NODE_ENV !== 'production'

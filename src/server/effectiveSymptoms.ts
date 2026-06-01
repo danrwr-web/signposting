@@ -21,6 +21,7 @@ export interface EffectiveSymptom {
   source: 'base' | 'override' | 'custom'
   baseSymptomId?: string // For overrides, this is the base symptom ID
   isHidden?: boolean // For overrides, indicates if symptom is hidden for this surgery
+  disabled?: boolean // True if disabled for this surgery (only meaningful when includeDisabled is set)
   variants?: unknown | null // Optional variants JSON from BaseSymptom
 }
 
@@ -122,6 +123,7 @@ async function buildEffectiveSymptoms(
         ...b,
         ageGroup: b.ageGroup as 'U5' | 'O5' | 'Adult',
         source: 'base' as const,
+        disabled: disabledBaseIds.has(b.id),
         instructionsJson: includeRichContent ? (b as any).instructionsJson ?? null : null,
         instructionsHtml: includeRichContent ? (b as any).instructionsHtml ?? null : null,
         variants: includeRichContent ? (b as any).variants ?? null : null
@@ -157,6 +159,7 @@ async function buildEffectiveSymptoms(
       source: 'override' as const,
       baseSymptomId: b.id,
       isHidden: o.isHidden,
+      disabled: disabledBaseIds.has(o.baseSymptomId),
     })
   }
   
@@ -172,10 +175,11 @@ async function buildEffectiveSymptoms(
   const effective = Array.from(byBaseId.values())
   const customsProjected = customs
     .filter(c => includeDisabled ? true : !disabledCustomIds.has(c.id))
-    .map(c => ({ 
-    ...c, 
+    .map(c => ({
+    ...c,
     ageGroup: c.ageGroup as 'U5' | 'O5' | 'Adult',
     source: 'custom' as const,
+    disabled: disabledCustomIds.has(c.id),
     instructionsJson: includeRichContent ? (c as any).instructionsJson ?? null : null,
     instructionsHtml: includeRichContent ? (c as any).instructionsHtml ?? null : null
   }))
