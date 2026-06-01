@@ -387,8 +387,7 @@ export default function ClinicalReviewPanel({
   }
 
   const handleBulkApprove = () => {
-    const pendingCount = counts.pending || 0
-    if (pendingCount === 0) {
+    if (bulkApproveCount === 0) {
       return
     }
     setConfirmDialog({ type: 'bulk-approve' })
@@ -407,6 +406,9 @@ export default function ClinicalReviewPanel({
         body: JSON.stringify({
           surgeryId: effectiveSurgeryId,
           search: search.trim() || undefined,
+          // When the user is hiding disabled symptoms, don't silently approve
+          // pending disabled items that aren't visible in the filtered list.
+          excludeDisabled: hideDisabled,
         }),
       })
 
@@ -504,6 +506,19 @@ export default function ClinicalReviewPanel({
     return symptoms.filter((s) => (s as any).disabled).length
   }, [symptoms])
   const inUseCount = Math.max(0, counts.all - disabledCount)
+
+  // Number of symptoms "Bulk approve pending" will actually affect, mirroring the
+  // server logic: PENDING items, honouring the search box and (when 'Hide disabled'
+  // is on) excluding disabled symptoms so we never approve rows the user can't see.
+  const bulkApproveCount = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return symptoms.filter((s) => {
+      if (hideDisabled && (s as any).disabled) return false
+      if (q && !s.name.toLowerCase().includes(q)) return false
+      const rs = getReviewStatusForSymptom(s as any, reviewStatuses as any)
+      return (rs?.status || 'PENDING') === 'PENDING'
+    }).length
+  }, [symptoms, reviewStatuses, hideDisabled, search])
 
   // Filter and sort rows
   type Row = {
@@ -720,7 +735,7 @@ export default function ClinicalReviewPanel({
             {effectiveSurgeryId && (
               <button
                 onClick={handleBulkApprove}
-                disabled={bulkApproving || !effectiveSurgeryId || (counts.pending || 0) === 0}
+                disabled={bulkApproving || !effectiveSurgeryId || bulkApproveCount === 0}
                 className="h-10 inline-flex items-center px-3 rounded-md text-sm font-medium leading-none bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {bulkApproving ? 'Approving...' : 'Bulk approve pending'}
@@ -921,7 +936,8 @@ export default function ClinicalReviewPanel({
               <>
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Bulk approve pending?</h3>
                 <p className="text-sm text-gray-600 mb-6">
-                  This will approve {counts.pending || 0} symptoms for {surgeryData?.name || 'this surgery'}. Changes-required items will not be approved.
+                  This will approve {bulkApproveCount} symptom{bulkApproveCount === 1 ? '' : 's'} for {surgeryData?.name || 'this surgery'}. Changes-required items will not be approved.
+                  {hideDisabled && ' Disabled symptoms are excluded while “Hide disabled” is on.'}
                 </p>
                 <div className="flex gap-3 justify-end">
                   <button
