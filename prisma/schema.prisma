@@ -380,6 +380,8 @@ model SymptomHistory {
   newBriefInstruction      String? // Brief instruction after change
   previousInstructionsHtml String? // Full instruction HTML before change
   newInstructionsHtml      String? // Full instruction HTML after change
+  previousHighlightedText  String? // Important Notice text before change
+  newHighlightedText       String? // Important Notice text after change
   editorName               String? // Name of the editor
   editorEmail              String? // Email of the editor
   modelUsed                String? // AI model used (if applicable, or "REVERT" for revert operations)

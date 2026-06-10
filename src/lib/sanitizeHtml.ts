@@ -90,6 +90,33 @@ export function sanitizeHtmlWithLinks(html: string): string {
 }
 
 /**
+ * Strips all HTML and returns plain text suitable for plain-text fields
+ * (e.g. the Important Notice / highlightedText, which is edited in a textarea)
+ * @param html - The HTML (or plain text) content
+ * @returns Plain text with tags removed, entities decoded and whitespace collapsed
+ */
+export function stripHtmlToPlainText(html: string): string {
+  if (!html || typeof html !== 'string') {
+    return ''
+  }
+
+  const stripped = sanitizeHtmlLib(html, { allowedTags: [], allowedAttributes: {} })
+
+  // sanitize-html leaves text entity-encoded; decode the common ones so the
+  // value reads naturally in plain-text editors.
+  const decoded = stripped
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+
+  // Collapse whitespace runs (including newlines from stripped block tags).
+  return decoded.replace(/\s+/g, ' ').trim()
+}
+
+/**
  * Converts plain text line breaks to HTML
  * @param text - The plain text content
  * @returns HTML string with line breaks converted to <br> tags
