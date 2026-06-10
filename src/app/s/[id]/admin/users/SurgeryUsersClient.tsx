@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { SessionUser } from '@/lib/rbac'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import KebabMenu from '@/components/admin/KebabMenu'
 import { formatRelativeDate } from '@/lib/formatRelativeDate'
-import toast from 'react-hot-toast'
+import { toast } from 'react-hot-toast'
 import SetupChecklistBackLink from '@/components/SetupChecklistBackLink'
+import { Badge, Button, ConfirmDialog, Dialog, Input, Select } from '@/components/ui'
 
 interface Surgery {
   id: string
@@ -45,7 +47,10 @@ function getUserInitials(name: string | null, email: string): string {
 }
 
 export default function SurgeryUsersClient({ surgery, user, lastActiveData }: SurgeryUsersClientProps) {
+  const router = useRouter()
   const [showAddModal, setShowAddModal] = useState(false)
+  const [pendingRemoveUserId, setPendingRemoveUserId] = useState<string | null>(null)
+  const [removing, setRemoving] = useState(false)
   const [editingUser, setEditingUser] = useState<{ id: string; email: string; name: string | null; role: string } | null>(null)
   const [resettingPasswordFor, setResettingPasswordFor] = useState<{ id: string; email: string } | null>(null)
   const [newPassword, setNewPassword] = useState('')
@@ -90,14 +95,14 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
 
       if (response.ok) {
         toast.success('User added successfully')
-        setTimeout(() => window.location.reload(), 500)
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Failed to add user: ${error.error}`)
+        toast.error(`Failed to add user: ${error.error}`)
       }
     } catch (error) {
       console.error('Error adding user:', error)
-      alert('Failed to add user')
+      toast.error('Failed to add user')
     }
     
     setShowAddModal(false)
@@ -107,24 +112,27 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
     setNewUserRole('STANDARD')
   }
 
-  const handleRemoveUser = async (userId: string) => {
-    if (confirm('Are you sure you want to remove this user from the surgery?')) {
-      try {
-        const response = await fetch(`/api/s/${surgery.id}/members/${userId}`, {
-          method: 'DELETE',
-        })
+  const handleRemoveUser = async () => {
+    if (!pendingRemoveUserId) return
+    setRemoving(true)
+    try {
+      const response = await fetch(`/api/s/${surgery.id}/members/${pendingRemoveUserId}`, {
+        method: 'DELETE',
+      })
 
-        if (response.ok) {
-          // Refresh the page to show the updated user list
-          window.location.reload()
-        } else {
-          const error = await response.json()
-          alert(`Failed to remove user: ${error.error}`)
-        }
-      } catch (error) {
-        console.error('Error removing user:', error)
-        alert('Failed to remove user')
+      if (response.ok) {
+        toast.success('User removed')
+        router.refresh()
+      } else {
+        const error = await response.json()
+        toast.error(`Failed to remove user: ${error.error}`)
       }
+    } catch (error) {
+      console.error('Error removing user:', error)
+      toast.error('Failed to remove user')
+    } finally {
+      setRemoving(false)
+      setPendingRemoveUserId(null)
     }
   }
 
@@ -154,17 +162,17 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
       })
 
       if (response.ok) {
-        // Refresh the page to show the updated user
-        window.location.reload()
+        toast.success('User updated')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error updating user: ${error.error}`)
+        toast.error(`Error updating user: ${error.error}`)
       }
     } catch (error) {
       console.error('Error updating user:', error)
-      alert('Failed to update user. Please try again.')
+      toast.error('Failed to update user. Please try again.')
     }
-    
+
     setEditingUser(null)
   }
 
@@ -181,14 +189,14 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
       })
 
       if (response.ok) {
-        window.location.reload()
+        router.refresh()
       } else {
         const error = await response.json()
-                        alert(`Failed to update Practice Handbook write access: ${error.error}`)
+        toast.error(`Failed to update Practice Handbook write access: ${error.error}`)
       }
     } catch (error) {
       console.error('Error updating admin toolkit write:', error)
-      alert('Failed to update Practice Handbook write access')
+      toast.error('Failed to update Practice Handbook write access')
     }
   }
 
@@ -205,15 +213,15 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
       })
 
       if (response.ok) {
-        // Refresh the page to show the updated user list
-        window.location.reload()
+        toast.success('Default surgery updated')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Failed to set default surgery: ${error.error}`)
+        toast.error(`Failed to set default surgery: ${error.error}`)
       }
     } catch (error) {
       console.error('Error setting default surgery:', error)
-      alert('Failed to set default surgery')
+      toast.error('Failed to set default surgery')
     }
   }
 
@@ -235,16 +243,16 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
       })
 
       if (response.ok) {
-        alert('Password reset successfully')
+        toast.success('Password reset successfully')
         setResettingPasswordFor(null)
         setNewPassword('')
       } else {
         const error = await response.json()
-        alert(`Failed to reset password: ${error.error}`)
+        toast.error(`Failed to reset password: ${error.error}`)
       }
     } catch (error) {
       console.error('Error resetting password:', error)
-      alert('Failed to reset password')
+      toast.error('Failed to reset password')
     } finally {
       setIsResettingPassword(false)
     }
@@ -260,12 +268,9 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
           <h1 className="text-2xl font-bold text-gray-900">
             User & access management — {surgery.name}
           </h1>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
+          <Button onClick={() => setShowAddModal(true)}>
             Add User
-          </button>
+          </Button>
         </div>
 
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
@@ -305,15 +310,13 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
                         {membership.user.name || 'No name set'}
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            membership.role === 'ADMIN'
-                              ? 'bg-green-50 text-green-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}
+                        <Badge
+                          color={membership.role === 'ADMIN' ? 'green' : 'gray'}
+                          size="sm"
+                          pill={false}
                         >
                           {membership.role === 'ADMIN' ? 'Practice admin' : 'Standard'}
-                        </span>
+                        </Badge>
                         {membership.user.defaultSurgeryId === surgery.id && (
                           <span className="text-xs text-gray-400">Default</span>
                         )}
@@ -382,7 +385,7 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
                     ...(membership.user.defaultSurgeryId !== surgery.id
                       ? [{ label: 'Set as default surgery', onClick: () => handleSetDefaultSurgery(membership.user.id) }]
                       : []),
-                    { label: 'Remove access', onClick: () => handleRemoveUser(membership.user.id), variant: 'danger' as const },
+                    { label: 'Remove access', onClick: () => setPendingRemoveUserId(membership.user.id), variant: 'danger' as const },
                   ]
                   return (
                     <KebabMenu
@@ -401,216 +404,202 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
       </main>
 
       {/* Add User Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Add User to Surgery
-              </h3>
-              <form onSubmit={handleAddUser}>
-                <div className="mb-4">
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    required
-                    value={newUserEmail}
-                    onChange={(e) => setNewUserEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="user@example.com"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    If the user doesn’t exist, a new account will be created.
-                  </p>
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={newUserName}
-                    onChange={(e) => setNewUserName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                    Password
-                  </label>
-                  <input
-                    type="password"
-                    id="password"
-                    required
-                    value={newUserPassword}
-                    onChange={(e) => setNewUserPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter password"
-                  />
-                </div>
-                <div className="mb-6">
-                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
-                  </label>
-                  <select
-                    id="role"
-                    value={newUserRole}
-                    onChange={(e) => setNewUserRole(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="STANDARD">Standard User</option>
-                    <option value="ADMIN">Practice admin</option>
-                  </select>
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Add User
-                  </button>
-                </div>
-              </form>
-            </div>
+      <Dialog
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Add User to Surgery"
+        width="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowAddModal(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="add-user-form">
+              Add User
+            </Button>
+          </>
+        }
+      >
+        <form id="add-user-form" onSubmit={handleAddUser}>
+          <div className="mb-4">
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <Input
+              type="email"
+              id="email"
+              required
+              value={newUserEmail}
+              onChange={(e) => setNewUserEmail(e.target.value)}
+              placeholder="user@example.com"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              If the user doesn’t exist, a new account will be created.
+            </p>
           </div>
-        </div>
-      )}
+          <div className="mb-4">
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+              Full Name
+            </label>
+            <Input
+              id="name"
+              value={newUserName}
+              onChange={(e) => setNewUserName(e.target.value)}
+              placeholder="John Doe"
+            />
+          </div>
+          <div className="mb-4">
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <Input
+              type="password"
+              id="password"
+              required
+              value={newUserPassword}
+              onChange={(e) => setNewUserPassword(e.target.value)}
+              placeholder="Enter password"
+            />
+          </div>
+          <div className="mb-2">
+            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+              Role
+            </label>
+            <Select
+              id="role"
+              value={newUserRole}
+              onChange={(e) => setNewUserRole(e.target.value)}
+            >
+              <option value="STANDARD">Standard User</option>
+              <option value="ADMIN">Practice admin</option>
+            </Select>
+          </div>
+        </form>
+      </Dialog>
 
       {/* Edit User Modal */}
-      {editingUser && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Edit User
-              </h3>
-              <form onSubmit={handleUpdateUser}>
-                <div className="mb-4">
-                  <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="edit-email"
-                    value={editingUser.email}
-                    disabled
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-500"
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Email cannot be changed
-                  </p>
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    id="edit-name"
-                    value={editingUser.name || ''}
-                    onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div className="mb-6">
-                  <label htmlFor="edit-role" className="block text-sm font-medium text-gray-700 mb-1">
-                    Role
-                  </label>
-                  <select
-                    id="edit-role"
-                    value={editingUser.role}
-                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="STANDARD">Standard User</option>
-                    <option value="ADMIN">Practice admin</option>
-                  </select>
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => setEditingUser(null)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Update User
-                  </button>
-                </div>
-              </form>
+      <Dialog
+        open={!!editingUser}
+        onClose={() => setEditingUser(null)}
+        title="Edit User"
+        width="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditingUser(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="edit-user-form">
+              Update User
+            </Button>
+          </>
+        }
+      >
+        {editingUser && (
+          <form id="edit-user-form" onSubmit={handleUpdateUser}>
+            <div className="mb-4">
+              <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email Address
+              </label>
+              <Input
+                type="email"
+                id="edit-email"
+                value={editingUser.email}
+                disabled
+                className="bg-gray-100 text-gray-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Email cannot be changed
+              </p>
             </div>
-          </div>
-        </div>
-      )}
+            <div className="mb-4">
+              <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
+                Full Name
+              </label>
+              <Input
+                id="edit-name"
+                value={editingUser.name || ''}
+                onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                placeholder="John Doe"
+              />
+            </div>
+            <div className="mb-2">
+              <label htmlFor="edit-role" className="block text-sm font-medium text-gray-700 mb-1">
+                Role
+              </label>
+              <Select
+                id="edit-role"
+                value={editingUser.role}
+                onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+              >
+                <option value="STANDARD">Standard User</option>
+                <option value="ADMIN">Practice admin</option>
+              </Select>
+            </div>
+          </form>
+        )}
+      </Dialog>
 
       {/* Reset Password Modal */}
-      {resettingPasswordFor && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Reset Password
-              </h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Reset password for {resettingPasswordFor.email}
-              </p>
-              <form onSubmit={handleResetPassword}>
-                <div className="mb-6">
-                  <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
-                    New Password
-                  </label>
-                  <input
-                    type="password"
-                    id="new-password"
-                    required
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter new password"
-                  />
-                </div>
-                <div className="flex justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResettingPasswordFor(null)
-                      setNewPassword('')
-                    }}
-                    disabled={isResettingPassword}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isResettingPassword || !newPassword}
-                    className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50"
-                  >
-                    {isResettingPassword ? 'Resetting...' : 'Reset Password'}
-                  </button>
-                </div>
-              </form>
-            </div>
+      <Dialog
+        open={!!resettingPasswordFor}
+        onClose={() => {
+          setResettingPasswordFor(null)
+          setNewPassword('')
+        }}
+        title="Reset Password"
+        description={resettingPasswordFor ? `Reset password for ${resettingPasswordFor.email}` : undefined}
+        width="sm"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setResettingPasswordFor(null)
+                setNewPassword('')
+              }}
+              disabled={isResettingPassword}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="reset-password-form"
+              variant="danger"
+              loading={isResettingPassword}
+              disabled={!newPassword}
+            >
+              {isResettingPassword ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          </>
+        }
+      >
+        <form id="reset-password-form" onSubmit={handleResetPassword}>
+          <div className="mb-2">
+            <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
+              New Password
+            </label>
+            <Input
+              type="password"
+              id="new-password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Enter new password"
+            />
           </div>
-        </div>
-      )}
+        </form>
+      </Dialog>
+
+      {/* Remove access confirmation */}
+      <ConfirmDialog
+        open={!!pendingRemoveUserId}
+        onClose={() => setPendingRemoveUserId(null)}
+        onConfirm={handleRemoveUser}
+        title="Remove access"
+        message="Are you sure you want to remove this user from the surgery?"
+        confirmLabel="Remove"
+        loading={removing}
+      />
     </div>
   )
 }

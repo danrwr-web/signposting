@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { formatRelativeDate } from '@/lib/formatRelativeDate'
+import { AlertBanner, Skeleton, SkeletonCard } from '@/components/ui'
 
 interface SignpostingData {
   views7d: number
@@ -78,9 +79,13 @@ export default function AnalyticsClient({ surgeryId }: AnalyticsClientProps) {
   if (loading) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
-          <p className="mt-3 text-sm text-gray-500">Loading analytics...</p>
+        <div className="mb-8">
+          <Skeleton width="w-40" height="h-8" />
+          <Skeleton width="w-72" height="h-5" className="mt-2" />
+        </div>
+        <div className="space-y-6">
+          <SkeletonCard lines={3} />
+          <SkeletonCard lines={3} />
         </div>
       </main>
     )
@@ -89,9 +94,7 @@ export default function AnalyticsClient({ surgeryId }: AnalyticsClientProps) {
   if (error) {
     return (
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <p className="text-sm text-amber-800">{error}</p>
-        </div>
+        <AlertBanner variant="error">{error}</AlertBanner>
       </main>
     )
   }

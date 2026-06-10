@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import Modal from '@/components/appointments/Modal'
+import { ConfirmDialog } from '@/components/ui'
 import { createAdminToolkitListRow, deleteAdminToolkitListRow, updateAdminToolkitListRow } from '../actions'
 
 type ColumnFieldType = 'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'
@@ -41,6 +42,8 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
   const [editingRow, setEditingRow] = useState<ListRow | null>(null)
   const [draft, setDraft] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
+  const [pendingDeleteRow, setPendingDeleteRow] = useState<ListRow | null>(null)
+  const [deletingRow, setDeletingRow] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const modalFirstFieldRef = useRef<HTMLInputElement>(null)
 
@@ -165,17 +168,7 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
                           <button
                             type="button"
                             className="nhs-button-secondary"
-                            onClick={async () => {
-                              const ok = confirm('Delete this row?')
-                              if (!ok) return
-                              const res = await deleteAdminToolkitListRow({ surgeryId, itemId, rowId: r.id })
-                              if (!res.ok) {
-                                toast.error(res.error.message)
-                                return
-                              }
-                              toast.success('Row deleted')
-                              router.refresh()
-                            }}
+                            onClick={() => setPendingDeleteRow(r)}
                           >
                             Delete
                           </button>
@@ -189,6 +182,31 @@ export default function AdminToolkitListClient({ surgeryId, itemId, canEditThisI
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!pendingDeleteRow}
+        onClose={() => setPendingDeleteRow(null)}
+        onConfirm={async () => {
+          if (!pendingDeleteRow) return
+          setDeletingRow(true)
+          try {
+            const res = await deleteAdminToolkitListRow({ surgeryId, itemId, rowId: pendingDeleteRow.id })
+            if (!res.ok) {
+              toast.error(res.error.message)
+              return
+            }
+            toast.success('Row deleted')
+            setPendingDeleteRow(null)
+            router.refresh()
+          } finally {
+            setDeletingRow(false)
+          }
+        }}
+        title="Delete row"
+        message="Are you sure you want to delete this row? This cannot be undone."
+        confirmLabel="Delete"
+        loading={deletingRow}
+      />
 
       {editingRow ? (
         <Modal

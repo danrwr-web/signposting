@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { SessionUser } from '@/lib/rbac'
 import TestUserUsage from '@/components/TestUserUsage'
-import { AlertBanner, Button } from '@/components/ui'
+import { AlertBanner, Badge, Button, Card } from '@/components/ui'
 
 interface Surgery {
   id: string
@@ -36,9 +36,9 @@ export default function SurgeryDashboardClient({ surgery, user, setupComplete }:
               <h1 className="text-2xl font-bold text-gray-900">
                 {surgery.name}
               </h1>
-              <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              <Badge color="blue" className="ml-3">
                 Dashboard
-              </span>
+              </Badge>
             </div>
             <div className="flex items-center space-x-4">
               <span className="text-sm text-gray-500">
@@ -116,11 +116,8 @@ export default function SurgeryDashboardClient({ surgery, user, setupComplete }:
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 mb-8">
-          <Link
-            href={`/s/${surgery.id}/signposting`}
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow"
-          >
-            <div className="p-6">
+          <Link href={`/s/${surgery.id}/signposting`} className="block h-full">
+            <Card hoverable padding="lg" className="h-full overflow-hidden">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -136,16 +133,13 @@ export default function SurgeryDashboardClient({ surgery, user, setupComplete }:
                   </p>
                 </div>
               </div>
-            </div>
+            </Card>
           </Link>
 
           {canManageSurgery && (
             <>
-              <Link
-                href={`/s/${surgery.id}/admin/users`}
-                className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow"
-              >
-                <div className="p-6">
+              <Link href={`/s/${surgery.id}/admin/users`} className="block h-full">
+                <Card hoverable padding="lg" className="h-full overflow-hidden">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
                       <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -161,14 +155,11 @@ export default function SurgeryDashboardClient({ surgery, user, setupComplete }:
                       </p>
                     </div>
                   </div>
-                </div>
+                </Card>
               </Link>
-              
-              <Link
-                href={`/s/${surgery.id}/clinical-review`}
-                className="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow"
-              >
-                <div className="p-6">
+
+              <Link href={`/s/${surgery.id}/clinical-review`} className="block h-full">
+                <Card hoverable padding="lg" className="h-full overflow-hidden">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
                       <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -184,30 +175,28 @@ export default function SurgeryDashboardClient({ surgery, user, setupComplete }:
                       </p>
                     </div>
                   </div>
-                </div>
+                </Card>
               </Link>
             </>
           )}
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900">Analytics</h3>
-                  <p className="text-sm text-gray-500">
-                    View usage statistics and insights
-                  </p>
+          <Card padding="lg" className="h-full overflow-hidden">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
                 </div>
               </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-medium text-gray-900">Analytics</h3>
+                <p className="text-sm text-gray-500">
+                  View usage statistics and insights
+                </p>
+              </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Surgery Stats */}

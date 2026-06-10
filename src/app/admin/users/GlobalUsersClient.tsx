@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import KebabMenu from '@/components/admin/KebabMenu'
 import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 import LogoSizeControl from '@/components/LogoSizeControl'
 import { formatRelativeDate } from '@/lib/formatRelativeDate'
-import { Button, Dialog, Input, Select, Badge } from '@/components/ui'
+import { Button, ConfirmDialog, Dialog, Input, Select, Badge } from '@/components/ui'
 
 interface User {
   id: string
@@ -45,6 +47,11 @@ interface GlobalUsersClientProps {
   lastActiveData: Record<string, string | null>
 }
 
+type PendingAction =
+  | { type: 'reset-usage'; userId: string }
+  | { type: 'delete-user'; userId: string; email: string }
+  | { type: 'remove-membership'; membershipId: string }
+
 // Helper function to get user initials
 function getUserInitials(name: string | null, email: string): string {
   if (name) {
@@ -58,7 +65,10 @@ function getUserInitials(name: string | null, email: string): string {
 }
 
 export default function GlobalUsersClient({ users, surgeries, lastActiveData }: GlobalUsersClientProps) {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<User | null>(null)
   const [showMembershipModal, setShowMembershipModal] = useState(false)
@@ -80,6 +90,14 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
     surgeryId: '',
     role: 'STANDARD' as 'STANDARD' | 'ADMIN'
   })
+
+  // Keep the open membership dialog in sync after router.refresh() delivers
+  // fresh data — selectedUser is a snapshot of a previous `users` array.
+  useEffect(() => {
+    setSelectedUser((current) =>
+      current ? users.find((u) => u.id === current.id) ?? null : current
+    )
+  }, [users])
 
   const handleEditUser = (user: User) => {
     setEditingUser(user)
@@ -103,15 +121,15 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       })
 
       if (response.ok) {
-        // Refresh the page to show the updated user
-        window.location.reload()
+        toast.success('User updated')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error updating user: ${error.error}`)
+        toast.error(`Error updating user: ${error.error}`)
       }
     } catch (error) {
       console.error('Error updating user:', error)
-      alert('Failed to update user. Please try again.')
+      toast.error('Failed to update user. Please try again.')
     }
 
     setEditingUser(null)
@@ -150,23 +168,23 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
 
             if (!membershipResponse.ok) {
               const error = await membershipResponse.json()
-              alert(`User created but failed to add surgery membership: ${error.error}`)
+              toast.error(`User created but failed to add surgery membership: ${error.error}`)
             }
           } catch (membershipError) {
             console.error('Error creating membership:', membershipError)
-            alert('User created but failed to add surgery membership. You can add it manually later.')
+            toast.error('User created but failed to add surgery membership. You can add it manually later.')
           }
         }
 
-        // Refresh the page to show the new user
-        window.location.reload()
+        toast.success('User created')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error creating user: ${error.error}`)
+        toast.error(`Error creating user: ${error.error}`)
       }
     } catch (error) {
       console.error('Error creating user:', error)
-      alert('Failed to create user. Please try again.')
+      toast.error('Failed to create user. Please try again.')
     }
 
     setShowCreateModal(false)
@@ -183,10 +201,6 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
   }
 
   const handleResetTestUserUsage = async (userId: string) => {
-    if (!confirm('Are you sure you want to reset this test user\'s usage count?')) {
-      return
-    }
-
     try {
       const response = await fetch('/api/admin/test-users/reset-usage', {
         method: 'POST',
@@ -197,15 +211,15 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       })
 
       if (response.ok) {
-        alert('Test user usage reset successfully!')
-        window.location.reload()
+        toast.success('Test user usage reset')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error resetting usage: ${error.error}`)
+        toast.error(`Error resetting usage: ${error.error}`)
       }
     } catch (error) {
       console.error('Error resetting usage:', error)
-      alert('Failed to reset usage. Please try again.')
+      toast.error('Failed to reset usage. Please try again.')
     }
   }
 
@@ -227,41 +241,37 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       })
 
       if (response.ok) {
-        alert('Password reset successfully')
+        toast.success('Password reset successfully')
         setResettingPasswordFor(null)
         setNewPassword('')
       } else {
         const error = await response.json()
-        alert(`Failed to reset password: ${error.error}`)
+        toast.error(`Failed to reset password: ${error.error}`)
       }
     } catch (error) {
       console.error('Error resetting password:', error)
-      alert('Failed to reset password')
+      toast.error('Failed to reset password')
     } finally {
       setIsResettingPassword(false)
     }
   }
 
-  const handleDeleteUser = async (userId: string, userEmail: string) => {
-    if (!confirm(`Are you sure you want to delete user "${userEmail}"? This action cannot be undone.`)) {
-      return
-    }
-
+  const handleDeleteUser = async (userId: string) => {
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
-        alert('User deleted successfully!')
-        window.location.reload()
+        toast.success('User deleted')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error deleting user: ${error.error}`)
+        toast.error(`Error deleting user: ${error.error}`)
       }
     } catch (error) {
       console.error('Error deleting user:', error)
-      alert('Failed to delete user. Please try again.')
+      toast.error('Failed to delete user. Please try again.')
     }
   }
 
@@ -284,23 +294,20 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       })
 
       if (response.ok) {
-        alert('Surgery membership added successfully!')
-        window.location.reload()
+        toast.success('Surgery membership added')
+        setNewMembership({ surgeryId: '', role: 'STANDARD' })
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error adding membership: ${error.error}`)
+        toast.error(`Error adding membership: ${error.error}`)
       }
     } catch (error) {
       console.error('Error adding membership:', error)
-      alert('Failed to add membership. Please try again.')
+      toast.error('Failed to add membership. Please try again.')
     }
   }
 
   const handleRemoveMembership = async (membershipId: string) => {
-    if (!confirm('Are you sure you want to remove this surgery membership?')) {
-      return
-    }
-
     if (!selectedUser) return
 
     try {
@@ -309,15 +316,15 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       })
 
       if (response.ok) {
-        alert('Surgery membership removed successfully!')
-        window.location.reload()
+        toast.success('Surgery membership removed')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error removing membership: ${error.error}`)
+        toast.error(`Error removing membership: ${error.error}`)
       }
     } catch (error) {
       console.error('Error removing membership:', error)
-      alert('Failed to remove membership. Please try again.')
+      toast.error('Failed to remove membership. Please try again.')
     }
   }
 
@@ -334,15 +341,32 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       })
 
       if (response.ok) {
-        alert('Membership role updated successfully!')
-        window.location.reload()
+        toast.success('Membership role updated')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error updating membership role: ${error.error}`)
+        toast.error(`Error updating membership role: ${error.error}`)
       }
     } catch (error) {
       console.error('Error updating membership role:', error)
-      alert('Failed to update membership role. Please try again.')
+      toast.error('Failed to update membership role. Please try again.')
+    }
+  }
+
+  const runPendingAction = async () => {
+    if (!pendingAction) return
+    setConfirmLoading(true)
+    try {
+      if (pendingAction.type === 'reset-usage') {
+        await handleResetTestUserUsage(pendingAction.userId)
+      } else if (pendingAction.type === 'delete-user') {
+        await handleDeleteUser(pendingAction.userId)
+      } else {
+        await handleRemoveMembership(pendingAction.membershipId)
+      }
+    } finally {
+      setConfirmLoading(false)
+      setPendingAction(null)
     }
   }
 
@@ -504,9 +528,9 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
                     { label: 'Reset password', onClick: () => setResettingPasswordFor(user) },
                     { label: 'Manage surgeries', onClick: () => handleManageMemberships(user) },
                     ...(user.isTestUser
-                      ? [{ label: 'Reset usage count', onClick: () => handleResetTestUserUsage(user.id) }]
+                      ? [{ label: 'Reset usage count', onClick: () => setPendingAction({ type: 'reset-usage', userId: user.id }) }]
                       : []),
-                    { label: 'Delete user', onClick: () => handleDeleteUser(user.id, user.email), variant: 'danger' as const },
+                    { label: 'Delete user', onClick: () => setPendingAction({ type: 'delete-user', userId: user.id, email: user.email }), variant: 'danger' as const },
                   ]
                   return (
                     <KebabMenu
@@ -772,7 +796,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
                         <Button
                           variant="link"
                           size="sm"
-                          onClick={() => handleRemoveMembership(membership.id)}
+                          onClick={() => setPendingAction({ type: 'remove-membership', membershipId: membership.id })}
                           className="text-red-600 hover:text-red-500"
                         >
                           Remove
@@ -871,6 +895,42 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
           </div>
         </form>
       </Dialog>
+
+      {/* Destructive action confirmation */}
+      <ConfirmDialog
+        open={!!pendingAction}
+        onClose={() => setPendingAction(null)}
+        onConfirm={runPendingAction}
+        loading={confirmLoading}
+        title={
+          pendingAction?.type === 'delete-user'
+            ? 'Delete user'
+            : pendingAction?.type === 'remove-membership'
+              ? 'Remove surgery membership'
+              : 'Reset usage count'
+        }
+        message={
+          pendingAction?.type === 'delete-user' ? (
+            <>
+              Are you sure you want to delete user{' '}
+              <span className="font-medium">{pendingAction.email}</span>? This action
+              cannot be undone.
+            </>
+          ) : pendingAction?.type === 'remove-membership' ? (
+            'Are you sure you want to remove this surgery membership?'
+          ) : (
+            "Are you sure you want to reset this test user's usage count?"
+          )
+        }
+        confirmLabel={
+          pendingAction?.type === 'delete-user'
+            ? 'Delete user'
+            : pendingAction?.type === 'remove-membership'
+              ? 'Remove'
+              : 'Reset'
+        }
+        variant={pendingAction?.type === 'reset-usage' ? 'primary' : 'danger'}
+      />
     </div>
   )
 }
