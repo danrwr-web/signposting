@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { toast } from 'react-hot-toast'
-import { Button, Badge, AlertBanner } from '@/components/ui'
+import { Button, Badge, AlertBanner, ConfirmDialog } from '@/components/ui'
 import type { BadgeColor } from '@/components/ui/Badge'
 import PipelineDialog from './PipelineDialog'
 import InlineDateCell from './InlineDateCell'
@@ -43,6 +43,8 @@ function formatCurrency(value: number | null): string {
 export default function PipelineTable({ entries, setEntries }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<PipelineEntry | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   function openCreate() {
     setEditingEntry(null)
@@ -66,19 +68,23 @@ export default function PipelineTable({ entries, setEntries }: Props) {
     })
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Delete this pipeline entry?')) return
+  async function handleDelete() {
+    if (!pendingDeleteId) return
+    setDeleting(true)
     try {
-      const res = await fetch(`/api/super/pipeline/${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/super/pipeline/${pendingDeleteId}`, { method: 'DELETE' })
       if (!res.ok) {
         const data = await res.json()
         toast.error(data.error || 'Failed to delete')
         return
       }
-      setEntries((prev) => prev.filter((e) => e.id !== id))
+      setEntries((prev) => prev.filter((e) => e.id !== pendingDeleteId))
       toast.success('Entry deleted')
+      setPendingDeleteId(null)
     } catch {
       toast.error('An error occurred')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -224,7 +230,7 @@ export default function PipelineTable({ entries, setEntries }: Props) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(entry.id)}
+                      onClick={() => setPendingDeleteId(entry.id)}
                       className="text-red-600 hover:text-red-800"
                     >
                       Delete
@@ -246,6 +252,25 @@ export default function PipelineTable({ entries, setEntries }: Props) {
         <SummaryCard label="Contracted ARR" value={formatCurrency(summary.contractedArr)} />
         <SummaryCard label="Pipeline ARR" value={formatCurrency(summary.pipelineArr)} />
       </div>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!pendingDeleteId}
+        onClose={() => setPendingDeleteId(null)}
+        onConfirm={handleDelete}
+        title="Delete pipeline entry"
+        message={
+          <>
+            Are you sure you want to delete{' '}
+            <span className="font-medium">
+              {entries.find((e) => e.id === pendingDeleteId)?.practiceName ?? 'this entry'}
+            </span>
+            ? This cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        loading={deleting}
+      />
 
       {/* Dialog */}
       <PipelineDialog

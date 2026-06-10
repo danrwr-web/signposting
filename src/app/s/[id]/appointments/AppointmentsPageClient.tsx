@@ -6,8 +6,8 @@ import AppointmentCsvUpload from '@/components/appointments/AppointmentCsvUpload
 import AppointmentCard from '@/components/appointments/AppointmentCard'
 import AppointmentEditModal from '@/components/appointments/AppointmentEditModal'
 import StaffTypesManager from '@/components/appointments/StaffTypesManager'
-import Modal from '@/components/appointments/Modal'
 import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
+import { Button, ConfirmDialog, Dialog } from '@/components/ui'
 import { SkeletonCardGrid } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -43,10 +43,8 @@ export default function AppointmentsPageClient({
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingAppointment, setEditingAppointment] = useState<AppointmentType | null>(null)
   const [appointmentPendingDelete, setAppointmentPendingDelete] = useState<AppointmentType | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [showStaffTypesModal, setShowStaffTypesModal] = useState(false)
   const uploadInputRef = useRef<HTMLInputElement>(null)
-  const deleteCancelButtonRef = useRef<HTMLButtonElement>(null)
 
   // Fetch appointments
   const fetchAppointments = async () => {
@@ -272,24 +270,15 @@ export default function AppointmentsPageClient({
             {/* Admin Actions */}
             {isAdmin && (
               <div className="flex flex-wrap gap-2">
-                <button
-                  onClick={() => setShowUploadModal(true)}
-                  className="rounded-md bg-nhs-green px-4 py-2 text-white transition-colors hover:bg-nhs-green-dark focus:outline-none focus:ring-2 focus:ring-nhs-green"
-                >
+                <Button variant="success" onClick={() => setShowUploadModal(true)}>
                   Upload CSV
-                </button>
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="rounded-md bg-nhs-blue px-4 py-2 text-white transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-                >
+                </Button>
+                <Button onClick={() => setShowAddModal(true)}>
                   Add New Entry
-                </button>
-                <button
-                  onClick={() => setShowStaffTypesModal(true)}
-                  className="rounded-md border border-nhs-blue px-4 py-2 text-nhs-blue transition-colors hover:bg-nhs-light-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-                >
+                </Button>
+                <Button variant="secondary" onClick={() => setShowStaffTypesModal(true)}>
                   Manage Staff Teams
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -341,21 +330,20 @@ export default function AppointmentsPageClient({
         )}
 
         {/* Upload Modal */}
-        {showUploadModal && (
-          <Modal
-            title="Upload appointments CSV"
-            description="Import reception-friendly appointment types from a CSV file."
-            onClose={() => setShowUploadModal(false)}
-            initialFocusRef={uploadInputRef}
-          >
-            <AppointmentCsvUpload
-              surgeryId={surgeryId}
-              onSuccess={handleUploadSuccess}
-              onCancel={() => setShowUploadModal(false)}
-              inputRef={uploadInputRef}
-            />
-          </Modal>
-        )}
+        <Dialog
+          open={showUploadModal}
+          title="Upload appointments CSV"
+          description="Import reception-friendly appointment types from a CSV file."
+          onClose={() => setShowUploadModal(false)}
+          initialFocusRef={uploadInputRef}
+        >
+          <AppointmentCsvUpload
+            surgeryId={surgeryId}
+            onSuccess={handleUploadSuccess}
+            onCancel={() => setShowUploadModal(false)}
+            inputRef={uploadInputRef}
+          />
+        </Dialog>
 
         {/* Add/Edit Modal */}
         {(showAddModal || editingAppointment) && (
@@ -371,42 +359,22 @@ export default function AppointmentsPageClient({
         )}
 
         {/* Delete confirmation modal */}
-        {appointmentPendingDelete && (
-          <Modal
-            title="Delete appointment type"
-            description="This removes the appointment from the directory. You can recreate it later if needed."
-            onClose={() => setAppointmentPendingDelete(null)}
-            initialFocusRef={deleteCancelButtonRef}
-            widthClassName="max-w-lg"
-          >
-            <p className="text-sm text-nhs-grey">
-              Are you sure you want to delete{' '}
-              <span className="font-semibold text-gray-900">
-                {appointmentPendingDelete.name}
-              </span>
-              ? Reception staff will no longer see it in their directory.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                ref={deleteCancelButtonRef}
-                type="button"
-                className="rounded-md border border-gray-300 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
-                onClick={() => setAppointmentPendingDelete(null)}
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded-md bg-nhs-red px-4 py-2 text-white transition-colors hover:bg-nhs-red-dark focus:outline-none focus:ring-2 focus:ring-nhs-red disabled:opacity-70"
-                onClick={confirmDelete}
-                disabled={deleting}
-              >
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </Modal>
-        )}
+        <ConfirmDialog
+          open={!!appointmentPendingDelete}
+          onClose={() => setAppointmentPendingDelete(null)}
+          onConfirm={confirmDelete}
+          title="Delete appointment type"
+          confirmLabel="Delete"
+        >
+          <p className="text-sm text-nhs-grey">
+            Are you sure you want to delete{' '}
+            <span className="font-semibold text-gray-900">
+              {appointmentPendingDelete?.name}
+            </span>
+            ? Reception staff will no longer see it in their directory. You can
+            recreate it later if needed.
+          </p>
+        </ConfirmDialog>
 
         {showStaffTypesModal && (
           <StaffTypesManager

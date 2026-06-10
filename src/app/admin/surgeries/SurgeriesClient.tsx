@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { toast } from 'react-hot-toast'
 import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
@@ -38,11 +40,11 @@ interface SurgeriesClientProps {
 }
 
 export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
+  const router = useRouter()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingSurgery, setEditingSurgery] = useState<Surgery | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   // Baseline dates state
   const [baselineDates, setBaselineDates] = useState<BaselineDates>({
@@ -80,12 +82,6 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
     }
   }, [editingSurgery, fetchBaselineDates])
 
-  // Show toast helper
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
-  }
-
   // Save baseline dates
   const handleSaveBaselines = async () => {
     if (!editingSurgery) return
@@ -102,14 +98,14 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
       })
 
       if (res.ok) {
-        showToast('Baseline dates saved successfully', 'success')
+        toast.success('Baseline dates saved')
       } else {
         const error = await res.json()
-        showToast(`Error: ${error.error || 'Failed to save'}`, 'error')
+        toast.error(`Error: ${error.error || 'Failed to save'}`)
       }
     } catch (error) {
       console.error('Error saving baseline dates:', error)
-      showToast('Failed to save baseline dates', 'error')
+      toast.error('Failed to save baseline dates')
     } finally {
       setIsSavingBaselines(false)
     }
@@ -127,8 +123,6 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
     const nameB = (b.name || '').toLowerCase()
     return nameA.localeCompare(nameB)
   })
-
-  const [surgeriesList, setSurgeriesList] = useState(sortedSurgeries)
 
   // Filter surgeries by search query (name, case-insensitive)
   const filteredSurgeries = sortedSurgeries.filter((surgery) => {
@@ -155,15 +149,15 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
       })
 
       if (response.ok) {
-        // Success - refresh the page to show the new surgery
-        window.location.reload()
+        toast.success('Surgery created')
+        router.refresh()
       } else {
         const error = await response.json()
-        alert(`Error creating surgery: ${error.error}`)
+        toast.error(`Error creating surgery: ${error.error}`)
       }
     } catch (error) {
       console.error('Error creating surgery:', error)
-      alert('Failed to create surgery. Please try again.')
+      toast.error('Failed to create surgery. Please try again.')
     } finally {
       setIsLoading(false)
       setShowCreateModal(false)
@@ -195,18 +189,15 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
       const result = await response.json()
 
       if (response.ok) {
-        // Update the local state
-        setSurgeriesList(prev =>
-          prev.map(s => s.id === editingSurgery.id ? { ...s, name: result.surgery.name, adminEmail: result.surgery.adminEmail } : s)
-        )
         setEditingSurgery(null)
-        alert('Surgery updated successfully!')
+        toast.success('Surgery updated')
+        router.refresh()
       } else {
-        alert(`Error updating surgery: ${result.error || 'Unknown error'}`)
+        toast.error(`Error updating surgery: ${result.error || 'Unknown error'}`)
       }
     } catch (error) {
       console.error('Error updating surgery:', error)
-      alert('Failed to update surgery. Please try again.')
+      toast.error('Failed to update surgery. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -534,17 +525,6 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
           </>
         )}
       </Dialog>
-
-      {/* Toast notification */}
-      {toast && (
-        <div
-          className={`fixed bottom-4 right-4 px-4 py-3 rounded-md shadow-lg z-50 ${
-            toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-          }`}
-        >
-          {toast.message}
-        </div>
-      )}
     </div>
   )
 }

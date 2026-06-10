@@ -99,6 +99,16 @@ export function Dialog({
     })
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // When dialogs are stacked, only the dialog containing focus should
+      // react to Escape/Tab — otherwise one keypress closes every layer.
+      if (
+        dialogRef.current &&
+        e.target instanceof Node &&
+        !dialogRef.current.contains(e.target)
+      ) {
+        return
+      }
+
       if (e.key === 'Escape') {
         e.preventDefault()
         onCloseRef.current()

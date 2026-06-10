@@ -27,6 +27,9 @@ export type { CardProps, CardElevation } from './Card'
 export { Dialog } from './Dialog'
 export type { DialogProps, DialogWidth } from './Dialog'
 
+export { ConfirmDialog } from './ConfirmDialog'
+export type { ConfirmDialogProps } from './ConfirmDialog'
+
 export { AlertBanner } from './AlertBanner'
 export type { AlertBannerProps, AlertVariant } from './AlertBanner'
 
