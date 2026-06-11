@@ -226,10 +226,15 @@ export async function POST(
 
         // Call AI helper
         const onboardingProfileJson = surgery.onboardingProfile.profileJson as any
+        // An override with highlightedText '' means the surgery deliberately hid the
+        // Important Notice banner. Don't ask the AI to rewrite a hidden notice, and
+        // never write one back — that would resurrect a banner the surgery blanked.
+        const noticeExplicitlyBlanked =
+          existingOverride?.highlightedText != null && existingOverride.highlightedText.trim() === ''
         let customised
         try {
           customised = await customiseInstructions(
-            baseSymptomData,
+            noticeExplicitlyBlanked ? { ...baseSymptomData, highlightedText: null } : baseSymptomData,
             onboardingProfileJson,
             user.email
           )
@@ -256,11 +261,14 @@ export async function POST(
             const previousBriefInstruction = existingOverride?.briefInstruction ?? baseSymptomData.briefInstruction
             const previousInstructionsHtml = existingOverride?.instructionsHtml ?? baseSymptomData.instructionsHtml
             const previousHighlightedText = existingOverride?.highlightedText ?? baseSymptomData.highlightedText
-            // Only write the notice when the base actually had one and the AI rewrote it.
+            // Only write the notice when the base actually had one, the AI rewrote it,
+            // and the surgery hasn't explicitly blanked it on their override.
             // Omitting the key preserves any existing override value; writing '' would
             // blank the banner under the tri-state override merge semantics.
             const shouldWriteHighlightedText =
-              !!customised.highlightedText && !!baseSymptomData.highlightedText?.trim()
+              !noticeExplicitlyBlanked &&
+              !!customised.highlightedText &&
+              !!baseSymptomData.highlightedText?.trim()
 
             await tx.surgerySymptomOverride.upsert({
               where: {
