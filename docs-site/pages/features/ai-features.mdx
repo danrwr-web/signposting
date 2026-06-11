@@ -139,6 +139,7 @@ This feature is controlled by the `ai_surgery_customisation` feature flag.
 3. **Choose a scope:**
    - **Customise ALL symptoms** — Process every enabled symptom for the surgery. This can take several minutes for large libraries; keep the tab open.
    - **Select symptoms manually** — Search and pick specific symptoms from a checklist.
+   - **Smart re-run** *(superusers only)* — Re-run customisation on the surgery's behalf without overwriting local work. The system compares each symptom's current content against the AI's recorded outputs and re-runs only symptoms that are untouched AI output or were never customised; anything the practice has edited is skipped, with the skipped list (and who last edited each one) shown before you run. Note: edits made only to a symptom's Important Notice are not detected by this comparison — clinical review remains the safety net.
 4. **Click "Generate AI-customised instructions"** — The system processes symptoms one by one, showing real-time progress:
    - Which symptom is currently being processed
    - Running count of processed and skipped symptoms
