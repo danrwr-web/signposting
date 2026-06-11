@@ -4,6 +4,7 @@ import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { CustomiseInstructionsReqZ } from '@/lib/api-contracts'
 import { customiseInstructions } from '@/server/aiCustomiseInstructions'
+import { isSymptomSafeToRerun } from '@/server/aiRerunPlan'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { z } from 'zod'
 
@@ -63,7 +64,7 @@ export async function POST(
 
     // Parse and validate request body
     const body = await request.json()
-    const { scope, symptomIds } = CustomiseInstructionsReqZ.parse(body)
+    const { scope, symptomIds, skipHumanEdited } = CustomiseInstructionsReqZ.parse(body)
 
     // Determine which symptoms to process
     let symptomsToProcess: Array<{ id: string; baseSymptomId?: string; customSymptomId?: string }> = []
@@ -224,6 +225,36 @@ export async function POST(
               },
             })
           : null
+
+        // Smart re-run guard: re-check against current content just before
+        // processing, so a plan that went stale (practice edited a symptom
+        // after the preview was fetched) can never overwrite local work.
+        if (skipHumanEdited) {
+          const safeToRerun = await isSymptomSafeToRerun(
+            symptomRef.baseSymptomId
+              ? {
+                  symptomId: symptomRef.baseSymptomId,
+                  kind: 'base',
+                  currentBrief: existingOverride?.briefInstruction,
+                  currentHtml: existingOverride?.instructionsHtml,
+                }
+              : {
+                  symptomId: symptomRef.customSymptomId!,
+                  kind: 'custom',
+                  currentBrief: baseSymptomData.briefInstruction,
+                  currentHtml: baseSymptomData.instructionsHtml,
+                }
+          )
+          if (!safeToRerun) {
+            console.log(`[AI Customisation] Skipping symptom ${symptomRef.id}: locally edited`)
+            skippedCount++
+            skippedDetails.push({
+              symptomId: symptomRef.id,
+              reason: 'Locally edited — skipped to preserve local changes',
+            })
+            continue
+          }
+        }
 
         // Call AI helper
         const onboardingProfileJson = surgery.onboardingProfile.profileJson as any

@@ -45,6 +45,10 @@ jest.mock('@/server/effectiveSymptoms', () => ({
   getEffectiveSymptoms: jest.fn(),
 }))
 
+jest.mock('@/server/aiRerunPlan', () => ({
+  isSymptomSafeToRerun: jest.fn(),
+}))
+
 const mockedRequireSurgeryAdmin =
   requireSurgeryAdmin as jest.MockedFunction<typeof requireSurgeryAdmin>
 const mockedFindUnique = prisma.surgery.findUnique as jest.MockedFunction<
@@ -588,6 +592,136 @@ describe('POST /api/surgeries/[surgeryId]/ai/customise-instructions', () => {
         reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
       },
     })
+  })
+
+  it('re-checks symptoms server-side when skipHumanEdited is set and skips locally edited ones', async () => {
+    const { isSymptomSafeToRerun } = jest.requireMock('@/server/aiRerunPlan') as {
+      isSymptomSafeToRerun: jest.Mock
+    }
+
+    mockedRequireSurgeryAdmin.mockResolvedValueOnce(mockUser)
+    mockedFindUnique.mockResolvedValueOnce({
+      id: 'surgery-1',
+      name: 'Test Surgery',
+      onboardingProfile: {
+        completed: true,
+        completedAt: new Date(),
+        profileJson: { surgeryName: 'Test Surgery' },
+      },
+      surgeryFeatureFlags: [
+        { feature: { key: 'ai_surgery_customisation' }, enabled: true },
+      ],
+    } as any)
+
+    const mockedBaseSymptomFindMany = prisma.baseSymptom.findMany as jest.Mock
+    const mockedCustomFindMany = prisma.surgeryCustomSymptom.findMany as jest.Mock
+    mockedBaseSymptomFindMany.mockResolvedValueOnce([{ id: 'base-1' }])
+    mockedCustomFindMany.mockResolvedValueOnce([])
+
+    const mockedBaseSymptomFindUnique = prisma.baseSymptom.findUnique as jest.Mock
+    mockedBaseSymptomFindUnique.mockResolvedValueOnce({
+      id: 'base-1',
+      name: 'Fever',
+      ageGroup: 'U5',
+      briefInstruction: 'Brief',
+      instructionsHtml: '<p>Instructions</p>',
+    })
+
+    const mockedOverrideFindUnique = prisma.surgerySymptomOverride.findUnique as jest.Mock
+    mockedOverrideFindUnique.mockResolvedValueOnce({
+      briefInstruction: 'Hand-tuned brief',
+      instructionsHtml: '<p>Hand-tuned instructions</p>',
+    })
+
+    isSymptomSafeToRerun.mockResolvedValueOnce(false)
+
+    const request = createRequest({
+      scope: 'manual',
+      symptomIds: ['base-1'],
+      skipHumanEdited: true,
+    })
+    const response = await POST(request, { params: Promise.resolve({ surgeryId: 'surgery-1' }) })
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.processedCount).toBe(0)
+    expect(json.skippedCount).toBe(1)
+    expect(json.skippedDetails).toEqual([
+      {
+        symptomId: 'base-1',
+        reason: 'Locally edited — skipped to preserve local changes',
+      },
+    ])
+    // The guard runs against the symptom's CURRENT override content and the
+    // AI is never invoked for a locally edited symptom.
+    expect(isSymptomSafeToRerun).toHaveBeenCalledWith({
+      symptomId: 'base-1',
+      kind: 'base',
+      currentBrief: 'Hand-tuned brief',
+      currentHtml: '<p>Hand-tuned instructions</p>',
+    })
+    expect(mockedCustomiseInstructions).not.toHaveBeenCalled()
+    expect(mockedUpsertOverride).not.toHaveBeenCalled()
+  })
+
+  it('processes symptoms that pass the skipHumanEdited re-check', async () => {
+    const { isSymptomSafeToRerun } = jest.requireMock('@/server/aiRerunPlan') as {
+      isSymptomSafeToRerun: jest.Mock
+    }
+
+    mockedRequireSurgeryAdmin.mockResolvedValueOnce(mockUser)
+    mockedFindUnique.mockResolvedValueOnce({
+      id: 'surgery-1',
+      name: 'Test Surgery',
+      onboardingProfile: {
+        completed: true,
+        completedAt: new Date(),
+        profileJson: { surgeryName: 'Test Surgery' },
+      },
+      surgeryFeatureFlags: [
+        { feature: { key: 'ai_surgery_customisation' }, enabled: true },
+      ],
+    } as any)
+
+    const mockedBaseSymptomFindMany = prisma.baseSymptom.findMany as jest.Mock
+    const mockedCustomFindMany = prisma.surgeryCustomSymptom.findMany as jest.Mock
+    mockedBaseSymptomFindMany.mockResolvedValueOnce([{ id: 'base-1' }])
+    mockedCustomFindMany.mockResolvedValueOnce([])
+
+    const mockedBaseSymptomFindUnique = prisma.baseSymptom.findUnique as jest.Mock
+    mockedBaseSymptomFindUnique.mockResolvedValueOnce({
+      id: 'base-1',
+      name: 'Fever',
+      ageGroup: 'U5',
+      briefInstruction: 'Brief',
+      instructionsHtml: '<p>Instructions</p>',
+    })
+
+    const mockedOverrideFindUnique = prisma.surgerySymptomOverride.findUnique as jest.Mock
+    mockedOverrideFindUnique.mockResolvedValueOnce(null)
+
+    isSymptomSafeToRerun.mockResolvedValueOnce(true)
+    mockedCustomiseInstructions.mockResolvedValueOnce({
+      briefInstruction: 'Customised brief',
+      instructionsHtml: '<p>Customised instructions</p>',
+      modelUsed: 'gpt-4o-mini',
+    })
+    mockedUpsertOverride.mockResolvedValueOnce({} as any)
+    mockedCreateHistory.mockResolvedValueOnce({} as any)
+    mockedUpsertReviewStatus.mockResolvedValueOnce({} as any)
+
+    const request = createRequest({
+      scope: 'manual',
+      symptomIds: ['base-1'],
+      skipHumanEdited: true,
+    })
+    const response = await POST(request, { params: Promise.resolve({ surgeryId: 'surgery-1' }) })
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(json.processedCount).toBe(1)
+    expect(json.skippedCount).toBe(0)
+    expect(mockedCustomiseInstructions).toHaveBeenCalled()
   })
 
   it('saves but flags symptoms whose output still references base colour-slot terms', async () => {

@@ -44,6 +44,56 @@ const NON_AI_MODEL_MARKERS = new Set(['unknown-model', 'REVERT'])
 const sameContent = (a: string | null | undefined, b: string | null | undefined) =>
   (a ?? '') === (b ?? '')
 
+interface AiOutput {
+  brief: string | null
+  html: string | null
+}
+
+const isAiHistoryRow = (row: { modelUsed: string | null }) =>
+  !!row.modelUsed && !NON_AI_MODEL_MARKERS.has(row.modelUsed)
+
+const contentMatchesAiOutput = (
+  outputs: AiOutput[],
+  brief: string | null | undefined,
+  html: string | null | undefined
+) => outputs.some((output) => sameContent(output.brief, brief) && sameContent(output.html, html))
+
+/**
+ * Execution-time re-check of a single symptom, used by the customise endpoint
+ * when `skipHumanEdited` is set: the preview plan can go stale between being
+ * fetched and the run starting, so the safe/skip decision must be re-made
+ * server-side against the symptom's current content immediately before
+ * processing it.
+ *
+ * Same semantics as computeAiRerunPlan: base symptoms with no override
+ * content are safe; otherwise the current content must exactly match an AI
+ * run's recorded output. Custom symptoms are human-authored, so they are only
+ * safe when their content matches AI output.
+ */
+export async function isSymptomSafeToRerun(args: {
+  symptomId: string
+  kind: 'base' | 'custom'
+  currentBrief: string | null | undefined
+  currentHtml: string | null | undefined
+}): Promise<boolean> {
+  const { symptomId, kind, currentBrief, currentHtml } = args
+
+  if (kind === 'base' && currentBrief == null && currentHtml == null) {
+    return true
+  }
+
+  const history = await prisma.symptomHistory.findMany({
+    where: { symptomId, modelUsed: { not: null } },
+    select: { modelUsed: true, newBriefInstruction: true, newInstructionsHtml: true },
+  })
+
+  const outputs: AiOutput[] = history
+    .filter(isAiHistoryRow)
+    .map((row) => ({ brief: row.newBriefInstruction, html: row.newInstructionsHtml }))
+
+  return contentMatchesAiOutput(outputs, currentBrief, currentHtml)
+}
+
 export async function computeAiRerunPlan(surgeryId: string): Promise<AiRerunPlan> {
   const effective = await getEffectiveSymptoms(surgeryId, false)
 
@@ -74,12 +124,9 @@ export async function computeAiRerunPlan(surgeryId: string): Promise<AiRerunPlan
     }),
   ])
 
-  const aiOutputsBySymptom = new Map<
-    string,
-    Array<{ brief: string | null; html: string | null }>
-  >()
+  const aiOutputsBySymptom = new Map<string, AiOutput[]>()
   for (const row of history) {
-    if (!row.modelUsed || NON_AI_MODEL_MARKERS.has(row.modelUsed)) continue
+    if (!isAiHistoryRow(row)) continue
     const outputs = aiOutputsBySymptom.get(row.symptomId) || []
     outputs.push({ brief: row.newBriefInstruction, html: row.newInstructionsHtml })
     aiOutputsBySymptom.set(row.symptomId, outputs)
@@ -89,10 +136,7 @@ export async function computeAiRerunPlan(surgeryId: string): Promise<AiRerunPlan
     symptomId: string,
     brief: string | null | undefined,
     html: string | null | undefined
-  ) =>
-    (aiOutputsBySymptom.get(symptomId) || []).some(
-      (output) => sameContent(output.brief, brief) && sameContent(output.html, html)
-    )
+  ) => contentMatchesAiOutput(aiOutputsBySymptom.get(symptomId) || [], brief, html)
 
   const overrideByBaseId = new Map(overrides.map((o) => [o.baseSymptomId, o]))
 

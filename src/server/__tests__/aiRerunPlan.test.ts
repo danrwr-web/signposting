@@ -1,4 +1,4 @@
-import { computeAiRerunPlan } from '@/server/aiRerunPlan'
+import { computeAiRerunPlan, isSymptomSafeToRerun } from '@/server/aiRerunPlan'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 
@@ -247,5 +247,67 @@ describe('computeAiRerunPlan', () => {
       classification: 'human-edited',
       safeToRerun: false,
     })
+  })
+})
+
+describe('isSymptomSafeToRerun (execution-time re-check)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  it('is safe for a base symptom with no override content, without querying history', async () => {
+    const safe = await isSymptomSafeToRerun({
+      symptomId: 'base-1',
+      kind: 'base',
+      currentBrief: null,
+      currentHtml: null,
+    })
+    expect(safe).toBe(true)
+    expect(mockedHistoryFindMany).not.toHaveBeenCalled()
+  })
+
+  it('is safe when current content matches an AI output', async () => {
+    mockedHistoryFindMany.mockResolvedValueOnce([
+      {
+        modelUsed: 'gpt-4o-mini',
+        newBriefInstruction: 'AI brief',
+        newInstructionsHtml: '<p>AI instructions</p>',
+      },
+    ])
+    const safe = await isSymptomSafeToRerun({
+      symptomId: 'base-1',
+      kind: 'base',
+      currentBrief: 'AI brief',
+      currentHtml: '<p>AI instructions</p>',
+    })
+    expect(safe).toBe(true)
+  })
+
+  it('is unsafe when current content was edited since the AI run', async () => {
+    mockedHistoryFindMany.mockResolvedValueOnce([
+      {
+        modelUsed: 'gpt-4o-mini',
+        newBriefInstruction: 'AI brief',
+        newInstructionsHtml: '<p>AI instructions</p>',
+      },
+    ])
+    const safe = await isSymptomSafeToRerun({
+      symptomId: 'base-1',
+      kind: 'base',
+      currentBrief: 'Hand-tuned brief',
+      currentHtml: '<p>AI instructions</p>',
+    })
+    expect(safe).toBe(false)
+  })
+
+  it('is unsafe for a custom symptom with no AI history', async () => {
+    mockedHistoryFindMany.mockResolvedValueOnce([])
+    const safe = await isSymptomSafeToRerun({
+      symptomId: 'custom-1',
+      kind: 'custom',
+      currentBrief: null,
+      currentHtml: null,
+    })
+    expect(safe).toBe(false)
   })
 })

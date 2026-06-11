@@ -134,7 +134,10 @@ export default function AISetupClient({
   }
 
   // Helper function to process symptom IDs one by one
-  const processSymptomIds = async (symptomIds: string[]) => {
+  const processSymptomIds = async (
+    symptomIds: string[],
+    options?: { skipHumanEdited?: boolean }
+  ) => {
     let cumulativeProcessed = 0
     let cumulativeSkipped = 0
     const skippedDetails: Array<{ symptomId: string; reason?: string }> = []
@@ -164,6 +167,9 @@ export default function AISetupClient({
             body: JSON.stringify({
               scope: 'manual' as const,
               symptomIds: [symptomId],
+              // Server re-checks each symptom against current content so a
+              // stale plan can never overwrite edits made since the preview.
+              ...(options?.skipHumanEdited ? { skipHumanEdited: true } : {}),
             }),
           }
         )
@@ -234,7 +240,9 @@ export default function AISetupClient({
         symptomIdsToProcess = symptoms.map(s => s.id)
       }
 
-      const results = await processSymptomIds(symptomIdsToProcess)
+      const results = await processSymptomIds(symptomIdsToProcess, {
+        skipHumanEdited: scope === 'smart',
+      })
 
       // Show final results
       setProcessingProgress(null)
