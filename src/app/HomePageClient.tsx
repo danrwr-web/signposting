@@ -6,7 +6,7 @@ import VirtualizedGrid from '@/components/VirtualizedGrid'
 import TestUserUsage from '@/components/TestUserUsage'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
-import type { Surgery } from '@prisma/client'
+import type { SelectorSurgery } from '@/components/SurgerySelector'
 import { useSurgery } from '@/context/SurgeryContext'
 import { SymptomChangeInfo, CardData } from '@/components/SymptomCard'
 import { SkeletonCardGrid } from '@/components/ui/Skeleton'
@@ -16,7 +16,7 @@ type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' 
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
 
 interface HomePageClientProps {
-  surgeries: Pick<Surgery, 'id' | 'slug' | 'name'>[]
+  surgeries: SelectorSurgery[]
   symptoms: EffectiveSymptom[]
   // When rendered at `/s/[id]`, pass the canonical surgery id from the route.
   // This avoids relying on cookie/localStorage context, which may be stale or point to a different surgery.

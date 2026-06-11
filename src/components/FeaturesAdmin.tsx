@@ -7,6 +7,7 @@ interface Surgery {
   id: string
   name: string
   slug?: string | null
+  surgeryType?: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT'
 }
 
 interface Feature {
@@ -270,11 +271,22 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
             className="w-full nhs-input"
           >
             <option value="">Select a surgery...</option>
-            {surgeries.map(surgery => (
-              <option key={surgery.id} value={surgery.id}>
-                {surgery.name}
-              </option>
-            ))}
+            <optgroup label="Live surgeries">
+              {surgeries.filter(s => !s.surgeryType || s.surgeryType === 'LIVE').map(surgery => (
+                <option key={surgery.id} value={surgery.id}>
+                  {surgery.name}
+                </option>
+              ))}
+            </optgroup>
+            {surgeries.some(s => s.surgeryType && s.surgeryType !== 'LIVE') && (
+              <optgroup label="Test & templates">
+                {surgeries.filter(s => s.surgeryType && s.surgeryType !== 'LIVE').map(surgery => (
+                  <option key={surgery.id} value={surgery.id}>
+                    {surgery.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
       )}

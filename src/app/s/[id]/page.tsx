@@ -53,7 +53,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
 
     // Get all surgeries for the surgery selector (only fields needed by the UI)
     const surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, surgeryType: true },
       orderBy: { name: 'asc' }
     })
 

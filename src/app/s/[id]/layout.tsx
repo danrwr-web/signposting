@@ -25,10 +25,10 @@ export default async function SurgeryLayout({
 
   // Fetch all surgeries for the header selector (enables surgery switching for superusers)
   // and find the current surgery for display
-  let surgeries: { id: string; slug: string | null; name: string }[] = []
+  let surgeries: { id: string; slug: string | null; name: string; surgeryType: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT' }[] = []
   try {
     surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, surgeryType: true },
       orderBy: { name: 'asc' },
     })
   } catch (error) {

@@ -40,7 +40,7 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
     }
 
     const surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, surgeryType: true },
       orderBy: { name: 'asc' }
     })
 
