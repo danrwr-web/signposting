@@ -153,6 +153,16 @@ For each symptom, the AI rewrites:
 - **Full instructions** — the detailed guidance shown to reception staff.
 - **Important Notice** — the red banner shown above the instructions (where one exists). The notice is rewritten only to translate appointment and slot terminology (e.g. "pink/purple/red telephone slot") into your local appointment names. Emergency wording such as 999, A&E and threat-to-life criteria is preserved exactly, and the AI never creates a notice on a symptom that does not already have one.
 
+### Colour-Slot Translation
+
+The base symptom library describes appointments using generic colour-coded slot names (green, pink/purple, orange and red slots). During customisation these are translated into your surgery's own appointment names:
+
+- If you completed Step 2.5 of the onboarding wizard, each colour is mapped to the matching local appointment name you configured.
+- If your surgery does not use colour-coded slots, colour names are rewritten into neutral wording (e.g. "GP telephone triage appointment within 48 hours").
+- If your surgery genuinely uses colour-coded slots (as recorded in your onboarding profile), the colour names are kept.
+
+The output is checked automatically for any base colour-slot names left behind. If any survive, the symptom is still saved but its clinical review note carries a warning listing the leftover terms, so the reviewer knows to check the appointment names before approving.
+
 ### Safety
 
 - All AI-generated content requires clinical review before publication.

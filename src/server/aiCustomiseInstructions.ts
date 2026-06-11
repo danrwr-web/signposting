@@ -1,6 +1,6 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
-import { callAzureOpenAI, extractJson } from '@/server/azureOpenAI'
+import { callAzureOpenAI, extractJson, type AzureOpenAIMessage } from '@/server/azureOpenAI'
 import { stripHtmlToPlainText } from '@/lib/sanitizeHtml'
 
 export interface CustomisedInstructionResult {
@@ -10,6 +10,9 @@ export interface CustomisedInstructionResult {
   highlightedText?: string
   instructionsJson?: string
   modelUsed: string
+  // Present only when the output still referenced base colour-slot terminology
+  // the surgery does not use, even after a corrective retry
+  residualColourTerms?: string[]
 }
 
 interface BaseSymptomData {
@@ -53,7 +56,9 @@ interface OnboardingProfileJson {
   urgentCareModel: {
     hasDutyDoctor: boolean
     dutyDoctorTerm: string | null
-    usesRedSlots: boolean
+    // Required in the Zod contract for new writes, but this code receives
+    // un-validated profileJson from the database, where legacy rows may lack it.
+    usesRedSlots?: boolean
     redSlotName?: string | null
     urgentSlotsDescription: string
   }
@@ -85,6 +90,116 @@ interface OnboardingProfileJson {
     terminologyPreference: 'surgery' | 'generic' | 'mixed'
   }
   appointmentModel?: AppointmentModelConfig
+}
+
+/**
+ * Matches the generic colour-coded slot phrases used in base symptom content,
+ * e.g. "green slot", "pink/purple slot", "red telephone slot",
+ * "pink/purple/red telephone slot", "orange slots". The mandatory "slot"
+ * terminator means clinical phrases like "red flags" never match.
+ */
+export const COLOUR_SLOT_REGEX =
+  /\b(?:green|pink|purple|orange|red)(?:\s*\/\s*(?:green|pink|purple|orange|red))*(?:\s+(?:telephone|phone|f2f|face[- ]to[- ]face))?[\s-]*slots?\b/gi
+
+const COLOUR_WORD_REGEX = /green|pink|purple|orange|red/gi
+
+const ALL_SLOT_COLOURS = ['green', 'pink', 'purple', 'orange', 'red'] as const
+
+/**
+ * Returns the colour-slot phrases in `text` that reference colours outside the
+ * surgery's own vocabulary (`allowedColours`). Pink and purple name the same
+ * slot type, so allowing either allows both.
+ */
+export function findLeakedColourSlotTerms(
+  text: string,
+  allowedColours: ReadonlySet<string>
+): string[] {
+  const plain = stripHtmlToPlainText(text || '')
+  if (!plain) return []
+  const leaked: string[] = []
+  for (const phrase of plain.match(COLOUR_SLOT_REGEX) || []) {
+    const colours = (phrase.match(COLOUR_WORD_REGEX) || []).map((c) => c.toLowerCase())
+    const allAllowed = colours.every(
+      (c) =>
+        allowedColours.has(c) ||
+        ((c === 'pink' || c === 'purple') &&
+          (allowedColours.has('pink') || allowedColours.has('purple')))
+    )
+    if (!allAllowed) leaked.push(phrase)
+  }
+  return leaked
+}
+
+export function containsBaseColourSlotTerms(
+  text: string,
+  allowedColours: ReadonlySet<string> = new Set()
+): boolean {
+  return findLeakedColourSlotTerms(text, allowedColours).length > 0
+}
+
+const collectArchetypes = (
+  appointmentModel: AppointmentModelConfig | undefined
+): AppointmentArchetypeConfig[] =>
+  appointmentModel
+    ? [
+        appointmentModel.routineContinuityGp,
+        appointmentModel.routineGpPhone,
+        appointmentModel.gpTriage48h,
+        appointmentModel.urgentSameDayPhone,
+        appointmentModel.urgentSameDayF2F,
+        appointmentModel.otherClinicianDirect,
+      ].filter(Boolean)
+    : []
+
+/**
+ * Whether this surgery genuinely runs colour-coded slots. The structured
+ * questionnaire answer wins; otherwise look for explicit colour-slot phrases
+ * in the free-text fields where slot language plausibly lives. A bare mention
+ * of "slot" (e.g. "we have duty doctor slots") must NOT count.
+ */
+export function detectColourSlotUsage(profile: OnboardingProfileJson): boolean {
+  if (profile.urgentCareModel?.usesRedSlots === true) return true
+  const freeText = [
+    profile.urgentCareModel?.urgentSlotsDescription,
+    profile.urgentCareModel?.redSlotName,
+    profile.escalation?.urgentWording,
+    profile.team?.roleRoutingNotes,
+    profile.bookingRules?.mustNotBookDirectly,
+  ]
+    .filter((t): t is string => typeof t === 'string' && t.length > 0)
+    .join('\n')
+  return (freeText.match(COLOUR_SLOT_REGEX) || []).length > 0
+}
+
+/**
+ * Colours that may legitimately appear next to "slot" in this surgery's
+ * customised output: every colour when the surgery genuinely uses colour-coded
+ * slots, otherwise only colours appearing in their own local appointment names
+ * (e.g. an archetype named "Green Slot").
+ */
+export function getAllowedColourTerms(profile: OnboardingProfileJson): Set<string> {
+  const archetypes = collectArchetypes(profile.appointmentModel)
+  const hasEnabledArchetypes = archetypes.some((arch) => arch?.enabled)
+
+  if (!hasEnabledArchetypes && detectColourSlotUsage(profile)) {
+    return new Set<string>(ALL_SLOT_COLOURS)
+  }
+
+  const allowed = new Set<string>()
+  const localNames: string[] = []
+  for (const arch of archetypes) {
+    if (arch?.enabled && arch.localName) localNames.push(arch.localName)
+  }
+  for (const ca of profile.appointmentModel?.clinicianArchetypes || []) {
+    if (ca?.enabled && ca.localName) localNames.push(ca.localName)
+  }
+  for (const name of localNames) {
+    for (const colour of name.match(COLOUR_WORD_REGEX) || []) {
+      allowed.add(colour.toLowerCase())
+    }
+  }
+  if (profile.urgentCareModel?.usesRedSlots === true) allowed.add('red')
+  return allowed
 }
 
 /**
@@ -265,27 +380,51 @@ export async function customiseInstructions(
 
 IMPORTANT: If an archetype is not enabled, do not use its local name. Instead, fall back to the closest enabled archetype or use generic terminology that matches the surgery's style.`
 
+    // Base symptom content uses generic colour-coded slot names. Give the AI an
+    // explicit colour → local-name mapping so nothing is left to inference;
+    // disabled archetypes resolve via getFallbackArchetype, then neutral wording.
+    const archetypeDefaultNames: Record<string, string> = {
+      routineContinuityGp: 'routine continuity GP',
+      routineGpPhone: 'routine GP telephone',
+      gpTriage48h: 'GP triage (48h)',
+      urgentSameDayPhone: 'urgent same-day telephone',
+      urgentSameDayF2F: 'urgent same-day F2F',
+      otherClinicianDirect: 'specialist clinician',
+    }
+    const resolveColourTarget = (
+      preferredKey: keyof AppointmentModelConfig,
+      neutralWording: string
+    ): string => {
+      const key = getFallbackArchetype(preferredKey)
+      if (!key) return neutralWording
+      const archetype = appointmentModel[key] as AppointmentArchetypeConfig
+      return archetype.localName || archetypeDefaultNames[key as string] || neutralWording
+    }
+
+    const colourTranslationSection = `BASE COLOUR-SLOT TRANSLATION (MANDATORY):
+The base instructions you are rewriting use generic colour-coded slot names that do NOT belong to this surgery. You MUST replace EVERY occurrence — in the brief instruction, the full instructions, and any Important Notice — using this mapping:
+
+- "Green slot" → "${resolveColourTarget('routineContinuityGp', 'routine GP appointment with continuity')}"
+- "Pink/Purple slot" (also "pink slot" or "purple slot") → "${resolveColourTarget('gpTriage48h', 'GP telephone triage appointment within 48 hours')}"
+- "Orange slot" → "${resolveColourTarget('urgentSameDayF2F', 'urgent same-day face-to-face GP appointment')}"
+- "Red slot" (also "red telephone slot") → "${resolveColourTarget('urgentSameDayPhone', 'urgent same-day telephone consultation with the Duty Team')}"
+
+After rewriting, the words "green slot", "pink slot", "purple slot", "orange slot" and "red slot" must NOT appear anywhere in your output, unless that exact colour appears in this surgery's own local appointment names listed above.`
+
     appointmentModelInstruction = `APPOINTMENT TYPE MAPPING:
 This surgery has defined the following appointment types. You MUST use these local names and follow their usage rules:
 
 ${enabledArchetypes.join('\n\n')}${clinicianArchetypesSection}
 
-${appointmentSelectionRules}`
+${appointmentSelectionRules}
+
+${colourTranslationSection}`
   }
 
   // Fallback to colour-slot logic if appointmentModel is not configured
+  const usesColourSlots = detectColourSlotUsage(onboardingProfile)
   let colourSlotInstruction = ''
   if (!hasEnabledArchetypes) {
-    // Detect if surgery uses colour-coded slots
-    const profileText = JSON.stringify(onboardingProfile).toLowerCase()
-    const usesColourSlots =
-      profileText.includes('orange slot') ||
-      profileText.includes('red slot') ||
-      profileText.includes('pink/purple slot') ||
-      profileText.includes('pink slot') ||
-      profileText.includes('purple slot') ||
-      onboardingProfile.urgentCareModel.urgentSlotsDescription.toLowerCase().includes('slot')
-
     if (usesColourSlots) {
       colourSlotInstruction = `This surgery uses colour-coded urgent appointment types as described in their onboarding profile. You must keep and use these terms consistently with the profile, using the following semantic definitions:
 
@@ -365,8 +504,8 @@ CONTINUITY AND ESCALATION RULES:
   * The original instructions contain red-flags, OR
   * The onboarding profile specifically directs urgent use.
 - Never escalate non-urgent issues to Duty Team. Non-urgent cases should map to:
-  * Continuity GP (Green slot equivalent), OR
-  * 48h GP triage (Pink/Purple slot equivalent) if more suitable,
+  * Continuity GP, OR
+  * 48h GP triage if more suitable,
   * but NOT same-day urgent or Duty Team unless explicitly urgent.
 
 ROLE ROUTING NOTES:
@@ -387,7 +526,7 @@ ${appointmentWorkflowInstruction ? `${appointmentWorkflowInstruction}
 
 ` : ''}EMOJI ICONS:
 Where helpful, you may add small emoji icons at the start of lines or sections to act as visual anchors. ONLY use icons from this approved list:
-- ❗ for important warnings or high-risk "Red Slot" rules.
+- ❗ for important warnings or high-risk/urgent rules.
 - ➜ for clear action steps (e.g. booking rules, who to signpost to).
 - 💊 for Pharmacy / Pharmacy First related instructions.
 - 🧒 for child-specific rules (e.g. under 5s or paediatric advice).
@@ -445,48 +584,104 @@ IMPORTANT:
 
 Return ONLY the JSON object with ${hasNotice ? 'briefInstruction, instructionsHtml and highlightedText' : 'briefInstruction and instructionsHtml'} fields.`
 
-  // Call Azure OpenAI API via shared helper
-  const aiResponse = await callAzureOpenAI({
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    max_tokens: 4096,
-  })
+  // Call Azure OpenAI API via shared helper, parsing and validating the response.
+  // Reused by the colour-slot corrective retry below.
+  const callAndParse = async (messages: AzureOpenAIMessage[]) => {
+    const aiResponse = await callAzureOpenAI({ messages, max_tokens: 4096 })
+    const rawContent = aiResponse.content
 
-  const rawContent = aiResponse.content
+    const parsed = extractJson(rawContent)
+    if (!parsed) {
+      console.error('Failed to parse AI response as JSON:', rawContent.slice(0, 500))
+      throw new Error('Invalid AI response format')
+    }
 
-  let briefInstruction = ''
-  let instructionsHtml = ''
-  let highlightedText: string | undefined
-
-  const parsed = extractJson(rawContent)
-  if (parsed) {
-    briefInstruction = (parsed.briefInstruction as string) || baseSymptom.briefInstruction || ''
-    instructionsHtml = (parsed.instructionsHtml as string) || ''
+    const briefInstruction = (parsed.briefInstruction as string) || baseSymptom.briefInstruction || ''
+    const instructionsHtml = (parsed.instructionsHtml as string) || ''
     // Graceful fallback: a missing/invalid notice must never fail the symptom.
     // Ignore any value the model returns when the base had no notice.
+    let highlightedText: string | undefined
     if (hasNotice && typeof parsed.highlightedText === 'string') {
       const cleaned = stripHtmlToPlainText(parsed.highlightedText)
       if (cleaned) {
         highlightedText = cleaned
       }
     }
-  } else {
-    console.error('Failed to parse AI response as JSON:', rawContent.slice(0, 500))
-    throw new Error('Invalid AI response format')
+
+    if (!instructionsHtml) {
+      throw new Error('AI response missing instructionsHtml')
+    }
+
+    return {
+      briefInstruction,
+      instructionsHtml,
+      highlightedText,
+      rawContent,
+      model: aiResponse.model,
+      usage: aiResponse.usage,
+    }
   }
 
-  if (!instructionsHtml) {
-    throw new Error('AI response missing instructionsHtml')
+  const baseMessages: AzureOpenAIMessage[] = [
+    { role: 'system', content: systemPrompt },
+    { role: 'user', content: userPrompt },
+  ]
+
+  let attempt = await callAndParse(baseMessages)
+  let promptTokens = attempt.usage.prompt_tokens
+  let completionTokens = attempt.usage.completion_tokens
+  let totalTokens = attempt.usage.total_tokens
+
+  // Deterministic leak check: the AI must not echo base colour-slot terminology
+  // the surgery does not use. Surgeries genuinely running colour-coded slots get
+  // the full colour set from getAllowedColourTerms, so they are never retried.
+  const allowedColours = getAllowedColourTerms(onboardingProfile)
+  const collectLeaks = (output: typeof attempt): string[] => {
+    const all = [
+      ...findLeakedColourSlotTerms(output.briefInstruction, allowedColours),
+      ...findLeakedColourSlotTerms(output.instructionsHtml, allowedColours),
+      ...(output.highlightedText
+        ? findLeakedColourSlotTerms(output.highlightedText, allowedColours)
+        : []),
+    ]
+    return Array.from(new Set(all.map((t) => t.toLowerCase().replace(/\s+/g, ' ').trim())))
   }
 
-  const modelUsed = aiResponse.model
+  let residualColourTerms: string[] | undefined
+  let leakedTerms = collectLeaks(attempt)
+  if (leakedTerms.length > 0) {
+    const correctiveMessage =
+      `Your previous answer still contains base colour-slot terminology that this surgery does not use: ` +
+      `${leakedTerms.join(', ')}. Rewrite your answer replacing every one of these terms according to the ` +
+      `appointment type mapping in the instructions. Change nothing else. Return ONLY the same JSON object.`
+    try {
+      const retry = await callAndParse([
+        ...baseMessages,
+        { role: 'assistant', content: attempt.rawContent },
+        { role: 'user', content: correctiveMessage },
+      ])
+      promptTokens += retry.usage.prompt_tokens
+      completionTokens += retry.usage.completion_tokens
+      totalTokens += retry.usage.total_tokens
+      attempt = retry
+      leakedTerms = collectLeaks(retry)
+    } catch (retryError) {
+      // The retry must never lose a usable first answer — keep it and flag instead.
+      console.error('customiseInstructions: colour-slot corrective retry failed, keeping first response:', retryError)
+    }
+    if (leakedTerms.length > 0) {
+      console.warn(
+        `customiseInstructions: output still references base colour-slot terms after retry: ${leakedTerms.join(', ')}`
+      )
+      residualColourTerms = leakedTerms
+    }
+  }
+
+  const { briefInstruction, instructionsHtml, highlightedText } = attempt
+  const modelUsed = attempt.model
 
   // Log token usage (non-blocking)
   try {
-    const { prompt_tokens: promptTokens, completion_tokens: completionTokens, total_tokens: totalTokens } = aiResponse.usage
-
     const inputRate = parseFloat(process.env.AZURE_OPENAI_COST_INPUT_PER_1K_USD || '0')
     const outputRate = parseFloat(process.env.AZURE_OPENAI_COST_OUTPUT_PER_1K_USD || '0')
 
@@ -514,6 +709,7 @@ Return ONLY the JSON object with ${hasNotice ? 'briefInstruction, instructionsHt
     instructionsHtml,
     ...(highlightedText !== undefined ? { highlightedText } : {}),
     modelUsed,
+    ...(residualColourTerms ? { residualColourTerms } : {}),
   }
 }
 

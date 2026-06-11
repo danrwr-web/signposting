@@ -6,6 +6,7 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
+import { getSymptomSearchText } from '@/lib/symptomSearch'
 
 export interface EffectiveSymptom {
   id: string
@@ -23,6 +24,10 @@ export interface EffectiveSymptom {
   isHidden?: boolean // For overrides, indicates if symptom is hidden for this surgery
   disabled?: boolean // True if disabled for this surgery (only meaningful when includeDisabled is set)
   variants?: unknown | null // Optional variants JSON from BaseSymptom
+  // Plain-text search index derived from the displayed content. Computed
+  // server-side so search works even when rich content is omitted from the
+  // payload (the slim cached path used for the main page).
+  searchText?: string
 }
 
 const symptomTag = (surgeryId: string, includeDisabled: boolean) =>
@@ -33,6 +38,9 @@ type SymptomOptions = {
   includeRichContent?: boolean
 }
 
+// instructionsHtml is always selected (even for the slim payload) because the
+// search index must be derived from the displayed content; it is stripped from
+// the returned symptoms when rich content is not requested.
 const baseFields = (includeRichContent: boolean) => ({
   id: true,
   slug: true,
@@ -42,10 +50,10 @@ const baseFields = (includeRichContent: boolean) => ({
   highlightedText: true,
   instructions: true,
   linkToPage: true,
+  instructionsHtml: true,
   ...(includeRichContent
     ? {
         instructionsJson: true,
-        instructionsHtml: true,
         variants: true as any
       }
     : {})
@@ -60,10 +68,10 @@ const overrideFields = (includeRichContent: boolean) => ({
   instructions: true,
   linkToPage: true,
   isHidden: true,
+  instructionsHtml: true,
   ...(includeRichContent
     ? {
-        instructionsJson: true,
-        instructionsHtml: true
+        instructionsJson: true
       }
     : {})
 })
@@ -77,10 +85,10 @@ const customFields = (includeRichContent: boolean) => ({
   highlightedText: true,
   instructions: true,
   linkToPage: true,
+  instructionsHtml: true,
   ...(includeRichContent
     ? {
-        instructionsJson: true,
-        instructionsHtml: true
+        instructionsJson: true
       }
     : {})
 })
@@ -125,7 +133,7 @@ async function buildEffectiveSymptoms(
         source: 'base' as const,
         disabled: disabledBaseIds.has(b.id),
         instructionsJson: includeRichContent ? (b as any).instructionsJson ?? null : null,
-        instructionsHtml: includeRichContent ? (b as any).instructionsHtml ?? null : null,
+        instructionsHtml: (b as any).instructionsHtml ?? null,
         variants: includeRichContent ? (b as any).variants ?? null : null
       }
     ])
@@ -155,7 +163,7 @@ async function buildEffectiveSymptoms(
       instructions: o.instructions == null ? b.instructions : o.instructions,
       linkToPage: (o.linkToPage && o.linkToPage.trim() !== '') ? o.linkToPage : b.linkToPage,
       instructionsJson: includeRichContent ? ((o as any).instructionsJson == null ? ((b as any).instructionsJson ?? null) : (o as any).instructionsJson) : null,
-      instructionsHtml: includeRichContent ? ((o as any).instructionsHtml == null ? ((b as any).instructionsHtml ?? null) : (o as any).instructionsHtml) : null,
+      instructionsHtml: (o as any).instructionsHtml == null ? ((b as any).instructionsHtml ?? null) : (o as any).instructionsHtml,
       source: 'override' as const,
       baseSymptomId: b.id,
       isHidden: o.isHidden,
@@ -181,10 +189,17 @@ async function buildEffectiveSymptoms(
     source: 'custom' as const,
     disabled: disabledCustomIds.has(c.id),
     instructionsJson: includeRichContent ? (c as any).instructionsJson ?? null : null,
-    instructionsHtml: includeRichContent ? (c as any).instructionsHtml ?? null : null
+    instructionsHtml: (c as any).instructionsHtml ?? null
   }))
-  
-  return [...effective, ...customsProjected]
+
+  // Compute the search index from the effective (merged) content, then strip
+  // the HTML from the slim payload — search must reflect what is displayed
+  // even when rich content is not shipped to the client.
+  return [...effective, ...customsProjected].map(symptom => ({
+    ...symptom,
+    searchText: getSymptomSearchText(symptom),
+    ...(includeRichContent ? {} : { instructionsHtml: null })
+  }))
 }
 
 export async function getEffectiveSymptoms(
@@ -200,7 +215,8 @@ export async function getCachedEffectiveSymptoms(
 ): Promise<EffectiveSymptom[]> {
   const cached = unstable_cache(
     async () => buildEffectiveSymptoms(surgeryId, { includeDisabled, includeRichContent: false }),
-    ['effective-symptoms', surgeryId, includeDisabled ? 'with-disabled' : 'enabled'],
+    // v2: payload gained searchText — keep old cache entries from being served
+    ['effective-symptoms-v2', surgeryId, includeDisabled ? 'with-disabled' : 'enabled'],
     {
       revalidate: 300,
       tags: ['symptoms', symptomTag(surgeryId, includeDisabled)]

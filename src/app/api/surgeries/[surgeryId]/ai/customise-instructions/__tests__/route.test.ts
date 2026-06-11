@@ -590,6 +590,99 @@ describe('POST /api/surgeries/[surgeryId]/ai/customise-instructions', () => {
     })
   })
 
+  it('saves but flags symptoms whose output still references base colour-slot terms', async () => {
+    mockedRequireSurgeryAdmin.mockResolvedValueOnce(mockUser)
+    mockedFindUnique.mockResolvedValueOnce({
+      id: 'surgery-1',
+      name: 'Test Surgery',
+      onboardingProfile: {
+        completed: true,
+        completedAt: new Date(),
+        profileJson: {
+          surgeryName: 'Test Surgery',
+          urgentCareModel: {
+            hasDutyDoctor: true,
+            dutyDoctorTerm: 'Duty GP',
+            usesRedSlots: false,
+            urgentSlotsDescription: '',
+          },
+        },
+      },
+      surgeryFeatureFlags: [
+        {
+          feature: { key: 'ai_surgery_customisation' },
+          enabled: true,
+        },
+      ],
+    } as any)
+
+    mockedGetEffectiveSymptoms.mockResolvedValueOnce([
+      {
+        id: 'symptom-1',
+        baseSymptomId: 'symptom-1',
+        name: 'Test Symptom',
+        ageGroup: 'Adult',
+        briefInstruction: 'Test brief',
+        instructionsHtml: '<p>Test instructions</p>',
+        source: 'base' as const,
+      },
+    ])
+
+    const mockedBaseSymptomFindUnique = prisma.baseSymptom.findUnique as jest.MockedFunction<
+      typeof prisma.baseSymptom.findUnique
+    >
+    mockedBaseSymptomFindUnique.mockResolvedValueOnce({
+      id: 'symptom-1',
+      name: 'Test Symptom',
+      ageGroup: 'Adult',
+      briefInstruction: 'Test brief',
+      instructionsHtml: '<p>Test instructions</p>',
+    } as any)
+
+    const mockedOverrideFindUnique = prisma.surgerySymptomOverride.findUnique as jest.MockedFunction<
+      typeof prisma.surgerySymptomOverride.findUnique
+    >
+    mockedOverrideFindUnique.mockResolvedValueOnce(null)
+
+    mockedCustomiseInstructions.mockResolvedValueOnce({
+      briefInstruction: 'Customised brief',
+      instructionsHtml: '<p>Use the orange slot</p>',
+      modelUsed: 'gpt-4o-mini',
+      residualColourTerms: ['orange slot'],
+    })
+
+    mockedUpsertOverride.mockResolvedValueOnce({} as any)
+    mockedCreateHistory.mockResolvedValueOnce({} as any)
+    mockedUpsertReviewStatus.mockResolvedValueOnce({} as any)
+
+    const request = createRequest({ scope: 'core' })
+    const params = Promise.resolve({ surgeryId: 'surgery-1' })
+
+    const response = await POST(request, { params })
+    const json = await response.json()
+
+    expect(response.status).toBe(200)
+    // The symptom is saved, not skipped — clinical review is the safety net
+    expect(json.processedCount).toBe(1)
+    expect(json.skippedCount).toBe(0)
+    expect(json.warnings).toEqual([
+      {
+        symptomId: 'symptom-1',
+        reason: 'Output may still reference base colour-slot terminology: orange slot',
+      },
+    ])
+    expect(mockedUpsertOverride).toHaveBeenCalled()
+
+    const expectedNote =
+      'AI customisation based on onboarding profile – pending clinical review. WARNING: output may still reference base colour-slot terminology (orange slot) – check appointment names.'
+    expect(mockedUpsertReviewStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ status: 'PENDING', reviewNote: expectedNote }),
+        update: expect.objectContaining({ status: 'PENDING', reviewNote: expectedNote }),
+      })
+    )
+  })
+
   it('skips symptoms with no content to customise', async () => {
     mockedRequireSurgeryAdmin.mockResolvedValueOnce(mockUser)
     mockedFindUnique.mockResolvedValueOnce({
