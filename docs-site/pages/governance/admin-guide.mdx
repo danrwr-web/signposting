@@ -61,6 +61,8 @@ Each symptom has a review status per surgery:
 - **Approved** — Reviewed and approved by a clinician. Fully available to staff.
 - **Changes Required** — Reviewer has flagged issues. Needs correction before re-review.
 
+While any symptoms are Pending or have Changes Required, a notice appears on the signposting home page for all users (including admins): a prominent warning banner when five or more symptoms are awaiting review, or a subtler one-line note showing the count when fewer are waiting. The notice disappears once everything is approved.
+
 ### Submitting for Review
 
 When you create or edit a symptom (custom or override), it automatically enters **Pending** status if clinical review is enabled for your surgery (controlled by the `requiresClinicalReview` setting).
@@ -262,7 +264,7 @@ Several surgery-wide settings control how the toolkit behaves for your practice.
 
 ### Clinical Review
 
-- **`requiresClinicalReview`** — When enabled (default), all new and edited symptoms enter Pending review status. When disabled, symptoms go live immediately.
+- **`requiresClinicalReview`** — When enabled (default), all new and edited symptoms enter Pending review status. When disabled, symptoms go live immediately. While items remain pending, the home-page review notice is shown to all roles — prominent at five or more pending symptoms, a smaller count-based note below that.
 
 ### Visual Features
 

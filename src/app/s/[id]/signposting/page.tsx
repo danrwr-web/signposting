@@ -2,6 +2,7 @@ import { requireSurgeryAccess } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { countPendingClinicalReviews } from '@/server/clinicalReview'
 import HomePageClient from '@/app/HomePageClient'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
 
@@ -30,7 +31,6 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
         id: true,
         name: true,
         slug: true,
-        requiresClinicalReview: true,
         uiConfig: true,
       }
     })
@@ -46,6 +46,8 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
 
     const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
+    const pendingClinicalReviewCount = await countPendingClinicalReviews(surgeryId, symptoms)
+
     const commonReasonsItems = getCommonReasonsForSurgery(
       surgery.uiConfig as UiConfig | null,
       symptoms
@@ -55,7 +57,7 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
       <HomePageClient
         surgeries={surgeries}
         symptoms={symptoms}
-        requiresClinicalReview={surgery.requiresClinicalReview}
+        pendingClinicalReviewCount={pendingClinicalReviewCount}
         surgeryName={surgery.name}
         surgeryId={surgeryId}
         commonReasonsItems={commonReasonsItems}

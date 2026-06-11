@@ -21,6 +21,20 @@ export function getReviewStatusForSymptom(
   return statusMap.get(keyExact) || statusMap.get(keyLegacyNull) || null
 }
 
+/**
+ * Number of pending-review symptoms at which the front-page notice switches
+ * from the subtle one-line note to the prominent warning banner.
+ */
+export const CLINICAL_REVIEW_PROMINENT_THRESHOLD = 5
+
+export type ClinicalReviewNoticeTier = 'none' | 'subtle' | 'prominent'
+
+export function getClinicalReviewNoticeTier(pendingCount: number): ClinicalReviewNoticeTier {
+  if (pendingCount <= 0) return 'none'
+  if (pendingCount >= CLINICAL_REVIEW_PROMINENT_THRESHOLD) return 'prominent'
+  return 'subtle'
+}
+
 export function computeClinicalReviewCounts(
   symptoms: Array<Pick<EffectiveSymptom, 'id' | 'ageGroup'>>,
   statusMap: Map<string, ClinicalReviewStatusLike>

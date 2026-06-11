@@ -2,6 +2,7 @@ import { requireSurgeryAccess, can } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { countPendingClinicalReviews } from '@/server/clinicalReview'
 import HomePageClient from '@/app/HomePageClient'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
 
@@ -35,14 +36,13 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       }
     }
 
-    // Get surgery details including clinical review status and UI config
+    // Get surgery details including UI config
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
       select: {
         id: true,
         name: true,
         slug: true,
-        requiresClinicalReview: true,
         uiConfig: true,
       }
     })
@@ -60,6 +60,8 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
     // Get effective symptoms for this surgery (base + overrides + enabled custom)
     const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
+    const pendingClinicalReviewCount = await countPendingClinicalReviews(surgeryId, symptoms)
+
     // Get common reasons from config or fallback
     const commonReasonsItems = getCommonReasonsForSurgery(
       surgery.uiConfig as UiConfig | null,
@@ -70,7 +72,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
       <HomePageClient
         surgeries={surgeries}
         symptoms={symptoms}
-        requiresClinicalReview={surgery.requiresClinicalReview}
+        pendingClinicalReviewCount={pendingClinicalReviewCount}
         surgeryName={surgery.name}
         surgeryId={surgeryId}
         commonReasonsItems={commonReasonsItems}
