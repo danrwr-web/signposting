@@ -275,6 +275,14 @@ import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertB
 
 Test files are excluded from the TypeScript compilation (`tsconfig.json` excludes `**/*.test.ts`, `**/__tests__/**`).
 
+### Running tests efficiently
+
+For localised changes, run only the relevant suites instead of the full run — e.g. `npx jest src/server/__tests__/surgerySetupFlags.test.ts`. The full suite is slow on a cold transform cache (fresh containers/CI); in CPU-constrained environments add `--maxWorkers=2`.
+
+Known full-suite issues (as of June 2026):
+- `src/context/__tests__/SurgeryContext.test.tsx` can spin indefinitely (render loop in `SurgeryProvider`'s mount effect) — exclude it with `npx jest --testPathIgnorePatterns SurgeryContext` if the run hangs.
+- Pre-existing failures unrelated to most changes: `src/app/help/__tests__/page.test.tsx` (page now redirects to external docs), `CompactToolbar.test.tsx` and `AdminDashboardClient.test.tsx` (missing `NavigationPanelProvider` wrapper), and `src/app/api/symptoms/__tests__/route.test.ts`. Don't chase these unless your change touches those areas.
+
 ## Build & Deployment
 
 - **Hosting**: Vercel (serverless Node.js functions)
