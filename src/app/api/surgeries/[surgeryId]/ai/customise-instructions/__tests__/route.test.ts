@@ -841,6 +841,46 @@ describe('POST /api/surgeries/[surgeryId]/ai/customise-instructions', () => {
       })
     })
 
+    it('respects an explicitly blanked override notice: hides it from the AI and never writes one back', async () => {
+      const baseNotice = 'EMERGENCY CARE: use the pink/purple/red telephone slot'
+      setupBaseSymptomRun(baseNotice)
+      // The surgery has deliberately hidden the banner on their override
+      mockedOverrideFindUnique.mockReset()
+      mockedOverrideFindUnique.mockResolvedValueOnce({
+        id: 'override-1',
+        surgeryId: 'surgery-1',
+        baseSymptomId: 'symptom-1',
+        highlightedText: '',
+      } as any)
+      mockedCustomiseInstructions.mockResolvedValueOnce({
+        briefInstruction: 'Customised brief',
+        instructionsHtml: '<p>Customised instructions</p>',
+        highlightedText: 'EMERGENCY CARE: call the Duty GP line',
+        modelUsed: 'gpt-4o-mini',
+      })
+
+      const { response, json } = await runPost()
+
+      expect(response.status).toBe(200)
+      expect(json.processedCount).toBe(1)
+      // The AI must not be shown the hidden notice
+      expect(mockedCustomiseInstructions).toHaveBeenCalledWith(
+        expect.objectContaining({ highlightedText: null }),
+        expect.anything(),
+        'admin@example.com'
+      )
+      // The blanked override value must be left untouched
+      const upsertArgs = mockedUpsertOverride.mock.calls[0][0]
+      expect(Object.keys(upsertArgs.create)).not.toContain('highlightedText')
+      expect(Object.keys(upsertArgs.update)).not.toContain('highlightedText')
+      expect(mockedCreateHistory).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          previousHighlightedText: null,
+          newHighlightedText: null,
+        }),
+      })
+    })
+
     it('writes the customised notice on the custom-symptom path', async () => {
       const baseNotice = 'EMERGENCY CARE: use the red telephone slot'
       const newNotice = 'EMERGENCY CARE: call the Duty GP line'
