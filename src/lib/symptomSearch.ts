@@ -15,6 +15,9 @@ export interface SearchableSymptomFields {
   briefInstruction?: string | null
   instructions?: string | null
   instructionsHtml?: string | null
+  // Precomputed server-side by buildEffectiveSymptoms; present on slim payloads
+  // where instructionsHtml is omitted. Takes precedence when set.
+  searchText?: string | null
 }
 
 /**
@@ -39,6 +42,9 @@ export function stripHtmlForSearch(html: string): string {
  * instruction, and the instructions the user would actually be shown.
  */
 export function getSymptomSearchText(symptom: SearchableSymptomFields): string {
+  if (symptom.searchText?.trim()) {
+    return symptom.searchText.toLowerCase()
+  }
   const displayedInstructions = symptom.instructionsHtml?.trim()
     ? stripHtmlForSearch(symptom.instructionsHtml)
     : symptom.instructions || ''

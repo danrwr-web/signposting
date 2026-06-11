@@ -106,6 +106,8 @@ export const EffectiveSymptomZ = z.object({
   variants: z.any().nullable().optional(),
   source: z.enum(['base', 'override', 'custom']),
   baseSymptomId: z.string().optional(),
+  // Server-computed plain-text search index (see src/lib/symptomSearch.ts)
+  searchText: z.string().optional(),
 });
 
 export const GetEffectiveSymptomsResZ = z.object({

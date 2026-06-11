@@ -82,4 +82,16 @@ describe('symptomMatchesSearch', () => {
   it('is case-insensitive and trims the query', () => {
     expect(symptomMatchesSearch(symptom(), '  CHEST  ')).toBe(true)
   })
+
+  it('prefers a precomputed searchText over deriving from other fields', () => {
+    // Slim payloads omit instructionsHtml; the server precomputes searchText
+    // from the displayed content so stale legacy markdown is never matched.
+    const s = symptom({
+      searchText: 'chest pain route to a&e via ambulance',
+      instructions: 'Possible cardiac event',
+      instructionsHtml: null,
+    })
+    expect(symptomMatchesSearch(s, 'ambulance')).toBe(true)
+    expect(symptomMatchesSearch(s, 'cardiac')).toBe(false)
+  })
 })

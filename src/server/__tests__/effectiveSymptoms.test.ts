@@ -1,5 +1,6 @@
 import {
   getEffectiveSymptoms,
+  getCachedEffectiveSymptoms,
   getEffectiveSymptomById,
   getEffectiveSymptomBySlug,
   getEffectiveSymptomByName,
@@ -88,6 +89,51 @@ describe('effectiveSymptoms tri-state briefInstruction merge', () => {
       const result = await getEffectiveSymptoms('surgery-imperial')
       expect(result[0].briefInstruction).toBe('Pink/Purple telephone slot')
       expect(result[0].source).toBe('base')
+    })
+  })
+
+  describe('searchText computation', () => {
+    const setup = (override: any) => {
+      ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        [baseGout],
+        override ? [override] : [],
+        [],
+        [],
+      ])
+    }
+
+    it('derives searchText from the override HTML, not the inherited base markdown', async () => {
+      setup({
+        ...overrideRow(null),
+        instructionsHtml: '<p>Refer to the <strong>community pharmacist</strong></p>',
+      })
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].searchText).toContain('community pharmacist')
+      // Effective legacy markdown is inherited base content ('Base instructions');
+      // it must not appear in the search index when override HTML is displayed.
+      expect(result[0].searchText).not.toContain('base instructions')
+    })
+
+    it('slim cached payload omits instructionsHtml but keeps a searchText built from it', async () => {
+      setup({
+        ...overrideRow(null),
+        instructionsHtml: '<p>Refer to the <strong>community pharmacist</strong></p>',
+      })
+      const result = await getCachedEffectiveSymptoms('surgery-imperial')
+      expect(result[0].instructionsHtml).toBeNull()
+      expect(result[0].searchText).toContain('community pharmacist')
+      expect(result[0].searchText).not.toContain('base instructions')
+    })
+
+    it('falls back to legacy markdown in searchText when no HTML exists anywhere', async () => {
+      ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        [{ ...baseGout, instructionsHtml: null }],
+        [],
+        [],
+        [],
+      ])
+      const result = await getCachedEffectiveSymptoms('surgery-imperial')
+      expect(result[0].searchText).toContain('base instructions')
     })
   })
 
