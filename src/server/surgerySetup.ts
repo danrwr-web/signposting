@@ -4,6 +4,7 @@ import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinicalReviewCounts'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import type { AppointmentModelConfig } from '@/lib/api-contracts'
+import type { SurgeryType } from '@prisma/client'
 
 export const HEALTH_WINDOW_DAYS = 30
 
@@ -38,6 +39,7 @@ export type SurgeryStage = 'not_started' | 'in_progress' | 'nearly_there' | 'liv
 export type SurgerySetupSnapshot = {
   surgeryId: string
   surgeryName: string
+  surgeryType: SurgeryType
   createdAt: Date
   requiresClinicalReview: boolean
   onboardingCompleted: boolean
@@ -269,6 +271,7 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
   return {
     surgeryId,
     surgeryName: surgery.name,
+    surgeryType: surgery.surgeryType,
     createdAt: surgery.createdAt,
     requiresClinicalReview: surgery.requiresClinicalReview,
     onboardingCompleted,
@@ -294,6 +297,7 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
 type SurgeryRowForBatch = {
   id: string
   name: string
+  surgeryType: SurgeryType
   createdAt: Date
   requiresClinicalReview: boolean
   enableDefaultHighRisk: boolean
@@ -328,6 +332,7 @@ export async function computeSurgerySetupSnapshotsBatch(
     select: {
       id: true,
       name: true,
+      surgeryType: true,
       createdAt: true,
       requiresClinicalReview: true,
       enableDefaultHighRisk: true,
@@ -539,6 +544,7 @@ export async function computeSurgerySetupSnapshotsBatch(
     return {
       surgeryId: s.id,
       surgeryName: s.name,
+      surgeryType: s.surgeryType,
       createdAt: s.createdAt,
       requiresClinicalReview: s.requiresClinicalReview,
       onboardingCompleted,

@@ -77,6 +77,12 @@ model UserSurgery {
 
 // AgeGroup values: 'U5' | 'O5' | 'Adult'
 
+enum SurgeryType {
+  LIVE
+  TEST
+  GLOBAL_DEFAULT
+}
+
 model Surgery {
   id            String   @id @default(cuid())
   name          String   @unique
@@ -97,6 +103,7 @@ model Surgery {
   lastClinicalReviewer   User?     @relation("ClinicalReviews", fields: [lastClinicalReviewerId], references: [id])
 
   // Config
+  surgeryType                      SurgeryType                       @default(LIVE) // LIVE practice, TEST surgery, or the GLOBAL_DEFAULT template
   enableDefaultHighRisk            Boolean                           @default(true) // Enable/disable default high-risk buttons
   enableBuiltInHighlights          Boolean                           @default(true) // Enable/disable built-in highlight rules
   enableImageIcons                 Boolean                           @default(true) // Enable/disable image icons on symptom cards

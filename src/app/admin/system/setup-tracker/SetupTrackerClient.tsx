@@ -9,6 +9,7 @@ import type { SetupFlag } from '@/server/surgerySetupFlags'
 export type TrackerRow = {
   id: string
   name: string
+  surgeryType: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT'
   createdAt: string
   stage: 'not_started' | 'in_progress' | 'nearly_there' | 'live'
   essentialCount: number
@@ -87,32 +88,40 @@ export default function SetupTrackerClient({ rows, windowDays, generatedAt }: Se
   const [selectedStages, setSelectedStages] = useState<Set<TrackerRow['stage']>>(new Set(ALL_STAGES))
   const [onlyFlagged, setOnlyFlagged] = useState(false)
   const [onlyCritical, setOnlyCritical] = useState(false)
+  const [showTestSurgeries, setShowTestSurgeries] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>('flags')
   const [sortDesc, setSortDesc] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
+  // Test/template surgeries are excluded from the list and summary stats unless revealed.
+  const visibleRows = useMemo(
+    () => (showTestSurgeries ? rows : rows.filter(r => r.surgeryType === 'LIVE')),
+    [rows, showTestSurgeries],
+  )
+  const hiddenCount = rows.length - visibleRows.length
+
   const totals = useMemo(() => {
     return {
-      total: rows.length,
-      notStarted: rows.filter(r => r.stage === 'not_started').length,
-      inProgress: rows.filter(r => r.stage === 'in_progress').length,
-      nearlyThere: rows.filter(r => r.stage === 'nearly_there').length,
-      live: rows.filter(r => r.stage === 'live').length,
-      withFlags: rows.filter(r => r.flags.length > 0).length,
-      withCritical: rows.filter(r => countCritical(r.flags) > 0).length,
+      total: visibleRows.length,
+      notStarted: visibleRows.filter(r => r.stage === 'not_started').length,
+      inProgress: visibleRows.filter(r => r.stage === 'in_progress').length,
+      nearlyThere: visibleRows.filter(r => r.stage === 'nearly_there').length,
+      live: visibleRows.filter(r => r.stage === 'live').length,
+      withFlags: visibleRows.filter(r => r.flags.length > 0).length,
+      withCritical: visibleRows.filter(r => countCritical(r.flags) > 0).length,
     }
-  }, [rows])
+  }, [visibleRows])
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase()
-    return rows.filter(r => {
+    return visibleRows.filter(r => {
       if (needle && !r.name.toLowerCase().includes(needle)) return false
       if (!selectedStages.has(r.stage)) return false
       if (onlyFlagged && r.flags.length === 0) return false
       if (onlyCritical && countCritical(r.flags) === 0) return false
       return true
     })
-  }, [rows, search, selectedStages, onlyFlagged, onlyCritical])
+  }, [visibleRows, search, selectedStages, onlyFlagged, onlyCritical])
 
   const sorted = useMemo(() => {
     const copy = [...filtered]
@@ -248,6 +257,13 @@ export default function SetupTrackerClient({ rows, windowDays, generatedAt }: Se
               <input type="checkbox" checked={onlyCritical} onChange={e => setOnlyCritical(e.target.checked)} />
               Only critical
             </label>
+            <label className="flex items-center gap-2 text-sm text-nhs-grey">
+              <input type="checkbox" checked={showTestSurgeries} onChange={e => setShowTestSurgeries(e.target.checked)} />
+              Show test surgeries
+              {!showTestSurgeries && hiddenCount > 0 && (
+                <span className="text-xs text-nhs-grey">({hiddenCount} hidden)</span>
+              )}
+            </label>
           </div>
         </Card>
 
@@ -290,6 +306,12 @@ export default function SetupTrackerClient({ rows, windowDays, generatedAt }: Se
                           >
                             {row.name}
                           </button>
+                          {row.surgeryType === 'TEST' && (
+                            <Badge color="amber" size="sm" className="ml-2">TEST</Badge>
+                          )}
+                          {row.surgeryType === 'GLOBAL_DEFAULT' && (
+                            <Badge color="purple" size="sm" className="ml-2">Template</Badge>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <Badge color={STAGE_COLOR[row.stage]}>{STAGE_LABEL[row.stage]}</Badge>
