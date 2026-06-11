@@ -1,4 +1,9 @@
-import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinicalReviewCounts'
+import {
+  computeClinicalReviewCounts,
+  getClinicalReviewKey,
+  getClinicalReviewNoticeTier,
+  CLINICAL_REVIEW_PROMINENT_THRESHOLD,
+} from '@/lib/clinicalReviewCounts'
 
 describe('computeClinicalReviewCounts', () => {
   it('partitions symptoms so pending+approved+changesRequested == all', () => {
@@ -25,6 +30,23 @@ describe('computeClinicalReviewCounts', () => {
     expect(counts.approved).toBe(1)
     expect(counts.changesRequested).toBe(1)
     expect(counts.pending).toBe(2)
+  })
+})
+
+describe('getClinicalReviewNoticeTier', () => {
+  it('returns none for zero or negative counts', () => {
+    expect(getClinicalReviewNoticeTier(0)).toBe('none')
+    expect(getClinicalReviewNoticeTier(-1)).toBe('none')
+  })
+
+  it('returns subtle below the prominent threshold', () => {
+    expect(getClinicalReviewNoticeTier(1)).toBe('subtle')
+    expect(getClinicalReviewNoticeTier(CLINICAL_REVIEW_PROMINENT_THRESHOLD - 1)).toBe('subtle')
+  })
+
+  it('returns prominent at and above the threshold', () => {
+    expect(getClinicalReviewNoticeTier(CLINICAL_REVIEW_PROMINENT_THRESHOLD)).toBe('prominent')
+    expect(getClinicalReviewNoticeTier(50)).toBe('prominent')
   })
 })
 

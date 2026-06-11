@@ -1,6 +1,7 @@
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { countPendingClinicalReviews } from '@/server/clinicalReview'
 import SurgeryDashboardClient from './SurgeryDashboardClient'
 
 interface SurgeryDashboardPageProps {
@@ -15,7 +16,7 @@ export default async function SurgeryDashboardPage({ params }: SurgeryDashboardP
   try {
     const user = await requireSurgeryAccess(surgeryId)
 
-    const [surgery, onboarding] = await Promise.all([
+    const [surgery, onboarding, pendingClinicalReviewCount] = await Promise.all([
       prisma.surgery.findUnique({
         where: { id: surgeryId },
         select: {
@@ -23,7 +24,6 @@ export default async function SurgeryDashboardPage({ params }: SurgeryDashboardP
           name: true,
           slug: true,
           createdAt: true,
-          requiresClinicalReview: true,
           _count: { select: { users: true } },
         },
       }),
@@ -31,6 +31,7 @@ export default async function SurgeryDashboardPage({ params }: SurgeryDashboardP
         where: { surgeryId },
         select: { completed: true },
       }),
+      countPendingClinicalReviews(surgeryId),
     ])
 
     if (!surgery) {
@@ -49,6 +50,7 @@ export default async function SurgeryDashboardPage({ params }: SurgeryDashboardP
         surgery={surgery}
         user={user}
         setupComplete={setupComplete}
+        pendingClinicalReviewCount={pendingClinicalReviewCount}
       />
     )
   } catch (error) {
