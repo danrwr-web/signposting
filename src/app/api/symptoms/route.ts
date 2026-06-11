@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 import { checkTestUserUsageLimit } from '@/lib/test-user-limits'
+import { symptomMatchesSearch } from '@/lib/symptomSearch'
 import { unstable_noStore as noStore } from 'next/cache'
 
 export const runtime = 'nodejs'
@@ -92,11 +93,11 @@ export async function GET(req: NextRequest) {
     }
     
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filteredSymptoms = filteredSymptoms.filter(symptom => 
-        symptom.name.toLowerCase().includes(query) ||
-        (symptom.briefInstruction && symptom.briefInstruction.toLowerCase().includes(query)) ||
-        (symptom.instructions && symptom.instructions.toLowerCase().includes(query))
+      // Match against the content the user is actually shown (stripped
+      // instructionsHtml, falling back to legacy markdown), not the raw
+      // legacy `instructions` field, which overrides never update.
+      filteredSymptoms = filteredSymptoms.filter(symptom =>
+        symptomMatchesSearch(symptom, searchQuery)
       )
     }
     

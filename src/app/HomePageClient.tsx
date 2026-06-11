@@ -9,6 +9,7 @@ import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 import type { SelectorSurgery } from '@/components/SurgerySelector'
 import { useSurgery } from '@/context/SurgeryContext'
 import { SymptomChangeInfo, CardData } from '@/components/SymptomCard'
+import { getSymptomSearchText } from '@/lib/symptomSearch'
 import { SkeletonCardGrid } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -184,14 +185,18 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
     localStorage.setItem('selectedAge', selectedAge)
   }, [selectedAge])
 
-  // Filter symptoms based on search, age group, and letter with useMemo for performance
+  // Filter symptoms based on search, age group, and letter with useMemo for performance.
+  // Search text is derived from the content the user is actually shown (stripped
+  // instructionsHtml, falling back to legacy markdown) — see getSymptomSearchText.
   const lowerSearch = useMemo(() => deferredSearchTerm.trim().toLowerCase(), [deferredSearchTerm])
+  const searchTextBySymptom = useMemo(
+    () => new Map(symptoms.map(symptom => [symptom, getSymptomSearchText(symptom)])),
+    [symptoms]
+  )
   const filteredSymptoms = useMemo(() => {
     return symptoms.filter(symptom => {
-      const matchesSearch = !lowerSearch || 
-        symptom.name.toLowerCase().includes(lowerSearch) ||
-        (symptom.briefInstruction && symptom.briefInstruction.toLowerCase().includes(lowerSearch)) ||
-        (symptom.instructions && symptom.instructions.toLowerCase().includes(lowerSearch))
+      const matchesSearch = !lowerSearch ||
+        (searchTextBySymptom.get(symptom) ?? '').includes(lowerSearch)
       
       // Age filtering based on ageGroup field
       const matchesAge = deferredSelectedAge === 'All' || (() => {
@@ -212,7 +217,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, requiresC
       
       return matchesSearch && matchesAge && matchesLetter
     })
-  }, [symptoms, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
+  }, [symptoms, searchTextBySymptom, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
 
   const renderSkeletonGrid = () => (
     <SkeletonCardGrid count={8} lines={3} />
