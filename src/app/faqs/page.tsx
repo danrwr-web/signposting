@@ -170,7 +170,7 @@ export default function FAQsPage() {
         </div>
 
         <section className="mt-12">
-          <div className="rounded-2xl border border-gray-100 bg-gradient-to-br from-slate-50 to-white p-8 shadow-sm">
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-8 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900">Still have questions?</h2>
             <p className="mt-3 text-gray-600">Get in touch and we&apos;ll be happy to help.</p>
             <p className="mt-4">

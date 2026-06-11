@@ -20,11 +20,11 @@ export default function InsideThePlatformClient() {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl leading-tight tracking-tight mb-6">
-              Inside the <span className="text-gradient-blue">platform</span>
+              Inside the <span className="text-nhs-blue">platform</span>
             </h1>
             <p className="text-xl text-gray-600 mt-6 max-w-3xl mx-auto leading-relaxed">
-              The Signposting Toolkit is designed to feel calm, familiar, and predictable for busy practice teams.
-              The examples below show how the platform supports day-to-day work without overwhelming staff or replacing human judgement.
+              The examples below show how the platform supports day-to-day work for busy practice teams
+              without overwhelming staff or replacing human judgement.
             </p>
           </div>
         </div>
