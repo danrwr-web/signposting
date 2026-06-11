@@ -314,6 +314,10 @@ export const CustomiseScopeZ = z.enum(['all', 'core', 'manual']);
 export const CustomiseInstructionsReqZ = z.object({
   scope: CustomiseScopeZ,
   symptomIds: z.array(z.string()).optional(), // required if scope === "manual"
+  // When true, each symptom is re-checked server-side immediately before
+  // processing and skipped if its content has been edited by a human
+  // (see isSymptomSafeToRerun) — used by the superuser smart re-run.
+  skipHumanEdited: z.boolean().optional(),
 }).refine(
   (data) => {
     if (data.scope === 'manual') {

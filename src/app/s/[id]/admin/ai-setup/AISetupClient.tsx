@@ -16,13 +16,30 @@ interface AISetupClientProps {
   user: SessionUser
 }
 
-type CustomiseScope = 'all' | 'core' | 'manual'
+type CustomiseScope = 'all' | 'core' | 'manual' | 'smart'
 
 interface CustomiseInstructionsResponse {
   processedCount: number
   skippedCount: number
   message: string
   skippedDetails?: Array<{ symptomId: string; reason?: string }>
+}
+
+interface AiRerunPlanItem {
+  id: string
+  name: string
+  ageGroup: string
+  source: 'base' | 'override' | 'custom'
+  classification: 'never-customised' | 'ai-customised' | 'human-edited'
+  safeToRerun: boolean
+  lastEditedBy?: string | null
+  lastEditedAt?: string | null
+}
+
+interface AiRerunPlan {
+  items: AiRerunPlanItem[]
+  safeCount: number
+  skippedCount: number
 }
 
 const APPOINTMENT_ARCHETYPE_LABELS: Record<Exclude<keyof AppointmentModelConfig, 'clinicianArchetypes'>, string> = {
@@ -62,13 +79,41 @@ export default function AISetupClient({
     message: string
     skippedDetails?: Array<{ symptomId: string; reason?: string }>
   } | null>(null)
+  const [rerunPlan, setRerunPlan] = useState<AiRerunPlan | null>(null)
+  const [planLoading, setPlanLoading] = useState(false)
 
-  // Load symptoms for manual selection and ALL mode
+  const isSuperuser = user.globalRole === 'SUPERUSER'
+
+  // Load symptoms for manual selection, ALL mode and smart re-run (names for progress display)
   useEffect(() => {
-    if ((scope === 'manual' || scope === 'all') && symptoms.length === 0) {
+    if ((scope === 'manual' || scope === 'all' || scope === 'smart') && symptoms.length === 0) {
       loadSymptoms()
     }
   }, [scope])
+
+  // Load the smart re-run plan (superuser only)
+  useEffect(() => {
+    if (scope !== 'smart' || rerunPlan || planLoading) return
+    const loadPlan = async () => {
+      try {
+        setPlanLoading(true)
+        const response = await fetch(
+          `/api/surgeries/${surgeryId}/ai/customise-instructions/rerun-plan`
+        )
+        if (response.ok) {
+          setRerunPlan(await response.json())
+        } else {
+          toast.error('Failed to load re-run plan')
+        }
+      } catch (error) {
+        console.error('Error loading re-run plan:', error)
+        toast.error('Failed to load re-run plan')
+      } finally {
+        setPlanLoading(false)
+      }
+    }
+    loadPlan()
+  }, [scope, rerunPlan, planLoading, surgeryId])
 
   const loadSymptoms = async () => {
     try {
@@ -89,7 +134,10 @@ export default function AISetupClient({
   }
 
   // Helper function to process symptom IDs one by one
-  const processSymptomIds = async (symptomIds: string[]) => {
+  const processSymptomIds = async (
+    symptomIds: string[],
+    options?: { skipHumanEdited?: boolean }
+  ) => {
     let cumulativeProcessed = 0
     let cumulativeSkipped = 0
     const skippedDetails: Array<{ symptomId: string; reason?: string }> = []
@@ -119,6 +167,9 @@ export default function AISetupClient({
             body: JSON.stringify({
               scope: 'manual' as const,
               symptomIds: [symptomId],
+              // Server re-checks each symptom against current content so a
+              // stale plan can never overwrite edits made since the preview.
+              ...(options?.skipHumanEdited ? { skipHumanEdited: true } : {}),
             }),
           }
         )
@@ -165,21 +216,33 @@ export default function AISetupClient({
       return
     }
 
+    if (scope === 'smart' && (!rerunPlan || rerunPlan.safeCount === 0)) {
+      toast.error('No symptoms are safe to re-run')
+      return
+    }
+
     try {
       setProcessing(true)
       setResult(null)
       setProcessingProgress(null)
 
       let symptomIdsToProcess: string[]
-      
+
       if (scope === 'manual') {
         symptomIdsToProcess = selectedSymptomIds
+      } else if (scope === 'smart') {
+        // Only symptoms whose content is untouched AI output (or never customised)
+        symptomIdsToProcess = (rerunPlan?.items || [])
+          .filter(item => item.safeToRerun)
+          .map(item => item.id)
       } else {
         // For 'all', use all available symptom IDs
         symptomIdsToProcess = symptoms.map(s => s.id)
       }
 
-      const results = await processSymptomIds(symptomIdsToProcess)
+      const results = await processSymptomIds(symptomIdsToProcess, {
+        skipHumanEdited: scope === 'smart',
+      })
 
       // Show final results
       setProcessingProgress(null)
@@ -437,8 +500,84 @@ export default function AISetupClient({
                       </div>
                     </div>
                   </label>
+                  {isSuperuser && (
+                    <label className="flex items-start">
+                      <input
+                        type="radio"
+                        name="scope"
+                        value="smart"
+                        checked={scope === 'smart'}
+                        onChange={(e) => setScope(e.target.value as CustomiseScope)}
+                        disabled={processing}
+                        className="mt-1 mr-3"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          Smart re-run — skip locally edited symptoms
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                            Superuser
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Re-run AI customisation only for symptoms whose content is
+                          untouched AI output (or never customised). Symptoms the
+                          surgery has edited are left alone.
+                        </div>
+                      </div>
+                    </label>
+                  )}
                 </div>
               </div>
+
+              {/* Smart Re-run Plan */}
+              {scope === 'smart' && (
+                <div className="mb-6">
+                  {planLoading || !rerunPlan ? (
+                    <div className="text-center py-8 text-gray-500">
+                      Analysing which symptoms are safe to re-run…
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="bg-blue-50 border-l-4 border-blue-400 p-4 text-sm text-blue-800">
+                        <p className="font-medium">
+                          {rerunPlan.safeCount} symptom{rerunPlan.safeCount !== 1 ? 's' : ''} will
+                          be re-customised • {rerunPlan.skippedCount} will be skipped as locally
+                          edited
+                        </p>
+                        <p className="mt-1 text-blue-700">
+                          Previous content is kept in version history, and everything processed
+                          returns to pending clinical review.
+                        </p>
+                      </div>
+                      {rerunPlan.skippedCount > 0 && (
+                        <details className="border border-gray-300 rounded-lg">
+                          <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-gray-700">
+                            Skipped symptoms ({rerunPlan.skippedCount})
+                          </summary>
+                          <div className="px-4 pb-3 max-h-64 overflow-y-auto">
+                            {rerunPlan.items
+                              .filter(item => !item.safeToRerun)
+                              .map(item => (
+                                <div key={`${item.id}-${item.ageGroup}`} className="py-1 text-sm text-gray-600">
+                                  <span className="font-medium text-gray-900">{item.name}</span>{' '}
+                                  ({item.ageGroup})
+                                  {item.lastEditedBy && (
+                                    <span>
+                                      {' '}
+                                      — last edited by {item.lastEditedBy}
+                                      {item.lastEditedAt &&
+                                        ` on ${new Date(item.lastEditedAt).toLocaleDateString()}`}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                          </div>
+                        </details>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Manual Symptom Selection */}
               {scope === 'manual' && (
@@ -566,7 +705,8 @@ export default function AISetupClient({
                   disabled={
                     processing ||
                     (scope === 'manual' && selectedSymptomIds.length === 0) ||
-                    (scope === 'all' && symptoms.length === 0)
+                    (scope === 'all' && symptoms.length === 0) ||
+                    (scope === 'smart' && (!rerunPlan || rerunPlan.safeCount === 0))
                   }
                   className="w-full bg-nhs-blue text-white px-6 py-3 rounded-lg font-medium hover:bg-nhs-dark-blue disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
