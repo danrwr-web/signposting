@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
+import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 
@@ -10,7 +11,7 @@ interface Props {
   onClose: () => void
   isSuperuser: boolean
   currentSurgeryId: string | null
-  surgeries: Array<{ id: string; name: string }>
+  surgeries: GroupableSurgery[]
   onCreated: (scope: 'BASE' | 'SURGERY') => void
 }
 
@@ -161,9 +162,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
                   value={targetSurgeryId}
                   onChange={(e) => setTargetSurgeryId(e.target.value)}
                 >
-                  {surgeries.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                  <GroupedSurgeryOptions surgeries={surgeries} />
                 </select>
               </div>
             )}

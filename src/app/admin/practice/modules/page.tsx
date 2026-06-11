@@ -33,6 +33,7 @@ export default async function ModuleAccessPage() {
         id: true,
         name: true,
         slug: true,
+        surgeryType: true,
       },
       orderBy: { name: 'asc' },
     })

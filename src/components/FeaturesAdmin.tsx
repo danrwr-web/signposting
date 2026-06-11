@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
+import GroupedSurgeryOptions from './GroupedSurgeryOptions'
 
 interface Surgery {
   id: string
@@ -271,22 +272,7 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
             className="w-full nhs-input"
           >
             <option value="">Select a surgery...</option>
-            <optgroup label="Live surgeries">
-              {surgeries.filter(s => !s.surgeryType || s.surgeryType === 'LIVE').map(surgery => (
-                <option key={surgery.id} value={surgery.id}>
-                  {surgery.name}
-                </option>
-              ))}
-            </optgroup>
-            {surgeries.some(s => s.surgeryType && s.surgeryType !== 'LIVE') && (
-              <optgroup label="Test & templates">
-                {surgeries.filter(s => s.surgeryType && s.surgeryType !== 'LIVE').map(surgery => (
-                  <option key={surgery.id} value={surgery.id}>
-                    {surgery.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
+            <GroupedSurgeryOptions surgeries={surgeries} />
           </select>
         </div>
       )}

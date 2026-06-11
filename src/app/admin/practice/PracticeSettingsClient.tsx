@@ -3,11 +3,13 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import SimpleHeader from '@/components/SimpleHeader'
+import GroupedSurgeryOptions from '@/components/GroupedSurgeryOptions'
 
 interface Surgery {
   id: string
   name: string
   slug: string | null
+  surgeryType?: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT'
   _count: {
     users: number
   }
@@ -255,11 +257,7 @@ export default function PracticeSettingsClient({
               onChange={(e) => setSelectedSurgeryId(e.target.value)}
               className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
             >
-              {surgeries.map((surgery) => (
-                <option key={surgery.id} value={surgery.id}>
-                  {surgery.name}
-                </option>
-              ))}
+              <GroupedSurgeryOptions surgeries={surgeries} />
             </select>
           </div>
         )}
