@@ -137,11 +137,15 @@ export const UpdateSymptomReqZ = z.object({
 });
 
 // Surgery
+export const SurgeryTypeZ = z.enum(['LIVE', 'TEST', 'GLOBAL_DEFAULT']);
+export type SurgeryTypeValue = z.infer<typeof SurgeryTypeZ>;
+
 export const SurgeryZ = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
   adminEmail: z.string().nullable().optional(),
+  surgeryType: SurgeryTypeZ.optional(),
   createdAt: z.string().or(z.date()),
   updatedAt: z.string().or(z.date()),
 });
@@ -161,6 +165,7 @@ export const UpdateSurgeryReqZ = z.object({
   name: z.string().min(1).optional(),
   adminEmail: z.string().email().optional(),
   adminPassword: z.string().min(6).optional(),
+  surgeryType: SurgeryTypeZ.optional(),
 });
 
 // Auth

@@ -8,13 +8,14 @@ import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
 import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 import LogoSizeControl from '@/components/LogoSizeControl'
-import { Button, Dialog, Input, Badge } from '@/components/ui'
+import { Button, Dialog, Input, Select, Badge } from '@/components/ui'
 
 interface Surgery {
   id: string
   name: string
   slug: string | null
   adminEmail: string | null
+  surgeryType: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT'
   createdAt: Date
   users: Array<{
     id: string
@@ -183,6 +184,7 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
           name: formData.get('name'),
           adminEmail: formData.get('adminEmail') || undefined,
           adminPassword: formData.get('adminPassword') || undefined,
+          surgeryType: formData.get('surgeryType') || undefined,
         }),
       })
 
@@ -263,7 +265,15 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                 header: 'Surgery Name',
                 key: 'name',
                 render: (surgery) => (
-                  <div className="text-sm font-medium text-gray-900">{surgery.name}</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {surgery.name}
+                    {surgery.surgeryType === 'TEST' && (
+                      <Badge color="amber" size="sm" className="ml-2">TEST</Badge>
+                    )}
+                    {surgery.surgeryType === 'GLOBAL_DEFAULT' && (
+                      <Badge color="purple" size="sm" className="ml-2">Template</Badge>
+                    )}
+                  </div>
                 ),
               },
               {
@@ -400,6 +410,23 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
                   required
                   defaultValue={editingSurgery.name}
                 />
+              </div>
+              <div className="mb-4">
+                <label htmlFor="edit-surgeryType" className="block text-sm font-medium text-gray-700 mb-1">
+                  Surgery type
+                </label>
+                <Select
+                  id="edit-surgeryType"
+                  name="surgeryType"
+                  defaultValue={editingSurgery.surgeryType}
+                >
+                  <option value="LIVE">Live</option>
+                  <option value="TEST">Test</option>
+                  <option value="GLOBAL_DEFAULT">Global default (template)</option>
+                </Select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Test and template surgeries are hidden from the setup tracker by default.
+                </p>
               </div>
               <div className="mb-4">
                 <label htmlFor="edit-adminEmail" className="block text-sm font-medium text-gray-700 mb-1">

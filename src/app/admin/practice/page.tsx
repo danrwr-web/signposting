@@ -35,6 +35,7 @@ export default async function PracticeSettingsPage() {
         id: true,
         name: true,
         slug: true,
+        surgeryType: true,
         _count: {
           select: {
             users: true,

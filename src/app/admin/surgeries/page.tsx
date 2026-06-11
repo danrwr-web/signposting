@@ -24,6 +24,7 @@ export default async function SurgeriesPage() {
       name: true,
       slug: true,
       adminEmail: true,
+      surgeryType: true,
       createdAt: true,
       users: {
         include: {

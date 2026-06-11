@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
+import GroupedSurgeryOptions from './GroupedSurgeryOptions'
 
 interface Surgery {
   id: string
   name: string
   slug?: string | null
+  surgeryType?: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT'
 }
 
 interface Feature {
@@ -270,11 +272,7 @@ export default function FeaturesAdmin({ currentUser, selectedSurgeryId }: Featur
             className="w-full nhs-input"
           >
             <option value="">Select a surgery...</option>
-            {surgeries.map(surgery => (
-              <option key={surgery.id} value={surgery.id}>
-                {surgery.name}
-              </option>
-            ))}
+            <GroupedSurgeryOptions surgeries={surgeries} />
           </select>
         </div>
       )}

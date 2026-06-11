@@ -7,7 +7,8 @@ export async function POST(request: NextRequest) {
     const surgery = await prisma.surgery.create({
       data: {
         name: 'Test Surgery',
-        slug: 'test-surgery'
+        slug: 'test-surgery',
+        surgeryType: 'TEST'
       }
     })
 

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import NewSymptomModal from '@/components/NewSymptomModal'
+import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { Dialog, Button, FormField, Input } from '@/components/ui'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
@@ -61,7 +62,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const [drawerIds, setDrawerIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
+  const [surgeries, setSurgeries] = useState<GroupableSurgery[]>([])
   const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(surgeryId)
 
   // Rename dialog state (superuser-only, renames the base symptom globally)
@@ -214,7 +215,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       if (res.ok) {
         const data = await res.json()
         const arr = Array.isArray(data) ? data : (Array.isArray(data?.surgeries) ? data.surgeries : [])
-        const list: Array<{ id: string; name: string }> = arr.map((s: any) => ({ id: s.id, name: s.name }))
+        const list: GroupableSurgery[] = arr.map((s: any) => ({ id: s.id, name: s.name, surgeryType: s.surgeryType }))
         setSurgeries(list)
         if (!selectedSurgeryId && list.length > 0) setSelectedSurgeryId(list[0].id)
       }
@@ -413,9 +414,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
               className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
               aria-label="Select surgery"
             >
-              {surgeries.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
+              <GroupedSurgeryOptions surgeries={surgeries} />
             </select>
           )}
           <input

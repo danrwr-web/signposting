@@ -9,6 +9,7 @@ function fixture(overrides: Partial<SurgerySetupSnapshot> = {}): SurgerySetupSna
   const base: SurgerySetupSnapshot = {
     surgeryId: 'sur_1',
     surgeryName: 'Example Surgery',
+    surgeryType: 'LIVE',
     createdAt: daysAgo(5),
     requiresClinicalReview: false,
     onboardingCompleted: true,

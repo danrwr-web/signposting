@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Session } from '@/server/auth'
+import GroupedSurgeryOptions from '@/components/GroupedSurgeryOptions'
 
 interface EngagementData {
   topSymptoms: Array<{
@@ -28,6 +29,7 @@ interface EngagementAnalyticsProps {
     id: string
     name: string
     slug: string | null
+    surgeryType?: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT'
   }>
 }
 
@@ -194,11 +196,7 @@ export default function EngagementAnalytics({ session, surgeries = [] }: Engagem
               className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
             >
               <option value="all">All Surgeries</option>
-              {surgeries.map((surgery) => (
-                <option key={surgery.id} value={surgery.id}>
-                  {surgery.name}
-                </option>
-              ))}
+              <GroupedSurgeryOptions surgeries={surgeries} />
             </select>
           )}
           <select

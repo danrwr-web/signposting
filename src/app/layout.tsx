@@ -33,7 +33,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  let surgeries: Array<{ id: string; slug: string | null; name: string }> = []
+  let surgeries: Array<{ id: string; slug: string | null; name: string; surgeryType?: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT' }> = []
   let initialSurgery = null
   
   try {
@@ -43,7 +43,7 @@ export default async function RootLayout({
     // Get all surgeries for the SurgeryProvider
     // Note: Prisma has built-in connection timeout handling
     surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true },
+      select: { id: true, slug: true, name: true, surgeryType: true },
       orderBy: { name: 'asc' }
     })
     

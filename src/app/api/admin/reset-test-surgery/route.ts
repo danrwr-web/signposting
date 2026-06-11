@@ -242,6 +242,7 @@ async function cleanSurgeryData(surgeryId: string) {
       data: {
         enableDefaultHighRisk: false,
         enableBuiltInHighlights: false,
+        surgeryType: 'TEST',
       },
     }),
 

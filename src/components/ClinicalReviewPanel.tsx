@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
+import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
 
 const VALID_SORTS = ['name-asc', 'name-desc', 'changed-new', 'status', 'high-risk-first', 'clinician-type-first'] as const
@@ -75,7 +76,7 @@ export default function ClinicalReviewPanel({
   const [resettingAll, setResettingAll] = useState(false)
   
   // Surgery switcher for superusers
-  const [surgeries, setSurgeries] = useState<Array<{ id: string; name: string }>>([])
+  const [surgeries, setSurgeries] = useState<GroupableSurgery[]>([])
   const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(selectedSurgery)
   
   // Drawer state
@@ -117,7 +118,7 @@ export default function ClinicalReviewPanel({
       if (res.ok) {
         const data = await res.json()
         const arr = Array.isArray(data) ? data : (Array.isArray(data?.surgeries) ? data.surgeries : [])
-        const list: Array<{ id: string; name: string }> = arr.map((s: any) => ({ id: s.id, name: s.name }))
+        const list: GroupableSurgery[] = arr.map((s: any) => ({ id: s.id, name: s.name, surgeryType: s.surgeryType }))
         setSurgeries(list)
         if (!selectedSurgeryId && list.length > 0) {
           setSelectedSurgeryId(list[0].id)
@@ -715,11 +716,7 @@ export default function ClinicalReviewPanel({
                   className="h-10 px-3 border border-gray-300 rounded-md text-sm w-72 max-w-full"
                   aria-label="Filter by surgery"
                 >
-                  {surgeries.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                  <GroupedSurgeryOptions surgeries={surgeries} />
                 </select>
               </div>
             )}

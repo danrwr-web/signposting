@@ -11,7 +11,7 @@ import { useSurgery } from '@/context/SurgeryContext'
 
 interface SimpleHeaderProps {
   /** Optional list of surgeries for the dropdown selector */
-  surgeries?: Array<{ id: string; slug: string | null; name: string }>
+  surgeries?: Array<{ id: string; slug: string | null; name: string; surgeryType?: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT' }>
   /** Current surgery ID (used with surgeries prop) */
   currentSurgeryId?: string
   /** Surgery name to display (alternative to surgeries prop) */

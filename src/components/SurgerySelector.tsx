@@ -3,11 +3,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import type { Surgery } from '@prisma/client'
+import GroupedSurgeryOptions from './GroupedSurgeryOptions'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useSession } from 'next-auth/react'
 
+export type SelectorSurgery = Pick<Surgery, 'id' | 'slug' | 'name'> & {
+  surgeryType?: Surgery['surgeryType']
+}
+
 interface SurgerySelectorProps {
-  surgeries: Pick<Surgery, 'id' | 'slug' | 'name'>[]
+  surgeries: SelectorSurgery[]
   currentSurgeryId?: string
   onClose?: () => void
   /** When provided, called instead of navigating. Used on pages like /admin where surgery selection controls page state. */
@@ -142,7 +147,8 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
     )
   }
 
-  // For superusers, show the dropdown
+  // For superusers, show the dropdown. Test/template surgeries are grouped
+  // separately so they don't mix with live practices.
   return (
     <div className="flex items-center space-x-2">
       <label htmlFor="surgery-select" className="text-sm font-medium text-nhs-grey">
@@ -157,11 +163,7 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
         aria-label="Change surgery"
       >
         <option value="">Select Surgery</option>
-        {surgeries.map((surgery) => (
-          <option key={surgery.id} value={surgery.id}>
-            {surgery.name}
-          </option>
-        ))}
+        <GroupedSurgeryOptions surgeries={surgeries} />
       </select>
       {onClose && (
         <button

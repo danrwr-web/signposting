@@ -30,6 +30,7 @@ export async function PATCH(
     if (updateData.adminPassword) {
       data.adminPassHash = await hashPassword(updateData.adminPassword)
     }
+    if (updateData.surgeryType) data.surgeryType = updateData.surgeryType
 
     const surgery = await prisma.surgery.update({
       where: { id },
@@ -39,6 +40,7 @@ export async function PATCH(
         name: true,
         slug: true,
         adminEmail: true,
+        surgeryType: true,
         createdAt: true,
         updatedAt: true,
       },

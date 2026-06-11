@@ -26,6 +26,7 @@ export default async function SetupTrackerPage() {
     return {
       id: s.surgeryId,
       name: s.surgeryName,
+      surgeryType: s.surgeryType,
       createdAt: s.createdAt.toISOString(),
       stage: s.stage,
       essentialCount: s.essentialCount,
