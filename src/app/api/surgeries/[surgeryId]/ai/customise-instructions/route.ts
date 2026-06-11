@@ -151,6 +151,7 @@ export async function POST(
     let processedCount = 0
     let skippedCount = 0
     const skippedDetails: Array<{ symptomId: string; reason?: string }> = []
+    const warnings: Array<{ symptomId: string; reason: string }> = []
 
     console.log(`[AI Customisation] Starting to process ${symptomsToProcess.length} symptom(s)`)
 
@@ -254,6 +255,19 @@ export async function POST(
           continue
         }
 
+        // The leak check in customiseInstructions retries once; if base colour-slot
+        // terms still survive, save anyway (skipping would leave the surgery on the
+        // raw base text with the same terms) but flag it for the clinical reviewer.
+        const reviewNote = customised.residualColourTerms?.length
+          ? `AI customisation based on onboarding profile – pending clinical review. WARNING: output may still reference base colour-slot terminology (${customised.residualColourTerms.join(', ')}) – check appointment names.`
+          : 'AI customisation based on onboarding profile – pending clinical review'
+        if (customised.residualColourTerms?.length) {
+          warnings.push({
+            symptomId: symptomRef.id,
+            reason: `Output may still reference base colour-slot terminology: ${customised.residualColourTerms.join(', ')}`,
+          })
+        }
+
         // Use transaction to ensure all database operations succeed or fail together
         await prisma.$transaction(async (tx) => {
           if (symptomRef.baseSymptomId) {
@@ -330,12 +344,12 @@ export async function POST(
                 ageGroup: (baseSymptomData.ageGroup || null) as unknown as string,
                 status: 'PENDING',
                 lastReviewedAt: null,
-                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
+                reviewNote,
               },
               update: {
                 status: 'PENDING',
                 lastReviewedAt: null,
-                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
+                reviewNote,
               },
             })
           } else {
@@ -392,12 +406,12 @@ export async function POST(
                 ageGroup: (baseSymptomData.ageGroup || null) as unknown as string,
                 status: 'PENDING',
                 lastReviewedAt: null,
-                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
+                reviewNote,
               },
               update: {
                 status: 'PENDING',
                 lastReviewedAt: null,
-                reviewNote: 'AI customisation based on onboarding profile – pending clinical review',
+                reviewNote,
               },
             })
           }
@@ -430,6 +444,7 @@ export async function POST(
       skippedCount: finalSkippedCount,
       message: `Successfully customised ${finalProcessedCount} symptom${finalProcessedCount !== 1 ? 's' : ''}. ${finalSkippedCount > 0 ? `${finalSkippedCount} skipped.` : ''}`,
       skippedDetails,
+      warnings,
     })
   } catch (error) {
     // Zod validation errors should be treated as bad requests.
