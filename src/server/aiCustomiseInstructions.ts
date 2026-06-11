@@ -1,10 +1,13 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { callAzureOpenAI, extractJson } from '@/server/azureOpenAI'
+import { stripHtmlToPlainText } from '@/lib/sanitizeHtml'
 
 export interface CustomisedInstructionResult {
   briefInstruction: string
   instructionsHtml: string
+  // Present only when the base symptom had an Important Notice AND the AI produced a usable rewrite
+  highlightedText?: string
   instructionsJson?: string
   modelUsed: string
 }
@@ -13,6 +16,7 @@ interface BaseSymptomData {
   name: string
   ageGroup: string
   briefInstruction: string | null
+  highlightedText: string | null
   instructionsHtml: string | null
 }
 
@@ -315,6 +319,32 @@ The surgery has described their real-world appointment workflow as follows (who 
 You must respect this workflow when choosing appointment types in your rewritten instructions. In particular, follow their rules about who can book urgent appointments, which urgent slots are used first, and any special exceptions.`
   }
 
+  // Only ask the AI to rewrite the Important Notice when the base symptom has one —
+  // the prompt must never tempt the model into inventing a notice.
+  const baseHighlightedText = (baseSymptom.highlightedText ?? '').trim()
+  const hasNotice = baseHighlightedText.length > 0
+
+  const importantNoticeRules = hasNotice ? `IMPORTANT NOTICE (highlightedText):
+This symptom has an "Important Notice" banner shown to reception staff in a red alert box.
+Rewrite it ONLY to translate appointment/slot terminology (e.g. colour slot names like "pink/purple/red telephone slot") into this surgery's local appointment names, following the same appointment type mapping rules above.
+- Preserve all emergency escalation wording and meaning EXACTLY (e.g. "threat to life/harm", 999, A&E, ambulance). Never weaken, remove, reorder, or soften urgency or red-flag criteria.
+- Output SHORT PLAIN TEXT only: no HTML tags, no markdown, no emojis, no bullet points.
+- If no terminology change is needed, return the original notice text unchanged.
+- Do not add new clinical content to the notice.
+
+` : ''
+
+  const outputFieldsSchema = hasNotice
+    ? `{
+  "briefInstruction": "string - improved brief routing label",
+  "instructionsHtml": "string - rewritten full instruction in clean HTML suitable for TipTap/sanitisation",
+  "highlightedText": "string - the Important Notice rewritten as short plain text"
+}`
+    : `{
+  "briefInstruction": "string - improved brief routing label",
+  "instructionsHtml": "string - rewritten full instruction in clean HTML suitable for TipTap/sanitisation"
+}`
+
   const systemPrompt = `You are rewriting admin-facing signposting instructions for a specific GP surgery.
 
 Your task is to adapt generic symptom signposting guidance to match this surgery's:
@@ -372,12 +402,9 @@ Emojis should mainly appear in the detailed instructions (the instructionsHtml o
 
 Preserve the original meaning while improving clarity.
 
-OUTPUT FORMAT:
+${importantNoticeRules}OUTPUT FORMAT:
 Return ONLY valid JSON with these exact fields:
-{
-  "briefInstruction": "string - improved brief routing label",
-  "instructionsHtml": "string - rewritten full instruction in clean HTML suitable for TipTap/sanitisation"
-}
+${outputFieldsSchema}
 
 Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is clean and suitable for sanitisation. Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).`
 
@@ -395,7 +422,8 @@ Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is cl
 Name: ${baseSymptom.name}
 Age Group: ${baseSymptom.ageGroup}
 Brief Instruction: ${baseSymptom.briefInstruction || '(none)'}
-Full Instructions: ${safeInstructionsHtml}
+${hasNotice ? `Important Notice (highlightedText): ${baseHighlightedText}
+` : ''}Full Instructions: ${safeInstructionsHtml}
 
 SURGERY ONBOARDING PROFILE:
 ${JSON.stringify(onboardingProfile, null, 2)}
@@ -415,7 +443,7 @@ IMPORTANT:
 - Produce clean HTML suitable for TipTap/sanitisation.
 - Keep briefInstruction concise and routing-focused.
 
-Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
+Return ONLY the JSON object with ${hasNotice ? 'briefInstruction, instructionsHtml and highlightedText' : 'briefInstruction and instructionsHtml'} fields.`
 
   // Call Azure OpenAI API via shared helper
   const aiResponse = await callAzureOpenAI({
@@ -430,11 +458,20 @@ Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
 
   let briefInstruction = ''
   let instructionsHtml = ''
+  let highlightedText: string | undefined
 
   const parsed = extractJson(rawContent)
   if (parsed) {
     briefInstruction = (parsed.briefInstruction as string) || baseSymptom.briefInstruction || ''
     instructionsHtml = (parsed.instructionsHtml as string) || ''
+    // Graceful fallback: a missing/invalid notice must never fail the symptom.
+    // Ignore any value the model returns when the base had no notice.
+    if (hasNotice && typeof parsed.highlightedText === 'string') {
+      const cleaned = stripHtmlToPlainText(parsed.highlightedText)
+      if (cleaned) {
+        highlightedText = cleaned
+      }
+    }
   } else {
     console.error('Failed to parse AI response as JSON:', rawContent.slice(0, 500))
     throw new Error('Invalid AI response format')
@@ -475,6 +512,7 @@ Return ONLY the JSON object with briefInstruction and instructionsHtml fields.`
   return {
     briefInstruction,
     instructionsHtml,
+    ...(highlightedText !== undefined ? { highlightedText } : {}),
     modelUsed,
   }
 }

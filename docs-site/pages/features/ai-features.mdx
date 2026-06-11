@@ -145,10 +145,18 @@ This feature is controlled by the `ai_surgery_customisation` feature flag.
 5. **Review results** — On completion, a summary shows how many were processed and skipped. Skipped symptoms include a reason (e.g. no instructions to customise).
 6. **Clinical review required** — All customised symptoms are automatically set to **Pending** clinical review. A clinician must approve them before they become visible to staff.
 
+### What Gets Customised
+
+For each symptom, the AI rewrites:
+
+- **Brief instruction** — the short routing label shown on the card header.
+- **Full instructions** — the detailed guidance shown to reception staff.
+- **Important Notice** — the red banner shown above the instructions (where one exists). The notice is rewritten only to translate appointment and slot terminology (e.g. "pink/purple/red telephone slot") into your local appointment names. Emergency wording such as 999, A&E and threat-to-life criteria is preserved exactly, and the AI never creates a notice on a symptom that does not already have one.
+
 ### Safety
 
 - All AI-generated content requires clinical review before publication.
-- Original instructions are preserved in version history.
+- Original instructions and Important Notice text are preserved in version history.
 - The AI never publishes directly — human approval is always required.
 
 ---

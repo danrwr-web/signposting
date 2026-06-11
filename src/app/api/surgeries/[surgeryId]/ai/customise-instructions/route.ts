@@ -162,6 +162,7 @@ export async function POST(
           name: string
           ageGroup: string
           briefInstruction: string | null
+          highlightedText: string | null
           instructionsHtml: string | null
         } | null = null
 
@@ -172,6 +173,7 @@ export async function POST(
               name: true,
               ageGroup: true,
               briefInstruction: true,
+              highlightedText: true,
               instructionsHtml: true,
             },
           })
@@ -185,6 +187,7 @@ export async function POST(
               name: true,
               ageGroup: true,
               briefInstruction: true,
+              highlightedText: true,
               instructionsHtml: true,
             },
           })
@@ -252,6 +255,12 @@ export async function POST(
             // For base symptoms: upsert override, create history, update review status
             const previousBriefInstruction = existingOverride?.briefInstruction ?? baseSymptomData.briefInstruction
             const previousInstructionsHtml = existingOverride?.instructionsHtml ?? baseSymptomData.instructionsHtml
+            const previousHighlightedText = existingOverride?.highlightedText ?? baseSymptomData.highlightedText
+            // Only write the notice when the base actually had one and the AI rewrote it.
+            // Omitting the key preserves any existing override value; writing '' would
+            // blank the banner under the tri-state override merge semantics.
+            const shouldWriteHighlightedText =
+              !!customised.highlightedText && !!baseSymptomData.highlightedText?.trim()
 
             await tx.surgerySymptomOverride.upsert({
               where: {
@@ -265,12 +274,14 @@ export async function POST(
                 baseSymptomId: symptomRef.baseSymptomId,
                 briefInstruction: customised.briefInstruction,
                 instructionsHtml: customised.instructionsHtml,
+                ...(shouldWriteHighlightedText ? { highlightedText: customised.highlightedText } : {}),
                 lastEditedBy: user.name || user.email,
                 lastEditedAt: new Date(),
               },
               update: {
                 briefInstruction: customised.briefInstruction,
                 instructionsHtml: customised.instructionsHtml,
+                ...(shouldWriteHighlightedText ? { highlightedText: customised.highlightedText } : {}),
                 lastEditedBy: user.name || user.email,
                 lastEditedAt: new Date(),
               },
@@ -286,6 +297,10 @@ export async function POST(
                 newBriefInstruction: customised.briefInstruction,
                 previousInstructionsHtml: previousInstructionsHtml || null,
                 newInstructionsHtml: customised.instructionsHtml,
+                previousHighlightedText: previousHighlightedText || null,
+                newHighlightedText: shouldWriteHighlightedText
+                  ? customised.highlightedText!
+                  : previousHighlightedText || null,
                 editorName: user.name || undefined,
                 editorEmail: user.email,
                 modelUsed: customised.modelUsed,
@@ -319,12 +334,16 @@ export async function POST(
             // For custom symptoms: update symptom, create history, update review status
             const previousBriefInstruction = baseSymptomData.briefInstruction
             const previousInstructionsHtml = baseSymptomData.instructionsHtml
+            const previousHighlightedText = baseSymptomData.highlightedText
+            const shouldWriteHighlightedText =
+              !!customised.highlightedText && !!baseSymptomData.highlightedText?.trim()
 
             await tx.surgeryCustomSymptom.update({
               where: { id: symptomRef.customSymptomId! },
               data: {
                 briefInstruction: customised.briefInstruction,
                 instructionsHtml: customised.instructionsHtml,
+                ...(shouldWriteHighlightedText ? { highlightedText: customised.highlightedText } : {}),
                 lastEditedBy: user.name || user.email,
                 lastEditedAt: new Date(),
               },
@@ -340,6 +359,10 @@ export async function POST(
                 newBriefInstruction: customised.briefInstruction,
                 previousInstructionsHtml: previousInstructionsHtml || null,
                 newInstructionsHtml: customised.instructionsHtml,
+                previousHighlightedText: previousHighlightedText || null,
+                newHighlightedText: shouldWriteHighlightedText
+                  ? customised.highlightedText!
+                  : previousHighlightedText || null,
                 editorName: user.name || undefined,
                 editorEmail: user.email,
                 modelUsed: customised.modelUsed,

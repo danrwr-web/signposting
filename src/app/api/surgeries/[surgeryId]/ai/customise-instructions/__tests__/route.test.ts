@@ -676,5 +676,227 @@ describe('POST /api/surgeries/[surgeryId]/ai/customise-instructions', () => {
     expect(json.skippedCount).toBe(1)
     expect(mockedCustomiseInstructions).not.toHaveBeenCalled()
   })
+
+  describe('highlightedText (Important Notice) customisation', () => {
+    const surgeryRow = {
+      id: 'surgery-1',
+      name: 'Test Surgery',
+      onboardingProfile: {
+        completed: true,
+        completedAt: new Date(),
+        profileJson: {
+          surgeryName: 'Test Surgery',
+          urgentCareModel: {
+            hasDutyDoctor: true,
+            dutyDoctorTerm: 'Duty GP',
+            usesRedSlots: true,
+            urgentSlotsDescription: 'Urgent slots',
+          },
+          bookingRules: { canBookDirectly: [], mustNotBookDirectly: '' },
+          team: { roles: [], roleRoutingNotes: '' },
+          escalation: { firstEscalation: 'Duty GP', urgentWording: 'Urgent' },
+          localServices: {
+            msk: '',
+            mentalHealth: '',
+            socialPrescribing: '',
+            communityNursing: '',
+            audiology: '',
+            frailty: '',
+            sexualHealth: '',
+            outOfHours: '',
+            includeInInstructions: 'no' as const,
+          },
+          communicationStyle: {
+            detailLevel: 'moderate' as const,
+            terminologyPreference: 'mixed' as const,
+          },
+        },
+      },
+      surgeryFeatureFlags: [
+        { feature: { key: 'ai_surgery_customisation' }, enabled: true },
+      ],
+    }
+
+    const mockedBaseSymptomFindUnique = prisma.baseSymptom.findUnique as jest.MockedFunction<
+      typeof prisma.baseSymptom.findUnique
+    >
+    const mockedOverrideFindUnique = prisma.surgerySymptomOverride.findUnique as jest.MockedFunction<
+      typeof prisma.surgerySymptomOverride.findUnique
+    >
+
+    const setupBaseSymptomRun = (highlightedText: string | null) => {
+      mockedRequireSurgeryAdmin.mockResolvedValueOnce(mockUser)
+      mockedFindUnique.mockResolvedValueOnce(surgeryRow as any)
+      mockedGetEffectiveSymptoms.mockResolvedValueOnce([
+        {
+          id: 'symptom-1',
+          baseSymptomId: 'symptom-1',
+          name: 'Test Symptom',
+          ageGroup: 'Adult',
+          briefInstruction: 'Test brief',
+          instructionsHtml: '<p>Test instructions</p>',
+          source: 'base' as const,
+        },
+      ] as any)
+      mockedBaseSymptomFindUnique.mockResolvedValueOnce({
+        id: 'symptom-1',
+        name: 'Test Symptom',
+        ageGroup: 'Adult',
+        briefInstruction: 'Test brief',
+        highlightedText,
+        instructionsHtml: '<p>Test instructions</p>',
+      } as any)
+      mockedOverrideFindUnique.mockResolvedValueOnce(null)
+      mockedUpsertOverride.mockResolvedValueOnce({} as any)
+      mockedCreateHistory.mockResolvedValueOnce({} as any)
+      mockedUpsertReviewStatus.mockResolvedValueOnce({} as any)
+    }
+
+    const runPost = async () => {
+      const request = createRequest({ scope: 'core' })
+      const params = Promise.resolve({ surgeryId: 'surgery-1' })
+      const response = await POST(request, { params })
+      return { response, json: await response.json() }
+    }
+
+    it('writes the customised notice to the override and records history', async () => {
+      const baseNotice = 'EMERGENCY CARE: use the pink/purple/red telephone slot'
+      const newNotice = 'EMERGENCY CARE: call the Duty GP line'
+      setupBaseSymptomRun(baseNotice)
+      mockedCustomiseInstructions.mockResolvedValueOnce({
+        briefInstruction: 'Customised brief',
+        instructionsHtml: '<p>Customised instructions</p>',
+        highlightedText: newNotice,
+        modelUsed: 'gpt-4o-mini',
+      })
+
+      const { response, json } = await runPost()
+
+      expect(response.status).toBe(200)
+      expect(json.processedCount).toBe(1)
+      expect(mockedCustomiseInstructions).toHaveBeenCalledWith(
+        expect.objectContaining({ highlightedText: baseNotice }),
+        expect.anything(),
+        'admin@example.com'
+      )
+      expect(mockedUpsertOverride).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ highlightedText: newNotice }),
+          update: expect.objectContaining({ highlightedText: newNotice }),
+        })
+      )
+      expect(mockedCreateHistory).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          previousHighlightedText: baseNotice,
+          newHighlightedText: newNotice,
+        }),
+      })
+    })
+
+    it('does not write highlightedText when the AI result omits it', async () => {
+      const baseNotice = 'EMERGENCY CARE: use the pink/purple/red telephone slot'
+      setupBaseSymptomRun(baseNotice)
+      mockedCustomiseInstructions.mockResolvedValueOnce({
+        briefInstruction: 'Customised brief',
+        instructionsHtml: '<p>Customised instructions</p>',
+        modelUsed: 'gpt-4o-mini',
+      })
+
+      const { response, json } = await runPost()
+
+      expect(response.status).toBe(200)
+      expect(json.processedCount).toBe(1)
+      const upsertArgs = mockedUpsertOverride.mock.calls[0][0]
+      expect(Object.keys(upsertArgs.create)).not.toContain('highlightedText')
+      expect(Object.keys(upsertArgs.update)).not.toContain('highlightedText')
+      expect(mockedCreateHistory).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          previousHighlightedText: baseNotice,
+          newHighlightedText: baseNotice,
+        }),
+      })
+    })
+
+    it('does not write highlightedText when the base had no notice, even if the AI returns one', async () => {
+      setupBaseSymptomRun(null)
+      mockedCustomiseInstructions.mockResolvedValueOnce({
+        briefInstruction: 'Customised brief',
+        instructionsHtml: '<p>Customised instructions</p>',
+        highlightedText: 'An invented notice',
+        modelUsed: 'gpt-4o-mini',
+      })
+
+      const { response, json } = await runPost()
+
+      expect(response.status).toBe(200)
+      expect(json.processedCount).toBe(1)
+      const upsertArgs = mockedUpsertOverride.mock.calls[0][0]
+      expect(Object.keys(upsertArgs.create)).not.toContain('highlightedText')
+      expect(Object.keys(upsertArgs.update)).not.toContain('highlightedText')
+      expect(mockedCreateHistory).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          previousHighlightedText: null,
+          newHighlightedText: null,
+        }),
+      })
+    })
+
+    it('writes the customised notice on the custom-symptom path', async () => {
+      const baseNotice = 'EMERGENCY CARE: use the red telephone slot'
+      const newNotice = 'EMERGENCY CARE: call the Duty GP line'
+      mockedRequireSurgeryAdmin.mockResolvedValueOnce(mockUser)
+      mockedFindUnique.mockResolvedValueOnce(surgeryRow as any)
+      mockedGetEffectiveSymptoms.mockResolvedValueOnce([
+        {
+          id: 'custom-1',
+          customSymptomId: 'custom-1',
+          name: 'Custom Symptom',
+          ageGroup: 'Adult',
+          briefInstruction: 'Test brief',
+          instructionsHtml: '<p>Test instructions</p>',
+          source: 'custom' as const,
+        },
+      ] as any)
+      const mockedCustomFindUnique = prisma.surgeryCustomSymptom.findUnique as jest.MockedFunction<
+        typeof prisma.surgeryCustomSymptom.findUnique
+      >
+      const mockedCustomUpdate = prisma.surgeryCustomSymptom.update as jest.MockedFunction<
+        typeof prisma.surgeryCustomSymptom.update
+      >
+      mockedCustomFindUnique.mockResolvedValueOnce({
+        id: 'custom-1',
+        name: 'Custom Symptom',
+        ageGroup: 'Adult',
+        briefInstruction: 'Test brief',
+        highlightedText: baseNotice,
+        instructionsHtml: '<p>Test instructions</p>',
+      } as any)
+      mockedCustomiseInstructions.mockResolvedValueOnce({
+        briefInstruction: 'Customised brief',
+        instructionsHtml: '<p>Customised instructions</p>',
+        highlightedText: newNotice,
+        modelUsed: 'gpt-4o-mini',
+      })
+      mockedCustomUpdate.mockResolvedValueOnce({} as any)
+      mockedCreateHistory.mockResolvedValueOnce({} as any)
+      mockedUpsertReviewStatus.mockResolvedValueOnce({} as any)
+
+      const { response, json } = await runPost()
+
+      expect(response.status).toBe(200)
+      expect(json.processedCount).toBe(1)
+      expect(mockedCustomUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ highlightedText: newNotice }),
+        })
+      )
+      expect(mockedCreateHistory).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          previousHighlightedText: baseNotice,
+          newHighlightedText: newNotice,
+        }),
+      })
+    })
+  })
 })
 
