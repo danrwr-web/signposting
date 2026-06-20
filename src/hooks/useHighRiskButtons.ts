@@ -31,6 +31,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
   }, [surgerySlug])
 
   const loadHighRiskLinks = useCallback(async () => {
+    if (!surgerySlug) return
     try {
       const url = buildApiUrl('highrisk')
       const response = await fetch(url, {
@@ -51,6 +52,7 @@ export function useHighRiskButtons({ surgeryId, surgeries }: UseHighRiskButtonsP
   }, [buildApiUrl])
 
   const loadDefaultButtons = useCallback(async () => {
+    if (!surgerySlug) return
     try {
       const url = buildApiUrl('default-highrisk-buttons')
       const response = await fetch(url, {
