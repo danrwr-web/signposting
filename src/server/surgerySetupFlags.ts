@@ -113,8 +113,8 @@ export const FLAG_RULES: FlagRule[] = [
         code: 'INACTIVE_14D',
         severity: 'warn',
         message: last
-          ? `No engagement events for ${days}d`
-          : `No engagement events in ${daysSinceCreated}d since created`,
+          ? `No activity for ${days}d`
+          : `No activity in ${daysSinceCreated}d since created`,
         since: last?.toISOString(),
       }
     },
