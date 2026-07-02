@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import NewSymptomModal from '@/components/NewSymptomModal'
-import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
+import { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { Dialog, Button, FormField, Input, AlertBanner, SkeletonTable, EmptyState } from '@/components/ui'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
@@ -41,10 +41,8 @@ interface SurgerySymptomsResponse {
 }
 
 interface SymptomLibraryExplorerProps {
+  /** The surgery to operate on. Owned by the parent page (see SurgeryContextBar on /admin). */
   surgeryId: string | null
-  /** Superuser only: called when the in-panel surgery selector changes, so the parent
-   *  page (which owns the surgery selection) stays in sync. */
-  onSurgeryChange?: (surgeryId: string) => void
 }
 
 type FilterKey = 'inuse' | 'available' | 'modified' | 'localonly' | 'disabled' | 'allbase'
@@ -60,7 +58,7 @@ const btnRed  = `${btnBase} bg-red-600 text-white hover:bg-red-700`
 const btnBlue = `${btnBase} border border-blue-600 text-blue-700 hover:bg-blue-600 hover:text-white`
 const btnGrey = `${btnBase} border border-gray-300 text-gray-700 hover:bg-gray-100`
 
-export default function SymptomLibraryExplorer({ surgeryId, onSurgeryChange }: SymptomLibraryExplorerProps) {
+export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExplorerProps) {
   const [libraryData, setLibraryData] = useState<SurgerySymptomsResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -476,16 +474,6 @@ export default function SymptomLibraryExplorer({ surgeryId, onSurgeryChange }: S
       <div className="flex-1 min-w-0">
         {/* Top bar */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end mb-3">
-          {isSuperuser && onSurgeryChange && (
-            <select
-              value={effectiveSurgeryId || ''}
-              onChange={(e) => { if (e.target.value) onSurgeryChange(e.target.value) }}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
-              aria-label="Select surgery"
-            >
-              <GroupedSurgeryOptions surgeries={surgeries} />
-            </select>
-          )}
           <input
             type="text"
             placeholder="Search symptoms..."
