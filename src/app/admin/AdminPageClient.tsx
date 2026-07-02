@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { signOut } from 'next-auth/react'
@@ -11,6 +11,7 @@ import HighRiskConfig from '@/components/HighRiskConfig'
 import CommonReasonsConfig from '@/components/CommonReasonsConfig'
 import ImageIconConfig from '@/components/ImageIconConfig'
 import SymptomLibraryExplorer from '@/components/SymptomLibraryExplorer'
+import SurgeryContextBar from '@/components/admin/SurgeryContextBar'
 import ClinicalReviewPanel from '@/components/ClinicalReviewPanel'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
@@ -34,6 +35,8 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState('library')
   const [selectedSurgery, setSelectedSurgery] = useState('')
+  // Engagement tab only: view the cross-surgery overview instead of the selected surgery
+  const [engagementShowAll, setEngagementShowAll] = useState(false)
   const [selectedSymptom, setSelectedSymptom] = useState('')
   const [overrideData, setOverrideData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -274,11 +277,41 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     }
   }
 
-  // Initialize selected surgery based on session type
+  // Single source of truth for the selected surgery on this page: update state,
+  // persist to localStorage (same shape SurgerySelector writes), and reflect in the
+  // URL so refresh/back-forward/shared links keep the surgery context.
+  const handleSurgeryChange = (surgeryId: string) => {
+    if (!surgeryId) return
+    setSelectedSurgery(surgeryId)
+    const s = surgeries.find(x => x.id === surgeryId)
+    if (s) {
+      try {
+        localStorage.setItem('surgery_state', JSON.stringify({ id: s.id, name: s.name, slug: s.slug }))
+      } catch { /* storage unavailable */ }
+    }
+    // Reflect the selection in the URL. SurgeryContext also watches ?surgery=, so the
+    // header "You're viewing" selector and the surgery cookie converge on the same value.
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('surgery', surgeryId)
+    if (!params.get('tab')) params.set('tab', activeTab)
+    router.replace(`/admin?${params.toString()}`, { scroll: false })
+  }
+
+  // Initialize selected surgery based on session type.
+  // Superuser priority: URL ?surgery= param → localStorage → first surgery.
+  const surgeryInitialisedRef = useRef(false)
   useEffect(() => {
+    if (surgeryInitialisedRef.current) return
     if (session.type === 'surgery' && session.surgeryId) {
+      surgeryInitialisedRef.current = true
       setSelectedSurgery(session.surgeryId)
     } else if (session.type === 'superuser' && surgeries.length > 0) {
+      surgeryInitialisedRef.current = true
+      const urlId = searchParams.get('surgery')
+      if (urlId && surgeries.some(s => s.id === urlId)) {
+        setSelectedSurgery(urlId)
+        return
+      }
       // Try to restore the last-viewed surgery from localStorage (set by SurgerySelector)
       let restoredId: string | null = null
       try {
@@ -292,6 +325,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       } catch { /* ignore parse errors */ }
       setSelectedSurgery(restoredId || surgeries[0].id)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, surgeries])
 
   // Initialize active tab from URL params
@@ -806,7 +840,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">
-      <SimpleHeader surgeries={surgeries} currentSurgeryId={selectedSurgery} onSurgeryChange={setSelectedSurgery} />
+      <SimpleHeader surgeries={surgeries} currentSurgeryId={selectedSurgery} onSurgeryChange={handleSurgeryChange} />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {searchParams.get('from') === 'setup' && (searchParams.get('surgeryId') || session.surgeryId) && (
@@ -862,7 +896,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   key={tab.id}
                   onClick={() => {
                     setActiveTab(tab.id)
-                    router.push(`/admin?tab=${tab.id}`, { scroll: false })
+                    router.push(`/admin?tab=${tab.id}${selectedSurgery ? `&surgery=${selectedSurgery}` : ''}`, { scroll: false })
                   }}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
@@ -884,6 +918,21 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           </div>
 
           <div className="p-6">
+            {/* Surgery context bar: one source of truth for which surgery every tab operates on.
+                Superuser-only — surgery admins manage exactly one surgery. */}
+            {session.type === 'superuser' && (
+              <SurgeryContextBar
+                scope={activeTab === 'data' || activeTab === 'suggestions' ? 'global' : 'surgery'}
+                surgeries={surgeries}
+                selectedSurgeryId={selectedSurgery}
+                onChange={handleSurgeryChange}
+                label={activeTab === 'engagement' ? 'Viewing:' : 'Configuring:'}
+                allOption={activeTab === 'engagement'}
+                showAll={engagementShowAll}
+                onShowAllChange={setEngagementShowAll}
+              />
+            )}
+
             {/* Data Management Tab - Superuser only */}
             {activeTab === 'data' && session.type === 'superuser' && (
               <div className="space-y-6">
@@ -973,10 +1022,15 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 <HighlightConfig surgeryId={selectedSurgery} isSuperuser={session?.type === 'superuser'} />
                 {/* Image Icons - visible to superusers and admins */}
                 {(session?.type === 'superuser' || session?.type === 'surgery') && (
-                  <ImageIconConfig 
-                    isSuperuser={session?.type === 'superuser'} 
-                    isAdmin={session?.type === 'surgery'} 
-                  />
+                  <div>
+                    <p className="text-sm text-gray-500 mb-2">
+                      Image icons are global — unlike highlight rules above, they apply to all surgeries.
+                    </p>
+                    <ImageIconConfig
+                      isSuperuser={session?.type === 'superuser'}
+                      isAdmin={session?.type === 'surgery'}
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -1009,9 +1063,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
             {/* Engagement Tab */}
             {activeTab === 'engagement' && (
-              <EngagementAnalytics 
-                session={session} 
-                surgeries={session.type === 'superuser' ? surgeries : undefined}
+              <EngagementAnalytics
+                session={session}
+                selectedSurgeryId={session.type === 'superuser' && !engagementShowAll && selectedSurgery ? selectedSurgery : 'all'}
+                onSelectSurgery={(id) => { setEngagementShowAll(false); handleSurgeryChange(id) }}
               />
             )}
 

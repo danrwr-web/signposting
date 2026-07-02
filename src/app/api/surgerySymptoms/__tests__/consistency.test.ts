@@ -71,5 +71,62 @@ describe('GET /api/surgerySymptoms consistency with effectiveSymptoms', () => {
     expect(b?.isEnabled).toBe(false)
     expect(b?.status).toBe('DISABLED')
   })
+
+  it('reports source for custom rows and canRevertToBase for disabled overridden rows', async () => {
+    mockedGetSessionUser.mockResolvedValueOnce({
+      globalRole: 'SUPERUSER',
+      memberships: [],
+    } as any)
+
+    ;(prisma.surgery.findUnique as jest.Mock).mockResolvedValueOnce({ id: 's1' })
+    ;(prisma.baseSymptom.findMany as jest.Mock).mockResolvedValueOnce([
+      { id: 'a', name: 'A' },
+      { id: 'b', name: 'B' },
+    ])
+    ;(prisma.surgeryCustomSymptom.findMany as jest.Mock).mockResolvedValueOnce([])
+    ;(prisma.surgerySymptomStatus.findMany as jest.Mock).mockResolvedValueOnce([])
+    // Symptom b has an override at this surgery
+    ;(prisma.surgerySymptomOverride.findMany as jest.Mock).mockResolvedValueOnce([
+      { baseSymptomId: 'b', isHidden: false },
+    ])
+
+    // a = enabled base; b = disabled base with override; c = disabled custom
+    mockedGetEffectiveSymptoms.mockImplementation(async (_surgeryId: string, includeDisabled: boolean) => {
+      if (includeDisabled) {
+        return [
+          { id: 'a', name: 'A', source: 'base', ageGroup: 'Adult' },
+          { id: 'b', name: 'B', source: 'override', ageGroup: 'Adult' },
+          { id: 'c', name: 'C', source: 'custom', ageGroup: 'Adult' },
+        ] as any
+      }
+      return [{ id: 'a', name: 'A', source: 'base', ageGroup: 'Adult' }] as any
+    })
+
+    const res = await GET(makeReq('http://localhost/api/surgerySymptoms?surgeryId=s1'))
+    expect(res.status).toBe(200)
+    const json = await res.json()
+
+    const inUse = json.inUse as Array<{
+      symptomId: string
+      source: string
+      status: string
+      canRevertToBase: boolean
+    }>
+    const a = inUse.find((x) => x.symptomId === 'a')
+    const b = inUse.find((x) => x.symptomId === 'b')
+    const c = inUse.find((x) => x.symptomId === 'c')
+
+    expect(a?.source).toBe('base')
+    expect(a?.canRevertToBase).toBe(false)
+
+    // Disabled rows keep their real source and stay revertible when an override exists
+    expect(b?.status).toBe('DISABLED')
+    expect(b?.source).toBe('base')
+    expect(b?.canRevertToBase).toBe(true)
+
+    expect(c?.status).toBe('DISABLED')
+    expect(c?.source).toBe('custom')
+    expect(c?.canRevertToBase).toBe(false)
+  })
 })
 

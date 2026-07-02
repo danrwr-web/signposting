@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import NewSymptomModal from '@/components/NewSymptomModal'
-import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
-import { Dialog, Button, FormField, Input } from '@/components/ui'
+import { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
+import { Dialog, Button, FormField, Input, AlertBanner, SkeletonTable, EmptyState } from '@/components/ui'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 
@@ -12,6 +12,9 @@ interface InUseSymptom {
   symptomId: string
   name: string
   baseName?: string
+  /** Whether symptomId refers to a BaseSymptom or a SurgeryCustomSymptom. A disabled
+   *  custom symptom has status DISABLED (not LOCAL_ONLY), so status alone can't tell. */
+  source: 'base' | 'custom'
   status: SymptomStatus
   isEnabled: boolean
   canRevertToBase: boolean
@@ -38,10 +41,17 @@ interface SurgerySymptomsResponse {
 }
 
 interface SymptomLibraryExplorerProps {
+  /** The surgery to operate on. Owned by the parent page (see SurgeryContextBar on /admin). */
   surgeryId: string | null
 }
 
 type FilterKey = 'inuse' | 'available' | 'modified' | 'localonly' | 'disabled' | 'allbase'
+
+const formatLastEdited = (lastEditedAt?: string | null, lastEditedBy?: string | null) => {
+  if (!lastEditedAt) return '—'
+  const dateStr = new Date(lastEditedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return lastEditedBy ? `${lastEditedBy} • ${dateStr}` : dateStr
+}
 
 const btnBase = "px-3 py-1 rounded-md text-sm font-medium transition-colors"
 const btnRed  = `${btnBase} bg-red-600 text-white hover:bg-red-700`
@@ -63,7 +73,6 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const drawerCloseButtonRef = useRef<HTMLButtonElement | null>(null)
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [surgeries, setSurgeries] = useState<GroupableSurgery[]>([])
-  const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(surgeryId)
 
   // Rename dialog state (superuser-only, renames the base symptom globally)
   const [renameTarget, setRenameTarget] = useState<{ baseSymptomId: string; currentName: string } | null>(null)
@@ -71,10 +80,23 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const [renameSaving, setRenameSaving] = useState(false)
   const renameInputRef = useRef<HTMLInputElement>(null)
 
+  // Delete dialog state
+  const [deleteTarget, setDeleteTarget] = useState<{
+    scope: 'BASE' | 'SURGERY'
+    name: string
+    baseSymptomId?: string
+    customSymptomId?: string
+  } | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleteBusy, setDeleteBusy] = useState(false)
+  const deleteInputRef = useRef<HTMLInputElement>(null)
+
+  // Guards against out-of-order responses when the surgery changes mid-fetch
+  const requestSeqRef = useRef(0)
+
   const effectiveSurgeryId = useMemo(() => {
-    if (isSuperuser) return selectedSurgeryId || surgeryId || null
     return surgeryId || sessionUser?.surgeryId || null
-  }, [surgeryId, sessionUser, isSuperuser, selectedSurgeryId])
+  }, [surgeryId, sessionUser])
 
   const isDev = process.env.NODE_ENV !== 'production'
 
@@ -85,15 +107,19 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
         const meJson = await me.json()
         const role = meJson?.globalRole || meJson?.user?.globalRole
         setIsSuperuser(role === 'SUPERUSER')
-        setSessionUser({ globalRole: role, surgeryId: meJson?.surgeryId || meJson?.user?.surgeryId })
+        // The profile endpoint exposes the user's surgery as defaultSurgeryId
+        setSessionUser({ globalRole: role, surgeryId: meJson?.defaultSurgeryId || meJson?.user?.defaultSurgeryId })
       }
     } catch {}
   }
 
   const loadLibraryData = async (sid: string) => {
+    const seq = ++requestSeqRef.current
     setLoading(true)
     try {
       const response = await fetch(`/api/surgerySymptoms?surgeryId=${sid}`, { cache: 'no-store' })
+      // A newer request (e.g. after switching surgery) has started; drop this response
+      if (seq !== requestSeqRef.current) return
       if (!response.ok) {
         const err = await response.json().catch(() => ({}))
         toast.error(err?.error || 'Failed to load symptom library')
@@ -101,16 +127,18 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
         return
       }
       const data = await response.json()
+      if (seq !== requestSeqRef.current) return
       setLibraryData({
         inUse: data?.inUse ?? [],
         available: data?.available ?? [],
         customOnly: data?.customOnly ?? []
       })
     } catch (e) {
+      if (seq !== requestSeqRef.current) return
       console.error(e)
       toast.error('Failed to load symptom library')
     } finally {
-      setLoading(false)
+      if (seq === requestSeqRef.current) setLoading(false)
     }
   }
 
@@ -120,6 +148,8 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
 
   useEffect(() => {
     if (effectiveSurgeryId) {
+      // Clear stale rows so the skeleton shows while the new surgery loads
+      setLibraryData(null)
       loadLibraryData(effectiveSurgeryId)
     } else {
       setLibraryData(null)
@@ -197,6 +227,45 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     }
   }
 
+  const closeDelete = () => {
+    if (deleteBusy) return
+    setDeleteTarget(null)
+    setDeleteConfirmText('')
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget || !effectiveSurgeryId) return
+    if (deleteTarget.scope === 'BASE' && deleteConfirmText.trim() !== deleteTarget.name) return
+    setDeleteBusy(true)
+    try {
+      const payload = deleteTarget.scope === 'SURGERY'
+        ? { scope: 'SURGERY', surgeryId: effectiveSurgeryId, customSymptomId: deleteTarget.customSymptomId }
+        : { scope: 'BASE', baseSymptomId: deleteTarget.baseSymptomId }
+      const res = await fetch('/api/admin/symptoms', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        toast.error(err?.error || 'Delete failed')
+        return
+      }
+      toast.success('Deleted')
+      try {
+        window.dispatchEvent(new CustomEvent('signposting:admin-metrics-changed'))
+      } catch {}
+      setDeleteTarget(null)
+      setDeleteConfirmText('')
+      loadLibraryData(effectiveSurgeryId)
+    } catch (e) {
+      console.error(e)
+      toast.error('Delete failed')
+    } finally {
+      setDeleteBusy(false)
+    }
+  }
+
   const openDrawer = (ids: { baseSymptomId?: string; customSymptomId?: string }) => {
     setDrawerIds(ids)
     setDrawerOpen(true)
@@ -217,7 +286,6 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
         const arr = Array.isArray(data) ? data : (Array.isArray(data?.surgeries) ? data.surgeries : [])
         const list: GroupableSurgery[] = arr.map((s: any) => ({ id: s.id, name: s.name, surgeryType: s.surgeryType }))
         setSurgeries(list)
-        if (!selectedSurgeryId && list.length > 0) setSelectedSurgeryId(list[0].id)
       }
     } catch {}
   }
@@ -228,12 +296,6 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     }
   }, [isSuperuser])
 
-  const formatLastEdited = (lastEditedAt?: string | null, lastEditedBy?: string | null) => {
-    if (!lastEditedAt || !lastEditedBy) return '—'
-    const date = new Date(lastEditedAt)
-    return `${lastEditedBy} • ${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
-  }
-
   // Build folder counts
   const counts = useMemo(() => {
     const inUse = libraryData?.inUse || []
@@ -242,7 +304,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     const modified = inUseEnabled.filter(s => s.status === 'MODIFIED')
     const localOnly = inUseEnabled.filter(s => s.status === 'LOCAL_ONLY')
     const disabled = inUse.filter(s => s.status === 'DISABLED')
-    const allBase = available.length + inUse.filter(s => s.status !== 'LOCAL_ONLY').length
+    const allBase = available.length + inUse.filter(s => s.source !== 'custom').length
     return {
       inuse: inUseEnabled.length,
       available: available.length,
@@ -282,8 +344,9 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       isEnabled: s.isEnabled,
       canRevertToBase: s.canRevertToBase,
       statusRowId: s.statusRowId,
-      // If it's local only, this id refers to custom; otherwise base
-      ...(s.status === 'LOCAL_ONLY' ? { customSymptomId: s.symptomId } : { baseSymptomId: s.symptomId }),
+      // The id kind follows the row's source: a disabled custom symptom has status
+      // DISABLED but its id still refers to a SurgeryCustomSymptom.
+      ...(s.source === 'custom' ? { customSymptomId: s.symptomId } : { baseSymptomId: s.symptomId }),
       lastEditedAt: s.lastEditedAt,
       lastEditedBy: s.lastEditedBy
     })
@@ -315,15 +378,19 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
         libraryData.inUse.filter(s => s.status === 'DISABLED').forEach(pushInUse)
         break
       case 'allbase':
-        // Superuser only: available + inUse that are base/modified/disabled (not local-only)
+        // Superuser only: available + inUse rows backed by a base symptom (excludes customs,
+        // including disabled ones)
         libraryData.available.forEach(pushAvailable)
-        libraryData.inUse.filter(s => s.status !== 'LOCAL_ONLY').forEach(pushInUse)
+        libraryData.inUse.filter(s => s.source !== 'custom').forEach(pushInUse)
         break
     }
 
-    // Search by name (client-side)
+    // Search by name (client-side); also match the underlying base name so symptoms
+    // renamed locally are still findable by their library name
     const q = search.trim().toLowerCase()
-    const searched = q ? rows.filter(r => r.name.toLowerCase().includes(q)) : rows
+    const searched = q
+      ? rows.filter(r => r.name.toLowerCase().includes(q) || (r.baseName && r.baseName.toLowerCase().includes(q)))
+      : rows
 
     // Sort
     const sorted = [...searched].sort((a, b) => {
@@ -407,16 +474,6 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       <div className="flex-1 min-w-0">
         {/* Top bar */}
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-end mb-3">
-          {isSuperuser && (
-            <select
-              value={effectiveSurgeryId || ''}
-              onChange={(e) => setSelectedSurgeryId(e.target.value || null)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-full sm:w-64"
-              aria-label="Select surgery"
-            >
-              <GroupedSurgeryOptions surgeries={surgeries} />
-            </select>
-          )}
           <input
             type="text"
             placeholder="Search symptoms..."
@@ -445,8 +502,22 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto rounded-md border border-gray-200 shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200 table-fixed">
+        <div className="overflow-x-auto rounded-md border border-gray-200 shadow-sm bg-white">
+          {loading && !libraryData ? (
+            <div className="p-4">
+              <SkeletonTable columns={5} rows={8} />
+            </div>
+          ) : filteredRows.length === 0 && !loading ? (
+            <EmptyState
+              illustration={search.trim() ? 'search' : 'folder'}
+              title={search.trim() ? `No symptoms match “${search.trim()}”` : 'Nothing in this folder'}
+              description={search.trim()
+                ? 'Try a different search term, or check another folder in the sidebar.'
+                : 'There are no symptoms in this view for the selected surgery.'}
+              {...(search.trim() ? { action: { label: 'Clear search', onClick: () => setSearch(''), variant: 'secondary' as const } } : {})}
+            />
+          ) : (
+          <table className={`min-w-full divide-y divide-gray-200 table-fixed ${loading ? 'opacity-60' : ''}`} aria-busy={loading}>
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr>
                 <th className="w-[40%] px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Symptom</th>
@@ -457,16 +528,6 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {loading && (!libraryData || filteredRows.length === 0) && (
-                <tr>
-                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={5}>Loading...</td>
-                </tr>
-              )}
-              {!loading && filteredRows.length === 0 && (
-                <tr>
-                  <td className="px-4 py-6 text-center text-sm text-gray-500" colSpan={5}>No results</td>
-                </tr>
-              )}
               {filteredRows.map(row => (
                 <tr key={row.key}>
                   <td className="px-4 py-3 text-sm font-medium text-gray-900">{row.name}</td>
@@ -491,8 +552,8 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                         <button
                           onClick={() => handleAction('DISABLE', {
                             statusRowId: row.statusRowId,
-                            baseSymptomId: row.statusRowId ? undefined : (row.status !== 'LOCAL_ONLY' ? row.baseSymptomId : undefined),
-                            customSymptomId: row.status === 'LOCAL_ONLY' ? row.customSymptomId : undefined
+                            baseSymptomId: row.statusRowId ? undefined : row.baseSymptomId,
+                            customSymptomId: row.statusRowId ? undefined : row.customSymptomId
                           })}
                           className={btnRed}
                           disabled={loading}
@@ -504,8 +565,8 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                         <button
                           onClick={() => handleAction('ENABLE_EXISTING', {
                             statusRowId: row.statusRowId,
-                            baseSymptomId: row.statusRowId ? undefined : (row.status !== 'LOCAL_ONLY' ? row.baseSymptomId : undefined),
-                            customSymptomId: row.status === 'LOCAL_ONLY' ? row.customSymptomId : undefined
+                            baseSymptomId: row.statusRowId ? undefined : row.baseSymptomId,
+                            customSymptomId: row.statusRowId ? undefined : row.customSymptomId
                           })}
                           className={btnBlue}
                           disabled={loading}
@@ -544,34 +605,18 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                           Revert
                         </button>
                       )}
-                      {/* Delete buttons with RBAC */}
-                      {(isSuperuser || row.status === 'LOCAL_ONLY') && (
+                      {/* Delete: custom symptoms can be deleted by surgery admins; base symptoms only by superusers */}
+                      {(row.customSymptomId ? true : (isSuperuser && !!row.baseSymptomId)) && (
                         <button
-                          onClick={async () => {
-                            const ok = typeof window !== 'undefined' ? (prompt('Type DELETE to confirm deletion') === 'DELETE') : false
-                            if (!ok) return
-                            const payload = row.status === 'LOCAL_ONLY'
-                              ? { scope: 'SURGERY', surgeryId: effectiveSurgeryId, customSymptomId: row.customSymptomId }
-                              : { scope: 'BASE', baseSymptomId: row.baseSymptomId }
-                            try {
-                              const res = await fetch('/api/admin/symptoms', {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(payload)
-                              })
-                              if (!res.ok) {
-                                const err = await res.json().catch(() => ({}))
-                                toast.error(err?.error || 'Delete failed')
-                                return
-                              }
-                              toast.success('Deleted')
-                              loadLibraryData(effectiveSurgeryId)
-                            } catch (e) {
-                              toast.error('Delete failed')
-                            }
+                          onClick={() => {
+                            setDeleteConfirmText('')
+                            setDeleteTarget(row.customSymptomId
+                              ? { scope: 'SURGERY', name: row.name, customSymptomId: row.customSymptomId }
+                              : { scope: 'BASE', name: row.baseName || row.name, baseSymptomId: row.baseSymptomId })
                           }}
                           className={btnRed}
                           disabled={loading}
+                          aria-label={`Delete ${row.name}`}
                         >
                           Delete
                         </button>
@@ -582,6 +627,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
               ))}
             </tbody>
           </table>
+          )}
         </div>
       </div>
 
@@ -598,28 +644,6 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
             closeDrawer()
           }}
           closeButtonRef={drawerCloseButtonRef}
-          onDelete={async (payload) => {
-            try {
-              const res = await fetch('/api/admin/symptoms', {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-              })
-              if (!res.ok) {
-                const err = await res.json().catch(() => ({}))
-                toast.error(err?.error || 'Delete failed')
-                return
-              }
-              toast.success('Deleted')
-              try {
-                window.dispatchEvent(new CustomEvent('signposting:admin-metrics-changed'))
-              } catch {}
-              loadLibraryData(effectiveSurgeryId)
-              closeDrawer()
-            } catch (e) {
-              toast.error('Delete failed')
-            }
-          }}
         />
       )}
 
@@ -634,6 +658,59 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
           onCreated={() => { setIsAddOpen(false); if (effectiveSurgeryId) loadLibraryData(effectiveSurgeryId) }}
         />
       )}
+
+      {/* Delete confirmation */}
+      <Dialog
+        open={deleteTarget !== null}
+        onClose={closeDelete}
+        title={deleteTarget?.scope === 'BASE' ? 'Delete base symptom' : 'Delete local symptom'}
+        width="md"
+        {...(deleteTarget?.scope === 'BASE' ? { initialFocusRef: deleteInputRef } : {})}
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDelete} disabled={deleteBusy}>Cancel</Button>
+            <Button
+              variant="danger"
+              onClick={confirmDelete}
+              loading={deleteBusy}
+              disabled={deleteTarget?.scope === 'BASE' && deleteConfirmText.trim() !== deleteTarget.name}
+            >
+              Delete
+            </Button>
+          </>
+        }
+      >
+        {deleteTarget?.scope === 'BASE' ? (
+          <div className="space-y-4">
+            <AlertBanner variant="error">
+              Deleting <strong>{deleteTarget.name}</strong> removes it from <strong>every surgery</strong> and
+              permanently deletes all local overrides of it. This cannot be undone from this screen.
+            </AlertBanner>
+            <FormField label={`Type "${deleteTarget.name}" to confirm`} required htmlFor="delete-symptom-confirm">
+              <Input
+                id="delete-symptom-confirm"
+                ref={deleteInputRef}
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !deleteBusy && deleteConfirmText.trim() === deleteTarget.name) {
+                    e.preventDefault()
+                    confirmDelete()
+                  }
+                }}
+                placeholder={deleteTarget.name}
+                disabled={deleteBusy}
+                autoFocus
+              />
+            </FormField>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-700">
+            Delete <strong>{deleteTarget?.name}</strong> from this surgery? This only affects this surgery
+            and does not change the shared symptom library.
+          </p>
+        )}
+      </Dialog>
 
       {/* Rename base symptom (superuser only) */}
       <Dialog
@@ -681,11 +758,10 @@ interface DrawerProps {
   baseSymptomId?: string
   customSymptomId?: string
   onEnabled?: () => void
-  onDelete?: (payload: { baseSymptomId?: string; customSymptomId?: string; surgeryId: string }) => Promise<void>
   closeButtonRef?: React.RefObject<HTMLButtonElement>
 }
 
-function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, onEnabled, onDelete, closeButtonRef }: DrawerProps) {
+function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, onEnabled, closeButtonRef }: DrawerProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<null | {
     name: string
@@ -757,7 +833,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
         }
         const json = await response.json()
         setData(json)
-        setViewMode(json.status === 'MODIFIED' ? 'local' : 'local')
+        setViewMode('local')
       } catch (e) {
         console.error(e)
         toast.error('Failed to load preview')
@@ -803,12 +879,6 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
   }
 
   const currentHtml = data?.status === 'MODIFIED' && viewMode === 'base' ? data?.baseInstructionsHtml : data?.instructionsHtml
-
-  const formatLastEdited = (lastEditedAt?: string | null, lastEditedBy?: string | null) => {
-    if (!lastEditedAt || !lastEditedBy) return '—'
-    const date = new Date(lastEditedAt)
-    return `${lastEditedBy} • ${date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`
-  }
 
   if (!isOpen) return null
 

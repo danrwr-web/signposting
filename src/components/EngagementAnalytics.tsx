@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Session } from '@/server/auth'
-import GroupedSurgeryOptions from '@/components/GroupedSurgeryOptions'
 
 interface EngagementData {
   topSymptoms: Array<{
@@ -25,22 +24,20 @@ interface EngagementData {
 
 interface EngagementAnalyticsProps {
   session: Session
-  surgeries?: Array<{
-    id: string
-    name: string
-    slug: string | null
-    surgeryType?: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT'
-  }>
+  /** 'all' for the cross-surgery overview, or a surgery id. Owned by the parent
+   *  page (see SurgeryContextBar on /admin). Only meaningful for superusers. */
+  selectedSurgeryId?: string
+  /** Called when the user drills into a surgery from the breakdown list. */
+  onSelectSurgery?: (surgeryId: string) => void
 }
 
-export default function EngagementAnalytics({ session, surgeries = [] }: EngagementAnalyticsProps) {
+export default function EngagementAnalytics({ session, selectedSurgeryId = 'all', onSelectSurgery }: EngagementAnalyticsProps) {
   const [engagementData, setEngagementData] = useState<EngagementData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
   const [limit, setLimit] = useState(10)
   const [showExportModal, setShowExportModal] = useState(false)
-  const [selectedSurgeryId, setSelectedSurgeryId] = useState<string>('all')
 
   useEffect(() => {
     const fetchEngagementData = async () => {
@@ -189,16 +186,6 @@ export default function EngagementAnalytics({ session, surgeries = [] }: Engagem
           Engagement Analytics
         </h2>
         <div className="flex items-center space-x-4">
-          {session.type === 'superuser' && surgeries.length > 0 && (
-            <select
-              value={selectedSurgeryId}
-              onChange={(e) => setSelectedSurgeryId(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
-            >
-              <option value="all">All Surgeries</option>
-              <GroupedSurgeryOptions surgeries={surgeries} />
-            </select>
-          )}
           <select
             value={dateRange}
             onChange={(e) => setDateRange(e.target.value as '7d' | '30d' | '90d' | 'all')}
@@ -331,12 +318,14 @@ export default function EngagementAnalytics({ session, surgeries = [] }: Engagem
                     <h4 className="text-sm font-medium text-gray-900">
                       {surgery.surgeryName}
                     </h4>
-                    <button
-                      onClick={() => setSelectedSurgeryId(surgery.surgeryId)}
-                      className="text-xs text-nhs-blue hover:text-blue-700 underline"
-                    >
-                      View Details
-                    </button>
+                    {onSelectSurgery && (
+                      <button
+                        onClick={() => onSelectSurgery(surgery.surgeryId)}
+                        className="text-xs text-nhs-blue hover:text-blue-700 underline"
+                      >
+                        View Details
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">

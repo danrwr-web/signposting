@@ -21,6 +21,9 @@ interface InUseSymptom {
   name: string
   /** Underlying BaseSymptom.name when this row originates from a base symptom (BASE / MODIFIED / DISABLED). */
   baseName?: string
+  /** Whether symptomId refers to a BaseSymptom or a SurgeryCustomSymptom. Status alone is not
+   *  enough to tell: a disabled custom symptom has status DISABLED, not LOCAL_ONLY. */
+  source: 'base' | 'custom'
   status: SymptomStatus
   isEnabled: boolean
   canRevertToBase: boolean
@@ -61,9 +64,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const surgeryId = searchParams.get('surgeryId')
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
     const isSuper = user.globalRole === 'SUPERUSER'
     const isPracticeAdmin = Array.isArray((user as any).memberships)
       ? (user as any).memberships.some((m: any) => m.surgeryId === surgeryId && m.role === 'ADMIN')
@@ -75,13 +75,6 @@ export async function GET(request: NextRequest) {
 
     if (!isSuper && !isPracticeAdmin) {
       return NextResponse.json({ error: 'Superuser or Practice Admin required' }, { status: 403 })
-    }
-
-    if (!surgeryId) {
-      return NextResponse.json(
-        { error: 'surgeryId parameter is required' },
-        { status: 400 }
-      )
     }
 
     // Verify surgery exists
@@ -138,10 +131,12 @@ export async function GET(request: NextRequest) {
     }
 
     const baseNameById = new Map(baseSymptoms.map((b) => [b.id, b.name]))
+    const overriddenBaseIds = new Set(overrides.map((o) => o.baseSymptomId))
 
     const inUse: InUseSymptom[] = allEffective.map((s) => {
       const isEnabled = enabledIds.has(s.id)
       const statusRow = statusBySymptomId.get(s.id)
+      const source = s.source === 'custom' ? 'custom' as const : 'base' as const
       let status: SymptomStatus
       if (!isEnabled) status = 'DISABLED'
       else if (s.source === 'custom') status = 'LOCAL_ONLY'
@@ -154,10 +149,12 @@ export async function GET(request: NextRequest) {
         // For BASE/MODIFIED/DISABLED rows the symptomId is the BaseSymptom.id, so we can
         // surface the underlying base name to clients (used by the superuser Rename action,
         // which must operate on the base name not the surgery-specific override).
-        baseName: s.source === 'custom' ? undefined : baseNameById.get(s.id),
+        baseName: source === 'custom' ? undefined : baseNameById.get(s.id),
+        source,
         status,
         isEnabled,
-        canRevertToBase: status === 'MODIFIED',
+        // An override can be reverted even while the symptom is disabled.
+        canRevertToBase: source === 'base' && overriddenBaseIds.has(s.id),
         statusRowId: statusRow?.id,
         lastEditedAt: statusRow?.lastEditedAt?.toISOString() ?? null,
         lastEditedBy: statusRow?.lastEditedBy ?? null,

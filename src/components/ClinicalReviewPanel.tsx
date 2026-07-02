@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
-import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
 
 const VALID_SORTS = ['name-asc', 'name-desc', 'changed-new', 'status', 'high-risk-first', 'clinician-type-first'] as const
@@ -75,10 +74,6 @@ export default function ClinicalReviewPanel({
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
   const [resettingAll, setResettingAll] = useState(false)
   
-  // Surgery switcher for superusers
-  const [surgeries, setSurgeries] = useState<GroupableSurgery[]>([])
-  const [selectedSurgeryId, setSelectedSurgeryId] = useState<string | null>(selectedSurgery)
-  
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerIds, setDrawerIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
@@ -97,48 +92,13 @@ export default function ClinicalReviewPanel({
   const [changeRequestNote, setChangeRequestNote] = useState<string>('')
   const [bulkApproving, setBulkApproving] = useState(false)
 
-  // Determine effective surgery ID
-  const effectiveSurgeryId = useMemo(() => {
-    if (isSuperuser) {
-      return selectedSurgeryId || selectedSurgery || null
-    }
-    return selectedSurgery || null
-  }, [selectedSurgery, selectedSurgeryId, isSuperuser])
+  // The surgery to review is owned by the parent page (see SurgeryContextBar on /admin)
+  const effectiveSurgeryId = selectedSurgery || null
 
   const roleLabelDevOnly = useMemo(() => {
     if (process.env.NODE_ENV === 'production') return null
     return isSuperuser ? 'SUPERUSER' : 'SURGERY_ADMIN'
   }, [isSuperuser])
-
-  // Load surgeries list for superusers
-  const ensureSurgeries = async () => {
-    if (!isSuperuser || surgeries.length) return
-    try {
-      const res = await fetch('/api/admin/surgeries', { cache: 'no-store' })
-      if (res.ok) {
-        const data = await res.json()
-        const arr = Array.isArray(data) ? data : (Array.isArray(data?.surgeries) ? data.surgeries : [])
-        const list: GroupableSurgery[] = arr.map((s: any) => ({ id: s.id, name: s.name, surgeryType: s.surgeryType }))
-        setSurgeries(list)
-        if (!selectedSurgeryId && list.length > 0) {
-          setSelectedSurgeryId(list[0].id)
-        }
-      }
-    } catch {}
-  }
-
-  useEffect(() => {
-    if (isSuperuser) {
-      ensureSurgeries()
-    }
-  }, [isSuperuser])
-
-  // Update selectedSurgeryId when selectedSurgery prop changes
-  useEffect(() => {
-    if (selectedSurgery) {
-      setSelectedSurgeryId(selectedSurgery)
-    }
-  }, [selectedSurgery])
 
   // Load clinical review data
   const loadData = async () => {
@@ -702,24 +662,8 @@ export default function ClinicalReviewPanel({
       <div className="flex-1 min-w-0">
         {/* Top bar */}
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          {/* Left group: surgery filter + actions */}
+          {/* Left group: actions (surgery selection lives in the page-level SurgeryContextBar) */}
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            {isSuperuser && (
-              <div className="flex items-center gap-2 min-w-0">
-                <label className="text-sm text-gray-700 whitespace-nowrap" htmlFor="clinical-review-surgery">
-                  Surgery
-                </label>
-                <select
-                  id="clinical-review-surgery"
-                  value={effectiveSurgeryId || ''}
-                  onChange={(e) => setSelectedSurgeryId(e.target.value || null)}
-                  className="h-10 px-3 border border-gray-300 rounded-md text-sm w-72 max-w-full"
-                  aria-label="Filter by surgery"
-                >
-                  <GroupedSurgeryOptions surgeries={surgeries} />
-                </select>
-              </div>
-            )}
             {effectiveSurgeryId && (
               <button
                 onClick={handleResetAll}
