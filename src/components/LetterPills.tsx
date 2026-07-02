@@ -38,7 +38,11 @@ export const LETTERS: Letter[] = [
 interface LetterPillsProps {
   selectedLetter: Letter
   onLetterChange: (letter: Letter) => void
-  /** Full (unfiltered) symptom list, used to grey out letters with no symptoms */
+  /**
+   * Symptom list used to grey out letters with no symptoms. Callers should
+   * pass the list filtered by the active age band (but not by text search,
+   * so pills don't flicker while typing).
+   */
   symptoms?: EffectiveSymptom[]
   /** Size classes that differ between layouts, e.g. 'h-9 min-w-9 px-0' (row) or 'h-9 w-9' (grid) */
   pillSizeClasses: string
@@ -55,8 +59,7 @@ export default function LetterPills({
   symptoms,
   pillSizeClasses,
 }: LetterPillsProps) {
-  // Letters that have at least one symptom, based on the full (unfiltered) list,
-  // so pills don't flicker while typing a search or switching age bands.
+  // Letters that have at least one symptom in the provided list.
   const availableLetters = useMemo(() => {
     const set = new Set<string>()
     for (const symptom of symptoms ?? []) {

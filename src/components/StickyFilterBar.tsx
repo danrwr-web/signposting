@@ -12,7 +12,7 @@ interface StickyFilterBarProps {
   onSearchChange: (value: string) => void
   selectedLetter: Letter
   onLetterChange: (letter: Letter) => void
-  /** Full (unfiltered) symptom list, used to grey out letters with no symptoms */
+  /** Symptom list for A-Z letter availability (filtered by age band, not by text search) */
   symptoms?: EffectiveSymptom[]
   resultsCount: number
   totalCount: number
