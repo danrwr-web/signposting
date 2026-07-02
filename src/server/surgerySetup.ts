@@ -61,6 +61,15 @@ export type SurgerySetupSnapshot = {
   goLiveDate: Date | null
 }
 
+/** Latest of the given dates, ignoring null/undefined. Null when none are set. */
+export function latestDate(...dates: Array<Date | null | undefined>): Date | null {
+  let latest: Date | null = null
+  for (const d of dates) {
+    if (d && (!latest || d.getTime() > latest.getTime())) latest = d
+  }
+  return latest
+}
+
 function isAppointmentModelConfigured(profileJson: unknown): boolean {
   const json = profileJson as { appointmentModel?: AppointmentModelConfig } | null
   const am = json?.appointmentModel
@@ -186,6 +195,8 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
     lastReviewActivity,
     recentlyUpdatedCount,
     lastEngagement,
+    lastOverrideEdit,
+    lastCustomEdit,
     aiEnabled,
     handbookEnabled,
   ] = await Promise.all([
@@ -226,6 +237,20 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
       .catch(() => 0),
     prisma.engagementEvent
       .findFirst({ where: { surgeryId }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+      .catch(() => null),
+    prisma.surgerySymptomOverride
+      .findFirst({
+        where: { surgeryId, lastEditedAt: { not: null } },
+        orderBy: { lastEditedAt: 'desc' },
+        select: { lastEditedAt: true },
+      })
+      .catch(() => null),
+    prisma.surgeryCustomSymptom
+      .findFirst({
+        where: { surgeryId, isDeleted: false, lastEditedAt: { not: null } },
+        orderBy: { lastEditedAt: 'desc' },
+        select: { lastEditedAt: true },
+      })
       .catch(() => null),
     isFeatureEnabledForSurgery(surgeryId, 'ai_surgery_customisation'),
     isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
@@ -289,7 +314,13 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
     essentialTotal,
     recommendedCount,
     recommendedTotal,
-    lastActivityAt: lastEngagement?.createdAt ?? null,
+    lastActivityAt: latestDate(
+      lastEngagement?.createdAt,
+      lastReviewActivity?.lastReviewedAt,
+      lastOverrideEdit?.lastEditedAt,
+      lastCustomEdit?.lastEditedAt,
+      onboardingUpdatedAt,
+    ),
     goLiveDate: surgery.pipelineEntry?.dateContractStart ?? null,
   }
 }
@@ -363,6 +394,8 @@ export async function computeSurgerySetupSnapshotsBatch(
     lastReviewActivityRows,
     viewCounts,
     lastEngagementRows,
+    lastOverrideEditRows,
+    lastCustomEditRows,
     activeUserEvents,
     perSurgeryFeatures,
   ] = await Promise.all([
@@ -431,6 +464,16 @@ export async function computeSurgerySetupSnapshotsBatch(
       where: { surgeryId: { in: ids } },
       _max: { createdAt: true },
     }),
+    prisma.surgerySymptomOverride.groupBy({
+      by: ['surgeryId'],
+      where: { surgeryId: { in: ids }, lastEditedAt: { not: null } },
+      _max: { lastEditedAt: true },
+    }),
+    prisma.surgeryCustomSymptom.groupBy({
+      by: ['surgeryId'],
+      where: { surgeryId: { in: ids }, isDeleted: false, lastEditedAt: { not: null } },
+      _max: { lastEditedAt: true },
+    }),
     prisma.engagementEvent.findMany({
       where: { surgeryId: { in: ids }, createdAt: { gte: thirtyDaysAgo }, userEmail: { not: null } },
       select: { surgeryId: true, userEmail: true },
@@ -469,6 +512,8 @@ export async function computeSurgerySetupSnapshotsBatch(
   const viewCountMap = countById(viewCounts)
   const lastReviewMap = byId(lastReviewActivityRows)
   const lastEngagementMap = byId(lastEngagementRows)
+  const lastOverrideEditMap = byId(lastOverrideEditRows)
+  const lastCustomEditMap = byId(lastCustomEditRows)
 
   const activeUsersMap = new Map<string, number>()
   for (const row of activeUserEvents) {
@@ -562,7 +607,13 @@ export async function computeSurgerySetupSnapshotsBatch(
       essentialTotal,
       recommendedCount,
       recommendedTotal,
-      lastActivityAt: lastEngagementMap.get(s.id)?._max.createdAt ?? null,
+      lastActivityAt: latestDate(
+        lastEngagementMap.get(s.id)?._max.createdAt,
+        lastReviewMap.get(s.id)?._max.lastReviewedAt,
+        lastOverrideEditMap.get(s.id)?._max.lastEditedAt,
+        lastCustomEditMap.get(s.id)?._max.lastEditedAt,
+        onboardingUpdatedAt,
+      ),
       goLiveDate: s.pipelineEntry?.dateContractStart ?? null,
     }
   })
