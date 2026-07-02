@@ -3,7 +3,8 @@
 import { useState, useMemo, useEffect, Suspense, useDeferredValue, useRef, useCallback } from 'react'
 import ClinicalReviewNotice from '@/components/ClinicalReviewNotice'
 import CompactToolbar from '@/components/CompactToolbar'
-import VirtualizedGrid from '@/components/VirtualizedGrid'
+import SymptomGrid from '@/components/SymptomGrid'
+import BackToTopButton from '@/components/BackToTopButton'
 import TestUserUsage from '@/components/TestUserUsage'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
@@ -238,7 +239,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
         selectedAge={selectedAge}
         onAgeChange={setSelectedAge}
         resultsCount={filteredSymptoms.length}
-        totalCount={initialSymptoms.length}
+        totalCount={symptoms.length}
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
         symptoms={symptoms}
@@ -272,15 +273,9 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
         {isLoadingSymptoms ? (
           renderSkeletonGrid()
         ) : filteredSymptoms.length > 0 && surgeries.length > 0 ? (
-          <VirtualizedGrid
+          <SymptomGrid
             symptoms={filteredSymptoms}
             surgeryId={surgeryId || undefined}
-            columns={{
-              xl: 4,
-              lg: 3,
-              md: 2,
-              sm: 1
-            }}
             changesMap={changesMap}
             cardData={cardData}
           />
@@ -301,6 +296,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
           />
         )}
       </main>
+
+      <BackToTopButton />
     </div>
   )
 }

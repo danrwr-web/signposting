@@ -1,6 +1,6 @@
 'use client'
 
-import { RefObject, useState, useEffect } from 'react'
+import { RefObject, useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import SearchBox from './SearchBox'
 import AgeFilter from './AgeFilter'
@@ -75,6 +75,46 @@ export default function SurgeryFiltersHeader({
   const { headerLayout, highRiskStyle } = useCardStyle()
   const activeLayout = headerLayout ?? 'split'
   const [changesCount, setChangesCount] = useState<number | null>(null)
+
+  // Letters that have at least one symptom, based on the full (unfiltered) list,
+  // so pills don't flicker while typing a search or switching age bands.
+  const availableLetters = useMemo(() => {
+    const set = new Set<string>()
+    for (const symptom of symptoms ?? []) {
+      const first = symptom.name.trim().charAt(0).toUpperCase()
+      if (first >= 'A' && first <= 'Z') set.add(first)
+    }
+    return set
+  }, [symptoms])
+  const hasSymptomData = (symptoms?.length ?? 0) > 0
+
+  const renderLetterPill = (letter: Letter, sizeClasses: string) => {
+    const isSelected = selectedLetter === letter
+    // While symptoms are still loading, leave every pill enabled.
+    // Never disable the selected pill so the user can always change it.
+    const isAvailable = letter === 'All' || !hasSymptomData || availableLetters.has(letter)
+    const isDisabled = !isAvailable && !isSelected
+
+    return (
+      <button
+        key={letter}
+        type="button"
+        onClick={() => onLetterChange(letter)}
+        disabled={isDisabled}
+        className={[
+          `h-9 ${sizeClasses} rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2`,
+          isSelected
+            ? 'bg-nhs-blue text-white border-nhs-blue'
+            : isDisabled
+              ? 'bg-slate-50 text-slate-300 border-slate-100 cursor-not-allowed'
+              : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400',
+        ].join(' ')}
+        aria-pressed={isSelected}
+      >
+        {letter}
+      </button>
+    )
+  }
 
   // Fetch the count of recently changed symptoms
   useEffect(() => {
@@ -169,25 +209,7 @@ export default function SurgeryFiltersHeader({
 
         <div className="mt-3 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 pb-2 min-w-max">
-            {LETTERS.map((letter) => {
-              const isSelected = selectedLetter === letter
-
-              return (
-                <button
-                  key={letter}
-                  onClick={() => onLetterChange(letter)}
-                  className={[
-                    'h-9 min-w-9 px-0 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
-                    isSelected
-                      ? 'bg-nhs-blue text-white border-nhs-blue'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400',
-                  ].join(' ')}
-                  aria-pressed={isSelected}
-                >
-                  {letter}
-                </button>
-              )
-            })}
+            {LETTERS.map((letter) => renderLetterPill(letter, 'min-w-9 px-0'))}
           </div>
         </div>
       </div>
@@ -252,25 +274,7 @@ export default function SurgeryFiltersHeader({
               {/* centre: alphabet */}
               <div className="flex-1 flex justify-center">
                 <div className="grid grid-cols-9 gap-2 max-w-lg">
-                  {LETTERS.map((letter) => {
-                    const isSelected = selectedLetter === letter
-                    return (
-                      <button
-                        key={letter}
-                        type="button"
-                        onClick={() => onLetterChange(letter)}
-                        className={[
-                          'h-9 w-9 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
-                          isSelected
-                            ? 'bg-nhs-blue text-white border-nhs-blue'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
-                        ].join(' ')}
-                        aria-pressed={isSelected}
-                      >
-                        {letter}
-                      </button>
-                    )
-                  })}
+                  {LETTERS.map((letter) => renderLetterPill(letter, 'w-9'))}
                 </div>
               </div>
             </div>
