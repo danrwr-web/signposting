@@ -5,6 +5,7 @@ import ClinicalReviewNotice from '@/components/ClinicalReviewNotice'
 import CompactToolbar from '@/components/CompactToolbar'
 import SymptomGrid from '@/components/SymptomGrid'
 import BackToTopButton from '@/components/BackToTopButton'
+import StickyFilterBar from '@/components/StickyFilterBar'
 import TestUserUsage from '@/components/TestUserUsage'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
@@ -42,6 +43,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
   const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
   const [cardData, setCardData] = useState<CardData | undefined>(undefined)
+  // Marks the bottom of the filter toolbar; StickyFilterBar shows once it scrolls out of view
+  const toolbarSentinelRef = useRef<HTMLDivElement>(null)
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const deferredSelectedLetter = useDeferredValue(selectedLetter)
@@ -244,6 +247,19 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
         onShowSurgerySelector={setShowSurgerySelector}
         symptoms={symptoms}
         commonReasonsItems={commonReasonsItems}
+      />
+      <div ref={toolbarSentinelRef} aria-hidden="true" />
+
+      {/* Slim search + A-Z bar, shown once the toolbar has scrolled out of view */}
+      <StickyFilterBar
+        sentinelRef={toolbarSentinelRef}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        selectedLetter={selectedLetter}
+        onLetterChange={setSelectedLetter}
+        symptoms={symptoms}
+        resultsCount={filteredSymptoms.length}
+        totalCount={symptoms.length}
       />
 
       {/* Clinical Review Notice — visible to all roles; tier depends on pending count */}
