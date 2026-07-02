@@ -3,7 +3,9 @@
 import { useState, useMemo, useEffect, Suspense, useDeferredValue, useRef, useCallback } from 'react'
 import ClinicalReviewNotice from '@/components/ClinicalReviewNotice'
 import CompactToolbar from '@/components/CompactToolbar'
-import VirtualizedGrid from '@/components/VirtualizedGrid'
+import SymptomGrid from '@/components/SymptomGrid'
+import BackToTopButton from '@/components/BackToTopButton'
+import StickyFilterBar from '@/components/StickyFilterBar'
 import TestUserUsage from '@/components/TestUserUsage'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
@@ -16,6 +18,13 @@ import { EmptyState } from '@/components/ui/EmptyState'
 
 type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
+
+function matchesAgeBand(symptom: EffectiveSymptom, age: AgeBand): boolean {
+  if (age === 'Under5') return symptom.ageGroup === 'U5'
+  if (age === '5to17') return symptom.ageGroup === 'O5'
+  if (age === 'Adult') return symptom.ageGroup === 'Adult'
+  return true
+}
 
 interface HomePageClientProps {
   surgeries: SelectorSurgery[]
@@ -41,6 +50,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
   const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
   const [cardData, setCardData] = useState<CardData | undefined>(undefined)
+  // Marks the bottom of the filter toolbar; StickyFilterBar shows once it scrolls out of view
+  const toolbarSentinelRef = useRef<HTMLDivElement>(null)
 
   const deferredSearchTerm = useDeferredValue(searchTerm)
   const deferredSelectedLetter = useDeferredValue(selectedLetter)
@@ -198,27 +209,24 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
     return symptoms.filter(symptom => {
       const matchesSearch = !lowerSearch ||
         (searchTextBySymptom.get(symptom) ?? '').includes(lowerSearch)
-      
-      // Age filtering based on ageGroup field
-      const matchesAge = deferredSelectedAge === 'All' || (() => {
-        if (deferredSelectedAge === 'Under5') {
-          return symptom.ageGroup === 'U5'
-        }
-        if (deferredSelectedAge === '5to17') {
-          return symptom.ageGroup === 'O5'
-        }
-        if (deferredSelectedAge === 'Adult') {
-          return symptom.ageGroup === 'Adult'
-        }
-        return true
-      })()
-      
-      const matchesLetter = deferredSelectedLetter === 'All' || 
+
+      const matchesAge = matchesAgeBand(symptom, deferredSelectedAge)
+
+      const matchesLetter = deferredSelectedLetter === 'All' ||
         symptom.name.trim().toUpperCase().startsWith(deferredSelectedLetter)
-      
+
       return matchesSearch && matchesAge && matchesLetter
     })
   }, [symptoms, searchTextBySymptom, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
+
+  // A-Z letter availability reflects the active age band (but not the text
+  // search, so pills don't flicker while typing): a letter whose symptoms all
+  // sit outside the selected age band is greyed out rather than leading to an
+  // empty-results dead end.
+  const symptomsForLetterAvailability = useMemo(
+    () => (selectedAge === 'All' ? symptoms : symptoms.filter(s => matchesAgeBand(s, selectedAge))),
+    [symptoms, selectedAge]
+  )
 
   const renderSkeletonGrid = () => (
     <SkeletonCardGrid count={8} lines={3} />
@@ -238,11 +246,24 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
         selectedAge={selectedAge}
         onAgeChange={setSelectedAge}
         resultsCount={filteredSymptoms.length}
-        totalCount={initialSymptoms.length}
+        totalCount={symptoms.length}
         showSurgerySelector={showSurgerySelector}
         onShowSurgerySelector={setShowSurgerySelector}
-        symptoms={symptoms}
+        symptoms={symptomsForLetterAvailability}
         commonReasonsItems={commonReasonsItems}
+      />
+      <div ref={toolbarSentinelRef} aria-hidden="true" />
+
+      {/* Slim search + A-Z bar, shown once the toolbar has scrolled out of view */}
+      <StickyFilterBar
+        sentinelRef={toolbarSentinelRef}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        selectedLetter={selectedLetter}
+        onLetterChange={setSelectedLetter}
+        symptoms={symptomsForLetterAvailability}
+        resultsCount={filteredSymptoms.length}
+        totalCount={symptoms.length}
       />
 
       {/* Clinical Review Notice — visible to all roles; tier depends on pending count */}
@@ -272,15 +293,9 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
         {isLoadingSymptoms ? (
           renderSkeletonGrid()
         ) : filteredSymptoms.length > 0 && surgeries.length > 0 ? (
-          <VirtualizedGrid
+          <SymptomGrid
             symptoms={filteredSymptoms}
             surgeryId={surgeryId || undefined}
-            columns={{
-              xl: 4,
-              lg: 3,
-              md: 2,
-              sm: 1
-            }}
             changesMap={changesMap}
             cardData={cardData}
           />
@@ -301,6 +316,8 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
           />
         )}
       </main>
+
+      <BackToTopButton />
     </div>
   )
 }

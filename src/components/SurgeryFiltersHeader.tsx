@@ -6,42 +6,12 @@ import SearchBox from './SearchBox'
 import AgeFilter from './AgeFilter'
 import HighRiskButtons from './HighRiskButtons'
 import CommonReasonsRow from './CommonReasonsRow'
+import LetterPills, { Letter } from './LetterPills'
 import { useCardStyle } from '@/context/CardStyleContext'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { CommonReasonsResolvedItem } from '@/lib/commonReasons'
 
-type Letter = 'All' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L' | 'M' | 'N' | 'O' | 'P' | 'Q' | 'R' | 'S' | 'T' | 'U' | 'V' | 'W' | 'X' | 'Y' | 'Z'
 type AgeBand = 'All' | 'Under5' | '5to17' | 'Adult'
-
-const LETTERS: Letter[] = [
-  'All',
-  'A',
-  'B',
-  'C',
-  'D',
-  'E',
-  'F',
-  'G',
-  'H',
-  'I',
-  'J',
-  'K',
-  'L',
-  'M',
-  'N',
-  'O',
-  'P',
-  'Q',
-  'R',
-  'S',
-  'T',
-  'U',
-  'V',
-  'W',
-  'X',
-  'Y',
-  'Z',
-]
 
 interface SurgeryFiltersHeaderProps {
   searchTerm: string
@@ -169,25 +139,12 @@ export default function SurgeryFiltersHeader({
 
         <div className="mt-3 overflow-x-auto scrollbar-hide">
           <div className="flex gap-2 pb-2 min-w-max">
-            {LETTERS.map((letter) => {
-              const isSelected = selectedLetter === letter
-
-              return (
-                <button
-                  key={letter}
-                  onClick={() => onLetterChange(letter)}
-                  className={[
-                    'h-9 min-w-9 px-0 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
-                    isSelected
-                      ? 'bg-nhs-blue text-white border-nhs-blue'
-                      : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400',
-                  ].join(' ')}
-                  aria-pressed={isSelected}
-                >
-                  {letter}
-                </button>
-              )
-            })}
+            <LetterPills
+              selectedLetter={selectedLetter}
+              onLetterChange={onLetterChange}
+              symptoms={symptoms}
+              pillSizeClasses="h-9 min-w-9 px-0"
+            />
           </div>
         </div>
       </div>
@@ -252,25 +209,12 @@ export default function SurgeryFiltersHeader({
               {/* centre: alphabet */}
               <div className="flex-1 flex justify-center">
                 <div className="grid grid-cols-9 gap-2 max-w-lg">
-                  {LETTERS.map((letter) => {
-                    const isSelected = selectedLetter === letter
-                    return (
-                      <button
-                        key={letter}
-                        type="button"
-                        onClick={() => onLetterChange(letter)}
-                        className={[
-                          'h-9 w-9 rounded-full border text-sm flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2',
-                          isSelected
-                            ? 'bg-nhs-blue text-white border-nhs-blue'
-                            : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
-                        ].join(' ')}
-                        aria-pressed={isSelected}
-                      >
-                        {letter}
-                      </button>
-                    )
-                  })}
+                  <LetterPills
+                    selectedLetter={selectedLetter}
+                    onLetterChange={onLetterChange}
+                    symptoms={symptoms}
+                    pillSizeClasses="h-9 w-9"
+                  />
                 </div>
               </div>
             </div>
