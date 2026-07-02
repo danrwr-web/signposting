@@ -1033,7 +1033,10 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   const isSuper = session?.type === 'superuser'
                   const surgeryIdForLibrary = isSuper ? (selectedSurgery || null) : (session?.surgeryId || null)
                   return (
-                    <SymptomLibraryExplorer surgeryId={surgeryIdForLibrary} />
+                    <SymptomLibraryExplorer
+                      surgeryId={surgeryIdForLibrary}
+                      onSurgeryChange={isSuper ? setSelectedSurgery : undefined}
+                    />
                   )
                 })()}
               </div>
