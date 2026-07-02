@@ -7,12 +7,11 @@ const surgeries = [
 ]
 
 describe('SurgeryContextBar', () => {
-  it('renders a surgery dropdown for superusers on surgery-scoped tabs and propagates changes', () => {
+  it('renders a surgery dropdown on surgery-scoped tabs and propagates changes', () => {
     const onChange = jest.fn()
     render(
       <SurgeryContextBar
         scope="surgery"
-        isSuperuser
         surgeries={surgeries}
         selectedSurgeryId="s1"
         onChange={onChange}
@@ -32,7 +31,6 @@ describe('SurgeryContextBar', () => {
     render(
       <SurgeryContextBar
         scope="global"
-        isSuperuser
         surgeries={surgeries}
         selectedSurgeryId="s1"
         onChange={jest.fn()}
@@ -44,29 +42,12 @@ describe('SurgeryContextBar', () => {
     expect(screen.queryByLabelText('Select surgery')).not.toBeInTheDocument()
   })
 
-  it('shows a read-only surgery name for non-superusers', () => {
-    render(
-      <SurgeryContextBar
-        scope="surgery"
-        isSuperuser={false}
-        surgeries={[]}
-        selectedSurgeryId="s1"
-        selectedSurgeryName="Ide Lane Surgery"
-        onChange={jest.fn()}
-      />
-    )
-
-    expect(screen.getByText('Ide Lane Surgery')).toBeInTheDocument()
-    expect(screen.queryByLabelText('Select surgery')).not.toBeInTheDocument()
-  })
-
   it('supports an "All surgeries" option that toggles the local flag without changing the shared selection', () => {
     const onChange = jest.fn()
     const onShowAllChange = jest.fn()
     render(
       <SurgeryContextBar
         scope="surgery"
-        isSuperuser
         surgeries={surgeries}
         selectedSurgeryId="s1"
         onChange={onChange}
@@ -93,7 +74,6 @@ describe('SurgeryContextBar', () => {
     render(
       <SurgeryContextBar
         scope="surgery"
-        isSuperuser
         surgeries={surgeries}
         selectedSurgeryId="s1"
         onChange={jest.fn()}

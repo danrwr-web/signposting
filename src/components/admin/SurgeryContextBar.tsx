@@ -6,11 +6,8 @@ import { Badge } from '@/components/ui'
 interface SurgeryContextBarProps {
   /** Whether the active tab operates on one surgery or applies to all surgeries. */
   scope: 'surgery' | 'global'
-  isSuperuser: boolean
   surgeries: GroupableSurgery[]
   selectedSurgeryId: string
-  /** Shown to non-superusers instead of the dropdown. */
-  selectedSurgeryName?: string
   onChange: (surgeryId: string) => void
   /** Label before the selector, e.g. "Configuring:" or "Viewing:". */
   label?: string
@@ -25,13 +22,14 @@ interface SurgeryContextBarProps {
  * Single source of truth indicator for the /admin settings tabs: every tab renders
  * this bar so it's always clear which surgery the tab operates on (or that the tab
  * is global). Selection changes propagate up to the page-level selected surgery.
+ *
+ * Superuser-only: surgery admins manage exactly one surgery, so the bar is not
+ * rendered for them.
  */
 export default function SurgeryContextBar({
   scope,
-  isSuperuser,
   surgeries,
   selectedSurgeryId,
-  selectedSurgeryName,
   onChange,
   label = 'Configuring:',
   allOption = false,
@@ -52,26 +50,22 @@ export default function SurgeryContextBar({
   return (
     <div className="flex flex-wrap items-center gap-3 px-4 py-3 mb-6 bg-blue-50 border border-blue-200 rounded-md">
       <span className="text-sm font-medium text-nhs-dark-blue">{label}</span>
-      {isSuperuser ? (
-        <select
-          value={selectValue}
-          onChange={(e) => {
-            if (e.target.value === 'all') {
-              onShowAllChange?.(true)
-              return
-            }
-            onShowAllChange?.(false)
-            if (e.target.value) onChange(e.target.value)
-          }}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white w-full sm:w-72"
-          aria-label="Select surgery"
-        >
-          {allOption && <option value="all">All surgeries</option>}
-          <GroupedSurgeryOptions surgeries={surgeries} />
-        </select>
-      ) : (
-        <span className="text-sm font-medium text-gray-900">{selectedSurgeryName || '—'}</span>
-      )}
+      <select
+        value={selectValue}
+        onChange={(e) => {
+          if (e.target.value === 'all') {
+            onShowAllChange?.(true)
+            return
+          }
+          onShowAllChange?.(false)
+          if (e.target.value) onChange(e.target.value)
+        }}
+        className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white w-full sm:w-72"
+        aria-label="Select surgery"
+      >
+        {allOption && <option value="all">All surgeries</option>}
+        <GroupedSurgeryOptions surgeries={surgeries} />
+      </select>
     </div>
   )
 }

@@ -918,19 +918,20 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           </div>
 
           <div className="p-6">
-            {/* Surgery context bar: one source of truth for which surgery every tab operates on */}
-            <SurgeryContextBar
-              scope={activeTab === 'data' || activeTab === 'suggestions' ? 'global' : 'surgery'}
-              isSuperuser={session.type === 'superuser'}
-              surgeries={surgeries}
-              selectedSurgeryId={selectedSurgery}
-              selectedSurgeryName={surgeries.find(s => s.id === selectedSurgery)?.name || session.surgerySlug || undefined}
-              onChange={handleSurgeryChange}
-              label={activeTab === 'engagement' ? 'Viewing:' : 'Configuring:'}
-              allOption={activeTab === 'engagement' && session.type === 'superuser'}
-              showAll={engagementShowAll}
-              onShowAllChange={setEngagementShowAll}
-            />
+            {/* Surgery context bar: one source of truth for which surgery every tab operates on.
+                Superuser-only — surgery admins manage exactly one surgery. */}
+            {session.type === 'superuser' && (
+              <SurgeryContextBar
+                scope={activeTab === 'data' || activeTab === 'suggestions' ? 'global' : 'surgery'}
+                surgeries={surgeries}
+                selectedSurgeryId={selectedSurgery}
+                onChange={handleSurgeryChange}
+                label={activeTab === 'engagement' ? 'Viewing:' : 'Configuring:'}
+                allOption={activeTab === 'engagement'}
+                showAll={engagementShowAll}
+                onShowAllChange={setEngagementShowAll}
+              />
+            )}
 
             {/* Data Management Tab - Superuser only */}
             {activeTab === 'data' && session.type === 'superuser' && (
