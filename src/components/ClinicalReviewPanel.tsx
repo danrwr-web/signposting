@@ -5,6 +5,8 @@ import { useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
+import AgeGroupBadge from '@/components/AgeGroupBadge'
+import { SymptomAgeGroup, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
 
 const VALID_SORTS = ['name-asc', 'name-desc', 'changed-new', 'status', 'high-risk-first', 'clinician-type-first'] as const
 type SortKey = typeof VALID_SORTS[number]
@@ -66,6 +68,7 @@ export default function ClinicalReviewPanel({
   const [activeFilter, setActiveFilter] = useState<FilterKey>('pending')
   const [search, setSearch] = useState('')
   const [hideDisabled, setHideDisabled] = useState(false)
+  const [ageBand, setAgeBand] = useState<'All' | SymptomAgeGroup>('All')
   const [sort, setSort] = useState<SortKey>(() => {
     const validSet: Record<string, boolean> = {}
     for (const s of VALID_SORTS) validSet[s] = true
@@ -77,6 +80,7 @@ export default function ClinicalReviewPanel({
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [drawerIds, setDrawerIds] = useState<{ baseSymptomId?: string; customSymptomId?: string } | null>(null)
+  const [drawerAgeGroup, setDrawerAgeGroup] = useState<string | null>(null)
   const [drawerReviewStatus, setDrawerReviewStatus] = useState<'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' | null>(null)
   const [drawerReviewedBy, setDrawerReviewedBy] = useState<string | null>(null)
   const [drawerReviewedAt, setDrawerReviewedAt] = useState<string | null>(null)
@@ -370,6 +374,8 @@ export default function ClinicalReviewPanel({
           // When the user is hiding disabled symptoms, don't silently approve
           // pending disabled items that aren't visible in the filtered list.
           excludeDisabled: hideDisabled,
+          // Same for the age band filter: only approve rows the user can see.
+          ageGroup: ageBand === 'All' ? undefined : ageBand,
         }),
       })
 
@@ -469,17 +475,19 @@ export default function ClinicalReviewPanel({
   const inUseCount = Math.max(0, counts.all - disabledCount)
 
   // Number of symptoms "Bulk approve pending" will actually affect, mirroring the
-  // server logic: PENDING items, honouring the search box and (when 'Hide disabled'
-  // is on) excluding disabled symptoms so we never approve rows the user can't see.
+  // server logic: PENDING items, honouring the search box, the age band filter and
+  // (when 'Hide disabled' is on) excluding disabled symptoms so we never approve
+  // rows the user can't see.
   const bulkApproveCount = useMemo(() => {
     const q = search.trim().toLowerCase()
     return symptoms.filter((s) => {
       if (hideDisabled && (s as any).disabled) return false
+      if (ageBand !== 'All' && s.ageGroup !== ageBand) return false
       if (q && !s.name.toLowerCase().includes(q)) return false
       const rs = getReviewStatusForSymptom(s as any, reviewStatuses as any)
       return (rs?.status || 'PENDING') === 'PENDING'
     }).length
-  }, [symptoms, reviewStatuses, hideDisabled, search])
+  }, [symptoms, reviewStatuses, hideDisabled, search, ageBand])
 
   // Filter and sort rows
   type Row = {
@@ -518,6 +526,11 @@ export default function ClinicalReviewPanel({
       rows = rows.filter(r => !r.isDisabled)
     }
 
+    // Apply age band filter (each symptom is reviewed once per age band)
+    if (ageBand !== 'All') {
+      rows = rows.filter(r => r.symptom.ageGroup === ageBand)
+    }
+
     // Apply search
     const q = search.trim().toLowerCase()
     if (q) {
@@ -548,7 +561,7 @@ export default function ClinicalReviewPanel({
     })
 
     return rows
-  }, [symptoms, reviewStatuses, activeFilter, search, sort, highRiskSymptomIds, highRiskSlugs, hideDisabled])
+  }, [symptoms, reviewStatuses, activeFilter, search, sort, highRiskSymptomIds, highRiskSlugs, hideDisabled, ageBand])
 
   const debugMismatch = useMemo(() => {
     const isDev = process.env.NODE_ENV !== 'production'
@@ -576,6 +589,7 @@ export default function ClinicalReviewPanel({
       // For override, use baseSymptomId if available
       setDrawerIds({ baseSymptomId: symptom.baseSymptomId || symptom.id })
     }
+    setDrawerAgeGroup(symptom.ageGroup || null)
     setDrawerReviewStatus(reviewStatus?.status || null)
     const reviewerName = reviewStatus?.lastReviewedBy?.name || reviewStatus?.lastReviewedBy?.email || null
     setDrawerReviewedBy(reviewerName)
@@ -588,6 +602,7 @@ export default function ClinicalReviewPanel({
   const closeDrawer = () => {
     setDrawerOpen(false)
     setDrawerIds(null)
+    setDrawerAgeGroup(null)
     setDrawerReviewStatus(null)
     setDrawerReviewedBy(null)
     setDrawerReviewedAt(null)
@@ -720,6 +735,33 @@ export default function ClinicalReviewPanel({
             </select>
           </div>
         </div>
+        {/* Age band filter — each symptom is reviewed once per age band, so make
+            the band visible and filterable to avoid all-ages wording mistakes. */}
+        <div className="flex flex-wrap items-center gap-2 mb-2" role="group" aria-label="Filter by age group">
+          <span className="text-sm text-gray-600">Age group:</span>
+          {(['All', 'U5', 'O5', 'Adult'] as const).map(band => {
+            const isSelected = ageBand === band
+            const palette: Record<string, string> = {
+              All: isSelected ? 'bg-nhs-blue text-white' : 'bg-slate-100 text-slate-800 hover:bg-slate-200',
+              U5: isSelected ? 'bg-blue-200 text-blue-900 ring-2 ring-nhs-blue ring-offset-1' : 'bg-blue-100 text-blue-800 hover:bg-blue-200',
+              O5: isSelected ? 'bg-green-200 text-green-900 ring-2 ring-nhs-blue ring-offset-1' : 'bg-green-100 text-green-800 hover:bg-green-200',
+              Adult: isSelected ? 'bg-purple-200 text-purple-900 ring-2 ring-nhs-blue ring-offset-1' : 'bg-purple-100 text-purple-800 hover:bg-purple-200',
+            }
+            return (
+              <button
+                key={band}
+                onClick={() => setAgeBand(band)}
+                aria-pressed={isSelected}
+                className={`px-3 py-1 rounded-full text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 ${palette[band]}`}
+              >
+                {band === 'All' ? 'All ages' : formatAgeGroupLabel(band)}
+              </button>
+            )
+          })}
+          <span className="text-xs text-gray-500">
+            Each symptom has a separate version per age group — check the badge before approving.
+          </span>
+        </div>
         {roleLabelDevOnly && (
           <div className="mb-2 text-xs text-gray-500">
             Debug: role = <span className="font-mono">{roleLabelDevOnly}</span>
@@ -768,6 +810,7 @@ export default function ClinicalReviewPanel({
                         >
                           {row.symptom.name}
                         </a>
+                        <AgeGroupBadge ageGroup={row.symptom.ageGroup} />
                         {row.isDisabled && (
                           <span
                             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
@@ -879,6 +922,7 @@ export default function ClinicalReviewPanel({
                 <p className="text-sm text-gray-600 mb-6">
                   This will approve {bulkApproveCount} symptom{bulkApproveCount === 1 ? '' : 's'} for {surgeryData?.name || 'this surgery'}. Changes-required items will not be approved.
                   {hideDisabled && ' Disabled symptoms are excluded while “Hide disabled” is on.'}
+                  {ageBand !== 'All' && ` Only “${formatAgeGroupLabel(ageBand)}” symptoms are included while the age group filter is on.`}
                 </p>
                 <div className="flex gap-3 justify-end">
                   <button
@@ -996,6 +1040,7 @@ export default function ClinicalReviewPanel({
           surgeryId={effectiveSurgeryId}
           baseSymptomId={drawerIds?.baseSymptomId}
           customSymptomId={drawerIds?.customSymptomId}
+          ageGroup={drawerAgeGroup}
           reviewStatus={drawerReviewStatus}
           reviewedBy={drawerReviewedBy}
           reviewedAt={drawerReviewedAt}
@@ -1015,6 +1060,7 @@ interface DrawerProps {
   surgeryId: string
   baseSymptomId?: string
   customSymptomId?: string
+  ageGroup?: string | null
   reviewStatus?: 'PENDING' | 'APPROVED' | 'CHANGES_REQUIRED' | null
   reviewedBy?: string | null
   reviewedAt?: string | null
@@ -1023,7 +1069,7 @@ interface DrawerProps {
   closeButtonRef?: React.RefObject<HTMLButtonElement>
 }
 
-function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, reviewStatus, reviewedBy, reviewedAt, reviewNote, onReEnable, closeButtonRef }: DrawerProps) {
+function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, customSymptomId, ageGroup, reviewStatus, reviewedBy, reviewedAt, reviewNote, onReEnable, closeButtonRef }: DrawerProps) {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<null | {
     name: string
@@ -1209,6 +1255,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900">{data?.name || 'Loading...'} — Preview (read-only)</h2>
             <div className="flex flex-wrap items-center gap-2 mt-2">
+              <AgeGroupBadge ageGroup={ageGroup} size="sm" />
               {statusBadge}
               {data && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -1216,6 +1263,11 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
                 </span>
               )}
             </div>
+            {ageGroup && (
+              <p className="text-sm text-gray-600 mt-2">
+                This version of the symptom applies to <span className="font-medium text-gray-900">{formatAgeGroupDescription(ageGroup)}</span>. Other age groups are reviewed separately.
+              </p>
+            )}
             {data && (
               <p className="text-sm text-gray-600 mt-2">Last changed: {formatLastEdited(data.lastEditedAt, data.lastEditedBy)}</p>
             )}

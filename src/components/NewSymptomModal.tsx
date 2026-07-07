@@ -195,6 +195,9 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
               <option value="O5">5–17</option>
               <option value="Adult">Adult</option>
             </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Write the instructions for this age group only. If the symptom applies to other age groups too, create a separate version for each — they are reviewed and approved separately.
+            </p>
           </div>
         </div>
 
