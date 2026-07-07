@@ -4,6 +4,7 @@ export const revalidate = 0
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import { ensureFeatures } from '@/lib/ensureFeatures'
 import FeatureRolloutsClient from './FeatureRolloutsClient'
 
 export default async function FeatureRolloutsPage() {
@@ -16,6 +17,10 @@ export default async function FeatureRolloutsPage() {
   if (user.globalRole !== 'SUPERUSER') {
     redirect('/unauthorized')
   }
+
+  // Seed any newly added default features so they appear in the matrix even
+  // if no feature API has run yet on this database
+  await ensureFeatures()
 
   // Get all surgeries with their feature flags
   const surgeries = await prisma.surgery.findMany({
