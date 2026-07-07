@@ -311,6 +311,13 @@ export async function PATCH(request: NextRequest) {
           })
         }
 
+        // A symptom hidden via its override is invisible to reception regardless of
+        // the status row, so enabling must also unhide it (keeping local wording).
+        await prisma.surgerySymptomOverride.updateMany({
+          where: { surgeryId: resolvedSurgeryId, baseSymptomId, isHidden: true },
+          data: { isHidden: false }
+        })
+
         revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
         revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
         revalidateTag('symptoms')
@@ -393,14 +400,22 @@ export async function PATCH(request: NextRequest) {
 
         // If we have statusRowId, update directly
         if (statusRowId) {
-          await prisma.surgerySymptomStatus.update({
+          const updated = await prisma.surgerySymptomStatus.update({
             where: { id: statusRowId },
             data: {
               isEnabled: true,
               lastEditedAt: now,
               lastEditedBy: editedBy
-            }
+            },
+            select: { surgeryId: true, baseSymptomId: true }
           })
+          // Enabling must also unhide an override-hidden base symptom.
+          if (updated.baseSymptomId) {
+            await prisma.surgerySymptomOverride.updateMany({
+              where: { surgeryId: updated.surgeryId, baseSymptomId: updated.baseSymptomId, isHidden: true },
+              data: { isHidden: false }
+            })
+          }
         }
         // Otherwise, find or create status row by baseSymptomId or customSymptomId
         else if (resolvedSurgeryId) {
@@ -434,6 +449,14 @@ export async function PATCH(request: NextRequest) {
 
             await prisma.surgerySymptomStatus.create({
               data: createData
+            })
+          }
+
+          // Enabling must also unhide an override-hidden base symptom.
+          if (baseSymptomId) {
+            await prisma.surgerySymptomOverride.updateMany({
+              where: { surgeryId: resolvedSurgeryId, baseSymptomId, isHidden: true },
+              data: { isHidden: false }
             })
           }
         }
