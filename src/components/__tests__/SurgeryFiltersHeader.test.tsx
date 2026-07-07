@@ -76,3 +76,21 @@ describe('SurgeryFiltersHeader letter pills', () => {
     expect(screen.getByRole('button', { name: 'A' })).toBeEnabled()
   })
 })
+
+describe('SurgeryFiltersHeader age filter visibility', () => {
+  it('shows the age filter by default in the split layout', () => {
+    render(<SurgeryFiltersHeader {...baseProps} symptoms={symptoms} />)
+    expect(screen.getByRole('tablist', { name: 'Age filter' })).toBeInTheDocument()
+  })
+
+  it('hides the age filter in the split layout when hideAgeBands is set', () => {
+    render(<SurgeryFiltersHeader {...baseProps} symptoms={symptoms} hideAgeBands />)
+    expect(screen.queryByRole('tablist', { name: 'Age filter' })).not.toBeInTheDocument()
+  })
+
+  it('hides the age filter in the classic layout when hideAgeBands is set', () => {
+    mockHeaderLayout = 'classic'
+    render(<SurgeryFiltersHeader {...baseProps} symptoms={symptoms} hideAgeBands />)
+    expect(screen.queryByRole('tablist', { name: 'Age filter' })).not.toBeInTheDocument()
+  })
+})

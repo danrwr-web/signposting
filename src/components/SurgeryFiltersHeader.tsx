@@ -20,6 +20,8 @@ interface SurgeryFiltersHeaderProps {
   onLetterChange: (letter: Letter) => void
   selectedAge: AgeBand
   onAgeChange: (age: AgeBand) => void
+  // Hide the age band filter (per-surgery 'hide_age_bands' feature flag)
+  hideAgeBands?: boolean
   resultsCount: number
   totalCount: number
   currentSurgeryId?: string
@@ -35,6 +37,7 @@ export default function SurgeryFiltersHeader({
   onLetterChange,
   selectedAge,
   onAgeChange,
+  hideAgeBands = false,
   resultsCount,
   totalCount,
   currentSurgeryId,
@@ -85,13 +88,15 @@ export default function SurgeryFiltersHeader({
             </div>
 
             {/* horizontal age filters */}
-            <div className="flex items-center gap-2">
-              <AgeFilter
-                value={selectedAge}
-                onChange={onAgeChange}
-                orientation="horizontal"
-              />
-            </div>
+            {!hideAgeBands && (
+              <div className="flex items-center gap-2">
+                <AgeFilter
+                  value={selectedAge}
+                  onChange={onAgeChange}
+                  orientation="horizontal"
+                />
+              </div>
+            )}
           </div>
 
           {/* count and What's changed link, right aligned */}
@@ -197,14 +202,16 @@ export default function SurgeryFiltersHeader({
 
             <div className="mt-2 flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
               {/* left: age pills */}
-              <div className="flex flex-col gap-2">
-                <AgeFilter
-                  value={selectedAge}
-                  onChange={onAgeChange}
-                  className="flex flex-col gap-2 items-start"
-                  orientation="vertical"
-                />
-              </div>
+              {!hideAgeBands && (
+                <div className="flex flex-col gap-2">
+                  <AgeFilter
+                    value={selectedAge}
+                    onChange={onAgeChange}
+                    className="flex flex-col gap-2 items-start"
+                    orientation="vertical"
+                  />
+                </div>
+              )}
 
               {/* centre: alphabet */}
               <div className="flex-1 flex justify-center">

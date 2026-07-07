@@ -26,9 +26,11 @@ interface SymptomCardProps {
   surgeryId?: string
   changeInfo?: SymptomChangeInfo
   cardData?: CardData
+  /** Hide the age badge (per-surgery 'hide_age_bands' feature flag) */
+  hideAgeBands?: boolean
 }
 
-function SymptomCard({ symptom, surgeryId, changeInfo, cardData }: SymptomCardProps) {
+function SymptomCard({ symptom, surgeryId, changeInfo, cardData, hideAgeBands = false }: SymptomCardProps) {
   const { currentSurgeryId } = useSurgery()
   const { cardStyle, isSimplified } = useCardStyle()
 
@@ -187,9 +189,11 @@ function SymptomCard({ symptom, surgeryId, changeInfo, cardData }: SymptomCardPr
               }}
             />
           )}
-          <span className={ageBadgeClasses}>
-            {ageLabel}
-          </span>
+          {!hideAgeBands && (
+            <span className={ageBadgeClasses}>
+              {ageLabel}
+            </span>
+          )}
           <span className="sr-only">Source: {sourceLabel}</span>
           <span className="sr-only">Open symptom details</span>
         </div>
@@ -233,9 +237,11 @@ function SymptomCard({ symptom, surgeryId, changeInfo, cardData }: SymptomCardPr
             {renderChangeBadge()}
           </div>
           <div className="flex flex-col gap-1 flex-shrink-0">
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgeGroupColor(symptom.ageGroup || 'Adult')}`}>
-              {getAgeGroupLabel(symptom.ageGroup || 'Adult')}
-            </span>
+            {!hideAgeBands && (
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getAgeGroupColor(symptom.ageGroup || 'Adult')}`}>
+                {getAgeGroupLabel(symptom.ageGroup || 'Adult')}
+              </span>
+            )}
             <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSourceColor(symptom.source || 'base')}`}>
               {getSourceLabel(symptom.source || 'base')}
             </span>

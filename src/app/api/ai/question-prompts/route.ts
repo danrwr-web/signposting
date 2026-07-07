@@ -8,13 +8,21 @@ import { callAzureOpenAI, AzureOpenAIError, extractJson } from '@/server/azureOp
 
 export const runtime = 'nodejs'
 
-const questionPromptsSchema = z.object({
-  symptomName: z.string(),
-  ageGroup: z.string(),
-  briefInstruction: z.string().optional(),
-  instructionsText: z.string().optional(),
-  instructionsHtml: z.string().optional(),
-})
+const questionPromptsSchema = z
+  .object({
+    symptomName: z.string(),
+    ageGroup: z.string().optional(),
+    // Set when the surgery hides age bands: one symptom entry covers all ages,
+    // so questions must establish the patient's age rather than assume a band.
+    allAges: z.boolean().optional(),
+    briefInstruction: z.string().optional(),
+    instructionsText: z.string().optional(),
+    instructionsHtml: z.string().optional(),
+  })
+  .refine(body => body.allAges === true || (body.ageGroup && body.ageGroup.trim() !== ''), {
+    message: 'Either ageGroup or allAges must be provided',
+    path: ['ageGroup'],
+  })
 
 interface QuestionGroup {
   label: string
@@ -43,7 +51,8 @@ export async function POST(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
-    const { symptomName, ageGroup, briefInstruction, instructionsText, instructionsHtml } = questionPromptsSchema.parse(body)
+    const { symptomName, ageGroup, allAges, briefInstruction, instructionsText, instructionsHtml } = questionPromptsSchema.parse(body)
+    const isAllAges = allAges === true
 
     // Get the instructions text - prefer HTML if available, fallback to plain text
     // Truncate to prevent exceeding model context window
@@ -65,11 +74,21 @@ export async function POST(request: NextRequest) {
 
 Your role is to help staff gather the information they need to follow the toolkit rules correctly.`
 
+    const ageGroupLine = isAllAges
+      ? 'AGE GROUP: This symptom entry covers ALL AGES (children under 5, children 5-17, and adults) in a single set of instructions.'
+      : `AGE GROUP: "${ageGroup}"`
+    const allAgesRules = isAllAges
+      ? `
+- Because this entry covers all ages, ALWAYS include an age-establishing question first (e.g. "How old is the patient?" or "Who is this for — an adult or a child?").
+- Where the instructions give different advice or red flags for different ages, include the age-specific questions and make clear which age they apply to (e.g. "If this is for a child under 5: ...").`
+      : ''
+    const responseAgeGroup = isAllAges ? 'All ages' : ageGroup
+
     const userPrompt = `
 You will be given internal GP signposting guidance used by reception/admin staff in UK primary care.
 
 SYMPTOM NAME: "${symptomName}"
-AGE GROUP: "${ageGroup}"
+${ageGroupLine}
 BRIEF INSTRUCTION (routing label): "${briefInstruction || '(none provided)'}"
 
 FULL INSTRUCTIONS (internal guidance for staff):
@@ -89,13 +108,13 @@ CRITICAL RULES:
   * Where they should be directed (self-care, pharmacy, nurse, GP, urgent appointment, 999, etc.) - ONLY if this is actually present in the instructions
 - If unsure, bias questions towards safety and earlier review, but do NOT contradict the written instructions.
 - Questions should be phrased as if the receptionist is asking the patient directly (patient-friendly language).
-- Do NOT include questions about things not mentioned in the instructions.
+- Do NOT include questions about things not mentioned in the instructions.${allAgesRules}
 
 OUTPUT FORMAT:
 You MUST return VALID JSON ONLY, with this exact structure:
 {
   "symptom": "${symptomName}",
-  "ageGroup": "${ageGroup}",
+  "ageGroup": "${responseAgeGroup}",
   "groups": [
     {
       "label": "Check for emergencies / red flags",
@@ -157,7 +176,7 @@ IMPORTANT:
 
     // Fill in missing fields from request data rather than failing
     questionPrompts.symptom = questionPrompts.symptom || symptomName
-    questionPrompts.ageGroup = questionPrompts.ageGroup || ageGroup
+    questionPrompts.ageGroup = questionPrompts.ageGroup || responseAgeGroup || 'All ages'
 
     if (!Array.isArray(questionPrompts.groups)) {
       console.error('Invalid question prompts structure (missing groups):', parsed)
@@ -170,7 +189,7 @@ IMPORTANT:
     const timestamp = new Date().toISOString()
 
     // Log audit information
-    console.info('AI question prompts generated:', { symptomName, ageGroup, model, timestamp })
+    console.info('AI question prompts generated:', { symptomName, ageGroup: responseAgeGroup, model, timestamp })
 
     // Log token usage (non-blocking)
     try {

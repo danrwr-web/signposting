@@ -25,6 +25,8 @@ interface CompactToolbarProps {
   onLetterChange: (letter: Letter) => void
   selectedAge: AgeBand
   onAgeChange: (age: AgeBand) => void
+  // Hide the age band filter (per-surgery 'hide_age_bands' feature flag)
+  hideAgeBands?: boolean
   resultsCount: number
   totalCount: number
   showSurgerySelector: boolean
@@ -47,6 +49,7 @@ export default function CompactToolbar({
   onLetterChange,
   selectedAge,
   onAgeChange,
+  hideAgeBands = false,
   resultsCount,
   totalCount,
   showSurgerySelector,
@@ -169,6 +172,7 @@ export default function CompactToolbar({
         onLetterChange={onLetterChange}
         selectedAge={selectedAge}
         onAgeChange={onAgeChange}
+        hideAgeBands={hideAgeBands}
         resultsCount={resultsCount}
         totalCount={totalCount}
         currentSurgeryId={currentSurgeryId}

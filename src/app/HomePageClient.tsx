@@ -35,9 +35,12 @@ interface HomePageClientProps {
   pendingClinicalReviewCount?: number
   surgeryName?: string
   commonReasonsItems?: CommonReasonsResolvedItem[]
+  // When true (per-surgery 'hide_age_bands' feature flag), the age filter and
+  // age badges are not shown and symptoms are never filtered by age band.
+  hideAgeBands?: boolean
 }
 
-function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingClinicalReviewCount, surgeryName, surgeryId: routeSurgeryId, commonReasonsItems }: HomePageClientProps) {
+function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingClinicalReviewCount, surgeryName, surgeryId: routeSurgeryId, commonReasonsItems, hideAgeBands = false }: HomePageClientProps) {
   const { surgery, currentSurgeryId, setSurgery } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
@@ -184,18 +187,23 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
     return () => controller.abort()
   }, [surgeryId, routeSurgeryId, getCacheKey, initialSymptoms])
 
-  // Load age filter from localStorage
+  // Load age filter from localStorage. Skipped when age bands are hidden so a
+  // stale saved band can't invisibly filter symptoms with no filter UI shown.
   useEffect(() => {
+    if (hideAgeBands) return
     const savedAge = localStorage.getItem('selectedAge') as AgeBand
     if (savedAge && ['All', 'Under5', '5to17', 'Adult'].includes(savedAge)) {
       setSelectedAge(savedAge)
     }
-  }, [])
+  }, [hideAgeBands])
 
-  // Save age filter to localStorage
+  // Save age filter to localStorage. Skipped when age bands are hidden so the
+  // user's saved preference survives for other surgeries or if the mode is
+  // turned off later.
   useEffect(() => {
+    if (hideAgeBands) return
     localStorage.setItem('selectedAge', selectedAge)
-  }, [selectedAge])
+  }, [selectedAge, hideAgeBands])
 
   // Filter symptoms based on search, age group, and letter with useMemo for performance.
   // Search text is derived from the content the user is actually shown (stripped
@@ -210,22 +218,22 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
       const matchesSearch = !lowerSearch ||
         (searchTextBySymptom.get(symptom) ?? '').includes(lowerSearch)
 
-      const matchesAge = matchesAgeBand(symptom, deferredSelectedAge)
+      const matchesAge = hideAgeBands || matchesAgeBand(symptom, deferredSelectedAge)
 
       const matchesLetter = deferredSelectedLetter === 'All' ||
         symptom.name.trim().toUpperCase().startsWith(deferredSelectedLetter)
 
       return matchesSearch && matchesAge && matchesLetter
     })
-  }, [symptoms, searchTextBySymptom, lowerSearch, deferredSelectedAge, deferredSelectedLetter])
+  }, [symptoms, searchTextBySymptom, lowerSearch, deferredSelectedAge, deferredSelectedLetter, hideAgeBands])
 
   // A-Z letter availability reflects the active age band (but not the text
   // search, so pills don't flicker while typing): a letter whose symptoms all
   // sit outside the selected age band is greyed out rather than leading to an
   // empty-results dead end.
   const symptomsForLetterAvailability = useMemo(
-    () => (selectedAge === 'All' ? symptoms : symptoms.filter(s => matchesAgeBand(s, selectedAge))),
-    [symptoms, selectedAge]
+    () => (hideAgeBands || selectedAge === 'All' ? symptoms : symptoms.filter(s => matchesAgeBand(s, selectedAge))),
+    [symptoms, selectedAge, hideAgeBands]
   )
 
   const renderSkeletonGrid = () => (
@@ -245,6 +253,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
         onLetterChange={setSelectedLetter}
         selectedAge={selectedAge}
         onAgeChange={setSelectedAge}
+        hideAgeBands={hideAgeBands}
         resultsCount={filteredSymptoms.length}
         totalCount={symptoms.length}
         showSurgerySelector={showSurgerySelector}
@@ -298,6 +307,7 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
             surgeryId={surgeryId || undefined}
             changesMap={changesMap}
             cardData={cardData}
+            hideAgeBands={hideAgeBands}
           />
         ) : (
           <EmptyState

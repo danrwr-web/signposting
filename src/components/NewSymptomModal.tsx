@@ -5,6 +5,7 @@ import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
+import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
 interface Props {
   isOpen: boolean
@@ -28,6 +29,9 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   const [instructionsJson, setInstructionsJson] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // When the target surgery hides age bands, one entry covers all ages: the
+  // age select is hidden and the record is stored as 'Adult'.
+  const [targetHidesAgeBands, setTargetHidesAgeBands] = useState(false)
 
   useEffect(() => {
     if (isSuperuser) {
@@ -38,6 +42,25 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   useEffect(() => {
     if (currentSurgeryId) setTargetSurgeryId(currentSurgeryId)
   }, [currentSurgeryId])
+
+  // Resolve the target surgery's hide_age_bands flag (base symptoms always show the select)
+  const flagSurgeryId = target === 'SURGERY' ? (isSuperuser ? targetSurgeryId : currentSurgeryId) : null
+  useEffect(() => {
+    if (!isOpen || !flagSurgeryId) {
+      setTargetHidesAgeBands(false)
+      return
+    }
+    let cancelled = false
+    fetch(`/api/surgeries/${flagSurgeryId}/features`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!cancelled) setTargetHidesAgeBands(!!data?.features?.[FEATURE_HIDE_AGE_BANDS])
+      })
+      .catch(() => {
+        if (!cancelled) setTargetHidesAgeBands(false)
+      })
+    return () => { cancelled = true }
+  }, [isOpen, flagSurgeryId])
 
   if (!isOpen) return null
 
@@ -61,7 +84,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         target,
         ...(target === 'SURGERY' ? { surgeryId: resolvedSurgeryId } : {}),
         name: name.trim(),
-        ageGroup,
+        ageGroup: targetHidesAgeBands ? 'Adult' : ageGroup,
         briefInstruction: briefInstruction.trim() || undefined,
         highlightedText: highlightedText.trim() || undefined,
         linkToPage: linkToPage.trim() || undefined,
@@ -184,21 +207,29 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         </div>
 
         <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Age group</label>
-            <select
-              value={ageGroup}
-              onChange={(e) => setAgeGroup(e.target.value as 'U5' | 'O5' | 'Adult')}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            >
-              <option value="U5">Under 5</option>
-              <option value="O5">5–17</option>
-              <option value="Adult">Adult</option>
-            </select>
-            <p className="text-xs text-gray-500 mt-1">
-              Write the instructions for this age group only. If the symptom applies to other age groups too, create a separate version for each — they are reviewed and approved separately.
-            </p>
-          </div>
+          {targetHidesAgeBands ? (
+            <div>
+              <p className="text-xs text-gray-500">
+                This surgery uses a single all-ages entry per symptom — include any age-specific advice (under 5, 5–17, adult) in the instructions.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Age group</label>
+              <select
+                value={ageGroup}
+                onChange={(e) => setAgeGroup(e.target.value as 'U5' | 'O5' | 'Adult')}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                <option value="U5">Under 5</option>
+                <option value="O5">5–17</option>
+                <option value="Adult">Adult</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Write the instructions for this age group only. If the symptom applies to other age groups too, create a separate version for each — they are reviewed and approved separately.
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mb-4">

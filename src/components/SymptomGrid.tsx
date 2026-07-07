@@ -12,13 +12,16 @@ interface SymptomGridProps {
   changesMap?: Map<string, SymptomChangeInfo>
   /** Pre-fetched card data (highlights, image icons, settings) shared across all cards */
   cardData?: CardData
+  /** Hide age badges on cards (per-surgery 'hide_age_bands' feature flag) */
+  hideAgeBands?: boolean
 }
 
 export default function SymptomGrid({
   symptoms,
   surgeryId,
   changesMap,
-  cardData
+  cardData,
+  hideAgeBands = false
 }: SymptomGridProps) {
   const { currentSurgeryId } = useSurgery()
 
@@ -42,6 +45,7 @@ export default function SymptomGrid({
             surgeryId={effectiveSurgeryId || undefined}
             changeInfo={changesMap?.get(symptom.id)}
             cardData={cardData}
+            hideAgeBands={hideAgeBands}
           />
         </div>
       ))}

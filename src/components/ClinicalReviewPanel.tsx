@@ -7,6 +7,7 @@ import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
 import AgeGroupBadge from '@/components/AgeGroupBadge'
 import { SymptomAgeGroup, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
+import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
 const VALID_SORTS = ['name-asc', 'name-desc', 'changed-new', 'status', 'high-risk-first', 'clinician-type-first'] as const
 type SortKey = typeof VALID_SORTS[number]
@@ -69,6 +70,9 @@ export default function ClinicalReviewPanel({
   const [search, setSearch] = useState('')
   const [hideDisabled, setHideDisabled] = useState(false)
   const [ageBand, setAgeBand] = useState<'All' | SymptomAgeGroup>('All')
+  // Per-surgery 'hide_age_bands' flag: display-only — review keys and statuses
+  // still carry the age band; we just stop showing age UI for this surgery.
+  const [hideAgeBands, setHideAgeBands] = useState(false)
   const [sort, setSort] = useState<SortKey>(() => {
     const validSet: Record<string, boolean> = {}
     for (const s of VALID_SORTS) validSet[s] = true
@@ -116,11 +120,13 @@ export default function ClinicalReviewPanel({
 
     setLoading(true)
     try {
-      // Fetch symptoms (including disabled) and enabled symptoms separately, plus review statuses
-      const [symptomsRes, enabledSymptomsRes, reviewRes] = await Promise.all([
+      // Fetch symptoms (including disabled) and enabled symptoms separately, plus
+      // review statuses and the surgery's feature flags (for hide_age_bands)
+      const [symptomsRes, enabledSymptomsRes, reviewRes, featuresRes] = await Promise.all([
         fetch(`/api/effectiveSymptoms?surgeryId=${effectiveSurgeryId}&includeDisabled=1`, { cache: 'no-store' }),
         fetch(`/api/effectiveSymptoms?surgeryId=${effectiveSurgeryId}&includeDisabled=0`, { cache: 'no-store' }),
-        fetch(`/api/admin/clinical-review-data?surgeryId=${effectiveSurgeryId}`, { cache: 'no-store' })
+        fetch(`/api/admin/clinical-review-data?surgeryId=${effectiveSurgeryId}`, { cache: 'no-store' }),
+        fetch(`/api/surgeries/${effectiveSurgeryId}/features`, { cache: 'no-store' })
       ])
 
       if (!symptomsRes.ok) {
@@ -136,6 +142,20 @@ export default function ClinicalReviewPanel({
       const symptomsData = await symptomsRes.json()
       const enabledSymptomsData = await enabledSymptomsRes.json()
       const reviewData = await reviewRes.json()
+
+      // Feature flags are non-critical: fall back to showing age UI on error
+      let surgeryHidesAgeBands = false
+      if (featuresRes.ok) {
+        try {
+          const featuresData = await featuresRes.json()
+          surgeryHidesAgeBands = !!featuresData?.features?.[FEATURE_HIDE_AGE_BANDS]
+        } catch {}
+      }
+      setHideAgeBands(surgeryHidesAgeBands)
+      if (surgeryHidesAgeBands) {
+        // Clear any active age filter so rows aren't invisibly filtered
+        setAgeBand('All')
+      }
 
       setSymptoms(symptomsData.symptoms || [])
       setEnabledSymptoms(enabledSymptomsData.symptoms || [])
@@ -736,7 +756,9 @@ export default function ClinicalReviewPanel({
           </div>
         </div>
         {/* Age band filter — each symptom is reviewed once per age band, so make
-            the band visible and filterable to avoid all-ages wording mistakes. */}
+            the band visible and filterable to avoid all-ages wording mistakes.
+            Hidden entirely for surgeries running in all-ages mode. */}
+        {!hideAgeBands && (
         <div className="flex flex-wrap items-center gap-2 mb-2" role="group" aria-label="Filter by age group">
           <span className="text-sm text-gray-600">Age group:</span>
           {(['All', 'U5', 'O5', 'Adult'] as const).map(band => {
@@ -762,6 +784,7 @@ export default function ClinicalReviewPanel({
             Each symptom has a separate version per age group — check the badge before approving.
           </span>
         </div>
+        )}
         {roleLabelDevOnly && (
           <div className="mb-2 text-xs text-gray-500">
             Debug: role = <span className="font-mono">{roleLabelDevOnly}</span>
@@ -810,7 +833,7 @@ export default function ClinicalReviewPanel({
                         >
                           {row.symptom.name}
                         </a>
-                        <AgeGroupBadge ageGroup={row.symptom.ageGroup} />
+                        {!hideAgeBands && <AgeGroupBadge ageGroup={row.symptom.ageGroup} />}
                         {row.isDisabled && (
                           <span
                             className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
@@ -1040,7 +1063,7 @@ export default function ClinicalReviewPanel({
           surgeryId={effectiveSurgeryId}
           baseSymptomId={drawerIds?.baseSymptomId}
           customSymptomId={drawerIds?.customSymptomId}
-          ageGroup={drawerAgeGroup}
+          ageGroup={hideAgeBands ? null : drawerAgeGroup}
           reviewStatus={drawerReviewStatus}
           reviewedBy={drawerReviewedBy}
           reviewedAt={drawerReviewedAt}
@@ -1255,7 +1278,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
           <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900">{data?.name || 'Loading...'} — Preview (read-only)</h2>
             <div className="flex flex-wrap items-center gap-2 mt-2">
-              <AgeGroupBadge ageGroup={ageGroup} size="sm" />
+              {ageGroup && <AgeGroupBadge ageGroup={ageGroup} size="sm" />}
               {statusBadge}
               {data && (
                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">

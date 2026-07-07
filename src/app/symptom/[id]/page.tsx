@@ -6,6 +6,8 @@ import InstructionView from '@/components/InstructionView'
 import SimpleHeader from '@/components/SimpleHeader'
 import { getSessionUser } from '@/lib/rbac'
 import ClinicalReviewActions from '@/components/ClinicalReviewActions'
+import { isFeatureEnabledForSurgery } from '@/lib/features'
+import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
 // Disable caching for this page to prevent stale data
 export const dynamic = 'force-dynamic'
@@ -75,6 +77,11 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const surgeries = await prisma.surgery.findMany({
     orderBy: { name: 'asc' }
   })
+
+  // Per-surgery display option: hide age band badges and treat the symptom as all-ages
+  const hideAgeBands = surgeryId
+    ? await isFeatureEnabledForSurgery(surgeryId, FEATURE_HIDE_AGE_BANDS)
+    : false
 
   // If coming from clinical review, compute previous/next for navigation
   let prevSymptomId: string | null = null
@@ -232,9 +239,10 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         />
       )}
       
-      <InstructionView 
-        symptom={symptom} 
+      <InstructionView
+        symptom={symptom}
         surgeryId={surgeryId}
+        hideAgeBands={hideAgeBands}
       />
     </div>
   )
