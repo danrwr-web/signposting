@@ -17,6 +17,16 @@ interface SymptomPreviewResponse {
   highlightedText: string | null
 }
 
+type EditStamp = { at: Date | null; by: string | null }
+
+// Pick the most recent edit across the status row and the content record
+// (override or custom symptom) — content edits don't touch the status row.
+function latestEdit(a: EditStamp, b: EditStamp): EditStamp {
+  if (!a.at) return b
+  if (!b.at) return a
+  return b.at.getTime() > a.at.getTime() ? b : a
+}
+
 const QuerySchema = z
   .object({
     surgeryId: z.string().min(1, 'surgeryId required'),
@@ -74,11 +84,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Base symptom not found' }, { status: 404 })
       }
 
-      let override: { briefInstruction: string | null; instructionsHtml: string | null; highlightedText: string | null } | null = null
+      let override: { briefInstruction: string | null; instructionsHtml: string | null; highlightedText: string | null; isHidden: boolean; lastEditedBy: string | null; lastEditedAt: Date | null } | null = null
       try {
         override = await prisma.surgerySymptomOverride.findUnique({
           where: { surgeryId_baseSymptomId: { surgeryId, baseSymptomId } },
-          select: { briefInstruction: true, instructionsHtml: true, highlightedText: true }
+          select: { briefInstruction: true, instructionsHtml: true, highlightedText: true, isHidden: true, lastEditedBy: true, lastEditedAt: true }
         })
       } catch {
         override = null
@@ -90,7 +100,13 @@ export async function GET(request: NextRequest) {
       })
 
       const hasOverride = !!override
-      const isEnabled = !!statusRow?.isEnabled
+      // Mirrors effectiveSymptoms.ts: visible unless the override hides it or a
+      // status row explicitly disables it. Absence of a status row = enabled.
+      const isEnabled = !override?.isHidden && (statusRow ? statusRow.isEnabled !== false : true)
+      const lastEdited = latestEdit(
+        { at: statusRow?.lastEditedAt ?? null, by: statusRow?.lastEditedBy ?? null },
+        { at: override?.lastEditedAt ?? null, by: override?.lastEditedBy ?? null }
+      )
       const effectiveBriefInstruction = hasOverride
         ? (override?.briefInstruction ?? baseSymptom.briefInstruction ?? null)
         : (baseSymptom.briefInstruction ?? null)
@@ -106,8 +122,8 @@ export async function GET(request: NextRequest) {
         status: hasOverride ? 'MODIFIED' : 'BASE',
         isEnabled,
         canEnable: true,
-        lastEditedBy: statusRow?.lastEditedBy ?? null,
-        lastEditedAt: statusRow?.lastEditedAt ? statusRow.lastEditedAt.toISOString() : null,
+        lastEditedBy: lastEdited.by,
+        lastEditedAt: lastEdited.at ? lastEdited.at.toISOString() : null,
         briefInstruction: effectiveBriefInstruction,
         instructionsHtml: effectiveInstructionsHtml,
         baseInstructionsHtml: hasOverride ? (baseSymptom.instructionsHtml ?? null) : null,
@@ -122,7 +138,7 @@ export async function GET(request: NextRequest) {
 
       const customSymptom = await prisma.surgeryCustomSymptom.findFirst({
         where: { id: customSymptomId, surgeryId, isDeleted: false },
-        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true }
+        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true, lastEditedBy: true, lastEditedAt: true }
       })
       if (!customSymptom) {
         return NextResponse.json({ error: 'Custom symptom not found' }, { status: 404 })
@@ -133,13 +149,18 @@ export async function GET(request: NextRequest) {
         select: { id: true, isEnabled: true, lastEditedBy: true, lastEditedAt: true }
       })
 
+      const lastEdited = latestEdit(
+        { at: statusRow?.lastEditedAt ?? null, by: statusRow?.lastEditedBy ?? null },
+        { at: customSymptom.lastEditedAt ?? null, by: customSymptom.lastEditedBy ?? null }
+      )
+
       response = {
         name: customSymptom.name,
         status: 'LOCAL_ONLY',
-        isEnabled: !!statusRow?.isEnabled,
+        isEnabled: statusRow ? statusRow.isEnabled !== false : true,
         canEnable: true,
-        lastEditedBy: statusRow?.lastEditedBy ?? null,
-        lastEditedAt: statusRow?.lastEditedAt ? statusRow.lastEditedAt.toISOString() : null,
+        lastEditedBy: lastEdited.by,
+        lastEditedAt: lastEdited.at ? lastEdited.at.toISOString() : null,
         briefInstruction: customSymptom.briefInstruction ?? null,
         instructionsHtml: customSymptom.instructionsHtml ?? null,
         baseInstructionsHtml: null,

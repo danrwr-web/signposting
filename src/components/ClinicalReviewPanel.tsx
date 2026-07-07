@@ -1231,7 +1231,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
         }
         const json = await response.json()
         setData(json)
-        setViewMode(json.status === 'MODIFIED' ? 'local' : 'local')
+        setViewMode('local')
       } catch (e) {
         console.error(e)
         toast.error('Failed to load preview')
