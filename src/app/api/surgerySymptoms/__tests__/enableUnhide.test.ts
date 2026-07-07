@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { PATCH } from '../route'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 
 jest.mock('@/lib/rbac', () => ({
   getSessionUser: jest.fn(),
@@ -66,6 +67,8 @@ describe('PATCH /api/surgerySymptoms enable actions unhide override-hidden sympt
       where: { surgeryId: 's1', baseSymptomId: 'base-1', isHidden: true },
       data: { isHidden: false },
     })
+    // The newly visible symptom may be implicitly pending review.
+    expect(updateRequiresClinicalReview).toHaveBeenCalledWith('s1')
   })
 
   it('ENABLE_EXISTING via statusRowId clears isHidden for the row\'s base symptom', async () => {

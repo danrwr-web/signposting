@@ -318,6 +318,10 @@ export async function PATCH(request: NextRequest) {
           data: { isHidden: false }
         })
 
+        // The newly visible symptom may have no review status (implicitly pending),
+        // so recompute the surgery's requiresClinicalReview flag like ENABLE_EXISTING does.
+        await updateRequiresClinicalReview(resolvedSurgeryId)
+
         revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, false))
         revalidateTag(getCachedSymptomsTag(resolvedSurgeryId, true))
         revalidateTag('symptoms')
