@@ -33,6 +33,12 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
     name: 'Practice Handbook',
     description: 'Enable the Practice Handbook module (practice guidance pages, lists, rota and pinned panel).',
   },
+  {
+    key: 'hide_age_bands',
+    name: 'Hide age bands',
+    description:
+      'Remove the Under-5 / 5–17 / Adult filter and age badges for this surgery. Symptoms describe age-specific advice within a single entry.',
+  },
 ]
 
 /**

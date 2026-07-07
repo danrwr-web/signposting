@@ -5,6 +5,8 @@ import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { countPendingClinicalReviews } from '@/server/clinicalReview'
 import HomePageClient from '@/app/HomePageClient'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
+import { isFeatureEnabledForSurgery } from '@/lib/features'
+import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
 export const revalidate = 60
 
@@ -53,6 +55,9 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
       symptoms
     )
 
+    // Per-surgery display option: hide the Under-5 / 5–17 / Adult filter and badges
+    const hideAgeBands = await isFeatureEnabledForSurgery(surgeryId, FEATURE_HIDE_AGE_BANDS)
+
     return (
       <HomePageClient
         surgeries={surgeries}
@@ -61,6 +66,7 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
         surgeryName={surgery.name}
         surgeryId={surgeryId}
         commonReasonsItems={commonReasonsItems}
+        hideAgeBands={hideAgeBands}
       />
     )
   } catch (error) {

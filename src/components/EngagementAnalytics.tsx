@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Session } from '@/server/auth'
+import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
 interface EngagementData {
   topSymptoms: Array<{
@@ -38,6 +39,32 @@ export default function EngagementAnalytics({ session, selectedSurgeryId = 'all'
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d')
   const [limit, setLimit] = useState(10)
   const [showExportModal, setShowExportModal] = useState(false)
+  // Hide age badges when viewing a single surgery that runs in all-ages mode
+  const [hideAgeBands, setHideAgeBands] = useState(false)
+
+  const scopedSurgeryId =
+    session.type === 'surgery' && session.surgeryId
+      ? session.surgeryId
+      : session.type === 'superuser' && selectedSurgeryId !== 'all'
+        ? selectedSurgeryId
+        : null
+
+  useEffect(() => {
+    if (!scopedSurgeryId) {
+      setHideAgeBands(false)
+      return
+    }
+    let cancelled = false
+    fetch(`/api/surgeries/${scopedSurgeryId}/features`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!cancelled) setHideAgeBands(!!data?.features?.[FEATURE_HIDE_AGE_BANDS])
+      })
+      .catch(() => {
+        if (!cancelled) setHideAgeBands(false)
+      })
+    return () => { cancelled = true }
+  }, [scopedSurgeryId])
 
   useEffect(() => {
     const fetchEngagementData = async () => {
@@ -232,15 +259,17 @@ export default function EngagementAnalytics({ session, selectedSurgeryId = 'all'
                       <h4 className="text-sm font-medium text-gray-900">
                         {symptom.name}
                       </h4>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        symptom.ageGroup === 'Adult' 
-                          ? 'bg-blue-100 text-blue-800'
-                          : symptom.ageGroup === 'O5'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-purple-100 text-purple-800'
-                      }`}>
-                        {symptom.ageGroup}
-                      </span>
+                      {!hideAgeBands && (
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          symptom.ageGroup === 'Adult'
+                            ? 'bg-blue-100 text-blue-800'
+                            : symptom.ageGroup === 'O5'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {symptom.ageGroup}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">

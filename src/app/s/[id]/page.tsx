@@ -5,6 +5,8 @@ import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { countPendingClinicalReviews } from '@/server/clinicalReview'
 import HomePageClient from '@/app/HomePageClient'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
+import { isFeatureEnabledForSurgery } from '@/lib/features'
+import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
 // Allow Next.js to cache this page for a short window. Symptom data is already
 // cached for 300s inside getCachedEffectiveSymptoms; aligning the page with a
@@ -62,6 +64,9 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
 
     const pendingClinicalReviewCount = await countPendingClinicalReviews(surgeryId, symptoms)
 
+    // Per-surgery display option: hide the Under-5 / 5–17 / Adult filter and badges
+    const hideAgeBands = await isFeatureEnabledForSurgery(surgeryId, FEATURE_HIDE_AGE_BANDS)
+
     // Get common reasons from config or fallback
     const commonReasonsItems = getCommonReasonsForSurgery(
       surgery.uiConfig as UiConfig | null,
@@ -76,6 +81,7 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
         surgeryName={surgery.name}
         surgeryId={surgeryId}
         commonReasonsItems={commonReasonsItems}
+        hideAgeBands={hideAgeBands}
       />
     )
   } catch (error) {

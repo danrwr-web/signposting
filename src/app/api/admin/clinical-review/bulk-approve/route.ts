@@ -15,13 +15,16 @@ const bulkApproveSchema = z.object({
   // When true, pending disabled symptoms are left untouched (mirrors the
   // clinical review "Hide disabled" filter so we don't approve hidden rows).
   excludeDisabled: z.boolean().optional(),
+  // When set, only symptoms in this age band are approved (mirrors the
+  // clinical review age group filter).
+  ageGroup: z.enum(['U5', 'O5', 'Adult']).optional(),
 })
 
 // POST /api/admin/clinical-review/bulk-approve
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { surgeryId, search, excludeDisabled } = bulkApproveSchema.parse(body)
+    const { surgeryId, search, excludeDisabled, ageGroup } = bulkApproveSchema.parse(body)
     
     // RBAC: SUPERUSER can approve any surgery, surgery admin can approve only their own
     const user = await requireSurgeryAdmin(surgeryId)
@@ -66,6 +69,11 @@ export async function POST(request: NextRequest) {
       const isPending = !reviewStatus || reviewStatus.status === 'PENDING'
       
       if (isPending) {
+        // Apply age band filter if provided
+        if (ageGroup && symptom.ageGroup !== ageGroup) {
+          continue
+        }
+
         // Apply search filter if provided
         if (search && search.trim()) {
           const searchLower = search.toLowerCase().trim()

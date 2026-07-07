@@ -16,13 +16,18 @@ import { generateJSON } from '@tiptap/html'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
+import { ageGroupBadgeClasses, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
   surgeryId?: string
+  // Per-surgery 'hide_age_bands' feature flag: no age badge, all-ages editing
+  // guidance, and all-ages AI question prompts. Resolved server-side by the
+  // page (never via /api/my/features, which over-reports for superusers).
+  hideAgeBands?: boolean
 }
 
-export default function InstructionView({ symptom, surgeryId }: InstructionViewProps) {
+export default function InstructionView({ symptom, surgeryId, hideAgeBands = false }: InstructionViewProps) {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false)
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
   const [isLoadingLinkedSymptom, setIsLoadingLinkedSymptom] = useState(false)
@@ -577,10 +582,13 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
     setQuestionsError(null)
     
     try {
-      const ageGroupLabel = getAgeGroupLabel(symptom.ageGroup)
+      // When the surgery hides age bands, one entry covers all ages, so the AI
+      // is asked for all-ages questions (including age-establishing ones).
       const requestBody = {
         symptomName: symptom.name,
-        ageGroup: ageGroupLabel,
+        ...(hideAgeBands
+          ? { allAges: true }
+          : { ageGroup: getAgeGroupLabel(symptom.ageGroup) }),
         briefInstruction: symptom.briefInstruction || undefined,
         instructionsText: displayText || undefined,
         instructionsHtml: symptom.instructionsHtml || undefined,
@@ -1021,9 +1029,23 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
         {/* Header */}
         <div className={headerContainerClasses}>
           <div className="flex items-start justify-between mb-4">
-            <h1 className={`text-3xl font-bold ${showBlueHeader ? 'text-white' : 'text-nhs-dark-blue'}`}>
-              {symptom.name}
-            </h1>
+            <div>
+              <h1 className={`text-3xl font-bold ${showBlueHeader ? 'text-white' : 'text-nhs-dark-blue'}`}>
+                {symptom.name}
+              </h1>
+              {!hideAgeBands && (
+                <span
+                  className={
+                    showBlueHeader
+                      ? 'mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-white/20 text-white border border-white/40'
+                      : `mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${ageGroupBadgeClasses(symptom.ageGroup)}`
+                  }
+                  title={`This version of the symptom applies to ${formatAgeGroupDescription(symptom.ageGroup)}.`}
+                >
+                  {formatAgeGroupLabel(symptom.ageGroup)}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               {symptom.source !== 'override' && (
                 <span
@@ -1049,6 +1071,22 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           
           {isEditingAll ? (
             <div className="space-y-4">
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-amber-800 text-sm">
+                  {hideAgeBands ? (
+                    <>
+                      <strong>All ages:</strong> this surgery shows one entry per symptom covering all ages.
+                      Include any age-specific advice (under 5, 5–17, adult) within these instructions.
+                    </>
+                  ) : (
+                    <>
+                      <strong>Age group:</strong> this version of “{symptom.name}” is for{' '}
+                      <strong>{formatAgeGroupDescription(symptom.ageGroup)}</strong> only, so keep the wording specific to that age group.
+                      The Under 5, 5–17 and Adult versions are edited and clinically reviewed separately.
+                    </>
+                  )}
+                </p>
+              </div>
               {isPracticeAdmin && symptom.source === 'base' && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-700 text-sm">
@@ -1297,6 +1335,24 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
           
           {isEditingInstructions || isEditingAll ? (
             <div className="space-y-4">
+              {isEditingInstructions && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-amber-800 text-sm">
+                    {hideAgeBands ? (
+                      <>
+                        <strong>All ages:</strong> this surgery shows one entry per symptom covering all ages.
+                        Include any age-specific advice (under 5, 5–17, adult) within these instructions.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Age group:</strong> this version of “{symptom.name}” is for{' '}
+                        <strong>{formatAgeGroupDescription(symptom.ageGroup)}</strong> only, so keep the wording specific to that age group.
+                        The Under 5, 5–17 and Adult versions are edited and clinically reviewed separately.
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
               {isEditingInstructions && isPracticeAdmin && symptom.source === 'base' && (
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="text-blue-700 text-sm">
@@ -1502,7 +1558,7 @@ export default function InstructionView({ symptom, surgeryId }: InstructionViewP
                     These questions are carefully worded to help you ask safely and consistently. Please try to use the phrasing as written.
                   </p>
                   <p className="text-sm text-nhs-grey mt-1">
-                    For {questionPrompts.symptom} ({questionPrompts.ageGroup})
+                    For {questionPrompts.symptom}{questionPrompts.ageGroup ? ` (${questionPrompts.ageGroup})` : ''}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
