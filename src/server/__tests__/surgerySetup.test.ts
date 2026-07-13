@@ -17,9 +17,16 @@ jest.mock('@/lib/prisma', () => ({
       groupBy: jest.fn().mockResolvedValue([]),
       findMany: jest.fn().mockResolvedValue([]),
     },
-    surgerySymptomOverride: { groupBy: jest.fn().mockResolvedValue([]) },
-    surgeryCustomSymptom: { groupBy: jest.fn().mockResolvedValue([]) },
+    surgerySymptomOverride: {
+      groupBy: jest.fn().mockResolvedValue([]),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    surgeryCustomSymptom: {
+      groupBy: jest.fn().mockResolvedValue([]),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     surgeryFeatureFlag: { findMany: jest.fn().mockResolvedValue([]) },
+    symptomHistory: { findMany: jest.fn().mockResolvedValue([]) },
   },
 }))
 
@@ -98,5 +105,50 @@ describe('computeSurgerySetupSnapshotsBatch lastActivityAt', () => {
 
     const [snapshot] = await computeSurgerySetupSnapshotsBatch(['s1'])
     expect(snapshot.lastActivityAt).toBeNull()
+  })
+})
+
+describe('computeSurgerySetupSnapshotsBatch AI customisation', () => {
+  const completedProfile = {
+    completed: true,
+    completedAt: new Date('2026-06-16T00:00:00Z'),
+    updatedAt: new Date('2026-06-16T00:00:00Z'),
+    profileJson: {
+      surgeryName: 'Mount Pleasant Health Centre',
+      appointmentModel: { routineGpPhone: { enabled: true } },
+    },
+  }
+
+  beforeEach(() => {
+    ;(prisma.surgery.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 's1',
+        name: 'Mount Pleasant Health Centre',
+        surgeryType: 'LIVE',
+        createdAt: new Date('2026-05-23T00:00:00Z'),
+        requiresClinicalReview: true,
+        enableDefaultHighRisk: true,
+        enableBuiltInHighlights: false,
+        onboardingProfile: completedProfile,
+        pipelineEntry: null,
+      },
+    ])
+    ;(prisma.userSurgery.groupBy as jest.Mock).mockResolvedValue([{ surgeryId: 's1', _count: { _all: 2 } }])
+    ;(prisma.surgeryFeatureFlag.findMany as jest.Mock).mockResolvedValue([
+      { surgeryId: 's1', feature: { key: 'ai_surgery_customisation' } },
+    ])
+    ;(prisma.surgerySymptomOverride.findMany as jest.Mock).mockResolvedValue([
+      { surgeryId: 's1', baseSymptomId: 'base-1' },
+    ])
+    ;(prisma.symptomHistory.findMany as jest.Mock).mockResolvedValue([{ symptomId: 'base-1' }])
+  })
+
+  it('counts AI customisation in the batch tracker when history exists', async () => {
+    const [snapshot] = await computeSurgerySetupSnapshotsBatch(['s1'])
+
+    expect(snapshot.checklist.aiCustomisationRun).toBe(true)
+    expect(snapshot.aiCustomisationOccurred).toBe(true)
+    expect(snapshot.essentialCount).toBe(6)
+    expect(snapshot.essentialTotal).toBe(6)
   })
 })
