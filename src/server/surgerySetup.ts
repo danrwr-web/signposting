@@ -350,8 +350,8 @@ type SurgeryRowForBatch = {
  *   status='PENDING' for the surgery. This is cheap but diverges from the
  *   exact effective-symptoms-merge logic (which counts symptoms without any
  *   status row as pending). Good enough for flagging.
- * - `aiCustomisationRun` is returned as `null` and must be resolved on demand
- *   by the detail drawer calling `computeSurgerySetupSnapshot`.
+ * - `aiCustomisationRun` is resolved in bulk from symptom history rows so
+ *   list progress matches the per-surgery checklist.
  * - `topSymptomId` / `topSymptomCount` are always `null` / `0`.
  */
 export async function computeSurgerySetupSnapshotsBatch(
@@ -398,6 +398,8 @@ export async function computeSurgerySetupSnapshotsBatch(
     lastCustomEditRows,
     activeUserEvents,
     perSurgeryFeatures,
+    aiOverrideSymptoms,
+    aiCustomSymptoms,
   ] = await Promise.all([
     prisma.userSurgery.groupBy({
       by: ['surgeryId'],
@@ -487,6 +489,14 @@ export async function computeSurgerySetupSnapshotsBatch(
       },
       select: { surgeryId: true, feature: { select: { key: true } } },
     }),
+    prisma.surgerySymptomOverride.findMany({
+      where: { surgeryId: { in: ids } },
+      select: { surgeryId: true, baseSymptomId: true },
+    }),
+    prisma.surgeryCustomSymptom.findMany({
+      where: { surgeryId: { in: ids }, isDeleted: false },
+      select: { surgeryId: true, id: true },
+    }),
   ])
 
   const byId = <T extends { surgeryId: string | null }>(rows: T[]): Map<string, T> => {
@@ -528,6 +538,27 @@ export async function computeSurgerySetupSnapshotsBatch(
     featuresMap.set(row.surgeryId, list)
   }
 
+  const aiSymptomToSurgery = new Map<string, string>()
+  for (const row of aiOverrideSymptoms) aiSymptomToSurgery.set(row.baseSymptomId, row.surgeryId)
+  for (const row of aiCustomSymptoms) aiSymptomToSurgery.set(row.id, row.surgeryId)
+
+  const aiCustomisedSurgeryIds = new Set<string>()
+  const aiSymptomIds = [...aiSymptomToSurgery.keys()]
+  if (aiSymptomIds.length > 0) {
+    const aiHistoryRows = await prisma.symptomHistory.findMany({
+      where: {
+        symptomId: { in: aiSymptomIds },
+        modelUsed: { not: null },
+        NOT: { modelUsed: 'REVERT' },
+      },
+      select: { symptomId: true },
+    })
+    for (const row of aiHistoryRows) {
+      const surgeryId = aiSymptomToSurgery.get(row.symptomId)
+      if (surgeryId) aiCustomisedSurgeryIds.add(surgeryId)
+    }
+  }
+
   return surgeries.map(s => {
     const onboardingCompleted = s.onboardingProfile?.completed ?? false
     const onboardingCompletedAt = s.onboardingProfile?.completedAt ?? null
@@ -558,8 +589,7 @@ export async function computeSurgerySetupSnapshotsBatch(
     const checklist: ChecklistData = {
       onboardingCompleted,
       appointmentModelConfigured,
-      // Unknown in lightweight mode — rule engine treats null as "don't flag".
-      aiCustomisationRun: null,
+      aiCustomisationRun: aiCustomisedSurgeryIds.has(s.id),
       pendingReviewCount,
       standardUsersCount,
       highRiskConfigured,
@@ -597,7 +627,7 @@ export async function computeSurgerySetupSnapshotsBatch(
       onboardingUpdatedAt,
       onboardingStarted,
       appointmentModelConfigured,
-      aiCustomisationOccurred: null,
+      aiCustomisationOccurred: aiCustomisedSurgeryIds.has(s.id),
       pendingCount: pendingReviewCount,
       checklist,
       health,
