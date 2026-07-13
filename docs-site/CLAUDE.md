@@ -7,6 +7,8 @@ This is a Nextra 3 docs site. Pages are .mdx files in pages/.
 - Keep the NHS tone: clear, plain English, no jargon
 - Always include cross-links to related pages
 - Update the version banner on index.mdx when the app version changes
+- When user-facing app changes ship, add them to pages/release-notes.mdx (New / Updated / Fixed / For system administrators) and bump the version banner on index.mdx
+- Do NOT add manual "Last updated" lines to pages — the footer timestamp is generated automatically from git at build time
 - Images go in public/images/ and are referenced as /images/filename.png
 - Internal links use absolute paths e.g. /features/symptom-library
 - Custom CSS classes for the home page are defined in globals.css
