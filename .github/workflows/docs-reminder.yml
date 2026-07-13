@@ -1,0 +1,93 @@
+name: Docs reminder
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for user-facing changes without docs updates
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            })
+            const paths = files.map((f) => f.filename)
+
+            const isUserFacing = (p) =>
+              (p.startsWith('src/app/') ||
+                p.startsWith('src/components/') ||
+                p === 'prisma/schema.prisma') &&
+              !p.startsWith('src/app/api/') &&
+              !p.includes('__tests__') &&
+              !/\.test\.(ts|tsx)$/.test(p)
+
+            const touchesDocs = paths.some((p) => p.startsWith('docs-site/'))
+            const userFacing = paths.filter(isUserFacing)
+
+            const marker = '<!-- docs-reminder -->'
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            })
+            const existing = comments.find((c) => c.body && c.body.includes(marker))
+
+            if (userFacing.length > 0 && !touchesDocs) {
+              const shown = userFacing.slice(0, 10)
+              const more = userFacing.length - shown.length
+              const body = [
+                marker,
+                '### 📖 Docs reminder',
+                '',
+                'This PR changes user-facing code but does not touch `docs-site/`. If the change affects how users interact with the app, please update the docs in the same PR:',
+                '',
+                '- Feature changes → `docs-site/pages/features/`',
+                '- Admin/governance changes → `docs-site/pages/governance/`',
+                '- Getting started flow changes → `docs-site/pages/getting-started/`',
+                '- Developer/technical changes → `docs-site/pages/technical/`',
+                '- Add an entry to `docs-site/pages/release-notes.mdx` and, for a new release, bump the version banner in `docs-site/pages/index.mdx`',
+                '',
+                'User-facing files changed:',
+                '',
+                ...shown.map((p) => `- \`${p}\``),
+                ...(more > 0 ? [`- …and ${more} more`] : []),
+                '',
+                '_If this change has no user-facing impact, ignore this reminder — it does not block merging._',
+              ].join('\n')
+
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: existing.id,
+                  body,
+                })
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body,
+                })
+              }
+            } else if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: `${marker}\n### 📖 Docs reminder\n\n~~Resolved~~ — this PR now includes docs changes (or no longer touches user-facing code).`,
+              })
+            }

@@ -334,4 +334,6 @@ When making user-facing changes to the application, always check whether the rel
 - Developer/technical changes → `docs-site/pages/technical/`
 - New releases → update the version banner in `docs-site/pages/index.mdx`
 
-If you've made changes that affect how users interact with the app, update the docs as part of the same commit or PR. Don't wait for a separate docs pass.
+If you've made changes that affect how users interact with the app, update the docs as part of the same commit or PR — including an entry in `docs-site/pages/release-notes.mdx`. Don't wait for a separate docs pass. A GitHub Action (`.github/workflows/docs-reminder.yml`) posts a reminder on PRs that touch user-facing code without touching `docs-site/`.
+
+Do NOT add manual "Last updated" lines to docs pages — the docs site footer shows a git-based timestamp automatically.
