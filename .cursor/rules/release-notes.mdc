@@ -5,7 +5,8 @@ releaseNotes:
   purpose: "Help the developer maintain accurate, concise, human-curated release notes whenever user-facing features change. The rule should NOT auto-generate releases without explicit developer knowledge or approval."
   
   sourceOfTruth:
-    - "docs/RELEASE_NOTES.md is the authoritative source for release information"
+    - "docs-site/pages/release-notes.mdx is the authoritative source for release information"
+    - "docs-site/pages/index.mdx carries the version banner; bump it when the app version changes"
     - "Version numbers and dates should be verified against existing entries"
     - "Never invent version numbers or fabricate features"
   
@@ -34,7 +35,7 @@ releaseNotes:
       
       - step: "Step 3: Propose a draft snippet"
         requirements:
-          - "Create a draft following the structure in docs/RELEASE_NOTES.md"
+          - "Create a draft following the structure in docs-site/pages/release-notes.mdx"
           - "Use British English spelling"
           - "Write for GP practice / PCN readers, not developers"
           - "Avoid low-level technical detail"
@@ -48,7 +49,7 @@ releaseNotes:
       
       - step: "Step 4: Update release notes after confirmation"
         actions:
-          - "Insert or update the appropriate section in docs/RELEASE_NOTES.md"
+          - "Insert or update the appropriate section in docs-site/pages/release-notes.mdx"
           - "Keep the file in version-descending order (most recent at top)"
           - "Avoid duplicating existing bullets"
           - "Maintain consistent formatting with existing entries"
@@ -76,18 +77,16 @@ releaseNotes:
       - "Focus on benefits and user impact, not technical implementation"
   
   coordination:
-    description: "After updating docs/RELEASE_NOTES.md, coordinate with documentation rules"
+    description: "After updating docs-site/pages/release-notes.mdx, coordinate with documentation rules"
     requiredActions:
       - "Reference the existing wiki-updates.mdc rule"
-      - "Ensure the 'What's New' section in docs/README.md is refreshed"
-      - "Ensure the 'What's New' section in docs/wiki/Home.md is refreshed"
-      - "Follow the releaseNotesSync process defined in wiki-updates.mdc"
-      - "Summarise the latest 2-3 releases with version + date + 1-2 short bullets"
-    note: "Release notes are the source of truth; 'What's New' sections are short summaries derived from them"
+      - "Bump the version banner on docs-site/pages/index.mdx to match the latest release"
+      - "Update the affected feature/governance page(s) under docs-site/pages/ so they reflect the change"
+    note: "release-notes.mdx is the source of truth; other pages describe the current behaviour"
   
   safety:
     guardrails:
-      - "MUST NOT invent version numbers without checking docs/RELEASE_NOTES.md first"
+      - "MUST NOT invent version numbers without checking docs-site/pages/release-notes.mdx first"
       - "MUST NOT fabricate features that don't exist"
       - "MUST NOT add internal-only refactorings unless explicitly requested"
       - "MUST keep tone professional but clear for GP practices and non-technical readers"

@@ -36,9 +36,9 @@ The toolkit provides a structured symptom library, local customisation, AI-assis
 _Screenshots coming soon. See [documentation](https://docs.signpostingtool.co.uk/) for more information._
 
 <!-- When screenshots are available, uncomment and update paths:
-![Symptom Detail](docs/wiki/images/symptom-detail.png)
-![Dashboard](docs/wiki/images/dashboard.png)
-![Appointment Directory](docs/wiki/images/appointment-directory.png)
+![Symptom Detail](docs-site/public/images/symptom-detail.png)
+![Dashboard](docs-site/public/images/dashboard.png)
+![Appointment Directory](docs-site/public/images/appointment-directory.png)
 -->
 
 ---
@@ -58,7 +58,7 @@ Comprehensive documentation is available in the repository:
 - [Multi-Surgery & RBAC](https://docs.signpostingtool.co.uk/governance/multi-surgery-and-rbac) — Multi-tenancy and permissions
 - [Developer Guide](https://docs.signpostingtool.co.uk/technical/developer-guide) — Architecture and development
 
-**Hosted Documentation:** _(to be added once GitHub Pages is enabled)_
+**Hosted Documentation:** <https://docs.signpostingtool.co.uk> (Nextra site in `docs-site/`, deployed on Vercel)
 
 ---
 

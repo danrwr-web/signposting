@@ -2,12 +2,11 @@ Internal reference for ChatGPT, Cursor, and future maintainers
 
 🏗️ Infrastructure Overview
 
-This project uses a hybrid hosting setup:
+This project uses the following hosting setup:
 
-Frontend documentation (Wiki-style docs) is served via GitHub Pages, from:
+Documentation site (Nextra) is deployed on Vercel from the `docs-site/`
+project, at:
 
-Branch: main
-Folder: /docs
 URL: https://docs.signpostingtool.co.uk
 
 
@@ -19,74 +18,28 @@ Database is hosted on Neon Postgres.
 
 Any future configuration changes must respect this architecture unless explicitly revised.
 
+Note: the docs previously ran as a Jekyll/GitHub Pages site served from a
+`/docs` folder. That has been retired — the docs are now the Nextra `docs-site/`
+project on Vercel. See the revision log at the bottom.
+
 🌐 DNS Configuration (Cloudflare)
 
 Important: This project uses Cloudflare DNS.
 Do not instruct the user to modify DNS at Fasthosts — those records are no longer authoritative.
 
-Current key DNS records
-Type: CNAME
-Name: docs
-Content: danrwr-web.github.io
-Proxy status: DNS only (must NOT be proxied)
-
-
-Notes:
-
-The Cloudflare “orange cloud” must remain OFF for GitHub Pages.
+The `docs` record points at the Vercel deployment for `docs-site/`. (It previously
+pointed at `danrwr-web.github.io` for GitHub Pages; that is no longer the case.)
 
 Trailing dots MUST NOT be used (Cloudflare treats them differently than some DNS providers).
 
-DNS-only mode is required for GitHub Pages to issue SSL certificates.
-
-📄 GitHub Pages Configuration
-
-The site is served from:
-
-Repository → Settings → Pages
-Source: Deploy from a branch
-Branch: main
-Folder: /docs
-Custom domain: docs.signpostingtool.co.uk
-Enforce HTTPS: enabled
-
-Required file
-
-A file named:
-
-docs/CNAME
-
-
-containing exactly:
-
-docs.signpostingtool.co.uk
-
-
-This file must always exist.
-GitHub relies on it for domain validation and SSL renewal.
-
-🔒 SSL / HTTPS Notes
-
-GitHub provisions TLS certificates automatically.
-Common certificate states:
-
-Authorization created
-
-Certificate issued
-
-Certificate active
-
-If DNS is ever changed, GitHub may need to revalidate the domain.
-If validation fails, the SSL box will become disabled temporarily.
-
 🧰 Deployment Pipeline Notes
-App Hosting (Vercel)
+App & Docs Hosting (Vercel)
 
 Production deployments come from the main branch.
 
 Preview deployments come from PR branches.
 
-Do not rely on GitHub Pages for hosting the main application — only docs.
+The docs site (`docs-site/`) is a separate Vercel project deployed the same way.
 
 Database (Neon Postgres)
 
@@ -154,31 +107,22 @@ Feature gating
 	•	Workflow Guidance is enabled per surgery using existing feature flags
 	•	If disabled, workflows are not visible to staff or linked from signposting
 
-📚 Documentation & Wiki Automation
+📚 Documentation
 
-Documentation resides entirely in:
+Documentation resides entirely in the Nextra docs site:
 
-/docs
-/docs/wiki
-
-
-Navigation blocks must remain consistent across all wiki pages.
-Cursor rule responsible:
-
-.cursor/rules/wiki-updates.mdc
+docs-site/pages/          (MDX pages, file-based routing)
+docs-site/pages/release-notes.mdx
 
 
-This rule enforces:
+Sidebar structure is defined by `_meta.ts` files in each folder. See
+`docs-site/CLAUDE.md` for the conventions.
 
-consistent navigation blocks
-
-screenshot sections
-
-cross-linking
-
-updates to Project Summary, Roadmap, Release Notes
-
-When features are added/changed, the rule prompts updating docs.
+When user-facing features are added/changed, update the relevant page(s) under
+`docs-site/pages/`, add an entry to `docs-site/pages/release-notes.mdx`, and bump
+the version banner on `docs-site/pages/index.mdx`. The `docs-reminder.yml`
+GitHub Action nudges PRs that change user-facing code without touching
+`docs-site/`.
 
 ✉️ Public Contact Email
 
@@ -217,25 +161,17 @@ These points prevent common breakages when making updates:
 
 ❌ Do NOT:
 
-Add Cloudflare “proxying” to any GitHub Pages-related DNS record
-
-Place the CNAME file anywhere except /docs/CNAME
-
-Remove or rename /docs as the GitHub Pages source folder
-
 Add environment variables or credentials to the repo
 
 Reintroduce personal emails into authorization logic
 
-Create duplicate documentation outside /docs/wiki
+Create documentation outside the `docs-site/` project
 
 ✔ DO:
 
 Update documentation when any user-facing feature changes
 
-Keep screenshots in docs/wiki/images/
-
-Maintain stable navigation blocks for all wiki pages
+Keep docs images in `docs-site/public/images/`
 
 Keep the contact email consistent
 
@@ -246,5 +182,10 @@ Ensure Cursor rules remain aligned with the project structure
 Use this section to track changes if needed.
 
 2025-02-XX — Initial creation (ChatGPT)
+
+2026-07-23 — Retired the legacy Jekyll/GitHub-Pages `/docs` site. The docs are
+now the Nextra `docs-site/` project deployed on Vercel; the `/docs` tree and its
+CNAME were removed. Updated the infrastructure, DNS, deployment, and
+documentation sections accordingly.
 
 Add entries as future infrastructure changes are made.

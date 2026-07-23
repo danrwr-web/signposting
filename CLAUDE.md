@@ -111,7 +111,7 @@ src/
 Key non-src directories:
 - `prisma/` - Database schema (`schema.prisma`, ~1050 lines) and seed script
 - `scripts/` - Build helpers and data migration scripts
-- `docs/` - User/admin documentation (GitHub Pages)
+- `docs-site/` - User/admin documentation (Nextra site, deployed on Vercel)
 - `public/images/` - Logos, favicons, OG images
 
 ## Architecture

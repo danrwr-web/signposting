@@ -31,9 +31,9 @@ It is written for developers joining the project or returning to it after a brea
 
 signposting/
 
-├── docs/                     → Public GitHub Pages documentation
+├── docs-site/                → Public documentation (Nextra, deployed on Vercel)
 
-│   └── wiki/
+│   └── pages/
 
 ├── prisma/                   → Prisma schema + migrations
 
@@ -342,9 +342,9 @@ This script verifies:
 
 ### Step 7: Update Documentation
 
-- Add your module to the user-facing documentation in `/docs/wiki`
-- Update navigation blocks in wiki pages if needed
-- Add screenshots to `/docs/wiki/images/` if applicable
+- Add your module to the user-facing documentation under `docs-site/pages/`
+- Add an entry to `docs-site/pages/release-notes.mdx` and update the relevant `_meta.ts`
+- Add screenshots to `docs-site/public/images/` if applicable
 
 ### Example: Complete Module Addition
 
@@ -440,7 +440,7 @@ Documentation is deployed on:
 
 **https://docs.signpostingtool.co.uk**
 
-via GitHub Pages with source folder `/docs`.
+as the Nextra `docs-site/` project on Vercel (static export, automatic on git push).
 
 ### Important DNS note
 
@@ -452,13 +452,13 @@ DNS is managed entirely via Cloudflare, not Fasthosts.
 
 ## 15. Conventions for Contributions
 
-- Update `/docs/wiki` whenever user-facing changes occur.
+- Update the relevant page(s) under `docs-site/pages/` whenever user-facing changes occur.
 
 - Add screenshots to:
 
-  **`docs/wiki/images/`**
+  **`docs-site/public/images/`**
 
-- Keep navigation blocks up to date if pages are added or renamed.
+- Keep the `_meta.ts` files up to date if pages are added or renamed.
 
 - Follow RBAC rules — never use email checks for permissions.
 
