@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { copyAdminToolkitFromGlobalDefaultsToSurgery } from '@/server/adminToolkit/copyFromGlobalDefaults'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 
@@ -18,7 +19,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireSuperuser()
+    const superuser = await requireSuperuser()
     const { id } = await params
 
     const pipelineEntry = await prisma.salesPipeline.findUnique({ where: { id } })
@@ -56,10 +57,11 @@ export async function POST(
     }
 
     // Validate that all requested feature flags exist
+    let seedAdminToolkit = false
     if (featureFlagIds.length > 0) {
       const validFeatures = await prisma.feature.findMany({
         where: { id: { in: featureFlagIds } },
-        select: { id: true },
+        select: { id: true, key: true },
       })
       const validIds = new Set(validFeatures.map((f) => f.id))
       const invalid = featureFlagIds.filter((fid) => !validIds.has(fid))
@@ -69,6 +71,7 @@ export async function POST(
           { status: 400 }
         )
       }
+      seedAdminToolkit = validFeatures.some((f) => f.key === 'admin_toolkit')
     }
 
     // Generate slug from surgery name
@@ -170,7 +173,17 @@ export async function POST(
         })
       }
 
-      // 5. Link pipeline entry to the new surgery
+      // 5. Seed Practice Handbook starter pages when the Admin Toolkit is
+      //    enabled (idempotent — skips if the surgery already has content)
+      if (seedAdminToolkit) {
+        await copyAdminToolkitFromGlobalDefaultsToSurgery({
+          targetSurgeryId: surgery.id,
+          actorUserId: superuser.id,
+          db: tx,
+        })
+      }
+
+      // 6. Link pipeline entry to the new surgery
       await tx.salesPipeline.update({
         where: { id },
         data: { linkedSurgeryId: surgery.id },
