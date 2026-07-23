@@ -1,127 +1,56 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { SessionUser } from '@/lib/rbac'
-import AdminSearchBar from '@/components/admin/AdminSearchBar'
-import AdminTable from '@/components/admin/AdminTable'
-import KebabMenu from '@/components/admin/KebabMenu'
-import { formatRelativeDate } from '@/lib/formatRelativeDate'
 import { toast } from 'react-hot-toast'
+import { SessionUser } from '@/lib/rbac'
+import AdminTable from '@/components/admin/AdminTable'
 import SetupChecklistBackLink from '@/components/SetupChecklistBackLink'
-import { Badge, Button, ConfirmDialog, Dialog, Input, Select } from '@/components/ui'
-
-interface Surgery {
-  id: string
-  name: string
-  slug: string | null
-  users: Array<{
-    id: string
-    role: string
-    adminToolkitWrite?: boolean
-    user: {
-      id: string
-      email: string
-      name: string | null
-      defaultSurgeryId: string | null
-    }
-  }>
-}
+import { formatRelativeDate } from '@/lib/formatRelativeDate'
+import { getUserInitials } from '@/lib/getUserInitials'
+import { Badge, Button, ConfirmDialog } from '@/components/ui'
+import AddUserDialog from './AddUserDialog'
+import HandbookToggle from './HandbookToggle'
+import MemberDetailPanel from './MemberDetailPanel'
+import MemberFilterBar from './MemberFilterBar'
+import MemberStatsRow from './MemberStatsRow'
+import { computeMemberStats, filterMembers, sortMembers } from './memberTableUtils'
+import { EMPTY_FILTERS, type Membership, type MemberFilters, type PendingAction, type SortKey, type SortState, type Surgery } from './types'
 
 interface SurgeryUsersClientProps {
   surgery: Surgery
   user: SessionUser
   lastActiveData: Record<string, string | null>
+  handbookEnabled: boolean
 }
 
-// Helper function to get user initials
-function getUserInitials(name: string | null, email: string): string {
-  if (name) {
-    const parts = name.trim().split(/\s+/)
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    }
-    return name.charAt(0).toUpperCase()
-  }
-  return email.charAt(0).toUpperCase()
-}
-
-export default function SurgeryUsersClient({ surgery, user, lastActiveData }: SurgeryUsersClientProps) {
+export default function SurgeryUsersClient({ surgery, user, lastActiveData, handbookEnabled }: SurgeryUsersClientProps) {
   const router = useRouter()
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [pendingRemoveUserId, setPendingRemoveUserId] = useState<string | null>(null)
-  const [removing, setRemoving] = useState(false)
-  const [editingUser, setEditingUser] = useState<{ id: string; email: string; name: string | null; role: string } | null>(null)
-  const [resettingPasswordFor, setResettingPasswordFor] = useState<{ id: string; email: string } | null>(null)
-  const [newPassword, setNewPassword] = useState('')
-  const [isResettingPassword, setIsResettingPassword] = useState(false)
-  const [newUserEmail, setNewUserEmail] = useState('')
-  const [newUserName, setNewUserName] = useState('')
-  const [newUserPassword, setNewUserPassword] = useState('')
-  const [newUserRole, setNewUserRole] = useState('STANDARD')
   const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<MemberFilters>(EMPTY_FILTERS)
+  const [sort, setSort] = useState<SortState>({ key: 'name', direction: 'asc' })
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [selectedMembership, setSelectedMembership] = useState<Membership | null>(null)
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [confirmLoading, setConfirmLoading] = useState(false)
 
-  // Sort users alphabetically by name (fallback to email)
-  const sortedUsers = [...surgery.users].sort((a, b) => {
-    const nameA = (a.user.name || a.user.email).toLowerCase()
-    const nameB = (b.user.name || b.user.email).toLowerCase()
-    return nameA.localeCompare(nameB)
-  })
+  // Keep the open detail panel in sync after router.refresh() delivers
+  // fresh data — selectedMembership is a snapshot of a previous array.
+  useEffect(() => {
+    setSelectedMembership((current) =>
+      current ? surgery.users.find((m) => m.id === current.id) ?? null : current
+    )
+  }, [surgery.users])
 
-  // Filter users by search query (name or email, case-insensitive)
-  const filteredUsers = sortedUsers.filter((membership) => {
-    if (!searchQuery.trim()) return true
-    const query = searchQuery.toLowerCase()
-    const nameMatch = membership.user.name?.toLowerCase().includes(query) ?? false
-    const emailMatch = membership.user.email.toLowerCase().includes(query)
-    return nameMatch || emailMatch
-  })
-
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleRemoveUser = async (userId: string) => {
     try {
-      const response = await fetch(`/api/s/${surgery.id}/members`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: newUserEmail,
-          name: newUserName,
-          password: newUserPassword,
-          role: newUserRole,
-        }),
-      })
-
-      if (response.ok) {
-        toast.success('User added successfully')
-        router.refresh()
-      } else {
-        const error = await response.json()
-        toast.error(`Failed to add user: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error adding user:', error)
-      toast.error('Failed to add user')
-    }
-    
-    setShowAddModal(false)
-    setNewUserEmail('')
-    setNewUserName('')
-    setNewUserPassword('')
-    setNewUserRole('STANDARD')
-  }
-
-  const handleRemoveUser = async () => {
-    if (!pendingRemoveUserId) return
-    setRemoving(true)
-    try {
-      const response = await fetch(`/api/s/${surgery.id}/members/${pendingRemoveUserId}`, {
+      const response = await fetch(`/api/s/${surgery.id}/members/${userId}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
         toast.success('User removed')
+        setSelectedMembership(null)
         router.refresh()
       } else {
         const error = await response.json()
@@ -130,50 +59,18 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
     } catch (error) {
       console.error('Error removing user:', error)
       toast.error('Failed to remove user')
-    } finally {
-      setRemoving(false)
-      setPendingRemoveUserId(null)
     }
   }
 
-  const handleEditUser = (membership: { id: string; role: string; user: { id: string; email: string; name: string | null } }) => {
-    setEditingUser({
-      id: membership.user.id,
-      email: membership.user.email,
-      name: membership.user.name,
-      role: membership.role
-    })
-  }
-
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingUser) return
-    
+  const runPendingAction = async () => {
+    if (!pendingAction) return
+    setConfirmLoading(true)
     try {
-      const response = await fetch(`/api/s/${surgery.id}/members/${editingUser.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: editingUser.name,
-          role: editingUser.role
-        }),
-      })
-
-      if (response.ok) {
-        toast.success('User updated')
-        router.refresh()
-      } else {
-        const error = await response.json()
-        toast.error(`Error updating user: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error updating user:', error)
-      toast.error('Failed to update user. Please try again.')
+      await handleRemoveUser(pendingAction.userId)
+    } finally {
+      setConfirmLoading(false)
+      setPendingAction(null)
     }
-
-    setEditingUser(null)
   }
 
   const handleToggleAdminToolkitWrite = async (userId: string, nextValue: boolean) => {
@@ -200,63 +97,32 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
     }
   }
 
-  const handleSetDefaultSurgery = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/s/${surgery.id}/members/${userId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          setAsDefault: true,
-        }),
-      })
-
-      if (response.ok) {
-        toast.success('Default surgery updated')
-        router.refresh()
-      } else {
-        const error = await response.json()
-        toast.error(`Failed to set default surgery: ${error.error}`)
+  const handleSortChange = (key: string) => {
+    const sortKey = key as SortKey
+    setSort((current) => {
+      if (current.key === sortKey) {
+        return { key: sortKey, direction: current.direction === 'asc' ? 'desc' : 'asc' }
       }
-    } catch (error) {
-      console.error('Error setting default surgery:', error)
-      toast.error('Failed to set default surgery')
-    }
+      // Most-recent-first is the useful default when switching to last active
+      return { key: sortKey, direction: sortKey === 'lastActive' ? 'desc' : 'asc' }
+    })
   }
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    if (!resettingPasswordFor) return
-    
-    e.preventDefault()
-    setIsResettingPassword(true)
-    
-    try {
-      const response = await fetch(`/api/s/${surgery.id}/members/${resettingPasswordFor.id}/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          newPassword: newPassword,
-        }),
-      })
+  const stats = useMemo(
+    () => computeMemberStats(surgery.users, lastActiveData, new Date()),
+    [surgery.users, lastActiveData]
+  )
 
-      if (response.ok) {
-        toast.success('Password reset successfully')
-        setResettingPasswordFor(null)
-        setNewPassword('')
-      } else {
-        const error = await response.json()
-        toast.error(`Failed to reset password: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error resetting password:', error)
-      toast.error('Failed to reset password')
-    } finally {
-      setIsResettingPassword(false)
-    }
-  }
+  const visibleMembers = useMemo(
+    () => sortMembers(filterMembers(surgery.users, filters, searchQuery, lastActiveData, new Date()), sort, lastActiveData),
+    [surgery.users, filters, searchQuery, sort, lastActiveData]
+  )
+
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    filters.adminsOnly ||
+    filters.handbookOnly ||
+    filters.activity !== 'all'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -273,50 +139,56 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
           </Button>
         </div>
 
+        <MemberStatsRow stats={stats} />
+
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <div className="px-4 py-5 sm:px-6">
             <h2 className="text-lg leading-6 font-medium text-gray-900">
               Surgery Members
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-gray-500">
-              Manage user access and roles within {surgery.name}.
+              Manage user access and roles within {surgery.name}. Click a member to view and edit their details.
             </p>
           </div>
 
-          {/* Search Box */}
-          <AdminSearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search users…"
-            debounceMs={0}
+          <MemberFilterBar
+            search={searchQuery}
+            onSearchChange={setSearchQuery}
+            filters={filters}
+            onFiltersChange={setFilters}
+            handbookEnabled={handbookEnabled}
+            resultCount={visibleMembers.length}
+            totalCount={surgery.users.length}
           />
 
           {/* Table - scroll container with always-visible scrollbar */}
           <AdminTable
             scrollContainerClassName="max-h-[65vh] overflow-y-auto"
             cellPadding="px-3"
+            cellPaddingY="py-2.5"
+            sort={sort}
+            onSortChange={handleSortChange}
             columns={[
               {
                 header: 'User',
-                key: 'user',
+                key: 'name',
                 stickyLeft: true,
+                sortable: true,
                 render: (membership) => (
                   <div className="flex items-center gap-3 py-1">
-                    <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">
+                    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">
                       {getUserInitials(membership.user.name, membership.user.email)}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {membership.user.name || 'No name set'}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge
-                          color={membership.role === 'ADMIN' ? 'green' : 'gray'}
-                          size="sm"
-                          pill={false}
-                        >
-                          {membership.role === 'ADMIN' ? 'Practice admin' : 'Standard'}
-                        </Badge>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {membership.user.name || 'No name set'}
+                        </span>
+                        {membership.role === 'ADMIN' && (
+                          <Badge color="green" size="sm" pill={false}>
+                            Practice admin
+                          </Badge>
+                        )}
                         {membership.user.defaultSurgeryId === surgery.id && (
                           <span className="text-xs text-gray-400">Default</span>
                         )}
@@ -328,277 +200,110 @@ export default function SurgeryUsersClient({ surgery, user, lastActiveData }: Su
                   </div>
                 ),
               },
-              {
-                header: 'Permissions',
-                key: 'permissions',
-                render: (membership) => {
-                  const isSurgeryAdmin = membership.role === 'ADMIN'
-                  const enabled = isSurgeryAdmin || membership.adminToolkitWrite === true
-                  return (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleAdminToolkitWrite(membership.user.id, !enabled)}
-                        disabled={isSurgeryAdmin}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                          enabled ? 'bg-nhs-green' : 'bg-gray-200'
-                        } ${isSurgeryAdmin ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
-                        aria-label={`Toggle Practice Handbook write for ${membership.user.name || membership.user.email}`}
-                        title={isSurgeryAdmin ? 'Practice admins can always edit.' : 'Practice Handbook write access'}
-                      >
-                        <span
-                          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                            enabled ? 'translate-x-4.5' : 'translate-x-0.5'
-                          }`}
-                          style={{ transform: enabled ? 'translateX(18px)' : 'translateX(2px)' }}
-                        />
-                      </button>
-                      <span className="text-xs text-gray-400">
-                        Handbook
-                      </span>
-                    </div>
-                  )
-                },
-              },
+              ...(handbookEnabled
+                ? [
+                    {
+                      header: 'Permissions',
+                      key: 'permissions',
+                      render: (membership: Membership) => (
+                        <div className="flex items-center gap-2">
+                          <HandbookToggle membership={membership} onToggle={handleToggleAdminToolkitWrite} />
+                          <span className="text-xs text-gray-400">
+                            Handbook
+                          </span>
+                        </div>
+                      ),
+                    },
+                  ]
+                : []),
               {
                 header: 'Last active',
                 key: 'lastActive',
+                sortable: true,
                 render: (membership) => {
                   const lastActiveIso = lastActiveData[membership.user.id]
-                  const lastActiveDate = lastActiveIso ? new Date(lastActiveIso) : null
-                  return (
-                    <span className="text-sm text-gray-400">
-                      {formatRelativeDate(lastActiveDate)}
+                  return lastActiveIso ? (
+                    <span className="text-sm text-gray-500">
+                      {formatRelativeDate(new Date(lastActiveIso))}
                     </span>
+                  ) : (
+                    <span className="text-sm text-amber-600">Never</span>
                   )
                 },
               },
               {
                 header: '',
-                key: 'actions',
-                sticky: true,
-                className: 'w-12',
-                render: (membership) => {
-                  const menuItems = [
-                    { label: 'Edit user', onClick: () => handleEditUser(membership) },
-                    { label: 'Reset password', onClick: () => setResettingPasswordFor({ id: membership.user.id, email: membership.user.email }) },
-                    ...(membership.user.defaultSurgeryId !== surgery.id
-                      ? [{ label: 'Set as default surgery', onClick: () => handleSetDefaultSurgery(membership.user.id) }]
-                      : []),
-                    { label: 'Remove access', onClick: () => setPendingRemoveUserId(membership.user.id), variant: 'danger' as const },
-                  ]
-                  return (
-                    <KebabMenu
-                      items={menuItems}
-                      ariaLabel={`Actions for ${membership.user.name || membership.user.email}`}
-                    />
-                  )
-                },
+                key: 'open',
+                className: 'w-8 text-right',
+                render: () => (
+                  <span aria-hidden="true" className="text-gray-300 group-hover:text-gray-500 text-lg">
+                    ›
+                  </span>
+                ),
               },
             ]}
-            rows={filteredUsers}
-            emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found. Add your first user to get started.'}
+            rows={visibleMembers}
+            emptyMessage={
+              hasActiveFilters ? (
+                <span className="inline-flex items-center gap-2">
+                  No members match your search or filters.
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setFilters(EMPTY_FILTERS)
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </span>
+              ) : (
+                'No users found. Add your first user to get started.'
+              )
+            }
             rowKey={(membership) => membership.id}
+            onRowClick={(membership) => setSelectedMembership(membership)}
           />
         </div>
       </main>
 
-      {/* Add User Modal */}
-      <Dialog
+      <AddUserDialog
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Add User to Surgery"
-        width="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowAddModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="add-user-form">
-              Add User
-            </Button>
-          </>
-        }
-      >
-        <form id="add-user-form" onSubmit={handleAddUser}>
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
-            <Input
-              type="email"
-              id="email"
-              required
-              value={newUserEmail}
-              onChange={(e) => setNewUserEmail(e.target.value)}
-              placeholder="user@example.com"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              If the user doesn’t exist, a new account will be created.
-            </p>
-          </div>
-          <div className="mb-4">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Full Name
-            </label>
-            <Input
-              id="name"
-              value={newUserName}
-              onChange={(e) => setNewUserName(e.target.value)}
-              placeholder="John Doe"
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <Input
-              type="password"
-              id="password"
-              required
-              value={newUserPassword}
-              onChange={(e) => setNewUserPassword(e.target.value)}
-              placeholder="Enter password"
-            />
-          </div>
-          <div className="mb-2">
-            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
-              Role
-            </label>
-            <Select
-              id="role"
-              value={newUserRole}
-              onChange={(e) => setNewUserRole(e.target.value)}
-            >
-              <option value="STANDARD">Standard User</option>
-              <option value="ADMIN">Practice admin</option>
-            </Select>
-          </div>
-        </form>
-      </Dialog>
+        surgeryId={surgery.id}
+      />
 
-      {/* Edit User Modal */}
-      <Dialog
-        open={!!editingUser}
-        onClose={() => setEditingUser(null)}
-        title="Edit User"
-        width="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setEditingUser(null)}>
-              Cancel
-            </Button>
-            <Button type="submit" form="edit-user-form">
-              Update User
-            </Button>
-          </>
-        }
-      >
-        {editingUser && (
-          <form id="edit-user-form" onSubmit={handleUpdateUser}>
-            <div className="mb-4">
-              <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Address
-              </label>
-              <Input
-                type="email"
-                id="edit-email"
-                value={editingUser.email}
-                disabled
-                className="bg-gray-100 text-gray-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Email cannot be changed
-              </p>
-            </div>
-            <div className="mb-4">
-              <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">
-                Full Name
-              </label>
-              <Input
-                id="edit-name"
-                value={editingUser.name || ''}
-                onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                placeholder="John Doe"
-              />
-            </div>
-            <div className="mb-2">
-              <label htmlFor="edit-role" className="block text-sm font-medium text-gray-700 mb-1">
-                Role
-              </label>
-              <Select
-                id="edit-role"
-                value={editingUser.role}
-                onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-              >
-                <option value="STANDARD">Standard User</option>
-                <option value="ADMIN">Practice admin</option>
-              </Select>
-            </div>
-          </form>
-        )}
-      </Dialog>
-
-      {/* Reset Password Modal */}
-      <Dialog
-        open={!!resettingPasswordFor}
-        onClose={() => {
-          setResettingPasswordFor(null)
-          setNewPassword('')
-        }}
-        title="Reset Password"
-        description={resettingPasswordFor ? `Reset password for ${resettingPasswordFor.email}` : undefined}
-        width="sm"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setResettingPasswordFor(null)
-                setNewPassword('')
-              }}
-              disabled={isResettingPassword}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="reset-password-form"
-              variant="danger"
-              loading={isResettingPassword}
-              disabled={!newPassword}
-            >
-              {isResettingPassword ? 'Resetting...' : 'Reset Password'}
-            </Button>
-          </>
-        }
-      >
-        <form id="reset-password-form" onSubmit={handleResetPassword}>
-          <div className="mb-2">
-            <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">
-              New Password
-            </label>
-            <Input
-              type="password"
-              id="new-password"
-              required
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password"
-            />
-          </div>
-        </form>
-      </Dialog>
+      <MemberDetailPanel
+        membership={selectedMembership}
+        surgeryId={surgery.id}
+        surgeryName={surgery.name}
+        handbookEnabled={handbookEnabled}
+        lastActive={selectedMembership ? lastActiveData[selectedMembership.user.id] ?? null : null}
+        onClose={() => setSelectedMembership(null)}
+        onRequestConfirm={setPendingAction}
+      />
 
       {/* Remove access confirmation */}
       <ConfirmDialog
-        open={!!pendingRemoveUserId}
-        onClose={() => setPendingRemoveUserId(null)}
-        onConfirm={handleRemoveUser}
+        open={!!pendingAction}
+        onClose={() => setPendingAction(null)}
+        onConfirm={runPendingAction}
+        loading={confirmLoading}
         title="Remove access"
-        message="Are you sure you want to remove this user from the surgery?"
+        message={
+          pendingAction ? (
+            <>
+              Are you sure you want to remove{' '}
+              <span className="font-medium">{pendingAction.email}</span> from{' '}
+              {surgery.name}? Their account is kept — only their access to this
+              surgery is removed.
+            </>
+          ) : (
+            ''
+          )
+        }
         confirmLabel="Remove"
-        loading={removing}
       />
     </div>
   )

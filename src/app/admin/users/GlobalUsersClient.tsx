@@ -1,45 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import AdminSearchBar from '@/components/admin/AdminSearchBar'
 import AdminTable from '@/components/admin/AdminTable'
-import KebabMenu from '@/components/admin/KebabMenu'
 import NavigationPanelTrigger from '@/components/NavigationPanelTrigger'
 import LogoSizeControl from '@/components/LogoSizeControl'
 import { formatRelativeDate } from '@/lib/formatRelativeDate'
-import { Button, ConfirmDialog, Dialog, Input, Select, Badge } from '@/components/ui'
-
-interface User {
-  id: string
-  email: string
-  name: string | null
-  globalRole: string
-  defaultSurgeryId: string | null
-  createdAt: Date
-  isTestUser: boolean
-  symptomUsageLimit: number | null
-  symptomsUsed: number
-  memberships: Array<{
-    id: string
-    role: string
-    surgery: {
-      id: string
-      name: string
-    }
-  }>
-  defaultSurgery: {
-    id: string
-    name: string
-  } | null
-}
-
-interface Surgery {
-  id: string
-  name: string
-}
+import { Badge, Button, ConfirmDialog } from '@/components/ui'
+import CreateUserDialog from './CreateUserDialog'
+import UserDetailPanel from './UserDetailPanel'
+import UserFilterBar from './UserFilterBar'
+import UserStatsRow from './UserStatsRow'
+import { computeStats, filterUsers, getUserInitials, sortUsers } from './userTableUtils'
+import { EMPTY_FILTERS, type PendingAction, type SortKey, type SortState, type Surgery, type User, type UserFilters } from './types'
 
 interface GlobalUsersClientProps {
   users: User[]
@@ -47,158 +22,23 @@ interface GlobalUsersClientProps {
   lastActiveData: Record<string, string | null>
 }
 
-type PendingAction =
-  | { type: 'reset-usage'; userId: string }
-  | { type: 'delete-user'; userId: string; email: string }
-  | { type: 'remove-membership'; membershipId: string }
-
-// Helper function to get user initials
-function getUserInitials(name: string | null, email: string): string {
-  if (name) {
-    const parts = name.trim().split(/\s+/)
-    if (parts.length >= 2) {
-      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-    }
-    return name.charAt(0).toUpperCase()
-  }
-  return email.charAt(0).toUpperCase()
-}
-
 export default function GlobalUsersClient({ users, surgeries, lastActiveData }: GlobalUsersClientProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState<UserFilters>(EMPTY_FILTERS)
+  const [sort, setSort] = useState<SortState>({ key: 'name', direction: 'asc' })
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
-  const [showMembershipModal, setShowMembershipModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [resettingPasswordFor, setResettingPasswordFor] = useState<User | null>(null)
-  const [newPassword, setNewPassword] = useState('')
-  const [isResettingPassword, setIsResettingPassword] = useState(false)
-  const [newUser, setNewUser] = useState({
-    email: '',
-    name: '',
-    password: '',
-    globalRole: 'USER',
-    isTestUser: false,
-    symptomUsageLimit: 25,
-    initialSurgeryId: '',
-    initialSurgeryRole: 'STANDARD' as 'STANDARD' | 'ADMIN'
-  })
-  const [newMembership, setNewMembership] = useState({
-    surgeryId: '',
-    role: 'STANDARD' as 'STANDARD' | 'ADMIN'
-  })
 
-  // Keep the open membership dialog in sync after router.refresh() delivers
+  // Keep the open detail panel in sync after router.refresh() delivers
   // fresh data — selectedUser is a snapshot of a previous `users` array.
   useEffect(() => {
     setSelectedUser((current) =>
       current ? users.find((u) => u.id === current.id) ?? null : current
     )
   }, [users])
-
-  const handleEditUser = (user: User) => {
-    setEditingUser(user)
-  }
-
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingUser) return
-
-    try {
-      const response = await fetch(`/api/admin/users/${editingUser.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: editingUser.name,
-          globalRole: editingUser.globalRole,
-          defaultSurgeryId: editingUser.defaultSurgeryId
-        }),
-      })
-
-      if (response.ok) {
-        toast.success('User updated')
-        router.refresh()
-      } else {
-        const error = await response.json()
-        toast.error(`Error updating user: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error updating user:', error)
-      toast.error('Failed to update user. Please try again.')
-    }
-
-    setEditingUser(null)
-  }
-
-  const handleCreateUser = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    try {
-      // First, create the user
-      const { initialSurgeryId, initialSurgeryRole, ...userData } = newUser
-      const response = await fetch('/api/admin/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      })
-
-      if (response.ok) {
-        const createdUser = await response.json()
-
-        // If a surgery was selected, create the membership
-        if (initialSurgeryId) {
-          try {
-            const membershipResponse = await fetch(`/api/admin/users/${createdUser.id}/memberships`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                surgeryId: initialSurgeryId,
-                role: initialSurgeryRole
-              }),
-            })
-
-            if (!membershipResponse.ok) {
-              const error = await membershipResponse.json()
-              toast.error(`User created but failed to add surgery membership: ${error.error}`)
-            }
-          } catch (membershipError) {
-            console.error('Error creating membership:', membershipError)
-            toast.error('User created but failed to add surgery membership. You can add it manually later.')
-          }
-        }
-
-        toast.success('User created')
-        router.refresh()
-      } else {
-        const error = await response.json()
-        toast.error(`Error creating user: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error creating user:', error)
-      toast.error('Failed to create user. Please try again.')
-    }
-
-    setShowCreateModal(false)
-    setNewUser({
-      email: '',
-      name: '',
-      password: '',
-      globalRole: 'USER',
-      isTestUser: false,
-      symptomUsageLimit: 25,
-      initialSurgeryId: '',
-      initialSurgeryRole: 'STANDARD'
-    })
-  }
 
   const handleResetTestUserUsage = async (userId: string) => {
     try {
@@ -223,39 +63,6 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
     }
   }
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    if (!resettingPasswordFor) return
-
-    e.preventDefault()
-    setIsResettingPassword(true)
-
-    try {
-      const response = await fetch(`/api/admin/users/${resettingPasswordFor.id}/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          newPassword: newPassword,
-        }),
-      })
-
-      if (response.ok) {
-        toast.success('Password reset successfully')
-        setResettingPasswordFor(null)
-        setNewPassword('')
-      } else {
-        const error = await response.json()
-        toast.error(`Failed to reset password: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error resetting password:', error)
-      toast.error('Failed to reset password')
-    } finally {
-      setIsResettingPassword(false)
-    }
-  }
-
   const handleDeleteUser = async (userId: string) => {
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -264,6 +71,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
 
       if (response.ok) {
         toast.success('User deleted')
+        setSelectedUser(null)
         router.refresh()
       } else {
         const error = await response.json()
@@ -275,43 +83,9 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
     }
   }
 
-  const handleManageMemberships = (user: User) => {
-    setSelectedUser(user)
-    setShowMembershipModal(true)
-  }
-
-  const handleAddMembership = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedUser) return
-
+  const handleRemoveMembership = async (userId: string, membershipId: string) => {
     try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/memberships`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newMembership),
-      })
-
-      if (response.ok) {
-        toast.success('Surgery membership added')
-        setNewMembership({ surgeryId: '', role: 'STANDARD' })
-        router.refresh()
-      } else {
-        const error = await response.json()
-        toast.error(`Error adding membership: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error adding membership:', error)
-      toast.error('Failed to add membership. Please try again.')
-    }
-  }
-
-  const handleRemoveMembership = async (membershipId: string) => {
-    if (!selectedUser) return
-
-    try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/memberships/${membershipId}`, {
+      const response = await fetch(`/api/admin/users/${userId}/memberships/${membershipId}`, {
         method: 'DELETE',
       })
 
@@ -328,31 +102,6 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
     }
   }
 
-  const handleUpdateMembershipRole = async (membershipId: string, newRole: 'STANDARD' | 'ADMIN') => {
-    if (!selectedUser) return
-
-    try {
-      const response = await fetch(`/api/admin/users/${selectedUser.id}/memberships/${membershipId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ role: newRole }),
-      })
-
-      if (response.ok) {
-        toast.success('Membership role updated')
-        router.refresh()
-      } else {
-        const error = await response.json()
-        toast.error(`Error updating membership role: ${error.error}`)
-      }
-    } catch (error) {
-      console.error('Error updating membership role:', error)
-      toast.error('Failed to update membership role. Please try again.')
-    }
-  }
-
   const runPendingAction = async () => {
     if (!pendingAction) return
     setConfirmLoading(true)
@@ -362,7 +111,7 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
       } else if (pendingAction.type === 'delete-user') {
         await handleDeleteUser(pendingAction.userId)
       } else {
-        await handleRemoveMembership(pendingAction.membershipId)
+        await handleRemoveMembership(pendingAction.userId, pendingAction.membershipId)
       }
     } finally {
       setConfirmLoading(false)
@@ -370,21 +119,33 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
     }
   }
 
-  // Sort users alphabetically by name (fallback to email)
-  const sortedUsers = [...users].sort((a, b) => {
-    const nameA = (a.name || a.email).toLowerCase()
-    const nameB = (b.name || b.email).toLowerCase()
-    return nameA.localeCompare(nameB)
-  })
+  const handleSortChange = (key: string) => {
+    const sortKey = key as SortKey
+    setSort((current) => {
+      if (current.key === sortKey) {
+        return { key: sortKey, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+      }
+      // Most-recent-first is the useful default when switching to last active
+      return { key: sortKey, direction: sortKey === 'lastActive' ? 'desc' : 'asc' }
+    })
+  }
 
-  // Filter users by search query (name or email, case-insensitive)
-  const filteredUsers = sortedUsers.filter((user) => {
-    if (!searchQuery.trim()) return true
-    const query = searchQuery.toLowerCase()
-    const nameMatch = user.name?.toLowerCase().includes(query) ?? false
-    const emailMatch = user.email.toLowerCase().includes(query)
-    return nameMatch || emailMatch
-  })
+  const stats = useMemo(
+    () => computeStats(users, lastActiveData, new Date()),
+    [users, lastActiveData]
+  )
+
+  const visibleUsers = useMemo(
+    () => sortUsers(filterUsers(users, filters, searchQuery, lastActiveData, new Date()), sort, lastActiveData),
+    [users, filters, searchQuery, sort, lastActiveData]
+  )
+
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    filters.adminsOnly ||
+    filters.testOnly ||
+    filters.noSurgeries ||
+    filters.activity !== 'all'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -421,52 +182,59 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
           </Button>
         </div>
 
+        <UserStatsRow stats={stats} />
+
         <div className="bg-white shadow overflow-hidden sm:rounded-md">
           <div className="px-4 py-5 sm:px-6">
             <h2 className="text-lg leading-6 font-medium text-gray-900">
               All Users
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-gray-500">
-              Manage user accounts and their global roles across the system.
+              Manage user accounts and their global roles across the system. Click a user to view and edit their details.
             </p>
           </div>
 
-          {/* Search Box */}
-          <AdminSearchBar
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search users…"
-            debounceMs={0}
+          <UserFilterBar
+            search={searchQuery}
+            onSearchChange={setSearchQuery}
+            filters={filters}
+            onFiltersChange={setFilters}
+            resultCount={visibleUsers.length}
+            totalCount={users.length}
           />
 
           {/* Table - scroll container with always-visible scrollbar */}
           <AdminTable
             cellPadding="px-3"
+            cellPaddingY="py-2.5"
             scrollContainerClassName="max-h-[65vh] overflow-y-auto"
+            sort={sort}
+            onSortChange={handleSortChange}
             columns={[
               {
                 header: 'User',
-                key: 'user',
+                key: 'name',
                 stickyLeft: true,
+                sortable: true,
                 render: (user) => (
                   <div className="flex items-center gap-3 py-1">
-                    <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">
+                    <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600 flex-shrink-0">
                       {getUserInitials(user.name, user.email)}
                     </div>
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">
-                        {user.name || 'No name set'}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge
-                          color={user.globalRole === 'SUPERUSER' ? 'purple' : 'gray'}
-                          size="sm"
-                          pill={false}
-                        >
-                          {user.globalRole === 'SUPERUSER' ? 'System admin' : 'User'}
-                        </Badge>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {user.name || 'No name set'}
+                        </span>
+                        {user.globalRole === 'SUPERUSER' && (
+                          <Badge color="purple" size="sm" pill={false}>
+                            System admin
+                          </Badge>
+                        )}
                         {user.isTestUser && (
-                          <span className="text-xs text-amber-600">Test</span>
+                          <Badge color="amber" size="sm" pill={false}>
+                            Test
+                          </Badge>
                         )}
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5 truncate">
@@ -479,20 +247,22 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
               {
                 header: 'Surgeries',
                 key: 'memberships',
-                className: 'align-top',
+                className: 'align-middle',
                 render: (user) => (
                   <div className="py-1">
                     {user.memberships.length === 0 ? (
                       <span className="text-xs text-gray-300 italic">None</span>
                     ) : (
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-wrap items-center gap-1">
                         {user.memberships.slice(0, 3).map((membership) => (
-                          <span key={membership.id} className="text-xs text-gray-500">
+                          <Badge
+                            key={membership.id}
+                            color={membership.role === 'ADMIN' ? 'blue' : 'gray'}
+                            size="sm"
+                          >
                             {membership.surgery.name}
-                            <span className="text-gray-300 ml-1">
-                              {membership.role === 'ADMIN' ? '(admin)' : ''}
-                            </span>
-                          </span>
+                            {membership.role === 'ADMIN' && <span className="ml-1 font-normal">· admin</span>}
+                          </Badge>
                         ))}
                         {user.memberships.length > 3 && (
                           <span className="text-xs text-gray-400">
@@ -507,394 +277,68 @@ export default function GlobalUsersClient({ users, surgeries, lastActiveData }: 
               {
                 header: 'Last active',
                 key: 'lastActive',
+                sortable: true,
                 render: (user) => {
                   const lastActiveIso = lastActiveData[user.id]
-                  const lastActiveDate = lastActiveIso ? new Date(lastActiveIso) : null
-                  return (
-                    <span className="text-sm text-gray-400">
-                      {formatRelativeDate(lastActiveDate)}
+                  return lastActiveIso ? (
+                    <span className="text-sm text-gray-500">
+                      {formatRelativeDate(new Date(lastActiveIso))}
                     </span>
+                  ) : (
+                    <span className="text-sm text-amber-600">Never</span>
                   )
                 },
               },
               {
                 header: '',
-                key: 'actions',
-                sticky: true,
-                className: 'w-12',
-                render: (user) => {
-                  const menuItems = [
-                    { label: 'Edit user', onClick: () => handleEditUser(user) },
-                    { label: 'Reset password', onClick: () => setResettingPasswordFor(user) },
-                    { label: 'Manage surgeries', onClick: () => handleManageMemberships(user) },
-                    ...(user.isTestUser
-                      ? [{ label: 'Reset usage count', onClick: () => setPendingAction({ type: 'reset-usage', userId: user.id }) }]
-                      : []),
-                    { label: 'Delete user', onClick: () => setPendingAction({ type: 'delete-user', userId: user.id, email: user.email }), variant: 'danger' as const },
-                  ]
-                  return (
-                    <KebabMenu
-                      items={menuItems}
-                      ariaLabel={`Actions for ${user.name || user.email}`}
-                    />
-                  )
-                },
+                key: 'open',
+                className: 'w-8 text-right',
+                render: () => (
+                  <span aria-hidden="true" className="text-gray-300 group-hover:text-gray-500 text-lg">
+                    ›
+                  </span>
+                ),
               },
             ]}
-            rows={filteredUsers}
-            emptyMessage={searchQuery.trim() ? 'No users match your search.' : 'No users found.'}
+            rows={visibleUsers}
+            emptyMessage={
+              hasActiveFilters ? (
+                <span className="inline-flex items-center gap-2">
+                  No users match your search or filters.
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => {
+                      setSearchQuery('')
+                      setFilters(EMPTY_FILTERS)
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                </span>
+              ) : (
+                'No users found.'
+              )
+            }
             rowKey={(user) => user.id}
+            onRowClick={(user) => setSelectedUser(user)}
           />
         </div>
       </main>
 
-      {/* Create User Modal */}
-      <Dialog
+      <CreateUserDialog
         open={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false)
-          setNewUser({ email: '', name: '', password: '', globalRole: 'USER', isTestUser: false, symptomUsageLimit: 25, initialSurgeryId: '', initialSurgeryRole: 'STANDARD' })
-        }}
-        title="Create New User"
-        width="sm"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowCreateModal(false)
-                setNewUser({ email: '', name: '', password: '', globalRole: 'USER', isTestUser: false, symptomUsageLimit: 25, initialSurgeryId: '', initialSurgeryRole: 'STANDARD' })
-              }}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" form="create-user-form">
-              Create User
-            </Button>
-          </>
-        }
-      >
-        <form id="create-user-form" onSubmit={handleCreateUser}>
-          <div className="mb-4">
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-            <Input
-              type="email"
-              id="email"
-              required
-              value={newUser.email}
-              onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
-              placeholder="user@example.com"
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <Input
-              id="name"
-              value={newUser.name}
-              onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-              placeholder="John Doe"
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <Input
-              type="password"
-              id="password"
-              required
-              value={newUser.password}
-              onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-              placeholder="Enter password"
-            />
-          </div>
-          <div className="mb-4">
-            <label htmlFor="globalRole" className="block text-sm font-medium text-gray-700 mb-1">Global Role</label>
-            <Select
-              id="globalRole"
-              value={newUser.globalRole}
-              onChange={(e) => setNewUser({ ...newUser, globalRole: e.target.value })}
-            >
-              <option value="USER">User</option>
-              <option value="SUPERUSER">System admin</option>
-            </Select>
-          </div>
-          <div className="mb-4">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={newUser.isTestUser}
-                onChange={(e) => setNewUser({ ...newUser, isTestUser: e.target.checked })}
-                className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
-              />
-              <span className="ml-2 text-sm text-gray-700">Test User (Limited Access)</span>
-            </label>
-          </div>
-          {newUser.isTestUser && (
-            <div className="mb-4">
-              <label htmlFor="symptomUsageLimit" className="block text-sm font-medium text-gray-700 mb-1">Symptom Usage Limit</label>
-              <Input
-                type="number"
-                id="symptomUsageLimit"
-                min={1}
-                value={newUser.symptomUsageLimit}
-                onChange={(e) => setNewUser({ ...newUser, symptomUsageLimit: parseInt(e.target.value) || 25 })}
-                placeholder="25"
-              />
-              <p className="mt-1 text-xs text-gray-500">Number of symptoms the test user can view before being locked out</p>
-            </div>
-          )}
-          <div className="mb-4">
-            <label htmlFor="initialSurgery" className="block text-sm font-medium text-gray-700 mb-1">Initial Surgery Membership (Optional)</label>
-            <Select
-              id="initialSurgery"
-              value={newUser.initialSurgeryId}
-              onChange={(e) => setNewUser({ ...newUser, initialSurgeryId: e.target.value })}
-            >
-              <option value="">None - Add later</option>
-              {surgeries.map((surgery) => (
-                <option key={surgery.id} value={surgery.id}>{surgery.name}</option>
-              ))}
-            </Select>
-            <p className="mt-1 text-xs text-gray-500">Optionally add this user to a surgery immediately</p>
-          </div>
-          {newUser.initialSurgeryId && (
-            <div className="mb-6">
-              <label htmlFor="initialSurgeryRole" className="block text-sm font-medium text-gray-700 mb-1">Role in Surgery</label>
-              <Select
-                id="initialSurgeryRole"
-                value={newUser.initialSurgeryRole}
-                onChange={(e) => setNewUser({ ...newUser, initialSurgeryRole: e.target.value as 'STANDARD' | 'ADMIN' })}
-              >
-                <option value="STANDARD">Standard</option>
-                <option value="ADMIN">Admin</option>
-              </Select>
-            </div>
-          )}
-        </form>
-      </Dialog>
+        onClose={() => setShowCreateModal(false)}
+        surgeries={surgeries}
+      />
 
-      {/* Edit User Modal */}
-      <Dialog
-        open={!!editingUser}
-        onClose={() => setEditingUser(null)}
-        title="Edit User"
-        width="sm"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
-            <Button type="submit" form="edit-user-form">Update User</Button>
-          </>
-        }
-      >
-        {editingUser && (
-          <form id="edit-user-form" onSubmit={handleUpdateUser}>
-            <div className="mb-4">
-              <label htmlFor="edit-email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-              <Input
-                type="email"
-                id="edit-email"
-                value={editingUser.email}
-                disabled
-                className="bg-gray-100 text-gray-500"
-              />
-              <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
-            </div>
-            <div className="mb-4">
-              <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-              <Input
-                id="edit-name"
-                value={editingUser.name || ''}
-                onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                placeholder="John Doe"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="edit-globalRole" className="block text-sm font-medium text-gray-700 mb-1">Global Role</label>
-              <Select
-                id="edit-globalRole"
-                value={editingUser.globalRole}
-                onChange={(e) => setEditingUser({ ...editingUser, globalRole: e.target.value })}
-              >
-                <option value="USER">Standard User</option>
-                <option value="SUPERUSER">System admin</option>
-              </Select>
-            </div>
-            <div className="mb-6">
-              <label htmlFor="edit-defaultSurgery" className="block text-sm font-medium text-gray-700 mb-1">Default Surgery</label>
-              <Select
-                id="edit-defaultSurgery"
-                value={editingUser.defaultSurgeryId || ''}
-                onChange={(e) => setEditingUser({ ...editingUser, defaultSurgeryId: e.target.value || null })}
-              >
-                <option value="">No default surgery</option>
-                {surgeries.map((surgery) => (
-                  <option key={surgery.id} value={surgery.id}>{surgery.name}</option>
-                ))}
-              </Select>
-              <p className="mt-1 text-xs text-gray-500">The surgery this user will be redirected to when they log in</p>
-            </div>
-          </form>
-        )}
-      </Dialog>
-
-      {/* Membership Management Modal */}
-      <Dialog
-        open={showMembershipModal && !!selectedUser}
-        onClose={() => {
-          setShowMembershipModal(false)
-          setSelectedUser(null)
-          setNewMembership({ surgeryId: '', role: 'STANDARD' })
-        }}
-        title={`Manage Surgery Memberships - ${selectedUser?.name || selectedUser?.email || ''}`}
-        width="2xl"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setShowMembershipModal(false)
-                setSelectedUser(null)
-                setNewMembership({ surgeryId: '', role: 'STANDARD' })
-              }}
-            >
-              Close
-            </Button>
-            <Button type="submit" form="add-membership-form" variant="primary">
-              Add Membership
-            </Button>
-          </>
-        }
-      >
-        {selectedUser && (
-          <>
-            {/* Current Memberships */}
-            <div className="mb-6">
-              <h4 className="text-md font-medium text-gray-900 mb-3">Current Memberships</h4>
-              {selectedUser.memberships.length === 0 ? (
-                <p className="text-sm text-gray-500 italic">No surgery memberships</p>
-              ) : (
-                <div className="space-y-2">
-                  {selectedUser.memberships.map((membership) => (
-                    <div key={membership.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-md">
-                      <div>
-                        <span className="font-medium">{membership.surgery.name}</span>
-                        <Badge
-                          color={membership.role === 'ADMIN' ? 'green' : 'blue'}
-                          className="ml-2"
-                        >
-                          {membership.role}
-                        </Badge>
-                      </div>
-                      <div className="flex space-x-2">
-                        <select
-                          value={membership.role}
-                          onChange={(e) => handleUpdateMembershipRole(membership.id, e.target.value as 'STANDARD' | 'ADMIN')}
-                          className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
-                        >
-                          <option value="STANDARD">Standard</option>
-                          <option value="ADMIN">Admin</option>
-                        </select>
-                        <Button
-                          variant="link"
-                          size="sm"
-                          onClick={() => setPendingAction({ type: 'remove-membership', membershipId: membership.id })}
-                          className="text-red-600 hover:text-red-500"
-                        >
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Add New Membership */}
-            <div className="border-t pt-4">
-              <h4 className="text-md font-medium text-gray-900 mb-3">Add New Membership</h4>
-              <form id="add-membership-form" onSubmit={handleAddMembership}>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label htmlFor="surgeryId" className="block text-sm font-medium text-gray-700 mb-1">Surgery</label>
-                    <Select
-                      id="surgeryId"
-                      required
-                      value={newMembership.surgeryId}
-                      onChange={(e) => setNewMembership({ ...newMembership, surgeryId: e.target.value })}
-                    >
-                      <option value="">Select surgery...</option>
-                      {surgeries
-                        .filter(surgery => !selectedUser.memberships.some(m => m.surgery.id === surgery.id))
-                        .map((surgery) => (
-                          <option key={surgery.id} value={surgery.id}>{surgery.name}</option>
-                        ))}
-                    </Select>
-                  </div>
-                  <div>
-                    <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <Select
-                      id="role"
-                      value={newMembership.role}
-                      onChange={(e) => setNewMembership({ ...newMembership, role: e.target.value as 'STANDARD' | 'ADMIN' })}
-                    >
-                      <option value="STANDARD">Standard</option>
-                      <option value="ADMIN">Admin</option>
-                    </Select>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </>
-        )}
-      </Dialog>
-
-      {/* Reset Password Modal */}
-      <Dialog
-        open={!!resettingPasswordFor}
-        onClose={() => {
-          setResettingPasswordFor(null)
-          setNewPassword('')
-        }}
-        title="Reset Password"
-        description={resettingPasswordFor ? `Reset password for ${resettingPasswordFor.email}` : undefined}
-        width="sm"
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setResettingPasswordFor(null)
-                setNewPassword('')
-              }}
-              disabled={isResettingPassword}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="reset-password-form"
-              variant="danger"
-              loading={isResettingPassword}
-              disabled={!newPassword}
-            >
-              {isResettingPassword ? 'Resetting...' : 'Reset Password'}
-            </Button>
-          </>
-        }
-      >
-        <form id="reset-password-form" onSubmit={handleResetPassword}>
-          <div className="mb-6">
-            <label htmlFor="new-password" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-            <Input
-              type="password"
-              id="new-password"
-              required
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Enter new password"
-            />
-          </div>
-        </form>
-      </Dialog>
+      <UserDetailPanel
+        user={selectedUser}
+        surgeries={surgeries}
+        lastActive={selectedUser ? lastActiveData[selectedUser.id] ?? null : null}
+        onClose={() => setSelectedUser(null)}
+        onRequestConfirm={setPendingAction}
+      />
 
       {/* Destructive action confirmation */}
       <ConfirmDialog
