@@ -83,14 +83,35 @@ The review records who approved each symptom and when, creating a clear audit tr
 
 ## User Management
 
-Admins manage users for their surgery from the **Users** section in the surgery admin area.
+Admins manage users for their surgery from the **Users** section in the surgery admin area. The page opens
+with at-a-glance stats — total members, practice admins, members active in the last 30 days, and members
+who have never signed in — followed by the searchable member list.
+
+### Finding Members
+
+- **Search** by name or email.
+- **Filter chips** narrow the list to practice admins, members with Practice Handbook access, members
+  inactive for 30+ days, or members who have never signed in.
+- **Sort** by name or last-active by clicking the column headings — useful for spotting dormant accounts.
 
 ### Creating Users
 
 1. Go to **Admin → Users** for your surgery.
 2. Click **Add User**.
-3. Enter the user's name, email, and password.
+3. Enter the user's name, email, and password. If an account with that email already exists, it is added
+   to your surgery; otherwise a new account is created.
 4. Assign a role: **Surgery Admin** or **Standard**.
+
+### The Member Panel
+
+Click any member in the list to open their panel, where you can:
+
+- Edit their name and role.
+- Toggle **Practice Handbook write access** (practice admins always have it). This section only appears
+  for surgeries with the Practice Handbook enabled.
+- Set your surgery as their **default surgery** (where they land after logging in).
+- Reset their password (they'll use the new password on next login).
+- **Remove access** — this removes the member from your surgery but keeps their account.
 
 ### Roles
 
@@ -101,13 +122,10 @@ Admins manage users for their surgery from the **Users** section in the surgery 
 
 Users can be members of multiple surgeries. Each membership has its own role, so a user can be Admin in one surgery and Standard in another.
 
-### Password Resets
-
-Admins can reset a user's password from the Users management page. The user will need to use the new password on next login.
-
 ### User Activity
 
-The Users list shows when each user was last active, helping you identify inactive accounts.
+The Users list shows when each user was last active within your surgery, with "Never" highlighted for
+accounts that have never signed in — helping you identify unused accounts to review.
 
 ---
 
