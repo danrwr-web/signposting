@@ -246,6 +246,7 @@ model EngagementEvent {
   base    BaseSymptom @relation(fields: [baseId], references: [id], onDelete: Cascade)
 
   @@index([surgeryId, ref])
+  @@index([surgeryId, createdAt])
 }
 
 model HighlightRule {

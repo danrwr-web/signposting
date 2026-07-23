@@ -343,3 +343,54 @@ export const CustomiseInstructionsResZ = z.object({
 export type CustomiseScope = z.infer<typeof CustomiseScopeZ>;
 export type CustomiseInstructionsReq = z.infer<typeof CustomiseInstructionsReqZ>;
 export type CustomiseInstructionsRes = z.infer<typeof CustomiseInstructionsResZ>;
+
+// Engagement Analytics (admin ?tab=engagement)
+export interface EngagementRankedSymptom {
+  id: string;
+  name: string;
+  ageGroup: string;
+  viewCount: number;
+}
+
+export interface EngagementTotals {
+  totalViews: number;
+  distinctUsers: number;
+  distinctSymptoms: number;
+  /** Only computed for the all-surgeries (superuser) scope; null otherwise. */
+  activeSurgeries: number | null;
+}
+
+export interface EngagementTrendPoint {
+  /** Calendar date in Europe/London, formatted YYYY-MM-DD. */
+  date: string;
+  views: number;
+}
+
+export interface EngagementTopRes {
+  topSymptoms: EngagementRankedSymptom[];
+  topUsers: Array<{ userEmail: string; engagementCount: number }>;
+  surgeryBreakdown?: Array<{
+    surgeryId: string;
+    surgeryName: string;
+    surgerySlug: string | null;
+    engagementCount: number;
+  }>;
+  totals: EngagementTotals;
+  /** Same-length window immediately before the selected range; null for all time. */
+  previousTotals: { totalViews: number; distinctUsers: number } | null;
+  trend: {
+    bucket: 'day';
+    /** True when the all-time range was capped to the most recent 90 days. */
+    capped: boolean;
+    points: EngagementTrendPoint[];
+  };
+  insights: {
+    leastViewed: EngagementRankedSymptom[];
+    neverViewedCount: number;
+    trackedSymptomCount: number;
+    /** View counts by weekday, Monday-first, Europe/London. */
+    byWeekday: number[];
+    /** View counts by hour of day (0-23), Europe/London. */
+    byHour: number[];
+  };
+}
