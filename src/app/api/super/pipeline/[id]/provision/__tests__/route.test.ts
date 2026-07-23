@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { POST } from '../route'
 import { prisma } from '@/lib/prisma'
 import { requireSuperuser } from '@/lib/rbac'
+import { copyAdminToolkitFromGlobalDefaultsToSurgery } from '@/server/adminToolkit/copyFromGlobalDefaults'
 
 jest.mock('@/lib/prisma', () => ({
   prisma: {
@@ -19,11 +20,18 @@ jest.mock('@/lib/rbac', () => ({
   requireSuperuser: jest.fn(),
 }))
 
+jest.mock('@/server/adminToolkit/copyFromGlobalDefaults', () => ({
+  copyAdminToolkitFromGlobalDefaultsToSurgery: jest.fn(),
+}))
+
 jest.mock('bcryptjs', () => ({
   hash: jest.fn().mockResolvedValue('hashed-password'),
 }))
 
 const mockedRequireSuperuser = requireSuperuser as jest.MockedFunction<typeof requireSuperuser>
+const mockedCopyToolkit = copyAdminToolkitFromGlobalDefaultsToSurgery as jest.MockedFunction<
+  typeof copyAdminToolkitFromGlobalDefaultsToSurgery
+>
 
 const makeReq = (body: unknown) =>
   ({ json: async () => body } as unknown as NextRequest)
@@ -41,7 +49,13 @@ const validBody = {
 describe('POST /api/super/pipeline/[id]/provision', () => {
   beforeEach(() => {
     jest.clearAllMocks()
-    mockedRequireSuperuser.mockResolvedValue(undefined as never)
+    mockedRequireSuperuser.mockResolvedValue({ id: 'super-1' } as never)
+    mockedCopyToolkit.mockResolvedValue({
+      status: 'seeded',
+      categoriesCreated: 8,
+      itemsCreated: 10,
+      attachmentsCreated: 0,
+    })
 
     ;(prisma.salesPipeline.findUnique as jest.Mock).mockResolvedValue({
       id: 'pipe-1',
@@ -112,6 +126,38 @@ describe('POST /api/super/pipeline/[id]/provision', () => {
       where: { id: 'user-existing' },
       data: { defaultSurgeryId: 'sur-1' },
     })
+  })
+
+  it('seeds the Practice Handbook when the admin_toolkit feature is selected', async () => {
+    ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
+    ;(prisma.feature.findMany as jest.Mock).mockResolvedValue([
+      { id: 'feat-toolkit', key: 'admin_toolkit' },
+      { id: 'feat-other', key: 'workflows' },
+    ])
+
+    const res = await POST(
+      makeReq({ ...validBody, featureFlagIds: ['feat-toolkit', 'feat-other'] }),
+      ctx
+    )
+
+    expect(res.status).toBe(201)
+    expect(mockedCopyToolkit).toHaveBeenCalledWith({
+      targetSurgeryId: 'sur-1',
+      actorUserId: 'super-1',
+      db: prisma,
+    })
+  })
+
+  it('does not seed the Practice Handbook when admin_toolkit is not selected', async () => {
+    ;(prisma.user.findUnique as jest.Mock).mockResolvedValue(null)
+    ;(prisma.feature.findMany as jest.Mock).mockResolvedValue([
+      { id: 'feat-other', key: 'workflows' },
+    ])
+
+    const res = await POST(makeReq({ ...validBody, featureFlagIds: ['feat-other'] }), ctx)
+
+    expect(res.status).toBe(201)
+    expect(mockedCopyToolkit).not.toHaveBeenCalled()
   })
 
   it('sets the temporary password for a reused account that has none', async () => {
