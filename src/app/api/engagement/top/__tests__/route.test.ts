@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { GET } from '../route'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/server/auth'
+import { getSessionUser, can } from '@/lib/rbac'
 import { getEngagementExtras } from '@/server/engagementAnalytics'
 
 jest.mock('@/lib/prisma', () => ({
@@ -17,6 +18,16 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/server/auth', () => ({
   getSession: jest.fn(),
+}))
+
+const mockedCookieGet = jest.fn()
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(async () => ({ get: (name: string) => mockedCookieGet(name) })),
+}))
+
+jest.mock('@/lib/rbac', () => ({
+  getSessionUser: jest.fn(),
+  can: jest.fn(),
 }))
 
 jest.mock('@/server/engagementAnalytics', () => ({
@@ -51,6 +62,10 @@ describe('GET /api/engagement/top', () => {
     mockedGroupBy.mockResolvedValue([])
     mockedBaseSymptomFindMany.mockResolvedValue([])
     mockedSurgeryFindMany.mockResolvedValue([])
+    // Default: legacy admin cookie present, so surgery sessions are trusted
+    mockedCookieGet.mockReturnValue({ value: 'legacy-session' })
+    ;(getSessionUser as jest.Mock).mockResolvedValue(null)
+    ;(can as jest.Mock).mockReturnValue({ manageSurgery: () => false })
   })
 
   it('returns 401 when there is no session', async () => {
@@ -84,6 +99,30 @@ describe('GET /api/engagement/top', () => {
     )
     const json = await res.json()
     expect(json.surgeryBreakdown).toBeUndefined()
+  })
+
+  it('rejects a NextAuth-derived surgery session without an admin membership', async () => {
+    // getSession() maps standard NextAuth users with a default surgery into a
+    // 'surgery' session; without the legacy admin cookie they need ADMIN rights
+    mockedGetSession.mockResolvedValue({ type: 'surgery', id: 'u1', surgeryId: 'sur-1' })
+    mockedCookieGet.mockReturnValue(undefined)
+    ;(getSessionUser as jest.Mock).mockResolvedValue({ id: 'u1', memberships: [] })
+    ;(can as jest.Mock).mockReturnValue({ manageSurgery: () => false })
+
+    const res = await GET(makeReq('http://localhost/api/engagement/top'))
+    expect(res.status).toBe(403)
+  })
+
+  it('allows a NextAuth surgery admin without the legacy cookie', async () => {
+    mockedGetSession.mockResolvedValue({ type: 'surgery', id: 'u1', surgeryId: 'sur-1' })
+    mockedCookieGet.mockReturnValue(undefined)
+    ;(getSessionUser as jest.Mock).mockResolvedValue({ id: 'u1', memberships: [] })
+    const manageSurgery = jest.fn(() => true)
+    ;(can as jest.Mock).mockReturnValue({ manageSurgery })
+
+    const res = await GET(makeReq('http://localhost/api/engagement/top'))
+    expect(res.status).toBe(200)
+    expect(manageSurgery).toHaveBeenCalledWith('sur-1')
   })
 
   it('lets superusers query all surgeries with a breakdown', async () => {

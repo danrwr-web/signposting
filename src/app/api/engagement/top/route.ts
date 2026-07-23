@@ -1,10 +1,26 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/server/auth'
+import { getSessionUser, can } from '@/lib/rbac'
 import { getEngagementExtras } from '@/server/engagementAnalytics'
 import type { EngagementTopRes } from '@/lib/api-contracts'
+
+/**
+ * The legacy admin cookie is only ever issued to practice admins and
+ * superusers, but getSession()'s NextAuth fallback also maps STANDARD users
+ * with a default surgery into a 'surgery'-shaped session. This data includes
+ * per-user activity, so NextAuth-derived surgery sessions must additionally
+ * hold an ADMIN membership for the surgery.
+ */
+async function isSurgeryAdminSession(surgeryId: string): Promise<boolean> {
+  const cookieStore = await cookies()
+  if (cookieStore.get('session')?.value) return true
+  const user = await getSessionUser()
+  return !!user && can(user).manageSurgery(surgeryId)
+}
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -47,6 +63,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
       }
       if (parsed.data.surgeryId && parsed.data.surgeryId !== session.surgeryId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+      if (!(await isSurgeryAdminSession(session.surgeryId))) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
       surgeryId = session.surgeryId
