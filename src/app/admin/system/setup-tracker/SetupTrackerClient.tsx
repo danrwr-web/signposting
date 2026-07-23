@@ -39,6 +39,13 @@ const STAGE_LABEL: Record<TrackerRow['stage'], string> = {
   live: 'Live',
 }
 
+const STAGE_DESCRIPTION: Record<TrackerRow['stage'], string> = {
+  not_started: 'Onboarding not yet started',
+  in_progress: 'Essential setup steps still incomplete',
+  nearly_there: 'Essential setup complete, awaiting active use',
+  live: 'Essential setup complete and in active use in the last 30 days',
+}
+
 const STAGE_COLOR: Record<TrackerRow['stage'], 'gray' | 'amber' | 'blue' | 'green'> = {
   not_started: 'gray',
   in_progress: 'amber',
@@ -314,7 +321,9 @@ export default function SetupTrackerClient({ rows, windowDays, generatedAt }: Se
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          <Badge color={STAGE_COLOR[row.stage]}>{STAGE_LABEL[row.stage]}</Badge>
+                          <Badge color={STAGE_COLOR[row.stage]} title={STAGE_DESCRIPTION[row.stage]}>
+                            {STAGE_LABEL[row.stage]}
+                          </Badge>
                         </td>
                         <td className="px-4 py-3">
                           <ProgressBar count={row.essentialCount} total={row.essentialTotal} critical />
@@ -365,7 +374,9 @@ export default function SetupTrackerClient({ rows, windowDays, generatedAt }: Se
 
         <div className="mt-6 text-xs text-nhs-grey">
           Setup signals come from existing onboarding, users, clinical review, engagement and feature-flag data; no
-          schema changes are required. Expand a row above for per-flag detail.
+          schema changes are required. A surgery is <span className="font-medium">Live</span> once all essential steps
+          are complete and it has been used in the last {windowDays} days — recommended steps are advisory and never
+          block the Live stage. Hover a stage badge for its definition, and expand a row above for per-flag detail.
         </div>
       </main>
     </div>

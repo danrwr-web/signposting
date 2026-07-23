@@ -86,16 +86,19 @@ function isAppointmentModelConfigured(profileJson: unknown): boolean {
   return gpEnabled || clinicianEnabled
 }
 
-function computeStage(
+/**
+ * Live means the surgery is genuinely up and running: every essential step is
+ * done and someone has used it within the health window. Recommended steps are
+ * advisory only — they never gate the stage.
+ */
+export function computeStage(
   essentialComplete: boolean,
-  recommendedComplete: boolean,
   onboardingStarted: boolean,
   activeUsersLast30: number,
 ): SurgeryStage {
   if (!onboardingStarted && !essentialComplete) return 'not_started'
   if (!essentialComplete) return 'in_progress'
-  if (essentialComplete && recommendedComplete && activeUsersLast30 >= 1) return 'live'
-  if (essentialComplete && recommendedComplete) return 'live'
+  if (activeUsersLast30 >= 1) return 'live'
   return 'nearly_there'
 }
 
@@ -290,8 +293,7 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
   const { essentialCount, essentialTotal, recommendedCount, recommendedTotal } =
     computeEssentialRecommended(checklist, features)
   const essentialComplete = essentialCount === essentialTotal
-  const recommendedComplete = recommendedCount === recommendedTotal
-  const stage = computeStage(essentialComplete, recommendedComplete, onboardingStarted, health.activeUsersLast30)
+  const stage = computeStage(essentialComplete, onboardingStarted, health.activeUsersLast30)
 
   return {
     surgeryId,
@@ -613,8 +615,7 @@ export async function computeSurgerySetupSnapshotsBatch(
     const { essentialCount, essentialTotal, recommendedCount, recommendedTotal } =
       computeEssentialRecommended(checklist, features)
     const essentialComplete = essentialCount === essentialTotal
-    const recommendedComplete = recommendedCount === recommendedTotal
-    const stage = computeStage(essentialComplete, recommendedComplete, onboardingStarted, activeUsersLast30)
+    const stage = computeStage(essentialComplete, onboardingStarted, activeUsersLast30)
 
     return {
       surgeryId: s.id,

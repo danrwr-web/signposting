@@ -176,18 +176,23 @@ describe('surgerySetupFlags.evaluateFlags', () => {
   describe('LIVE_BUT_IDLE', () => {
     it('fires when essentials done but zero active users for >14d', () => {
       const s = fixture({
+        stage: 'nearly_there',
         onboardingCompletedAt: daysAgo(30),
-        essentialCount: 6,
-        essentialTotal: 6,
         health: { ...fixture().health, activeUsersLast30: 0 },
       })
       expect(codes(s)).toContain('LIVE_BUT_IDLE')
     })
+    it('does not fire within 14d of onboarding completion', () => {
+      const s = fixture({
+        stage: 'nearly_there',
+        onboardingCompletedAt: daysAgo(10),
+        health: { ...fixture().health, activeUsersLast30: 0 },
+      })
+      expect(codes(s)).not.toContain('LIVE_BUT_IDLE')
+    })
     it('does not fire when active users present', () => {
       const s = fixture({
         onboardingCompletedAt: daysAgo(30),
-        essentialCount: 6,
-        essentialTotal: 6,
         health: { ...fixture().health, activeUsersLast30: 3 },
       })
       expect(codes(s)).not.toContain('LIVE_BUT_IDLE')
@@ -239,6 +244,10 @@ describe('surgerySetupFlags.evaluateFlags', () => {
     })
     it('does not fire when already live', () => {
       const s = fixture({ stage: 'live', goLiveDate: daysAgo(10) })
+      expect(codes(s)).not.toContain('GOLIVE_DATE_PASSED')
+    })
+    it('does not fire for a live surgery with incomplete recommended steps', () => {
+      const s = fixture({ stage: 'live', recommendedCount: 1, goLiveDate: daysAgo(60) })
       expect(codes(s)).not.toContain('GOLIVE_DATE_PASSED')
     })
     it('does not fire with no go-live date set', () => {

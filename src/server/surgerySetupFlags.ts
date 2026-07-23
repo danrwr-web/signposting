@@ -123,8 +123,9 @@ export const FLAG_RULES: FlagRule[] = [
     code: 'LIVE_BUT_IDLE',
     severity: 'warn',
     evaluate: (s, now) => {
-      const essentialComplete = s.essentialCount === s.essentialTotal
-      if (!essentialComplete || s.health.activeUsersLast30 > 0) return null
+      // nearly_there = essentials complete but no active users in the window,
+      // so this stays in lockstep with computeStage.
+      if (s.stage !== 'nearly_there') return null
       const anchor = s.onboardingCompletedAt ?? s.createdAt
       const days = daysBetween(now, anchor)
       if (days <= THRESHOLDS.liveButIdleMinAgeDays) return null

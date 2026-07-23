@@ -1,4 +1,4 @@
-import { latestDate, computeSurgerySetupSnapshotsBatch } from '@/server/surgerySetup'
+import { latestDate, computeStage, computeSurgerySetupSnapshotsBatch } from '@/server/surgerySetup'
 import { prisma } from '@/lib/prisma'
 
 jest.mock('@/server/effectiveSymptoms', () => ({ getEffectiveSymptoms: jest.fn() }))
@@ -56,6 +56,26 @@ describe('surgerySetup.latestDate', () => {
     const engagement = new Date('2026-01-05T00:00:00Z')
     const lastReviewed = new Date('2026-04-10T00:00:00Z')
     expect(latestDate(engagement, lastReviewed, null, undefined)).toEqual(lastReviewed)
+  })
+})
+
+describe('surgerySetup.computeStage', () => {
+  it('is not_started before onboarding begins', () => {
+    expect(computeStage(false, false, 0)).toBe('not_started')
+  })
+
+  it('is in_progress while essentials are incomplete', () => {
+    expect(computeStage(false, true, 0)).toBe('in_progress')
+    expect(computeStage(false, true, 5)).toBe('in_progress')
+  })
+
+  it('is live once essentials are complete and the surgery is in active use', () => {
+    // Recommended steps are advisory and must not gate this.
+    expect(computeStage(true, true, 1)).toBe('live')
+  })
+
+  it('is nearly_there when essentials are complete but nobody has used it', () => {
+    expect(computeStage(true, true, 0)).toBe('nearly_there')
   })
 })
 
@@ -150,5 +170,7 @@ describe('computeSurgerySetupSnapshotsBatch AI customisation', () => {
     expect(snapshot.aiCustomisationOccurred).toBe(true)
     expect(snapshot.essentialCount).toBe(6)
     expect(snapshot.essentialTotal).toBe(6)
+    // Essentials complete but no engagement events mocked, so no active users.
+    expect(snapshot.stage).toBe('nearly_there')
   })
 })

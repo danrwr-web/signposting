@@ -346,7 +346,16 @@ Once all essential steps are complete, the checklist transitions into a **Surger
 
 Quick action buttons provide direct links to clinical review, practice profile, AI setup, and user management.
 
-### Surgery Types (Superusers)
+### Surgery Setup Tracker (Superusers)
+
+Superusers can track onboarding across every surgery from the **Surgery Setup Tracker** (**Admin → System → Setup tracker**). Each surgery is placed in one of four stages:
+
+- **Not started** — Onboarding has not yet begun.
+- **In progress** — Essential setup steps are still incomplete.
+- **Nearly there** — All essential steps are complete, but nobody has used the surgery yet.
+- **Live** — All essential steps are complete and the surgery has been used within the last 30 days.
+
+Only the essential steps count towards the stage — recommended steps are advisory, shown as a separate progress column, and never hold a surgery back from **Live**. The tracker also raises warning and critical flags (for example, a contracted go-live date passing while a surgery is still in setup) so you can spot practices that may be stuck or need a nudge. Hover a stage badge for its definition, and expand a row for per-flag detail.
 
 Superusers can classify each surgery from **Admin → Surgeries → Edit** using the **Surgery type** dropdown:
 
