@@ -38,6 +38,7 @@ export default async function PipelinePage() {
     trialEndDate: e.trialEndDate?.toISOString() ?? null,
     invoiceGeneratedAt: e.invoiceGeneratedAt?.toISOString() ?? null,
     invoicePaidAt: e.invoicePaidAt?.toISOString() ?? null,
+    archivedAt: e.archivedAt?.toISOString() ?? null,
   }))
 
   return <PipelinePageClient initialEntries={serialised} />

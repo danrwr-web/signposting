@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import { PipelineEntry, STATUS_LABELS } from './types'
+import { getTrialStatus } from './trialStatus'
 
 function toDateStr(iso: string | null): string {
   if (!iso) return ''
@@ -44,11 +45,13 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     'Date Contract Start': toDateStr(e.dateContractStart),
     'Free Trial': e.freeTrial ? 'Yes' : 'No',
     'Trial End Date': toDateStr(e.trialEndDate),
+    'Trial Days Remaining': getTrialStatus(e, now).daysRemaining ?? '',
     'Annual Value (£)': e.annualValueGbp ?? '',
     'Invoice Generated': toDateStr(e.invoiceGeneratedAt),
     'Invoice Paid': toDateStr(e.invoicePaidAt),
     'Contract Variant': e.contractVariant?.name ?? e.contractVariantLabel ?? '',
     'Days in Pipeline': daysBetween(e.dateEnquiry, now),
+    Archived: toDateStr(e.archivedAt),
     Notes: e.notes ?? '',
   }))
 
@@ -57,6 +60,7 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
   // Set column widths
   ws1['!cols'] = [
     { wch: 25 }, // Practice Name
+    { wch: 25 }, // Practice Address
     { wch: 15 }, // Town/City
     { wch: 20 }, // PCN
     { wch: 10 }, // List Size
@@ -77,11 +81,13 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     { wch: 16 }, // Date Contract Start
     { wch: 10 }, // Free Trial
     { wch: 14 }, // Trial End Date
+    { wch: 18 }, // Trial Days Remaining
     { wch: 14 }, // Annual Value
     { wch: 18 }, // Invoice Generated
     { wch: 14 }, // Invoice Paid
     { wch: 22 }, // Contract Variant
     { wch: 14 }, // Days in Pipeline
+    { wch: 14 }, // Archived
     { wch: 30 }, // Notes
   ]
 
@@ -105,6 +111,9 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     0
   )
 
+  const onFreeTrial = entries.filter((e) => getTrialStatus(e, now).onTrial)
+  const archived = entries.filter((e) => e.archivedAt)
+
   const summaryData = [
     ['Metric', 'Value'],
     ['Total Practices', entries.length],
@@ -112,6 +121,8 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     ['In Progress', inProgress.length],
     ['On Hold', onHold.length],
     ['Lost', lost.length],
+    ['On Free Trial', onFreeTrial.length],
+    ['Archived', archived.length],
     ['', ''],
     ['Contracted List Size', contractedListSize],
     ['Contracted ARR (£)', contractedArr],

@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 const updatePipelineSchema = z.object({
   practiceName: z.string().min(1).optional(),
+  odsCode: z.string().trim().max(12).nullable().optional(),
   practiceAddress: z.string().nullable().optional(),
   townCity: z.string().nullable().optional(),
   pcnName: z.string().nullable().optional(),
@@ -36,6 +37,7 @@ const updatePipelineSchema = z.object({
   contractVariantId: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   linkedSurgeryId: z.string().nullable().optional(),
+  archivedAt: z.coerce.date().nullable().optional(),
 })
 
 // GET /api/super/pipeline/[id] — Get a single pipeline entry

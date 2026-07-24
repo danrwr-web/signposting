@@ -1,6 +1,7 @@
 export interface PipelineEntry {
   id: string
   practiceName: string
+  odsCode: string | null
   practiceAddress: string | null
   townCity: string | null
   pcnName: string | null
@@ -31,8 +32,29 @@ export interface PipelineEntry {
   notes: string | null
   linkedSurgeryId: string | null
   linkedSurgery: { id: string; name: string; slug: string | null } | null
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
+}
+
+/** A search hit from the NHS ODS register (GET /api/super/practice-lookup) */
+export interface OdsSearchResult {
+  odsCode: string
+  name: string
+  postcode: string | null
+}
+
+/** Full lookup detail (GET /api/super/practice-lookup/[odsCode]) */
+export interface PracticeLookupDetail {
+  odsCode: string
+  name: string
+  addressLines: string[]
+  town: string | null
+  postcode: string | null
+  pcnName: string | null
+  listSize: number | null
+  listSizeExtractDate: string | null
+  listSizeStale: boolean
 }
 
 export type PipelineStatus =

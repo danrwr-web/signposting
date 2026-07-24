@@ -1077,6 +1077,7 @@ enum PipelineStatus {
 model SalesPipeline {
   id                String         @id @default(cuid())
   practiceName      String
+  odsCode           String?        // ODS code of the matched national practice record
   practiceAddress   String?
   townCity          String?
   pcnName           String?
@@ -1123,12 +1124,30 @@ model SalesPipeline {
   linkedSurgeryId   String?        @unique
   linkedSurgery     Surgery?       @relation("PipelineSurgery", fields: [linkedSurgeryId], references: [id])
 
+  // Archive (practice went quiet — reversible, keeps last status)
+  archivedAt        DateTime?
+
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   @@index([status])
   @@index([linkedSurgeryId])
   @@index([contractVariantId])
+  @@index([archivedAt])
+}
+
+// ── National Practice Data (list-size cache) ────────────────────────
+// Populated from the NHS Digital "Patients Registered at a GP Practice"
+// monthly publication; keyed by ODS code. Replaced wholesale on refresh.
+
+model NationalPracticeData {
+  id          String    @id @default(cuid())
+  odsCode     String    @unique
+  listSize    Int
+  extractDate DateTime? // publication extract date (same for all rows in an import)
+  sourceUrl   String?   // CSV URL or 'manual-upload'
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 // ── Pipeline Email Templates ────────────────────────────────────────
