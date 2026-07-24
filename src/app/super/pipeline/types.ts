@@ -31,6 +31,7 @@ export interface PipelineEntry {
   notes: string | null
   linkedSurgeryId: string | null
   linkedSurgery: { id: string; name: string; slug: string | null } | null
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
 }

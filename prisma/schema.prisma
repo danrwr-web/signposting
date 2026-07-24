@@ -1123,12 +1123,16 @@ model SalesPipeline {
   linkedSurgeryId   String?        @unique
   linkedSurgery     Surgery?       @relation("PipelineSurgery", fields: [linkedSurgeryId], references: [id])
 
+  // Archive (practice went quiet — reversible, keeps last status)
+  archivedAt        DateTime?
+
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 
   @@index([status])
   @@index([linkedSurgeryId])
   @@index([contractVariantId])
+  @@index([archivedAt])
 }
 
 // ── Pipeline Email Templates ────────────────────────────────────────

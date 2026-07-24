@@ -3,7 +3,7 @@ import type { PipelineEntry } from './types'
 export type TrialUrgency = 'expired' | 'critical' | 'warning' | 'none'
 
 export interface TrialStatus {
-  /** Entry is marked as a free trial (and not Lost) */
+  /** Entry is marked as a free trial (and not Lost or archived) */
   onTrial: boolean
   /** Whole days until the trial ends; 0 = ends today, negative = ended. Null when no end date is set. */
   daysRemaining: number | null
@@ -22,10 +22,10 @@ function daysBetween(from: Date, to: Date): number {
 }
 
 export function getTrialStatus(
-  entry: Pick<PipelineEntry, 'freeTrial' | 'trialEndDate' | 'invoiceGeneratedAt' | 'status'>,
+  entry: Pick<PipelineEntry, 'freeTrial' | 'trialEndDate' | 'invoiceGeneratedAt' | 'status' | 'archivedAt'>,
   now: Date = new Date()
 ): TrialStatus {
-  const onTrial = entry.freeTrial && entry.status !== 'Lost'
+  const onTrial = entry.freeTrial && entry.status !== 'Lost' && !entry.archivedAt
   if (!onTrial) {
     return { onTrial: false, daysRemaining: null, urgency: 'none', invoiceDue: false }
   }

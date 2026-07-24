@@ -1,7 +1,10 @@
 import { getTrialStatus, formatDaysRemaining } from '../trialStatus'
 import type { PipelineEntry } from '../types'
 
-type TrialFields = Pick<PipelineEntry, 'freeTrial' | 'trialEndDate' | 'invoiceGeneratedAt' | 'status'>
+type TrialFields = Pick<
+  PipelineEntry,
+  'freeTrial' | 'trialEndDate' | 'invoiceGeneratedAt' | 'status' | 'archivedAt'
+>
 
 const NOW = new Date('2026-07-24T10:30:00')
 
@@ -11,6 +14,7 @@ function entry(overrides: Partial<TrialFields> = {}): TrialFields {
     trialEndDate: null,
     invoiceGeneratedAt: null,
     status: 'Contracted',
+    archivedAt: null,
     ...overrides,
   }
 }
@@ -23,6 +27,15 @@ describe('getTrialStatus', () => {
 
   it('treats Lost entries as not on trial', () => {
     const result = getTrialStatus(entry({ status: 'Lost', trialEndDate: '2026-07-01' }), NOW)
+    expect(result.onTrial).toBe(false)
+    expect(result.invoiceDue).toBe(false)
+  })
+
+  it('treats archived entries as not on trial', () => {
+    const result = getTrialStatus(
+      entry({ trialEndDate: '2026-07-01', archivedAt: '2026-07-20T09:00:00Z' }),
+      NOW
+    )
     expect(result.onTrial).toBe(false)
     expect(result.invoiceDue).toBe(false)
   })

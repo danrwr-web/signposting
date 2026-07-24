@@ -51,6 +51,7 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     'Invoice Paid': toDateStr(e.invoicePaidAt),
     'Contract Variant': e.contractVariant?.name ?? e.contractVariantLabel ?? '',
     'Days in Pipeline': daysBetween(e.dateEnquiry, now),
+    Archived: toDateStr(e.archivedAt),
     Notes: e.notes ?? '',
   }))
 
@@ -86,6 +87,7 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     { wch: 14 }, // Invoice Paid
     { wch: 22 }, // Contract Variant
     { wch: 14 }, // Days in Pipeline
+    { wch: 14 }, // Archived
     { wch: 30 }, // Notes
   ]
 
@@ -110,6 +112,7 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
   )
 
   const onFreeTrial = entries.filter((e) => getTrialStatus(e, now).onTrial)
+  const archived = entries.filter((e) => e.archivedAt)
 
   const summaryData = [
     ['Metric', 'Value'],
@@ -119,6 +122,7 @@ export function exportPipelineToExcel(entries: PipelineEntry[]) {
     ['On Hold', onHold.length],
     ['Lost', lost.length],
     ['On Free Trial', onFreeTrial.length],
+    ['Archived', archived.length],
     ['', ''],
     ['Contracted List Size', contractedListSize],
     ['Contracted ARR (£)', contractedArr],

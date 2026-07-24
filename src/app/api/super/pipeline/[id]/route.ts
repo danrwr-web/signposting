@@ -36,6 +36,7 @@ const updatePipelineSchema = z.object({
   contractVariantId: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   linkedSurgeryId: z.string().nullable().optional(),
+  archivedAt: z.coerce.date().nullable().optional(),
 })
 
 // GET /api/super/pipeline/[id] — Get a single pipeline entry
