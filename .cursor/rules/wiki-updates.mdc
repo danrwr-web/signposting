@@ -1,17 +1,16 @@
 ---
 alwaysApply: true
 ---
-wiki:
+docs:
   updates:
-    description: "Whenever a change affects a user-facing feature (symptom library, AI features, highlighting, appointment directory, admin UI, clinical review workflow, role-based access, preferences, onboarding, or navigation), update the relevant documentation pages inside `/docs/wiki`."
-    
+    description: "Whenever a change affects a user-facing feature (symptom library, AI features, highlighting, appointment directory, admin UI, clinical review workflow, role-based access, preferences, onboarding, or navigation), update the relevant documentation pages inside `docs-site/pages/`. The docs are a Nextra site deployed on Vercel at https://docs.signpostingtool.co.uk — there is no longer a Jekyll/GitHub-Pages `/docs` folder or a GitHub Wiki."
+
     sourceOfTruth:
-      - "/docs/PROJECT_SUMMARY.md"
-      - "/docs/README.md"
-      - "/docs/ROADMAP.md"
-      - "/docs/RELEASE_NOTES.md"
-      - "RELEASE_NOTES.md is the authoritative source for release information"
-    
+      - "docs-site/pages/ — the MDX documentation pages (file-based routing)"
+      - "docs-site/pages/release-notes.mdx — authoritative source for release information"
+      - "docs-site/pages/index.mdx — carries the version banner"
+      - "docs-site/CLAUDE.md — conventions for the docs site"
+
     whenToUpdate:
       - "Feature additions or removals"
       - "Significant UI changes"
@@ -19,172 +18,31 @@ wiki:
       - "Permission changes"
       - "New user-facing capabilities"
       - "Onboarding feature changes or setup workflow modifications"
-      - "When wiki pages are added, removed, or renamed"
-      - "When RELEASE_NOTES.md is edited (new release added or existing release updated)"
-    
+      - "When pages are added, removed, or renamed"
+
     maintenanceChecklist:
-      description: "When shipping or modifying a user-facing feature, update: Release Notes, README 'Recently shipped', and any affected wiki pages"
+      description: "When shipping or modifying a user-facing feature, update the affected page(s), the release notes, and the version banner"
       requiredActions:
-        - "Update Release Notes: Add user-visible changes to /docs/RELEASE_NOTES.md under the appropriate version section"
-        - "Update README 'Recently shipped': Add 1–2 short bullets to /docs/README.md for the most visible improvements"
-        - "Update affected wiki pages: Review and update relevant pages in /docs/wiki to reflect changes"
-      reference: "See /docs/wiki/Docs-Maintenance.md for the complete maintenance checklist"
-    
-    updateProcess:
-      steps:
-        - "Identify which documentation page(s) in /docs/wiki are affected"
-        - "Review current documentation content"
-        - "Update to reflect new or removed features"
-        - "Ensure consistency with PROJECT_SUMMARY.md, README.md, ROADMAP.md, and RELEASE_NOTES.md"
-        - "Maintain NHS tone and accessibility standards"
-        - "Add cross-links if new pages are created"
-        - "Ensure all links and images are compatible with GitHub Pages"
-      onboardingFeatures:
-        description: "When onboarding features or setup workflows change, update Getting-Started.md"
-        triggers:
-          - "Changes to user creation workflow"
-          - "Changes to surgery setup or configuration steps"
-          - "Changes to initial review or approval workflows"
-          - "Changes to appointment directory setup"
-          - "Changes to symptom library initial setup process"
-        requiredActions:
-          - "Update the relevant section(s) in docs/wiki/Getting-Started.md"
-          - "Ensure step-by-step instructions remain accurate"
-          - "Keep language clear and accessible for new practices"
-          - "Update navigation blocks if page structure changes"
-      releaseNotesSync:
-        description: "When you add or update a release in RELEASE_NOTES.md, you must also update the 'What's New' sections"
-        requiredActions:
-          - "Update the 'What's New' section in docs/README.md to reflect the latest 2-3 releases"
-          - "Update the 'What's New' section in docs/wiki/Home.md to match, using relative links (../RELEASE_NOTES.md)"
-          - "Summarise each release with version + date + 1-2 short, non-technical bullets suitable for GP practices"
-          - "Do NOT duplicate the full release notes text - only provide a brief, audience-friendly summary"
-          - "Avoid technical jargon - focus on benefits for reception teams and practices"
-          - "Include a link to the full Release Notes at the end of the summary"
-    
-    documentationStructure:
-      location: "/docs/wiki"
-      homepage: "docs/README.md is the main documentation homepage and includes a 'Documentation' section that serves as a high-level index into the wiki"
-      pages:
-        - "Home.md - Overview and navigation"
-        - "Getting-Started.md - Onboarding guide for new surgeries"
-        - "User-Guide.md - Practical guide for reception and care-navigation staff"
-        - "Symptom-Library.md - Symptom system details"
-        - "Clinical-Governance.md - Review workflow and safety"
-        - "AI-Features.md - AI tools and safety checks"
-        - "Appointment-Directory.md - Appointment types and filtering"
-        - "High-Risk-&-Highlighting.md - Visual indicators and rules"
-        - "Multi-Surgery-&-RBAC.md - Multi-tenancy and permissions"
-        - "Developer-Guide.md - Architecture and development"
-      images: "/docs/wiki/images"
-      navigationBlock:
-        description: "All wiki pages must include a standard navigation block immediately after the H1 heading"
-        requiredLinks:
-          - "Home"
-          - "Getting Started"
-          - "User Guide"
-          - "Symptom Library"
-          - "Clinical Governance"
-          - "AI Features"
-          - "Appointment Directory"
-          - "High-Risk & Highlighting"
-          - "Multi-Surgery & RBAC"
-          - "Developer Guide"
-        format: "Each link must be on its own line with blank lines between items"
-      documentationSectionSync:
-        description: "The 'Documentation' section in docs/README.md must stay in sync with the wiki structure"
-        requiredActions:
-          - "When wiki pages are added, removed, or renamed, update the 'Documentation' section in docs/README.md"
-          - "Ensure the section includes all wiki pages: Getting Started, User Guide, Symptom Library, Clinical Governance, Appointment Directory, AI Features, High-Risk & Highlighting, Multi-Surgery & RBAC, Developer Guide"
-          - "Use relative links with 'wiki/' prefix (e.g., wiki/Getting-Started) for GitHub Pages compatibility"
-          - "Keep descriptions concise and user-friendly for GP practices"
-          - "Maintain a single 'Documentation' section in docs/README.md (do not create duplicates)"
-          - "When the set of wiki pages changes, or their purpose is significantly revised, update the 'Documentation' section in docs/README.md so it remains an accurate, high-level index into the wiki"
-      brandingHeader:
-        description: "Both docs/README.md and docs/wiki/Home.md must contain a shared branding header directly under their H1 heading"
-        requiredContent:
-          - "Logo image (width 320)"
-          - "Tagline text: 'Helping admin teams in primary care'"
-          - "Contact email: contact@signpostingtool.co.uk as a mailto link"
-          - "Logo wrapped in a link to https://signpostingtool.co.uk (opens in a new tab with rel=\"noreferrer noopener\")"
-        imagePaths:
-          - "docs/README.md: MUST use src='wiki/images/signposting_logo_head.png'"
-          - "docs/wiki/Home.md: MUST use src='images/signposting_logo_head.png'"
-          - "NEVER use ../public/images/... paths - GitHub Pages only publishes the /docs folder"
-        formatForREADME: |
-          <p align="center">
-            <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
-              <img src="wiki/images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
-            </a>
-          </p>
-          
-          <p align="center"><strong>Helping admin teams in primary care</strong><br/>
-          Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
-        formatForWikiHome: |
-          <p align="center">
-            <a href="https://signpostingtool.co.uk" target="_blank" rel="noreferrer noopener">
-              <img src="images/signposting_logo_head.png" alt="Signposting Toolkit logo" width="320" />
-            </a>
-          </p>
-          
-          <p align="center"><strong>Helping admin teams in primary care</strong><br/>
-          Contact: <a href="mailto:contact@signpostingtool.co.uk">contact@signpostingtool.co.uk</a></p>
-        placement:
-          - "docs/README.md: Directly after H1, before any other content sections"
-          - "docs/wiki/Home.md: Directly after H1, before the Navigation section"
-        maintenance:
-          - "When either file is edited, check that the branding block is still present"
-          - "Ensure the logo link points to https://signpostingtool.co.uk and opens in a new tab with rel=\"noreferrer noopener\""
-          - "Keep the text and email in sync between both files (same tagline, same email, same alt text)"
-          - "Paths differ: docs/README.md uses 'wiki/images/...', docs/wiki/Home.md uses 'images/...'"
-          - "Do not create duplicate branding blocks"
-          - "The canonical implementation is the logo + tagline block described above"
-          - "Logo file location: docs/wiki/images/signposting_logo_head.png (tracked in git)"
-      documentationLinks:
-        description: "Keep in-app documentation links aligned with the public docs site."
-        requiredActions:
-          - "Update the top navigation Docs/Documentation link whenever the documentation URL or access pattern changes (admins and superusers only)."
-          - "Update the Admin Dashboard Documentation tab to point to the same URL and remain admin/superuser only."
-          - "Refresh the relevant documentation pages to describe any new locations for documentation links."
-    
-    contentGuidelines:
-      - "Keep documentation content conceptual and user-focused"
-      - "Avoid code-level specifics unless helpful"
-      - "Do not duplicate README.md installation instructions"
-      - "Maintain clear, accessible NHS-style documentation"
-      - "Include placeholder sections for screenshots where needed"
-      - "Ensure cross-linking between related pages"
-      - "Use relative links compatible with GitHub Pages"
-      - "Place images in /docs/wiki/images and reference them relatively"
-    
+        - "Update the affected page(s) under docs-site/pages/ to reflect the change"
+        - "Add user-visible changes to docs-site/pages/release-notes.mdx (New / Updated / Fixed / For system administrators)"
+        - "Bump the version banner on docs-site/pages/index.mdx when the app version changes"
+        - "Add or update the relevant _meta.ts entry when a page is added, removed, or renamed"
+
+    conventions:
+      - "Sidebar structure and ordering are defined by _meta.ts files in each folder"
+      - "Internal links use absolute paths, e.g. /features/symptom-library"
+      - "Images go in docs-site/public/images/ and are referenced as /images/filename.png"
+      - "Always include cross-links to related pages"
+      - "Keep the NHS tone: clear, plain English, no jargon (reading age 9-12)"
+      - "Do NOT add manual 'Last updated' lines — the footer timestamp is generated from git at build time"
+
+    documentationLinks:
+      description: "Keep in-app documentation links aligned with the public docs site."
+      requiredActions:
+        - "Update the in-app Docs/Documentation links whenever the documentation URL or access pattern changes."
+        - "Refresh the relevant documentation pages to describe any new locations for documentation links."
+
     whatNotToUpdate:
-      - "Do not update documentation for future/planned features (use ROADMAP.md)"
-      - "Do not duplicate release notes content (that stays in RELEASE_NOTES.md)"
-      - "Do not include technical implementation details (Developer-Guide.md handles that)"
+      - "Do not duplicate release notes content across pages"
+      - "Do not include deep code-level details outside the Developer Guide"
       - "Do not update for bug fixes that don't change user-facing behaviour"
-      - "Do NOT update GitHub Wiki pages (we no longer use GitHub Wiki)"
-    
-    newFeatureWorkflow:
-      - "If a new feature doesn't fit existing documentation pages, create a new page in /docs/wiki"
-      - "Add navigation link to the standard navigation block in ALL wiki pages (Home.md, Getting-Started.md, and all others)"
-      - "Follow existing documentation page structure and style"
-      - "Ensure consistency with other pages"
-      - "Update the 'Documentation' section in docs/README.md to include the new page"
-      - "Navigation blocks must always include all standard links: Home, Getting Started, Symptom Library, Clinical Governance, AI Features, Appointment Directory, High-Risk & Highlighting, Multi-Surgery & RBAC, Developer Guide"
-    
-    reviewChecklist:
-      - "Documentation content matches PROJECT_SUMMARY.md"
-      - "Documentation content matches README.md (for conceptual overlap)"
-      - "Documentation aligns with ROADMAP.md for future features"
-      - "Documentation aligns with RELEASE_NOTES.md for shipped features"
-      - "Cross-links are updated and use relative paths"
-      - "Tone is clear and accessible (reading age 9-12)"
-      - "NHS style guide followed"
-      - "No code-level technical details (unless Developer-Guide.md)"
-      - "All links and images work with GitHub Pages"
-      - "No references to GitHub Wiki"
-    
-    deployment:
-      - "All documentation is served via GitHub Pages from the /docs folder"
-      - "Ensure all links and images are compatible with GitHub Pages"
-      - "Maintain single source of truth - no duplicate documentation"

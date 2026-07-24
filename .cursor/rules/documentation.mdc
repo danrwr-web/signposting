@@ -7,16 +7,13 @@ documentation:
     requiredActions:
       - checkAndUpdate:
           files:
-            - "/docs/PROJECT_SUMMARY.md"
+            - "docs-site/pages/ (the relevant feature/getting-started/governance page)"
             - "/README.md"
           instruction: "Review and update any affected sections to reflect the change"
       - updateReleaseNotes:
-          file: "/docs/RELEASE_NOTES.md"
-          instruction: "Add a short bullet point under an 'Unreleased' section (create this section if it doesn't exist)"
+          file: "docs-site/pages/release-notes.mdx"
+          instruction: "Add the user-visible change under the appropriate section (New / Updated / Fixed / For system administrators) and bump the version banner on docs-site/pages/index.mdx"
           format: "Brief description of the change"
-      - futureIdeas:
-          file: "/docs/ROADMAP.md"
-          instruction: "If the change is a future idea rather than implemented, add it to ROADMAP.md instead of RELEASE_NOTES.md"
     userFacingFeatures:
       - symptoms
       - aiTools
