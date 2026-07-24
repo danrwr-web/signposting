@@ -36,6 +36,7 @@ describe('GET /api/cron/refresh-practice-data', () => {
       skipped: 0,
       extractDate: '2026-07-01T00:00:00.000Z',
       sourceUrl: 'https://files.digital.nhs.uk/a/gp-reg-pat-prac-all.csv',
+      diagnostics: [],
     })
   })
 
