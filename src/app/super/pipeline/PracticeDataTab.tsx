@@ -28,6 +28,7 @@ export default function PracticeDataTab() {
   const [refreshing, setRefreshing] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [refreshNotes, setRefreshNotes] = useState<string[]>([])
   const [pendingUpload, setPendingUpload] = useState<ParsedListSizeCsv | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -49,6 +50,7 @@ export default function PracticeDataTab() {
   async function handleRefresh() {
     setRefreshing(true)
     setError(null)
+    setRefreshNotes([])
     try {
       const res = await fetch('/api/super/practice-data/refresh', { method: 'POST' })
       const data = await res.json()
@@ -60,6 +62,9 @@ export default function PracticeDataTab() {
         `Imported ${data.count.toLocaleString()} practices` +
           (data.extractDate ? ` (extract date ${formatDate(data.extractDate)})` : '')
       )
+      if (Array.isArray(data.diagnostics) && data.diagnostics.length > 0) {
+        setRefreshNotes(data.diagnostics)
+      }
       await fetchStatus()
     } catch {
       setError('Refresh failed — check the connection and try again, or use the CSV upload below.')
@@ -121,6 +126,19 @@ export default function PracticeDataTab() {
   return (
     <div className="max-w-2xl space-y-4">
       {error && <AlertBanner variant="error">{error}</AlertBanner>}
+
+      {refreshNotes.length > 0 && (
+        <AlertBanner variant="info">
+          <span className="font-medium">
+            Newer publication pages were skipped during the refresh:
+          </span>
+          <ul className="mt-1 ml-4 list-disc text-sm break-all">
+            {refreshNotes.map((note, i) => (
+              <li key={i}>{note}</li>
+            ))}
+          </ul>
+        </AlertBanner>
+      )}
 
       {status && status.practiceCount > 0 && status.stale && (
         <AlertBanner variant="warning">

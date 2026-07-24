@@ -34,6 +34,8 @@ export interface RefreshSummary {
   skipped: number
   extractDate: string | null
   sourceUrl: string
+  /** Notes about newer month pages that were skipped during discovery. */
+  diagnostics: string[]
 }
 
 export interface PracticeDataStatus {
@@ -49,53 +51,26 @@ const MONTH_NAMES = [
   'july', 'august', 'september', 'october', 'november', 'december',
 ]
 
-/** Hrefs to month pages of the publication (e.g. .../patients-registered-at-a-gp-practice/july-2026), absolutised. */
-export function extractMonthPageUrls(html: string, baseUrl: string): string[] {
-  const origin = new URL(baseUrl).origin
-  const pattern = /href="([^"]*patients-registered-at-a-gp-practice\/([a-z]+)-(\d{4})[^"]*)"/gi
-  const urls = new Set<string>()
-  let match: RegExpExecArray | null
-  while ((match = pattern.exec(html)) !== null) {
-    const href = match[1]
-    urls.add(href.startsWith('http') ? href : `${origin}${href.startsWith('/') ? '' : '/'}${href}`)
-  }
-  return Array.from(urls)
-}
-
-function parseMonthUrl(url: string): { url: string; year: number; month: number } | null {
-  const match = url.match(/\/([a-z]+)-(\d{4})(?:\/|$)/i)
-  if (!match) return null
-  const month = MONTH_NAMES.indexOf(match[1].toLowerCase())
-  if (month === -1) return null
-  return { url, year: parseInt(match[2], 10), month }
-}
-
-/** Month page URLs ordered newest first by the trailing "<month>-<year>" path segment. */
-export function sortMonthUrlsNewestFirst(urls: string[]): string[] {
-  return urls
-    .map(parseMonthUrl)
-    .filter((entry): entry is { url: string; year: number; month: number } => entry !== null)
-    .sort((a, b) => b.year - a.year || b.month - a.month)
-    .map((entry) => entry.url)
-}
-
 /**
- * Drops month pages later than the current calendar month. NHS Digital lists
- * upcoming publications months ahead of time, so the landing page can carry
- * placeholder pages well into the future with no data files on them.
+ * Month page URLs built directly from the publication's stable slug pattern
+ * (.../patients-registered-at-a-gp-practice/july-2026), current month first,
+ * going back `count` months. Constructing them beats scraping the landing page,
+ * which advertises months of future placeholder pages.
  */
-export function dropFutureMonthUrls(urls: string[], now: Date = new Date()): string[] {
-  const nowKey = now.getUTCFullYear() * 12 + now.getUTCMonth()
-  return urls.filter((url) => {
-    const parsed = parseMonthUrl(url)
-    if (!parsed) return false
-    return parsed.year * 12 + parsed.month <= nowKey
-  })
+export function monthPageUrlsToTry(now: Date = new Date(), count = 6): string[] {
+  const base = process.env.NHS_LIST_SIZE_PUBLICATION_URL || DEFAULT_PUBLICATION_URL
+  const urls: string[] = []
+  for (let back = 0; back < count; back++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - back, 1))
+    urls.push(`${base.replace(/\/$/, '')}/${MONTH_NAMES[d.getUTCMonth()]}-${d.getUTCFullYear()}`)
+  }
+  return urls
 }
 
-/** Latest by (year, month) parsed from the trailing "<month>-<year>" path segment. */
-export function pickLatestMonthUrl(urls: string[]): string | null {
-  return sortMonthUrlsNewestFirst(urls)[0] ?? null
+/** Every files.digital.nhs.uk link on a page (any file type), for diagnostics. */
+export function extractAllFileLinks(html: string): string[] {
+  const matches = html.match(/https:\/\/files\.digital\.nhs\.uk\/[^"'\s<>]+/gi) ?? []
+  return Array.from(new Set(matches))
 }
 
 // Age/sex/geography-banded variants of the publication files that must never be
@@ -155,47 +130,45 @@ async function fetchText(url: string, stage: string): Promise<string> {
   return res.text()
 }
 
-/** How many of the newest month pages to inspect before giving up. NHS Digital
- *  lists upcoming months before their data exists, so the newest page is often
- *  a placeholder with no files on it. */
-const MAX_MONTH_PAGES_TO_TRY = 4
+export interface CsvDiscovery {
+  csvUrl: string
+  /** One entry per newer month page that was skipped, saying why. */
+  diagnostics: string[]
+}
 
-export async function discoverLatestCsvUrl(): Promise<string> {
-  const landingUrl = process.env.NHS_LIST_SIZE_PUBLICATION_URL || DEFAULT_PUBLICATION_URL
+export async function discoverLatestCsv(): Promise<CsvDiscovery> {
+  const diagnostics: string[] = []
 
-  const landingHtml = await fetchText(landingUrl, 'loading the NHS Digital publication page')
-  const monthUrls = sortMonthUrlsNewestFirst(
-    dropFutureMonthUrls(extractMonthPageUrls(landingHtml, landingUrl))
-  ).slice(0, MAX_MONTH_PAGES_TO_TRY)
-  if (monthUrls.length === 0) {
-    throw new PracticeDataRefreshError(
-      `Could not find a monthly publication link on the NHS Digital page. ${UPLOAD_FALLBACK_HINT}`,
-      `No month page links found at ${landingUrl}`
-    )
-  }
-
-  // Newest first; skip pages without a data file (upcoming/placeholder pages)
-  const inspected: string[] = []
-  for (const monthUrl of monthUrls) {
-    inspected.push(monthUrl)
+  for (const monthUrl of monthPageUrlsToTry()) {
+    const monthLabel = monthUrl.slice(monthUrl.lastIndexOf('/') + 1)
     let monthHtml: string
     try {
       monthHtml = await fetchText(monthUrl, 'loading a monthly publication page')
     } catch (err) {
-      console.warn(
-        `Practice data refresh: skipping unreachable month page ${monthUrl}:`,
-        err instanceof Error ? err.message : err
-      )
+      const detail =
+        err instanceof PracticeDataRefreshError ? err.message : String(err)
+      diagnostics.push(`${monthLabel}: page could not be loaded (${detail})`)
       continue
     }
+
     const csvUrl = extractCsvUrl(monthHtml, monthUrl)
-    if (csvUrl) return csvUrl
+    if (csvUrl) return { csvUrl, diagnostics }
+
+    // Record what file links WERE on the page so a format change is
+    // diagnosable straight from the UI error/notes.
+    const seen = extractAllFileLinks(monthHtml)
+    diagnostics.push(
+      seen.length === 0
+        ? `${monthLabel}: page loaded but contains no data file links (likely not published yet)`
+        : `${monthLabel}: no recognisable list-size CSV among its file links: ${seen
+            .slice(0, 5)
+            .join(' , ')}`
+    )
   }
 
   throw new PracticeDataRefreshError(
-    `Could not find the gp-reg-pat-prac-all.csv download link on the latest publication page(s): ` +
-      `${inspected.join(', ')}. ${UPLOAD_FALLBACK_HINT}`,
-    `No CSV link found on any of: ${inspected.join(', ')}`
+    `Could not find the practice list-size CSV. ${diagnostics.join(' | ')}. ${UPLOAD_FALLBACK_HINT}`,
+    `No CSV link found. Diagnostics: ${diagnostics.join(' | ')}`
   )
 }
 
@@ -238,7 +211,7 @@ export async function importListSizeRows(
 }
 
 export async function refreshPracticeListSizes(): Promise<RefreshSummary> {
-  const csvUrl = await discoverLatestCsvUrl()
+  const { csvUrl, diagnostics } = await discoverLatestCsv()
   const csvText = await fetchText(csvUrl, 'downloading the list-size CSV')
 
   let parsed
@@ -261,6 +234,7 @@ export async function refreshPracticeListSizes(): Promise<RefreshSummary> {
     skipped: parsed.skipped,
     extractDate: parsed.extractDate?.toISOString() ?? null,
     sourceUrl: csvUrl,
+    diagnostics,
   }
 }
 

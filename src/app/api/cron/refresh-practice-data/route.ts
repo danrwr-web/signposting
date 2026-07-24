@@ -21,6 +21,9 @@ export async function GET(request: NextRequest) {
     console.log(
       `Practice data cron refresh: imported ${summary.count} practices from ${summary.sourceUrl}`
     )
+    if (summary.diagnostics.length > 0) {
+      console.warn('Practice data cron refresh skipped newer pages:', summary.diagnostics)
+    }
     return NextResponse.json(summary)
   } catch (error) {
     if (error instanceof PracticeDataRefreshError) {

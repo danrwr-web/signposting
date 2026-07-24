@@ -1,8 +1,6 @@
 import {
-  extractMonthPageUrls,
-  pickLatestMonthUrl,
-  sortMonthUrlsNewestFirst,
-  dropFutureMonthUrls,
+  monthPageUrlsToTry,
+  extractAllFileLinks,
   extractCsvUrl,
   importListSizeRows,
   refreshPracticeListSizes,
@@ -44,55 +42,35 @@ afterEach(() => {
   global.fetch = originalFetch
 })
 
-describe('extractMonthPageUrls / pickLatestMonthUrl', () => {
+describe('monthPageUrlsToTry', () => {
   const base = 'https://digital.nhs.uk/data-and-information/publications/statistical/patients-registered-at-a-gp-practice'
 
-  it('extracts and absolutises month page links', () => {
-    const html = `
-      <a href="/data-and-information/publications/statistical/patients-registered-at-a-gp-practice/june-2026">June</a>
-      <a href="https://digital.nhs.uk/data-and-information/publications/statistical/patients-registered-at-a-gp-practice/july-2026">July</a>
-      <a href="/unrelated/page">x</a>
-    `
-    const urls = extractMonthPageUrls(html, base)
-    expect(urls).toHaveLength(2)
-    expect(urls.every((u) => u.startsWith('https://digital.nhs.uk/'))).toBe(true)
-  })
-
-  it('picks the latest month across year boundaries', () => {
-    const urls = [
-      `${base}/december-2025`,
+  it('builds current-month-first URLs going back the requested count, across year boundaries', () => {
+    const now = new Date('2026-02-15T12:00:00Z')
+    expect(monthPageUrlsToTry(now, 4)).toEqual([
+      `${base}/february-2026`,
       `${base}/january-2026`,
-      `${base}/november-2025`,
-    ]
-    expect(pickLatestMonthUrl(urls)).toBe(`${base}/january-2026`)
-  })
-
-  it('returns null when nothing parses', () => {
-    expect(pickLatestMonthUrl(['https://example.com/foo'])).toBeNull()
-  })
-
-  it('sorts month URLs newest first', () => {
-    const urls = [`${base}/november-2025`, `${base}/august-2026`, `${base}/july-2026`]
-    expect(sortMonthUrlsNewestFirst(urls)).toEqual([
-      `${base}/august-2026`,
-      `${base}/july-2026`,
+      `${base}/december-2025`,
       `${base}/november-2025`,
     ])
   })
 
-  it('drops months later than the current calendar month, keeping the current one', () => {
-    const now = new Date('2026-07-24T12:00:00Z')
-    const urls = [
-      `${base}/november-2026`,
-      `${base}/august-2026`,
-      `${base}/july-2026`,
-      `${base}/june-2026`,
-      `${base}/december-2025`,
-    ]
-    expect(dropFutureMonthUrls(urls, now)).toEqual([
-      `${base}/july-2026`,
-      `${base}/june-2026`,
-      `${base}/december-2025`,
+  it('defaults to six months', () => {
+    expect(monthPageUrlsToTry(new Date('2026-07-24T12:00:00Z'))).toHaveLength(6)
+  })
+})
+
+describe('extractAllFileLinks', () => {
+  it('lists unique files.digital.nhs.uk links of any type', () => {
+    const html = `
+      <a href="https://files.digital.nhs.uk/A/1/gp-reg-pat-prac-all.zip">zip</a>
+      <a href="https://files.digital.nhs.uk/A/1/gp-reg-pat-prac-all.zip">zip again</a>
+      <a href="https://files.digital.nhs.uk/B/2/something-else.xlsx">xlsx</a>
+      <a href="https://example.com/other.csv">not nhs</a>
+    `
+    expect(extractAllFileLinks(html)).toEqual([
+      'https://files.digital.nhs.uk/A/1/gp-reg-pat-prac-all.zip',
+      'https://files.digital.nhs.uk/B/2/something-else.xlsx',
     ])
   })
 })
@@ -170,108 +148,81 @@ describe('importListSizeRows', () => {
 })
 
 describe('refreshPracticeListSizes', () => {
-  const landingUrl =
-    'https://digital.nhs.uk/data-and-information/publications/statistical/patients-registered-at-a-gp-practice'
+  const TEST_MONTHS = [
+    'january', 'february', 'march', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december',
+  ]
 
-  it('discovers, downloads, parses, and imports', async () => {
-    const csvRows = ['CODE,SEX,AGE,NUMBER_OF_PATIENTS,EXTRACT_DATE']
-    for (let i = 0; i < 1500; i++) {
-      csvRows.push(`P${i.toString().padStart(5, '0')},ALL,ALL,${2000 + i},01JUL2026`)
+  function monthSlugFor(n: number): string {
+    const now = new Date()
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + n, 1))
+    return `${TEST_MONTHS[d.getUTCMonth()]}-${d.getUTCFullYear()}`
+  }
+
+  function makeCsvRows(count = 1500): string {
+    const rows = ['CODE,SEX,AGE,NUMBER_OF_PATIENTS,EXTRACT_DATE']
+    for (let i = 0; i < count; i++) {
+      rows.push(`P${i.toString().padStart(5, '0')},ALL,ALL,${2000 + i},01JUL2026`)
     }
+    return rows.join('\n')
+  }
+
+  const CSV_LINK_HTML =
+    '<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>'
+
+  it('fetches the current month page directly, downloads, parses, and imports', async () => {
     const mockFetch = jest
       .fn()
-      .mockResolvedValueOnce(
-        textResponse(`<a href="${landingUrl}/july-2026">July 2026</a>`)
-      )
-      .mockResolvedValueOnce(
-        textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>')
-      )
-      .mockResolvedValueOnce(textResponse(csvRows.join('\n')))
+      .mockResolvedValueOnce(textResponse(CSV_LINK_HTML))
+      .mockResolvedValueOnce(textResponse(makeCsvRows()))
     global.fetch = mockFetch as typeof fetch
 
     const summary = await refreshPracticeListSizes()
     expect(summary.count).toBe(1500)
     expect(summary.sourceUrl).toBe('https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv')
     expect(summary.extractDate).toBe('2026-07-01T00:00:00.000Z')
+    expect(summary.diagnostics).toEqual([])
+    // No landing-page scrape: the first fetch is the current month's page itself
+    expect(mockFetch.mock.calls[0][0]).toContain(monthSlugFor(0))
     expect(prisma.nationalPracticeData.createMany).toHaveBeenCalledTimes(2)
   })
 
-  const TEST_MONTHS = [
-    'january', 'february', 'march', 'april', 'may', 'june',
-    'july', 'august', 'september', 'october', 'november', 'december',
-  ]
-
-  function monthUrlFor(date: Date): string {
-    return `${landingUrl}/${TEST_MONTHS[date.getUTCMonth()]}-${date.getUTCFullYear()}`
-  }
-
-  function monthsFromNow(n: number): Date {
-    const now = new Date()
-    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + n, 1))
-  }
-
-  it('ignores future placeholder pages and goes straight to the current month', async () => {
-    // Reproduces the deployed failure: the landing page advertises upcoming
-    // publications months ahead, all without data files.
-    const links = [4, 3, 2, 1, 0]
-      .map((n) => `<a href="${monthUrlFor(monthsFromNow(n))}">link</a>`)
-      .join('')
-    const csvRows = ['CODE,NUMBER_OF_PATIENTS']
-    for (let i = 0; i < 1500; i++) {
-      csvRows.push(`P${i.toString().padStart(5, '0')},${2000 + i}`)
-    }
+  it('falls back past a not-yet-published current month and reports why', async () => {
     const mockFetch = jest
       .fn()
-      .mockResolvedValueOnce(textResponse(links))
-      .mockResolvedValueOnce(
-        textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>')
-      )
-      .mockResolvedValueOnce(textResponse(csvRows.join('\n')))
-    global.fetch = mockFetch as typeof fetch
-
-    const summary = await refreshPracticeListSizes()
-    expect(summary.count).toBe(1500)
-    // The first month page fetched is the current month, not a future placeholder
-    expect(mockFetch.mock.calls[1][0]).toBe(monthUrlFor(monthsFromNow(0)))
-  })
-
-  it('skips a current-month page with no data files yet and uses the previous month', async () => {
-    const currentUrl = monthUrlFor(monthsFromNow(0))
-    const previousUrl = monthUrlFor(monthsFromNow(-1))
-    const csvRows = ['CODE,NUMBER_OF_PATIENTS']
-    for (let i = 0; i < 1500; i++) {
-      csvRows.push(`P${i.toString().padStart(5, '0')},${2000 + i}`)
-    }
-    const mockFetch = jest
-      .fn()
-      .mockResolvedValueOnce(
-        textResponse(`<a href="${currentUrl}">now</a><a href="${previousUrl}">prev</a>`)
-      )
-      // Current month: announcement only, no data files yet
+      // Current month: page exists but is a placeholder with no files
       .mockResolvedValueOnce(textResponse('<html>This publication is due soon</html>'))
       // Previous month has the CSV
-      .mockResolvedValueOnce(
-        textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>')
-      )
-      .mockResolvedValueOnce(textResponse(csvRows.join('\n')))
+      .mockResolvedValueOnce(textResponse(CSV_LINK_HTML))
+      .mockResolvedValueOnce(textResponse(makeCsvRows()))
     global.fetch = mockFetch as typeof fetch
 
     const summary = await refreshPracticeListSizes()
     expect(summary.count).toBe(1500)
-    expect(mockFetch.mock.calls[1][0]).toBe(currentUrl)
-    expect(mockFetch.mock.calls[2][0]).toBe(previousUrl)
+    expect(mockFetch.mock.calls[0][0]).toContain(monthSlugFor(0))
+    expect(mockFetch.mock.calls[1][0]).toContain(monthSlugFor(-1))
+    expect(summary.diagnostics).toHaveLength(1)
+    expect(summary.diagnostics[0]).toContain(monthSlugFor(0))
+    expect(summary.diagnostics[0]).toContain('no data file links')
   })
 
-  it('names the inspected pages when no CSV is found anywhere', async () => {
-    const currentUrl = monthUrlFor(monthsFromNow(0))
-    const previousUrl = monthUrlFor(monthsFromNow(-1))
+  it('skips a 404 month page and reports it', async () => {
     const mockFetch = jest
       .fn()
-      .mockResolvedValueOnce(
-        textResponse(`<a href="${currentUrl}">now</a><a href="${previousUrl}">prev</a>`)
-      )
-      .mockResolvedValue(textResponse('<html>no files here</html>'))
+      .mockResolvedValueOnce(textResponse('not found', 404))
+      .mockResolvedValueOnce(textResponse(CSV_LINK_HTML))
+      .mockResolvedValueOnce(textResponse(makeCsvRows()))
     global.fetch = mockFetch as typeof fetch
+
+    const summary = await refreshPracticeListSizes()
+    expect(summary.count).toBe(1500)
+    expect(summary.diagnostics[0]).toContain('could not be loaded')
+  })
+
+  it('reports the file links it did see when none match, on failure and in diagnostics', async () => {
+    const unfamiliarLinks =
+      '<a href="https://files.digital.nhs.uk/Z/9/patients-list-totals.zip">zip</a>'
+    global.fetch = jest.fn().mockResolvedValue(textResponse(unfamiliarLinks)) as typeof fetch
 
     const clientMessage = await refreshPracticeListSizes().then(
       () => {
@@ -279,26 +230,16 @@ describe('refreshPracticeListSizes', () => {
       },
       (e: PracticeDataRefreshError) => e.clientMessage
     )
-    expect(clientMessage).toContain(currentUrl)
-    expect(clientMessage).toContain(previousUrl)
+    expect(clientMessage).toContain(monthSlugFor(0))
+    expect(clientMessage).toContain('https://files.digital.nhs.uk/Z/9/patients-list-totals.zip')
     expect(clientMessage).toContain('CSV upload on the Practice Data tab')
-  })
-
-  it('fails with the upload hint when no month page is found', async () => {
-    global.fetch = jest.fn().mockResolvedValue(textResponse('<html>nothing here</html>')) as typeof fetch
-    await expect(refreshPracticeListSizes()).rejects.toMatchObject({
-      clientMessage: expect.stringContaining('CSV upload on the Practice Data tab'),
-    })
     expect(mockedTransaction).not.toHaveBeenCalled()
   })
 
   it('fails with the upload hint on a download error', async () => {
     const mockFetch = jest
       .fn()
-      .mockResolvedValueOnce(textResponse(`<a href="${landingUrl}/july-2026">July</a>`))
-      .mockResolvedValueOnce(
-        textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>')
-      )
+      .mockResolvedValueOnce(textResponse(CSV_LINK_HTML))
       .mockResolvedValueOnce(textResponse('', 500))
     global.fetch = mockFetch as typeof fetch
     await expect(refreshPracticeListSizes()).rejects.toMatchObject({
