@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { getPracticeDetail, OdsLookupError } from '@/server/odsLookup'
-import { LIST_SIZE_STALE_DAYS } from '@/server/practiceListSize'
+import { isListSizeStale } from '@/server/practiceListSize'
 
 const odsCodeSchema = z.string().trim().toUpperCase().regex(/^[A-Z0-9]{3,12}$/)
 
@@ -27,7 +27,6 @@ export async function GET(
       prisma.nationalPracticeData.findUnique({ where: { odsCode } }),
     ])
 
-    const staleCutoff = Date.now() - LIST_SIZE_STALE_DAYS * 24 * 60 * 60 * 1000
     return NextResponse.json({
       odsCode: detail.odsCode,
       name: detail.name,
@@ -37,7 +36,7 @@ export async function GET(
       pcnName: detail.pcnName,
       listSize: cached?.listSize ?? null,
       listSizeExtractDate: cached?.extractDate?.toISOString() ?? null,
-      listSizeStale: !cached || cached.updatedAt.getTime() < staleCutoff,
+      listSizeStale: !cached || isListSizeStale(cached.extractDate),
     })
   } catch (error) {
     if (error instanceof OdsLookupError) {

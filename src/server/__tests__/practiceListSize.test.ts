@@ -5,6 +5,8 @@ import {
   extractDataFileUrl,
   importListSizeRows,
   refreshPracticeListSizes,
+  getPracticeDataStatus,
+  isListSizeStale,
   PracticeDataRefreshError,
 } from '../practiceListSize'
 import { prisma } from '@/lib/prisma'
@@ -303,5 +305,52 @@ describe('refreshPracticeListSizes', () => {
     await expect(refreshPracticeListSizes()).rejects.toMatchObject({
       clientMessage: expect.stringContaining('HTTP 500'),
     })
+  })
+})
+
+describe('staleness (based on extract date, not import time)', () => {
+  const NOW = new Date('2026-07-24T12:00:00Z')
+
+  it('isListSizeStale judges by data vintage and treats unknown as stale', () => {
+    expect(isListSizeStale(new Date('2026-07-01T00:00:00Z'), NOW)).toBe(false)
+    expect(isListSizeStale(new Date('2026-04-01T00:00:00Z'), NOW)).toBe(true)
+    expect(isListSizeStale(null, NOW)).toBe(true)
+  })
+
+  it('reports stale when an old extract was imported today', async () => {
+    ;(prisma.nationalPracticeData.count as jest.Mock).mockResolvedValue(6168)
+    ;(prisma.nationalPracticeData.findFirst as jest.Mock).mockResolvedValue({
+      extractDate: new Date('2026-04-01T00:00:00Z'), // 3-month-old data...
+      updatedAt: new Date(), // ...imported just now
+      sourceUrl: 'https://files.digital.nhs.uk/x/gp-reg-pat-prac-all.csv',
+    })
+    const status = await getPracticeDataStatus()
+    expect(status.stale).toBe(true)
+    expect(status.practiceCount).toBe(6168)
+  })
+
+  it('reports fresh for a recent extract date', async () => {
+    ;(prisma.nationalPracticeData.count as jest.Mock).mockResolvedValue(6168)
+    ;(prisma.nationalPracticeData.findFirst as jest.Mock).mockResolvedValue({
+      extractDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      updatedAt: new Date(),
+      sourceUrl: 'manual-upload',
+    })
+    const status = await getPracticeDataStatus()
+    expect(status.stale).toBe(false)
+  })
+
+  it('reports stale when the extract date is unknown or the table is empty', async () => {
+    ;(prisma.nationalPracticeData.count as jest.Mock).mockResolvedValue(6168)
+    ;(prisma.nationalPracticeData.findFirst as jest.Mock).mockResolvedValue({
+      extractDate: null,
+      updatedAt: new Date(),
+      sourceUrl: 'manual-upload',
+    })
+    expect((await getPracticeDataStatus()).stale).toBe(true)
+
+    ;(prisma.nationalPracticeData.count as jest.Mock).mockResolvedValue(0)
+    ;(prisma.nationalPracticeData.findFirst as jest.Mock).mockResolvedValue(null)
+    expect((await getPracticeDataStatus()).stale).toBe(true)
   })
 })

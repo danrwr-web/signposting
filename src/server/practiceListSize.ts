@@ -255,6 +255,16 @@ export async function refreshPracticeListSizes(): Promise<RefreshSummary> {
   }
 }
 
+/**
+ * Staleness is judged by the data's vintage (the publication's extract date),
+ * not by when the import ran — importing an old month's file today must still
+ * read as stale. An unknown extract date is treated as stale.
+ */
+export function isListSizeStale(extractDate: Date | null, now: Date = new Date()): boolean {
+  if (!extractDate) return true
+  return now.getTime() - extractDate.getTime() > LIST_SIZE_STALE_DAYS * 24 * 60 * 60 * 1000
+}
+
 export async function getPracticeDataStatus(): Promise<PracticeDataStatus> {
   const [practiceCount, latest] = await Promise.all([
     prisma.nationalPracticeData.count(),
@@ -264,16 +274,11 @@ export async function getPracticeDataStatus(): Promise<PracticeDataStatus> {
     }),
   ])
 
-  const lastRefreshedAt = latest?.updatedAt ?? null
-  const stale =
-    !lastRefreshedAt ||
-    Date.now() - lastRefreshedAt.getTime() > LIST_SIZE_STALE_DAYS * 24 * 60 * 60 * 1000
-
   return {
     practiceCount,
     extractDate: latest?.extractDate?.toISOString() ?? null,
-    lastRefreshedAt: lastRefreshedAt?.toISOString() ?? null,
+    lastRefreshedAt: latest?.updatedAt?.toISOString() ?? null,
     sourceUrl: latest?.sourceUrl ?? null,
-    stale,
+    stale: practiceCount === 0 || isListSizeStale(latest?.extractDate ?? null),
   }
 }
