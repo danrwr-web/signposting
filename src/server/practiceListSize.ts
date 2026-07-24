@@ -62,28 +62,62 @@ export function extractMonthPageUrls(html: string, baseUrl: string): string[] {
   return Array.from(urls)
 }
 
-/** Latest by (year, month) parsed from the trailing "<month>-<year>" path segment. */
-export function pickLatestMonthUrl(urls: string[]): string | null {
-  let best: { url: string; year: number; month: number } | null = null
-  for (const url of urls) {
-    const match = url.match(/\/([a-z]+)-(\d{4})(?:\/|$)/i)
-    if (!match) continue
-    const month = MONTH_NAMES.indexOf(match[1].toLowerCase())
-    if (month === -1) continue
-    const year = parseInt(match[2], 10)
-    if (!best || year > best.year || (year === best.year && month > best.month)) {
-      best = { url, year, month }
-    }
-  }
-  return best?.url ?? null
+/** Month page URLs ordered newest first by the trailing "<month>-<year>" path segment. */
+export function sortMonthUrlsNewestFirst(urls: string[]): string[] {
+  return urls
+    .map((url) => {
+      const match = url.match(/\/([a-z]+)-(\d{4})(?:\/|$)/i)
+      if (!match) return null
+      const month = MONTH_NAMES.indexOf(match[1].toLowerCase())
+      if (month === -1) return null
+      return { url, year: parseInt(match[2], 10), month }
+    })
+    .filter((entry): entry is { url: string; year: number; month: number } => entry !== null)
+    .sort((a, b) => b.year - a.year || b.month - a.month)
+    .map((entry) => entry.url)
 }
 
-/** The gp-reg-pat-prac-all.csv download link on a month page. */
-export function extractCsvUrl(html: string): string | null {
-  const match = html.match(
-    /https:\/\/files\.digital\.nhs\.uk\/[^"'\s<>]*gp-reg-pat-prac-all[^"'\s<>]*\.csv/i
+/** Latest by (year, month) parsed from the trailing "<month>-<year>" path segment. */
+export function pickLatestMonthUrl(urls: string[]): string | null {
+  return sortMonthUrlsNewestFirst(urls)[0] ?? null
+}
+
+// Age/sex/geography-banded variants of the publication files that must never be
+// imported in place of the all-practices file.
+const BANDED_VARIANT_PATTERN = /(sing|5yr|male|female|lsoa|map|pcn|quin|sicbl|icb|region)/i
+
+/**
+ * The all-practices list-size CSV link on a month page. Prefers the canonical
+ * gp-reg-pat-prac-all.csv name; falls back to any other non-banded
+ * gp-reg-pat-prac CSV to survive minor renames. Handles absolute
+ * files.digital.nhs.uk links and relative hrefs.
+ */
+export function extractCsvUrl(html: string, pageUrl?: string): string | null {
+  const candidates = new Set<string>()
+
+  const absolutePattern = /https:\/\/files\.digital\.nhs\.uk\/[^"'\s<>]*gp-reg-pat-prac[^"'\s<>]*\.csv(?:\?[^"'\s<>]*)?/gi
+  let match: RegExpExecArray | null
+  while ((match = absolutePattern.exec(html)) !== null) {
+    candidates.add(match[0])
+  }
+
+  const origin = pageUrl ? new URL(pageUrl).origin : 'https://digital.nhs.uk'
+  const relativePattern = /href="(\/[^"]*gp-reg-pat-prac[^"]*\.csv(?:\?[^"]*)?)"/gi
+  while ((match = relativePattern.exec(html)) !== null) {
+    candidates.add(`${origin}${match[1]}`)
+  }
+
+  const urls = Array.from(candidates)
+  const exact = urls.find((url) => /gp-reg-pat-prac-all[^/]*\.csv/i.test(url))
+  if (exact) return exact
+
+  // Fallback tier: the suffix after "gp-reg-pat-prac" must not name a banded variant
+  return (
+    urls.find((url) => {
+      const suffix = url.slice(url.toLowerCase().lastIndexOf('gp-reg-pat-prac') + 'gp-reg-pat-prac'.length)
+      return !BANDED_VARIANT_PATTERN.test(suffix)
+    }) ?? null
   )
-  return match ? match[0] : null
 }
 
 async function fetchText(url: string, stage: string): Promise<string> {
@@ -105,28 +139,49 @@ async function fetchText(url: string, stage: string): Promise<string> {
   return res.text()
 }
 
+/** How many of the newest month pages to inspect before giving up. NHS Digital
+ *  lists upcoming months before their data exists, so the newest page is often
+ *  a placeholder with no files on it. */
+const MAX_MONTH_PAGES_TO_TRY = 4
+
 export async function discoverLatestCsvUrl(): Promise<string> {
   const landingUrl = process.env.NHS_LIST_SIZE_PUBLICATION_URL || DEFAULT_PUBLICATION_URL
 
   const landingHtml = await fetchText(landingUrl, 'loading the NHS Digital publication page')
-  const monthUrls = extractMonthPageUrls(landingHtml, landingUrl)
-  const latestMonthUrl = pickLatestMonthUrl(monthUrls)
-  if (!latestMonthUrl) {
+  const monthUrls = sortMonthUrlsNewestFirst(extractMonthPageUrls(landingHtml, landingUrl)).slice(
+    0,
+    MAX_MONTH_PAGES_TO_TRY
+  )
+  if (monthUrls.length === 0) {
     throw new PracticeDataRefreshError(
       `Could not find a monthly publication link on the NHS Digital page. ${UPLOAD_FALLBACK_HINT}`,
       `No month page links found at ${landingUrl}`
     )
   }
 
-  const monthHtml = await fetchText(latestMonthUrl, 'loading the latest monthly publication page')
-  const csvUrl = extractCsvUrl(monthHtml)
-  if (!csvUrl) {
-    throw new PracticeDataRefreshError(
-      `Could not find the gp-reg-pat-prac-all.csv download link on the latest publication page. ${UPLOAD_FALLBACK_HINT}`,
-      `No CSV link found at ${latestMonthUrl}`
-    )
+  // Newest first; skip pages without a data file (upcoming/placeholder pages)
+  const inspected: string[] = []
+  for (const monthUrl of monthUrls) {
+    inspected.push(monthUrl)
+    let monthHtml: string
+    try {
+      monthHtml = await fetchText(monthUrl, 'loading a monthly publication page')
+    } catch (err) {
+      console.warn(
+        `Practice data refresh: skipping unreachable month page ${monthUrl}:`,
+        err instanceof Error ? err.message : err
+      )
+      continue
+    }
+    const csvUrl = extractCsvUrl(monthHtml, monthUrl)
+    if (csvUrl) return csvUrl
   }
-  return csvUrl
+
+  throw new PracticeDataRefreshError(
+    `Could not find the gp-reg-pat-prac-all.csv download link on the latest publication page(s): ` +
+      `${inspected.join(', ')}. ${UPLOAD_FALLBACK_HINT}`,
+    `No CSV link found on any of: ${inspected.join(', ')}`
+  )
 }
 
 function chunks<T>(items: T[], size: number): T[][] {

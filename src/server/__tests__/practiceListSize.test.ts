@@ -1,6 +1,7 @@
 import {
   extractMonthPageUrls,
   pickLatestMonthUrl,
+  sortMonthUrlsNewestFirst,
   extractCsvUrl,
   importListSizeRows,
   refreshPracticeListSizes,
@@ -68,6 +69,15 @@ describe('extractMonthPageUrls / pickLatestMonthUrl', () => {
   it('returns null when nothing parses', () => {
     expect(pickLatestMonthUrl(['https://example.com/foo'])).toBeNull()
   })
+
+  it('sorts month URLs newest first', () => {
+    const urls = [`${base}/november-2025`, `${base}/august-2026`, `${base}/july-2026`]
+    expect(sortMonthUrlsNewestFirst(urls)).toEqual([
+      `${base}/august-2026`,
+      `${base}/july-2026`,
+      `${base}/november-2025`,
+    ])
+  })
 })
 
 describe('extractCsvUrl', () => {
@@ -77,9 +87,41 @@ describe('extractCsvUrl', () => {
     expect(extractCsvUrl(html)).toBe('https://files.digital.nhs.uk/AB/12CD34/gp-reg-pat-prac-all.csv')
   })
 
-  it('ignores other CSVs', () => {
+  it('prefers the -all file when banded variants are also present', () => {
+    const html = `
+      <a href="https://files.digital.nhs.uk/XY/98/gp-reg-pat-prac-sing-age-male.csv">male</a>
+      <a href="https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-all.csv">all</a>
+      <a href="https://files.digital.nhs.uk/XY/99/gp-reg-pat-prac-sing-age-female.csv">female</a>
+    `
+    expect(extractCsvUrl(html)).toBe('https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-all.csv')
+  })
+
+  it('ignores banded variants when no all-practices file exists', () => {
     const html = '<a href="https://files.digital.nhs.uk/XY/98/gp-reg-pat-prac-sing-age-male.csv">x</a>'
     expect(extractCsvUrl(html)).toBeNull()
+  })
+
+  it('falls back to a renamed non-banded gp-reg-pat-prac CSV', () => {
+    const html = `
+      <a href="https://files.digital.nhs.uk/XY/98/gp-reg-pat-prac-lsoa.csv">lsoa</a>
+      <a href="https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-totals.csv">totals</a>
+    `
+    expect(extractCsvUrl(html)).toBe('https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-totals.csv')
+  })
+
+  it('tolerates query strings and relative hrefs', () => {
+    expect(
+      extractCsvUrl(
+        '<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv?v=2">x</a>'
+      )
+    ).toBe('https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv?v=2')
+
+    expect(
+      extractCsvUrl(
+        '<a href="/binaries/content/gp-reg-pat-prac-all.csv">x</a>',
+        'https://digital.nhs.uk/data-and-information/foo'
+      )
+    ).toBe('https://digital.nhs.uk/binaries/content/gp-reg-pat-prac-all.csv')
   })
 })
 
@@ -135,6 +177,57 @@ describe('refreshPracticeListSizes', () => {
     expect(summary.sourceUrl).toBe('https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv')
     expect(summary.extractDate).toBe('2026-07-01T00:00:00.000Z')
     expect(prisma.nationalPracticeData.createMany).toHaveBeenCalledTimes(2)
+  })
+
+  it('skips an upcoming month page with no data files and uses the previous month', async () => {
+    const csvRows = ['CODE,NUMBER_OF_PATIENTS']
+    for (let i = 0; i < 1500; i++) {
+      csvRows.push(`P${i.toString().padStart(5, '0')},${2000 + i}`)
+    }
+    const mockFetch = jest
+      .fn()
+      // Landing page lists a placeholder for next month plus the real latest month
+      .mockResolvedValueOnce(
+        textResponse(
+          `<a href="${landingUrl}/august-2026">Upcoming</a><a href="${landingUrl}/july-2026">July</a>`
+        )
+      )
+      // August page: announcement only, no data files
+      .mockResolvedValueOnce(textResponse('<html>This publication is due on 07/08/2026</html>'))
+      // July page has the CSV
+      .mockResolvedValueOnce(
+        textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>')
+      )
+      .mockResolvedValueOnce(textResponse(csvRows.join('\n')))
+    global.fetch = mockFetch as typeof fetch
+
+    const summary = await refreshPracticeListSizes()
+    expect(summary.count).toBe(1500)
+    expect(summary.sourceUrl).toBe('https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv')
+    expect(mockFetch.mock.calls[1][0]).toContain('august-2026')
+    expect(mockFetch.mock.calls[2][0]).toContain('july-2026')
+  })
+
+  it('names the inspected pages when no CSV is found anywhere', async () => {
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        textResponse(
+          `<a href="${landingUrl}/august-2026">Upcoming</a><a href="${landingUrl}/july-2026">July</a>`
+        )
+      )
+      .mockResolvedValue(textResponse('<html>no files here</html>'))
+    global.fetch = mockFetch as typeof fetch
+
+    const clientMessage = await refreshPracticeListSizes().then(
+      () => {
+        throw new Error('expected refresh to fail')
+      },
+      (e: PracticeDataRefreshError) => e.clientMessage
+    )
+    expect(clientMessage).toContain('august-2026')
+    expect(clientMessage).toContain('july-2026')
+    expect(clientMessage).toContain('CSV upload on the Practice Data tab')
   })
 
   it('fails with the upload hint when no month page is found', async () => {
