@@ -2,6 +2,8 @@
 // (gp-reg-pat-prac-all.csv). Isomorphic: used by the server-side automatic
 // refresh and the client-side upload fallback in the Practice Data tab.
 
+import PizZip from 'pizzip'
+
 export interface ListSizeRow {
   odsCode: string
   listSize: number
@@ -54,6 +56,31 @@ export function parseExtractDate(value: string): Date | null {
   }
 
   return null
+}
+
+/**
+ * Extracts the list-size CSV text from a downloaded/uploaded zip bundle.
+ * NHS Digital switched the publication's data files from bare .csv to .zip
+ * from May 2026. Prefers a gp-reg-pat-prac-all*.csv entry, falls back to the
+ * first .csv entry; throws when the archive contains no CSV at all.
+ */
+export function csvTextFromZip(data: ArrayBuffer | Uint8Array | Buffer): string {
+  let zip: PizZip
+  try {
+    zip = new PizZip(data)
+  } catch {
+    throw new Error('The file is not a readable zip archive')
+  }
+  const names = Object.keys(zip.files).filter((name) => !zip.files[name].dir)
+  const csvName =
+    names.find((name) => /gp-reg-pat-prac-all[^/]*\.csv$/i.test(name)) ??
+    names.find((name) => /\.csv$/i.test(name))
+  if (!csvName) {
+    throw new Error(
+      `The zip archive contains no CSV file (found: ${names.slice(0, 5).join(', ') || 'nothing'})`
+    )
+  }
+  return zip.files[csvName].asText()
 }
 
 export function parseListSizeCsv(text: string): ParsedListSizeCsv {

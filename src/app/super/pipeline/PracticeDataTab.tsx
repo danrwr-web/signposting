@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { toast } from 'react-hot-toast'
 import { Button, Card, AlertBanner, ConfirmDialog, Skeleton, EmptyState } from '@/components/ui'
-import { parseListSizeCsv, ParsedListSizeCsv } from '@/lib/practiceCsv'
+import { parseListSizeCsv, csvTextFromZip, ParsedListSizeCsv } from '@/lib/practiceCsv'
 
 interface PracticeDataStatus {
   practiceCount: number
@@ -76,7 +76,9 @@ export default function PracticeDataTab() {
   async function handleFileChosen(file: File) {
     setError(null)
     try {
-      const text = await file.text()
+      const text = file.name.toLowerCase().endsWith('.zip')
+        ? csvTextFromZip(await file.arrayBuffer())
+        : await file.text()
       const parsed = parseListSizeCsv(text)
       setPendingUpload(parsed)
     } catch (err) {
@@ -225,16 +227,17 @@ export default function PracticeDataTab() {
             &ldquo;Patients Registered at a GP Practice&rdquo;
           </a>{' '}
           monthly publication and refresh automatically on the 5th of each month. If the automatic
-          download fails, download <code className="text-xs">gp-reg-pat-prac-all.csv</code> from that
-          publication and upload it here. Practice names, addresses and PCNs are always looked up
-          live from the NHS ODS register — only list sizes are cached.
+          download fails, download <code className="text-xs">gp-reg-pat-prac-all.zip</code> (or{' '}
+          <code className="text-xs">.csv</code> in older months) from that publication and upload it
+          here. Practice names, addresses and PCNs are always looked up live from the NHS ODS
+          register — only list sizes are cached.
         </p>
       </Card>
 
       <input
         ref={fileInputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.zip,text/csv,application/zip"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0]

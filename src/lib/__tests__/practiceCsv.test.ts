@@ -1,4 +1,5 @@
-import { parseListSizeCsv, parseExtractDate } from '../practiceCsv'
+import PizZip from 'pizzip'
+import { parseListSizeCsv, parseExtractDate, csvTextFromZip } from '../practiceCsv'
 
 describe('parseListSizeCsv', () => {
   it('parses the standard all-practices file', () => {
@@ -62,6 +63,34 @@ describe('parseListSizeCsv', () => {
 
   it('throws a descriptive error when the header is missing', () => {
     expect(() => parseListSizeCsv('foo,bar\n1,2')).toThrow(/CODE and NUMBER_OF_PATIENTS/)
+  })
+})
+
+describe('csvTextFromZip', () => {
+  it('extracts the gp-reg-pat-prac-all CSV entry, preferring it over other CSVs', () => {
+    const zip = new PizZip()
+    zip.file('other-data.csv', 'OTHER')
+    zip.file('gp-reg-pat-prac-all.csv', 'CODE,NUMBER_OF_PATIENTS\nA12345,8900')
+    const text = csvTextFromZip(zip.generate({ type: 'arraybuffer' }))
+    expect(text).toContain('A12345,8900')
+  })
+
+  it('falls back to the only CSV entry when no -all file is present', () => {
+    const zip = new PizZip()
+    zip.file('some-export.csv', 'CODE,NUMBER_OF_PATIENTS\nB1,100')
+    expect(csvTextFromZip(zip.generate({ type: 'arraybuffer' }))).toContain('B1,100')
+  })
+
+  it('throws when the archive has no CSV entry', () => {
+    const zip = new PizZip()
+    zip.file('readme.txt', 'hello')
+    expect(() => csvTextFromZip(zip.generate({ type: 'arraybuffer' }))).toThrow(/no CSV file/)
+  })
+
+  it('throws a clear error for non-zip data', () => {
+    expect(() => csvTextFromZip(new TextEncoder().encode('not a zip'))).toThrow(
+      /not a readable zip/
+    )
   })
 })
 

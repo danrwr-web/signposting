@@ -1,6 +1,6 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
-import { parseListSizeCsv, ListSizeRow } from '@/lib/practiceCsv'
+import { parseListSizeCsv, csvTextFromZip, ListSizeRow } from '@/lib/practiceCsv'
 
 // Maintains the NationalPracticeData list-size cache from the NHS Digital
 // "Patients Registered at a GP Practice" monthly publication. The CSV download
@@ -16,8 +16,8 @@ export const LIST_SIZE_STALE_DAYS = 45
 export const MIN_IMPORT_ROWS = 1000
 
 const UPLOAD_FALLBACK_HINT =
-  'Automatic download failed — download gp-reg-pat-prac-all.csv from the NHS Digital ' +
-  '"Patients Registered at a GP Practice" publication and use the CSV upload on the Practice Data tab instead.'
+  'Automatic download failed — download gp-reg-pat-prac-all.zip (or .csv) from the NHS Digital ' +
+  '"Patients Registered at a GP Practice" publication and use the upload on the Practice Data tab instead.'
 
 export class PracticeDataRefreshError extends Error {
   public readonly clientMessage: string
@@ -78,40 +78,44 @@ export function extractAllFileLinks(html: string): string[] {
 const BANDED_VARIANT_PATTERN = /(sing|5yr|male|female|lsoa|map|pcn|quin|sicbl|icb|region)/i
 
 /**
- * The all-practices list-size CSV link on a month page. Prefers the canonical
- * gp-reg-pat-prac-all.csv name; falls back to any other non-banded
- * gp-reg-pat-prac CSV to survive minor renames. Handles absolute
+ * The all-practices list-size data file link on a month page. The publication
+ * shipped bare .csv files up to April 2026 and .zip bundles from May 2026, so
+ * both extensions are accepted (.csv preferred when both exist). Prefers the
+ * canonical gp-reg-pat-prac-all name; falls back to any other non-banded
+ * gp-reg-pat-prac file to survive minor renames. Handles absolute
  * files.digital.nhs.uk links and relative hrefs.
  */
-export function extractCsvUrl(html: string, pageUrl?: string): string | null {
+export function extractDataFileUrl(html: string, pageUrl?: string): string | null {
   const candidates = new Set<string>()
 
-  const absolutePattern = /https:\/\/files\.digital\.nhs\.uk\/[^"'\s<>]*gp-reg-pat-prac[^"'\s<>]*\.csv(?:\?[^"'\s<>]*)?/gi
+  const absolutePattern = /https:\/\/files\.digital\.nhs\.uk\/[^"'\s<>]*gp-reg-pat-prac[^"'\s<>]*\.(?:csv|zip)(?:\?[^"'\s<>]*)?/gi
   let match: RegExpExecArray | null
   while ((match = absolutePattern.exec(html)) !== null) {
     candidates.add(match[0])
   }
 
   const origin = pageUrl ? new URL(pageUrl).origin : 'https://digital.nhs.uk'
-  const relativePattern = /href="(\/[^"]*gp-reg-pat-prac[^"]*\.csv(?:\?[^"]*)?)"/gi
+  const relativePattern = /href="(\/[^"]*gp-reg-pat-prac[^"]*\.(?:csv|zip)(?:\?[^"]*)?)"/gi
   while ((match = relativePattern.exec(html)) !== null) {
     candidates.add(`${origin}${match[1]}`)
   }
 
   const urls = Array.from(candidates)
-  const exact = urls.find((url) => /gp-reg-pat-prac-all[^/]*\.csv/i.test(url))
-  if (exact) return exact
+  const preferCsv = (matches: string[]): string | null =>
+    matches.find((url) => /\.csv(?:\?|$)/i.test(url)) ?? matches[0] ?? null
+
+  const exact = urls.filter((url) => /gp-reg-pat-prac-all[^/]*\.(?:csv|zip)/i.test(url))
+  if (exact.length > 0) return preferCsv(exact)
 
   // Fallback tier: the suffix after "gp-reg-pat-prac" must not name a banded variant
-  return (
-    urls.find((url) => {
-      const suffix = url.slice(url.toLowerCase().lastIndexOf('gp-reg-pat-prac') + 'gp-reg-pat-prac'.length)
-      return !BANDED_VARIANT_PATTERN.test(suffix)
-    }) ?? null
-  )
+  const nonBanded = urls.filter((url) => {
+    const suffix = url.slice(url.toLowerCase().lastIndexOf('gp-reg-pat-prac') + 'gp-reg-pat-prac'.length)
+    return !BANDED_VARIANT_PATTERN.test(suffix)
+  })
+  return preferCsv(nonBanded)
 }
 
-async function fetchText(url: string, stage: string): Promise<string> {
+async function fetchRaw(url: string, stage: string): Promise<Response> {
   let res: Response
   try {
     res = await fetch(url, { signal: AbortSignal.timeout(60_000) })
@@ -127,16 +131,24 @@ async function fetchText(url: string, stage: string): Promise<string> {
       `HTTP ${res.status} (${stage}) fetching ${url}`
     )
   }
-  return res.text()
+  return res
 }
 
-export interface CsvDiscovery {
-  csvUrl: string
+async function fetchText(url: string, stage: string): Promise<string> {
+  return (await fetchRaw(url, stage)).text()
+}
+
+async function fetchBinary(url: string, stage: string): Promise<ArrayBuffer> {
+  return (await fetchRaw(url, stage)).arrayBuffer()
+}
+
+export interface DataFileDiscovery {
+  dataFileUrl: string
   /** One entry per newer month page that was skipped, saying why. */
   diagnostics: string[]
 }
 
-export async function discoverLatestCsv(): Promise<CsvDiscovery> {
+export async function discoverLatestDataFile(): Promise<DataFileDiscovery> {
   const diagnostics: string[] = []
 
   for (const monthUrl of monthPageUrlsToTry()) {
@@ -151,8 +163,8 @@ export async function discoverLatestCsv(): Promise<CsvDiscovery> {
       continue
     }
 
-    const csvUrl = extractCsvUrl(monthHtml, monthUrl)
-    if (csvUrl) return { csvUrl, diagnostics }
+    const dataFileUrl = extractDataFileUrl(monthHtml, monthUrl)
+    if (dataFileUrl) return { dataFileUrl, diagnostics }
 
     // Record what file links WERE on the page so a format change is
     // diagnosable straight from the UI error/notes.
@@ -211,29 +223,34 @@ export async function importListSizeRows(
 }
 
 export async function refreshPracticeListSizes(): Promise<RefreshSummary> {
-  const { csvUrl, diagnostics } = await discoverLatestCsv()
-  const csvText = await fetchText(csvUrl, 'downloading the list-size CSV')
+  const { dataFileUrl, diagnostics } = await discoverLatestDataFile()
+  const isZip = /\.zip(?:\?|$)/i.test(dataFileUrl)
 
   let parsed
   try {
+    const csvText = isZip
+      ? csvTextFromZip(await fetchBinary(dataFileUrl, 'downloading the list-size zip'))
+      : await fetchText(dataFileUrl, 'downloading the list-size CSV')
     parsed = parseListSizeCsv(csvText)
   } catch (err) {
+    if (err instanceof PracticeDataRefreshError) throw err
     throw new PracticeDataRefreshError(
-      `The downloaded file did not look like the expected CSV. ${UPLOAD_FALLBACK_HINT}`,
-      `Parse failure for ${csvUrl}: ${err instanceof Error ? err.message : String(err)}`
+      `The downloaded file did not look like the expected data file: ` +
+        `${err instanceof Error ? err.message : 'unknown error'}. ${UPLOAD_FALLBACK_HINT}`,
+      `Parse failure for ${dataFileUrl}: ${err instanceof Error ? err.message : String(err)}`
     )
   }
 
   const { count } = await importListSizeRows(parsed.rows, {
     extractDate: parsed.extractDate,
-    sourceUrl: csvUrl,
+    sourceUrl: dataFileUrl,
   })
 
   return {
     count,
     skipped: parsed.skipped,
     extractDate: parsed.extractDate?.toISOString() ?? null,
-    sourceUrl: csvUrl,
+    sourceUrl: dataFileUrl,
     diagnostics,
   }
 }

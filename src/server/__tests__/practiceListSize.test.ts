@@ -1,7 +1,8 @@
+import PizZip from 'pizzip'
 import {
   monthPageUrlsToTry,
   extractAllFileLinks,
-  extractCsvUrl,
+  extractDataFileUrl,
   importListSizeRows,
   refreshPracticeListSizes,
   PracticeDataRefreshError,
@@ -75,48 +76,59 @@ describe('extractAllFileLinks', () => {
   })
 })
 
-describe('extractCsvUrl', () => {
+describe('extractDataFileUrl', () => {
   it('finds the gp-reg-pat-prac-all.csv link', () => {
     const html =
       '<a href="https://files.digital.nhs.uk/AB/12CD34/gp-reg-pat-prac-all.csv">Download</a>'
-    expect(extractCsvUrl(html)).toBe('https://files.digital.nhs.uk/AB/12CD34/gp-reg-pat-prac-all.csv')
+    expect(extractDataFileUrl(html)).toBe('https://files.digital.nhs.uk/AB/12CD34/gp-reg-pat-prac-all.csv')
   })
 
-  it('prefers the -all file when banded variants are also present', () => {
+  it('finds the -all zip among banded zips (July 2026 page format)', () => {
+    // Exact file set observed on the July 2026 publication page
     const html = `
-      <a href="https://files.digital.nhs.uk/XY/98/gp-reg-pat-prac-sing-age-male.csv">male</a>
-      <a href="https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-all.csv">all</a>
-      <a href="https://files.digital.nhs.uk/XY/99/gp-reg-pat-prac-sing-age-female.csv">female</a>
+      <a href="https://files.digital.nhs.uk/0C/C6EF77/gp-reg-pat-prac-all.zip">all</a>
+      <a href="https://files.digital.nhs.uk/BC/2E89DF/gp-reg-pat-prac-sing-age-regions.zip">regions</a>
+      <a href="https://files.digital.nhs.uk/42/8DE648/gp-reg-pat-prac-sing-age-female.zip">female</a>
+      <a href="https://files.digital.nhs.uk/DC/0A7796/gp-reg-pat-prac-sing-age-male.zip">male</a>
+      <a href="https://files.digital.nhs.uk/BB/362F1A/gp-reg-pat-prac-quin-age.zip">quin</a>
     `
-    expect(extractCsvUrl(html)).toBe('https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-all.csv')
+    expect(extractDataFileUrl(html)).toBe('https://files.digital.nhs.uk/0C/C6EF77/gp-reg-pat-prac-all.zip')
+  })
+
+  it('prefers csv over zip when both -all files exist', () => {
+    const html = `
+      <a href="https://files.digital.nhs.uk/A/1/gp-reg-pat-prac-all.zip">zip</a>
+      <a href="https://files.digital.nhs.uk/A/2/gp-reg-pat-prac-all.csv">csv</a>
+    `
+    expect(extractDataFileUrl(html)).toBe('https://files.digital.nhs.uk/A/2/gp-reg-pat-prac-all.csv')
   })
 
   it('ignores banded variants when no all-practices file exists', () => {
-    const html = '<a href="https://files.digital.nhs.uk/XY/98/gp-reg-pat-prac-sing-age-male.csv">x</a>'
-    expect(extractCsvUrl(html)).toBeNull()
+    const html = '<a href="https://files.digital.nhs.uk/XY/98/gp-reg-pat-prac-sing-age-male.zip">x</a>'
+    expect(extractDataFileUrl(html)).toBeNull()
   })
 
-  it('falls back to a renamed non-banded gp-reg-pat-prac CSV', () => {
+  it('falls back to a renamed non-banded gp-reg-pat-prac file', () => {
     const html = `
       <a href="https://files.digital.nhs.uk/XY/98/gp-reg-pat-prac-lsoa.csv">lsoa</a>
       <a href="https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-totals.csv">totals</a>
     `
-    expect(extractCsvUrl(html)).toBe('https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-totals.csv')
+    expect(extractDataFileUrl(html)).toBe('https://files.digital.nhs.uk/AB/12/gp-reg-pat-prac-totals.csv')
   })
 
   it('tolerates query strings and relative hrefs', () => {
     expect(
-      extractCsvUrl(
+      extractDataFileUrl(
         '<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv?v=2">x</a>'
       )
     ).toBe('https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv?v=2')
 
     expect(
-      extractCsvUrl(
-        '<a href="/binaries/content/gp-reg-pat-prac-all.csv">x</a>',
+      extractDataFileUrl(
+        '<a href="/binaries/content/gp-reg-pat-prac-all.zip">x</a>',
         'https://digital.nhs.uk/data-and-information/foo'
       )
-    ).toBe('https://digital.nhs.uk/binaries/content/gp-reg-pat-prac-all.csv')
+    ).toBe('https://digital.nhs.uk/binaries/content/gp-reg-pat-prac-all.zip')
   })
 })
 
@@ -187,6 +199,52 @@ describe('refreshPracticeListSizes', () => {
     expect(prisma.nationalPracticeData.createMany).toHaveBeenCalledTimes(2)
   })
 
+  it('downloads and extracts a zip bundle (May 2026+ format)', async () => {
+    const zip = new PizZip()
+    zip.file('gp-reg-pat-prac-all.csv', makeCsvRows())
+    const zipBuffer = zip.generate({ type: 'arraybuffer' })
+
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        textResponse('<a href="https://files.digital.nhs.uk/0C/C6EF77/gp-reg-pat-prac-all.zip">zip</a>')
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => zipBuffer,
+      } as Response)
+    global.fetch = mockFetch as typeof fetch
+
+    const summary = await refreshPracticeListSizes()
+    expect(summary.count).toBe(1500)
+    expect(summary.sourceUrl).toBe('https://files.digital.nhs.uk/0C/C6EF77/gp-reg-pat-prac-all.zip')
+    expect(summary.extractDate).toBe('2026-07-01T00:00:00.000Z')
+  })
+
+  it('fails with the upload hint when the zip contains no CSV', async () => {
+    const zip = new PizZip()
+    zip.file('readme.txt', 'nothing useful')
+    const zipBuffer = zip.generate({ type: 'arraybuffer' })
+
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.zip">zip</a>')
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: async () => zipBuffer,
+      } as Response)
+    global.fetch = mockFetch as typeof fetch
+
+    await expect(refreshPracticeListSizes()).rejects.toMatchObject({
+      clientMessage: expect.stringContaining('no CSV file'),
+    })
+    expect(mockedTransaction).not.toHaveBeenCalled()
+  })
+
   it('falls back past a not-yet-published current month and reports why', async () => {
     const mockFetch = jest
       .fn()
@@ -232,7 +290,7 @@ describe('refreshPracticeListSizes', () => {
     )
     expect(clientMessage).toContain(monthSlugFor(0))
     expect(clientMessage).toContain('https://files.digital.nhs.uk/Z/9/patients-list-totals.zip')
-    expect(clientMessage).toContain('CSV upload on the Practice Data tab')
+    expect(clientMessage).toContain('upload on the Practice Data tab')
     expect(mockedTransaction).not.toHaveBeenCalled()
   })
 
