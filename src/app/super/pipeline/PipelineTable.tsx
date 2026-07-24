@@ -13,6 +13,7 @@ import {
   STATUS_LABELS,
   STATUS_BADGE_COLOURS,
 } from './types'
+import { getTrialStatus, formatDaysRemaining, TrialStatus } from './trialStatus'
 
 interface Props {
   entries: PipelineEntry[]
@@ -95,42 +96,53 @@ export default function PipelineTable({ entries, setEntries }: Props) {
     const inProgress = entries.filter(
       (e) => !['Contracted', 'Lost', 'OnHold'].includes(e.status)
     )
+    const onFreeTrial = entries.filter((e) => getTrialStatus(e).onTrial)
     const contractedListSize = contracted.reduce((sum, e) => sum + (e.listSize ?? 0), 0)
     const contractedArr = contracted.reduce((sum, e) => sum + (e.annualValueGbp ?? e.estimatedFeeGbp ?? 0), 0)
     const pipelineArr = inProgress.reduce((sum, e) => sum + (e.annualValueGbp ?? e.estimatedFeeGbp ?? 0), 0)
-    return { total, contracted: contracted.length, inProgress: inProgress.length, contractedListSize, contractedArr, pipelineArr }
+    return { total, contracted: contracted.length, inProgress: inProgress.length, onFreeTrial: onFreeTrial.length, contractedListSize, contractedArr, pipelineArr }
   }, [entries])
 
-  // Renewals alert: contracted entries with trialEndDate within 60 days
-  const renewalAlerts = useMemo(() => {
-    const now = new Date()
-    const cutoff = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000)
-    return entries
-      .filter(
-        (e) =>
-          e.status === 'Contracted' &&
-          e.trialEndDate &&
-          new Date(e.trialEndDate) >= now &&
-          new Date(e.trialEndDate) <= cutoff
-      )
-      .sort((a, b) => new Date(a.trialEndDate!).getTime() - new Date(b.trialEndDate!).getTime())
+  // Trial alerts: invoices now due, and trials ending within 60 days
+  const trialAlerts = useMemo(() => {
+    const withStatus = entries
+      .map((e) => ({ entry: e, trial: getTrialStatus(e) }))
+      .filter(({ trial }) => trial.onTrial && trial.daysRemaining !== null)
+      .sort((a, b) => a.trial.daysRemaining! - b.trial.daysRemaining!)
+    return {
+      invoiceDue: withStatus.filter(({ trial }) => trial.invoiceDue),
+      endingSoon: withStatus.filter(
+        ({ trial }) =>
+          !trial.invoiceDue && trial.daysRemaining! >= 0 && trial.daysRemaining! <= 60
+      ),
+    }
   }, [entries])
 
   return (
     <>
-      {/* Renewals alert */}
-      {renewalAlerts.length > 0 && (
-        <AlertBanner variant="warning" className="mb-4">
-          <span className="font-medium">Upcoming trial renewals:</span>
+      {/* Trial alerts */}
+      {trialAlerts.invoiceDue.length > 0 && (
+        <AlertBanner variant="error" className="mb-4">
+          <span className="font-medium">Free trial ended — invoice due:</span>
           <ul className="mt-1 ml-4 list-disc text-sm">
-            {renewalAlerts.map((e) => (
-              <li key={e.id}>
-                {e.practiceName} — trial ends{' '}
-                {new Date(e.trialEndDate!).toLocaleDateString('en-GB', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                })}
+            {trialAlerts.invoiceDue.map(({ entry, trial }) => (
+              <li key={entry.id}>
+                {entry.practiceName} — trial {trial.daysRemaining! < 0 ? 'ended' : 'ends'}{' '}
+                {formatDate(entry.trialEndDate)} ({formatDaysRemaining(trial.daysRemaining!)}) and no
+                invoice has been generated
+              </li>
+            ))}
+          </ul>
+        </AlertBanner>
+      )}
+      {trialAlerts.endingSoon.length > 0 && (
+        <AlertBanner variant="warning" className="mb-4">
+          <span className="font-medium">Free trials ending soon:</span>
+          <ul className="mt-1 ml-4 list-disc text-sm">
+            {trialAlerts.endingSoon.map(({ entry, trial }) => (
+              <li key={entry.id}>
+                {entry.practiceName} — trial ends {formatDate(entry.trialEndDate)} (
+                {formatDaysRemaining(trial.daysRemaining!)})
               </li>
             ))}
           </ul>
@@ -153,7 +165,7 @@ export default function PipelineTable({ entries, setEntries }: Props) {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              {['Practice Name', 'PCN', 'List Size', 'Est. Fee', 'Contact', 'Status', 'Contract Start', 'Days', 'Invoice Generated', 'Invoice Paid', 'Notes', ''].map(
+              {['Practice Name', 'PCN', 'List Size', 'Est. Fee', 'Contact', 'Status', 'Contract Start', 'Trial Ends', 'Days', 'Invoice Generated', 'Invoice Paid', 'Notes', ''].map(
                 (h) => (
                   <th
                     key={h}
@@ -168,17 +180,20 @@ export default function PipelineTable({ entries, setEntries }: Props) {
           <tbody className="divide-y divide-gray-200">
             {entries.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-sm text-gray-500">
+                <td colSpan={13} className="px-4 py-8 text-center text-sm text-gray-500">
                   No pipeline entries yet. Click &ldquo;Add Practice&rdquo; to get started.
                 </td>
               </tr>
             )}
             {entries.map((entry) => {
               const days = daysSince(entry.dateEnquiry)
+              const trial = getTrialStatus(entry)
               return (
                 <tr
                   key={entry.id}
-                  className="hover:bg-gray-50 cursor-pointer"
+                  className={`cursor-pointer ${
+                    trial.invoiceDue ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'
+                  }`}
                   onClick={() => openEdit(entry)}
                 >
                   <td className="px-4 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
@@ -197,12 +212,22 @@ export default function PipelineTable({ entries, setEntries }: Props) {
                     {entry.contactName || '—'}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <Badge color={STATUS_BADGE_COLOURS[entry.status] as BadgeColor} size="sm">
-                      {STATUS_LABELS[entry.status]}
-                    </Badge>
+                    <div className="flex flex-col items-start gap-1">
+                      <Badge color={STATUS_BADGE_COLOURS[entry.status] as BadgeColor} size="sm">
+                        {STATUS_LABELS[entry.status]}
+                      </Badge>
+                      {trial.onTrial && (
+                        <Badge color="purple" size="sm">
+                          Free Trial
+                        </Badge>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                     {formatDate(entry.dateContractStart)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <TrialEndsCell entry={entry} trial={trial} />
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                     {days !== null ? days : '—'}
@@ -244,10 +269,11 @@ export default function PipelineTable({ entries, setEntries }: Props) {
       </div>
 
       {/* Summary strip */}
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <SummaryCard label="Total Practices" value={summary.total.toString()} />
         <SummaryCard label="Contracted" value={summary.contracted.toString()} />
         <SummaryCard label="In Progress" value={summary.inProgress.toString()} />
+        <SummaryCard label="On Free Trial" value={summary.onFreeTrial.toString()} />
         <SummaryCard label="Contracted List Size" value={summary.contractedListSize.toLocaleString()} />
         <SummaryCard label="Contracted ARR" value={formatCurrency(summary.contractedArr)} />
         <SummaryCard label="Pipeline ARR" value={formatCurrency(summary.pipelineArr)} />
@@ -280,6 +306,40 @@ export default function PipelineTable({ entries, setEntries }: Props) {
         onSaved={handleSaved}
       />
     </>
+  )
+}
+
+function TrialEndsCell({ entry, trial }: { entry: PipelineEntry; trial: TrialStatus }) {
+  if (!trial.onTrial) {
+    return <span className="text-sm text-gray-600">—</span>
+  }
+  if (trial.daysRemaining === null) {
+    return (
+      <Badge color="amber" size="sm">
+        No end date
+      </Badge>
+    )
+  }
+  const pillColor: BadgeColor =
+    trial.urgency === 'expired' || trial.urgency === 'critical'
+      ? 'red'
+      : trial.urgency === 'warning'
+        ? 'amber'
+        : 'gray'
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <span className="text-sm text-gray-600">{formatDate(entry.trialEndDate)}</span>
+      <div className="flex items-center gap-1">
+        <Badge color={pillColor} size="sm">
+          {formatDaysRemaining(trial.daysRemaining)}
+        </Badge>
+        {trial.invoiceDue && (
+          <Badge color="nhs-red" size="sm">
+            Invoice due
+          </Badge>
+        )}
+      </div>
+    </div>
   )
 }
 
