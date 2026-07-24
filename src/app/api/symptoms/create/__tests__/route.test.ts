@@ -12,6 +12,7 @@ jest.mock('@/lib/rbac', () => ({
 
 jest.mock('@/lib/prisma', () => ({
   prisma: {
+    surgery: { findUnique: jest.fn() },
     baseSymptom: { create: jest.fn() },
     surgeryCustomSymptom: { create: jest.fn() },
     surgerySymptomStatus: { upsert: jest.fn() },
@@ -91,6 +92,7 @@ describe('POST /api/symptoms/create', () => {
 
     mockedGenerateUniqueSymptomSlug.mockResolvedValueOnce('chest-pain')
 
+    ;(prisma.surgery.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'cmk5p08xt0000ju04k9s0udri' })
     ;(prisma.surgeryCustomSymptom.create as jest.Mock).mockResolvedValueOnce({ id: 'custom-1' })
     ;(prisma.surgerySymptomStatus.upsert as jest.Mock).mockResolvedValueOnce({})
 
@@ -142,6 +144,7 @@ describe('POST /api/symptoms/create', () => {
 
     mockedGenerateUniqueSymptomSlug.mockResolvedValueOnce('chest-pain')
 
+    ;(prisma.surgery.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'cmk5p08xt0000ju04k9s0udri' })
     ;(prisma.surgeryCustomSymptom.create as jest.Mock).mockResolvedValueOnce({ id: 'custom-1' })
     ;(prisma.surgerySymptomStatus.upsert as jest.Mock).mockResolvedValueOnce({})
 
@@ -182,7 +185,44 @@ describe('POST /api/symptoms/create', () => {
     expect(json.reason).toBe('User lacks admin access to surgeryId')
   })
 
-  it('rejects SURGERY create if surgeryId is not a CUID', async () => {
+  it('creates a SURGERY symptom when surgeryId is a legacy non-CUID id', async () => {
+    mockedGetSessionUser.mockResolvedValueOnce({
+      globalRole: 'USER',
+      email: 'admin@example.com',
+      name: 'Admin',
+      surgeryId: null,
+      defaultSurgeryId: 'surgery-1',
+      memberships: [{ surgeryId: 'surgery-1', role: 'ADMIN' }],
+    } as any)
+
+    mockedGenerateUniqueSymptomSlug.mockResolvedValueOnce('oral-thrush')
+
+    ;(prisma.surgery.findUnique as jest.Mock).mockResolvedValueOnce({ id: 'surgery-1' })
+    ;(prisma.surgeryCustomSymptom.create as jest.Mock).mockResolvedValueOnce({ id: 'custom-1' })
+    ;(prisma.surgerySymptomStatus.upsert as jest.Mock).mockResolvedValueOnce({})
+
+    const req = createRequest({
+      target: 'SURGERY',
+      surgeryId: 'surgery-1',
+      name: 'Oral Thrush',
+      ageGroup: 'U5',
+      instructionsHtml: '<p>Test</p>',
+    })
+
+    const res = await POST(req)
+    expect(res.status).toBe(201)
+    expect(prisma.surgeryCustomSymptom.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          surgeryId: 'surgery-1',
+          name: 'Oral Thrush',
+          ageGroup: 'U5',
+        }),
+      })
+    )
+  })
+
+  it('returns 404 for SURGERY create when the surgery does not exist', async () => {
     mockedGetSessionUser.mockResolvedValueOnce({
       globalRole: 'SUPERUSER',
       email: 'super@example.com',
@@ -192,18 +232,21 @@ describe('POST /api/symptoms/create', () => {
       defaultSurgeryId: null,
     } as any)
 
+    ;(prisma.surgery.findUnique as jest.Mock).mockResolvedValueOnce(null)
+
     const req = createRequest({
       target: 'SURGERY',
-      surgeryId: 'not-a-cuid',
+      surgeryId: 'no-such-surgery',
       name: 'Chest Pain',
       ageGroup: 'Adult',
       instructionsHtml: '<p>Test</p>',
     })
 
     const res = await POST(req)
-    expect(res.status).toBe(400)
+    expect(res.status).toBe(404)
     const json = await res.json()
-    expect(json.error).toBe('Invalid input')
+    expect(json.error).toBe('Surgery not found')
+    expect(prisma.surgeryCustomSymptom.create).not.toHaveBeenCalled()
   })
 })
 

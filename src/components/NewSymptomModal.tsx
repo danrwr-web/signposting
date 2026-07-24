@@ -99,7 +99,11 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(data?.error || 'Failed to create symptom')
+        const firstIssue = Array.isArray(data?.details) ? data.details[0] : null
+        const issueText = firstIssue?.message
+          ? `: ${Array.isArray(firstIssue.path) && firstIssue.path.length ? `${firstIssue.path.join('.')} — ` : ''}${firstIssue.message}`
+          : ''
+        setError(`${data?.error || 'Failed to create symptom'}${issueText}`)
         return
       }
       try {
