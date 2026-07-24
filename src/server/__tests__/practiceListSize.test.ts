@@ -2,6 +2,7 @@ import {
   extractMonthPageUrls,
   pickLatestMonthUrl,
   sortMonthUrlsNewestFirst,
+  dropFutureMonthUrls,
   extractCsvUrl,
   importListSizeRows,
   refreshPracticeListSizes,
@@ -76,6 +77,22 @@ describe('extractMonthPageUrls / pickLatestMonthUrl', () => {
       `${base}/august-2026`,
       `${base}/july-2026`,
       `${base}/november-2025`,
+    ])
+  })
+
+  it('drops months later than the current calendar month, keeping the current one', () => {
+    const now = new Date('2026-07-24T12:00:00Z')
+    const urls = [
+      `${base}/november-2026`,
+      `${base}/august-2026`,
+      `${base}/july-2026`,
+      `${base}/june-2026`,
+      `${base}/december-2025`,
+    ]
+    expect(dropFutureMonthUrls(urls, now)).toEqual([
+      `${base}/july-2026`,
+      `${base}/june-2026`,
+      `${base}/december-2025`,
     ])
   })
 })
@@ -179,22 +196,33 @@ describe('refreshPracticeListSizes', () => {
     expect(prisma.nationalPracticeData.createMany).toHaveBeenCalledTimes(2)
   })
 
-  it('skips an upcoming month page with no data files and uses the previous month', async () => {
+  const TEST_MONTHS = [
+    'january', 'february', 'march', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december',
+  ]
+
+  function monthUrlFor(date: Date): string {
+    return `${landingUrl}/${TEST_MONTHS[date.getUTCMonth()]}-${date.getUTCFullYear()}`
+  }
+
+  function monthsFromNow(n: number): Date {
+    const now = new Date()
+    return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + n, 1))
+  }
+
+  it('ignores future placeholder pages and goes straight to the current month', async () => {
+    // Reproduces the deployed failure: the landing page advertises upcoming
+    // publications months ahead, all without data files.
+    const links = [4, 3, 2, 1, 0]
+      .map((n) => `<a href="${monthUrlFor(monthsFromNow(n))}">link</a>`)
+      .join('')
     const csvRows = ['CODE,NUMBER_OF_PATIENTS']
     for (let i = 0; i < 1500; i++) {
       csvRows.push(`P${i.toString().padStart(5, '0')},${2000 + i}`)
     }
     const mockFetch = jest
       .fn()
-      // Landing page lists a placeholder for next month plus the real latest month
-      .mockResolvedValueOnce(
-        textResponse(
-          `<a href="${landingUrl}/august-2026">Upcoming</a><a href="${landingUrl}/july-2026">July</a>`
-        )
-      )
-      // August page: announcement only, no data files
-      .mockResolvedValueOnce(textResponse('<html>This publication is due on 07/08/2026</html>'))
-      // July page has the CSV
+      .mockResolvedValueOnce(textResponse(links))
       .mockResolvedValueOnce(
         textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>')
       )
@@ -203,18 +231,44 @@ describe('refreshPracticeListSizes', () => {
 
     const summary = await refreshPracticeListSizes()
     expect(summary.count).toBe(1500)
-    expect(summary.sourceUrl).toBe('https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv')
-    expect(mockFetch.mock.calls[1][0]).toContain('august-2026')
-    expect(mockFetch.mock.calls[2][0]).toContain('july-2026')
+    // The first month page fetched is the current month, not a future placeholder
+    expect(mockFetch.mock.calls[1][0]).toBe(monthUrlFor(monthsFromNow(0)))
   })
 
-  it('names the inspected pages when no CSV is found anywhere', async () => {
+  it('skips a current-month page with no data files yet and uses the previous month', async () => {
+    const currentUrl = monthUrlFor(monthsFromNow(0))
+    const previousUrl = monthUrlFor(monthsFromNow(-1))
+    const csvRows = ['CODE,NUMBER_OF_PATIENTS']
+    for (let i = 0; i < 1500; i++) {
+      csvRows.push(`P${i.toString().padStart(5, '0')},${2000 + i}`)
+    }
     const mockFetch = jest
       .fn()
       .mockResolvedValueOnce(
-        textResponse(
-          `<a href="${landingUrl}/august-2026">Upcoming</a><a href="${landingUrl}/july-2026">July</a>`
-        )
+        textResponse(`<a href="${currentUrl}">now</a><a href="${previousUrl}">prev</a>`)
+      )
+      // Current month: announcement only, no data files yet
+      .mockResolvedValueOnce(textResponse('<html>This publication is due soon</html>'))
+      // Previous month has the CSV
+      .mockResolvedValueOnce(
+        textResponse('<a href="https://files.digital.nhs.uk/A/B/gp-reg-pat-prac-all.csv">csv</a>')
+      )
+      .mockResolvedValueOnce(textResponse(csvRows.join('\n')))
+    global.fetch = mockFetch as typeof fetch
+
+    const summary = await refreshPracticeListSizes()
+    expect(summary.count).toBe(1500)
+    expect(mockFetch.mock.calls[1][0]).toBe(currentUrl)
+    expect(mockFetch.mock.calls[2][0]).toBe(previousUrl)
+  })
+
+  it('names the inspected pages when no CSV is found anywhere', async () => {
+    const currentUrl = monthUrlFor(monthsFromNow(0))
+    const previousUrl = monthUrlFor(monthsFromNow(-1))
+    const mockFetch = jest
+      .fn()
+      .mockResolvedValueOnce(
+        textResponse(`<a href="${currentUrl}">now</a><a href="${previousUrl}">prev</a>`)
       )
       .mockResolvedValue(textResponse('<html>no files here</html>'))
     global.fetch = mockFetch as typeof fetch
@@ -225,8 +279,8 @@ describe('refreshPracticeListSizes', () => {
       },
       (e: PracticeDataRefreshError) => e.clientMessage
     )
-    expect(clientMessage).toContain('august-2026')
-    expect(clientMessage).toContain('july-2026')
+    expect(clientMessage).toContain(currentUrl)
+    expect(clientMessage).toContain(previousUrl)
     expect(clientMessage).toContain('CSV upload on the Practice Data tab')
   })
 

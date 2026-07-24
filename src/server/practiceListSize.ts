@@ -62,19 +62,35 @@ export function extractMonthPageUrls(html: string, baseUrl: string): string[] {
   return Array.from(urls)
 }
 
+function parseMonthUrl(url: string): { url: string; year: number; month: number } | null {
+  const match = url.match(/\/([a-z]+)-(\d{4})(?:\/|$)/i)
+  if (!match) return null
+  const month = MONTH_NAMES.indexOf(match[1].toLowerCase())
+  if (month === -1) return null
+  return { url, year: parseInt(match[2], 10), month }
+}
+
 /** Month page URLs ordered newest first by the trailing "<month>-<year>" path segment. */
 export function sortMonthUrlsNewestFirst(urls: string[]): string[] {
   return urls
-    .map((url) => {
-      const match = url.match(/\/([a-z]+)-(\d{4})(?:\/|$)/i)
-      if (!match) return null
-      const month = MONTH_NAMES.indexOf(match[1].toLowerCase())
-      if (month === -1) return null
-      return { url, year: parseInt(match[2], 10), month }
-    })
+    .map(parseMonthUrl)
     .filter((entry): entry is { url: string; year: number; month: number } => entry !== null)
     .sort((a, b) => b.year - a.year || b.month - a.month)
     .map((entry) => entry.url)
+}
+
+/**
+ * Drops month pages later than the current calendar month. NHS Digital lists
+ * upcoming publications months ahead of time, so the landing page can carry
+ * placeholder pages well into the future with no data files on them.
+ */
+export function dropFutureMonthUrls(urls: string[], now: Date = new Date()): string[] {
+  const nowKey = now.getUTCFullYear() * 12 + now.getUTCMonth()
+  return urls.filter((url) => {
+    const parsed = parseMonthUrl(url)
+    if (!parsed) return false
+    return parsed.year * 12 + parsed.month <= nowKey
+  })
 }
 
 /** Latest by (year, month) parsed from the trailing "<month>-<year>" path segment. */
@@ -148,10 +164,9 @@ export async function discoverLatestCsvUrl(): Promise<string> {
   const landingUrl = process.env.NHS_LIST_SIZE_PUBLICATION_URL || DEFAULT_PUBLICATION_URL
 
   const landingHtml = await fetchText(landingUrl, 'loading the NHS Digital publication page')
-  const monthUrls = sortMonthUrlsNewestFirst(extractMonthPageUrls(landingHtml, landingUrl)).slice(
-    0,
-    MAX_MONTH_PAGES_TO_TRY
-  )
+  const monthUrls = sortMonthUrlsNewestFirst(
+    dropFutureMonthUrls(extractMonthPageUrls(landingHtml, landingUrl))
+  ).slice(0, MAX_MONTH_PAGES_TO_TRY)
   if (monthUrls.length === 0) {
     throw new PracticeDataRefreshError(
       `Could not find a monthly publication link on the NHS Digital page. ${UPLOAD_FALLBACK_HINT}`,
