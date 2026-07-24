@@ -9,8 +9,9 @@ import CommsHub from './CommsHub'
 import ProvisionSurgery from './ProvisionSurgery'
 import EmailTemplates from './EmailTemplates'
 import DocumentTemplates from './DocumentTemplates'
+import PracticeDataTab from './PracticeDataTab'
 
-const TABS = ['Pipeline Tracker', 'Comms Hub', 'Provision Surgery', 'Templates'] as const
+const TABS = ['Pipeline Tracker', 'Comms Hub', 'Provision Surgery', 'Templates', 'Practice Data'] as const
 type Tab = (typeof TABS)[number]
 
 type TemplateSubTab = 'email' | 'document'
@@ -107,6 +108,8 @@ export default function PipelinePageClient({ initialEntries }: Props) {
             {templateSubTab === 'document' && <DocumentTemplates />}
           </>
         )}
+
+        {activeTab === 'Practice Data' && <PracticeDataTab />}
       </main>
     </div>
   )

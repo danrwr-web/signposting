@@ -5,6 +5,7 @@ import { z } from 'zod'
 
 const createPipelineSchema = z.object({
   practiceName: z.string().min(1, 'Practice name is required'),
+  odsCode: z.string().trim().max(12).optional(),
   practiceAddress: z.string().optional(),
   townCity: z.string().optional(),
   pcnName: z.string().optional(),

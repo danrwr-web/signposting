@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'react-hot-toast'
-import { Button, Dialog, Input, Select, Textarea, FormField } from '@/components/ui'
-import { PipelineEntry, PipelineStatus, PIPELINE_STATUSES, STATUS_LABELS } from './types'
+import { Button, Dialog, Input, Select, Textarea, FormField, AlertBanner } from '@/components/ui'
+import {
+  PipelineEntry,
+  PipelineStatus,
+  PracticeLookupDetail,
+  PIPELINE_STATUSES,
+  STATUS_LABELS,
+} from './types'
+import PracticeSearchCombobox from './PracticeSearchCombobox'
 
 interface Props {
   open: boolean
@@ -38,11 +45,13 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
   const [form, setForm] = useState(getDefaults(entry))
   const [feeManuallyEdited, setFeeManuallyEdited] = useState(false)
   const [variants, setVariants] = useState<Array<{ id: string; name: string; isDefault: boolean }>>([])
+  const [lookupWarning, setLookupWarning] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       setForm(getDefaults(entry))
       setFeeManuallyEdited(!!entry?.estimatedFeeGbp)
+      setLookupWarning(null)
       // Fetch variants for the dropdown
       fetch('/api/super/pipeline/contract-variants')
         .then((r) => r.json())
@@ -56,6 +65,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
   function getDefaults(e: PipelineEntry | null) {
     return {
       practiceName: e?.practiceName ?? '',
+      odsCode: e?.odsCode ?? '',
       practiceAddress: e?.practiceAddress ?? '',
       townCity: e?.townCity ?? '',
       pcnName: e?.pcnName ?? '',
@@ -106,6 +116,37 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     setForm((prev) => ({ ...prev, estimatedFeeGbp: value }))
   }
 
+  // Autofill from a selected NHS register practice. Fetched values win (picking
+  // a practice is an explicit choice), but a field is never blanked when the
+  // lookup has no data for it.
+  function applyPracticeSelection(detail: PracticeLookupDetail) {
+    setForm((prev) => {
+      const next = { ...prev, practiceName: detail.name, odsCode: detail.odsCode }
+      const address = [...detail.addressLines, detail.postcode].filter(Boolean).join(', ')
+      if (address) next.practiceAddress = address
+      if (detail.town) next.townCity = detail.town
+      if (detail.pcnName) next.pcnName = detail.pcnName
+      if (detail.listSize != null) {
+        next.listSize = String(detail.listSize)
+        if (!feeManuallyEdited) {
+          next.estimatedFeeGbp = (Math.round(detail.listSize * 7) / 100).toFixed(2)
+        }
+      }
+      return next
+    })
+    if (detail.listSize == null) {
+      setLookupWarning(
+        'No national list-size data is cached for this practice — enter the list size manually, or refresh the data from the Practice Data tab.'
+      )
+    } else if (detail.listSizeStale) {
+      setLookupWarning(
+        'The national list-size data is more than 45 days old — consider refreshing it from the Practice Data tab.'
+      )
+    } else {
+      setLookupWarning(null)
+    }
+  }
+
   function recalculateFee() {
     const size = parseInt(form.listSize, 10)
     setFeeManuallyEdited(false)
@@ -137,6 +178,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     const listSize = form.listSize ? parseInt(form.listSize, 10) : undefined
     const body: Record<string, unknown> = {
       practiceName: form.practiceName,
+      odsCode: form.odsCode || empty,
       practiceAddress: form.practiceAddress || empty,
       townCity: form.townCity || empty,
       pcnName: form.pcnName || empty,
@@ -220,11 +262,31 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
         <h3 className="text-sm font-semibold text-gray-700 mb-3">Practice Details</h3>
         <div className="grid grid-cols-2 gap-x-4">
           <FormField label="Practice Name" required>
-            <Input
+            <PracticeSearchCombobox
               value={form.practiceName}
-              onChange={(e) => setField('practiceName', e.target.value)}
+              onChange={(text) => {
+                setForm((prev) => ({
+                  ...prev,
+                  practiceName: text,
+                  // Editing the name after a match unlinks the national record
+                  odsCode: prev.odsCode ? '' : prev.odsCode,
+                }))
+              }}
+              onSelect={applyPracticeSelection}
               required
             />
+            {form.odsCode && (
+              <p className="mt-1 text-xs text-gray-500">
+                Matched to NHS register (ODS {form.odsCode}){' '}
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, odsCode: '' }))}
+                  className="text-nhs-blue hover:underline"
+                >
+                  unlink
+                </button>
+              </p>
+            )}
           </FormField>
           <FormField label="Practice Address">
             <Input
@@ -280,6 +342,11 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
             />
           </FormField>
         </div>
+        {lookupWarning && (
+          <AlertBanner variant="warning" className="mb-3">
+            {lookupWarning}
+          </AlertBanner>
+        )}
 
         {/* Contact details */}
         <h3 className="text-sm font-semibold text-gray-700 mb-3 mt-4">Contact Details</h3>
