@@ -25,7 +25,22 @@ The following core capabilities are established and available to all surgeries:
 
 ---
 
-## v1.6 — Current Release (June–July 2026)
+## v1.7 — Current Release (July 2026)
+
+### New
+
+- **Rich-text editor rebuilt**: everywhere you edit instructions or handbook content, the editor now has a cleaner, more capable toolbar — section headings, links (web and e-mail), underline, and background highlights in soft NHS tints, alongside the existing bold, italic, lists and text colours. Content pasted from Word or Google Docs is automatically cleaned up, the editor no longer flashes a loading placeholder, and a bug that could corrupt content starting with a list or heading has been fixed.
+- Symptom previews (in the Symptom Library drawer and Clinical Review) now show the symptom's **age-group variants**, so reviewers see everything staff will see.
+
+### Fixed
+
+- **Age-group variants no longer disappear from the editor** once a practice has customised a symptom — variants are shared content on the base symptom, and system administrators can now view and edit them from any practice's view of the symptom, with changes saved to the shared base copy.
+- Fixed the system admin **Edit Symptom form silently clearing a symptom's variants** on save: existing variants now load into the form (shown expanded rather than hidden behind "Add Variants"), the variant position (before/after the main instructions) is preserved, and variant instructions now use the rich-text editor rather than a raw HTML box.
+- Fixed variant edits made in the symptom page's "Edit Instructions" mode being silently discarded, and cancelled edits leaking half-finished variant changes into later saves.
+
+---
+
+## v1.6 (June–July 2026)
 
 ### New
 
@@ -38,7 +53,6 @@ The following core capabilities are established and available to all surgeries:
 - **Symptom Library redesign**: a simpler, faster symptom grid, with symptom previews now opening in a slide-out drawer instead of a pop-up window — easier to browse and compare.
 - Signposting settings: surgery selection now works from a single source of truth, fixing inconsistencies between the settings page and the symptom library.
 - AI customisation: when adapting instructions to your surgery, the AI now also rewrites the **Important Notice** using your local terminology — and if you've deliberately cleared a notice, it will never be brought back by a later AI run.
-- **Rich-text editor rebuilt**: everywhere you edit instructions or handbook content, the editor now has a cleaner, more capable toolbar — section headings, links (web and e-mail), underline, and background highlights in soft NHS tints, alongside the existing bold, italic, lists and text colours. Content pasted from Word or Google Docs is automatically cleaned up, the editor no longer flashes a loading placeholder, and a bug that could corrupt content starting with a list or heading has been fixed.
 - Consistent confirmation dialogs and success/error notifications across the admin areas.
 - **Engagement analytics redesign** (Signposting settings → Engagement): a new daily views-over-time chart, summary tiles with change vs the previous period, **least-viewed symptoms** and **busiest days & times** insights, proportional bars on the ranked lists, and a cleaner look consistent with the rest of the admin area.
 - **Users page revamp**: at-a-glance member stats (total, practice admins, 30-day active, never signed in), sortable name/last-active columns, filters for role, Handbook access and inactivity, and a consolidated member panel (details, permissions, default surgery, password reset, remove access) replacing the separate pop-up dialogs. The Practice Handbook permissions column now only appears for surgeries with the Handbook enabled.

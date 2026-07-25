@@ -148,4 +148,52 @@ describe('GET /api/symptomPreview', () => {
     expect(json.lastEditedBy).toBe('Emily Horlock')
     expect(json.lastEditedAt).toBe('2026-07-02T00:00:00.000Z')
   })
+
+  const VARIANTS = {
+    heading: 'By age',
+    position: 'after',
+    ageGroups: [{ key: 'u5', label: 'Under 5', instructions: '<p>U5 advice</p>' }],
+  }
+
+  it('returns base symptom variants', async () => {
+    ;(prisma.baseSymptom.findFirst as jest.Mock).mockResolvedValue({ ...baseSymptomRow, variants: VARIANTS })
+
+    const json = await (await GET(makeReq('surgeryId=s1&baseSymptomId=base-1'))).json()
+
+    expect(json.variants).toEqual(VARIANTS)
+  })
+
+  it('returns BASE variants for an overridden symptom (overrides inherit them)', async () => {
+    ;(prisma.baseSymptom.findFirst as jest.Mock).mockResolvedValue({ ...baseSymptomRow, variants: VARIANTS })
+    ;(prisma.surgerySymptomOverride.findUnique as jest.Mock).mockResolvedValue({
+      briefInstruction: null,
+      instructionsHtml: '<p>Local</p>',
+      highlightedText: null,
+      isHidden: false,
+      lastEditedBy: null,
+      lastEditedAt: null,
+    })
+
+    const json = await (await GET(makeReq('surgeryId=s1&baseSymptomId=base-1'))).json()
+
+    expect(json.status).toBe('MODIFIED')
+    expect(json.variants).toEqual(VARIANTS)
+  })
+
+  it('returns null variants for a custom symptom', async () => {
+    ;(prisma.surgeryCustomSymptom.findFirst as jest.Mock).mockResolvedValue({
+      id: 'c1',
+      name: 'Local Thing',
+      briefInstruction: null,
+      instructionsHtml: '<p>Custom</p>',
+      highlightedText: null,
+      lastEditedBy: null,
+      lastEditedAt: null,
+    })
+
+    const json = await (await GET(makeReq('surgeryId=s1&customSymptomId=c1'))).json()
+
+    expect(json.status).toBe('LOCAL_ONLY')
+    expect(json.variants).toBeNull()
+  })
 })
