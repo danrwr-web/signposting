@@ -81,7 +81,7 @@ export async function PATCH(request: NextRequest) {
 
       const existingOverride = await prisma.surgerySymptomOverride.findUnique({
         where: { surgeryId_baseSymptomId: { surgeryId: surgeryId!, baseSymptomId: symptomId } },
-        select: { briefInstruction: true, instructionsHtml: true, instructionsJson: true },
+        select: { ageGroup: true, briefInstruction: true, instructionsHtml: true, instructionsJson: true },
       })
 
       previousBriefInstruction = existingOverride?.briefInstruction ?? baseSymptom.briefInstruction
@@ -144,7 +144,13 @@ export async function PATCH(request: NextRequest) {
       })
 
       // Practice content changed — the symptom must be clinically re-approved.
-      await markSymptomPendingReview(surgeryId!, symptomId, baseSymptom.ageGroup)
+      // Review statuses are keyed by the effective age group: an override's
+      // non-empty ageGroup wins over the base's (matching effectiveSymptoms).
+      const effectiveAgeGroup =
+        existingOverride?.ageGroup && existingOverride.ageGroup.trim() !== ''
+          ? existingOverride.ageGroup
+          : baseSymptom.ageGroup
+      await markSymptomPendingReview(surgeryId!, symptomId, effectiveAgeGroup)
 
       // Without this the cached effective symptom lists keep showing the old
       // text for up to 5 minutes after the override is saved.

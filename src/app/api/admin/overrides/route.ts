@@ -2,6 +2,9 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
+import { markSymptomPendingReview } from '@/server/clinicalReview'
 
 export const runtime = 'nodejs'
 
@@ -116,6 +119,23 @@ export async function POST(request: NextRequest) {
         surgery: true,
       }
     })
+
+    // Practice content changed — the symptom must be clinically re-approved.
+    // Visibility toggles (isHidden) alone don't alter advice, so they don't
+    // reset review. Statuses are keyed by the effective age group: an
+    // override's non-empty ageGroup wins over the base's.
+    const contentChanged = Object.keys(cleanData).some(key => key !== 'isHidden')
+    if (contentChanged) {
+      const effectiveAgeGroup =
+        override.ageGroup && override.ageGroup.trim() !== ''
+          ? override.ageGroup
+          : baseSymptom.ageGroup
+      await markSymptomPendingReview(surgeryId, baseId, effectiveAgeGroup)
+    }
+
+    revalidateTag(getCachedSymptomsTag(surgeryId, false))
+    revalidateTag(getCachedSymptomsTag(surgeryId, true))
+    revalidateTag('symptoms')
 
     return NextResponse.json(override)
   } catch (error) {
