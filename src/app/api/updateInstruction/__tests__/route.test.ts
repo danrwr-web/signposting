@@ -28,6 +28,10 @@ jest.mock('@/lib/prisma', () => ({
   },
 }))
 
+jest.mock('@/server/clinicalReview', () => ({
+  markSymptomPendingReview: jest.fn(),
+}))
+
 jest.mock('next/cache', () => ({
   revalidateTag: jest.fn(),
 }))

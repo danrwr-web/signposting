@@ -12,6 +12,7 @@ import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 import { SymptomVariantsZ, SurgeryVariantsOverrideZ } from '@/lib/api-contracts'
 import { sanitizeVariants } from '@/lib/sanitizeHtml'
+import { markSymptomPendingReview } from '@/server/clinicalReview'
 
 export const runtime = 'nodejs'
 
@@ -116,6 +117,9 @@ export async function PATCH(
         data: customUpdateData
       })
 
+      // Practice content changed — the symptom must be clinically re-approved.
+      await markSymptomPendingReview(surgeryId, id, updatedSymptom.ageGroup)
+
       revalidateTag(getCachedSymptomsTag(surgeryId, false))
       revalidateTag(getCachedSymptomsTag(surgeryId, true))
       revalidateTag('symptoms')
@@ -191,6 +195,13 @@ export async function PATCH(
           ...overrideUpdate,
         }
       })
+
+      // Practice content changed — the symptom must be clinically re-approved.
+      await markSymptomPendingReview(
+        surgeryId,
+        id,
+        (updatedOverride.ageGroup && updatedOverride.ageGroup.trim() !== '' ? updatedOverride.ageGroup : baseSymptom.ageGroup) ?? null
+      )
 
       // Without this the home page's cached effective symptoms keep showing
       // the base name/fields for up to 5 minutes after the override is saved.

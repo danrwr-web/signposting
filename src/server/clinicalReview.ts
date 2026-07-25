@@ -8,6 +8,42 @@ import {
 } from '@/lib/clinicalReviewCounts'
 
 /**
+ * Marks a symptom as awaiting clinical review for a surgery after its content
+ * changed (instructions, notices or variants), and refreshes the surgery's
+ * requiresClinicalReview flag. Used by the manual practice edit paths; the AI
+ * customise route has its own transactional equivalent.
+ */
+export async function markSymptomPendingReview(
+  surgeryId: string,
+  symptomId: string,
+  ageGroup: string | null | undefined
+): Promise<void> {
+  const normalizedAgeGroup = (ageGroup || null) as unknown as string
+  await prisma.symptomReviewStatus.upsert({
+    where: {
+      surgeryId_symptomId_ageGroup: {
+        surgeryId,
+        symptomId,
+        ageGroup: normalizedAgeGroup,
+      },
+    },
+    create: {
+      surgeryId,
+      symptomId,
+      ageGroup: normalizedAgeGroup,
+      status: 'PENDING',
+      lastReviewedAt: null,
+    },
+    update: {
+      status: 'PENDING',
+      lastReviewedAt: null,
+    },
+  })
+  const { updateRequiresClinicalReview } = await import('@/server/updateRequiresClinicalReview')
+  await updateRequiresClinicalReview(surgeryId)
+}
+
+/**
  * Counts the enabled symptoms for a surgery that are still awaiting clinical
  * review: explicit PENDING or CHANGES_REQUIRED statuses, plus enabled symptoms
  * with no review status record at all (implicitly pending).
