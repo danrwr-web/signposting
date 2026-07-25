@@ -313,9 +313,11 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     }
 
     try {
-      // For overrides, map to the base symptom for superuser editing
-      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
-      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+      // Overrides save to the surgery's override row (keyed by the base symptom id) —
+      // never remap to base, or the write lands on the shared library copy and stays
+      // shadowed behind the existing override.
+      const effectiveSource = symptom.source
+      const effectiveSymptomId = symptom.source === 'override' ? (symptom.baseSymptomId ?? symptom.id) : symptom.id
       
       if (!effectiveSymptomId) {
         throw new Error('Invalid symptom configuration')
@@ -372,9 +374,11 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     }
 
     try {
-      // For overrides, map to the base symptom for superuser editing
-      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
-      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+      // Overrides save to the surgery's override row (keyed by the base symptom id) —
+      // never remap to base, or the write lands on the shared library copy and stays
+      // shadowed behind the existing override.
+      const effectiveSource = symptom.source
+      const effectiveSymptomId = symptom.source === 'override' ? (symptom.baseSymptomId ?? symptom.id) : symptom.id
       
       if (!effectiveSymptomId) {
         throw new Error('Invalid symptom configuration')
@@ -441,9 +445,11 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     }
 
     try {
-      // For overrides, map to the base symptom for superuser editing
-      const effectiveSource = symptom.source === 'override' ? 'base' : symptom.source
-      const effectiveSymptomId = symptom.source === 'override' ? symptom.baseSymptomId : symptom.id
+      // Overrides save to the surgery's override row (keyed by the base symptom id) —
+      // never remap to base, or the write lands on the shared library copy and stays
+      // shadowed behind the existing override.
+      const effectiveSource = symptom.source
+      const effectiveSymptomId = symptom.source === 'override' ? (symptom.baseSymptomId ?? symptom.id) : symptom.id
       
       if (!effectiveSymptomId) {
         throw new Error('Invalid symptom configuration')

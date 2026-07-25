@@ -45,6 +45,7 @@ The following core capabilities are established and available to all surgeries:
 ### Fixed
 
 - Fixed **"Add symptom" failing with an "Invalid input" error** for some practices when creating a surgery-specific symptom — the server rejected practices with older-style surgery identifiers. Error messages from the add-symptom dialog now also say which field was rejected, rather than just "Invalid input".
+- Fixed **accepting an AI wording suggestion on a practice-customised symptom appearing to do nothing** — the accepted wording was saved to the wrong place (the shared library copy) instead of the practice's own version, so the page never showed the change. Accepted suggestions now update the practice's customised version, and symptom lists refresh straight away instead of showing stale text for a few minutes.
 - Bulk approve in Clinical Review now respects the "Hide disabled" filter — you can no longer accidentally approve symptoms you've hidden.
 - Fixed highlight colours occasionally "leaking" between symptoms after AI customisation, and search results matching against out-of-date base content.
 - Engagement analytics: **Export Data now downloads the real figures** as CSV (it previously produced placeholder sample data), the Total Symptom Views tile now counts every view in the period rather than only the top-listed symptoms, and the engagement data endpoint now requires sign-in and is scoped to your own surgery.
