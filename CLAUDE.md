@@ -76,7 +76,6 @@ src/
 │   ├── admin/              # Admin table, kebab menu, search
 │   ├── admin-toolkit/      # Practice Handbook UI
 │   ├── appointments/       # Appointment management
-│   ├── editor/             # SafeTipTapEditor
 │   ├── marketing/          # Landing page components
 │   ├── rich-text/          # Standalone rich text editor
 │   ├── workflow/           # Workflow canvas nodes & icons
