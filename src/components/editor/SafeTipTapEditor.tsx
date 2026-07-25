@@ -26,7 +26,7 @@ const NHS_COLORS = [
   { name: 'Black', value: '#000000' },
 ] as const
 
-function ensureProperParagraphs(content: string): string {
+export function ensureProperParagraphs(content: string): string {
   if (!content || typeof content !== 'string') return ''
 
   // If content already has proper HTML structure, return as-is.
