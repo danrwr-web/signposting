@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
+import VariantGroupsEditor, { type VariantGroupDraft } from '@/components/VariantGroupsEditor'
 import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
@@ -26,7 +27,11 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   const [highlightedText, setHighlightedText] = useState('')
   const [linkToPage, setLinkToPage] = useState('')
   const [instructionsHtml, setInstructionsHtml] = useState('')
-  const [instructionsJson, setInstructionsJson] = useState<any>(null)
+  // Age-group variants (base symptoms only — custom symptoms cannot carry them)
+  const [showVariants, setShowVariants] = useState(false)
+  const [variantHeading, setVariantHeading] = useState('')
+  const [variantPosition, setVariantPosition] = useState<'before' | 'after'>('before')
+  const [variantGroups, setVariantGroups] = useState<VariantGroupDraft[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // When the target surgery hides age bands, one entry covers all ages: the
@@ -89,8 +94,14 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         highlightedText: highlightedText.trim() || undefined,
         linkToPage: linkToPage.trim() || undefined,
         instructionsHtml,
-        instructionsJson: instructionsJson || undefined,
-        variants: undefined,
+        variants:
+          showVariants && variantGroups.length > 0
+            ? {
+                heading: variantHeading.trim() || undefined,
+                position: variantPosition,
+                ageGroups: variantGroups,
+              }
+            : undefined,
       }
       const res = await fetch('/api/symptoms/create', {
         method: 'POST',
@@ -281,6 +292,35 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
               className="min-h-[160px] max-h-[40vh] overflow-y-auto"
             />
           </div>
+        </div>
+
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">Age-group variants (optional)</label>
+            <button
+              type="button"
+              onClick={() => setShowVariants(!showVariants)}
+              className="text-sm text-nhs-blue hover:underline"
+            >
+              {showVariants ? 'Hide' : 'Add variants'}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mb-2">
+            {target === 'BASE'
+              ? 'Alternative instruction text per age band, shown as clickable chips on the symptom page. Shared with every practice that uses this symptom.'
+              : 'Alternative instruction text per age band, shown as clickable chips on the symptom page. Applies only to this practice.'}
+          </p>
+          {showVariants && (
+            <VariantGroupsEditor
+              docIdPrefix={`symptom:create:${target}`}
+              heading={variantHeading}
+              onHeadingChange={setVariantHeading}
+              position={variantPosition}
+              onPositionChange={setVariantPosition}
+              groups={variantGroups}
+              onGroupsChange={setVariantGroups}
+            />
+          )}
         </div>
 
         {error && (

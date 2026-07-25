@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import NewSymptomModal from '@/components/NewSymptomModal'
+import VariantPreviewList from '@/components/VariantPreviewList'
 import { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
 import { Dialog, Button, FormField, Input, AlertBanner, SkeletonTable, EmptyState } from '@/components/ui'
 
@@ -774,6 +775,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
     instructionsHtml: string | null
     baseInstructionsHtml: string | null
     statusRowId: string | null
+    variants?: unknown | null
   }>(null)
   const [viewMode, setViewMode] = useState<'local' | 'base'>('local')
   const drawerRef = useRef<HTMLDivElement | null>(null)
@@ -949,6 +951,10 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
                 ) : (
                   <p className="text-sm text-gray-700">—</p>
                 )}
+              </div>
+
+              <div className="[&_a]:pointer-events-none [&_a]:opacity-60">
+                <VariantPreviewList variants={data.variants ?? null} />
               </div>
             </div>
           ) : (

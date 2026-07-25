@@ -114,16 +114,41 @@ export const GetEffectiveSymptomsResZ = z.object({
   symptoms: z.array(EffectiveSymptomZ),
 });
 
+// Age-group variants. Base symptoms carry the shared variants; a surgery's
+// override may carry its own to replace them (or hide them — see below).
+const VariantAgeGroupZ = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  instructions: z.string(), // HTML
+});
+
+export const SymptomVariantsZ = z.object({
+  heading: z.string().optional(),
+  position: z.enum(['before', 'after']).optional(),
+  ageGroups: z.array(VariantAgeGroupZ).min(1),
+});
+export type SymptomVariants = z.infer<typeof SymptomVariantsZ>;
+
+// Value stored on SurgerySymptomOverride.variants: same shape, but an empty
+// ageGroups array is allowed and means "hide variants for this surgery"
+// (null/absent means inherit the base symptom's variants).
+export const SurgeryVariantsOverrideZ = z.object({
+  heading: z.string().optional(),
+  position: z.enum(['before', 'after']).optional(),
+  ageGroups: z.array(VariantAgeGroupZ),
+});
+export type SurgeryVariantsOverride = z.infer<typeof SurgeryVariantsOverrideZ>;
+
 export const CreateSymptomReqZ = z.object({
   name: z.string().min(1),
   ageGroup: z.enum(['U5', 'O5', 'Adult']),
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
   instructions: z.string().optional(),
-  instructionsJson: z.any().optional(), // ProseMirror JSON
+  instructionsJson: z.any().optional(), // Legacy ProseMirror JSON (no longer written)
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
-  variants: z.any().optional(),
+  variants: SymptomVariantsZ.nullable().optional(),
 });
 
 export const UpdateSymptomReqZ = z.object({
@@ -132,10 +157,10 @@ export const UpdateSymptomReqZ = z.object({
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
   instructions: z.string().optional(),
-  instructionsJson: z.any().optional(), // ProseMirror JSON
+  instructionsJson: z.any().optional(), // Legacy ProseMirror JSON (no longer written)
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
-  variants: z.any().optional(),
+  variants: SymptomVariantsZ.nullable().optional(),
 });
 
 // Surgery

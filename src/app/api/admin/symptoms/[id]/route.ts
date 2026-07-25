@@ -7,8 +7,11 @@ import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
+import { SymptomVariantsZ, SurgeryVariantsOverrideZ } from '@/lib/api-contracts'
+import { sanitizeVariants } from '@/lib/sanitizeHtml'
 
 export const runtime = 'nodejs'
 
@@ -42,7 +45,19 @@ export async function PATCH(
       }
       // Only update variants if explicitly provided; otherwise leave unchanged
       if (Object.prototype.hasOwnProperty.call(data, 'variants')) {
-        updateData.variants = variants ?? null
+        if (variants == null) {
+          // Plain null is not a valid Prisma Json write value — DbNull clears.
+          updateData.variants = Prisma.DbNull
+        } else {
+          const parsed = SymptomVariantsZ.safeParse(variants)
+          if (!parsed.success) {
+            return NextResponse.json(
+              { error: 'Invalid variants shape', details: parsed.error.flatten() },
+              { status: 400 }
+            )
+          }
+          updateData.variants = sanitizeVariants(parsed.data)
+        }
       }
 
       const updatedSymptom = await prisma.baseSymptom.update({
@@ -77,6 +92,21 @@ export async function PATCH(
       }
       if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
         customUpdateData.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
+      }
+      // Practice-owned variants; only touched when sent.
+      if (Object.prototype.hasOwnProperty.call(data, 'variants')) {
+        if (variants == null) {
+          customUpdateData.variants = Prisma.DbNull
+        } else {
+          const parsed = SymptomVariantsZ.safeParse(variants)
+          if (!parsed.success) {
+            return NextResponse.json(
+              { error: 'Invalid variants shape', details: parsed.error.flatten() },
+              { status: 400 }
+            )
+          }
+          customUpdateData.variants = sanitizeVariants(parsed.data)
+        }
       }
       const updatedSymptom = await prisma.surgeryCustomSymptom.update({
         where: {
@@ -129,6 +159,23 @@ export async function PATCH(
       }
       if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
         overrideUpdate.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
+      }
+      // Per-surgery variants: null = inherit base, {ageGroups:[]} = hide,
+      // {ageGroups:[...]} = replace for this surgery. Only touched when sent.
+      if (Object.prototype.hasOwnProperty.call(data, 'variants')) {
+        if (variants == null) {
+          // Plain null is not a valid Prisma Json write value — DbNull clears.
+          overrideUpdate.variants = Prisma.DbNull
+        } else {
+          const parsed = SurgeryVariantsOverrideZ.safeParse(variants)
+          if (!parsed.success) {
+            return NextResponse.json(
+              { error: 'Invalid variants shape', details: parsed.error.flatten() },
+              { status: 400 }
+            )
+          }
+          overrideUpdate.variants = sanitizeVariants(parsed.data)
+        }
       }
       const updatedOverride = await prisma.surgerySymptomOverride.upsert({
         where: {

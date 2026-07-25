@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { getSessionUser } from '@/lib/rbac'
 import { z } from 'zod'
 import { revalidateTag } from 'next/cache'
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
           highlightedText: custom.highlightedText,
           linkToPage: custom.linkToPage,
           ageGroup: custom.ageGroup,
+          variants: (custom as any).variants ?? Prisma.DbNull,
         }
       })
 

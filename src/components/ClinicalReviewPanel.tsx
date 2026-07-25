@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
 import AgeGroupBadge from '@/components/AgeGroupBadge'
+import VariantPreviewList from '@/components/VariantPreviewList'
 import { SymptomAgeGroup, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
 import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
@@ -1106,6 +1107,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
     baseInstructionsHtml: string | null
     statusRowId: string | null
     highlightedText: string | null
+    variants?: unknown | null
   }>(null)
   const [viewMode, setViewMode] = useState<'local' | 'base'>('local')
   const [reEnabling, setReEnabling] = useState(false)
@@ -1363,6 +1365,10 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
                 ) : (
                   <p className="text-sm text-gray-700">—</p>
                 )}
+              </div>
+
+              <div className="[&_a]:pointer-events-none [&_a]:opacity-60">
+                <VariantPreviewList variants={data.variants ?? null} />
               </div>
             </div>
           ) : (

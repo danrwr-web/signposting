@@ -393,11 +393,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     try {
       const v = (symptom as any).variants
       setVariantHeading(v?.heading || '')
-      setVariants(Array.isArray(v?.ageGroups) ? v.ageGroups.map((g: any) => ({
+      const hasExistingVariants = Array.isArray(v?.ageGroups) && v.ageGroups.length > 0
+      setVariants(hasExistingVariants ? v.ageGroups.map((g: any) => ({
         key: g.key || '',
         label: g.label || '',
         instructions: g.instructions || ''
       })) : [])
+      // Surface existing variants immediately instead of hiding them behind "Add Variants"
+      setShowVariantsSection(hasExistingVariants)
       // Preserve position in newSymptom.variants so the select reflects existing state
       if (v && v.position) {
         setNewSymptom(prev => ({ ...prev, variants: { ...(prev.variants || {}), position: v.position } as any }))
@@ -425,7 +428,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           instructionsHtml: newSymptom.instructionsHtml,
           highlightedText: newSymptom.highlightedText,
           linkToPage: newSymptom.linkToPage,
-          variants: variants.length > 0 ? { heading: (variantHeading || undefined), ageGroups: variants } : null
+          variants: variants.length > 0
+            ? {
+                heading: (variantHeading || undefined),
+                position: ((newSymptom.variants as any)?.position === 'after' ? 'after' : 'before'),
+                ageGroups: variants,
+              }
+            : null
         })
       })
 
@@ -1726,16 +1735,19 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                               />
                             </div>
-                            <textarea
+                            <RichTextEditor
+                              docId={`admin:symptom:${editingSymptom?.id ?? 'edit'}:variant:${index}`}
                               value={variant.instructions}
-                              onChange={(e) => {
-                                const updated = [...variants]
-                                updated[index].instructions = e.target.value
-                                setVariants(updated)
+                              onChange={(html) => {
+                                const sanitized = sanitizeHtml(html)
+                                setVariants(prev => {
+                                  const updated = [...prev]
+                                  updated[index] = { ...updated[index], instructions: sanitized }
+                                  return updated
+                                })
                               }}
                               placeholder="Instructions for this variant"
-                              rows={3}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              height={180}
                             />
                             <button
                               type="button"

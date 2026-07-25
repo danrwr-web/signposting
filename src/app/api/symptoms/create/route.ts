@@ -6,6 +6,9 @@ import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalRev
 import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
+import { SymptomVariantsZ } from '@/lib/api-contracts'
+import { sanitizeVariants } from '@/lib/sanitizeHtml'
+import { Prisma } from '@prisma/client'
 
 const CreateSchema = z.object({
   target: z.enum(['BASE', 'SURGERY']),
@@ -19,7 +22,9 @@ const CreateSchema = z.object({
   highlightedText: z.string().max(2000).optional(),
   linkToPage: z.string().max(200).optional(),
   instructionsHtml: z.string().min(1),
-  instructionsJson: z.any().optional()
+  instructionsJson: z.any().optional(),
+  // Age-group variants (base symptoms and practice-owned custom symptoms)
+  variants: SymptomVariantsZ.nullable().optional()
 })
 
 export async function POST(req: NextRequest) {
@@ -97,6 +102,7 @@ export async function POST(req: NextRequest) {
           instructions: parsed.data.instructionsHtml,
           instructionsHtml: parsed.data.instructionsHtml,
           instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
+          variants: parsed.data.variants ? sanitizeVariants(parsed.data.variants) : Prisma.DbNull,
         }
       })
       // Base symptoms can affect effective symptom lists for all surgeries.
@@ -123,6 +129,7 @@ export async function POST(req: NextRequest) {
         instructions: parsed.data.instructionsHtml,
         instructionsHtml: parsed.data.instructionsHtml,
         instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
+        variants: parsed.data.variants ? sanitizeVariants(parsed.data.variants) : Prisma.DbNull,
       }
     })
 

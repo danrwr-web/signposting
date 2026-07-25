@@ -24,11 +24,11 @@ To create a custom symptom:
 4. The slug is generated automatically — you do not need to enter one.
 5. Save the symptom. It enters clinical review as **Pending** by default.
 
-Custom symptoms are managed entirely by your surgery and are not affected by base library updates.
+Custom symptoms are managed entirely by your surgery and are not affected by base library updates. They can carry their own age-group variants — add them when creating the symptom or later from the symptom page.
 
 ### Editing Overrides
 
-Any base symptom can be customised locally without affecting the central library. An override lets you change the name, age group, brief instruction, full instructions, or highlighted text for your surgery only.
+Any base symptom can be customised locally without affecting the central library. An override lets you change the name, age group, brief instruction, full instructions, highlighted text, or age-group variants (use the shared ones, customise them, or hide them) for your surgery only.
 
 To create or edit an override:
 
@@ -37,7 +37,7 @@ To create or edit an override:
 3. Modify the fields you want to change. Only non-null override fields replace the base values.
 4. Save. The symptom shows a **"Practice Customised"** badge to indicate it differs from the base.
 
-When editing instructions, update all three format fields (markdown, ProseMirror JSON, and HTML) to maintain consistency.
+Instructions are stored and edited as HTML — the rich-text editor handles this automatically, so there is nothing extra to keep in sync when editing through the app.
 
 ### Hiding Base Symptoms
 

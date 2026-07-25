@@ -183,6 +183,10 @@ model SurgerySymptomOverride {
   instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String? // HTML format with colour support
   linkToPage       String?
+  // Per-surgery age-group variants. Tri-state: null = inherit base variants,
+  // JSON with ageGroups = replace them for this surgery, JSON with empty
+  // ageGroups ({"ageGroups":[]}) = hide variants for this surgery.
+  variants         Json?
   // Soft delete: if true, this symptom is hidden for this surgery
   isHidden         Boolean   @default(false)
   lastEditedBy     String? // Editor name
@@ -207,6 +211,9 @@ model SurgeryCustomSymptom {
   instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String? // HTML format with colour support
   linkToPage       String?
+  // Age-group variants for this practice-owned symptom. No inheritance —
+  // custom symptoms have no base backing.
+  variants         Json?
   isDeleted        Boolean   @default(false)
   lastEditedBy     String? // Editor name
   lastEditedAt     DateTime? // Last edit timestamp

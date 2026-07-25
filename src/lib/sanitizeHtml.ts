@@ -90,6 +90,22 @@ export function sanitizeHtmlWithLinks(html: string): string {
 }
 
 /**
+ * Sanitizes the HTML instructions inside a symptom variants object.
+ * Shape is validated separately (SymptomVariantsZ in api-contracts); this only
+ * cleans the embedded HTML so stored variant content matches the same
+ * allowlist as instructionsHtml.
+ */
+export function sanitizeVariants<T extends { ageGroups: Array<{ instructions: string }> }>(variants: T): T {
+  return {
+    ...variants,
+    ageGroups: variants.ageGroups.map((group) => ({
+      ...group,
+      instructions: sanitizeHtml(group.instructions),
+    })),
+  }
+}
+
+/**
  * Strips all HTML and returns plain text suitable for plain-text fields
  * (e.g. the Important Notice / highlightedText, which is edited in a textarea)
  * @param html - The HTML (or plain text) content

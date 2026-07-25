@@ -1,11 +1,25 @@
 /**
- * Minimal TipTap Rich Text Editor
- * Simplified version to resolve extension loading issues
+ * Rich text editor for instruction and handbook content.
+ *
+ * Contract with the rest of the app:
+ * - HTML in (`value`), HTML out (`onChange`). `onChange` fires ONLY when the
+ *   user edits — never on mount or rehydration. Several features (notably the
+ *   AI re-run classifier) compare stored HTML by exact string equality, so a
+ *   mount-time re-serialization would corrupt their bookkeeping.
+ * - Uncontrolled while typing: content is hydrated once, then re-hydrated only
+ *   when `docId` changes (switching documents/items).
+ * - Everything the editor can produce must survive `sanitizeHtml()` — see
+ *   `extensions.ts` for the schema.
  */
-
 'use client'
 
-import SafeTipTapEditor from '@/components/editor/SafeTipTapEditor'
+import { useEffect, useMemo, useRef } from 'react'
+import { EditorContent, useEditor } from '@tiptap/react'
+import { createRichTextExtensions } from '@/components/rich-text/extensions'
+import { cleanPastedHtml, normalizeHtml } from '@/components/rich-text/normalizeHtml'
+import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { Skeleton } from '@/components/ui'
+import Toolbar from '@/components/rich-text/toolbar/Toolbar'
 
 interface RichTextEditorProps {
   /**
@@ -19,7 +33,7 @@ interface RichTextEditorProps {
   readOnly?: boolean
   placeholder?: string
   height?: number
-  "data-testid"?: string
+  'data-testid'?: string
 }
 
 export default function RichTextEditor({
@@ -30,18 +44,66 @@ export default function RichTextEditor({
   readOnly = false,
   placeholder = 'Start typing...',
   height = 300,
-  "data-testid": testId
+  'data-testid': testId,
 }: RichTextEditorProps) {
+  const lastDocIdRef = useRef<string>(docId)
+
+  const extensions = useMemo(() => createRichTextExtensions({ placeholder }), [placeholder])
+
+  const editor = useEditor({
+    // Defer creation to the client so server and first client render match —
+    // no hydration mismatch, no mounted-state workarounds.
+    immediatelyRender: false,
+    extensions,
+    content: normalizeHtml(value),
+    editable: !readOnly,
+    editorProps: {
+      transformPastedHTML: (html) => sanitizeHtml(cleanPastedHtml(html)),
+    },
+    onUpdate: ({ editor: e }) => {
+      onChange(e.getHTML())
+    },
+  })
+
+  // Re-hydrate only when switching documents/items.
+  useEffect(() => {
+    if (!editor) return
+    if (lastDocIdRef.current === docId) return
+
+    lastDocIdRef.current = docId
+    const nextHtml = normalizeHtml(value)
+    if (editor.getHTML() === nextHtml) return
+
+    // Never emit an update: rehydration is not a user edit.
+    editor.commands.setContent(nextHtml, { emitUpdate: false })
+  }, [editor, docId, value])
+
+  // Keep editability in sync if readOnly changes after mount.
+  useEffect(() => {
+    if (editor && editor.isEditable !== !readOnly) {
+      editor.setEditable(!readOnly)
+    }
+  }, [editor, readOnly])
+
+  if (!editor) {
+    return (
+      <div className={className}>
+        <Skeleton width="w-full" rounded="md" style={{ height: height + (readOnly ? 0 : 44) }} />
+      </div>
+    )
+  }
+
   return (
-    <SafeTipTapEditor
-      docId={docId}
-      initialHtml={value}
-      editable={!readOnly}
-      onChange={onChange}
-      className={className}
-      placeholder={placeholder}
-      height={height}
-      data-testid={testId}
-    />
+    <div className={`rich-text-editor ${className}`} data-testid={testId}>
+      {!readOnly && <Toolbar editor={editor} />}
+      <div
+        className={`border border-gray-300 bg-white ${
+          readOnly ? 'rounded-md' : 'rounded-b-md'
+        } focus-within:ring-2 focus-within:ring-nhs-blue focus-within:ring-offset-1`}
+        style={{ height }}
+      >
+        <EditorContent editor={editor} className="h-full overflow-y-auto p-3" aria-label={placeholder} />
+      </div>
+    </div>
   )
 }
