@@ -9,8 +9,10 @@ import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 const CreateSchema = z.object({
   target: z.enum(['BASE', 'SURGERY']),
-  // Surgery IDs are Prisma CUIDs (not UUIDs).
-  surgeryId: z.string().cuid().optional(),
+  // Surgery IDs are usually Prisma CUIDs, but legacy surgeries have
+  // human-readable IDs (e.g. "surgery-1"), so don't constrain the format.
+  // Existence is checked below before creation.
+  surgeryId: z.string().min(1).optional(),
   name: z.string().min(1).max(120),
   ageGroup: z.enum(['U5', 'O5', 'Adult']).default('Adult'),
   briefInstruction: z.string().max(500).optional().nullable(),
@@ -64,6 +66,16 @@ export async function POST(req: NextRequest) {
           { error: 'Forbidden', reason: 'User lacks admin access to surgeryId' },
           { status: 403 }
         )
+      }
+    }
+
+    if (target === 'SURGERY') {
+      const surgery = await prisma.surgery.findUnique({
+        where: { id: resolvedSurgeryId! },
+        select: { id: true }
+      })
+      if (!surgery) {
+        return NextResponse.json({ error: 'Surgery not found' }, { status: 404 })
       }
     }
 

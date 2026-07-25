@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
+import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 
 export const runtime = 'nodejs'
 
@@ -51,14 +53,22 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // Override updates always target a specific surgery's override row.
+    if (source === 'override' && !surgeryId) {
+      return NextResponse.json({ error: 'surgeryId is required for override updates' }, { status: 400 })
+    }
+
     // Fetch the current symptom based on source type
     let previousBriefInstruction: string | null = null
     let previousInstructionsHtml: string | null = null
     
     // Surgery admins never edit BaseSymptom directly. For base symptoms, write a surgery override instead.
+    // Override updates land in the surgery's override row for superusers too — otherwise the write
+    // would hit BaseSymptom and stay shadowed (invisible) behind the existing override.
     // (Superusers may still edit BaseSymptom globally when `source === 'base'`.)
-    if ((source === 'base' || source === 'override') && !isSuperuser) {
-      // At this point, surgeryId is guaranteed and user is an admin for it.
+    if (source === 'override' || (source === 'base' && !isSuperuser)) {
+      // At this point, surgeryId is guaranteed (admins via the membership check, override updates
+      // via the check above).
       const baseSymptom = await prisma.baseSymptom.findUnique({
         where: { id: symptomId },
         select: { id: true, briefInstruction: true, instructionsHtml: true, instructionsJson: true },
@@ -98,6 +108,7 @@ export async function PATCH(request: NextRequest) {
             surgeryId: surgeryId!,
             baseSymptomId: symptomId,
             briefInstruction: nextBriefInstruction ?? undefined,
+            instructions: nextInstructionsHtml ?? undefined, // Legacy field, kept in sync with HTML
             instructionsHtml: nextInstructionsHtml ?? undefined,
             instructionsJson: nextInstructionsJson ?? undefined,
             lastEditedBy: user.name || user.email,
@@ -105,6 +116,7 @@ export async function PATCH(request: NextRequest) {
           },
           update: {
             briefInstruction: nextBriefInstruction ?? undefined,
+            instructions: nextInstructionsHtml ?? undefined, // Legacy field, kept in sync with HTML
             instructionsHtml: nextInstructionsHtml ?? undefined,
             instructionsJson: nextInstructionsJson ?? undefined,
             lastEditedBy: user.name || user.email,
@@ -130,6 +142,12 @@ export async function PATCH(request: NextRequest) {
         })
       })
 
+      // Without this the cached effective symptom lists keep showing the old
+      // text for up to 5 minutes after the override is saved.
+      revalidateTag(getCachedSymptomsTag(surgeryId!, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId!, true))
+      revalidateTag('symptoms')
+
       return NextResponse.json({ ok: true })
     }
 
@@ -150,6 +168,7 @@ export async function PATCH(request: NextRequest) {
       // Build update data - only include fields that are being changed
       const updateData: {
         briefInstruction?: string
+        instructions?: string
         instructionsHtml?: string
         instructionsJson?: any
         lastEditedBy?: string
@@ -157,26 +176,27 @@ export async function PATCH(request: NextRequest) {
       } = {
         lastEditedAt: new Date(),
       }
-      
+
       if (newBriefInstruction !== undefined) {
         updateData.briefInstruction = newBriefInstruction
       }
-      
+
       if (newInstructionsHtml !== undefined) {
+        updateData.instructions = newInstructionsHtml // Legacy field, kept in sync with HTML
         updateData.instructionsHtml = newInstructionsHtml
       }
-      
+
       if (newInstructionsJson !== undefined) {
         // instructionsJson is stored as a string in the database
-        updateData.instructionsJson = typeof newInstructionsJson === 'string' 
-          ? newInstructionsJson 
+        updateData.instructionsJson = typeof newInstructionsJson === 'string'
+          ? newInstructionsJson
           : JSON.stringify(newInstructionsJson)
       }
-      
+
       if (user.name) {
         updateData.lastEditedBy = user.name
       }
-      
+
       // Insert history record with both brief and full instructions
       // Using any to bypass TypeScript issue - fields exist in database and schema
       await prisma.symptomHistory.create({
@@ -194,12 +214,15 @@ export async function PATCH(request: NextRequest) {
           modelUsed: modelUsed || 'unknown-model',
         } as any
       })
-      
+
       // Update the symptom
       await prisma.baseSymptom.update({
         where: { id: symptomId },
         data: updateData
       })
+
+      // Base symptom changes affect every surgery's effective list.
+      revalidateTag('symptoms')
     } else if (source === 'custom') {
       // Superusers can edit any custom symptoms. Surgery admins can edit custom symptoms only within their surgery.
       const symptom = await prisma.surgeryCustomSymptom.findUnique({
@@ -227,6 +250,7 @@ export async function PATCH(request: NextRequest) {
       // Build update data - only include fields that are being changed
       const updateData: {
         briefInstruction?: string
+        instructions?: string
         instructionsHtml?: string
         instructionsJson?: any
         lastEditedBy?: string
@@ -234,15 +258,16 @@ export async function PATCH(request: NextRequest) {
       } = {
         lastEditedAt: new Date(),
       }
-      
+
       if (newBriefInstruction !== undefined) {
         updateData.briefInstruction = newBriefInstruction
       }
-      
+
       if (newInstructionsHtml !== undefined) {
+        updateData.instructions = newInstructionsHtml // Legacy field, kept in sync with HTML
         updateData.instructionsHtml = newInstructionsHtml
       }
-      
+
       if (newInstructionsJson !== undefined) {
         // instructionsJson is stored as a string in the database
         updateData.instructionsJson = typeof newInstructionsJson === 'string' 
@@ -277,10 +302,10 @@ export async function PATCH(request: NextRequest) {
         where: { id: symptomId },
         data: updateData
       })
-    } else if (source === 'override') {
-      // Superusers: callers should send `source: base` when they intend to update base.
-      // Surgery admins: handled above (base/override with surgeryId -> SurgerySymptomOverride upsert).
-      return NextResponse.json({ error: 'Invalid source type' }, { status: 400 })
+
+      revalidateTag(getCachedSymptomsTag(symptom.surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(symptom.surgeryId, true))
+      revalidateTag('symptoms')
     } else {
       return NextResponse.json({ error: 'Invalid source type' }, { status: 400 })
     }
