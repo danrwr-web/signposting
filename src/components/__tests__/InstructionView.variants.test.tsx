@@ -197,6 +197,46 @@ describe('InstructionView variants', () => {
     expect(screen.getByDisplayValue('Local Adult')).toBeInTheDocument()
   })
 
+  it('lets a practice admin edit variants on a practice-owned custom symptom', async () => {
+    const calls = installFetchMock()
+    mockSession.data = practiceAdminSession
+    const customSymptom = {
+      id: 'custom-1',
+      name: 'Local Thing',
+      ageGroup: 'Adult',
+      briefInstruction: null,
+      highlightedText: null,
+      instructions: null,
+      instructionsHtml: '<p>Custom advice</p>',
+      linkToPage: null,
+      variants: {
+        ageGroups: [{ key: 'u5', label: 'Custom U5', instructions: '<p>U5</p>' }],
+      },
+      source: 'custom',
+    } as any
+    render(<InstructionView symptom={customSymptom} surgeryId="s1" />)
+
+    fireEvent.click(screen.getByText('Edit All Fields'))
+    await screen.findByText('Variants')
+
+    // Single panel for custom symptoms: no shared/practice split.
+    expect(screen.queryByText('Shared variants (all practices)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Variants at this practice')).not.toBeInTheDocument()
+    expect(screen.getByText('This symptom belongs to your practice — variants apply here only.')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByDisplayValue('Custom U5'), { target: { value: 'Renamed U5' } })
+    fireEvent.click(screen.getByText('Save Changes'))
+
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(2)
+    })
+    const patches = calls.filter((c) => c.method === 'PATCH')
+    expect(patches[1].url).toBe('/api/admin/symptoms/custom-1')
+    expect(patches[1].body.source).toBe('custom')
+    expect(patches[1].body.surgeryId).toBe('s1')
+    expect(patches[1].body.variants.ageGroups[0].label).toBe('Renamed U5')
+  })
+
   it('resets both panels on cancel', async () => {
     installFetchMock()
     render(<InstructionView symptom={overrideSymptom()} surgeryId="s1" />)

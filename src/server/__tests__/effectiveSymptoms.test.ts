@@ -128,6 +128,31 @@ describe('effectiveSymptoms tri-state briefInstruction merge', () => {
       expect(result[0].variants).toEqual({ ageGroups: [] })
     })
 
+    it('includes a custom symptom\'s own variants', async () => {
+      ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        [],
+        [],
+        [{
+          id: 'custom-1',
+          slug: 'local-thing',
+          name: 'Local Thing',
+          ageGroup: 'Adult',
+          briefInstruction: null,
+          highlightedText: null,
+          instructions: null,
+          instructionsJson: null,
+          instructionsHtml: '<p>Custom</p>',
+          linkToPage: null,
+          variants: SURGERY_VARIANTS,
+        }],
+        [],
+      ])
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result).toHaveLength(1)
+      expect(result[0].source).toBe('custom')
+      expect(result[0].variants).toEqual(SURGERY_VARIANTS)
+    })
+
     it('getEffectiveSymptomById applies the same merge', async () => {
       ;(prisma.surgeryCustomSymptom.findFirst as jest.Mock).mockResolvedValueOnce(null)
       ;(prisma.baseSymptom.findUnique as jest.Mock).mockResolvedValueOnce({ ...baseGout, variants: BASE_VARIANTS })

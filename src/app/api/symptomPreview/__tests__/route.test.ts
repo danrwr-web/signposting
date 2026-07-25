@@ -199,8 +199,8 @@ describe('GET /api/symptomPreview', () => {
     expect(json.variants).toEqual(surgeryVariants)
   })
 
-  it('returns null variants for a custom symptom', async () => {
-    ;(prisma.surgeryCustomSymptom.findFirst as jest.Mock).mockResolvedValue({
+  it('returns a custom symptom\'s own variants (null when it has none)', async () => {
+    const customRow = {
       id: 'c1',
       name: 'Local Thing',
       briefInstruction: null,
@@ -208,11 +208,15 @@ describe('GET /api/symptomPreview', () => {
       highlightedText: null,
       lastEditedBy: null,
       lastEditedAt: null,
-    })
-
-    const json = await (await GET(makeReq('surgeryId=s1&customSymptomId=c1'))).json()
-
+      variants: null,
+    }
+    ;(prisma.surgeryCustomSymptom.findFirst as jest.Mock).mockResolvedValue(customRow)
+    let json = await (await GET(makeReq('surgeryId=s1&customSymptomId=c1'))).json()
     expect(json.status).toBe('LOCAL_ONLY')
     expect(json.variants).toBeNull()
+
+    ;(prisma.surgeryCustomSymptom.findFirst as jest.Mock).mockResolvedValue({ ...customRow, variants: VARIANTS })
+    json = await (await GET(makeReq('surgeryId=s1&customSymptomId=c1'))).json()
+    expect(json.variants).toEqual(VARIANTS)
   })
 })

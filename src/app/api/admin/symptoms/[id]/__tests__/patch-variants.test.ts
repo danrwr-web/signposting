@@ -92,6 +92,46 @@ describe('PATCH /api/admin/symptoms/[id] variants handling', () => {
     expect(prisma.baseSymptom.update).not.toHaveBeenCalled()
   })
 
+  describe('custom branch (practice-owned variants)', () => {
+    beforeEach(() => {
+      ;(prisma.surgeryCustomSymptom.update as jest.Mock).mockResolvedValue({ id: 'custom-1' })
+    })
+
+    const customCall = (variantsField: Record<string, unknown>) =>
+      call({ source: 'custom', surgeryId: 's1', ...variantsField })
+
+    it('writes validated + sanitized variants on the custom symptom', async () => {
+      const res = await customCall({
+        variants: {
+          ageGroups: [{ key: 'u5', label: 'Under 5', instructions: '<p>ok</p><script>x()</script>' }],
+        },
+      })
+
+      expect(res.status).toBe(200)
+      expect(requireSurgeryAdmin).toHaveBeenCalledWith('s1')
+      const update = (prisma.surgeryCustomSymptom.update as jest.Mock).mock.calls[0][0]
+      expect(update.data.variants.ageGroups[0].instructions).toBe('<p>ok</p>')
+    })
+
+    it('clears with DbNull and rejects invalid shapes', async () => {
+      const cleared = await customCall({ variants: null })
+      expect(cleared.status).toBe(200)
+      const update = (prisma.surgeryCustomSymptom.update as jest.Mock).mock.calls[0][0]
+      expect(update.data.variants).toBe(Prisma.DbNull)
+
+      const invalid = await customCall({ variants: { ageGroups: [] } })
+      expect(invalid.status).toBe(400)
+    })
+
+    it('leaves variants untouched when the key is absent', async () => {
+      const res = await customCall({ name: 'Renamed' })
+
+      expect(res.status).toBe(200)
+      const update = (prisma.surgeryCustomSymptom.update as jest.Mock).mock.calls[0][0]
+      expect('variants' in update.data).toBe(false)
+    })
+  })
+
   describe('override branch (per-surgery variants)', () => {
     beforeEach(() => {
       ;(prisma.baseSymptom.findUnique as jest.Mock).mockResolvedValue({ id: 'base-1' })

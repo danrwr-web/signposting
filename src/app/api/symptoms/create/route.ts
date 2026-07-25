@@ -23,8 +23,7 @@ const CreateSchema = z.object({
   linkToPage: z.string().max(200).optional(),
   instructionsHtml: z.string().min(1),
   instructionsJson: z.any().optional(),
-  // Age-group variants — only stored for BASE symptoms (custom symptoms have
-  // no variants column).
+  // Age-group variants (base symptoms and practice-owned custom symptoms)
   variants: SymptomVariantsZ.nullable().optional()
 })
 
@@ -130,6 +129,7 @@ export async function POST(req: NextRequest) {
         instructions: parsed.data.instructionsHtml,
         instructionsHtml: parsed.data.instructionsHtml,
         instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
+        variants: parsed.data.variants ? sanitizeVariants(parsed.data.variants) : Prisma.DbNull,
       }
     })
 

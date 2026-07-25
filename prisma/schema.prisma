@@ -211,6 +211,9 @@ model SurgeryCustomSymptom {
   instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String? // HTML format with colour support
   linkToPage       String?
+  // Age-group variants for this practice-owned symptom. No inheritance —
+  // custom symptoms have no base backing.
+  variants         Json?
   isDeleted        Boolean   @default(false)
   lastEditedBy     String? // Editor name
   lastEditedAt     DateTime? // Last edit timestamp

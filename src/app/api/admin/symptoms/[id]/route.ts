@@ -93,6 +93,21 @@ export async function PATCH(
       if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
         customUpdateData.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
       }
+      // Practice-owned variants; only touched when sent.
+      if (Object.prototype.hasOwnProperty.call(data, 'variants')) {
+        if (variants == null) {
+          customUpdateData.variants = Prisma.DbNull
+        } else {
+          const parsed = SymptomVariantsZ.safeParse(variants)
+          if (!parsed.success) {
+            return NextResponse.json(
+              { error: 'Invalid variants shape', details: parsed.error.flatten() },
+              { status: 400 }
+            )
+          }
+          customUpdateData.variants = sanitizeVariants(parsed.data)
+        }
+      }
       const updatedSymptom = await prisma.surgeryCustomSymptom.update({
         where: {
           id,

@@ -95,7 +95,8 @@ const customFields = (includeRichContent: boolean) => ({
   instructionsHtml: true,
   ...(includeRichContent
     ? {
-        instructionsJson: true
+        instructionsJson: true,
+        variants: true as any
       }
     : {})
 })
@@ -199,7 +200,8 @@ async function buildEffectiveSymptoms(
     source: 'custom' as const,
     disabled: disabledCustomIds.has(c.id),
     instructionsJson: includeRichContent ? (c as any).instructionsJson ?? null : null,
-    instructionsHtml: (c as any).instructionsHtml ?? null
+    instructionsHtml: (c as any).instructionsHtml ?? null,
+    variants: includeRichContent ? (c as any).variants ?? null : null
   }))
 
   // Compute the search index from the effective (merged) content, then strip
@@ -257,7 +259,7 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     select: {
       id: true, slug: true, name: true, ageGroup: true,
       briefInstruction: true, highlightedText: true, instructions: true,
-      instructionsJson: true, instructionsHtml: true, linkToPage: true
+      instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true
     }
   })
   if (custom) {
@@ -334,21 +336,22 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
 
   // Check if it's a custom symptom first
   const custom = await prisma.surgeryCustomSymptom.findFirst({
-    where: { 
+    where: {
       slug,
-      surgeryId 
+      surgeryId
     },
-    select: { 
-      id: true, 
-      slug: true, 
-      name: true, 
+    select: {
+      id: true,
+      slug: true,
+      name: true,
       ageGroup: true,
-      briefInstruction: true, 
-      highlightedText: true, 
-      instructions: true, 
+      briefInstruction: true,
+      highlightedText: true,
+      instructions: true,
       instructionsJson: true,
       instructionsHtml: true,
-      linkToPage: true 
+      linkToPage: true,
+      variants: true
     }
   })
   
@@ -444,7 +447,7 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
     select: {
       id: true, slug: true, name: true, ageGroup: true,
       briefInstruction: true, highlightedText: true, instructions: true,
-      instructionsJson: true, instructionsHtml: true, linkToPage: true
+      instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true
     }
   })
   if (custom) {

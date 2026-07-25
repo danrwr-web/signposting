@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
           instructionsHtml,
           highlightedText,
           linkToPage,
+          variants: variants ? sanitizeVariants(variants) : Prisma.DbNull,
         },
         select: {
           id: true,

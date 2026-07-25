@@ -15,8 +15,8 @@ interface SymptomPreviewResponse {
   baseInstructionsHtml: string | null
   statusRowId: string | null
   highlightedText: string | null
-  // Age-group variants from the BaseSymptom (overrides inherit them; custom
-  // symptoms have none).
+  // Effective age-group variants: the surgery's override value when set, else
+  // the base symptom's; custom symptoms carry their own.
   variants: unknown | null
 }
 
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
 
       const customSymptom = await prisma.surgeryCustomSymptom.findFirst({
         where: { id: customSymptomId, surgeryId, isDeleted: false },
-        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true, lastEditedBy: true, lastEditedAt: true }
+        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true, lastEditedBy: true, lastEditedAt: true, variants: true }
       })
       if (!customSymptom) {
         return NextResponse.json({ error: 'Custom symptom not found' }, { status: 404 })
@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
         baseInstructionsHtml: null,
         statusRowId: statusRow?.id ?? null,
         highlightedText: customSymptom.highlightedText ?? null,
-        variants: null,
+        variants: (customSymptom as any).variants ?? null,
       }
     } else {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })

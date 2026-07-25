@@ -135,16 +135,24 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       : symptom.source === 'override'
         ? ((symptom as any).baseSymptomId ?? symptom.id)
         : null
-  const canEditVariants = !!isSuperuser && !!baseBackedSymptomId
+  // Where the primary variants panel saves to: the base symptom for
+  // base-backed symptoms (superuser-only, shared across practices), or the
+  // custom symptom itself for practice-owned symptoms (practice admins too).
+  const isCustomSymptom = symptom.source === 'custom'
+  const variantTargetId = baseBackedSymptomId ?? (isCustomSymptom ? symptom.id : null)
+  const canEditVariants = isCustomSymptom
+    ? !!surgeryId && (!!isSuperuser || !!isPracticeAdmin)
+    : !!isSuperuser && !!baseBackedSymptomId
 
-  // Practice-level variants can be managed by practice admins (and superusers)
-  // whenever there is a surgery context and the symptom is base-backed.
+  // Practice-level variant overrides only apply to base-backed symptoms —
+  // custom symptoms already belong to a single practice.
   const canEditSurgeryVariants = !!surgeryId && !!baseBackedSymptomId && (!!isSuperuser || !!isPracticeAdmin)
 
-  // The base symptom's shared variants (the effective `variants` may already be
-  // the surgery's own override value).
+  // The variants the primary panel edits: the base symptom's shared variants
+  // for base-backed symptoms (the effective `variants` may already be the
+  // surgery's own override value), or the custom symptom's own.
   const rawBaseVariants: any =
-    symptom.source === 'base' ? (symptom as any).variants : ((symptom as any).baseVariants ?? null)
+    symptom.source === 'override' ? ((symptom as any).baseVariants ?? null) : (symptom as any).variants
 
   // Parse variant data and determine active variant
   const variants = symptom.variants as any
@@ -765,33 +773,39 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   }
 
   /**
-   * Variants always save to the BASE symptom via a dedicated PATCH, decoupled
-   * from the instruction save (which may target an override that ignores
-   * variants entirely). Skips the request when nothing changed.
+   * The primary variants save: to the BASE symptom for base-backed symptoms,
+   * or to the custom symptom itself for practice-owned ones. Always a
+   * dedicated PATCH, decoupled from the instruction save (which may target an
+   * override that ignores variants entirely). Skips when nothing changed.
    */
   const saveVariantsIfChanged = async () => {
-    if (!canEditVariants || !baseBackedSymptomId) return
+    if (!canEditVariants || !variantTargetId) return
     // No snapshot means the variant editor was never initialized — never write.
     if (originalVariantsJson === null) return
     const payload = buildVariantsPayload()
     if (payload === undefined) return
     if (JSON.stringify(payload ?? null) === originalVariantsJson) return
 
-    const response = await fetch(`/api/admin/symptoms/${baseBackedSymptomId}`, {
+    const response = await fetch(`/api/admin/symptoms/${variantTargetId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source: 'base', variants: payload }),
+      body: JSON.stringify(
+        isCustomSymptom
+          ? { source: 'custom', surgeryId, variants: payload }
+          : { source: 'base', variants: payload }
+      ),
     })
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.error || 'Failed to save variants')
     }
-    // Reflect locally so the chips update before the refresh lands (only when
-    // the surgery doesn't shadow the shared variants with its own).
-    if (symptom.source === 'base' || (symptom as any).overrideVariants == null) {
+    // Reflect locally so the chips update before the refresh lands (for
+    // base-backed symptoms, only when the surgery doesn't shadow the shared
+    // variants with its own).
+    if (isCustomSymptom || symptom.source === 'base' || (symptom as any).overrideVariants == null) {
       ;(symptom as any).variants = payload
     }
-    if (symptom.source !== 'base') {
+    if (symptom.source === 'override') {
       ;(symptom as any).baseVariants = payload
     }
   }
@@ -1544,7 +1558,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                 <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-nhs-dark-blue">
-                      {surgeryId ? 'Shared variants (all practices)' : 'Variants'}
+                      {surgeryId && !isCustomSymptom ? 'Shared variants (all practices)' : 'Variants'}
                     </h3>
                     <label className="flex items-center gap-2 text-sm">
                       <input type="checkbox" className="h-4 w-4" checked={enableVariantsEdit} onChange={(e) => setEnableVariantsEdit(e.target.checked)} />
@@ -1556,9 +1570,14 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                       These variants come from the base symptom and apply to every practice unless a practice sets its own below.
                     </p>
                   )}
+                  {isCustomSymptom && (
+                    <p className="mb-3 text-xs text-gray-500">
+                      This symptom belongs to your practice — variants apply here only.
+                    </p>
+                  )}
                   {enableVariantsEdit && (
                     <VariantGroupsEditor
-                      docIdPrefix={`symptom:${baseBackedSymptomId}:base`}
+                      docIdPrefix={`symptom:${variantTargetId}:${isCustomSymptom ? 'custom' : 'base'}`}
                       heading={editVariantHeading}
                       onHeadingChange={setEditVariantHeading}
                       position={editVariantPosition}

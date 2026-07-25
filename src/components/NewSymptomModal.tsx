@@ -95,7 +95,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         linkToPage: linkToPage.trim() || undefined,
         instructionsHtml,
         variants:
-          target === 'BASE' && showVariants && variantGroups.length > 0
+          showVariants && variantGroups.length > 0
             ? {
                 heading: variantHeading.trim() || undefined,
                 position: variantPosition,
@@ -294,35 +294,34 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
           </div>
         </div>
 
-        {isSuperuser && target === 'BASE' && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">Age-group variants (optional)</label>
-              <button
-                type="button"
-                onClick={() => setShowVariants(!showVariants)}
-                className="text-sm text-nhs-blue hover:underline"
-              >
-                {showVariants ? 'Hide' : 'Add variants'}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mb-2">
-              Alternative instruction text per age band, shown as clickable chips on the symptom page. Shared with
-              every practice that uses this symptom.
-            </p>
-            {showVariants && (
-              <VariantGroupsEditor
-                docIdPrefix={`symptom:create:${target}`}
-                heading={variantHeading}
-                onHeadingChange={setVariantHeading}
-                position={variantPosition}
-                onPositionChange={setVariantPosition}
-                groups={variantGroups}
-                onGroupsChange={setVariantGroups}
-              />
-            )}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">Age-group variants (optional)</label>
+            <button
+              type="button"
+              onClick={() => setShowVariants(!showVariants)}
+              className="text-sm text-nhs-blue hover:underline"
+            >
+              {showVariants ? 'Hide' : 'Add variants'}
+            </button>
           </div>
-        )}
+          <p className="text-xs text-gray-500 mb-2">
+            {target === 'BASE'
+              ? 'Alternative instruction text per age band, shown as clickable chips on the symptom page. Shared with every practice that uses this symptom.'
+              : 'Alternative instruction text per age band, shown as clickable chips on the symptom page. Applies only to this practice.'}
+          </p>
+          {showVariants && (
+            <VariantGroupsEditor
+              docIdPrefix={`symptom:create:${target}`}
+              heading={variantHeading}
+              onHeadingChange={setVariantHeading}
+              position={variantPosition}
+              onPositionChange={setVariantPosition}
+              groups={variantGroups}
+              onGroupsChange={setVariantGroups}
+            />
+          )}
+        </div>
 
         {error && (
           <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>
