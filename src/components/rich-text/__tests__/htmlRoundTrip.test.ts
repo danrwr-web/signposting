@@ -8,15 +8,9 @@
  * these are the transformations the saved HTML undergoes.
  */
 import { generateHTML, generateJSON } from '@tiptap/html'
-import StarterKit from '@tiptap/starter-kit'
-import { TextStyle } from '@tiptap/extension-text-style'
-import { Color } from '@tiptap/extension-color'
+import { createRichTextExtensions } from '@/components/rich-text/extensions'
 
-const extensions = [
-  StarterKit.configure({ paragraph: { HTMLAttributes: { class: 'prose-p' } } }),
-  TextStyle,
-  Color.configure({ types: ['textStyle'] }),
-]
+const extensions = createRichTextExtensions()
 
 // jsdom's serializer adds an xmlns attribute that real browsers omit.
 const stripJsdomArtifacts = (html: string) =>

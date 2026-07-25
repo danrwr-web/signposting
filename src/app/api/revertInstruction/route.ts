@@ -3,10 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import StarterKit from '@tiptap/starter-kit'
-import { TextStyle } from '@tiptap/extension-text-style'
-import { Color } from '@tiptap/extension-color'
-import { generateJSON } from '@tiptap/html'
 
 export const runtime = 'nodejs'
 
@@ -136,22 +132,12 @@ export async function PATCH(request: NextRequest) {
       currentBriefInstruction = symptom.briefInstruction
       currentInstructionsHtml = symptom.instructionsHtml
 
-      // Generate ProseMirror JSON from HTML
-      const instructionsJson = generateJSON(previousInstructionsHtml, [
-        StarterKit,
-        TextStyle,
-        Color.configure({
-          types: ['textStyle'],
-        }),
-      ])
-
       // Update the symptom to revert values
       await prisma.baseSymptom.update({
         where: { id: symptomId },
         data: {
           briefInstruction: previousBriefInstruction || undefined,
           instructionsHtml: previousInstructionsHtml,
-          instructionsJson: JSON.stringify(instructionsJson), // Store as string
           lastEditedBy: user.name || undefined,
           lastEditedAt: new Date(),
         },
@@ -169,22 +155,12 @@ export async function PATCH(request: NextRequest) {
       currentBriefInstruction = symptom.briefInstruction
       currentInstructionsHtml = symptom.instructionsHtml
 
-      // Generate ProseMirror JSON from HTML
-      const instructionsJson = generateJSON(previousInstructionsHtml, [
-        StarterKit,
-        TextStyle,
-        Color.configure({
-          types: ['textStyle'],
-        }),
-      ])
-
       // Update the symptom to revert values
       await prisma.surgeryCustomSymptom.update({
         where: { id: symptomId },
         data: {
           briefInstruction: previousBriefInstruction || undefined,
           instructionsHtml: previousInstructionsHtml,
-          instructionsJson: JSON.stringify(instructionsJson), // Store as string
           lastEditedBy: user.name || undefined,
           lastEditedAt: new Date(),
         },

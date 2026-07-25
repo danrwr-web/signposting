@@ -165,11 +165,11 @@ The codebase uses a "base + override" pattern for symptoms and workflows:
 ### Content Formats
 
 Instructions support multiple formats for backward compatibility:
-- `instructions` - Legacy markdown
-- `instructionsJson` - ProseMirror JSON (current editing format)
-- `instructionsHtml` - Rendered HTML with styling
+- `instructionsHtml` - **Canonical format.** All editing and display paths use HTML (sanitized via `src/lib/sanitizeHtml.ts`)
+- `instructions` - Legacy markdown/plain text; read fallback only, kept in sync by write paths
+- `instructionsJson` - Legacy ProseMirror JSON; no longer written and never read. Columns remain for backward compatibility but new code must not generate it
 
-When modifying symptom content, preserve all three format fields.
+When modifying symptom content, treat `instructionsHtml` as the source of truth and keep `instructions` in sync where the existing write path does.
 
 ### Feature Flags
 

@@ -26,7 +26,6 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   const [highlightedText, setHighlightedText] = useState('')
   const [linkToPage, setLinkToPage] = useState('')
   const [instructionsHtml, setInstructionsHtml] = useState('')
-  const [instructionsJson, setInstructionsJson] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // When the target surgery hides age bands, one entry covers all ages: the
@@ -89,7 +88,6 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         highlightedText: highlightedText.trim() || undefined,
         linkToPage: linkToPage.trim() || undefined,
         instructionsHtml,
-        instructionsJson: instructionsJson || undefined,
         variants: undefined,
       }
       const res = await fetch('/api/symptoms/create', {

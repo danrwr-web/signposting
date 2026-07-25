@@ -12,10 +12,6 @@ import RichTextEditor from './rich-text/RichTextEditor'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 import { toast } from 'react-hot-toast'
-import { generateJSON } from '@tiptap/html'
-import StarterKit from '@tiptap/starter-kit'
-import { TextStyle } from '@tiptap/extension-text-style'
-import { Color } from '@tiptap/extension-color'
 import { ageGroupBadgeClasses, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
 
 interface InstructionViewProps {
@@ -384,15 +380,6 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         throw new Error('Invalid symptom configuration')
       }
 
-      // Generate ProseMirror JSON from HTML
-      const instructionsJson = generateJSON(aiSuggestion, [
-        StarterKit,
-        TextStyle,
-        Color.configure({
-          types: ['textStyle'],
-        }),
-      ])
-
       const response = await fetch('/api/updateInstruction', {
         method: 'PATCH',
         headers: {
@@ -404,7 +391,6 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           surgeryId: surgeryId || undefined,
           modelUsed: aiModel,
           newInstructionsHtml: aiSuggestion,
-          newInstructionsJson: instructionsJson,
         }),
       })
 
@@ -455,15 +441,6 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         throw new Error('Invalid symptom configuration')
       }
 
-      // Generate ProseMirror JSON from HTML
-      const instructionsJson = generateJSON(aiSuggestion, [
-        StarterKit,
-        TextStyle,
-        Color.configure({
-          types: ['textStyle'],
-        }),
-      ])
-
       const response = await fetch('/api/updateInstruction', {
         method: 'PATCH',
         headers: {
@@ -476,7 +453,6 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           modelUsed: aiModel,
           newBriefInstruction: aiBrief,
           newInstructionsHtml: aiSuggestion,
-          newInstructionsJson: instructionsJson,
         }),
       })
 

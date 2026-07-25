@@ -10,21 +10,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import { TextStyle } from '@tiptap/extension-text-style'
-import { Color } from '@tiptap/extension-color'
+import { createRichTextExtensions, NHS_TEXT_COLORS as NHS_COLORS } from '@/components/rich-text/extensions'
 import { debounce } from '@/lib/debounce'
-
-// NHS colour palette
-const NHS_COLORS = [
-  { name: 'NHS Blue', value: '#005EB8' },
-  { name: 'NHS Red', value: '#DA020E' },
-  { name: 'NHS Orange', value: '#F59E0B' },
-  { name: 'NHS Green', value: '#00A499' },
-  { name: 'Purple', value: '#6A0DAD' },
-  { name: 'Pink', value: '#E5007E' },
-  { name: 'Black', value: '#000000' },
-] as const
 
 export function ensureProperParagraphs(content: string): string {
   if (!content || typeof content !== 'string') return ''
@@ -116,19 +103,7 @@ export default function SafeTipTapEditor({
 
   const editor = useEditor(
     {
-      extensions: [
-        StarterKit.configure({
-          paragraph: {
-            HTMLAttributes: {
-              class: 'prose-p',
-            },
-          },
-        }),
-        TextStyle,
-        Color.configure({
-          types: ['textStyle'],
-        }),
-      ],
+      extensions: createRichTextExtensions(),
       content: ensureProperParagraphs(initialHtml),
       editable,
       onUpdate: ({ editor }) => {
