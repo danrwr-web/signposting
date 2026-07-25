@@ -120,22 +120,16 @@ function newClientId(): string {
   return `tmp-${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-// Separate component to isolate the dynamic key from Next.js RSC compilation issues
-// Uses mounted state to avoid hydration mismatch with TipTap editor
 function CreateModePageEditor({
   editorInstanceKey,
   form,
   setForm,
 }: {
+  /** Bumped on create-mode resets so the editors rehydrate with the cleared form. */
   editorInstanceKey: number
   form: PageFormState
   setForm: React.Dispatch<React.SetStateAction<PageFormState>>
 }) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
   const hasRoleCards = form.roleCardsEnabled && (
     ((form.roleCardsCards ?? []).length > 0) ||
     (form.roleCardsTitle ?? '').trim().length > 0 ||
@@ -172,18 +166,13 @@ function CreateModePageEditor({
                   ? 'Main guidance text for this page. If role cards are used, this appears above them.'
                   : 'Main guidance text for this page.'}
               </p>
-              {mounted ? (
-                <RichTextEditor
-                  key={`admin-create-intro-${editorInstanceKey}`}
-                  docId="admin-toolkit:create:intro"
-                  value={form.introHtml}
-                  onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
-                  height={200}
-                  placeholder="Write guidance for staff…"
-                />
-              ) : (
-                <div className="h-[200px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
-              )}
+              <RichTextEditor
+                docId={`admin-toolkit:create:${editorInstanceKey}:intro`}
+                value={form.introHtml}
+                onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
+                height={200}
+                placeholder="Write guidance for staff…"
+              />
             </div>
           )}
         </div>
@@ -205,18 +194,13 @@ function CreateModePageEditor({
           {footerOpen && (
             <div className="mt-2">
               <p className="mb-2 text-xs text-gray-500">Optional extra guidance shown below role cards.</p>
-              {mounted ? (
-                <RichTextEditor
-                  key={`admin-create-footer-${editorInstanceKey}`}
-                  docId="admin-toolkit:create:footer"
-                  value={form.footerHtml}
-                  onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
-                  height={200}
-                  placeholder="Optional extra guidance…"
-                />
-              ) : (
-                <div className="h-[200px] border border-gray-200 rounded bg-gray-50 animate-pulse" />
-              )}
+              <RichTextEditor
+                docId={`admin-toolkit:create:${editorInstanceKey}:footer`}
+                value={form.footerHtml}
+                onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
+                height={200}
+                placeholder="Optional extra guidance…"
+              />
             </div>
           )}
         </div>
@@ -282,7 +266,6 @@ function PageEditorContent({
                 : 'Main guidance text for this page.'}
             </p>
             <RichTextEditor
-              key={`admin-edit-intro-${selectedItemId}`}
               docId={`admin-toolkit:item:${selectedItemId}:intro`}
               value={form.introHtml}
               onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
@@ -325,7 +308,6 @@ function PageEditorContent({
           <>
             <p className="mb-2 text-xs text-gray-500">Optional extra guidance shown below role cards.</p>
             <RichTextEditor
-              key={`admin-edit-footer-${selectedItemId}`}
               docId={`admin-toolkit:item:${selectedItemId}:footer`}
               value={form.footerHtml}
               onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
@@ -615,7 +597,7 @@ export default function AdminToolkitAdminClient({
   ])
   const [form, setForm] = useState<PageFormState>(DEFAULT_PAGE_FORM)
   const [showAddAnotherHint, setShowAddAnotherHint] = useState(false)
-  const [editorInstanceKey, setEditorInstanceKey] = useState(0) // remount TipTap on create resets
+  const [editorInstanceKey, setEditorInstanceKey] = useState(0) // rehydrate create-mode editors on reset (via docId)
   const [newListColumnLabel, setNewListColumnLabel] = useState('')
   const [newListColumnType, setNewListColumnType] = useState<'TEXT' | 'MULTILINE' | 'PHONE' | 'EMAIL' | 'URL'>('TEXT')
 
