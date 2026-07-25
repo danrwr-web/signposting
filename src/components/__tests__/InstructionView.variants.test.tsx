@@ -1,10 +1,10 @@
 /**
  * Variants editing in InstructionView.
  *
- * Variants live on the BaseSymptom row only. The editor must be available to
- * superusers whenever the symptom is base-backed — including when a surgery's
- * override is being viewed (source 'override') — and variant saves must go to
- * the base symptom in a dedicated PATCH, decoupled from the instruction save.
+ * Shared (base) variants: editable by superusers on any base-backed symptom,
+ * saved to the base symptom in a dedicated PATCH. Practice-level variants:
+ * per-surgery override with inherit / customise / hide modes, editable by
+ * practice admins and superusers, saved to the surgery's override row.
  */
 import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -70,7 +70,7 @@ const BASE_VARIANTS = {
   ageGroups: [{ key: 'u5', label: 'Under 5', instructions: '<p>U5 advice</p>' }],
 }
 
-const overrideSymptom = () =>
+const overrideSymptom = (overrideVariants: unknown = null) =>
   ({
     id: 'base-1',
     name: 'Fever',
@@ -80,7 +80,9 @@ const overrideSymptom = () =>
     instructions: null,
     instructionsHtml: '<p>Custom practice advice</p>',
     linkToPage: null,
-    variants: BASE_VARIANTS,
+    variants: overrideVariants == null ? BASE_VARIANTS : overrideVariants,
+    baseVariants: BASE_VARIANTS,
+    overrideVariants,
     source: 'override',
     baseSymptomId: 'base-1',
   }) as any
@@ -89,45 +91,50 @@ const superuserSession = {
   user: { globalRole: 'SUPERUSER', memberships: [] },
 }
 
+const practiceAdminSession = {
+  user: { globalRole: 'USER', memberships: [{ surgeryId: 's1', role: 'ADMIN' }] },
+}
+
+const openEditAll = async () => {
+  fireEvent.click(screen.getByText('Edit All Fields'))
+  await screen.findByText('Variants at this practice')
+}
+
 describe('InstructionView variants', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockSession.data = superuserSession
   })
 
-  it('shows the variants editor to a superuser on an override-source symptom', async () => {
+  it('shows both variant panels to a superuser on an override-source symptom', async () => {
     installFetchMock()
     render(<InstructionView symptom={overrideSymptom()} surgeryId="s1" />)
 
-    fireEvent.click(screen.getByText('Edit All Fields'))
+    await openEditAll()
 
-    expect(await screen.findByText('Variants')).toBeInTheDocument()
-    expect(screen.getByText('Variants are shared from the base symptom and apply to all surgeries.')).toBeInTheDocument()
-    // Prefilled from the base symptom's variants
+    expect(screen.getByText('Shared variants (all practices)')).toBeInTheDocument()
+    // Shared panel prefilled from the BASE variants
     expect(screen.getByDisplayValue('Under 5')).toBeInTheDocument()
+    // Practice panel defaults to inherit when the override has no variants
+    expect((screen.getByRole('radio', { name: /Use shared variants/ }) as HTMLInputElement).checked).toBe(true)
   })
 
-  it('hides the variants editor from practice admins', async () => {
+  it('shows the practice panel but not the shared panel to practice admins', async () => {
     installFetchMock()
-    mockSession.data = {
-      user: { globalRole: 'USER', memberships: [{ surgeryId: 's1', role: 'ADMIN' }] },
-    }
+    mockSession.data = practiceAdminSession
     render(<InstructionView symptom={overrideSymptom()} surgeryId="s1" />)
 
-    fireEvent.click(screen.getByText('Edit All Fields'))
+    await openEditAll()
 
-    await waitFor(() => {
-      expect(screen.getByText('Save Changes')).toBeInTheDocument()
-    })
-    expect(screen.queryByText('Variants')).not.toBeInTheDocument()
+    expect(screen.queryByText('Shared variants (all practices)')).not.toBeInTheDocument()
+    expect(screen.getByText('Variants at this practice')).toBeInTheDocument()
   })
 
-  it('does not PATCH variants when they were not changed', async () => {
+  it('does not PATCH variants when nothing was changed', async () => {
     const calls = installFetchMock()
     render(<InstructionView symptom={overrideSymptom()} surgeryId="s1" />)
 
-    fireEvent.click(screen.getByText('Edit All Fields'))
-    await screen.findByText('Variants')
+    await openEditAll()
     fireEvent.click(screen.getByText('Save Changes'))
 
     await waitFor(() => {
@@ -138,13 +145,11 @@ describe('InstructionView variants', () => {
     expect(patches[0].body.variants).toBeUndefined()
   })
 
-  it('sends changed variants to the base symptom in a separate PATCH', async () => {
+  it('sends changed shared variants to the base symptom in a separate PATCH', async () => {
     const calls = installFetchMock()
     render(<InstructionView symptom={overrideSymptom()} surgeryId="s1" />)
 
-    fireEvent.click(screen.getByText('Edit All Fields'))
-    await screen.findByText('Variants')
-
+    await openEditAll()
     fireEvent.change(screen.getByDisplayValue('Under 5'), { target: { value: 'Under Five' } })
     fireEvent.click(screen.getByText('Save Changes'))
 
@@ -153,28 +158,57 @@ describe('InstructionView variants', () => {
     })
     const patches = calls.filter((c) => c.method === 'PATCH')
 
-    // Main save: override branch, no variants attached.
     expect(patches[0].body.source).toBe('override')
     expect(patches[0].body.variants).toBeUndefined()
 
-    // Variants save: base branch, targeted at the base symptom id.
     expect(patches[1].url).toBe('/api/admin/symptoms/base-1')
     expect(patches[1].body.source).toBe('base')
     expect(patches[1].body.variants.ageGroups[0].label).toBe('Under Five')
   })
 
-  it('resets variant edit state on cancel', async () => {
+  it('saves "hide at this practice" as an override with empty ageGroups', async () => {
+    const calls = installFetchMock()
+    mockSession.data = practiceAdminSession
+    render(<InstructionView symptom={overrideSymptom()} surgeryId="s1" />)
+
+    await openEditAll()
+    fireEvent.click(screen.getByRole('radio', { name: /Hide variants at this practice/ }))
+    fireEvent.click(screen.getByText('Save Changes'))
+
+    await waitFor(() => {
+      expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(2)
+    })
+    const patches = calls.filter((c) => c.method === 'PATCH')
+    expect(patches[1].body.source).toBe('override')
+    expect(patches[1].body.surgeryId).toBe('s1')
+    expect(patches[1].body.variants).toEqual({ ageGroups: [] })
+  })
+
+  it('prefills customise mode from the surgery override variants', async () => {
+    installFetchMock()
+    const surgeryVariants = {
+      ageGroups: [{ key: 'adult', label: 'Local Adult', instructions: '<p>Local advice</p>' }],
+    }
+    render(<InstructionView symptom={overrideSymptom(surgeryVariants)} surgeryId="s1" />)
+
+    await openEditAll()
+
+    expect((screen.getByRole('radio', { name: /Customise for this practice/ }) as HTMLInputElement).checked).toBe(true)
+    expect(screen.getByDisplayValue('Local Adult')).toBeInTheDocument()
+  })
+
+  it('resets both panels on cancel', async () => {
     installFetchMock()
     render(<InstructionView symptom={overrideSymptom()} surgeryId="s1" />)
 
-    fireEvent.click(screen.getByText('Edit All Fields'))
-    await screen.findByText('Variants')
+    await openEditAll()
     fireEvent.change(screen.getByDisplayValue('Under 5'), { target: { value: 'Scribbled' } })
+    fireEvent.click(screen.getByRole('radio', { name: /Hide variants at this practice/ }))
     fireEvent.click(screen.getByText('Cancel'))
 
-    // Re-open: pristine prefill from the symptom, not the scribbled state.
-    fireEvent.click(screen.getByText('Edit All Fields'))
+    await openEditAll()
     expect(await screen.findByDisplayValue('Under 5')).toBeInTheDocument()
     expect(screen.queryByDisplayValue('Scribbled')).not.toBeInTheDocument()
+    expect((screen.getByRole('radio', { name: /Use shared variants/ }) as HTMLInputElement).checked).toBe(true)
   })
 })

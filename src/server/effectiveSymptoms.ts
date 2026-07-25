@@ -26,6 +26,10 @@ export interface EffectiveSymptom {
   // Effective variants JSON. Base variants unless the surgery's override sets
   // its own (null = inherit; {"ageGroups":[]} = hidden for this surgery).
   variants?: unknown | null
+  // Raw values behind the merge, present on override-source symptoms so the
+  // editor can tell inherited variants apart from surgery-customised ones.
+  baseVariants?: unknown | null
+  overrideVariants?: unknown | null
   // Plain-text search index derived from the displayed content. Computed
   // server-side so search works even when rich content is omitted from the
   // payload (the slim cached path used for the main page).
@@ -168,6 +172,8 @@ async function buildEffectiveSymptoms(
       instructionsJson: includeRichContent ? ((o as any).instructionsJson == null ? ((b as any).instructionsJson ?? null) : (o as any).instructionsJson) : null,
       instructionsHtml: (o as any).instructionsHtml == null ? ((b as any).instructionsHtml ?? null) : (o as any).instructionsHtml,
       variants: includeRichContent ? ((o as any).variants == null ? ((b as any).variants ?? null) : (o as any).variants) : null,
+      baseVariants: includeRichContent ? ((b as any).variants ?? null) : null,
+      overrideVariants: includeRichContent ? ((o as any).variants ?? null) : null,
       source: 'override' as const,
       baseSymptomId: b.id,
       isHidden: o.isHidden,
@@ -292,6 +298,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       instructionsHtml: override.instructionsHtml == null ? base.instructionsHtml : override.instructionsHtml,
       linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
       variants: (override as any).variants == null ? ((base as any).variants ?? null) : (override as any).variants,
+      baseVariants: (base as any).variants ?? null,
+      overrideVariants: (override as any).variants ?? null,
       source: 'override' as const,
       baseSymptomId: base.id,
       isHidden: override.isHidden,
@@ -407,6 +415,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       instructionsHtml: override.instructionsHtml == null ? base.instructionsHtml : override.instructionsHtml,
       linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
       variants: (override as any).variants == null ? ((base as any).variants ?? null) : (override as any).variants,
+      baseVariants: (base as any).variants ?? null,
+      overrideVariants: (override as any).variants ?? null,
       source: 'override' as const,
       isHidden: override.isHidden,
     }
@@ -470,6 +480,8 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
       instructionsHtml: override.instructionsHtml == null ? base.instructionsHtml : override.instructionsHtml,
       linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
       variants: (override as any).variants == null ? ((base as any).variants ?? null) : (override as any).variants,
+      baseVariants: (base as any).variants ?? null,
+      overrideVariants: (override as any).variants ?? null,
       source: 'override' as const,
       baseSymptomId: base.id,
       isHidden: override.isHidden,
