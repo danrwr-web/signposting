@@ -9,6 +9,8 @@ import { getSessionUser, requireSuperuser, requireSurgeryAdmin } from '@/lib/rba
 import { prisma } from '@/lib/prisma'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
+import { SymptomVariantsZ } from '@/lib/api-contracts'
+import { sanitizeVariants } from '@/lib/sanitizeHtml'
 
 export const runtime = 'nodejs'
 
@@ -42,7 +44,18 @@ export async function PATCH(
       }
       // Only update variants if explicitly provided; otherwise leave unchanged
       if (Object.prototype.hasOwnProperty.call(data, 'variants')) {
-        updateData.variants = variants ?? null
+        if (variants == null) {
+          updateData.variants = null
+        } else {
+          const parsed = SymptomVariantsZ.safeParse(variants)
+          if (!parsed.success) {
+            return NextResponse.json(
+              { error: 'Invalid variants shape', details: parsed.error.flatten() },
+              { status: 400 }
+            )
+          }
+          updateData.variants = sanitizeVariants(parsed.data)
+        }
       }
 
       const updatedSymptom = await prisma.baseSymptom.update({

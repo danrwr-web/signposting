@@ -114,16 +114,33 @@ export const GetEffectiveSymptomsResZ = z.object({
   symptoms: z.array(EffectiveSymptomZ),
 });
 
+// Age-group variants stored on BaseSymptom.variants (variants are global/base-level;
+// override and custom symptoms have no variants column and inherit the base's).
+export const SymptomVariantsZ = z.object({
+  heading: z.string().optional(),
+  position: z.enum(['before', 'after']).optional(),
+  ageGroups: z
+    .array(
+      z.object({
+        key: z.string().min(1),
+        label: z.string().min(1),
+        instructions: z.string(), // HTML
+      })
+    )
+    .min(1),
+});
+export type SymptomVariants = z.infer<typeof SymptomVariantsZ>;
+
 export const CreateSymptomReqZ = z.object({
   name: z.string().min(1),
   ageGroup: z.enum(['U5', 'O5', 'Adult']),
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
   instructions: z.string().optional(),
-  instructionsJson: z.any().optional(), // ProseMirror JSON
+  instructionsJson: z.any().optional(), // Legacy ProseMirror JSON (no longer written)
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
-  variants: z.any().optional(),
+  variants: SymptomVariantsZ.nullable().optional(),
 });
 
 export const UpdateSymptomReqZ = z.object({
@@ -132,10 +149,10 @@ export const UpdateSymptomReqZ = z.object({
   briefInstruction: z.string().optional(),
   highlightedText: z.string().optional(),
   instructions: z.string().optional(),
-  instructionsJson: z.any().optional(), // ProseMirror JSON
+  instructionsJson: z.any().optional(), // Legacy ProseMirror JSON (no longer written)
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
-  variants: z.any().optional(),
+  variants: SymptomVariantsZ.nullable().optional(),
 });
 
 // Surgery

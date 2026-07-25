@@ -9,6 +9,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
+import { sanitizeVariants } from '@/lib/sanitizeHtml'
 import { z } from 'zod'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
@@ -46,7 +47,8 @@ export async function GET(request: NextRequest) {
           instructions: true, 
           instructionsJson: true,
           instructionsHtml: true,
-          linkToPage: true
+          linkToPage: true,
+          variants: true
         },
         orderBy: { name: 'asc' }
       }).then(results => 
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
           instructionsHtml,
           highlightedText,
           linkToPage,
-          variants: variants || null,
+          variants: variants ? sanitizeVariants(variants) : null,
         } as any),
         select: {
           id: true,
