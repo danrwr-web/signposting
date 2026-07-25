@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { PATCH } from '../route'
 import { getSessionUser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { markSymptomPendingReview } from '@/server/clinicalReview'
 
 jest.mock('@/lib/rbac', () => ({
   getSessionUser: jest.fn(),
@@ -26,6 +27,10 @@ jest.mock('@/lib/prisma', () => ({
       update: jest.fn(),
     },
   },
+}))
+
+jest.mock('@/server/clinicalReview', () => ({
+  markSymptomPendingReview: jest.fn(),
 }))
 
 jest.mock('next/cache', () => ({
@@ -192,6 +197,83 @@ describe('PATCH /api/updateInstruction', () => {
     expect(json.error).toBe('surgeryId is required for override updates')
     expect(prisma.surgerySymptomOverride.upsert).not.toHaveBeenCalled()
     expect(prisma.baseSymptom.update).not.toHaveBeenCalled()
+  })
+
+  it('keys the review reset by the override ageGroup when it differs from base', async () => {
+    mockedGetSessionUser.mockResolvedValueOnce({
+      id: 'u1',
+      email: 'admin@example.com',
+      globalRole: 'USER',
+      memberships: [{ surgeryId: 'surgery-1', role: 'ADMIN' }],
+      name: 'Admin',
+    } as any)
+
+    ;(prisma.baseSymptom.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'base-1',
+      ageGroup: 'Adult',
+      briefInstruction: 'before',
+      instructionsHtml: '<p>before</p>',
+      instructionsJson: null,
+    })
+
+    ;(prisma.surgerySymptomOverride.findUnique as jest.Mock).mockResolvedValueOnce({
+      ageGroup: 'O5',
+      briefInstruction: null,
+      instructionsHtml: '<p>customised</p>',
+      instructionsJson: null,
+    })
+
+    ;(prisma.$transaction as jest.Mock).mockImplementationOnce(async (fn: any) => {
+      return fn(prisma)
+    })
+
+    const res = await PATCH(
+      createRequest({
+        symptomId: 'base-1',
+        source: 'override',
+        surgeryId: 'surgery-1',
+        newInstructionsHtml: '<p>after</p>',
+      })
+    )
+
+    expect(res.status).toBe(200)
+    expect(markSymptomPendingReview).toHaveBeenCalledWith('surgery-1', 'base-1', 'O5')
+  })
+
+  it('falls back to the base ageGroup for the review reset when no override exists yet', async () => {
+    mockedGetSessionUser.mockResolvedValueOnce({
+      id: 'u1',
+      email: 'admin@example.com',
+      globalRole: 'USER',
+      memberships: [{ surgeryId: 'surgery-1', role: 'ADMIN' }],
+      name: 'Admin',
+    } as any)
+
+    ;(prisma.baseSymptom.findUnique as jest.Mock).mockResolvedValueOnce({
+      id: 'base-1',
+      ageGroup: 'U5',
+      briefInstruction: 'before',
+      instructionsHtml: '<p>before</p>',
+      instructionsJson: null,
+    })
+
+    ;(prisma.surgerySymptomOverride.findUnique as jest.Mock).mockResolvedValueOnce(null)
+
+    ;(prisma.$transaction as jest.Mock).mockImplementationOnce(async (fn: any) => {
+      return fn(prisma)
+    })
+
+    const res = await PATCH(
+      createRequest({
+        symptomId: 'base-1',
+        source: 'override',
+        surgeryId: 'surgery-1',
+        newInstructionsHtml: '<p>after</p>',
+      })
+    )
+
+    expect(res.status).toBe(200)
+    expect(markSymptomPendingReview).toHaveBeenCalledWith('surgery-1', 'base-1', 'U5')
   })
 
   it('still lets a superuser update the base symptom globally with source base', async () => {

@@ -197,6 +197,18 @@ describe('GET /api/symptomPreview', () => {
     const json = await (await GET(makeReq('surgeryId=s1&baseSymptomId=base-1'))).json()
 
     expect(json.variants).toEqual(surgeryVariants)
+    // Base variants ride along so the drawers' "Base wording" toggle can show
+    // the shared advice instead of the practice's.
+    expect(json.baseVariants).toEqual(VARIANTS)
+  })
+
+  it('returns null baseVariants when the symptom is not overridden', async () => {
+    ;(prisma.baseSymptom.findFirst as jest.Mock).mockResolvedValue({ ...baseSymptomRow, variants: VARIANTS })
+
+    const json = await (await GET(makeReq('surgeryId=s1&baseSymptomId=base-1'))).json()
+
+    expect(json.status).toBe('BASE')
+    expect(json.baseVariants).toBeNull()
   })
 
   it('returns a custom symptom\'s own variants (null when it has none)', async () => {

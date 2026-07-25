@@ -776,6 +776,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
     baseInstructionsHtml: string | null
     statusRowId: string | null
     variants?: unknown | null
+    baseVariants?: unknown | null
   }>(null)
   const [viewMode, setViewMode] = useState<'local' | 'base'>('local')
   const drawerRef = useRef<HTMLDivElement | null>(null)
@@ -881,6 +882,8 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
   }
 
   const currentHtml = data?.status === 'MODIFIED' && viewMode === 'base' ? data?.baseInstructionsHtml : data?.instructionsHtml
+  // The base-wording toggle applies to variants too.
+  const currentVariants = data?.status === 'MODIFIED' && viewMode === 'base' ? (data?.baseVariants ?? null) : (data?.variants ?? null)
 
   if (!isOpen) return null
 
@@ -929,7 +932,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-gray-900">Full instruction</h3>
-                  {data.status === 'MODIFIED' && data.baseInstructionsHtml && (
+                  {data.status === 'MODIFIED' && (data.baseInstructionsHtml || data.baseVariants != null) && (
                     <div className="flex gap-2">
                       <button
                         onClick={() => setViewMode('local')}
@@ -954,7 +957,7 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
               </div>
 
               <div className="[&_a]:pointer-events-none [&_a]:opacity-60">
-                <VariantPreviewList variants={data.variants ?? null} />
+                <VariantPreviewList variants={currentVariants} />
               </div>
             </div>
           ) : (

@@ -3,6 +3,11 @@ import { PATCH } from '../route'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
+import { markSymptomPendingReview } from '@/server/clinicalReview'
+
+jest.mock('@/server/clinicalReview', () => ({
+  markSymptomPendingReview: jest.fn(),
+}))
 
 jest.mock('next/cache', () => ({
   revalidateTag: jest.fn(),
@@ -111,6 +116,8 @@ describe('PATCH /api/admin/symptoms/[id] variants handling', () => {
       expect(requireSurgeryAdmin).toHaveBeenCalledWith('s1')
       const update = (prisma.surgeryCustomSymptom.update as jest.Mock).mock.calls[0][0]
       expect(update.data.variants.ageGroups[0].instructions).toBe('<p>ok</p>')
+      // Practice content changes must re-enter clinical review.
+      expect(markSymptomPendingReview).toHaveBeenCalledWith('s1', 'base-1', undefined)
     })
 
     it('clears with DbNull and rejects invalid shapes', async () => {
@@ -151,6 +158,15 @@ describe('PATCH /api/admin/symptoms/[id] variants handling', () => {
       const upsert = (prisma.surgerySymptomOverride.upsert as jest.Mock).mock.calls[0][0]
       expect(upsert.update.variants).toEqual(VALID_VARIANTS)
       expect(upsert.create.variants).toEqual(VALID_VARIANTS)
+      // Practice content changes must re-enter clinical review.
+      expect(markSymptomPendingReview).toHaveBeenCalledWith('s1', 'base-1', null)
+    })
+
+    it('does not touch review status on base (superuser/global) edits', async () => {
+      const res = await call({ source: 'base', variants: VALID_VARIANTS })
+
+      expect(res.status).toBe(200)
+      expect(markSymptomPendingReview).not.toHaveBeenCalled()
     })
 
     it('accepts empty ageGroups as "hide variants for this surgery"', async () => {

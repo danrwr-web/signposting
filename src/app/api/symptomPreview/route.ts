@@ -18,6 +18,10 @@ interface SymptomPreviewResponse {
   // Effective age-group variants: the surgery's override value when set, else
   // the base symptom's; custom symptoms carry their own.
   variants: unknown | null
+  // The base symptom's shared variants, set only when the symptom is
+  // overridden — lets the drawers' "Base wording" toggle apply to variants
+  // too, mirroring baseInstructionsHtml.
+  baseVariants: unknown | null
 }
 
 type EditStamp = { at: Date | null; by: string | null }
@@ -136,6 +140,7 @@ export async function GET(request: NextRequest) {
         variants: (override as any)?.variants == null
           ? ((baseSymptom as any).variants ?? null)
           : (override as any).variants,
+        baseVariants: hasOverride ? ((baseSymptom as any).variants ?? null) : null,
       }
     } else if (customSymptomId) {
       const surgeryExists = await prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true } })
@@ -174,6 +179,7 @@ export async function GET(request: NextRequest) {
         statusRowId: statusRow?.id ?? null,
         highlightedText: customSymptom.highlightedText ?? null,
         variants: (customSymptom as any).variants ?? null,
+        baseVariants: null,
       }
     } else {
       return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
