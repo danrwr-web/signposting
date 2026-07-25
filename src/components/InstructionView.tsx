@@ -53,11 +53,16 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   const [isDeletingSymptom, setIsDeletingSymptom] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [selectedVariantKey, setSelectedVariantKey] = useState<string | null>(null)
-  // Superuser variant editor state (for base symptoms)
+  // Superuser variant editor state. Variants live on the BaseSymptom row only,
+  // so this state always describes the base symptom's variants, even when the
+  // page is showing a surgery's override.
   const [enableVariantsEdit, setEnableVariantsEdit] = useState<boolean>(false)
   const [editVariantHeading, setEditVariantHeading] = useState<string>('')
   const [editVariantPosition, setEditVariantPosition] = useState<'before' | 'after'>('before')
   const [editVariantGroups, setEditVariantGroups] = useState<Array<{ key: string; label: string; instructions: string }>>([])
+  // Snapshot of the variants as prefilled, for change detection on save.
+  // null = variant editing never initialized this session (never save variants then).
+  const [originalVariantsJson, setOriginalVariantsJson] = useState<string | null>(null)
   // Image icon state
   const [enableImageIcons, setEnableImageIcons] = useState<boolean>(true)
   const [imageIcon, setImageIcon] = useState<{ imageUrl: string; instructionSize: string } | null>(null)
@@ -111,6 +116,17 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   // will land in a SurgerySymptomOverride row (the read path then falls back
   // to BaseSymptom on null). Editing base or custom directly has no default.
   const isOverrideContext = symptom.source === 'override' || (isPracticeAdmin && symptom.source === 'base')
+
+  // Variants are stored on the BaseSymptom row only; overrides inherit them
+  // (and the effective symptom id for an override IS the base id). Custom
+  // symptoms have no base backing, so they can never carry variants.
+  const baseBackedSymptomId =
+    symptom.source === 'base'
+      ? symptom.id
+      : symptom.source === 'override'
+        ? ((symptom as any).baseSymptomId ?? symptom.id)
+        : null
+  const canEditVariants = !!isSuperuser && !!baseBackedSymptomId
 
   // Parse variant data and determine active variant
   const variants = symptom.variants as any
@@ -683,6 +699,79 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     }
   }
 
+  /** Prefill variant editor state from the (base-backed) symptom's variants. */
+  const prefillVariantState = () => {
+    if (!canEditVariants) return
+    const v: any = (symptom as any).variants
+    if (v && Array.isArray(v.ageGroups) && v.ageGroups.length > 0) {
+      const heading = v.heading || ''
+      const position: 'before' | 'after' = v.position === 'after' ? 'after' : 'before'
+      const groups = v.ageGroups.map((g: any) => ({
+        key: g.key || '',
+        label: g.label || '',
+        instructions: g.instructions || '',
+      }))
+      setEnableVariantsEdit(true)
+      setEditVariantHeading(heading)
+      setEditVariantPosition(position)
+      setEditVariantGroups(groups)
+      setOriginalVariantsJson(JSON.stringify({ heading: heading || undefined, position, ageGroups: groups }))
+    } else {
+      setEnableVariantsEdit(false)
+      setEditVariantHeading('')
+      setEditVariantPosition('before')
+      setEditVariantGroups([])
+      setOriginalVariantsJson('null')
+    }
+  }
+
+  const resetVariantEditState = () => {
+    setEnableVariantsEdit(false)
+    setEditVariantHeading('')
+    setEditVariantPosition('before')
+    setEditVariantGroups([])
+    setOriginalVariantsJson(null)
+  }
+
+  /** Current editor state as an API payload: object | null (clear) | undefined (leave). */
+  const buildVariantsPayload = (): any => {
+    if (enableVariantsEdit && editVariantGroups.length > 0) {
+      return {
+        heading: (editVariantHeading || undefined),
+        position: editVariantPosition,
+        ageGroups: editVariantGroups,
+      }
+    }
+    if (!enableVariantsEdit) return null
+    return undefined
+  }
+
+  /**
+   * Variants always save to the BASE symptom via a dedicated PATCH, decoupled
+   * from the instruction save (which may target an override that ignores
+   * variants entirely). Skips the request when nothing changed.
+   */
+  const saveVariantsIfChanged = async () => {
+    if (!canEditVariants || !baseBackedSymptomId) return
+    // No snapshot means the variant editor was never initialized — never write.
+    if (originalVariantsJson === null) return
+    const payload = buildVariantsPayload()
+    if (payload === undefined) return
+    if (JSON.stringify(payload ?? null) === originalVariantsJson) return
+
+    const response = await fetch(`/api/admin/symptoms/${baseBackedSymptomId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'base', variants: payload }),
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.error || 'Failed to save variants')
+    }
+    // Reflect locally so the chips update before the refresh lands.
+    ;(symptom as any).variants = payload
+  }
+
   const handleEditInstructions = () => {
     // For practice admins editing base symptoms, start with base content
     // For superusers or when editing overrides/custom, use current content
@@ -693,6 +782,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setEditedInstructions(contentToEdit)
     setOriginalInstructions(contentToEdit)
     setInstructionsReset(false)
+    prefillVariantState()
     setIsEditingInstructions(true)
     setSaveError(null)
   }
@@ -701,6 +791,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setIsEditingInstructions(false)
     setEditedInstructions('')
     setInstructionsReset(false)
+    resetVariantEditState()
     setSaveError(null)
   }
 
@@ -719,21 +810,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setBriefInstructionReset(false)
     setHighlightedTextReset(false)
     setInstructionsReset(false)
-    // Prefill variants when superuser editing base
-    if (isSuperuser && symptom.source === 'base') {
-      const v: any = (symptom as any).variants
-      if (v && Array.isArray(v.ageGroups)) {
-        setEnableVariantsEdit(true)
-        setEditVariantHeading(v.heading || '')
-        setEditVariantPosition((v.position === 'after' ? 'after' : 'before'))
-        setEditVariantGroups(v.ageGroups.map((g: any) => ({ key: g.key || '', label: g.label || '', instructions: g.instructions || '' })))
-      } else {
-        setEnableVariantsEdit(false)
-        setEditVariantHeading('')
-        setEditVariantPosition('before')
-        setEditVariantGroups([])
-      }
-    }
+    prefillVariantState()
     setIsEditingAll(true)
     setSaveError(null)
   }
@@ -748,6 +825,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setBriefInstructionReset(false)
     setHighlightedTextReset(false)
     setInstructionsReset(false)
+    resetVariantEditState()
     setSaveError(null)
   }
 
@@ -770,20 +848,6 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         apiSurgeryId = surgeryId
       }
       
-      // Build variants payload
-      let variantsPayload: any = undefined
-      if (isSuperuser && symptom.source === 'base') {
-        if (enableVariantsEdit && editVariantGroups.length > 0) {
-          variantsPayload = {
-            heading: (editVariantHeading || undefined),
-            position: editVariantPosition,
-            ageGroups: editVariantGroups
-          }
-        } else if (!enableVariantsEdit) {
-          variantsPayload = null
-        }
-      }
-
       // Tri-state: null = reset to base default, omit = unchanged, string = override.
       const instructionsPayload: string | null | undefined = instructionsReset
         ? null
@@ -811,6 +875,10 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         throw new Error(errorData.error || 'Failed to save instructions')
       }
 
+      // Variants save separately, always to the base symptom (the main save
+      // above may have targeted an override, which ignores variants).
+      await saveVariantsIfChanged()
+
       // Update the symptom object locally
       if (!instructionsReset) {
         symptom.instructionsHtml = sanitizedHtml
@@ -820,7 +888,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       setIsEditingInstructions(false)
       setEditedInstructions('')
       setInstructionsReset(false)
-      
+      resetVariantEditState()
+
       // Refresh the page to show updated content
       router.refresh()
     } catch (error: any) {
@@ -850,20 +919,6 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         apiSurgeryId = surgeryId
       }
       
-      // Build variants payload only for superuser editing base
-      let variantsPayload: any = undefined
-      if (isSuperuser && symptom.source === 'base') {
-        if (enableVariantsEdit && editVariantGroups.length > 0) {
-          variantsPayload = {
-            heading: (editVariantHeading || undefined),
-            position: editVariantPosition,
-            ageGroups: editVariantGroups
-          }
-        } else if (!enableVariantsEdit) {
-          variantsPayload = null
-        }
-      }
-
       // Practice admins customising a base symptom or editing their override can rename
       // it for their practice. An empty value clears the override and falls back to the
       // base name (the merge logic in effectiveSymptoms.ts treats empty as inherit).
@@ -900,9 +955,6 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         payload.instructions = instructionsPayload // Legacy field
         payload.instructionsHtml = instructionsPayload
       }
-      if (typeof variantsPayload !== 'undefined') {
-        payload.variants = variantsPayload
-      }
 
       const response = await fetch(`/api/admin/symptoms/${symptom.id}`, {
         method: 'PATCH',
@@ -916,6 +968,10 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         const errorData = await response.json()
         throw new Error(errorData.error || 'Failed to save changes')
       }
+
+      // Variants save separately, always to the base symptom (the main save
+      // above may have targeted an override, which ignores variants).
+      await saveVariantsIfChanged()
 
       // Update the symptom object locally
       if (canCustomiseName && trimmedName !== '') {
@@ -934,7 +990,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       setEditedHighlightedText('')
       setEditedLinkToPage('')
       setEditedInstructions('')
-      
+      resetVariantEditState()
+
       // Refresh the page to show updated content
       router.refresh()
     } catch (error: any) {
@@ -1378,7 +1435,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                 )}
               </div>
 
-              {isSuperuser && symptom.source === 'base' && (
+              {canEditVariants && (
                 <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-semibold text-nhs-dark-blue">Variants</h3>
@@ -1387,6 +1444,11 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                       Enable variants
                     </label>
                   </div>
+                  {symptom.source === 'override' && (
+                    <p className="mb-3 text-xs text-gray-500">
+                      Variants are shared from the base symptom and apply to all surgeries.
+                    </p>
+                  )}
                   {enableVariantsEdit && (
                     <div className="space-y-3">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1442,7 +1504,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                           </div>
                           <label className="block text-sm font-medium text-nhs-dark-blue mb-1">Instructions</label>
                           <RichTextEditor
-                            docId={`symptom:${symptom.id}:variant:${vg.key || String(idx)}`}
+                            docId={`symptom:${baseBackedSymptomId}:variant:${vg.key || String(idx)}`}
                             value={vg.instructions}
                             onChange={(html) => {
                               const sanitizedHtml = sanitizeHtml(html)
