@@ -9,6 +9,7 @@
  */
 import { generateHTML, generateJSON } from '@tiptap/html'
 import { createRichTextExtensions } from '@/components/rich-text/extensions'
+import { sanitizeHtml } from '@/lib/sanitizeHtml'
 
 const extensions = createRichTextExtensions()
 
@@ -20,82 +21,99 @@ const roundTrip = (html: string) =>
   stripJsdomArtifacts(generateHTML(generateJSON(html, extensions), extensions))
 
 describe('HTML round trip through the editor schema', () => {
-  it('preserves a paragraph in the stored form', () => {
+  it('preserves plain paragraphs', () => {
+    expect(roundTrip('<p>Advise the patient to rest.</p>')).toBe('<p>Advise the patient to rest.</p>')
+  })
+
+  it('drops the legacy prose-p class (delta)', () => {
+    // Older documents carry <p class="prose-p"> from the previous editor
+    // config; nothing styles that class, and it disappears when a document is
+    // edited and re-saved.
     expect(roundTrip('<p class="prose-p">Advise the patient to rest.</p>')).toBe(
-      '<p class="prose-p">Advise the patient to rest.</p>'
+      '<p>Advise the patient to rest.</p>'
     )
   })
 
-  it('preserves bold, italic, underline, strike and hard breaks', () => {
-    expect(roundTrip('<p class="prose-p"><strong>Bold</strong> and <em>italic</em>.</p>')).toBe(
-      '<p class="prose-p"><strong>Bold</strong> and <em>italic</em>.</p>'
+  it('preserves bold, italic, underline and hard breaks', () => {
+    expect(roundTrip('<p><strong>Bold</strong> and <em>italic</em>.</p>')).toBe(
+      '<p><strong>Bold</strong> and <em>italic</em>.</p>'
     )
-    expect(roundTrip('<p class="prose-p"><u>underlined</u></p>')).toBe(
-      '<p class="prose-p"><u>underlined</u></p>'
-    )
-    expect(roundTrip('<p class="prose-p"><s>struck</s></p>')).toBe(
-      '<p class="prose-p"><s>struck</s></p>'
-    )
-    expect(roundTrip('<p class="prose-p">line one<br />line two</p>')).toBe(
-      '<p class="prose-p">line one<br />line two</p>'
-    )
-  })
-
-  it('adds the prose-p class to plain paragraphs (delta)', () => {
-    expect(roundTrip('<p>No class here.</p>')).toBe('<p class="prose-p">No class here.</p>')
+    expect(roundTrip('<p><u>underlined</u></p>')).toBe('<p><u>underlined</u></p>')
+    expect(roundTrip('<p>line one<br />line two</p>')).toBe('<p>line one<br />line two</p>')
   })
 
   it('re-serializes hex text colours as rgb() (delta)', () => {
     // The sanitizer stores hex; ProseMirror serializes computed rgb. Any edit
     // therefore rewrites colour values even if the user did not touch them.
-    expect(
-      roundTrip('<p class="prose-p">If <span style="color: #DA020E;">chest pain</span> call 999.</p>')
-    ).toBe(
-      '<p class="prose-p">If <span style="color: rgb(218, 2, 14);">chest pain</span> call 999.</p>'
+    expect(roundTrip('<p>If <span style="color: #DA020E;">chest pain</span> call 999.</p>')).toBe(
+      '<p>If <span style="color: rgb(218, 2, 14);">chest pain</span> call 999.</p>'
     )
   })
 
-  it('wraps list item content in paragraphs (delta)', () => {
+  it('wraps list item content in paragraphs (delta) and preserves nesting', () => {
     expect(roundTrip('<ul><li>One</li><li>Two</li></ul>')).toBe(
-      '<ul><li><p class="prose-p">One</p></li><li><p class="prose-p">Two</p></li></ul>'
+      '<ul><li><p>One</p></li><li><p>Two</p></li></ul>'
     )
     expect(roundTrip('<ol><li>First</li><li>Second</li></ol>')).toBe(
-      '<ol><li><p class="prose-p">First</p></li><li><p class="prose-p">Second</p></li></ol>'
+      '<ol><li><p>First</p></li><li><p>Second</p></li></ol>'
     )
-  })
-
-  it('preserves nested lists (with paragraph wrapping)', () => {
     expect(roundTrip('<ul><li>One<ul><li>Sub</li></ul></li></ul>')).toBe(
-      '<ul><li><p class="prose-p">One</p><ul><li><p class="prose-p">Sub</p></li></ul></li></ul>'
+      '<ul><li><p>One</p><ul><li><p>Sub</p></li></ul></li></ul>'
     )
   })
 
-  it('preserves headings and blockquotes', () => {
-    expect(roundTrip('<h2>Heading</h2><p class="prose-p">Body</p>')).toBe(
-      '<h2>Heading</h2><p class="prose-p">Body</p>'
-    )
-    expect(roundTrip('<h1>Big heading</h1>')).toBe('<h1>Big heading</h1>')
-    expect(roundTrip('<blockquote><p class="prose-p">quoted</p></blockquote>')).toBe(
-      '<blockquote><p class="prose-p">quoted</p></blockquote>'
-    )
-  })
-
-  it('decorates links with target/rel attributes (delta)', () => {
-    expect(roundTrip('<p class="prose-p"><a href="https://nhs.uk">NHS</a></p>')).toBe(
-      '<p class="prose-p"><a target="_blank" rel="noopener noreferrer nofollow" href="https://nhs.uk">NHS</a></p>'
+  it('preserves h2/h3 and blockquotes; other heading levels become paragraphs (delta)', () => {
+    expect(roundTrip('<h2>Heading</h2><p>Body</p>')).toBe('<h2>Heading</h2><p>Body</p>')
+    expect(roundTrip('<h3>Sub</h3>')).toBe('<h3>Sub</h3>')
+    expect(roundTrip('<h1>Big heading</h1>')).toBe('<p>Big heading</p>')
+    expect(roundTrip('<h4>H4</h4>')).toBe('<p>H4</p>')
+    expect(roundTrip('<blockquote><p>quoted</p></blockquote>')).toBe(
+      '<blockquote><p>quoted</p></blockquote>'
     )
   })
 
-  it('drops <mark> highlights — no Highlight extension in the schema (delta)', () => {
-    expect(roundTrip('<p class="prose-p"><mark style="background-color: #FFEB3B;">note</mark></p>')).toBe(
-      '<p class="prose-p">note</p>'
+  it('preserves highlight marks (with data-color + computed rgb)', () => {
+    expect(roundTrip('<p><mark style="background-color: #FEF3C7;">note</mark></p>')).toBe(
+      '<p><mark data-color="rgb(254, 243, 199)" style="background-color: rgb(254, 243, 199); color: inherit;">note</mark></p>'
     )
+  })
+
+  it('re-parses highlight marks after sanitization strips data-color', () => {
+    // Save path: editor output → sanitizeHtml → stored. Reload must keep the
+    // highlight even though the sanitizer removes the data-color attribute.
+    const editorOutput =
+      '<p><mark data-color="#FEF3C7" style="background-color: rgb(254, 243, 199); color: inherit;">note</mark></p>'
+    const stored = sanitizeHtml(editorOutput)
+    expect(stored).toBe('<p><mark style="background-color: rgb(254, 243, 199); color: inherit;">note</mark></p>')
+    expect(roundTrip(stored)).toBe(
+      '<p><mark data-color="rgb(254, 243, 199)" style="background-color: rgb(254, 243, 199); color: inherit;">note</mark></p>'
+    )
+  })
+
+  it('decorates links with target/rel attributes and keeps mailto (delta)', () => {
+    expect(roundTrip('<p><a href="https://nhs.uk">NHS</a></p>')).toBe(
+      '<p><a target="_blank" rel="noopener noreferrer nofollow" href="https://nhs.uk">NHS</a></p>'
+    )
+    expect(roundTrip('<p><a href="mailto:x@y.com">mail</a></p>')).toBe(
+      '<p><a target="_blank" rel="noopener noreferrer nofollow" href="mailto:x@y.com">mail</a></p>'
+    )
+  })
+
+  it('rejects javascript: links (delta)', () => {
+    expect(roundTrip('<p><a href="javascript:alert(1)">bad</a></p>')).toBe('<p>bad</p>')
+  })
+
+  it('drops disabled nodes/marks: strike and horizontal rule (delta)', () => {
+    // <s> and <hr> are not in the sanitizer allowlist, so the schema disables
+    // them; content survives, the formatting goes.
+    expect(roundTrip('<p><s>struck</s></p>')).toBe('<p>struck</p>')
+    expect(roundTrip('<hr />')).toBe('<p></p>')
   })
 
   it('converts font-weight spans to <strong> and divs to paragraphs (delta)', () => {
-    expect(roundTrip('<p class="prose-p"><span style="font-weight: bold;">heavy</span></p>')).toBe(
-      '<p class="prose-p"><span><strong>heavy</strong></span></p>'
+    expect(roundTrip('<p><span style="font-weight: bold;">heavy</span></p>')).toBe(
+      '<p><span><strong>heavy</strong></span></p>'
     )
-    expect(roundTrip('<div>div content</div>')).toBe('<p class="prose-p">div content</p>')
+    expect(roundTrip('<div>div content</div>')).toBe('<p>div content</p>')
   })
 })

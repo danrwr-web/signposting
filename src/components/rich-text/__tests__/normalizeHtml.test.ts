@@ -1,34 +1,58 @@
-/**
- * Characterization of the current content normalizer used when hydrating the
- * editor from stored `instructionsHtml` / legacy plain-text `instructions`.
- */
-import { ensureProperParagraphs } from '@/components/editor/SafeTipTapEditor'
+import { normalizeHtml, cleanPastedHtml } from '@/components/rich-text/normalizeHtml'
 
-describe('ensureProperParagraphs (current behaviour)', () => {
+describe('normalizeHtml', () => {
   it('returns empty string for empty/invalid input', () => {
-    expect(ensureProperParagraphs('')).toBe('')
+    expect(normalizeHtml('')).toBe('')
   })
 
-  it('returns content containing <p> tags unchanged', () => {
-    expect(ensureProperParagraphs('<p>Hello</p>')).toBe('<p>Hello</p>')
-    expect(ensureProperParagraphs('<h2>Title</h2><p>Body</p>')).toBe('<h2>Title</h2><p>Body</p>')
+  it('returns HTML containing block-level tags unchanged', () => {
+    expect(normalizeHtml('<p>Hello</p>')).toBe('<p>Hello</p>')
+    expect(normalizeHtml('<h2>Title</h2><p>Body</p>')).toBe('<h2>Title</h2><p>Body</p>')
+    // The old ensureProperParagraphs wrapped these in a stray <p>.
+    expect(normalizeHtml('<ul><li>One</li><li>Two</li></ul>')).toBe('<ul><li>One</li><li>Two</li></ul>')
+    expect(normalizeHtml('<h2>Heading only</h2>')).toBe('<h2>Heading only</h2>')
+    expect(normalizeHtml('<blockquote><p>q</p></blockquote>')).toBe('<blockquote><p>q</p></blockquote>')
   })
 
   it('splits multi-line plain text into paragraphs', () => {
-    expect(ensureProperParagraphs('line one\nline two')).toBe('<p>line one</p><p>line two</p>')
-    expect(ensureProperParagraphs('one\n\n\ntwo')).toBe('<p>one</p><p>two</p>')
+    expect(normalizeHtml('line one\nline two')).toBe('<p>line one</p><p>line two</p>')
+    expect(normalizeHtml('one\n\n\ntwo')).toBe('<p>one</p><p>two</p>')
+    expect(normalizeHtml('\n \n')).toBe('<p></p>')
   })
 
   it('wraps single-line plain text in a paragraph', () => {
-    expect(ensureProperParagraphs('just text')).toBe('<p>just text</p>')
+    expect(normalizeHtml('just text')).toBe('<p>just text</p>')
   })
 
-  it('BUG: wraps block-level HTML lacking <p> in a stray paragraph', () => {
-    // Content that starts with a list or heading but contains no <p> gets
-    // wrapped in an invalid <p>...</p>. Fixed by normalizeHtml in the rebuild.
-    expect(ensureProperParagraphs('<ul><li>One</li><li>Two</li></ul>')).toBe(
-      '<p><ul><li>One</li><li>Two</li></ul></p>'
+  it('wraps inline-only HTML in a paragraph', () => {
+    expect(normalizeHtml('<strong>bold</strong> text')).toBe('<p><strong>bold</strong> text</p>')
+  })
+})
+
+describe('cleanPastedHtml', () => {
+  it('strips Word artifacts: comments, styles, o: tags, Mso classes, mso styles', () => {
+    const word =
+      '<!--[if gte mso 9]><xml><w:WordDocument></w:WordDocument></xml><![endif]-->' +
+      '<style>p.MsoNormal { margin: 0; }</style>' +
+      '<p class="MsoNormal" style="mso-margin-top-alt:auto; color: #005EB8;">Hello<o:p></o:p></p>'
+    expect(cleanPastedHtml(word)).toBe('<p style=" color: #005EB8;">Hello</p>')
+  })
+
+  it('unwraps the Google Docs bold wrapper without bolding everything', () => {
+    const gdocs =
+      '<b style="font-weight:normal" id="docs-internal-guid-123"><p>Some text</p></b>'
+    const cleaned = cleanPastedHtml(gdocs)
+    expect(cleaned).toContain('<span style="font-weight:normal" id="docs-internal-guid-123">')
+    expect(cleaned).not.toContain('<strong style="font-weight:normal"')
+  })
+
+  it('converts presentational b/i tags to strong/em', () => {
+    expect(cleanPastedHtml('<p><b>bold</b> and <i>italic</i></p>')).toBe(
+      '<p><strong>bold</strong> and <em>italic</em></p>'
     )
-    expect(ensureProperParagraphs('<h2>Heading only</h2>')).toBe('<p><h2>Heading only</h2></p>')
+  })
+
+  it('leaves br and img-free content untouched otherwise', () => {
+    expect(cleanPastedHtml('<p>line<br>two</p>')).toBe('<p>line<br>two</p>')
   })
 })

@@ -33,13 +33,28 @@ describe('RichTextEditor', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('shows the toolbar when editable', async () => {
+  it('shows the full toolbar when editable', async () => {
     render(<RichTextEditor docId="doc-2" value="<p>x</p>" onChange={jest.fn()} />)
 
     await waitFor(() => {
       expect(screen.getByTitle('Bold')).toBeInTheDocument()
     })
-    expect(screen.getByTitle('Bullet list')).toBeInTheDocument()
+    for (const label of [
+      'Paragraph',
+      'Heading',
+      'Subheading',
+      'Italic',
+      'Underline',
+      'Text colour',
+      'Highlight',
+      'Bullet list',
+      'Numbered list',
+      'Link',
+      'Undo',
+      'Redo',
+    ]) {
+      expect(screen.getByTitle(label)).toBeInTheDocument()
+    }
   })
 
   it('hides the toolbar when readOnly', async () => {
@@ -49,5 +64,22 @@ describe('RichTextEditor', () => {
       expect(screen.getByText('read only')).toBeInTheDocument()
     })
     expect(screen.queryByTitle('Bold')).not.toBeInTheDocument()
+  })
+
+  it('rehydrates on docId change without firing onChange', async () => {
+    const onChange = jest.fn()
+    const { rerender } = render(
+      <RichTextEditor docId="item-a" value="<p>first document</p>" onChange={onChange} />
+    )
+    await waitFor(() => {
+      expect(screen.getByText('first document')).toBeInTheDocument()
+    })
+
+    rerender(<RichTextEditor docId="item-b" value="<p>second document</p>" onChange={onChange} />)
+    await waitFor(() => {
+      expect(screen.getByText('second document')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('first document')).not.toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
   })
 })
