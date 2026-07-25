@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { PATCH } from '../route'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { requireSuperuser, requireSurgeryAdmin } from '@/lib/rbac'
 
 jest.mock('next/cache', () => ({
@@ -68,12 +69,12 @@ describe('PATCH /api/admin/symptoms/[id] variants handling', () => {
     expect(update.data.variants.ageGroups[0].instructions).toBe('<p>ok</p>')
   })
 
-  it('clears variants when null is sent explicitly', async () => {
+  it('clears variants with DbNull when null is sent explicitly', async () => {
     const res = await call({ source: 'base', variants: null })
 
     expect(res.status).toBe(200)
     const update = (prisma.baseSymptom.update as jest.Mock).mock.calls[0][0]
-    expect(update.data.variants).toBeNull()
+    expect(update.data.variants).toBe(Prisma.DbNull)
   })
 
   it('leaves variants untouched when the key is absent', async () => {
@@ -91,22 +92,49 @@ describe('PATCH /api/admin/symptoms/[id] variants handling', () => {
     expect(prisma.baseSymptom.update).not.toHaveBeenCalled()
   })
 
-  it('ignores variants on the override branch', async () => {
-    ;(prisma.baseSymptom.findUnique as jest.Mock).mockResolvedValue({ id: 'base-1' })
-    ;(prisma.surgerySymptomOverride.upsert as jest.Mock).mockResolvedValue({ id: 'ov-1' })
-    ;(prisma.surgerySymptomStatus.upsert as jest.Mock).mockResolvedValue({})
-
-    const res = await call({
-      source: 'override',
-      surgeryId: 's1',
-      name: 'Local name',
-      variants: VALID_VARIANTS,
+  describe('override branch (per-surgery variants)', () => {
+    beforeEach(() => {
+      ;(prisma.baseSymptom.findUnique as jest.Mock).mockResolvedValue({ id: 'base-1' })
+      ;(prisma.surgerySymptomOverride.upsert as jest.Mock).mockResolvedValue({ id: 'ov-1' })
+      ;(prisma.surgerySymptomStatus.upsert as jest.Mock).mockResolvedValue({})
     })
 
-    expect(res.status).toBe(200)
-    expect(requireSurgeryAdmin).toHaveBeenCalledWith('s1')
-    expect(prisma.baseSymptom.update).not.toHaveBeenCalled()
-    const upsert = (prisma.surgerySymptomOverride.upsert as jest.Mock).mock.calls[0][0]
-    expect(JSON.stringify(upsert)).not.toContain('ageGroups')
+    const overrideCall = (variantsField: Record<string, unknown>) =>
+      call({ source: 'override', surgeryId: 's1', name: 'Local name', ...variantsField })
+
+    it('writes surgery-level variants when provided', async () => {
+      const res = await overrideCall({ variants: VALID_VARIANTS })
+
+      expect(res.status).toBe(200)
+      expect(requireSurgeryAdmin).toHaveBeenCalledWith('s1')
+      expect(prisma.baseSymptom.update).not.toHaveBeenCalled()
+      const upsert = (prisma.surgerySymptomOverride.upsert as jest.Mock).mock.calls[0][0]
+      expect(upsert.update.variants).toEqual(VALID_VARIANTS)
+      expect(upsert.create.variants).toEqual(VALID_VARIANTS)
+    })
+
+    it('accepts empty ageGroups as "hide variants for this surgery"', async () => {
+      const res = await overrideCall({ variants: { ageGroups: [] } })
+
+      expect(res.status).toBe(200)
+      const upsert = (prisma.surgerySymptomOverride.upsert as jest.Mock).mock.calls[0][0]
+      expect(upsert.update.variants).toEqual({ ageGroups: [] })
+    })
+
+    it('clears the surgery-level variants with DbNull when null is sent (inherit base)', async () => {
+      const res = await overrideCall({ variants: null })
+
+      expect(res.status).toBe(200)
+      const upsert = (prisma.surgerySymptomOverride.upsert as jest.Mock).mock.calls[0][0]
+      expect(upsert.update.variants).toBe(Prisma.DbNull)
+    })
+
+    it('leaves variants untouched when the key is absent', async () => {
+      const res = await overrideCall({})
+
+      expect(res.status).toBe(200)
+      const upsert = (prisma.surgerySymptomOverride.upsert as jest.Mock).mock.calls[0][0]
+      expect('variants' in upsert.update).toBe(false)
+    })
   })
 })

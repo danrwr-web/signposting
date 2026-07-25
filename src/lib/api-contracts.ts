@@ -114,22 +114,30 @@ export const GetEffectiveSymptomsResZ = z.object({
   symptoms: z.array(EffectiveSymptomZ),
 });
 
-// Age-group variants stored on BaseSymptom.variants (variants are global/base-level;
-// override and custom symptoms have no variants column and inherit the base's).
+// Age-group variants. Base symptoms carry the shared variants; a surgery's
+// override may carry its own to replace them (or hide them — see below).
+const VariantAgeGroupZ = z.object({
+  key: z.string().min(1),
+  label: z.string().min(1),
+  instructions: z.string(), // HTML
+});
+
 export const SymptomVariantsZ = z.object({
   heading: z.string().optional(),
   position: z.enum(['before', 'after']).optional(),
-  ageGroups: z
-    .array(
-      z.object({
-        key: z.string().min(1),
-        label: z.string().min(1),
-        instructions: z.string(), // HTML
-      })
-    )
-    .min(1),
+  ageGroups: z.array(VariantAgeGroupZ).min(1),
 });
 export type SymptomVariants = z.infer<typeof SymptomVariantsZ>;
+
+// Value stored on SurgerySymptomOverride.variants: same shape, but an empty
+// ageGroups array is allowed and means "hide variants for this surgery"
+// (null/absent means inherit the base symptom's variants).
+export const SurgeryVariantsOverrideZ = z.object({
+  heading: z.string().optional(),
+  position: z.enum(['before', 'after']).optional(),
+  ageGroups: z.array(VariantAgeGroupZ),
+});
+export type SurgeryVariantsOverride = z.infer<typeof SurgeryVariantsOverrideZ>;
 
 export const CreateSymptomReqZ = z.object({
   name: z.string().min(1),

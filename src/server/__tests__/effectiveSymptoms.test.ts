@@ -92,6 +92,55 @@ describe('effectiveSymptoms tri-state briefInstruction merge', () => {
     })
   })
 
+  describe('variants tri-state merge (per-surgery overrides)', () => {
+    const BASE_VARIANTS = {
+      heading: 'By age',
+      ageGroups: [{ key: 'u5', label: 'Under 5', instructions: '<p>Base U5</p>' }],
+    }
+    const SURGERY_VARIANTS = {
+      ageGroups: [{ key: 'u5', label: 'Under 5', instructions: '<p>Local U5</p>' }],
+    }
+
+    const setup = (overrideVariants: unknown) => {
+      ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        [{ ...baseGout, variants: BASE_VARIANTS }],
+        [{ ...overrideRow(null), variants: overrideVariants }],
+        [],
+        [],
+      ])
+    }
+
+    it('null override variants inherit the base variants', async () => {
+      setup(null)
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].variants).toEqual(BASE_VARIANTS)
+    })
+
+    it('surgery variants replace the base variants', async () => {
+      setup(SURGERY_VARIANTS)
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].variants).toEqual(SURGERY_VARIANTS)
+    })
+
+    it('empty ageGroups hides variants for the surgery (kept verbatim for the UI to treat as none)', async () => {
+      setup({ ageGroups: [] })
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].variants).toEqual({ ageGroups: [] })
+    })
+
+    it('getEffectiveSymptomById applies the same merge', async () => {
+      ;(prisma.surgeryCustomSymptom.findFirst as jest.Mock).mockResolvedValueOnce(null)
+      ;(prisma.baseSymptom.findUnique as jest.Mock).mockResolvedValueOnce({ ...baseGout, variants: BASE_VARIANTS })
+      ;(prisma.surgerySymptomOverride.findUnique as jest.Mock).mockResolvedValueOnce({
+        ...overrideRow(null),
+        variants: SURGERY_VARIANTS,
+      })
+
+      const result = await getEffectiveSymptomById('base-gout', 'surgery-imperial')
+      expect(result?.variants).toEqual(SURGERY_VARIANTS)
+    })
+  })
+
   describe('searchText computation', () => {
     const setup = (override: any) => {
       ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([

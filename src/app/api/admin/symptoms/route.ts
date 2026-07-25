@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/lib/rbac'
 import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
 import { sanitizeVariants } from '@/lib/sanitizeHtml'
 import { z } from 'zod'
@@ -126,7 +127,7 @@ export async function POST(request: NextRequest) {
           instructionsHtml,
           highlightedText,
           linkToPage,
-          variants: variants ? sanitizeVariants(variants) : null,
+          variants: variants ? sanitizeVariants(variants) : Prisma.DbNull,
         } as any),
         select: {
           id: true,

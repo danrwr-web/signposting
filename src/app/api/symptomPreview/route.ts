@@ -87,11 +87,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Base symptom not found' }, { status: 404 })
       }
 
-      let override: { briefInstruction: string | null; instructionsHtml: string | null; highlightedText: string | null; isHidden: boolean; lastEditedBy: string | null; lastEditedAt: Date | null } | null = null
+      let override: { briefInstruction: string | null; instructionsHtml: string | null; highlightedText: string | null; isHidden: boolean; lastEditedBy: string | null; lastEditedAt: Date | null; variants?: unknown | null } | null = null
       try {
         override = await prisma.surgerySymptomOverride.findUnique({
           where: { surgeryId_baseSymptomId: { surgeryId, baseSymptomId } },
-          select: { briefInstruction: true, instructionsHtml: true, highlightedText: true, isHidden: true, lastEditedBy: true, lastEditedAt: true }
+          select: { briefInstruction: true, instructionsHtml: true, highlightedText: true, isHidden: true, lastEditedBy: true, lastEditedAt: true, variants: true }
         })
       } catch {
         override = null
@@ -132,7 +132,10 @@ export async function GET(request: NextRequest) {
         baseInstructionsHtml: hasOverride ? (baseSymptom.instructionsHtml ?? null) : null,
         statusRowId: statusRow?.id ?? null,
         highlightedText: effectiveHighlightedText,
-        variants: (baseSymptom as any).variants ?? null,
+        // Effective variants: the surgery's own when set, else the base's.
+        variants: (override as any)?.variants == null
+          ? ((baseSymptom as any).variants ?? null)
+          : (override as any).variants,
       }
     } else if (customSymptomId) {
       const surgeryExists = await prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true } })
