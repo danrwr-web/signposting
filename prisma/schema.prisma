@@ -55,6 +55,10 @@ model User {
   workflowApprovals WorkflowTemplate[] @relation("WorkflowApprovals")
   workflowEdits     WorkflowTemplate[] @relation("WorkflowEdits")
 
+  // Feedback & suggestions
+  suggestionsSubmitted Suggestion[] @relation("SuggestionSubmitter")
+  suggestionsResponded Suggestion[] @relation("SuggestionResponder")
+
   // NextAuth.js fields
   emailVerified DateTime?
   image         String?
@@ -226,18 +230,47 @@ model SurgeryCustomSymptom {
   @@index([surgeryId, isDeleted])
 }
 
+enum SuggestionType {
+  FEATURE
+  IMPROVEMENT
+  BUG
+  SYMPTOM_CONTENT
+}
+
+enum SuggestionStatus {
+  PENDING
+  UNDER_REVIEW
+  PLANNED
+  DONE
+  DECLINED
+}
+
 model Suggestion {
-  id        String   @id @default(cuid())
-  surgeryId String?
-  baseId    String? // optional link to the affected base symptom
-  symptom   String // captured as user typed/selected
-  userEmail String?
-  text      String
-  // TODO: Add these fields back when database schema is updated
-  // status     String   @default("pending") // "pending" | "actioned" | "discarded"
-  createdAt DateTime @default(now())
-  // updatedAt  DateTime @updatedAt
-  surgery   Surgery? @relation(fields: [surgeryId], references: [id])
+  id                String           @id @default(cuid())
+  type              SuggestionType   @default(SYMPTOM_CONTENT)
+  status            SuggestionStatus @default(PENDING)
+  surgeryId         String?
+  baseId            String? // affected base symptom (SYMPTOM_CONTENT only)
+  symptom           String? // captured as user typed/selected (SYMPTOM_CONTENT only)
+  title             String? // short summary; required at API level for non-symptom types
+  text              String
+  pageContext       String? // pathname captured at submission
+  userEmail         String? // legacy rows + display fallback
+  submittedByUserId String?
+  response          String? // superuser response shown to the submitter
+  respondedByUserId String?
+  respondedAt       DateTime?
+  legacyAuditJson   String? // pre-migration auditTrail JSON, kept for reference only
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
+
+  surgery     Surgery? @relation(fields: [surgeryId], references: [id])
+  submittedBy User?    @relation("SuggestionSubmitter", fields: [submittedByUserId], references: [id], onDelete: SetNull)
+  respondedBy User?    @relation("SuggestionResponder", fields: [respondedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([surgeryId, status])
+  @@index([type, status])
+  @@index([submittedByUserId])
 }
 
 model EngagementEvent {

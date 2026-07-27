@@ -79,28 +79,10 @@ export async function GET(request: NextRequest) {
     }).length
     const pendingReviewCount = unreviewedCount + explicitPendingCount
 
-    // Suggestions pending count (replicates Suggestions API logic for pending)
-    const suggestions = await prisma.suggestion.findMany({
-      where: {
-        surgeryId,
-      },
-      select: {
-        text: true,
-      },
+    // Suggestions pending count (symptom-content suggestions awaiting admin review)
+    const suggestionsPendingCount = await prisma.suggestion.count({
+      where: { surgeryId, type: 'SYMPTOM_CONTENT', status: 'PENDING' },
     })
-
-    const suggestionsPendingCount = suggestions.reduce((acc, suggestion) => {
-      let status = 'pending'
-      try {
-        const parsed = JSON.parse(suggestion.text)
-        if (parsed?.status) {
-          status = parsed.status
-        }
-      } catch {
-        status = 'pending'
-      }
-      return acc + (status === 'pending' ? 1 : 0)
-    }, 0)
 
     // Onboarding profile and appointment model
     const onboardingProfile = await prisma.surgeryOnboardingProfile.findUnique({

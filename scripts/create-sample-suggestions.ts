@@ -22,7 +22,7 @@ async function createSampleSuggestions() {
       symptom: symptoms[0].name,
       userEmail: 'user1@example.com',
       text: 'Could you please add more information about when to seek immediate medical attention for this symptom? The current guidance is helpful but could be more specific about emergency situations.',
-      status: 'pending'
+      status: 'PENDING' as const
     },
     {
       surgeryId: surgeries[0].id,
@@ -30,7 +30,7 @@ async function createSampleSuggestions() {
       symptom: symptoms[1].name,
       userEmail: 'user2@example.com',
       text: 'I think this symptom page would benefit from including information about self-care measures that patients can try at home before seeking medical help.',
-      status: 'pending'
+      status: 'PENDING' as const
     },
     {
       surgeryId: surgeries[1].id,
@@ -38,7 +38,7 @@ async function createSampleSuggestions() {
       symptom: symptoms[2].name,
       userEmail: 'user3@example.com',
       text: 'The instructions are clear but could include more details about what to expect during recovery and when to follow up with a GP.',
-      status: 'actioned'
+      status: 'DONE' as const
     },
     {
       surgeryId: surgeries[1].id,
@@ -46,7 +46,7 @@ async function createSampleSuggestions() {
       symptom: symptoms[0].name,
       userEmail: 'user4@example.com',
       text: 'This suggestion is not relevant anymore as the symptom information has been updated.',
-      status: 'discarded'
+      status: 'DECLINED' as const
     },
     {
       surgeryId: surgeries[0].id,
@@ -54,7 +54,7 @@ async function createSampleSuggestions() {
       symptom: 'New Symptom Request',
       userEmail: 'user5@example.com',
       text: 'Could you please add a symptom page for "persistent headaches"? This is something many of our patients ask about and it would be helpful to have guidance available.',
-      status: 'pending'
+      status: 'PENDING' as const
     }
   ]
 

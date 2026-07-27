@@ -37,10 +37,10 @@ export default function SuggestionModal({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          type: 'SYMPTOM_CONTENT',
           surgeryId,
           baseId: symptomId,
           symptom: symptomName || '',
-          userEmail: userEmail || undefined,
           text: text.trim(),
         }),
       })
