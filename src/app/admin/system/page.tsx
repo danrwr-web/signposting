@@ -24,7 +24,11 @@ export default async function SystemManagementPage() {
     prisma.surgery.count(),
     prisma.user.count(),
     computeSurgerySetupSnapshotsBatch(),
-    prisma.suggestion.count({ where: { status: 'PENDING' } }),
+    // Symptom-content suggestions are triaged by each practice's own admins,
+    // so they don't count towards the superuser's pending badge.
+    prisma.suggestion.count({
+      where: { status: 'PENDING', type: { not: 'SYMPTOM_CONTENT' } },
+    }),
   ])
 
   const now = new Date()
