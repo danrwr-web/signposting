@@ -41,7 +41,7 @@ interface HomePageClientProps {
 }
 
 function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingClinicalReviewCount, surgeryName, surgeryId: routeSurgeryId, commonReasonsItems, hideAgeBands = false }: HomePageClientProps) {
-  const { surgery, currentSurgeryId, setSurgery } = useSurgery()
+  const { surgery, currentSurgeryId } = useSurgery()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedLetter, setSelectedLetter] = useState<Letter>('All')
   const [selectedAge, setSelectedAge] = useState<AgeBand>('All')
@@ -66,17 +66,6 @@ function HomePageClientContent({ surgeries, symptoms: initialSymptoms, pendingCl
       setShowSurgerySelector(true)
     }
   }, [surgery, surgeries.length])
-
-  // If we are on a surgery-scoped route, ensure the client-side surgery context matches it.
-  useEffect(() => {
-    if (!routeSurgeryId) return
-    if (currentSurgeryId === routeSurgeryId) return
-    const match = surgeries.find(s => s.id === routeSurgeryId)
-    if (match) {
-      setSurgery({ id: match.id, slug: match.slug || match.id, name: match.name })
-    }
-  }, [routeSurgeryId, currentSurgeryId, surgeries, setSurgery])
-
 
   // Use the canonical surgery identifier used in `/s/[id]` routes.
   // Avoid using the human-readable `surgery.slug` so we don't generate inconsistent `?surgery=` links.

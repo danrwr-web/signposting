@@ -75,7 +75,7 @@ export default function SimpleHeader({
             {surgeries && surgeries.length > 0 ? (
               <SurgerySelector
                 surgeries={surgeries}
-                currentSurgeryId={currentSurgeryId}
+                currentSurgeryId={effectiveSurgeryId}
                 onSurgeryChange={onSurgeryChange}
               />
             ) : effectiveSurgeryName ? (

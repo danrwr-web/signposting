@@ -24,17 +24,18 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
   const pathname = usePathname()
   const { clearSurgery, surgery } = useSurgery()
   const { data: session } = useSession()
-  // Use surgery from context as source of truth, fallback to currentSurgeryId prop
-  const actualSurgeryId = surgery?.id || currentSurgeryId || ''
+  // The currentSurgeryId prop is URL/page-derived (server params on /s/[id] routes,
+  // controlled state on /admin) so it wins over the persisted context value.
+  const actualSurgeryId = currentSurgeryId || surgery?.id || ''
   const [selectedId, setSelectedId] = useState(actualSurgeryId)
   const selectRef = useRef<HTMLSelectElement>(null)
   
   // Check if user is a superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
 
-  // Sync selectedId with context surgery when it changes
+  // Sync selectedId when the prop or context surgery changes
   useEffect(() => {
-    const newId = surgery?.id || currentSurgeryId || ''
+    const newId = currentSurgeryId || surgery?.id || ''
     setSelectedId(newId)
   }, [surgery?.id, currentSurgeryId])
 
@@ -137,7 +138,7 @@ export default function SurgerySelector({ surgeries, currentSurgeryId, onClose, 
 
   // If not superuser, just show the surgery name
   if (!isSuperuser) {
-    const currentSurgery = surgery || surgeries.find(s => s.id === currentSurgeryId)
+    const currentSurgery = surgeries.find(s => s.id === currentSurgeryId) || surgery
     return (
       <div className="flex items-center">
         <span className="text-sm font-medium text-nhs-grey">
