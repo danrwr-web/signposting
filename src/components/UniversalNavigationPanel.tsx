@@ -10,6 +10,11 @@ import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from 
 import HelpPanel, { HELP_PANEL_ID } from './HelpPanel'
 import UserPreferencesModal from './UserPreferencesModal'
 import SuggestFeatureDialog from './SuggestFeatureDialog'
+import { useFeatureCallout } from '@/hooks/useFeatureCallout'
+import {
+  SUGGEST_FEATURE_CALLOUT_KEY,
+  SUGGEST_FEATURE_CALLOUT_DAYS,
+} from './SuggestFeatureCalloutTooltip'
 
 const iconClass = "w-5 h-5"
 
@@ -57,6 +62,10 @@ export default function UniversalNavigationPanel() {
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showHelpPanel, setShowHelpPanel] = useState(false)
   const [showSuggestDialog, setShowSuggestDialog] = useState(false)
+  const { windowActive: suggestCalloutActive } = useFeatureCallout(
+    SUGGEST_FEATURE_CALLOUT_KEY,
+    SUGGEST_FEATURE_CALLOUT_DAYS
+  )
   // Onboarding state for setup link (three states)
   const [onboardingStarted, setOnboardingStarted] = useState(false)
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
@@ -481,6 +490,11 @@ export default function UniversalNavigationPanel() {
               </svg>
             </span>
             Suggest a feature
+            {suggestCalloutActive && (
+              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nhs-green text-white uppercase tracking-wide">
+                New
+              </span>
+            )}
           </button>
 
           {/* My Suggestions Link */}
@@ -503,6 +517,11 @@ export default function UniversalNavigationPanel() {
                 </svg>
               </span>
               My suggestions
+              {suggestCalloutActive && (
+                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nhs-green text-white uppercase tracking-wide">
+                  New
+                </span>
+              )}
             </Link>
           )}
 

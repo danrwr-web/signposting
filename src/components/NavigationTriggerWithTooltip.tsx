@@ -3,6 +3,7 @@
 import { useRef } from 'react'
 import NavigationPanelTrigger from './NavigationPanelTrigger'
 import NavUpdateTooltip from './NavUpdateTooltip'
+import SuggestFeatureCalloutTooltip from './SuggestFeatureCalloutTooltip'
 
 interface NavigationTriggerWithTooltipProps {
   className?: string
@@ -21,6 +22,7 @@ export default function NavigationTriggerWithTooltip({
     <>
       <NavigationPanelTrigger ref={triggerRef} className={className} />
       <NavUpdateTooltip triggerRef={triggerRef} />
+      <SuggestFeatureCalloutTooltip triggerRef={triggerRef} />
     </>
   )
 }
