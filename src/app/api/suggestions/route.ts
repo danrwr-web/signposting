@@ -14,12 +14,26 @@ type SuggestionWithSurgery = Prisma.SuggestionGetPayload<{
   include: { surgery: { select: { id: true; name: true; slug: true } } }
 }>
 
+// Explicit allowlist: internal fields (legacyAuditJson, respondedByUserId)
+// must not reach submitters via scope=mine.
 function serialiseSuggestion(suggestion: SuggestionWithSurgery) {
   return {
-    ...suggestion,
+    id: suggestion.id,
+    type: suggestion.type,
+    status: suggestion.status,
+    surgeryId: suggestion.surgeryId,
+    baseId: suggestion.baseId,
+    symptom: suggestion.symptom,
+    title: suggestion.title,
+    text: suggestion.text,
+    pageContext: suggestion.pageContext,
+    userEmail: suggestion.userEmail,
+    submittedByUserId: suggestion.submittedByUserId,
+    response: suggestion.response,
+    respondedAt: suggestion.respondedAt ? suggestion.respondedAt.toISOString() : null,
     createdAt: suggestion.createdAt.toISOString(),
     updatedAt: suggestion.updatedAt.toISOString(),
-    respondedAt: suggestion.respondedAt ? suggestion.respondedAt.toISOString() : null,
+    surgery: suggestion.surgery,
   }
 }
 

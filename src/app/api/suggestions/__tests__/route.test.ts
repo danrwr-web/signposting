@@ -180,6 +180,20 @@ describe('/api/suggestions', () => {
       const res = await GET(makeGetReq('?status=nonsense'))
       expect(res.status).toBe(400)
     })
+
+    it('never exposes legacy audit data or responder ids to submitters', async () => {
+      ;(prisma.suggestion.findMany as jest.Mock).mockResolvedValue([
+        {
+          ...dbSuggestion,
+          legacyAuditJson: '[{"action":"actioned","userEmail":"admin@example.com"}]',
+          respondedByUserId: 'super1',
+        },
+      ])
+      const res = await GET(makeGetReq())
+      const json = await res.json()
+      expect(json.suggestions[0]).not.toHaveProperty('legacyAuditJson')
+      expect(json.suggestions[0]).not.toHaveProperty('respondedByUserId')
+    })
   })
 
   describe('PATCH', () => {

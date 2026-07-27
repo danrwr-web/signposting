@@ -138,8 +138,12 @@ export default function SuggestionDetailPanel({
               <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider">Symptom</dt>
               <dd className="text-gray-900">
                 {suggestion.baseId ? (
+                  // Surgery context is required to resolve custom symptoms and
+                  // show the practice's own overrides rather than base wording.
                   <Link
-                    href={`/symptom/${suggestion.baseId}`}
+                    href={`/symptom/${suggestion.baseId}${
+                      suggestion.surgeryId ? `?surgery=${suggestion.surgeryId}` : ''
+                    }`}
                     className="text-nhs-blue hover:text-nhs-dark-blue underline"
                   >
                     {suggestion.symptom}
