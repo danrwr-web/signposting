@@ -18,6 +18,10 @@ interface ServerCalloutState {
 const stateCache = new Map<string, ServerCalloutState>()
 const inflight = new Map<string, Promise<ServerCalloutState | null>>()
 
+// Broadcast dismissals so other hook instances watching the same key update
+// immediately (e.g. a dependent callout waiting for this one to be dismissed).
+const DISMISS_EVENT = 'featureCalloutDismissed'
+
 async function fetchServerState(
   key: string,
   markDismissed: boolean
@@ -128,6 +132,19 @@ export function useFeatureCallout(
     }
   }, [key, days, legacySeenKey])
 
+  // React to this callout being dismissed via another hook instance
+  useEffect(() => {
+    const handleDismissed = (event: Event) => {
+      if ((event as CustomEvent<{ key: string }>).detail?.key !== key) return
+      setTooltipVisible(false)
+      if (days === undefined) {
+        setWindowActive(false)
+      }
+    }
+    window.addEventListener(DISMISS_EVENT, handleDismissed)
+    return () => window.removeEventListener(DISMISS_EVENT, handleDismissed)
+  }, [key, days])
+
   const dismissTooltip = useCallback(() => {
     setTooltipVisible(false)
     if (days === undefined) {
@@ -138,6 +155,7 @@ export function useFeatureCallout(
     if (cached) {
       stateCache.set(key, { ...cached, dismissed: true })
     }
+    window.dispatchEvent(new CustomEvent(DISMISS_EVENT, { detail: { key } }))
     // Persist locally too, as the offline fallback.
     ensureCalloutState(key)
     dismissCallout(key)

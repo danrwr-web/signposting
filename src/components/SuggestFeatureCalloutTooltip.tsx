@@ -35,6 +35,7 @@ export default function SuggestFeatureCalloutTooltip({
     legacySeenKey: NAV_UPDATE_LEGACY_STORAGE_KEY,
   })
   const [settled, setSettled] = useState(false)
+  const [navCleared, setNavCleared] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -47,12 +48,17 @@ export default function SuggestFeatureCalloutTooltip({
     return () => clearTimeout(timer)
   }, [])
 
-  const isVisible =
-    tooltipVisible &&
-    windowActive &&
-    settled &&
-    navCallout.resolved &&
-    !navCallout.tooltipVisible
+  // Short breather after the nav coach mark clears (including when it is
+  // dismissed on this very page) before our spotlight takes its place.
+  useEffect(() => {
+    if (navCallout.resolved && !navCallout.tooltipVisible) {
+      const timer = setTimeout(() => setNavCleared(true), 400)
+      return () => clearTimeout(timer)
+    }
+    setNavCleared(false)
+  }, [navCallout.resolved, navCallout.tooltipVisible])
+
+  const isVisible = tooltipVisible && windowActive && settled && navCleared
 
   // Track the trigger's position while visible
   useEffect(() => {
