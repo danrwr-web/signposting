@@ -59,6 +59,9 @@ model User {
   suggestionsSubmitted Suggestion[] @relation("SuggestionSubmitter")
   suggestionsResponded Suggestion[] @relation("SuggestionResponder")
 
+  // New-feature callouts (seen/dismissed announcements)
+  calloutStates UserCalloutState[]
+
   // NextAuth.js fields
   emailVerified DateTime?
   image         String?
@@ -271,6 +274,21 @@ model Suggestion {
   @@index([surgeryId, status])
   @@index([type, status])
   @@index([submittedByUserId])
+}
+
+// Per-user state for time-boxed or one-time "new feature" callouts.
+// firstSeenAt anchors a callout's display window; dismissedAt records that the
+// user acknowledged it. Follows the user across devices, unlike localStorage.
+model UserCalloutState {
+  id          String    @id @default(cuid())
+  userId      String
+  calloutKey  String
+  firstSeenAt DateTime  @default(now())
+  dismissedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, calloutKey])
 }
 
 model EngagementEvent {

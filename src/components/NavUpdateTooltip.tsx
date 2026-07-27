@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
+import { useFeatureCallout } from '@/hooks/useFeatureCallout'
 
-const STORAGE_KEY = 'hasSeenNavUpdate'
+export const NAV_UPDATE_CALLOUT_KEY = 'nav-update'
+// Pre-callout-system localStorage flag; still honoured and seeded server-side
+// so users who dismissed under the old mechanism never see this again.
+export const NAV_UPDATE_LEGACY_STORAGE_KEY = 'hasSeenNavUpdate'
 
 interface NavUpdateTooltipProps {
   /** Ref to the trigger button for positioning */
@@ -12,38 +16,30 @@ interface NavUpdateTooltipProps {
 
 /**
  * A one-time spotlight tooltip that introduces the new navigation panel.
- * Shows once per user, then never again after dismissal.
+ * Shows once per user (tracked server-side, so dismissal follows them across
+ * machines), then never again.
  */
 export default function NavUpdateTooltip({ triggerRef }: NavUpdateTooltipProps) {
-  const [isVisible, setIsVisible] = useState(false)
+  const { tooltipVisible, dismissTooltip } = useFeatureCallout(
+    NAV_UPDATE_CALLOUT_KEY,
+    undefined,
+    { legacySeenKey: NAV_UPDATE_LEGACY_STORAGE_KEY }
+  )
+  const [settled, setSettled] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const { isOpen: isPanelOpen } = useNavigationPanel()
 
-  // Check for reduced motion preference
+  // Check for reduced motion preference; small delay so layout settles
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setPrefersReducedMotion(
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      )
-    }
-  }, [])
-
-  // Check if user has already seen the tooltip
-  useEffect(() => {
-    // Only run on client
     if (typeof window === 'undefined') return
-
-    const hasSeen = localStorage.getItem(STORAGE_KEY)
-    if (!hasSeen) {
-      // Small delay to ensure layout is settled
-      const timer = setTimeout(() => {
-        setIsVisible(true)
-      }, 500)
-      return () => clearTimeout(timer)
-    }
+    setPrefersReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    const timer = setTimeout(() => setSettled(true), 500)
+    return () => clearTimeout(timer)
   }, [])
+
+  const isVisible = tooltipVisible && settled
 
   // Update position when visible or trigger moves
   useEffect(() => {
@@ -72,11 +68,16 @@ export default function NavUpdateTooltip({ triggerRef }: NavUpdateTooltipProps) 
     }
   }, [isVisible, triggerRef])
 
-  // Dismiss function
+  // Dismiss function — also sets the legacy flag this browser may be checked
+  // against elsewhere
   const dismiss = useCallback(() => {
-    setIsVisible(false)
-    localStorage.setItem(STORAGE_KEY, 'true')
-  }, [])
+    dismissTooltip()
+    try {
+      localStorage.setItem(NAV_UPDATE_LEGACY_STORAGE_KEY, 'true')
+    } catch {
+      // Storage unavailable; server-side state is authoritative anyway.
+    }
+  }, [dismissTooltip])
 
   // Handle escape key
   useEffect(() => {

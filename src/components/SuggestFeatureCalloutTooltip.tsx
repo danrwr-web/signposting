@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigationPanel } from '@/context/NavigationPanelContext'
 import { useFeatureCallout } from '@/hooks/useFeatureCallout'
+import {
+  NAV_UPDATE_CALLOUT_KEY,
+  NAV_UPDATE_LEGACY_STORAGE_KEY,
+} from './NavUpdateTooltip'
 
 export const SUGGEST_FEATURE_CALLOUT_KEY = 'suggest-feature-2026-07'
 export const SUGGEST_FEATURE_CALLOUT_DAYS = 5
@@ -25,24 +29,30 @@ export default function SuggestFeatureCalloutTooltip({
     SUGGEST_FEATURE_CALLOUT_KEY,
     SUGGEST_FEATURE_CALLOUT_DAYS
   )
-  const [deferred, setDeferred] = useState(true)
+  // Mirror the nav coach mark's state (shared request cache — no extra call)
+  // so the two tooltips never stack: ours waits until that one is dismissed.
+  const navCallout = useFeatureCallout(NAV_UPDATE_CALLOUT_KEY, undefined, {
+    legacySeenKey: NAV_UPDATE_LEGACY_STORAGE_KEY,
+  })
+  const [settled, setSettled] = useState(false)
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
   const { isOpen: isPanelOpen } = useNavigationPanel()
 
-  // Give way to the first-run navigation coach mark; show ours next visit.
   useEffect(() => {
     if (typeof window === 'undefined') return
     setPrefersReducedMotion(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-    const hasSeenNavUpdate = window.localStorage.getItem('hasSeenNavUpdate')
-    const timer = setTimeout(() => {
-      if (hasSeenNavUpdate) setDeferred(false)
-    }, 600)
+    const timer = setTimeout(() => setSettled(true), 600)
     return () => clearTimeout(timer)
   }, [])
 
-  const isVisible = tooltipVisible && windowActive && !deferred
+  const isVisible =
+    tooltipVisible &&
+    windowActive &&
+    settled &&
+    navCallout.resolved &&
+    !navCallout.tooltipVisible
 
   // Track the trigger's position while visible
   useEffect(() => {
