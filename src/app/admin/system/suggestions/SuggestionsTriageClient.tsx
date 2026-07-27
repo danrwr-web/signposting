@@ -21,6 +21,8 @@ import type { TriageSuggestion } from './types'
 
 interface SuggestionsTriageClientProps {
   suggestions: TriageSuggestion[]
+  /** Preselects the type filter (e.g. from a ?type= link in notification emails). */
+  initialTypeFilter?: SuggestionType
 }
 
 function FilterChip({
@@ -48,10 +50,13 @@ function FilterChip({
   )
 }
 
-export default function SuggestionsTriageClient({ suggestions }: SuggestionsTriageClientProps) {
+export default function SuggestionsTriageClient({
+  suggestions,
+  initialTypeFilter,
+}: SuggestionsTriageClientProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<SuggestionType | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<SuggestionType | 'all'>(initialTypeFilter ?? 'all')
   const [statusFilter, setStatusFilter] = useState<SuggestionStatus | 'all'>('all')
   const [selected, setSelected] = useState<TriageSuggestion | null>(null)
 

@@ -97,7 +97,9 @@ ${data.pageContext ? `Page: ${data.pageContext}` : ''}
 
 ${data.text}
 
-Review and respond: ${baseUrl}/admin/system/suggestions
+Review and respond: ${baseUrl}/admin/system/suggestions${
+    data.type === 'SYMPTOM_CONTENT' ? '?type=SYMPTOM_CONTENT' : ''
+  }
   `
     .split('\n')
     .filter((line, i, lines) => line.trim() !== '' || (i > 0 && lines[i - 1].trim() !== ''))
