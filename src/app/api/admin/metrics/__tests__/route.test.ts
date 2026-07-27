@@ -7,7 +7,7 @@ import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 jest.mock('@/lib/prisma', () => ({
   prisma: {
     symptomReviewStatus: { findMany: jest.fn() },
-    suggestion: { findMany: jest.fn() },
+    suggestion: { count: jest.fn() },
     surgeryOnboardingProfile: { findUnique: jest.fn() },
     surgerySymptomOverride: { findMany: jest.fn() },
     surgeryCustomSymptom: { findMany: jest.fn() },
@@ -39,7 +39,7 @@ describe('GET /api/admin/metrics (pendingReviewCount)', () => {
       manageSurgery: () => true,
     } as any)
 
-    ;(prisma.suggestion.findMany as jest.Mock).mockResolvedValue([])
+    ;(prisma.suggestion.count as jest.Mock).mockResolvedValue(0)
     ;(prisma.surgeryOnboardingProfile.findUnique as jest.Mock).mockResolvedValue({ completed: true, profileJson: {} })
     ;(prisma.surgerySymptomOverride.findMany as jest.Mock).mockResolvedValue([])
     ;(prisma.surgeryCustomSymptom.findMany as jest.Mock).mockResolvedValue([])

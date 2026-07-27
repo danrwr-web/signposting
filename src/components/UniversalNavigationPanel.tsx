@@ -9,6 +9,12 @@ import { useSurgery } from '@/context/SurgeryContext'
 import { MODULES, MANAGEMENT_ITEMS, type ModuleItem, type ManagementItem } from '@/navigation/modules'
 import HelpPanel, { HELP_PANEL_ID } from './HelpPanel'
 import UserPreferencesModal from './UserPreferencesModal'
+import SuggestFeatureDialog from './SuggestFeatureDialog'
+import { useFeatureCallout } from '@/hooks/useFeatureCallout'
+import {
+  SUGGEST_FEATURE_CALLOUT_KEY,
+  SUGGEST_FEATURE_CALLOUT_DAYS,
+} from './SuggestFeatureCalloutTooltip'
 
 const iconClass = "w-5 h-5"
 
@@ -55,6 +61,11 @@ export default function UniversalNavigationPanel() {
   const [lastFetchedSurgeryId, setLastFetchedSurgeryId] = useState<string | null>(null) // Track which surgery we've fetched for
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showHelpPanel, setShowHelpPanel] = useState(false)
+  const [showSuggestDialog, setShowSuggestDialog] = useState(false)
+  const { windowActive: suggestCalloutActive } = useFeatureCallout(
+    SUGGEST_FEATURE_CALLOUT_KEY,
+    SUGGEST_FEATURE_CALLOUT_DAYS
+  )
   // Onboarding state for setup link (three states)
   const [onboardingStarted, setOnboardingStarted] = useState(false)
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
@@ -458,6 +469,62 @@ export default function UniversalNavigationPanel() {
 
         {/* Preferences & Sign Out - Fixed at bottom */}
         <div className="border-t border-gray-200 px-3 py-3 flex-shrink-0 space-y-1">
+          {/* Suggest a Feature Button */}
+          <button
+            onClick={() => {
+              close()
+              setShowSuggestDialog(true)
+            }}
+            className="group w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+          >
+            <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+                className="w-5 h-5"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.383a14.406 14.406 0 0 1-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 1 0-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+              </svg>
+            </span>
+            Suggest a feature
+            {suggestCalloutActive && (
+              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nhs-green text-white uppercase tracking-wide">
+                New
+              </span>
+            )}
+          </button>
+
+          {/* My Suggestions Link */}
+          {surgeryId && (
+            <Link
+              href={`/s/${surgeryId}/suggestions`}
+              onClick={() => close()}
+              className="group w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
+            >
+              <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 0 0 2.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 0 0-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75 2.25 2.25 0 0 0-.1-.664m-5.8 0A2.251 2.251 0 0 1 13.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25ZM6.75 12h.008v.008H6.75V12Zm0 3h.008v.008H6.75V15Zm0 3h.008v.008H6.75V18Z" />
+                </svg>
+              </span>
+              My suggestions
+              {suggestCalloutActive && (
+                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nhs-green text-white uppercase tracking-wide">
+                  New
+                </span>
+              )}
+            </Link>
+          )}
+
           {/* Preferences Button */}
           <button
             onClick={() => {
@@ -513,6 +580,16 @@ export default function UniversalNavigationPanel() {
       <HelpPanel
         isOpen={showHelpPanel}
         onClose={() => setShowHelpPanel(false)}
+        onSuggestFeature={() => {
+          setShowHelpPanel(false)
+          setShowSuggestDialog(true)
+        }}
+      />
+
+      <SuggestFeatureDialog
+        open={showSuggestDialog}
+        onClose={() => setShowSuggestDialog(false)}
+        surgeryId={surgeryId}
       />
 
       {/* Disabled Module Modal */}

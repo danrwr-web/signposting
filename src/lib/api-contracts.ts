@@ -419,3 +419,57 @@ export interface EngagementTopRes {
     byHour: number[];
   };
 }
+
+// Feedback & suggestions (unified: app feature requests + symptom-content suggestions)
+export const SuggestionTypeZ = z.enum(['FEATURE', 'IMPROVEMENT', 'BUG', 'SYMPTOM_CONTENT']);
+export const SuggestionStatusZ = z.enum(['PENDING', 'UNDER_REVIEW', 'PLANNED', 'DONE', 'DECLINED']);
+
+export const CreateSuggestionReqZ = z.object({
+  type: SuggestionTypeZ,
+  title: z.string().trim().max(150).optional(),
+  text: z.string().trim().min(1).max(5000),
+  surgeryId: z.string().optional(),
+  baseId: z.string().optional(),
+  symptom: z.string().max(300).optional(),
+  pageContext: z.string().max(500).optional(),
+}).superRefine((data, ctx) => {
+  if (data.type !== 'SYMPTOM_CONTENT' && (!data.title || data.title.length === 0)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['title'],
+      message: 'title is required for feature, improvement, and bug suggestions',
+    });
+  }
+});
+
+export const UpdateSuggestionTriageReqZ = z.object({
+  status: SuggestionStatusZ.optional(),
+  response: z.string().trim().max(5000).optional(),
+}).refine((data) => data.status !== undefined || data.response !== undefined, {
+  message: 'status or response is required',
+});
+
+export type SuggestionType = z.infer<typeof SuggestionTypeZ>;
+export type SuggestionStatus = z.infer<typeof SuggestionStatusZ>;
+export type CreateSuggestionReq = z.infer<typeof CreateSuggestionReqZ>;
+export type UpdateSuggestionTriageReq = z.infer<typeof UpdateSuggestionTriageReqZ>;
+
+/** Serialised Suggestion row as returned by the suggestions APIs. */
+export interface SuggestionRes {
+  id: string;
+  type: SuggestionType;
+  status: SuggestionStatus;
+  surgeryId: string | null;
+  baseId: string | null;
+  symptom: string | null;
+  title: string | null;
+  text: string;
+  pageContext: string | null;
+  userEmail: string | null;
+  submittedByUserId: string | null;
+  response: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  surgery: { id: string; name: string; slug: string | null } | null;
+}

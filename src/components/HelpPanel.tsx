@@ -105,6 +105,14 @@ const HELP_LINKS: HelpLink[] = [
     section: 'quick',
   },
   {
+    id: 'feedback-and-suggestions',
+    title: 'Feedback & Suggestions',
+    url: `${DOCS_BASE_URL}/features/feedback-and-suggestions`,
+    description: 'Suggest features, report bugs, and track responses.',
+    keywords: ['feedback', 'suggestion', 'feature request', 'bug', 'idea'],
+    section: 'quick',
+  },
+  {
     id: 'clinical-governance',
     title: 'Clinical Governance',
     url: `${DOCS_BASE_URL}/governance/clinical-governance`,
@@ -198,9 +206,11 @@ function LinkCard({ link, onNavigate }: { link: HelpLink; onNavigate: () => void
 interface HelpPanelProps {
   isOpen: boolean
   onClose: () => void
+  /** When provided, shows a "Suggest a feature" button in the panel footer. */
+  onSuggestFeature?: () => void
 }
 
-export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
+export default function HelpPanel({ isOpen, onClose, onSuggestFeature }: HelpPanelProps) {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
 
@@ -249,16 +259,27 @@ export default function HelpPanel({ isOpen, onClose }: HelpPanelProps) {
       width="3xl"
       initialFocusRef={searchInputRef}
       footer={
-        <a
-          href={DOCS_BASE_URL}
-          target="_blank"
-          rel="noreferrer noopener"
-          onClick={handleLinkClick}
-          className="inline-flex items-center text-sm font-semibold text-nhs-blue hover:text-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 rounded"
-        >
-          Open full documentation site
-          <ExternalArrow className="ml-1 h-4 w-4" />
-        </a>
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+          <a
+            href={DOCS_BASE_URL}
+            target="_blank"
+            rel="noreferrer noopener"
+            onClick={handleLinkClick}
+            className="inline-flex items-center text-sm font-semibold text-nhs-blue hover:text-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 rounded"
+          >
+            Open full documentation site
+            <ExternalArrow className="ml-1 h-4 w-4" />
+          </a>
+          {onSuggestFeature ? (
+            <button
+              type="button"
+              onClick={onSuggestFeature}
+              className="inline-flex items-center text-sm font-semibold text-nhs-blue hover:text-nhs-dark-blue focus:outline-none focus-visible:ring-2 focus-visible:ring-nhs-blue focus-visible:ring-offset-2 rounded"
+            >
+              Suggest a feature
+            </button>
+          ) : null}
+        </div>
       }
     >
       <div id={HELP_PANEL_ID} className="space-y-8">

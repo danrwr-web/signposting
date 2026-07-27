@@ -43,7 +43,7 @@ jest.mock('@/components/rich-text/RichTextEditor', () => ({
   ),
 }))
 
-jest.mock('@/components/SuggestionModal', () => ({
+jest.mock('@/components/SuggestFeatureDialog', () => ({
   __esModule: true,
   default: () => null,
 }))

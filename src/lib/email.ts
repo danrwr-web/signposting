@@ -9,12 +9,10 @@ interface DemoRequestData {
   message?: string
 }
 
-export async function sendDemoRequestEmail(data: DemoRequestData): Promise<void> {
-  const recipient = process.env.DEMO_REQUEST_RECIPIENT || 'contact@signpostingtool.co.uk'
-
-  // Create transporter - use environment variables for SMTP configuration
-  // For production, these should be set in Vercel environment variables
-  const transporter = nodemailer.createTransport({
+// SMTP configuration comes from environment variables
+// (set in Vercel environment variables for production).
+function createTransporter() {
+  return nodemailer.createTransport({
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
@@ -25,8 +23,14 @@ export async function sendDemoRequestEmail(data: DemoRequestData): Promise<void>
         }
       : undefined,
   })
+}
 
-  // Build email body
+const FROM_ADDRESS = () =>
+  process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@signpostingtool.co.uk'
+
+export async function sendDemoRequestEmail(data: DemoRequestData): Promise<void> {
+  const recipient = process.env.DEMO_REQUEST_RECIPIENT || 'contact@signpostingtool.co.uk'
+
   const emailBody = `
 New demo request from ${data.practice}
 
@@ -38,12 +42,64 @@ ${data.phone ? `Phone: ${data.phone}` : ''}
 ${data.message ? `\nMessage:\n${data.message}` : ''}
   `.trim()
 
-  // Send email
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@signpostingtool.co.uk',
+  await createTransporter().sendMail({
+    from: FROM_ADDRESS(),
     to: recipient,
     subject: `New demo request from ${data.practice}`,
     text: emailBody,
   })
 }
 
+interface SuggestionNotificationData {
+  type: string
+  title: string | null
+  text: string
+  submitterEmail: string
+  surgeryName: string | null
+  symptomName: string | null
+  pageContext: string | null
+}
+
+const SUGGESTION_TYPE_LABELS: Record<string, string> = {
+  FEATURE: 'feature request',
+  IMPROVEMENT: 'improvement suggestion',
+  BUG: 'bug report',
+  SYMPTOM_CONTENT: 'symptom content suggestion',
+}
+
+export async function sendSuggestionNotificationEmail(
+  data: SuggestionNotificationData
+): Promise<void> {
+  const recipient =
+    process.env.SUGGESTION_NOTIFY_RECIPIENT ||
+    process.env.DEMO_REQUEST_RECIPIENT ||
+    'contact@signpostingtool.co.uk'
+
+  const typeLabel = SUGGESTION_TYPE_LABELS[data.type] || 'suggestion'
+  const baseUrl = process.env.NEXTAUTH_URL || 'https://www.signpostingtool.co.uk'
+
+  const emailBody = `
+New ${typeLabel} submitted in the Signposting Toolkit.
+
+From: ${data.submitterEmail}
+${data.surgeryName ? `Surgery: ${data.surgeryName}` : ''}
+${data.title ? `Title: ${data.title}` : ''}
+${data.symptomName ? `Symptom: ${data.symptomName}` : ''}
+${data.pageContext ? `Page: ${data.pageContext}` : ''}
+
+${data.text}
+
+Review and respond: ${baseUrl}/admin/system/suggestions
+  `
+    .split('\n')
+    .filter((line, i, lines) => line.trim() !== '' || (i > 0 && lines[i - 1].trim() !== ''))
+    .join('\n')
+    .trim()
+
+  await createTransporter().sendMail({
+    from: FROM_ADDRESS(),
+    to: recipient,
+    subject: `New ${typeLabel}${data.surgeryName ? ` from ${data.surgeryName}` : ''}`,
+    text: emailBody,
+  })
+}

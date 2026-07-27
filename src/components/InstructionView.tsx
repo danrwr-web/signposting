@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
-import SuggestionModal from './SuggestionModal'
+import SuggestFeatureDialog from './SuggestFeatureDialog'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
@@ -2177,11 +2177,11 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         </div>
       )}
 
-      <SuggestionModal
-        isOpen={showSuggestionModal}
+      <SuggestFeatureDialog
+        open={showSuggestionModal}
         onClose={() => setShowSuggestionModal(false)}
-        symptomId={symptom.id}
-        symptomName={symptom.name}
+        defaultType="SYMPTOM_CONTENT"
+        symptomContext={{ baseId: symptom.id, symptomName: symptom.name }}
         surgeryId={surgeryId}
       />
     </>
