@@ -20,10 +20,11 @@ export default async function SystemManagementPage() {
     redirect('/unauthorized')
   }
 
-  const [surgeryCount, userCount, trackerSnapshots] = await Promise.all([
+  const [surgeryCount, userCount, trackerSnapshots, pendingSuggestionCount] = await Promise.all([
     prisma.surgery.count(),
     prisma.user.count(),
     computeSurgerySetupSnapshotsBatch(),
+    prisma.suggestion.count({ where: { status: 'PENDING' } }),
   ])
 
   const now = new Date()
@@ -48,6 +49,7 @@ export default async function SystemManagementPage() {
       userCount={userCount}
       globalDefaults={globalDefaults}
       setupTracker={{ flaggedCount, criticalCount }}
+      pendingSuggestionCount={pendingSuggestionCount}
     />
   )
 }
