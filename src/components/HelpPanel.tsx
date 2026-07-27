@@ -105,6 +105,14 @@ const HELP_LINKS: HelpLink[] = [
     section: 'quick',
   },
   {
+    id: 'feedback-and-suggestions',
+    title: 'Feedback & Suggestions',
+    url: `${DOCS_BASE_URL}/features/feedback-and-suggestions`,
+    description: 'Suggest features, report bugs, and track responses.',
+    keywords: ['feedback', 'suggestion', 'feature request', 'bug', 'idea'],
+    section: 'quick',
+  },
+  {
     id: 'clinical-governance',
     title: 'Clinical Governance',
     url: `${DOCS_BASE_URL}/governance/clinical-governance`,
