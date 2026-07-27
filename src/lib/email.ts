@@ -76,7 +76,15 @@ export async function sendSuggestionNotificationEmail(
     'contact@signpostingtool.co.uk'
 
   const typeLabel = SUGGESTION_TYPE_LABELS[data.type] || 'suggestion'
-  const baseUrl = process.env.NEXTAUTH_URL || 'https://www.signpostingtool.co.uk'
+  // On Vercel, NEXTAUTH_URL is the deployment-specific *.vercel.app URL, which
+  // is behind deployment protection and 404s for email recipients — only use
+  // it for local development links.
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_APP_BASE_URL ||
+    (process.env.NODE_ENV === 'development'
+      ? process.env.NEXTAUTH_URL || 'http://localhost:3000'
+      : 'https://app.signpostingtool.co.uk')
+  ).replace(/\/$/, '')
 
   const emailBody = `
 New ${typeLabel} submitted in the Signposting Toolkit.
@@ -89,7 +97,9 @@ ${data.pageContext ? `Page: ${data.pageContext}` : ''}
 
 ${data.text}
 
-Review and respond: ${baseUrl}/admin/system/suggestions
+Review and respond: ${baseUrl}/admin/system/suggestions${
+    data.type === 'SYMPTOM_CONTENT' ? '?type=SYMPTOM_CONTENT' : ''
+  }
   `
     .split('\n')
     .filter((line, i, lines) => line.trim() !== '' || (i > 0 && lines[i - 1].trim() !== ''))

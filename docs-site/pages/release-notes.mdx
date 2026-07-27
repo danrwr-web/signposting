@@ -39,6 +39,8 @@ The following core capabilities are established and available to all surgeries:
 
 ### Fixed
 
+- Feedback & suggestions triage (System management): symptom-content suggestions — which are reviewed by each practice's own admins — are now hidden from the central triage list and its counts by default; select the **Symptom content** type filter to view them. The table also now scrolls horizontally instead of cutting off the Status and Submitted columns on narrower screens.
+- Fixed the "Review and respond" link in new-suggestion notification emails pointing at an inaccessible internal deployment address instead of the app.
 - Fixed the Sales Pipeline "Add Practice" dialog rejecting new entries with an "Invalid input" error when no contract variant was selected — the variant is now genuinely optional before the proposal stage, matching the form.
 - **Age-group variants no longer disappear from the editor** once a practice has customised a symptom — variants are shared content on the base symptom, and system administrators can now view and edit them from any practice's view of the symptom, with changes saved to the shared base copy.
 - Fixed the system admin **Edit Symptom form silently clearing a symptom's variants** on save: existing variants now load into the form (shown expanded rather than hidden behind "Add Variants"), the variant position (before/after the main instructions) is preserved, and variant instructions now use the rich-text editor rather than a raw HTML box.

@@ -21,6 +21,8 @@ import type { TriageSuggestion } from './types'
 
 interface SuggestionsTriageClientProps {
   suggestions: TriageSuggestion[]
+  /** Preselects the type filter (e.g. from a ?type= link in notification emails). */
+  initialTypeFilter?: SuggestionType
 }
 
 function FilterChip({
@@ -48,16 +50,32 @@ function FilterChip({
   )
 }
 
-export default function SuggestionsTriageClient({ suggestions }: SuggestionsTriageClientProps) {
+export default function SuggestionsTriageClient({
+  suggestions,
+  initialTypeFilter,
+}: SuggestionsTriageClientProps) {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<SuggestionType | 'all'>('all')
+  const [typeFilter, setTypeFilter] = useState<SuggestionType | 'all'>(initialTypeFilter ?? 'all')
   const [statusFilter, setStatusFilter] = useState<SuggestionStatus | 'all'>('all')
   const [selected, setSelected] = useState<TriageSuggestion | null>(null)
 
+  // Symptom-content suggestions are triaged by each practice's own admin team
+  // (Admin dashboard → Suggestions), so they're hidden here — and excluded from
+  // the counts — unless the Symptom content filter is selected.
+  const scoped = useMemo(
+    () =>
+      suggestions.filter((s) =>
+        typeFilter === 'SYMPTOM_CONTENT'
+          ? s.type === 'SYMPTOM_CONTENT'
+          : s.type !== 'SYMPTOM_CONTENT'
+      ),
+    [suggestions, typeFilter]
+  )
+
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase()
-    return suggestions.filter((s) => {
+    return scoped.filter((s) => {
       if (typeFilter !== 'all' && s.type !== typeFilter) return false
       if (statusFilter !== 'all' && s.status !== statusFilter) return false
       if (q) {
@@ -69,7 +87,7 @@ export default function SuggestionsTriageClient({ suggestions }: SuggestionsTria
       }
       return true
     })
-  }, [suggestions, searchQuery, typeFilter, statusFilter])
+  }, [scoped, searchQuery, typeFilter, statusFilter])
 
   const statusCounts = useMemo(() => {
     const counts: Record<SuggestionStatus, number> = {
@@ -79,9 +97,9 @@ export default function SuggestionsTriageClient({ suggestions }: SuggestionsTria
       DONE: 0,
       DECLINED: 0,
     }
-    for (const s of suggestions) counts[s.status] += 1
+    for (const s of scoped) counts[s.status] += 1
     return counts
-  }, [suggestions])
+  }, [scoped])
 
   // Keep the open detail panel in sync with server-refreshed data.
   const selectedCurrent = selected
@@ -96,15 +114,16 @@ export default function SuggestionsTriageClient({ suggestions }: SuggestionsTria
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-nhs-dark-blue">Feedback &amp; suggestions</h1>
           <p className="text-nhs-grey mt-2">
-            Feature requests, improvements, bug reports, and symptom-content suggestions from all
-            surgeries. Open an item to set its status or respond to the submitter.
+            Feature requests, improvements, and bug reports from all surgeries. Open an item to set
+            its status or respond to the submitter. Symptom-content suggestions are handled by each
+            practice&apos;s own admin team — select the Symptom content filter to view them anyway.
           </p>
         </div>
 
         {/* Stats row */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <div className="bg-white rounded-lg border border-gray-200 p-3 text-center">
-            <div className="text-xl font-bold text-gray-900">{suggestions.length}</div>
+            <div className="text-xl font-bold text-gray-900">{scoped.length}</div>
             <p className="text-xs text-gray-600">Total</p>
           </div>
           {SUGGESTION_STATUSES.map((status) => (
@@ -144,7 +163,7 @@ export default function SuggestionsTriageClient({ suggestions }: SuggestionsTria
               />
             ))}
             <span className="ml-auto text-xs text-gray-500">
-              Showing {filtered.length} of {suggestions.length}
+              Showing {filtered.length} of {scoped.length}
             </span>
           </div>
         </div>
@@ -152,6 +171,8 @@ export default function SuggestionsTriageClient({ suggestions }: SuggestionsTria
         {/* Table */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <AdminTable<TriageSuggestion>
+            scrollContainerClassName="overflow-x-auto"
+            cellPadding="px-4"
             columns={[
               {
                 header: 'Type',

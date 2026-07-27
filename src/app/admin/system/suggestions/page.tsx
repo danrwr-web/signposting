@@ -4,10 +4,16 @@ export const revalidate = 0
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import type { SuggestionType } from '@/lib/api-contracts'
+import { SUGGESTION_TYPES } from '@/lib/suggestions'
 import SuggestionsTriageClient from './SuggestionsTriageClient'
 import type { TriageSuggestion } from './types'
 
-export default async function SuggestionsTriagePage() {
+export default async function SuggestionsTriagePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>
+}) {
   const user = await getSessionUser()
 
   if (!user) {
@@ -25,6 +31,13 @@ export default async function SuggestionsTriagePage() {
     },
     orderBy: { createdAt: 'desc' },
   })
+
+  // Notification emails link here with ?type=SYMPTOM_CONTENT so the item they
+  // reference isn't hidden by the default (non-symptom-content) scope.
+  const { type } = await searchParams
+  const initialTypeFilter = SUGGESTION_TYPES.includes(type as SuggestionType)
+    ? (type as SuggestionType)
+    : undefined
 
   const suggestions: TriageSuggestion[] = rows.map((s) => ({
     id: s.id,
@@ -47,5 +60,5 @@ export default async function SuggestionsTriagePage() {
     respondedBy: s.respondedBy,
   }))
 
-  return <SuggestionsTriageClient suggestions={suggestions} />
+  return <SuggestionsTriageClient suggestions={suggestions} initialTypeFilter={initialTypeFilter} />
 }
