@@ -43,6 +43,18 @@ const COOKIE_KEY = 'surgery'
 const STORAGE_KEY = 'surgery_state'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 180 // 180 days
 
+/** Extract the surgery id from a /s/[id]/... pathname, or null for any other route. */
+export function getSurgeryIdFromPath(pathname: string | null): string | null {
+  if (!pathname) return null
+  const match = pathname.match(/^\/s\/([^/]+)/)
+  if (!match) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
 interface ProviderProps {
   initialSurgery: SurgeryState | null
   availableSurgeries: SurgeryState[]
@@ -62,10 +74,29 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
   const isSuperuser = user?.globalRole === 'SUPERUSER'
   const memberships = useMemo(() => user?.memberships || [], [user?.memberships])
 
-  // On mount: apply precedence URL > cookie > localStorage > user's default surgery
+  // On mount: apply precedence path > URL query > cookie > localStorage > user's default surgery
   useEffect(() => {
     // Guard against re-entrancy
     if (isSettingRef.current) return
+
+    // Highest precedence: the /s/[id] path segment — it is what the server rendered
+    // and RBAC-gated, so cookie/localStorage must never override it.
+    const pathId = getSurgeryIdFromPath(pathname)
+    if (pathId) {
+      const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === pathId)
+      if (hasAccess) {
+        const surgeryData = availableSurgeries.find(s => s.id === pathId)
+        const next: SurgeryState = surgeryData || { id: pathId, slug: pathId, name: '' }
+        setSurgeryState(prev => (prev && prev.id === next.id && prev.name === next.name ? prev : next))
+        if (readCookie(COOKIE_KEY) !== pathId) {
+          writeCookie(COOKIE_KEY, pathId, COOKIE_MAX_AGE)
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      }
+      // On a /s/ route never fall through to cookie/localStorage: if access looked
+      // false the session just hasn't hydrated yet, and this effect re-runs when it does.
+      return
+    }
 
     const urlId = searchParams.get('surgery') || undefined
     if (urlId) {
@@ -74,7 +105,7 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
       if (hasAccess) {
         const surgeryData = availableSurgeries.find(s => s.id === urlId)
         const next: SurgeryState = surgeryData || { id: urlId, slug: urlId, name: '' }
-        setSurgeryState(next)
+        setSurgeryState(prev => (prev && prev.id === next.id && prev.name === next.name ? prev : next))
         writeCookie(COOKIE_KEY, urlId, COOKIE_MAX_AGE)
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
         return
@@ -121,7 +152,7 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
         }
       }
     }
-  }, [searchParams, user, isSuperuser, memberships, availableSurgeries])
+  }, [pathname, searchParams, user, isSuperuser, memberships, availableSurgeries])
 
   // Cross-tab sync via storage event
   useEffect(() => {
