@@ -173,7 +173,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
     setSaving(true)
 
     // In edit mode, send null for cleared fields so the API clears stale data.
-    // In create mode, send undefined (omit) since the POST schema uses .optional() not .nullable().
+    // In create mode, omit cleared fields entirely — there is nothing to clear.
     const empty = isEdit ? null : undefined
     const listSize = form.listSize ? parseInt(form.listSize, 10) : undefined
     const body: Record<string, unknown> = {
@@ -189,7 +189,7 @@ export default function PipelineDialog({ open, onClose, entry, onSaved }: Props)
       status: form.status,
       freeTrial: form.freeTrial,
       annualValueGbp: form.annualValueGbp ? parseFloat(form.annualValueGbp) : empty,
-      contractVariantId: form.contractVariantId || null,
+      contractVariantId: form.contractVariantId || empty,
       contractVariantLabel: form.contractVariantLabel || empty,
       notes: form.notes || empty,
     }

@@ -39,6 +39,7 @@ The following core capabilities are established and available to all surgeries:
 
 ### Fixed
 
+- Fixed the Sales Pipeline "Add Practice" dialog rejecting new entries with an "Invalid input" error when no contract variant was selected — the variant is now genuinely optional before the proposal stage, matching the form.
 - **Age-group variants no longer disappear from the editor** once a practice has customised a symptom — variants are shared content on the base symptom, and system administrators can now view and edit them from any practice's view of the symptom, with changes saved to the shared base copy.
 - Fixed the system admin **Edit Symptom form silently clearing a symptom's variants** on save: existing variants now load into the form (shown expanded rather than hidden behind "Add Variants"), the variant position (before/after the main instructions) is preserved, and variant instructions now use the rich-text editor rather than a raw HTML box.
 - Fixed variant edits made in the symptom page's "Edit Instructions" mode being silently discarded, and cancelled edits leaking half-finished variant changes into later saves.
