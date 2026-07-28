@@ -27,10 +27,13 @@ const makeSymptom = (name: string, overrides: Partial<EffectiveSymptom> = {}): E
 
 const symptoms = FALLBACK_SYMPTOM_NAMES.map(name => makeSymptom(name))
 
-const mockFetchWithUiConfig = (uiConfig: unknown) => {
+const mockFetchWithUiConfig = (uiConfig: unknown, suggestions: unknown[] = []) => {
   const fetchMock = jest.fn((url: string, init?: RequestInit) => {
     if (init?.method === 'PATCH') {
       return Promise.resolve({ ok: true, json: async () => ({ success: true }) })
+    }
+    if (url.includes('quick-access-suggestions')) {
+      return Promise.resolve({ ok: true, json: async () => ({ suggestions }) })
     }
     return Promise.resolve({ ok: true, json: async () => ({ surgery: { uiConfig } }) })
   }) as jest.Mock
@@ -122,6 +125,53 @@ describe('CommonReasonsConfig', () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(checkbox).toBeChecked()
     expect(screen.getByText(`Selected symptoms (${COMMON_REASONS_MAX}/${COMMON_REASONS_MAX})`)).toBeInTheDocument()
+  })
+
+  it('replaces the selection with the most viewed symptoms, keeping labels for retained ones', async () => {
+    mockFetchWithUiConfig(
+      {
+        commonReasons: {
+          commonReasonsEnabled: true,
+          items: [{ symptomId: 'cough', label: 'Coughs' }, { symptomId: 'acne' }],
+        },
+      },
+      [
+        { symptomId: 'sore-throat', name: 'Sore Throat', ageGroup: 'Adult', viewCount: 12 },
+        { symptomId: 'cough', name: 'Cough', ageGroup: 'Adult', viewCount: 9 },
+        { symptomId: 'earache', name: 'Earache', ageGroup: 'Adult', viewCount: 4 },
+      ]
+    )
+    const user = userEvent.setup()
+    render(<CommonReasonsConfig surgeryId="sur-1" symptoms={symptoms} />)
+
+    await screen.findByRole('checkbox', { name: checkboxLabel })
+    await user.click(screen.getByRole('button', { name: /use most viewed/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText(`Selected symptoms (3/${COMMON_REASONS_MAX})`)).toBeInTheDocument()
+    })
+    expect(screen.getByText('Sore Throat')).toBeInTheDocument()
+    expect(screen.queryByText('Acne')).not.toBeInTheDocument()
+    // Custom label preserved for the symptom that stayed selected
+    expect(screen.getByDisplayValue('Coughs')).toBeInTheDocument()
+    // Unsaved change: Save bar appears; thin-data note shown
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.getByText(/only 3 symptoms have recorded views/i)).toBeInTheDocument()
+  })
+
+  it('shows a note and leaves the selection unchanged when there is no usage data', async () => {
+    mockFetchWithUiConfig(null, [])
+    const user = userEvent.setup()
+    render(<CommonReasonsConfig surgeryId="sur-1" symptoms={symptoms} />)
+
+    await screen.findByRole('checkbox', { name: checkboxLabel })
+    await user.click(screen.getByRole('button', { name: /use most viewed/i }))
+
+    expect(
+      await screen.findByText(/no symptom usage has been recorded/i)
+    ).toBeInTheDocument()
+    expect(screen.getByText(`Selected symptoms (${COMMON_REASONS_MAX}/${COMMON_REASONS_MAX})`)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
   })
 
   it('fills in the default items once symptoms load after the config fetch', async () => {

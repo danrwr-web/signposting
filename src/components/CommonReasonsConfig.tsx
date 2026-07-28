@@ -69,6 +69,8 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
   })
   const [usingDefaults, setUsingDefaults] = useState(initialState.usingDefaults)
   const [searchTerm, setSearchTerm] = useState('')
+  const [isSuggesting, setIsSuggesting] = useState(false)
+  const [suggestionNote, setSuggestionNote] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(!initialConfig && !!surgeryId)
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -173,6 +175,42 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
     setItems(newItems)
   }
 
+  // Replace the selection with the surgery's most-viewed symptoms (last 30
+  // days). Unsaved like any other edit — the admin reviews, then saves.
+  const handleUseMostViewed = async () => {
+    setIsSuggesting(true)
+    setSuggestionNote(null)
+    try {
+      const url = surgeryId
+        ? `/api/admin/quick-access-suggestions?surgeryId=${surgeryId}`
+        : '/api/admin/quick-access-suggestions'
+      const res = await fetch(url, { cache: 'no-store', credentials: 'include' })
+      if (!res.ok) throw new Error('Request failed')
+      const data = await res.json()
+      const suggestions: { symptomId: string }[] = Array.isArray(data.suggestions) ? data.suggestions : []
+      if (suggestions.length === 0) {
+        setSuggestionNote('No symptom usage has been recorded for this surgery in the last 30 days.')
+        return
+      }
+      const labelById = new Map(items.map(i => [i.symptomId, i.label]))
+      setItems(
+        suggestions.slice(0, COMMON_REASONS_MAX).map(s => {
+          const label = labelById.get(s.symptomId)
+          return label ? { symptomId: s.symptomId, label } : { symptomId: s.symptomId }
+        })
+      )
+      if (suggestions.length < COMMON_REASONS_MAX) {
+        setSuggestionNote(
+          `Only ${suggestions.length} symptom${suggestions.length === 1 ? ' has' : 's have'} recorded views in the last 30 days.`
+        )
+      }
+    } catch {
+      setSuggestionNote('Could not load symptom usage data. Please try again.')
+    } finally {
+      setIsSuggesting(false)
+    }
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     setSaveMessage(null)
@@ -231,6 +269,7 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
     setItems(baseline.items)
     setSaveMessage(null)
     setLimitMessage(null)
+    setSuggestionNote(null)
   }
 
   const hasChanges = useMemo(() => {
@@ -301,9 +340,24 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
           <>
             {/* Selected Symptoms */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Selected symptoms ({selectedItems.length}/{COMMON_REASONS_MAX})
-              </label>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Selected symptoms ({selectedItems.length}/{COMMON_REASONS_MAX})
+                </label>
+                <button
+                  type="button"
+                  onClick={handleUseMostViewed}
+                  disabled={isSuggesting}
+                  className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1 disabled:opacity-50"
+                >
+                  {isSuggesting ? 'Loading usage data...' : 'Use most viewed (last 30 days)'}
+                </button>
+              </div>
+              {suggestionNote && (
+                <p className="text-xs text-nhs-grey mb-2" aria-live="polite">
+                  {suggestionNote}
+                </p>
+              )}
               {selectedItems.length === 0 ? (
                 <p className="text-sm text-gray-500 italic">No symptoms selected</p>
               ) : (
