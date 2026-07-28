@@ -14,6 +14,9 @@ jest.mock('@/lib/prisma', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    userSurgery: {
+      count: jest.fn(),
+    },
   },
 }))
 
@@ -129,7 +132,7 @@ describe('/api/suggestions', () => {
       )
     })
 
-    it('sends no email for symptom-content suggestions with a surgery', async () => {
+    it('sends no email for symptom-content suggestions when the surgery has admins', async () => {
       // Surgery admins see these in their Suggestions tab (badged via
       // suggestionsPendingCount), so no notification email is needed.
       ;(prisma.suggestion.create as jest.Mock).mockResolvedValue({
@@ -138,11 +141,33 @@ describe('/api/suggestions', () => {
         title: null,
         symptom: 'Headache',
       })
+      ;(prisma.userSurgery.count as jest.Mock).mockResolvedValue(2)
       const res = await POST(
         makeBodyReq({ type: 'SYMPTOM_CONTENT', symptom: 'Headache', text: 'Update', surgeryId: 'sur-1' })
       )
       expect(res.status).toBe(201)
+      expect(prisma.userSurgery.count).toHaveBeenCalledWith({
+        where: { surgeryId: 'sur-1', role: 'ADMIN' },
+      })
       expect(mockedSendEmail).not.toHaveBeenCalled()
+    })
+
+    it('emails the central team for symptom-content suggestions when the surgery has no admins', async () => {
+      // Nobody would see the admin badge, so the central fallback is the only signal.
+      ;(prisma.suggestion.create as jest.Mock).mockResolvedValue({
+        ...dbSuggestion,
+        type: 'SYMPTOM_CONTENT',
+        title: null,
+        symptom: 'Headache',
+      })
+      ;(prisma.userSurgery.count as jest.Mock).mockResolvedValue(0)
+      const res = await POST(
+        makeBodyReq({ type: 'SYMPTOM_CONTENT', symptom: 'Headache', text: 'Update', surgeryId: 'sur-1' })
+      )
+      expect(res.status).toBe(201)
+      expect(mockedSendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'SYMPTOM_CONTENT' })
+      )
     })
 
     it('still emails the central team for symptom-content suggestions without a surgery', async () => {

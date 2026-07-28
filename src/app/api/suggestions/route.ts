@@ -160,8 +160,16 @@ export async function POST(request: NextRequest) {
     // Symptom-content suggestions with a surgery need no email: the surgery's
     // admins see them in their Suggestions tab, whose pending-count badge
     // (suggestionsPendingCount in /api/admin/metrics) already surfaces them.
-    // Everything else goes to the toolkit team's central address.
-    const needsEmail = suggestion.type !== 'SYMPTOM_CONTENT' || !suggestion.surgeryId
+    // Everything else — including a symptom-content suggestion for a surgery
+    // with no admins to see that badge — goes to the toolkit team's central
+    // address so no submission can sit unnoticed.
+    let needsEmail = true
+    if (suggestion.type === 'SYMPTOM_CONTENT' && suggestion.surgeryId) {
+      const adminCount = await prisma.userSurgery.count({
+        where: { surgeryId: suggestion.surgeryId, role: 'ADMIN' },
+      })
+      needsEmail = adminCount === 0
+    }
     if (needsEmail) {
       try {
         await sendSuggestionNotificationEmail({
