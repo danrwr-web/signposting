@@ -9,10 +9,13 @@ import { useState, useEffect, useMemo } from 'react'
 import type { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import {
   COMMON_REASONS_MAX,
+  hasExplicitCommonReasonsConfig,
+  resolveFallbackCommonReasonSymptoms,
   type CommonReasonsConfig,
   type UiConfig,
   type CommonReasonsItem,
 } from '@/lib/commonReasonsShared'
+import { AlertBanner } from '@/components/ui'
 import { useRouter } from 'next/navigation'
 
 interface CommonReasonsConfigProps {
@@ -38,8 +41,33 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
     return []
   }
 
-  const [enabled, setEnabled] = useState(initialConfig?.commonReasonsEnabled ?? false)
-  const [items, setItems] = useState<CommonReasonsItem[]>(normalizeInitialItems(initialConfig))
+  // The default buttons an unconfigured surgery shows on the staff home screen
+  const defaultItemsFor = (syms: EffectiveSymptom[]): CommonReasonsItem[] =>
+    resolveFallbackCommonReasonSymptoms(syms).map(s => ({ symptomId: s.id }))
+
+  // Mirror the staff-facing resolution in src/lib/commonReasons.ts: a surgery
+  // without an explicitly saved config shows the default buttons, so the
+  // editor must start from that state rather than from "off".
+  const deriveEditorState = (config: CommonReasonsConfig | null | undefined, syms: EffectiveSymptom[]) => {
+    if (hasExplicitCommonReasonsConfig(config)) {
+      return {
+        enabled: config.commonReasonsEnabled,
+        items: normalizeInitialItems(config),
+        usingDefaults: false,
+      }
+    }
+    return { enabled: true, items: defaultItemsFor(syms), usingDefaults: true }
+  }
+
+  const initialState = deriveEditorState(initialConfig, symptoms)
+  const [enabled, setEnabled] = useState(initialState.enabled)
+  const [items, setItems] = useState<CommonReasonsItem[]>(initialState.items)
+  // Last loaded/saved state, used to detect unsaved changes and to restore on cancel
+  const [baseline, setBaseline] = useState<{ enabled: boolean; items: CommonReasonsItem[] }>({
+    enabled: initialState.enabled,
+    items: initialState.items,
+  })
+  const [usingDefaults, setUsingDefaults] = useState(initialState.usingDefaults)
   const [searchTerm, setSearchTerm] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(!initialConfig && !!surgeryId)
@@ -63,13 +91,11 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
           }
           const data = await res.json()
           const uiConfig = data.surgery?.uiConfig as UiConfig | null
-          if (uiConfig?.commonReasons) {
-            setEnabled(uiConfig.commonReasons.commonReasonsEnabled)
-            setItems(normalizeInitialItems(uiConfig.commonReasons))
-          } else {
-            setEnabled(false)
-            setItems([])
-          }
+          const derived = deriveEditorState(uiConfig?.commonReasons, symptoms)
+          setEnabled(derived.enabled)
+          setItems(derived.items)
+          setBaseline({ enabled: derived.enabled, items: derived.items })
+          setUsingDefaults(derived.usingDefaults)
         })
         .catch(err => {
           if (!cancelled) console.error('Error loading config:', err)
@@ -185,6 +211,9 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
       }
 
       setSaveMessage({ type: 'success', text: 'Settings saved successfully' })
+      setItems(normalizedItems)
+      setBaseline({ enabled, items: normalizedItems })
+      setUsingDefaults(false)
       router.refresh()
       setTimeout(() => setSaveMessage(null), 3000)
     } catch (error) {
@@ -198,22 +227,29 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
   }
 
   const handleCancel = () => {
-    setEnabled(initialConfig?.commonReasonsEnabled ?? false)
-    setItems(normalizeInitialItems(initialConfig))
+    setEnabled(baseline.enabled)
+    setItems(baseline.items)
     setSaveMessage(null)
     setLimitMessage(null)
   }
 
   const hasChanges = useMemo(() => {
-    if (!initialConfig) {
-      return enabled || items.length > 0
-    }
-    const initialItems = normalizeInitialItems(initialConfig)
     return (
-      enabled !== initialConfig.commonReasonsEnabled ||
-      JSON.stringify(items) !== JSON.stringify(initialItems)
+      enabled !== baseline.enabled ||
+      JSON.stringify(items) !== JSON.stringify(baseline.items)
     )
-  }, [enabled, items, initialConfig])
+  }, [enabled, items, baseline])
+
+  // The symptom list can arrive after the config fetch; while the surgery is
+  // still on untouched defaults, keep the derived default items in sync with it.
+  useEffect(() => {
+    if (!usingDefaults || hasChanges) return
+    const defaults = defaultItemsFor(symptoms)
+    const matches = (a: CommonReasonsItem[]) => JSON.stringify(a) === JSON.stringify(defaults)
+    setItems(prev => (matches(prev) ? prev : defaults))
+    setBaseline(prev => (prev.enabled && matches(prev.items) ? prev : { enabled: true, items: defaults }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symptoms, usingDefaults, hasChanges])
 
   if (isLoading) {
     return (
@@ -238,6 +274,14 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
       </div>
 
       <div className="space-y-6">
+        {usingDefaults && (
+          <AlertBanner variant="info">
+            This surgery hasn&apos;t saved a quick access configuration yet, so staff currently
+            see the default buttons listed below. Save to keep this list, customise it first,
+            or untick the box and save to hide the buttons.
+          </AlertBanner>
+        )}
+
         {/* Enable/Disable Toggle */}
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 cursor-pointer">
@@ -368,24 +412,28 @@ export default function CommonReasonsConfig({ surgeryId, symptoms, initialConfig
         )}
 
         {/* Save/Cancel Buttons */}
-        {hasChanges && (
+        {(hasChanges || saveMessage) && (
           <div className="flex items-center gap-3 pt-4 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50"
-            >
-              {isSaving ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              type="button"
-              onClick={handleCancel}
-              disabled={isSaving}
-              className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
-            >
-              Cancel
-            </button>
+            {hasChanges && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-nhs-blue text-white rounded-lg hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
             {saveMessage && (
               <div className={`text-sm ${saveMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
                 {saveMessage.text}

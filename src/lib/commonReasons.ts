@@ -6,30 +6,20 @@ import 'server-only'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import {
   COMMON_REASONS_MAX,
+  FALLBACK_SYMPTOM_NAMES,
+  resolveFallbackCommonReasonSymptoms,
   type CommonReasonsConfig,
   type CommonReasonsItem,
   type UiConfig,
 } from '@/lib/commonReasonsShared'
 
-export { COMMON_REASONS_MAX }
+export { COMMON_REASONS_MAX, FALLBACK_SYMPTOM_NAMES }
 export type { CommonReasonsConfig, CommonReasonsItem, UiConfig }
 
 export interface CommonReasonsResolvedItem {
   symptom: EffectiveSymptom
   label?: string | null
 }
-
-// Hard-coded fallback list of symptom names
-const FALLBACK_SYMPTOM_NAMES = [
-  'Abdomen Pain',
-  'Acid Reflux',
-  'Acne',
-  'Acute Medication Request',
-  'Chest Infection',
-  'Cough',
-  'Earache',
-  'Sore Throat',
-]
 
 /**
  * Normalize common reasons config to new format (items array)
@@ -111,30 +101,8 @@ export function getCommonReasonsForSurgery(
   }
 
   // No config present: use fallback names
-  const fallbackSymptoms = getFallbackSymptoms(effectiveSymptoms, fallbackNames)
+  const fallbackSymptoms = resolveFallbackCommonReasonSymptoms(effectiveSymptoms, fallbackNames)
   return fallbackSymptoms.slice(0, max).map(symptom => ({ symptom }))
-}
-
-/**
- * Get fallback symptoms by matching names against effective symptoms
- */
-function getFallbackSymptoms(
-  effectiveSymptoms: EffectiveSymptom[],
-  fallbackNames: string[]
-): EffectiveSymptom[] {
-  const symptomMap = new Map(
-    effectiveSymptoms.map(s => [s.name.toLowerCase().trim(), s])
-  )
-
-  const resolved: EffectiveSymptom[] = []
-  for (const name of fallbackNames) {
-    const symptom = symptomMap.get(name.toLowerCase().trim())
-    if (symptom && !symptom.isHidden) {
-      resolved.push(symptom)
-    }
-  }
-
-  return resolved
 }
 
 /**
