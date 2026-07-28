@@ -35,6 +35,8 @@ export async function PATCH(
       data.response = parsed.data.response || null
       data.respondedBy = { connect: { id: user.id } }
       data.respondedAt = new Date()
+      // A new or updated response hasn't been seen by the submitter yet.
+      data.responseViewedAt = null
     }
 
     const updated = await prisma.suggestion.update({

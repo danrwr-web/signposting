@@ -31,6 +31,7 @@ function serialiseSuggestion(suggestion: SuggestionWithSurgery) {
     submittedByUserId: suggestion.submittedByUserId,
     response: suggestion.response,
     respondedAt: suggestion.respondedAt ? suggestion.respondedAt.toISOString() : null,
+    responseViewedAt: suggestion.responseViewedAt ? suggestion.responseViewedAt.toISOString() : null,
     createdAt: suggestion.createdAt.toISOString(),
     updatedAt: suggestion.updatedAt.toISOString(),
     surgery: suggestion.surgery,
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
       where.OR = [{ submittedByUserId: user.id }, { userEmail: user.email }]
     }
 
-    const [suggestions, unreadCount] = await Promise.all([
+    const [suggestions, unreadCount, unreadResponseCount] = await Promise.all([
       prisma.suggestion.findMany({
         where: status ? { ...where, status } : where,
         include: { surgery: SURGERY_SELECT },
@@ -97,11 +98,18 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.suggestion.count({ where: { ...where, status: 'PENDING' } }),
+      // Responses the submitter hasn't seen yet (only meaningful for their own submissions).
+      scope === 'surgery'
+        ? Promise.resolve(0)
+        : prisma.suggestion.count({
+            where: { ...where, response: { not: null }, responseViewedAt: null },
+          }),
     ])
 
     return NextResponse.json({
       suggestions: suggestions.map(serialiseSuggestion),
       unreadCount,
+      unreadResponseCount,
     })
   } catch (error) {
     console.error('Suggestions API: Error fetching suggestions:', error)
@@ -148,8 +156,23 @@ export async function POST(request: NextRequest) {
       include: { surgery: SURGERY_SELECT },
     })
 
-    // Notify the team, but never fail the submission if email delivery breaks.
+    // Notify the reviewers, but never fail the submission if email delivery breaks.
+    // Symptom-content suggestions are reviewed by the surgery's own admins, so
+    // notify them (not the central team); everything else goes to the toolkit team.
     try {
+      let recipients: string[] | undefined
+      let reviewPath: string | undefined
+      if (suggestion.type === 'SYMPTOM_CONTENT' && suggestion.surgeryId) {
+        const admins = await prisma.userSurgery.findMany({
+          where: { surgeryId: suggestion.surgeryId, role: 'ADMIN' },
+          select: { user: { select: { email: true } } },
+        })
+        const adminEmails = admins.map((a) => a.user.email).filter(Boolean)
+        if (adminEmails.length > 0) {
+          recipients = adminEmails
+          reviewPath = '/admin?tab=suggestions'
+        }
+      }
       await sendSuggestionNotificationEmail({
         type: suggestion.type,
         title: suggestion.title,
@@ -158,6 +181,8 @@ export async function POST(request: NextRequest) {
         surgeryName: suggestion.surgery?.name ?? null,
         symptomName: suggestion.symptom,
         pageContext: suggestion.pageContext,
+        recipients,
+        reviewPath,
       })
     } catch (emailError) {
       console.error('Suggestions API: Failed to send notification email:', emailError)

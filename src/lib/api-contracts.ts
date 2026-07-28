@@ -469,6 +469,7 @@ export interface SuggestionRes {
   submittedByUserId: string | null;
   response: string | null;
   respondedAt: string | null;
+  responseViewedAt: string | null;
   createdAt: string;
   updatedAt: string;
   surgery: { id: string; name: string; slug: string | null } | null;

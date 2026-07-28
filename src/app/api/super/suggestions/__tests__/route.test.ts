@@ -108,6 +108,8 @@ describe('/api/super/suggestions', () => {
       expect(updateArgs.data.response).toBe('Shipped!')
       expect(updateArgs.data.respondedBy).toEqual({ connect: { id: 'super1' } })
       expect(updateArgs.data.respondedAt).toBeInstanceOf(Date)
+      // A fresh response must re-appear as unread to the submitter
+      expect(updateArgs.data.responseViewedAt).toBeNull()
     })
   })
 })

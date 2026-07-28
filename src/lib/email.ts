@@ -25,8 +25,14 @@ function createTransporter() {
   })
 }
 
-const FROM_ADDRESS = () =>
-  process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@signpostingtool.co.uk'
+// Always send with a display name: even where the SMTP provider rewrites the
+// From address to the authenticated account (Gmail does, unless the address is
+// a verified "Send mail as" alias), the display name is preserved — so
+// recipients see "Signposting Toolkit" rather than a bare personal address.
+const FROM_ADDRESS = () => ({
+  name: 'Signposting Toolkit',
+  address: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@signpostingtool.co.uk',
+})
 
 export async function sendDemoRequestEmail(data: DemoRequestData): Promise<void> {
   const recipient = process.env.DEMO_REQUEST_RECIPIENT || 'contact@signpostingtool.co.uk'
@@ -45,6 +51,7 @@ ${data.message ? `\nMessage:\n${data.message}` : ''}
   await createTransporter().sendMail({
     from: FROM_ADDRESS(),
     to: recipient,
+    replyTo: data.email,
     subject: `New demo request from ${data.practice}`,
     text: emailBody,
   })
@@ -58,6 +65,10 @@ interface SuggestionNotificationData {
   surgeryName: string | null
   symptomName: string | null
   pageContext: string | null
+  /** Overrides the central notify address, e.g. surgery admins for symptom-content suggestions. */
+  recipients?: string[]
+  /** Review link path; defaults to the central superuser triage page. */
+  reviewPath?: string
 }
 
 const SUGGESTION_TYPE_LABELS: Record<string, string> = {
@@ -70,10 +81,11 @@ const SUGGESTION_TYPE_LABELS: Record<string, string> = {
 export async function sendSuggestionNotificationEmail(
   data: SuggestionNotificationData
 ): Promise<void> {
-  const recipient =
-    process.env.SUGGESTION_NOTIFY_RECIPIENT ||
-    process.env.DEMO_REQUEST_RECIPIENT ||
-    'contact@signpostingtool.co.uk'
+  const recipient = data.recipients?.length
+    ? data.recipients.join(', ')
+    : process.env.SUGGESTION_NOTIFY_RECIPIENT ||
+      process.env.DEMO_REQUEST_RECIPIENT ||
+      'contact@signpostingtool.co.uk'
 
   const typeLabel = SUGGESTION_TYPE_LABELS[data.type] || 'suggestion'
   // On Vercel, NEXTAUTH_URL is the deployment-specific *.vercel.app URL, which
@@ -97,8 +109,9 @@ ${data.pageContext ? `Page: ${data.pageContext}` : ''}
 
 ${data.text}
 
-Review and respond: ${baseUrl}/admin/system/suggestions${
-    data.type === 'SYMPTOM_CONTENT' ? '?type=SYMPTOM_CONTENT' : ''
+Review and respond: ${baseUrl}${
+    data.reviewPath ??
+    `/admin/system/suggestions${data.type === 'SYMPTOM_CONTENT' ? '?type=SYMPTOM_CONTENT' : ''}`
   }
   `
     .split('\n')
@@ -109,6 +122,8 @@ Review and respond: ${baseUrl}/admin/system/suggestions${
   await createTransporter().sendMail({
     from: FROM_ADDRESS(),
     to: recipient,
+    // Replies should go to the colleague who made the suggestion, not the app mailbox.
+    replyTo: data.submitterEmail,
     subject: `New ${typeLabel}${data.surgeryName ? ` from ${data.surgeryName}` : ''}`,
     text: emailBody,
   })

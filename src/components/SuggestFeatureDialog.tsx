@@ -3,9 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { toast } from 'react-hot-toast'
-import { Button, Dialog, FormField, Input, Select, Textarea } from '@/components/ui'
+import { AlertBanner, Button, Dialog, FormField, Input, Select, Textarea } from '@/components/ui'
 import type { SuggestionType } from '@/lib/api-contracts'
 import { SUGGESTION_TYPE_LABELS } from '@/lib/suggestions'
+
+/**
+ * Where the user wants their message to go. Only the first two are actually
+ * deliverable through this form; 'practice-team' exists so we can catch
+ * questions meant for the user's own practice staff and redirect them
+ * before anything is submitted to the wrong place.
+ */
+type SuggestionAudience = 'toolkit' | 'practice-guidance' | 'practice-team'
 
 interface SuggestFeatureDialogProps {
   open: boolean
@@ -21,6 +29,12 @@ interface SuggestFeatureDialogProps {
 
 const FORM_ID = 'suggest-feature-form'
 
+interface AudienceOption {
+  value: SuggestionAudience
+  label: string
+  description: string
+}
+
 export default function SuggestFeatureDialog({
   open,
   onClose,
@@ -30,30 +44,75 @@ export default function SuggestFeatureDialog({
   onSubmitted,
 }: SuggestFeatureDialogProps) {
   const pathname = usePathname()
-  const initialFocusRef = useRef<HTMLSelectElement>(null)
-  const initialType = defaultType ?? (symptomContext ? 'SYMPTOM_CONTENT' : 'FEATURE')
+  const initialFocusRef = useRef<HTMLInputElement>(null)
+  const wantsPracticeGuidance = defaultType === 'SYMPTOM_CONTENT' || Boolean(symptomContext)
+  const initialAudience: SuggestionAudience =
+    wantsPracticeGuidance && surgeryId ? 'practice-guidance' : 'toolkit'
+  const initialType: SuggestionType =
+    defaultType && defaultType !== 'SYMPTOM_CONTENT' ? defaultType : 'FEATURE'
+
+  const [audience, setAudience] = useState<SuggestionAudience>(initialAudience)
   const [type, setType] = useState<SuggestionType>(initialType)
   const [title, setTitle] = useState('')
+  const [topic, setTopic] = useState('')
   const [text, setText] = useState('')
   const [titleError, setTitleError] = useState(false)
+  const [topicError, setTopicError] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Reset the form whenever the dialog is (re)opened.
   useEffect(() => {
     if (open) {
+      setAudience(initialAudience)
       setType(initialType)
       setTitle('')
+      setTopic('')
       setText('')
       setTitleError(false)
+      setTopicError(false)
     }
-  }, [open, initialType])
+  }, [open, initialAudience, initialType])
 
-  const needsTitle = type !== 'SYMPTOM_CONTENT'
+  const audienceOptions: AudienceOption[] = [
+    {
+      value: 'toolkit',
+      label: 'The Signposting Toolkit team',
+      description: 'Ideas, improvements or bug reports about the toolkit itself.',
+    },
+    // Symptom-content suggestions are routed to surgery admins, so this option
+    // only makes sense inside a surgery.
+    ...(surgeryId
+      ? [
+          {
+            value: 'practice-guidance' as const,
+            label: 'Your practice’s toolkit administrators',
+            description:
+              'Suggest new or amended local guidance or symptom content for your practice’s toolkit.',
+          },
+        ]
+      : []),
+    {
+      value: 'practice-team',
+      label: 'Your practice’s management or clinical team',
+      description:
+        'A question about your own practice’s policies, procedures or clinical processes.',
+    },
+  ]
+
+  const isPracticeGuidance = audience === 'practice-guidance'
+  const isPracticeTeam = audience === 'practice-team'
+  const needsTitle = audience === 'toolkit'
+  const needsTopic = isPracticeGuidance && !symptomContext
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isPracticeTeam) return
     if (needsTitle && !title.trim()) {
       setTitleError(true)
+      return
+    }
+    if (needsTopic && !topic.trim()) {
+      setTopicError(true)
       return
     }
 
@@ -63,29 +122,34 @@ export default function SuggestFeatureDialog({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type,
+          type: isPracticeGuidance ? 'SYMPTOM_CONTENT' : type,
           title: needsTitle ? title.trim() : undefined,
           text: text.trim(),
           surgeryId,
-          baseId: type === 'SYMPTOM_CONTENT' ? symptomContext?.baseId : undefined,
-          symptom: type === 'SYMPTOM_CONTENT' ? symptomContext?.symptomName : undefined,
+          baseId: isPracticeGuidance ? symptomContext?.baseId : undefined,
+          symptom: isPracticeGuidance
+            ? symptomContext?.symptomName ?? topic.trim()
+            : undefined,
           pageContext: pathname ?? undefined,
         }),
       })
       if (!response.ok) {
         throw new Error('Failed to submit suggestion')
       }
+      const destination = isPracticeGuidance
+        ? 'your practice’s toolkit administrators'
+        : 'the Signposting Toolkit team'
       toast.success(
         surgeryId ? (
           <span>
-            Thank you! Track it under{' '}
+            Sent to {destination}. Track it under{' '}
             <a href={`/s/${surgeryId}/suggestions`} className="font-semibold underline">
               My suggestions
             </a>
             .
           </span>
         ) : (
-          'Thank you for your suggestion!'
+          `Sent to ${destination}. Thank you!`
         )
       )
       onClose()
@@ -101,84 +165,166 @@ export default function SuggestFeatureDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Suggest a feature or improvement"
-      description="Tell us what would make the toolkit better. We read every suggestion."
+      title="Send a suggestion"
+      description="First, choose who your message is for, so it reaches the right team."
       width="md"
       initialFocusRef={initialFocusRef}
       footer={
         <>
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
-            Cancel
+            {isPracticeTeam ? 'Close' : 'Cancel'}
           </Button>
-          <Button type="submit" form={FORM_ID} loading={isSubmitting}>
-            Submit suggestion
-          </Button>
+          {!isPracticeTeam && (
+            <Button type="submit" form={FORM_ID} loading={isSubmitting}>
+              Submit suggestion
+            </Button>
+          )}
         </>
       }
     >
       <form id={FORM_ID} onSubmit={handleSubmit} className="space-y-4">
-        <FormField label="What kind of suggestion is this?" htmlFor="suggestion-type">
-          <Select
-            ref={initialFocusRef}
-            id="suggestion-type"
-            value={type}
-            onChange={(e) => setType(e.target.value as SuggestionType)}
-          >
-            <option value="FEATURE">{SUGGESTION_TYPE_LABELS.FEATURE}</option>
-            <option value="IMPROVEMENT">{SUGGESTION_TYPE_LABELS.IMPROVEMENT}</option>
-            <option value="BUG">{SUGGESTION_TYPE_LABELS.BUG}</option>
-            {symptomContext && (
-              <option value="SYMPTOM_CONTENT">{SUGGESTION_TYPE_LABELS.SYMPTOM_CONTENT}</option>
+        <fieldset>
+          <legend className="block text-sm font-medium text-gray-700 mb-2">
+            Who is your message for?
+          </legend>
+          <div className="space-y-2">
+            {audienceOptions.map((option, index) => (
+              <label
+                key={option.value}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                  audience === option.value
+                    ? 'border-nhs-blue bg-blue-50 ring-1 ring-nhs-blue'
+                    : 'border-gray-300 hover:border-nhs-blue'
+                }`}
+              >
+                <input
+                  ref={index === 0 ? initialFocusRef : undefined}
+                  type="radio"
+                  name="suggestion-audience"
+                  value={option.value}
+                  checked={audience === option.value}
+                  onChange={() => setAudience(option.value)}
+                  className="mt-1 h-4 w-4 text-nhs-blue focus:ring-nhs-blue"
+                />
+                <span>
+                  <span className="block text-sm font-medium text-gray-900">{option.label}</span>
+                  <span className="block text-xs text-nhs-grey">{option.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        {audience === 'toolkit' && (
+          <>
+            <AlertBanner variant="info">
+              This goes to the <strong>Signposting Toolkit development team</strong> — not to
+              anyone at your practice. Please don&apos;t include patient details or questions
+              meant for your own practice staff.
+            </AlertBanner>
+
+            <FormField label="What kind of suggestion is this?" htmlFor="suggestion-type">
+              <Select
+                id="suggestion-type"
+                value={type}
+                onChange={(e) => setType(e.target.value as SuggestionType)}
+              >
+                <option value="FEATURE">{SUGGESTION_TYPE_LABELS.FEATURE}</option>
+                <option value="IMPROVEMENT">{SUGGESTION_TYPE_LABELS.IMPROVEMENT}</option>
+                <option value="BUG">{SUGGESTION_TYPE_LABELS.BUG}</option>
+              </Select>
+            </FormField>
+
+            <FormField
+              label="Title"
+              htmlFor="suggestion-title"
+              required
+              error={titleError ? 'Please enter a short title' : undefined}
+            >
+              <Input
+                id="suggestion-title"
+                value={title}
+                maxLength={150}
+                error={titleError}
+                onChange={(e) => {
+                  setTitle(e.target.value)
+                  if (titleError && e.target.value.trim()) setTitleError(false)
+                }}
+                placeholder="A short summary of your idea"
+              />
+            </FormField>
+          </>
+        )}
+
+        {isPracticeGuidance && (
+          <>
+            <AlertBanner variant="info">
+              This goes to <strong>your practice&apos;s toolkit administrators</strong>, who
+              review suggestions for local guidance and symptom content.
+            </AlertBanner>
+
+            {symptomContext ? (
+              <p className="text-sm text-nhs-grey">
+                For: <span className="font-medium">{symptomContext.symptomName}</span>
+              </p>
+            ) : (
+              <FormField
+                label="Which symptom or guidance area is this about?"
+                htmlFor="suggestion-topic"
+                required
+                error={topicError ? 'Please say which symptom or guidance this is about' : undefined}
+              >
+                <Input
+                  id="suggestion-topic"
+                  value={topic}
+                  maxLength={300}
+                  error={topicError}
+                  onChange={(e) => {
+                    setTopic(e.target.value)
+                    if (topicError && e.target.value.trim()) setTopicError(false)
+                  }}
+                  placeholder="e.g. Chest pain, or a local service that has changed"
+                />
+              </FormField>
             )}
-          </Select>
-        </FormField>
-
-        {type === 'SYMPTOM_CONTENT' && symptomContext && (
-          <p className="text-sm text-nhs-grey">
-            For: <span className="font-medium">{symptomContext.symptomName}</span>
-          </p>
+          </>
         )}
 
-        {needsTitle && (
-          <FormField
-            label="Title"
-            htmlFor="suggestion-title"
-            required
-            error={titleError ? 'Please enter a short title' : undefined}
-          >
-            <Input
-              id="suggestion-title"
-              value={title}
-              maxLength={150}
-              error={titleError}
-              onChange={(e) => {
-                setTitle(e.target.value)
-                if (titleError && e.target.value.trim()) setTitleError(false)
-              }}
-              placeholder="A short summary of your idea"
-            />
-          </FormField>
+        {isPracticeTeam && (
+          <AlertBanner variant="warning">
+            <span>
+              <strong>This form can&apos;t reach your practice&apos;s management, safeguarding
+              or clinical leads.</strong>{' '}
+              For questions about your own practice&apos;s policies, procedures or clinical
+              processes — for example triage or safeguarding arrangements — please contact your
+              practice manager or clinical lead directly, in your practice&apos;s usual way.
+            </span>
+          </AlertBanner>
         )}
 
-        <FormField label="Details" htmlFor="suggestion-text" required>
-          <Textarea
-            id="suggestion-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={5}
-            maxLength={5000}
-            required
-            placeholder={
-              type === 'SYMPTOM_CONTENT'
-                ? 'Please describe how we can improve this information...'
-                : 'Describe your idea and the problem it would solve...'
-            }
-          />
-        </FormField>
+        {!isPracticeTeam && (
+          <>
+            <FormField label="Details" htmlFor="suggestion-text" required>
+              <Textarea
+                id="suggestion-text"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                rows={5}
+                maxLength={5000}
+                required
+                placeholder={
+                  isPracticeGuidance
+                    ? 'Please describe the change to your practice’s guidance...'
+                    : 'Describe your idea and the problem it would solve...'
+                }
+              />
+            </FormField>
 
-        <p className="text-xs text-nhs-grey">
-          We&apos;ll include the page you&apos;re on to help us understand the context.
-        </p>
+            <p className="text-xs text-nhs-grey">
+              We&apos;ll include the page you&apos;re on to help us understand the context.
+            </p>
+          </>
+        )}
       </form>
     </Dialog>
   )

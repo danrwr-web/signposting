@@ -53,6 +53,7 @@ export default async function SuggestionsTriagePage({
     submittedByUserId: s.submittedByUserId,
     response: s.response,
     respondedAt: s.respondedAt ? s.respondedAt.toISOString() : null,
+    responseViewedAt: s.responseViewedAt ? s.responseViewedAt.toISOString() : null,
     createdAt: s.createdAt.toISOString(),
     updatedAt: s.updatedAt.toISOString(),
     surgery: s.surgery,
