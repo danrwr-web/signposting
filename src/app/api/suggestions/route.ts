@@ -156,8 +156,23 @@ export async function POST(request: NextRequest) {
       include: { surgery: SURGERY_SELECT },
     })
 
-    // Notify the team, but never fail the submission if email delivery breaks.
+    // Notify the reviewers, but never fail the submission if email delivery breaks.
+    // Symptom-content suggestions are reviewed by the surgery's own admins, so
+    // notify them (not the central team); everything else goes to the toolkit team.
     try {
+      let recipients: string[] | undefined
+      let reviewPath: string | undefined
+      if (suggestion.type === 'SYMPTOM_CONTENT' && suggestion.surgeryId) {
+        const admins = await prisma.userSurgery.findMany({
+          where: { surgeryId: suggestion.surgeryId, role: 'ADMIN' },
+          select: { user: { select: { email: true } } },
+        })
+        const adminEmails = admins.map((a) => a.user.email).filter(Boolean)
+        if (adminEmails.length > 0) {
+          recipients = adminEmails
+          reviewPath = '/admin?tab=suggestions'
+        }
+      }
       await sendSuggestionNotificationEmail({
         type: suggestion.type,
         title: suggestion.title,
@@ -166,6 +181,8 @@ export async function POST(request: NextRequest) {
         surgeryName: suggestion.surgery?.name ?? null,
         symptomName: suggestion.symptom,
         pageContext: suggestion.pageContext,
+        recipients,
+        reviewPath,
       })
     } catch (emailError) {
       console.error('Suggestions API: Failed to send notification email:', emailError)

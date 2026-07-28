@@ -14,6 +14,9 @@ jest.mock('@/lib/prisma', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    userSurgery: {
+      findMany: jest.fn(),
+    },
   },
 }))
 
@@ -126,6 +129,60 @@ describe('/api/suggestions', () => {
       )
       expect(mockedSendEmail).toHaveBeenCalledWith(
         expect.objectContaining({ type: 'FEATURE', submitterEmail: 'user@example.com' })
+      )
+    })
+
+    it('notifies the central team (not surgery admins) for app-level feedback', async () => {
+      const res = await POST(
+        makeBodyReq({ type: 'FEATURE', title: 'Dark mode', text: 'Please', surgeryId: 'sur-1' })
+      )
+      expect(res.status).toBe(201)
+      expect(prisma.userSurgery.findMany).not.toHaveBeenCalled()
+      expect(mockedSendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ recipients: undefined, reviewPath: undefined })
+      )
+    })
+
+    it('routes symptom-content notifications to the surgery admins', async () => {
+      ;(prisma.suggestion.create as jest.Mock).mockResolvedValue({
+        ...dbSuggestion,
+        type: 'SYMPTOM_CONTENT',
+        title: null,
+        symptom: 'Headache',
+      })
+      ;(prisma.userSurgery.findMany as jest.Mock).mockResolvedValue([
+        { user: { email: 'admin1@practice.nhs.uk' } },
+        { user: { email: 'admin2@practice.nhs.uk' } },
+      ])
+      const res = await POST(
+        makeBodyReq({ type: 'SYMPTOM_CONTENT', symptom: 'Headache', text: 'Update', surgeryId: 'sur-1' })
+      )
+      expect(res.status).toBe(201)
+      expect(prisma.userSurgery.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { surgeryId: 'sur-1', role: 'ADMIN' } })
+      )
+      expect(mockedSendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipients: ['admin1@practice.nhs.uk', 'admin2@practice.nhs.uk'],
+          reviewPath: '/admin?tab=suggestions',
+        })
+      )
+    })
+
+    it('falls back to the central recipient when a surgery has no admins', async () => {
+      ;(prisma.suggestion.create as jest.Mock).mockResolvedValue({
+        ...dbSuggestion,
+        type: 'SYMPTOM_CONTENT',
+        title: null,
+        symptom: 'Headache',
+      })
+      ;(prisma.userSurgery.findMany as jest.Mock).mockResolvedValue([])
+      const res = await POST(
+        makeBodyReq({ type: 'SYMPTOM_CONTENT', symptom: 'Headache', text: 'Update', surgeryId: 'sur-1' })
+      )
+      expect(res.status).toBe(201)
+      expect(mockedSendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ recipients: undefined, reviewPath: undefined })
       )
     })
 

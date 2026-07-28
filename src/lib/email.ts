@@ -58,6 +58,10 @@ interface SuggestionNotificationData {
   surgeryName: string | null
   symptomName: string | null
   pageContext: string | null
+  /** Overrides the central notify address, e.g. surgery admins for symptom-content suggestions. */
+  recipients?: string[]
+  /** Review link path; defaults to the central superuser triage page. */
+  reviewPath?: string
 }
 
 const SUGGESTION_TYPE_LABELS: Record<string, string> = {
@@ -70,10 +74,11 @@ const SUGGESTION_TYPE_LABELS: Record<string, string> = {
 export async function sendSuggestionNotificationEmail(
   data: SuggestionNotificationData
 ): Promise<void> {
-  const recipient =
-    process.env.SUGGESTION_NOTIFY_RECIPIENT ||
-    process.env.DEMO_REQUEST_RECIPIENT ||
-    'contact@signpostingtool.co.uk'
+  const recipient = data.recipients?.length
+    ? data.recipients.join(', ')
+    : process.env.SUGGESTION_NOTIFY_RECIPIENT ||
+      process.env.DEMO_REQUEST_RECIPIENT ||
+      'contact@signpostingtool.co.uk'
 
   const typeLabel = SUGGESTION_TYPE_LABELS[data.type] || 'suggestion'
   // On Vercel, NEXTAUTH_URL is the deployment-specific *.vercel.app URL, which
@@ -97,8 +102,9 @@ ${data.pageContext ? `Page: ${data.pageContext}` : ''}
 
 ${data.text}
 
-Review and respond: ${baseUrl}/admin/system/suggestions${
-    data.type === 'SYMPTOM_CONTENT' ? '?type=SYMPTOM_CONTENT' : ''
+Review and respond: ${baseUrl}${
+    data.reviewPath ??
+    `/admin/system/suggestions${data.type === 'SYMPTOM_CONTENT' ? '?type=SYMPTOM_CONTENT' : ''}`
   }
   `
     .split('\n')

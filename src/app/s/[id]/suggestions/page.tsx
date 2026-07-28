@@ -32,16 +32,17 @@ export default async function MySuggestionsPage({ params }: MySuggestionsPagePro
     })
 
     // Flag responses the user hasn't seen before marking them viewed, so the
-    // "New response" badge shows on this visit and clears on the next.
+    // "New response" badge shows on this visit and clears on the next. The
+    // update covers ALL the user's unread responses (not just the rows shown),
+    // otherwise an older suggestion beyond the display limit would keep the
+    // navigation badge non-zero forever.
     const newResponseIds = new Set(
       suggestions.filter((s) => s.response && !s.responseViewedAt).map((s) => s.id)
     )
-    if (newResponseIds.size > 0) {
-      await prisma.suggestion.updateMany({
-        where: { ...mineWhere, id: { in: [...newResponseIds] } },
-        data: { responseViewedAt: new Date() },
-      })
-    }
+    await prisma.suggestion.updateMany({
+      where: { ...mineWhere, response: { not: null }, responseViewedAt: null },
+      data: { responseViewedAt: new Date() },
+    })
 
     return (
       <MySuggestionsClient
