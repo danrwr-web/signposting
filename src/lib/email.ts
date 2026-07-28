@@ -25,8 +25,14 @@ function createTransporter() {
   })
 }
 
-const FROM_ADDRESS = () =>
-  process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@signpostingtool.co.uk'
+// Always send with a display name: even where the SMTP provider rewrites the
+// From address to the authenticated account (Gmail does, unless the address is
+// a verified "Send mail as" alias), the display name is preserved — so
+// recipients see "Signposting Toolkit" rather than a bare personal address.
+const FROM_ADDRESS = () => ({
+  name: 'Signposting Toolkit',
+  address: process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@signpostingtool.co.uk',
+})
 
 export async function sendDemoRequestEmail(data: DemoRequestData): Promise<void> {
   const recipient = process.env.DEMO_REQUEST_RECIPIENT || 'contact@signpostingtool.co.uk'
@@ -45,6 +51,7 @@ ${data.message ? `\nMessage:\n${data.message}` : ''}
   await createTransporter().sendMail({
     from: FROM_ADDRESS(),
     to: recipient,
+    replyTo: data.email,
     subject: `New demo request from ${data.practice}`,
     text: emailBody,
   })
@@ -115,6 +122,8 @@ Review and respond: ${baseUrl}${
   await createTransporter().sendMail({
     from: FROM_ADDRESS(),
     to: recipient,
+    // Replies should go to the colleague who made the suggestion, not the app mailbox.
+    replyTo: data.submitterEmail,
     subject: `New ${typeLabel}${data.surgeryName ? ` from ${data.surgeryName}` : ''}`,
     text: emailBody,
   })
