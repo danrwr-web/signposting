@@ -263,6 +263,7 @@ model Suggestion {
   response          String? // superuser response shown to the submitter
   respondedByUserId String?
   respondedAt       DateTime?
+  responseViewedAt  DateTime? // when the submitter first saw the response (drives "new response" badges)
   legacyAuditJson   String? // pre-migration auditTrail JSON, kept for reference only
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @default(now()) @updatedAt

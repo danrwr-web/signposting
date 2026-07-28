@@ -15,7 +15,7 @@ import {
 
 interface MySuggestionsClientProps {
   surgeryId: string
-  suggestions: SuggestionRes[]
+  suggestions: (SuggestionRes & { hasNewResponse?: boolean })[]
 }
 
 export default function MySuggestionsClient({ surgeryId, suggestions }: MySuggestionsClientProps) {
@@ -31,12 +31,16 @@ export default function MySuggestionsClient({ surgeryId, suggestions }: MySugges
           onClick={() => setShowSuggestDialog(true)}
           className="px-4 py-2 text-sm font-medium text-white bg-nhs-blue rounded-md hover:bg-nhs-dark-blue transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
         >
-          Suggest a feature
+          New suggestion
         </button>
       </div>
       <p className="text-sm text-nhs-grey mb-6">
-        Feature requests, improvements, and other feedback you&apos;ve submitted, with their current
-        status and any responses from the Signposting team.
+        Suggestions you&apos;ve submitted, with their current status and any responses.{' '}
+        <span className="font-medium">Feature requests, improvements and bug reports</span> go to
+        the Signposting Toolkit team;{' '}
+        <span className="font-medium">symptom content suggestions</span> go to your practice&apos;s
+        toolkit administrators. Neither reaches your practice&apos;s management or clinical team —
+        contact them directly for questions about your own practice&apos;s policies or processes.
       </p>
 
       {suggestions.length === 0 ? (
@@ -44,7 +48,7 @@ export default function MySuggestionsClient({ surgeryId, suggestions }: MySugges
           illustration="clipboard"
           title="No suggestions yet"
           description="Ideas for new features, improvements, or bug reports are always welcome."
-          action={{ label: 'Suggest a feature', onClick: () => setShowSuggestDialog(true) }}
+          action={{ label: 'New suggestion', onClick: () => setShowSuggestDialog(true) }}
         />
       ) : (
         <ul className="space-y-4">
@@ -58,6 +62,11 @@ export default function MySuggestionsClient({ surgeryId, suggestions }: MySugges
                   <Badge color={SUGGESTION_STATUS_BADGE_COLORS[suggestion.status]} pill>
                     {SUGGESTION_STATUS_LABELS[suggestion.status]}
                   </Badge>
+                  {suggestion.hasNewResponse ? (
+                    <Badge color="green" pill>
+                      New response
+                    </Badge>
+                  ) : null}
                   <span className="ml-auto text-xs text-nhs-grey">
                     {formatSuggestionDate(suggestion.createdAt)}
                   </span>
@@ -67,7 +76,11 @@ export default function MySuggestionsClient({ surgeryId, suggestions }: MySugges
                 </h2>
                 <p className="mt-1 text-sm text-gray-700 whitespace-pre-wrap">{suggestion.text}</p>
                 {suggestion.response ? (
-                  <div className="mt-4 rounded-lg border-l-4 border-nhs-blue bg-blue-50 p-3">
+                  <div
+                    className={`mt-4 rounded-lg border-l-4 border-nhs-blue bg-blue-50 p-3 ${
+                      suggestion.hasNewResponse ? 'ring-2 ring-nhs-green' : ''
+                    }`}
+                  >
                     <p className="text-xs font-semibold uppercase tracking-wide text-nhs-dark-blue">
                       Response from the Signposting team
                     </p>

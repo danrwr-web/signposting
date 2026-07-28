@@ -18,15 +18,33 @@ describe('SuggestFeatureDialog', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as jest.Mock
   })
 
-  it('renders without the symptom-content option by default', () => {
+  it('asks who the message is for and defaults to the toolkit team', () => {
     render(<SuggestFeatureDialog open onClose={onClose} surgeryId="sur-1" />)
+    expect(screen.getByText('Who is your message for?')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Signposting Toolkit team/ })).toBeChecked()
+    expect(
+      screen.getByRole('radio', { name: /toolkit administrators/ })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('radio', { name: /management or clinical team/ })
+    ).toBeInTheDocument()
+    // Toolkit feedback types are offered; symptom content is its own audience now
     expect(screen.getByRole('option', { name: 'Feature request' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Improvement' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Bug report' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Symptom content' })).not.toBeInTheDocument()
+    // The destination is stated explicitly
+    expect(screen.getByText(/not to.*anyone at your practice/)).toBeInTheDocument()
   })
 
-  it('pre-selects symptom content and shows the symptom name when context is given', () => {
+  it('hides the practice administrators option outside a surgery', () => {
+    render(<SuggestFeatureDialog open onClose={onClose} />)
+    expect(
+      screen.queryByRole('radio', { name: /toolkit administrators/ })
+    ).not.toBeInTheDocument()
+  })
+
+  it('pre-selects local guidance and shows the symptom name when context is given', () => {
     render(
       <SuggestFeatureDialog
         open
@@ -36,7 +54,7 @@ describe('SuggestFeatureDialog', () => {
         symptomContext={{ baseId: 'base-1', symptomName: 'Headache' }}
       />
     )
-    expect(screen.getByRole('option', { name: 'Symptom content' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /toolkit administrators/ })).toBeChecked()
     expect(screen.getByText('Headache')).toBeInTheDocument()
     // No title field for symptom-content suggestions
     expect(screen.queryByLabelText(/Title/)).not.toBeInTheDocument()
@@ -72,5 +90,44 @@ describe('SuggestFeatureDialog', () => {
       pageContext: '/s/sur-1/signposting',
     })
     await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+
+  it('submits a symptom-content suggestion with a typed topic when there is no symptom context', async () => {
+    const user = userEvent.setup()
+    render(<SuggestFeatureDialog open onClose={onClose} surgeryId="sur-1" />)
+
+    await user.click(screen.getByRole('radio', { name: /toolkit administrators/ }))
+    fireEvent.change(screen.getByLabelText(/Which symptom or guidance area/), {
+      target: { value: 'Chest pain' },
+    })
+    fireEvent.change(screen.getByLabelText(/Details/), {
+      target: { value: 'Local cardiology pathway has changed' },
+    })
+    await user.click(screen.getByRole('button', { name: /Submit suggestion/ }))
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    const [, options] = (global.fetch as jest.Mock).mock.calls[0]
+    expect(JSON.parse(options.body)).toEqual({
+      type: 'SYMPTOM_CONTENT',
+      text: 'Local cardiology pathway has changed',
+      surgeryId: 'sur-1',
+      symptom: 'Chest pain',
+      pageContext: '/s/sur-1/signposting',
+    })
+  })
+
+  it('blocks submission and explains routing for practice policy questions', async () => {
+    const user = userEvent.setup()
+    render(<SuggestFeatureDialog open onClose={onClose} surgeryId="sur-1" />)
+
+    await user.click(screen.getByRole('radio', { name: /management or clinical team/ }))
+
+    expect(
+      screen.getByText(/can.t reach your practice.s management, safeguarding/)
+    ).toBeInTheDocument()
+    expect(screen.getByText(/contact your practice manager or clinical lead directly/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Submit suggestion/ })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/Details/)).not.toBeInTheDocument()
+    expect(global.fetch).not.toHaveBeenCalled()
   })
 })

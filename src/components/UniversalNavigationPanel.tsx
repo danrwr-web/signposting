@@ -66,6 +66,8 @@ export default function UniversalNavigationPanel() {
     SUGGEST_FEATURE_CALLOUT_KEY,
     SUGGEST_FEATURE_CALLOUT_DAYS
   )
+  // Responses to the user's suggestions that they haven't seen yet
+  const [unreadResponseCount, setUnreadResponseCount] = useState(0)
   // Onboarding state for setup link (three states)
   const [onboardingStarted, setOnboardingStarted] = useState(false)
   const [onboardingCompleted, setOnboardingCompleted] = useState(false)
@@ -171,6 +173,32 @@ export default function UniversalNavigationPanel() {
       isCancelled = true
     }
   }, [surgeryId, lastFetchedSurgeryId, sessionStatus])
+
+  // Check for unread responses to the user's suggestions each time the panel opens,
+  // so the "My suggestions" badge reflects newly answered suggestions.
+  useEffect(() => {
+    if (!isOpen || sessionStatus !== 'authenticated') return
+
+    let isCancelled = false
+
+    const fetchUnreadResponses = async () => {
+      try {
+        const response = await fetch('/api/suggestions?scope=mine&limit=1')
+        if (response.ok && !isCancelled) {
+          const data = await response.json()
+          setUnreadResponseCount(data.unreadResponseCount ?? 0)
+        }
+      } catch (error) {
+        console.error('Error fetching unread suggestion responses:', error)
+      }
+    }
+
+    fetchUnreadResponses()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [isOpen, sessionStatus])
 
   // Fetch onboarding status for setup link
   useEffect(() => {
@@ -517,10 +545,21 @@ export default function UniversalNavigationPanel() {
                 </svg>
               </span>
               My suggestions
-              {suggestCalloutActive && (
-                <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nhs-green text-white uppercase tracking-wide">
-                  New
+              {unreadResponseCount > 0 ? (
+                <span
+                  className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-nhs-blue text-white"
+                  aria-label={`${unreadResponseCount} new ${
+                    unreadResponseCount === 1 ? 'response' : 'responses'
+                  } to your suggestions`}
+                >
+                  {unreadResponseCount} new
                 </span>
+              ) : (
+                suggestCalloutActive && (
+                  <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-nhs-green text-white uppercase tracking-wide">
+                    New
+                  </span>
+                )
               )}
             </Link>
           )}

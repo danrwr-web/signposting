@@ -18,16 +18,30 @@ export default async function MySuggestionsPage({ params }: MySuggestionsPagePro
   try {
     const user = await requireSurgeryAccess(surgeryId)
 
+    const mineWhere = {
+      OR: [{ submittedByUserId: user.id }, { userEmail: user.email }],
+    }
+
     const suggestions = await prisma.suggestion.findMany({
-      where: {
-        OR: [{ submittedByUserId: user.id }, { userEmail: user.email }],
-      },
+      where: mineWhere,
       include: {
         surgery: { select: { id: true, name: true, slug: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,
     })
+
+    // Flag responses the user hasn't seen before marking them viewed, so the
+    // "New response" badge shows on this visit and clears on the next.
+    const newResponseIds = new Set(
+      suggestions.filter((s) => s.response && !s.responseViewedAt).map((s) => s.id)
+    )
+    if (newResponseIds.size > 0) {
+      await prisma.suggestion.updateMany({
+        where: { ...mineWhere, id: { in: [...newResponseIds] } },
+        data: { responseViewedAt: new Date() },
+      })
+    }
 
     return (
       <MySuggestionsClient
@@ -46,9 +60,11 @@ export default async function MySuggestionsPage({ params }: MySuggestionsPagePro
           submittedByUserId: s.submittedByUserId,
           response: s.response,
           respondedAt: s.respondedAt ? s.respondedAt.toISOString() : null,
+          responseViewedAt: s.responseViewedAt ? s.responseViewedAt.toISOString() : null,
           createdAt: s.createdAt.toISOString(),
           updatedAt: s.updatedAt.toISOString(),
           surgery: s.surgery,
+          hasNewResponse: newResponseIds.has(s.id),
         }))}
       />
     )

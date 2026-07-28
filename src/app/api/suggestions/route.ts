@@ -31,6 +31,7 @@ function serialiseSuggestion(suggestion: SuggestionWithSurgery) {
     submittedByUserId: suggestion.submittedByUserId,
     response: suggestion.response,
     respondedAt: suggestion.respondedAt ? suggestion.respondedAt.toISOString() : null,
+    responseViewedAt: suggestion.responseViewedAt ? suggestion.responseViewedAt.toISOString() : null,
     createdAt: suggestion.createdAt.toISOString(),
     updatedAt: suggestion.updatedAt.toISOString(),
     surgery: suggestion.surgery,
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
       where.OR = [{ submittedByUserId: user.id }, { userEmail: user.email }]
     }
 
-    const [suggestions, unreadCount] = await Promise.all([
+    const [suggestions, unreadCount, unreadResponseCount] = await Promise.all([
       prisma.suggestion.findMany({
         where: status ? { ...where, status } : where,
         include: { surgery: SURGERY_SELECT },
@@ -97,11 +98,18 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.suggestion.count({ where: { ...where, status: 'PENDING' } }),
+      // Responses the submitter hasn't seen yet (only meaningful for their own submissions).
+      scope === 'surgery'
+        ? Promise.resolve(0)
+        : prisma.suggestion.count({
+            where: { ...where, response: { not: null }, responseViewedAt: null },
+          }),
     ])
 
     return NextResponse.json({
       suggestions: suggestions.map(serialiseSuggestion),
       unreadCount,
+      unreadResponseCount,
     })
   } catch (error) {
     console.error('Suggestions API: Error fetching suggestions:', error)

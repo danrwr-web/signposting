@@ -176,6 +176,19 @@ describe('/api/suggestions', () => {
       )
     })
 
+    it('counts unread responses for the caller\'s own suggestions', async () => {
+      ;(prisma.suggestion.count as jest.Mock).mockResolvedValueOnce(1).mockResolvedValueOnce(2)
+      const res = await GET(makeGetReq())
+      const json = await res.json()
+      expect(json.unreadResponseCount).toBe(2)
+      expect(prisma.suggestion.count).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          response: { not: null },
+          responseViewedAt: null,
+        }),
+      })
+    })
+
     it('rejects an invalid status filter', async () => {
       const res = await GET(makeGetReq('?status=nonsense'))
       expect(res.status).toBe(400)
