@@ -157,35 +157,33 @@ export async function POST(request: NextRequest) {
     })
 
     // Notify the reviewers, but never fail the submission if email delivery breaks.
-    // Symptom-content suggestions are reviewed by the surgery's own admins, so
-    // notify them (not the central team); everything else goes to the toolkit team.
-    try {
-      let recipients: string[] | undefined
-      let reviewPath: string | undefined
-      if (suggestion.type === 'SYMPTOM_CONTENT' && suggestion.surgeryId) {
-        const admins = await prisma.userSurgery.findMany({
-          where: { surgeryId: suggestion.surgeryId, role: 'ADMIN' },
-          select: { user: { select: { email: true } } },
-        })
-        const adminEmails = admins.map((a) => a.user.email).filter(Boolean)
-        if (adminEmails.length > 0) {
-          recipients = adminEmails
-          reviewPath = '/admin?tab=suggestions'
-        }
-      }
-      await sendSuggestionNotificationEmail({
-        type: suggestion.type,
-        title: suggestion.title,
-        text: suggestion.text,
-        submitterEmail: user.email,
-        surgeryName: suggestion.surgery?.name ?? null,
-        symptomName: suggestion.symptom,
-        pageContext: suggestion.pageContext,
-        recipients,
-        reviewPath,
+    // Symptom-content suggestions with a surgery need no email: the surgery's
+    // admins see them in their Suggestions tab, whose pending-count badge
+    // (suggestionsPendingCount in /api/admin/metrics) already surfaces them.
+    // Everything else — including a symptom-content suggestion for a surgery
+    // with no admins to see that badge — goes to the toolkit team's central
+    // address so no submission can sit unnoticed.
+    let needsEmail = true
+    if (suggestion.type === 'SYMPTOM_CONTENT' && suggestion.surgeryId) {
+      const adminCount = await prisma.userSurgery.count({
+        where: { surgeryId: suggestion.surgeryId, role: 'ADMIN' },
       })
-    } catch (emailError) {
-      console.error('Suggestions API: Failed to send notification email:', emailError)
+      needsEmail = adminCount === 0
+    }
+    if (needsEmail) {
+      try {
+        await sendSuggestionNotificationEmail({
+          type: suggestion.type,
+          title: suggestion.title,
+          text: suggestion.text,
+          submitterEmail: user.email,
+          surgeryName: suggestion.surgery?.name ?? null,
+          symptomName: suggestion.symptom,
+          pageContext: suggestion.pageContext,
+        })
+      } catch (emailError) {
+        console.error('Suggestions API: Failed to send notification email:', emailError)
+      }
     }
 
     return NextResponse.json(
