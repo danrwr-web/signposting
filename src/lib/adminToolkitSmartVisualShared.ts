@@ -37,6 +37,10 @@ export const SMART_VISUAL_ICONS = [
 const IconZ = z.enum(SMART_VISUAL_ICONS)
 export type SmartVisualIcon = z.infer<typeof IconZ>
 
+export const SMART_VISUAL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+const DayZ = z.enum(SMART_VISUAL_DAYS)
+export type SmartVisualDay = z.infer<typeof DayZ>
+
 const Txt = (max: number) => z.string().trim().min(1).max(max)
 const OptTxt = (max: number) => z.string().trim().max(max).optional()
 
@@ -116,6 +120,41 @@ const PairsSectionZ = z.object({
     .max(12),
 })
 
+const PeopleSectionZ = z.object({
+  type: z.literal('people'),
+  title: OptTxt(80),
+  groups: z
+    .array(
+      z.object({
+        title: Txt(80),
+        theme: ThemeZ.optional(),
+        note: OptTxt(160),
+        members: z
+          .array(
+            z.object({
+              name: Txt(80),
+              tag: OptTxt(40),
+              days: z.array(DayZ).max(7).optional(),
+              facts: z
+                .array(
+                  z.object({
+                    label: Txt(40),
+                    value: Txt(140),
+                  })
+                )
+                .max(4)
+                .optional(),
+              note: OptTxt(160),
+            })
+          )
+          .min(1)
+          .max(12),
+      })
+    )
+    .min(1)
+    .max(8),
+})
+
 const RolesSectionZ = z.object({
   type: z.literal('roles'),
   title: OptTxt(80),
@@ -189,6 +228,7 @@ export const SmartVisualSectionZ = z.discriminatedUnion('type', [
   ChecklistSectionZ,
   ContactsSectionZ,
   PairsSectionZ,
+  PeopleSectionZ,
   RolesSectionZ,
   FactsSectionZ,
   BulletsSectionZ,
@@ -199,7 +239,7 @@ export type SmartVisualSection = z.infer<typeof SmartVisualSectionZ>
 
 export const SmartVisualLayoutZ = z.object({
   version: z.literal(SMART_VISUAL_VERSION),
-  sections: z.array(SmartVisualSectionZ).min(1).max(10),
+  sections: z.array(SmartVisualSectionZ).min(1).max(12),
 })
 
 export type SmartVisualLayout = z.infer<typeof SmartVisualLayoutZ>

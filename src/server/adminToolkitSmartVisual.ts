@@ -155,9 +155,9 @@ export function smartVisualItemHasContent(item: AdminToolkitPageItem): boolean {
 
 // This prompt is the prose rendering of SmartVisualLayoutZ in
 // src/lib/adminToolkitSmartVisualShared.ts — keep the two in sync.
-const SYSTEM_PROMPT = `You are converting a GP practice handbook page into a structured visual layout for reception and admin staff. You do NOT write new content — you reorganise the provided content into a fixed set of visual sections so the page becomes scannable at a glance.
+const SYSTEM_PROMPT = `You are converting a GP practice handbook page into a structured visual layout for reception and admin staff. Your job is to INTERPRET and REORGANISE the content into the most scannable visual structure — not to reformat it. Reproducing the source's original layout (for example echoing a table's rows back as a "table" section) is a failure: the practice can already see the original; they asked for a visual reinterpretation.
 
-OUTPUT: Return ONLY a JSON object of the form { "version": ${SMART_VISUAL_VERSION}, "sections": [ ... ] } with between 1 and 10 sections. Each section must be one of:
+OUTPUT: Return ONLY a JSON object of the form { "version": ${SMART_VISUAL_VERSION}, "sections": [ ... ] } with between 1 and 12 sections. Each section must be one of:
 
 1. "summary" — { "type": "summary", "text": string (<=500 chars), "keyPoints"?: string[] (max 5, each <=140) }
    Use for: a short orientation paragraph when the page has mixed prose.
@@ -170,24 +170,37 @@ OUTPUT: Return ONLY a JSON object of the form { "version": ${SMART_VISUAL_VERSIO
 5. "contacts" — { "type": "contacts", "title"?: string (<=80), "contacts": [{ "name": string (<=80), "role"?: string (<=80), "phone"?: string (<=40), "extension"?: string (<=12), "email"?: string (<=120), "note"?: string (<=160) }] (1-12) }
    Use for: people, teams or services with phone numbers, extensions or emails. Copy every phone number, extension and email VERBATIM from the source.
 6. "pairs" — { "type": "pairs", "title"?: string (<=80), "leftLabel"?: string (<=40), "rightLabel"?: string (<=40), "pairs": [{ "left": string (<=80), "right": string (<=80), "note"?: string (<=120) }] (1-12) }
-   Use for: buddy systems, who-covers-whom, X-maps-to-Y relationships.
-7. "roles" — { "type": "roles", "title"?: string (<=80), "roles": [{ "role": string (<=80), "person"?: string (<=80), "theme"?: theme, "responsibilities": string[] (1-6, each <=180) }] (1-8) }
+   Use for: simple one-to-one mappings (who covers whom, X-maps-to-Y). For richer staff data (groups, working days, multiple attributes) use "people" instead.
+7. "people" — { "type": "people", "title"?: string (<=80), "groups": [{ "title": string (<=80), "theme"?: theme, "note"?: string (<=160), "members": [{ "name": string (<=80), "tag"?: string (<=40), "days"?: ["Mon"|"Tue"|"Wed"|"Thu"|"Fri"|"Sat"|"Sun"], "facts"?: [{ "label": string (<=40), "value": string (<=140) }] (max 4), "note"?: string (<=160) }] (1-12) }] (1-8) }
+   Use for: teams, buddy systems, rotas, staff lists — whenever the content describes PEOPLE with attributes. Group members by the natural grouping in the source (buddy group, team, site, role). "tag" is a short badge next to the name (e.g. a slot colour). Working days MUST go in "days" as three-letter abbreviations, never in prose. Other attributes (assigned nurse, care home, ward round day) go in "facts" as short label/value pairs.
+8. "roles" — { "type": "roles", "title"?: string (<=80), "roles": [{ "role": string (<=80), "person"?: string (<=80), "theme"?: theme, "responsibilities": string[] (1-6, each <=180) }] (1-8) }
    Use for: responsibilities grouped by role or person.
-8. "facts" — { "type": "facts", "title"?: string (<=80), "facts": [{ "label": string (<=60), "value": string (<=140), "icon"?: icon, "theme"?: theme }] (1-8) }
+9. "facts" — { "type": "facts", "title"?: string (<=80), "facts": [{ "label": string (<=60), "value": string (<=140), "icon"?: icon, "theme"?: theme }] (1-8) }
    Use for: standalone key facts (times, codes, locations, limits).
-9. "bullets" — { "type": "bullets", "groups": [{ "title": string (<=80), "icon"?: icon, "theme"?: theme, "items": string[] (1-8, each <=220) }] (1-6) }
+10. "bullets" — { "type": "bullets", "groups": [{ "title": string (<=80), "icon"?: icon, "theme"?: theme, "items": string[] (1-8, each <=220) }] (1-6) }
    Use for: grouped lists that fit none of the above.
-10. "table" — { "type": "table", "title"?: string (<=80), "headers": string[] (1-6, each <=60), "rows": string[][] (1-20 rows, each row exactly as many cells as headers, each cell <=180) }
-   Use ONLY when the source is genuinely tabular and small (<=20 rows). Never invent columns.
+11. "table" — { "type": "table", "title"?: string (<=80), "headers": string[] (1-6, each <=60), "rows": string[][] (1-20 rows, each row exactly as many cells as headers, each cell <=180) }
+   LAST RESORT ONLY: homogeneous reference data with no grouping column and no people (e.g. a list of codes). If any other section type fits, use it instead. Never invent columns.
 
 icon values: "phone", "email", "clock", "alert", "check", "info", "people", "document", "star", "calendar".
 theme values: "blue" (neutral/default), "green" (go/ok), "amber" (caution), "red" (urgent/stop), "grey" (background info).
+
+HOW TO INTERPRET LIST / TABULAR SOURCES:
+- Find the grouping column (buddy group, team, category, site) and build one group per distinct value, instead of one row per line.
+- Rows missing the grouping value (or other key fields) usually form their own natural group — give them a clearly labelled group of their own (e.g. "Non list-holding GPs").
+- Find day-of-week information and convert it to "days" abbreviations so it renders as day chips.
+- Move repeated attribute columns into "facts" label/value pairs on each member, so each attribute is labelled once per person rather than positioned in a column.
+- Give parallel groups different themes (rotate blue, green, amber, grey) so they are visually distinct. Reserve red for urgent content.
+
+EXAMPLE — a LIST with columns "GP | Colour | Buddy Group | Nurse | Care Home | Working days":
+GOOD: one "people" section with a group per buddy group (each with a theme), members carrying tag=colour, days=["Mon","Tue"...], and facts like {"label":"Nurse","value":"Sarah M"} / {"label":"Care home","value":"Alphinbrook - ward round Thursday"}; plus a final group for GPs with no buddy group.
+BAD: a "table" section reproducing the six columns.
 
 RULES:
 - Plain text only in every field. No HTML, no markdown, no emojis.
 - Use ONLY facts present in the source. Never invent names, numbers, times or steps.
 - You do not need to include every sentence — choose the treatments that make the page scannable, and keep wording close to the source.
-- Prefer 3-6 sections. Lead with the most important information.
+- Prefer 2-6 sections. Lead with the most important information. Different pages deserve different structures — pick what fits THIS content.
 - If the page has a warning level or urgent wording, it MUST surface as a "callout" near the top.
 - Keep the original meaning exactly. Never soften or omit safety wording.
 - Use British English.`

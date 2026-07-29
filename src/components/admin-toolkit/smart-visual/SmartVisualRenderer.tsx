@@ -1,9 +1,11 @@
-import type {
-  SmartVisualLayout,
-  SmartVisualSection,
-  SmartVisualTheme,
+import {
+  SMART_VISUAL_DAYS,
+  type SmartVisualDay,
+  type SmartVisualLayout,
+  type SmartVisualSection,
+  type SmartVisualTheme,
 } from '@/lib/adminToolkitSmartVisualShared'
-import { SECTION_THEMES, DEFAULT_THEME, CALLOUT_TONE_THEMES } from './smartVisualTheme'
+import { SECTION_THEMES, DEFAULT_THEME, CALLOUT_TONE_THEMES, GROUP_THEME_CYCLE } from './smartVisualTheme'
 import { SmartVisualIconGlyph } from './smartVisualIcons'
 
 /**
@@ -195,6 +197,86 @@ function PairsSection({ section }: { section: SectionOf<'pairs'> }) {
   )
 }
 
+function DayStrip({ days, chipClass }: { days: SmartVisualDay[]; chipClass: string }) {
+  const showWeekend = days.includes('Sat') || days.includes('Sun')
+  const strip = showWeekend ? SMART_VISUAL_DAYS : SMART_VISUAL_DAYS.slice(0, 5)
+  return (
+    <ul className="flex flex-wrap gap-1" aria-label={`Working days: ${days.join(', ')}`}>
+      {strip.map((day) => {
+        const active = days.includes(day)
+        return (
+          <li
+            key={day}
+            className={`flex h-6 w-10 items-center justify-center rounded-md text-xs font-semibold ${
+              active ? chipClass : 'border border-gray-200 bg-white text-gray-300'
+            }`}
+            aria-hidden={active ? undefined : true}
+          >
+            {day}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function PeopleSection({ section }: { section: SectionOf<'people'> }) {
+  return (
+    <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <SectionTitle title={section.title} />
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        {section.groups.map((group, i) => {
+          const theme = themeOf(group.theme ?? GROUP_THEME_CYCLE[i % GROUP_THEME_CYCLE.length])
+          return (
+            <div key={i} className={`overflow-hidden rounded-lg border ${theme.border} ${theme.surface}`}>
+              <div className={`h-1 ${theme.accent}`} aria-hidden="true" />
+              <div className="p-4">
+                <h3 className={`flex items-center gap-2 font-semibold ${theme.heading}`}>
+                  <span className={theme.icon}>
+                    <SmartVisualIconGlyph icon="people" className="h-5 w-5" />
+                  </span>
+                  {group.title}
+                </h3>
+                {group.note ? <p className="mt-1 text-sm text-gray-600">{group.note}</p> : null}
+                <ul className="mt-3 divide-y divide-gray-200/70">
+                  {group.members.map((member, j) => (
+                    <li key={j} className="py-3 first:pt-0 last:pb-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-gray-900">{member.name}</span>
+                        {member.tag ? (
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${theme.chip}`}>
+                            {member.tag}
+                          </span>
+                        ) : null}
+                      </div>
+                      {member.days && member.days.length > 0 ? (
+                        <div className="mt-2">
+                          <DayStrip days={member.days} chipClass={theme.chip} />
+                        </div>
+                      ) : null}
+                      {member.facts && member.facts.length > 0 ? (
+                        <dl className="mt-2 space-y-0.5 text-sm">
+                          {member.facts.map((fact, k) => (
+                            <div key={k} className="flex flex-wrap gap-x-1.5">
+                              <dt className="shrink-0 font-medium text-nhs-grey">{fact.label}:</dt>
+                              <dd className="text-gray-800">{fact.value}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      ) : null}
+                      {member.note ? <p className="mt-1.5 text-sm text-gray-600">{member.note}</p> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 function RolesSection({ section }: { section: SectionOf<'roles'> }) {
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -333,6 +415,8 @@ function renderSection(section: SmartVisualSection, index: number) {
       return <ContactsSection key={index} section={section} />
     case 'pairs':
       return <PairsSection key={index} section={section} />
+    case 'people':
+      return <PeopleSection key={index} section={section} />
     case 'roles':
       return <RolesSection key={index} section={section} />
     case 'facts':
