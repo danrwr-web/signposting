@@ -43,7 +43,7 @@ interface ModuleAccessClientProps {
 const CORE_MODULE_KEYS = ['workflow_guidance', 'admin_toolkit']
 
 // AI features - support user-level overrides
-const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation']
+const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation', 'ai_handbook_visuals']
 
 // Display name override for admin_toolkit
 function getDisplayName(feature: Feature): string {

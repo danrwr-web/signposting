@@ -11,3 +11,10 @@
  * single entry. Surgery-level only (no user overrides).
  */
 export const FEATURE_HIDE_AGE_BANDS = 'hide_age_bands'
+
+/**
+ * When enabled for a surgery, Practice Handbook editors can generate AI
+ * "smart visual" layouts of handbook items, and staff can switch between the
+ * standard view and the saved visual.
+ */
+export const FEATURE_AI_HANDBOOK_VISUALS = 'ai_handbook_visuals'

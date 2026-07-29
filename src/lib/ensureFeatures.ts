@@ -24,6 +24,12 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
     description: 'Allow AI to rewrite symptom instructions based on the surgery onboarding profile.',
   },
   {
+    key: 'ai_handbook_visuals',
+    name: 'AI Handbook smart visuals',
+    description:
+      'Allow Practice Handbook editors to generate AI visual layouts of handbook pages, giving staff a scannable infographic-style view alongside the standard page.',
+  },
+  {
     key: 'workflow_guidance',
     name: 'Workflow guidance',
     description: 'Enable document workflow guidance for reception and care navigation teams.',

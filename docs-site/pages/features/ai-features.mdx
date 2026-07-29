@@ -172,6 +172,28 @@ The output is checked automatically for any base colour-slot names left behind. 
 
 ---
 
+## AI Handbook Smart Visuals
+
+Smart visuals turn a [Practice Handbook](/features/practice-handbook) page into a scannable, infographic-style view built from a fixed set of layouts: summaries, warning callouts, numbered steps, checklists, contact cards, buddy-pair mappings, role cards, key-fact tiles, grouped bullets and small tables.
+
+This feature is controlled by the `ai_handbook_visuals` feature flag.
+
+### How It Works
+
+1. **Editor generates a preview** — Anyone who can edit a Handbook item clicks "Generate smart visual" on the item page. The AI analyses the page and returns a structured layout; nothing is saved yet.
+2. **Constrained output** — The AI can only choose from the approved section types, colours and icons, and every response is validated against a strict schema before it is shown. Invalid responses are rejected. The output is rendered as real app content — text, not an image — so it stays selectable, accessible and responsive.
+3. **Review and save** — The editor reviews the preview and saves it, regenerates it, or discards it. Saving is recorded in the Handbook audit trail.
+4. **Staff toggle** — Staff can switch between the standard page and the smart visual at any time.
+5. **Staleness protection** — The page content remains the source of truth. If it is edited after the visual was generated, the visual is flagged as out of date and the standard view becomes the default until it is regenerated.
+
+### Safety
+
+- The AI is instructed to use only facts present in the page — phone numbers, names and times are copied verbatim — and never to soften safety wording.
+- The original page content is never modified by generating a visual.
+- Handbook content is operational (rotas, contacts, procedures) rather than clinical signposting content, so smart visuals do not pass through the symptom Clinical Review workflow; the Handbook audit trail records who saved or removed each visual.
+
+---
+
 ## Smart Symptom Updates
 
 When base library content is updated centrally, surgeries can choose to adopt updates or keep their local versions.
@@ -211,6 +233,7 @@ AI features can be enabled or disabled at multiple levels:
 | `ai_instructions` | AI Instruction Editor | Yes |
 | `ai_training` | AI Suggested Questions | Yes |
 | `ai_surgery_customisation` | AI Surgery Customisation | Yes |
+| `ai_handbook_visuals` | AI Handbook Smart Visuals | Yes |
 
 > **Note:** In earlier documentation, the AI Suggested Questions flag was referred to as `ai_questions`. The actual database key is `ai_training`.
 
