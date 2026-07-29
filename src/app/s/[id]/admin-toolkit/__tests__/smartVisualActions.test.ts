@@ -82,7 +82,10 @@ const validInput = {
 
 beforeEach(() => {
   jest.clearAllMocks()
-  mockedGate.mockResolvedValue({ ok: true, data: { surgeryId: 'surgery-1', itemId: 'item-1', userId: 'user-1', canManage: true } })
+  mockedGate.mockResolvedValue({
+    ok: true,
+    data: { surgeryId: 'surgery-1', itemId: 'item-1', userId: 'user-1', canManage: true, isSuperuser: false },
+  })
   mockedFlag.mockResolvedValue(true)
   mockedGetItem.mockResolvedValue(item)
   mockedFindUnique.mockResolvedValue(null)
@@ -141,6 +144,19 @@ describe('saveAdminToolkitSmartVisual', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error.code).toBe('FEATURE_DISABLED')
     expect(mockedUpsert).not.toHaveBeenCalled()
+  })
+
+  it('lets a superuser save even when the feature flag is off', async () => {
+    mockedFlag.mockResolvedValue(false)
+    mockedGate.mockResolvedValue({
+      ok: true,
+      data: { surgeryId: 'surgery-1', itemId: 'item-1', userId: 'super-1', canManage: true, isSuperuser: true },
+    })
+
+    const result = await saveAdminToolkitSmartVisual(validInput)
+
+    expect(result.ok).toBe(true)
+    expect(mockedUpsert).toHaveBeenCalledTimes(1)
   })
 
   it('is blocked when the edit gate fails', async () => {

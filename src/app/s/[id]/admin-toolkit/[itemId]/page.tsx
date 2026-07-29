@@ -40,11 +40,14 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
   try {
     const user = await requireSurgeryAccess(surgeryId)
-    const [enabled, aiVisualsEnabled, surgery] = await Promise.all([
+    const [enabled, aiVisualsFlagEnabled, surgery] = await Promise.all([
       isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
       isFeatureEnabledForSurgery(surgeryId, 'ai_handbook_visuals'),
       prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true, name: true } }),
     ])
+    // Superusers always have smart visuals, so they can test and demo the
+    // feature on any practice; other users need the surgery flag enabled.
+    const aiVisualsEnabled = user.globalRole === 'SUPERUSER' || aiVisualsFlagEnabled
 
     if (!surgery) {
       redirect('/unauthorized')

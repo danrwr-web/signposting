@@ -31,7 +31,9 @@ export async function saveAdminToolkitSmartVisual(input: unknown): Promise<Actio
   const gate = await requireAdminToolkitItemEdit(surgeryId, itemId)
   if (!gate.ok) return gate
 
-  const aiVisualsEnabled = await isFeatureEnabledForSurgery(surgeryId, 'ai_handbook_visuals')
+  // Superusers bypass the surgery flag so they can test and demo the feature.
+  const aiVisualsEnabled =
+    gate.data.isSuperuser || (await isFeatureEnabledForSurgery(surgeryId, 'ai_handbook_visuals'))
   if (!aiVisualsEnabled) {
     return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'AI smart visuals are not enabled for this surgery.' } }
   }

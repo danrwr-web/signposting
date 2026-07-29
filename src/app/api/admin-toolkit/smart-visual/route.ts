@@ -43,7 +43,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const aiVisualsEnabled = await isFeatureEnabledForSurgery(surgeryId, 'ai_handbook_visuals')
+    // Superusers bypass the surgery flag so they can test and demo the feature.
+    const aiVisualsEnabled =
+      gate.data.isSuperuser || (await isFeatureEnabledForSurgery(surgeryId, 'ai_handbook_visuals'))
     if (!aiVisualsEnabled) {
       return NextResponse.json(
         { error: 'AI smart visuals are not enabled for this surgery.' },

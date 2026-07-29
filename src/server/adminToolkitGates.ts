@@ -59,9 +59,10 @@ export async function requireAdminToolkitView(surgeryId: string): Promise<Action
 export async function requireAdminToolkitItemEdit(
   surgeryId: string,
   itemId: string,
-): Promise<ActionResult<{ surgeryId: string; itemId: string; userId: string; canManage: boolean }>> {
+): Promise<ActionResult<{ surgeryId: string; itemId: string; userId: string; canManage: boolean; isSuperuser: boolean }>> {
   try {
     const user = await requireSurgeryAccess(surgeryId)
+    const isSuperuser = user.globalRole === 'SUPERUSER'
     const enabled = await isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit')
     if (!enabled) {
       return { ok: false, error: { code: 'FEATURE_DISABLED', message: 'Practice Handbook is not enabled for this surgery.' } }
@@ -101,7 +102,7 @@ export async function requireAdminToolkitItemEdit(
     }
 
     if (canManage) {
-      return { ok: true, data: { surgeryId, itemId, userId: user.id, canManage: true } }
+      return { ok: true, data: { surgeryId, itemId, userId: user.id, canManage: true, isSuperuser } }
     }
 
     const membership = user.memberships.find((m) => m.surgeryId === surgeryId)
@@ -122,7 +123,7 @@ export async function requireAdminToolkitItemEdit(
       return { ok: false, error: { code: 'FORBIDDEN', message: 'You do not have permission to edit this item.' } }
     }
 
-    return { ok: true, data: { surgeryId, itemId, userId: user.id, canManage: false } }
+    return { ok: true, data: { surgeryId, itemId, userId: user.id, canManage: false, isSuperuser } }
   } catch {
     return { ok: false, error: { code: 'UNAUTHENTICATED', message: 'You must be signed in.' } }
   }
