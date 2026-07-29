@@ -426,7 +426,13 @@ function renderSection(section: SmartVisualSection, index: number) {
     case 'table':
       return <TableSection key={index} section={section} />
     default:
-      return null
+      // Only reachable under client/server version skew (a section type this
+      // bundle doesn't know about). Fail visibly rather than rendering nothing.
+      return (
+        <section key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600">
+          Part of this visual can&apos;t be displayed by this version of the app. Refresh the page and try again.
+        </section>
+      )
   }
 }
 
