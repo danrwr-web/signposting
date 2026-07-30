@@ -5,28 +5,13 @@ import type { Editor } from '@tiptap/react'
 import { Button, Input } from '@/components/ui'
 import ToolbarButton from '@/components/rich-text/toolbar/ToolbarButton'
 import { useToolbarPopover } from '@/components/rich-text/toolbar/useToolbarPopover'
+import { normalizeHref } from '@/components/rich-text/toolbar/linkHref'
 
 interface LinkPopoverProps {
   editor: Editor
   /** Current link href at the selection, if any. */
   activeHref: string | null
   children: React.ReactNode
-}
-
-/**
- * Only schemes the sanitizer allows — anything else would be silently
- * stripped on save, leaving a dead link.
- */
-function normalizeHref(raw: string): string | null {
-  const value = raw.trim()
-  if (!value) return null
-  if (/^(https?:\/\/|mailto:)/i.test(value)) return value
-  // Bare e-mail address → mailto.
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return `mailto:${value}`
-  // Reject other explicit schemes (javascript:, data:, ftp:, …).
-  if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return null
-  // Bare domain or path → assume https.
-  return `https://${value}`
 }
 
 export default function LinkPopover({ editor, activeHref, children }: LinkPopoverProps) {

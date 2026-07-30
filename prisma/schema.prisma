@@ -47,6 +47,8 @@ model User {
   adminItemEditGrantsCreated   AdminItemEditGrant[]          @relation("AdminItemEditGrantCreatedBy")
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
   adminItemSmartVisuals        AdminItemSmartVisual[]        @relation("AdminItemSmartVisualGeneratedBy")
+  adminItemImagesCreated       AdminItemImage[]              @relation("AdminItemImageCreatedBy")
+  adminItemFilesCreated        AdminItemFile[]               @relation("AdminItemFileCreatedBy")
 
   // Workflow instances
   workflowInstances        WorkflowInstance[]
@@ -138,6 +140,8 @@ model Surgery {
   adminCategories              AdminCategory[]
   adminItems                   AdminItem[]
   adminItemAttachments         AdminItemAttachment[]
+  adminItemImages              AdminItemImage[]
+  adminItemFiles               AdminItemFile[]
   adminPinnedPanel             AdminPinnedPanel?
   adminDutyRota                AdminDutyRotaEntry[]
   adminOnTakeWeeks             AdminOnTakeWeek[]
@@ -647,6 +651,8 @@ model AdminItem {
   listColumns      AdminListColumn[]
   listRows         AdminListRow[]
   attachments      AdminItemAttachment[]
+  images           AdminItemImage[]
+  files            AdminItemFile[]
   history          AdminHistory[]
   engagementEvents AdminToolkitEngagementEvent[]
   smartVisual      AdminItemSmartVisual?
@@ -766,6 +772,60 @@ model AdminItemAttachment {
 
   @@index([adminItemId, orderIndex])
   @@index([surgeryId])
+}
+
+// Inline image embedded in Practice Handbook page content. Bytes live in the
+// database and are served through /api/admin-toolkit/images/[imageId], which
+// re-checks handbook view permissions. adminItemId is null for images uploaded
+// from the admin create form before the item exists — saving the item claims
+// them (see extractAdminToolkitUploadIds) so category visibility applies.
+// Orphaned rows (image removed from content, or create form abandoned) are
+// accepted and cleaned up by the surgery/item cascade.
+model AdminItemImage {
+  id              String  @id @default(cuid())
+  surgeryId       String
+  adminItemId     String?
+  contentType     String // "image/jpeg" | "image/png" — derived from magic bytes, not the client MIME
+  data            Bytes
+  sizeBytes       Int
+  filename        String
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  surgery   Surgery    @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem? @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  createdBy User?      @relation("AdminItemImageCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([surgeryId])
+  @@index([adminItemId])
+  @@index([createdByUserId])
+}
+
+// PDF document uploaded to a Practice Handbook item (surfaced as an
+// attachment or linked from page content). Bytes live in the database and are
+// served through /api/admin-toolkit/files/[fileId], which re-checks handbook
+// view permissions. adminItemId is null for files uploaded from the admin
+// create form before the item exists — saving the item claims ones its
+// content links to (see extractAdminToolkitUploadIds). Orphaned rows
+// (attachment removed) are accepted and cleaned up by the surgery/item cascade.
+model AdminItemFile {
+  id              String  @id @default(cuid())
+  surgeryId       String
+  adminItemId     String?
+  contentType     String // "application/pdf" — derived from magic bytes, not the client MIME
+  data            Bytes
+  sizeBytes       Int
+  filename        String
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  surgery   Surgery    @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  adminItem AdminItem? @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  createdBy User?      @relation("AdminItemFileCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([surgeryId])
+  @@index([adminItemId])
+  @@index([createdByUserId])
 }
 
 model AdminPinnedPanel {

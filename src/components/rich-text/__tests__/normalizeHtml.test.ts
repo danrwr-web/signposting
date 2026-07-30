@@ -7,6 +7,11 @@ describe('normalizeHtml', () => {
 
   it('returns HTML containing block-level tags unchanged', () => {
     expect(normalizeHtml('<p>Hello</p>')).toBe('<p>Hello</p>')
+    // Inline handbook images always sit inside a <p>, so image-only content
+    // still matches the block-tag check and passes through untouched.
+    expect(normalizeHtml('<p><img src="/api/admin-toolkit/images/abc" alt="" /></p>')).toBe(
+      '<p><img src="/api/admin-toolkit/images/abc" alt="" /></p>'
+    )
     expect(normalizeHtml('<h2>Title</h2><p>Body</p>')).toBe('<h2>Title</h2><p>Body</p>')
     // The old ensureProperParagraphs wrapped these in a stray <p>.
     expect(normalizeHtml('<ul><li>One</li><li>Two</li></ul>')).toBe('<ul><li>One</li><li>Two</li></ul>')

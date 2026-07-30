@@ -29,6 +29,7 @@
     "@tailwindcss/typography": "^0.5.19",
     "@tiptap/extension-color": "^3.7.2",
     "@tiptap/extension-highlight": "^3.7.2",
+    "@tiptap/extension-image": "^3.29.2",
     "@tiptap/extension-text-style": "^3.7.2",
     "@tiptap/extensions": "^3.10.1",
     "@tiptap/html": "^3.10.1",

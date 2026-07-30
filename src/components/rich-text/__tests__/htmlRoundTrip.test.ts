@@ -9,7 +9,7 @@
  */
 import { generateHTML, generateJSON } from '@tiptap/html'
 import { createRichTextExtensions } from '@/components/rich-text/extensions'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml, sanitizeHtml } from '@/lib/sanitizeHtml'
 
 const extensions = createRichTextExtensions()
 
@@ -115,5 +115,38 @@ describe('HTML round trip through the editor schema', () => {
       '<p><span><strong>heavy</strong></span></p>'
     )
     expect(roundTrip('<div>div content</div>')).toBe('<p>div content</p>')
+  })
+
+  it('drops images with the default (symptom-instruction) schema', () => {
+    // Images are Practice Handbook-only; the base schema must not accept them.
+    expect(roundTrip('<p>Before <img src="/api/admin-toolkit/images/abc" alt="x"> after</p>')).toBe(
+      '<p>Before after</p>'
+    )
+  })
+})
+
+describe('HTML round trip with images enabled (Practice Handbook schema)', () => {
+  const imageExtensions = createRichTextExtensions({ enableImages: true })
+  const roundTripWithImages = (html: string) =>
+    stripJsdomArtifacts(generateHTML(generateJSON(html, imageExtensions), imageExtensions))
+
+  it('preserves an inline image with src and alt', () => {
+    expect(
+      roundTripWithImages('<p>Before <img src="/api/admin-toolkit/images/abc" alt="Rota"> after</p>')
+    ).toBe('<p>Before <img src="/api/admin-toolkit/images/abc" alt="Rota" /> after</p>')
+  })
+
+  it('survives the handbook save path (sanitizeAdminToolkitHtml → reload)', () => {
+    const stored = sanitizeAdminToolkitHtml(
+      roundTripWithImages('<p><img src="/api/admin-toolkit/images/abc" alt=""></p>')
+    )
+    expect(stored).toBe('<p><img src="/api/admin-toolkit/images/abc" alt="" /></p>')
+    expect(roundTripWithImages(stored)).toBe('<p><img src="/api/admin-toolkit/images/abc" alt="" /></p>')
+  })
+
+  it('drops title/width attributes the schema does not allow', () => {
+    expect(
+      roundTripWithImages('<p><img src="/api/admin-toolkit/images/abc" alt="x" title="t" width="600"></p>')
+    ).toBe('<p><img src="/api/admin-toolkit/images/abc" alt="x" /></p>')
   })
 })

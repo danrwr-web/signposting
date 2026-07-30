@@ -56,6 +56,41 @@ export async function requireAdminToolkitView(surgeryId: string): Promise<Action
   }
 }
 
+/**
+ * Whether the user can view the category an admin item sits in, applying the
+ * same category-visibility rules the handbook UI uses. Shared by the item
+ * edit gate and the image-serving route so restricted-category content stays
+ * restricted everywhere.
+ */
+export async function canUserViewAdminItemInCategory(
+  user: Awaited<ReturnType<typeof requireSurgeryAccess>>,
+  surgeryId: string,
+  categoryId: string | null,
+): Promise<boolean> {
+  const cats = await prisma.adminCategory.findMany({
+    where: { surgeryId, deletedAt: null },
+    select: {
+      id: true,
+      parentCategoryId: true,
+      visibilityMode: true,
+      visibilityRoles: true,
+      visibleUsers: { select: { userId: true } },
+    },
+  })
+  const viewableCategoryIds = computeViewableAdminCategoryIds(
+    user,
+    surgeryId,
+    cats.map((c) => ({
+      id: c.id,
+      parentCategoryId: c.parentCategoryId,
+      visibilityMode: c.visibilityMode,
+      visibilityRoles: (c.visibilityRoles ?? []) as Array<'ADMIN' | 'STANDARD'>,
+      visibleUserIds: (c.visibleUsers ?? []).map((u) => u.userId),
+    })),
+  )
+  return canViewAdminItem(user, { surgeryId, categoryId }, viewableCategoryIds)
+}
+
 export async function requireAdminToolkitItemEdit(
   surgeryId: string,
   itemId: string,
@@ -76,28 +111,7 @@ export async function requireAdminToolkitItemEdit(
     if (!item) return { ok: false, error: { code: 'NOT_FOUND', message: 'Item not found.' } }
 
     // Enforce view permissions even for editors (no bypass via direct action calls).
-    const cats = await prisma.adminCategory.findMany({
-      where: { surgeryId, deletedAt: null },
-      select: {
-        id: true,
-        parentCategoryId: true,
-        visibilityMode: true,
-        visibilityRoles: true,
-        visibleUsers: { select: { userId: true } },
-      },
-    })
-    const viewableCategoryIds = computeViewableAdminCategoryIds(
-      user,
-      surgeryId,
-      cats.map((c) => ({
-        id: c.id,
-        parentCategoryId: c.parentCategoryId,
-        visibilityMode: c.visibilityMode,
-        visibilityRoles: (c.visibilityRoles ?? []) as Array<'ADMIN' | 'STANDARD'>,
-        visibleUserIds: (c.visibleUsers ?? []).map((u) => u.userId),
-      })),
-    )
-    if (!canViewAdminItem(user, { surgeryId, categoryId: item.categoryId }, viewableCategoryIds)) {
+    if (!(await canUserViewAdminItemInCategory(user, surgeryId, item.categoryId))) {
       return { ok: false, error: { code: 'FORBIDDEN', message: 'You do not have access to this item.' } }
     }
 

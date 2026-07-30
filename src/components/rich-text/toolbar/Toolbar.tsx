@@ -5,6 +5,7 @@ import { NHS_TEXT_COLORS, NHS_HIGHLIGHT_COLORS } from '@/components/rich-text/ex
 import ToolbarButton, { ToolbarSeparator } from '@/components/rich-text/toolbar/ToolbarButton'
 import SwatchPopover from '@/components/rich-text/toolbar/SwatchPopover'
 import LinkPopover from '@/components/rich-text/toolbar/LinkPopover'
+import ImagePopover, { type ImageUploadTarget } from '@/components/rich-text/toolbar/ImagePopover'
 
 const icon = {
   bulletList: (
@@ -52,13 +53,22 @@ const icon = {
       <path d="M2 14h12" />
     </svg>
   ),
+  image: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="10" rx="1.5" />
+      <circle cx="5.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+      <path d="M2 11l3.5-3 3 2.5L11 8l3 3" />
+    </svg>
+  ),
 }
 
 interface ToolbarProps {
   editor: Editor
+  /** When set, shows the image-upload button (Practice Handbook editors only). */
+  imageUpload?: ImageUploadTarget
 }
 
-export default function Toolbar({ editor }: ToolbarProps) {
+export default function Toolbar({ editor, imageUpload }: ToolbarProps) {
   const state = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -169,6 +179,11 @@ export default function Toolbar({ editor }: ToolbarProps) {
       <LinkPopover editor={editor} activeHref={state.linkHref}>
         {icon.link}
       </LinkPopover>
+      {imageUpload && (
+        <ImagePopover editor={editor} imageUpload={imageUpload}>
+          {icon.image}
+        </ImagePopover>
+      )}
 
       <ToolbarSeparator />
 

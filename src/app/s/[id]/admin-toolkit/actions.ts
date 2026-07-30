@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml, sanitizeHtml } from '@/lib/sanitizeHtml'
+import { extractAdminToolkitUploadIds } from '@/lib/adminToolkitUploads'
 import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
 import type { RoleCardsColumns, RoleCardsLayout, AdminToolkitContentJson } from '@/lib/adminToolkitContentBlocksShared'
 import { upsertBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
@@ -418,15 +419,21 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
   if (!gate.ok) return gate
 
   const { surgeryId, type, title, categoryId, contentHtml, introHtml, footerHtml, warningLevel, lastReviewedAt, roleCardsBlock } = parsed.data
-  
+
+  // Uploads referenced by the new content were stored with adminItemId = null
+  // (the item didn't exist yet); collect their ids so they can be claimed below.
+  const uploadHtmlSources: string[] = []
+
   // Build contentJson for PAGE items
   let contentJson: unknown = undefined
   if (type === 'PAGE') {
     let json: AdminToolkitContentJson = { blocks: [] }
-    
+
     // Add INTRO_TEXT block if present
     if (introHtml && !isHtmlEmpty(introHtml)) {
-      json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+      const cleanIntro = sanitizeAdminToolkitHtml(introHtml)
+      uploadHtmlSources.push(cleanIntro)
+      json = upsertBlock(json, { type: 'INTRO_TEXT', html: cleanIntro })
     }
     
     // Add ROLE_CARDS block if present
@@ -452,7 +459,9 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
     // Add FOOTER_TEXT block if present, or use legacy contentHtml as fallback
     const footerContent = footerHtml || (contentHtml && !isHtmlEmpty(contentHtml) ? contentHtml : '')
     if (footerContent && !isHtmlEmpty(footerContent)) {
-      json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerContent) })
+      const cleanFooter = sanitizeAdminToolkitHtml(footerContent)
+      uploadHtmlSources.push(cleanFooter)
+      json = upsertBlock(json, { type: 'FOOTER_TEXT', html: cleanFooter })
     }
     
     // Only set contentJson if we have blocks
@@ -463,6 +472,8 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
   
   // Keep legacy contentHtml for backwards compatibility (fallback rendering)
   const cleanedHtml = type === 'PAGE' ? sanitizeHtml(contentHtml || '') : null
+
+  const uploadIds = extractAdminToolkitUploadIds(uploadHtmlSources.join('\n'))
 
   const created = await prisma.$transaction(async (tx) => {
     const item = await tx.adminItem.create({
@@ -481,6 +492,21 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
       },
       select: { id: true },
     })
+    // Claim create-form uploads: only this surgery's still-unowned rows, so
+    // the item's category visibility applies to them and the item-delete
+    // cascade cleans them up. Uploads owned by other items are never re-bound.
+    if (uploadIds.imageIds.length > 0) {
+      await tx.adminItemImage.updateMany({
+        where: { id: { in: uploadIds.imageIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: item.id },
+      })
+    }
+    if (uploadIds.fileIds.length > 0) {
+      await tx.adminItemFile.updateMany({
+        where: { id: { in: uploadIds.fileIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: item.id },
+      })
+    }
     await tx.adminHistory.create({
       data: {
         surgeryId,
@@ -654,7 +680,7 @@ export async function updateAdminToolkitItem(
       
       // Only add new intro block if it has meaningful content
       if (introHtml && !isHtmlEmpty(introHtml)) {
-        json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+        json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeAdminToolkitHtml(introHtml) })
       } else {
         // Explicitly empty - remove the block
         json = { ...json, blocks: withoutIntro }
@@ -706,7 +732,7 @@ export async function updateAdminToolkitItem(
       
       // Only add new footer block if it has meaningful content
       if (footerHtml && !isHtmlEmpty(footerHtml)) {
-        json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerHtml) })
+        json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeAdminToolkitHtml(footerHtml) })
       } else {
         // Explicitly empty - remove the block
         json = { ...json, blocks: withoutFooter }
@@ -789,11 +815,33 @@ export async function updateAdminToolkitItem(
     updateData.contentJson = nextContentJson as any
   }
 
+  // Claim any still-unowned uploads the updated content references (e.g. an
+  // upload from an abandoned create form whose URL was pasted here). Rows
+  // already owned by an item are never re-bound.
+  const claimIds = extractAdminToolkitUploadIds(
+    [
+      hasIntroHtmlUpdate ? sanitizeAdminToolkitHtml(parsed.data.introHtml ?? '') : '',
+      hasFooterHtmlUpdate ? sanitizeAdminToolkitHtml(parsed.data.footerHtml ?? '') : '',
+    ].join('\n'),
+  )
+
   await prisma.$transaction(async (tx) => {
     await tx.adminItem.update({
       where: { id: itemId },
       data: updateData,
     });
+    if (claimIds.imageIds.length > 0) {
+      await tx.adminItemImage.updateMany({
+        where: { id: { in: claimIds.imageIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: itemId },
+      })
+    }
+    if (claimIds.fileIds.length > 0) {
+      await tx.adminItemFile.updateMany({
+        where: { id: { in: claimIds.fileIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: itemId },
+      })
+    }
     await tx.adminHistory.create({
       data: {
         surgeryId,
@@ -1558,6 +1606,67 @@ export async function addAdminToolkitAttachmentLink(input: unknown): Promise<Act
         entityType: 'ADMIN_ITEM',
         summary: `Added attachment "${label}"`,
         diffJson: { label, url },
+      },
+    })
+    return attachment
+  })
+
+  return { ok: true, data: { id: created.id } }
+}
+
+const addAttachmentFileInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  label: z.string().trim().min(1, 'Label is required').max(120),
+  fileId: z.string().min(1),
+})
+
+/**
+ * Creates an attachment pointing at an uploaded PDF (see
+ * /api/admin-toolkit/files). The url is constructed server-side from a file
+ * that must already belong to this surgery and item, so the action can't be
+ * used to attach another surgery's document.
+ */
+export async function addAdminToolkitAttachmentFile(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = addAttachmentFileInput.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) },
+    }
+  }
+  const { surgeryId, itemId, label, fileId } = parsed.data
+  const gate = await requireAdminToolkitItemEdit(surgeryId, itemId)
+  if (!gate.ok) return gate
+
+  const file = await prisma.adminItemFile.findFirst({
+    where: { id: fileId, surgeryId, adminItemId: itemId },
+    select: { id: true, filename: true },
+  })
+  if (!file) return { ok: false, error: { code: 'NOT_FOUND', message: 'Uploaded file not found.' } }
+
+  const url = `/api/admin-toolkit/files/${file.id}`
+
+  const max = await prisma.adminItemAttachment.aggregate({
+    where: { surgeryId, adminItemId: itemId, deletedAt: null },
+    _max: { orderIndex: true },
+  })
+  const nextOrder = (max._max.orderIndex ?? 0) + 1
+
+  const created = await prisma.$transaction(async (tx) => {
+    const attachment = await tx.adminItemAttachment.create({
+      data: { surgeryId, adminItemId: itemId, label, url, orderIndex: nextOrder },
+      select: { id: true },
+    })
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        adminItemId: itemId,
+        action: 'ATTACHMENT_ADD',
+        actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Added attachment "${label}" (uploaded PDF)`,
+        diffJson: { label, url, filename: file.filename },
       },
     })
     return attachment

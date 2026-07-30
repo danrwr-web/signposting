@@ -3,6 +3,8 @@ import 'server-only'
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/prisma'
 import { callAzureOpenAI, extractJson, type AzureOpenAIMessage } from '@/server/azureOpenAI'
+// stripHtmlToPlainText drops <img> entirely, so adding/removing an inline
+// image intentionally does not change the fingerprint or mark a visual stale.
 import { stripHtmlToPlainText } from '@/lib/sanitizeHtml'
 import {
   getIntroTextBlock,
