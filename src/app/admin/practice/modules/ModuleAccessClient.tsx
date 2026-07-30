@@ -42,8 +42,13 @@ interface ModuleAccessClientProps {
 // Core modules - practice-wide only, no user-level control
 const CORE_MODULE_KEYS = ['workflow_guidance', 'admin_toolkit']
 
-// AI features - support user-level overrides
-const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation']
+// AI features - shown with a practice-level toggle in the AI section
+const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation', 'ai_handbook_visuals']
+
+// Subset of AI features that support per-user overrides. Handbook smart
+// visuals are practice-wide (enforcement is surgery-level only), so they are
+// excluded from the user-level matrix — a per-user toggle would do nothing.
+const AI_USER_OVERRIDE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation']
 
 // Display name override for admin_toolkit
 function getDisplayName(feature: Feature): string {
@@ -79,7 +84,7 @@ export default function ModuleAccessClient({
   // Separate features into core modules and AI features
   const coreModules = surgeryFeatures.filter(f => CORE_MODULE_KEYS.includes(f.key))
   const aiFeatures = surgeryFeatures.filter(f => AI_FEATURE_KEYS.includes(f.key))
-  const aiFeaturesList = features.filter(f => AI_FEATURE_KEYS.includes(f.key))
+  const aiUserOverrideFeatures = features.filter(f => AI_USER_OVERRIDE_KEYS.includes(f.key))
 
   // Load features, surgery features, and user features
   const loadData = useCallback(async () => {
@@ -438,7 +443,7 @@ export default function ModuleAccessClient({
                     User-level access
                   </h3>
                   {/* Enable for all dropdown */}
-                  {aiFeaturesList.some(f => isSurgeryFeatureEnabled(f.id)) && (
+                  {aiUserOverrideFeatures.some(f => isSurgeryFeatureEnabled(f.id)) && (
                     <select
                       onChange={e => {
                         if (e.target.value) {
@@ -449,7 +454,7 @@ export default function ModuleAccessClient({
                       className="text-xs px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-nhs-blue"
                     >
                       <option value="">Enable for all users...</option>
-                      {aiFeaturesList.filter(f => isSurgeryFeatureEnabled(f.id)).map(feature => (
+                      {aiUserOverrideFeatures.filter(f => isSurgeryFeatureEnabled(f.id)).map(feature => (
                         <option key={feature.id} value={feature.id}>
                           {getDisplayName(feature)}
                         </option>
@@ -460,7 +465,7 @@ export default function ModuleAccessClient({
 
                 {users.length === 0 ? (
                   <p className="text-sm text-nhs-grey">No users found for this surgery.</p>
-                ) : aiFeaturesList.length === 0 ? (
+                ) : aiUserOverrideFeatures.length === 0 ? (
                   <p className="text-sm text-nhs-grey">No AI features available.</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -470,7 +475,7 @@ export default function ModuleAccessClient({
                           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                             User
                           </th>
-                          {aiFeaturesList.map(feature => {
+                          {aiUserOverrideFeatures.map(feature => {
                             const practiceEnabled = isSurgeryFeatureEnabled(feature.id)
                             return (
                               <th
@@ -499,7 +504,7 @@ export default function ModuleAccessClient({
                                 <div className="text-nhs-grey text-xs">{user.email}</div>
                               </div>
                             </td>
-                            {aiFeaturesList.map(feature => {
+                            {aiUserOverrideFeatures.map(feature => {
                               const userFeature = user.features.find(f => f.featureId === feature.id)
                               const enabled = userFeature?.enabled || false
                               const practiceEnabled = isSurgeryFeatureEnabled(feature.id)

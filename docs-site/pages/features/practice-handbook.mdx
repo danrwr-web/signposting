@@ -46,6 +46,26 @@ Standard users with editing permission can update LIST items directly from the s
 
 ---
 
+## Smart visuals
+
+Smart visuals turn a Handbook item into a polished, infographic-style view — contact cards, numbered process steps, checklists, team and buddy-group cards with working-day chips, role cards, key-fact tiles and warning callouts — rendered as normal app content, so the text stays selectable, accessible and readable on any screen size. Generating visuals is controlled by the `ai_handbook_visuals` feature flag (contact us to enable it); system administrators always have access, so they can try the feature on any practice before it is switched on. A visual that has been saved is visible to all staff regardless of the flag.
+
+### Generating a visual
+
+Anyone who can edit an item (admins, or standard users with per-item editing permission) will see a **Generate smart visual** button when viewing it. Clicking it sends the item's content to the AI, which chooses the most suitable visual treatments from a fixed set of layouts — it cannot invent free-form designs, colours or images, and it is instructed to use only facts present in the page.
+
+The result appears as a clearly marked **preview**: nothing is saved until you review it and click **Save visual**. You can regenerate for a different arrangement, or discard the preview entirely.
+
+### What staff see
+
+Once a visual is saved, everyone viewing the item — staff, editors and admins alike — gets a **Standard / Smart visual** toggle and can switch between the two views at any time. The visual opens by default while it is up to date, and the standard view (including inline editing of LIST rows for those with permission) is always one click away.
+
+### The page content stays the source of truth
+
+A smart visual is a presentation of the page — the normal page content remains the single source of truth, and editing an item never changes its visual (or vice versa). If the underlying content is edited after a visual was generated, the visual is **automatically hidden from everyone** — staff simply see the standard view again — until an editor regenerates it. Editors viewing the item see a notice explaining that the visual is hidden, with a one-click regenerate. This guarantees an outdated visual can never be shown alongside newer page content. Saving and removing visuals is recorded in the [audit trail](#audit-trail).
+
+---
+
 ## Admin: Handbook Library
 
 Admins access the Handbook via **Manage handbook → Handbook Library**.

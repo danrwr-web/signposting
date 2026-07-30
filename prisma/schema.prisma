@@ -46,6 +46,7 @@ model User {
   adminItemEditGrants          AdminItemEditGrant[]
   adminItemEditGrantsCreated   AdminItemEditGrant[]          @relation("AdminItemEditGrantCreatedBy")
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
+  adminItemSmartVisuals        AdminItemSmartVisual[]        @relation("AdminItemSmartVisualGeneratedBy")
 
   // Workflow instances
   workflowInstances        WorkflowInstance[]
@@ -144,6 +145,7 @@ model Surgery {
   adminCategoryVisibleUsers    AdminCategoryVisibleUser[]
   adminItemEditGrants          AdminItemEditGrant[]
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
+  adminItemSmartVisuals        AdminItemSmartVisual[]
 
   // Sales Pipeline
   pipelineEntry SalesPipeline? @relation("PipelineSurgery")
@@ -647,12 +649,36 @@ model AdminItem {
   attachments      AdminItemAttachment[]
   history          AdminHistory[]
   engagementEvents AdminToolkitEngagementEvent[]
+  smartVisual      AdminItemSmartVisual?
 
   @@index([surgeryId, deletedAt])
   @@index([surgeryId, categoryId])
   @@index([surgeryId, title])
   @@index([createdByUserId])
   @@index([updatedByUserId])
+}
+
+// AI-generated "smart visual" layout for a handbook item. The item content
+// remains the source of truth; sourceFingerprint records what the layout was
+// generated from so the read path can flag the visual as stale.
+model AdminItemSmartVisual {
+  id                String  @id @default(cuid())
+  adminItemId       String  @unique
+  surgeryId         String
+  layoutJson        Json // validated SmartVisualLayout (see src/lib/adminToolkitSmartVisualShared.ts)
+  sourceFingerprint String // sha256 hex of the canonical source snapshot at generation time
+  modelUsed         String?
+  generatedAt       DateTime @default(now())
+  generatedByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adminItem   AdminItem @relation(fields: [adminItemId], references: [id], onDelete: Cascade)
+  surgery     Surgery   @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  generatedBy User?     @relation("AdminItemSmartVisualGeneratedBy", fields: [generatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([surgeryId])
 }
 
 model AdminItemEditor {

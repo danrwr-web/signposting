@@ -20,6 +20,8 @@ import {
 import AdminToolkitItemActionsClient from './AdminToolkitItemActionsClient'
 import AdminToolkitAttachmentsSectionClient from './AdminToolkitAttachmentsSectionClient'
 import AdminToolkitListClient from './AdminToolkitListClient'
+import AdminToolkitSmartVisualToggleClient from './AdminToolkitSmartVisualToggleClient'
+import { getAdminToolkitSmartVisualForItem } from '@/server/adminToolkitSmartVisual'
 import AdminToolkitItemViewTracker from '@/components/admin-toolkit/AdminToolkitItemViewTracker'
 import { getRoleCardsBlock, getIntroTextBlock, getFooterTextBlock } from '@/lib/adminToolkitContentBlocksShared'
 
@@ -38,10 +40,14 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
 
   try {
     const user = await requireSurgeryAccess(surgeryId)
-    const [enabled, surgery] = await Promise.all([
+    const [enabled, aiVisualsFlagEnabled, surgery] = await Promise.all([
       isFeatureEnabledForSurgery(surgeryId, 'admin_toolkit'),
+      isFeatureEnabledForSurgery(surgeryId, 'ai_handbook_visuals'),
       prisma.surgery.findUnique({ where: { id: surgeryId }, select: { id: true, name: true } }),
     ])
+    // Superusers always have smart visuals, so they can test and demo the
+    // feature on any practice; other users need the surgery flag enabled.
+    const aiVisualsEnabled = user.globalRole === 'SUPERUSER' || aiVisualsFlagEnabled
 
     if (!surgery) {
       redirect('/unauthorized')
@@ -109,6 +115,11 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     // Legacy fallback: if no FOOTER_TEXT block but contentHtml exists, use it as footer
     const footerHtml = footerTextBlock?.html ?? (item.type === 'PAGE' && item.contentHtml ? item.contentHtml : '')
 
+    // A saved visual is shown to every viewer; the ai_handbook_visuals flag
+    // only gates generating/saving new visuals.
+    const smartVisual = await getAdminToolkitSmartVisualForItem(item)
+    const canGenerateSmartVisual = canManage || canEditThisItem
+
     const panel = await getAdminToolkitPinnedPanel(surgeryId)
     const todayUtc = getLondonTodayUtc()
     const weekStartUtc = startOfWeekMondayUtc(todayUtc)
@@ -148,8 +159,22 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
             <p className="mt-1 text-nhs-grey">{surgery.name}</p>
           </header>
 
-          {item.type === 'PAGE' ? (
-            <>
+          <AdminToolkitSmartVisualToggleClient
+            surgeryId={surgeryId}
+            itemId={item.id}
+            visual={
+              smartVisual
+                ? {
+                    layout: smartVisual.layout,
+                    generatedAtIso: smartVisual.generatedAt.toISOString(),
+                    isStale: smartVisual.isStale,
+                  }
+                : null
+            }
+            canGenerate={canGenerateSmartVisual}
+            aiVisualsEnabled={aiVisualsEnabled}
+          >
+            {item.type === 'PAGE' ? (
               <div className="bg-white rounded-lg shadow-md p-6">
                 {introTextBlock ? (
                   <div
@@ -165,35 +190,37 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
                   />
                 ) : null}
               </div>
+            ) : (
+              <section className="bg-white rounded-lg shadow-md p-6">
+                <AdminToolkitListClient
+                  surgeryId={surgeryId}
+                  itemId={item.id}
+                  canEditThisItem={canEditThisItem}
+                  columns={(item.listColumns ?? []).map((c) => ({ id: c.id, key: c.key, label: c.label, fieldType: c.fieldType, orderIndex: c.orderIndex }))}
+                  rows={(item.listRows ?? []).map((r) => {
+                    const raw = r.dataJson
+                    const obj =
+                      raw && typeof raw === 'object' && !Array.isArray(raw)
+                        ? (raw as Record<string, unknown>)
+                        : ({} as Record<string, unknown>)
+                    const data: Record<string, string> = {}
+                    for (const [k, v] of Object.entries(obj)) data[k] = v === null || v === undefined ? '' : String(v)
+                    return { id: r.id, data, orderIndex: r.orderIndex }
+                  })}
+                />
+              </section>
+            )}
+          </AdminToolkitSmartVisualToggleClient>
 
-              <AdminToolkitAttachmentsSectionClient
-                surgeryId={surgeryId}
-                itemId={item.id}
-                canEditThisItem={canEditThisItem}
-                attachments={item.attachments.map((a) => ({ id: a.id, label: a.label, url: a.url }))}
-                defaultOpen={item.attachments.length > 0}
-              />
-            </>
-          ) : (
-            <section className="bg-white rounded-lg shadow-md p-6">
-              <AdminToolkitListClient
-                surgeryId={surgeryId}
-                itemId={item.id}
-                canEditThisItem={canEditThisItem}
-                columns={(item.listColumns ?? []).map((c) => ({ id: c.id, key: c.key, label: c.label, fieldType: c.fieldType, orderIndex: c.orderIndex }))}
-                rows={(item.listRows ?? []).map((r) => {
-                  const raw = r.dataJson
-                  const obj =
-                    raw && typeof raw === 'object' && !Array.isArray(raw)
-                      ? (raw as Record<string, unknown>)
-                      : ({} as Record<string, unknown>)
-                  const data: Record<string, string> = {}
-                  for (const [k, v] of Object.entries(obj)) data[k] = v === null || v === undefined ? '' : String(v)
-                  return { id: r.id, data, orderIndex: r.orderIndex }
-                })}
-              />
-            </section>
-          )}
+          {item.type === 'PAGE' ? (
+            <AdminToolkitAttachmentsSectionClient
+              surgeryId={surgeryId}
+              itemId={item.id}
+              canEditThisItem={canEditThisItem}
+              attachments={item.attachments.map((a) => ({ id: a.id, label: a.label, url: a.url }))}
+              defaultOpen={item.attachments.length > 0}
+            />
+          ) : null}
 
           <footer className="mt-6 text-sm text-gray-600">
             <div className="flex flex-wrap gap-x-6 gap-y-1">
