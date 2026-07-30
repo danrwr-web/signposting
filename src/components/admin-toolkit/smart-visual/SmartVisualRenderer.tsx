@@ -266,12 +266,28 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                       ) : null}
                       {member.facts && member.facts.length > 0 ? (
                         <dl className="mt-2 space-y-0.5 text-sm">
-                          {member.facts.map((fact, k) => (
-                            <div key={k} className="flex flex-wrap gap-x-1.5">
-                              <dt className="shrink-0 font-medium text-nhs-grey">{fact.label}:</dt>
-                              <dd className="text-gray-800">{fact.value}</dd>
-                            </div>
-                          ))}
+                          {member.facts.map((fact, k) => {
+                            // Short colour-named values (e.g. a slot colour) get the
+                            // same coloured-chip treatment as tags; longer values
+                            // containing an incidental colour word stay plain text.
+                            const colourChip = fact.value.length <= 40 ? namedColourChipClass(fact.value) : null
+                            return (
+                              <div key={k} className="flex flex-wrap items-center gap-x-1.5">
+                                <dt className="shrink-0 font-medium text-nhs-grey">{fact.label}:</dt>
+                                <dd className="text-gray-800">
+                                  {colourChip ? (
+                                    <span
+                                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${colourChip}`}
+                                    >
+                                      {fact.value}
+                                    </span>
+                                  ) : (
+                                    fact.value
+                                  )}
+                                </dd>
+                              </div>
+                            )
+                          })}
                         </dl>
                       ) : null}
                       {member.note ? <p className="mt-1.5 text-sm text-gray-600">{member.note}</p> : null}

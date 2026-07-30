@@ -24,7 +24,11 @@ const layout = SmartVisualLayoutZ.parse({
               name: 'Daniel Webber-Rookes',
               tag: 'Black',
               days: ['Mon', 'Tue', 'Thu', 'Fri'],
-              facts: [{ label: 'Nurse', value: 'Sarah M/Emma' }],
+              facts: [
+                { label: 'Nurse', value: 'Sarah M/Emma' },
+                { label: 'Slot', value: 'Pale Blue' },
+                { label: 'Base', value: 'The Red House surgery, 14 Green Lane, Exeter' },
+              ],
             },
           ],
         },
@@ -78,6 +82,17 @@ describe('SmartVisualRenderer', () => {
     expect(screen.getByText('Black').className).toContain('bg-gray-900')
   })
 
+  it('renders short colour-named fact values as coloured chips, leaving long values plain', () => {
+    render(<SmartVisualRenderer layout={layout} />)
+
+    expect(screen.getByText('Pale Blue').className).toContain('bg-sky-300')
+
+    // A long value containing incidental colour words stays plain text.
+    const address = screen.getByText('The Red House surgery, 14 Green Lane, Exeter')
+    expect(address.className).not.toContain('bg-red-600')
+    expect(address.className).not.toContain('bg-green-600')
+  })
+
   it('renders a visible fallback for an unknown section type instead of nothing', () => {
     const skewedLayout = {
       version: 1,
@@ -104,5 +119,11 @@ describe('namedColourChipClass', () => {
   it('returns null for tags with no recognised colour word', () => {
     expect(namedColourChipClass('Senior Partner')).toBeNull()
     expect(namedColourChipClass('Locum')).toBeNull()
+  })
+
+  it('only matches whole colour words, not substrings of other words', () => {
+    expect(namedColourChipClass('Alfred')).toBeNull() // not "red"
+    expect(namedColourChipClass('Blackwell')).toBeNull() // not "black"
+    expect(namedColourChipClass('Ida Greenwood')).toBeNull() // not "green"
   })
 })

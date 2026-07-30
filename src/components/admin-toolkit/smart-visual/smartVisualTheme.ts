@@ -65,31 +65,31 @@ export const GROUP_THEME_CYCLE: SmartVisualTheme[] = ['blue', 'green', 'amber', 
  * null when the tag contains no recognised colour word.
  */
 const NAMED_COLOUR_CHIPS: Array<[RegExp, string]> = [
-  [/dark\s*blue|navy/, 'bg-blue-900 text-white'],
-  [/pale\s*blue|light\s*blue|sky\s*blue/, 'bg-sky-300 text-sky-950'],
-  [/royal\s*blue/, 'bg-blue-700 text-white'],
-  [/dark\s*green|forest/, 'bg-green-800 text-white'],
-  [/lime(\s*green)?|light\s*green|pale\s*green/, 'bg-lime-400 text-lime-950'],
-  [/dark\s*red|maroon|burgundy/, 'bg-red-900 text-white'],
-  [/dark\s*grey|dark\s*gray|charcoal/, 'bg-gray-700 text-white'],
-  [/light\s*grey|light\s*gray|silver/, 'bg-gray-300 text-gray-800'],
-  [/black/, 'bg-gray-900 text-white'],
-  [/white/, 'bg-white text-gray-800 border border-gray-300'],
-  [/grey|gray/, 'bg-gray-500 text-white'],
-  [/red/, 'bg-red-600 text-white'],
-  [/pink/, 'bg-pink-500 text-white'],
-  [/purple|violet|lilac/, 'bg-purple-600 text-white'],
-  [/orange/, 'bg-orange-500 text-white'],
-  [/amber|gold/, 'bg-amber-500 text-amber-950'],
-  [/yellow/, 'bg-yellow-400 text-yellow-950'],
-  [/teal|turquoise|aqua|cyan/, 'bg-teal-600 text-white'],
-  [/green/, 'bg-green-600 text-white'],
-  [/blue/, 'bg-blue-600 text-white'],
-  [/brown/, 'bg-amber-800 text-white'],
+  [/\b(dark\s*blue|navy)\b/, 'bg-blue-900 text-white'],
+  [/\b((pale|light|sky)\s*blue)\b/, 'bg-sky-300 text-sky-950'],
+  [/\broyal\s*blue\b/, 'bg-blue-700 text-white'],
+  [/\b(dark\s*green|forest\s*green)\b/, 'bg-green-800 text-white'],
+  [/\b(lime(\s*green)?|(light|pale)\s*green)\b/, 'bg-lime-400 text-lime-950'],
+  [/\b(dark\s*red|maroon|burgundy)\b/, 'bg-red-900 text-white'],
+  [/\b(dark\s*(grey|gray)|charcoal)\b/, 'bg-gray-700 text-white'],
+  [/\b(light\s*(grey|gray)|silver)\b/, 'bg-gray-300 text-gray-800'],
+  [/\bblack\b/, 'bg-gray-900 text-white'],
+  [/\bwhite\b/, 'bg-white text-gray-800 border border-gray-300'],
+  [/\b(grey|gray)\b/, 'bg-gray-500 text-white'],
+  [/\bred\b/, 'bg-red-600 text-white'],
+  [/\bpink\b/, 'bg-pink-500 text-white'],
+  [/\b(purple|violet|lilac)\b/, 'bg-purple-600 text-white'],
+  [/\borange\b/, 'bg-orange-500 text-white'],
+  [/\b(amber|gold)\b/, 'bg-amber-500 text-amber-950'],
+  [/\byellow\b/, 'bg-yellow-400 text-yellow-950'],
+  [/\b(teal|turquoise|aqua|cyan)\b/, 'bg-teal-600 text-white'],
+  [/\bgreen\b/, 'bg-green-600 text-white'],
+  [/\bblue\b/, 'bg-blue-600 text-white'],
+  [/\bbrown\b/, 'bg-amber-800 text-white'],
 ]
 
-export function namedColourChipClass(tag: string): string | null {
-  const lower = tag.toLowerCase()
+export function namedColourChipClass(text: string): string | null {
+  const lower = text.toLowerCase()
   for (const [pattern, classes] of NAMED_COLOUR_CHIPS) {
     if (pattern.test(lower)) return classes
   }
