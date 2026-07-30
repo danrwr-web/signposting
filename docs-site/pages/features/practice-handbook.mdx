@@ -54,15 +54,23 @@ Smart visuals turn a Handbook item into a polished, infographic-style view — c
 
 Anyone who can edit an item (admins, or standard users with per-item editing permission) will see a **Generate smart visual** button when viewing it. Clicking it sends the item's content to the AI, which chooses the most suitable visual treatments from a fixed set of layouts — it cannot invent free-form designs, colours or images, and it is instructed to use only facts present in the page.
 
-The result appears as a clearly marked **preview**: nothing is saved until you review it and click **Save visual**. You can regenerate for a different arrangement, or discard the preview entirely.
+The result appears as a clearly marked **preview**: nothing is saved until you review it and click **Save visual**. While previewing you can:
+
+- **Reorder or remove sections** using the controls on each section (a visual always keeps at least one section)
+- **Refine with guidance** — type a short instruction such as "group by site" or "make the warning more prominent" and regenerate; the AI applies your steer within the same fixed layout rules. Guidance shapes the *structure* — text styling is applied automatically by the app (phone numbers, for example, are always shown bold and tappable to dial)
+- **Regenerate** for a fresh arrangement, or **discard** the preview entirely
+
+When you regenerate an existing visual, the AI is shown the previous layout and asked to keep the same structure wherever the updated content still supports it — so small content edits don't reshuffle the whole visual.
 
 ### What staff see
 
 Once a visual is saved, everyone viewing the item — staff, editors and admins alike — gets a **Standard / Smart visual** toggle and can switch between the two views at any time. The visual opens by default while it is up to date, and the standard view (including inline editing of LIST rows for those with permission) is always one click away.
 
+A **Print visual** button prints just the visual (with the page title), formatted for paper — handy for pinning a rota or buddy-system sheet up at the desk.
+
 ### The page content stays the source of truth
 
-A smart visual is a presentation of the page — the normal page content remains the single source of truth, and editing an item never changes its visual (or vice versa). If the underlying content is edited after a visual was generated, the visual is **automatically hidden from everyone** — staff simply see the standard view again — until an editor regenerates it. Editors viewing the item see a notice explaining that the visual is hidden, with a one-click regenerate. This guarantees an outdated visual can never be shown alongside newer page content. Saving and removing visuals is recorded in the [audit trail](#audit-trail).
+A smart visual is a presentation of the page — the normal page content remains the single source of truth, and editing an item never changes its visual (or vice versa). If the underlying content is edited after a visual was generated, the visual is **automatically hidden from everyone** — staff simply see the standard view again — until an editor regenerates it. Editors viewing the item see a notice explaining that the visual is hidden, with a one-click regenerate, and are prompted to regenerate immediately after saving an edit to a page that has a visual. This guarantees an outdated visual can never be shown alongside newer page content. Saving and removing visuals is recorded in the [audit trail](#audit-trail).
 
 ---
 

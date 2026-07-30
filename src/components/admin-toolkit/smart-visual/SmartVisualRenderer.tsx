@@ -26,16 +26,58 @@ function themeOf(theme: SmartVisualTheme | undefined) {
   return SECTION_THEMES[theme ?? DEFAULT_THEME]
 }
 
+// Candidate phone numbers: NHS shortcodes (999/111/112) as standalone words,
+// or UK-style numbers starting 0 with optional space/hyphen grouping. The
+// 0-prefixed candidates are verified to carry 10-11 digits before styling,
+// so ordinary numbers in prose are left alone.
+const PHONE_CANDIDATE_REGEX = /(\b0[\d](?:[\s-]?\d){8,12}\b|\b(?:999|111|112)\b)/g
+
+function isPhoneNumber(candidate: string): boolean {
+  if (candidate === '999' || candidate === '111' || candidate === '112') return true
+  const digits = candidate.replace(/\D/g, '')
+  return candidate.startsWith('0') && digits.length >= 10 && digits.length <= 11
+}
+
+/**
+ * Renders text with phone numbers emphasised: bold and dialable via tel:
+ * links. Deterministic, app-side styling — the AI supplies plain text only.
+ */
+function TextWithPhones({ text }: { text: string }) {
+  const parts = text.split(PHONE_CANDIDATE_REGEX)
+  if (parts.length === 1) return <>{text}</>
+  return (
+    <>
+      {parts.map((part, i) =>
+        part && isPhoneNumber(part) ? (
+          <a
+            key={i}
+            href={`tel:${part.replace(/[\s-]/g, '')}`}
+            className="font-bold text-gray-900 whitespace-nowrap hover:underline"
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
 function SectionTitle({ title, className }: { title?: string; className?: string }) {
   if (!title) return null
-  return <h2 className={`text-lg font-semibold ${className ?? 'text-nhs-dark-blue'} mb-4`}>{title}</h2>
+  return (
+    <h2 className={`text-lg font-semibold ${className ?? 'text-nhs-dark-blue'} mb-4`}>
+      <TextWithPhones text={title} />
+    </h2>
+  )
 }
 
 function SummarySection({ section }: { section: SectionOf<'summary'> }) {
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="h-1 -mt-5 -mx-5 mb-4 rounded-t-xl bg-gradient-to-r from-nhs-blue via-nhs-blue/80 to-nhs-green" />
-      <p className="text-base leading-relaxed text-gray-800">{section.text}</p>
+      <p className="text-base leading-relaxed text-gray-800"><TextWithPhones text={section.text} /></p>
       {section.keyPoints && section.keyPoints.length > 0 ? (
         <ul className="mt-4 flex flex-wrap gap-2">
           {section.keyPoints.map((point, i) => (
@@ -43,7 +85,7 @@ function SummarySection({ section }: { section: SectionOf<'summary'> }) {
               key={i}
               className="inline-flex items-center rounded-full bg-nhs-light-blue px-3 py-1 text-sm font-medium text-nhs-dark-blue"
             >
-              {point}
+              <TextWithPhones text={point} />
             </li>
           ))}
         </ul>
@@ -65,8 +107,8 @@ function CalloutSection({ section }: { section: SectionOf<'callout'> }) {
           <SmartVisualIconGlyph icon={icon} className="h-6 w-6" />
         </span>
         <div>
-          {section.title ? <p className={`font-semibold ${theme.heading}`}>{section.title}</p> : null}
-          <p className={`${section.title ? 'mt-1 ' : ''}text-sm leading-relaxed text-gray-800`}>{section.body}</p>
+          {section.title ? <p className={`font-semibold ${theme.heading}`}><TextWithPhones text={section.title} /></p> : null}
+          <p className={`${section.title ? 'mt-1 ' : ''}text-sm leading-relaxed text-gray-800`}><TextWithPhones text={section.body} /></p>
         </div>
       </div>
     </section>
@@ -87,8 +129,8 @@ function StepsSection({ section }: { section: SectionOf<'steps'> }) {
               {i + 1}
             </span>
             <div className="min-w-0 pt-1">
-              <p className="font-medium text-gray-900">{step.title}</p>
-              {step.detail ? <p className="mt-0.5 text-sm leading-relaxed text-gray-600">{step.detail}</p> : null}
+              <p className="font-medium text-gray-900"><TextWithPhones text={step.title} /></p>
+              {step.detail ? <p className="mt-0.5 text-sm leading-relaxed text-gray-600"><TextWithPhones text={step.detail} /></p> : null}
             </div>
           </li>
         ))}
@@ -108,8 +150,8 @@ function ChecklistSection({ section }: { section: SectionOf<'checklist'> }) {
               <SmartVisualIconGlyph icon="check" className="h-3.5 w-3.5" />
             </span>
             <div className="min-w-0">
-              <p className="text-gray-900">{item.text}</p>
-              {item.detail ? <p className="mt-0.5 text-sm text-gray-600">{item.detail}</p> : null}
+              <p className="text-gray-900"><TextWithPhones text={item.text} /></p>
+              {item.detail ? <p className="mt-0.5 text-sm text-gray-600"><TextWithPhones text={item.detail} /></p> : null}
             </div>
           </li>
         ))}
@@ -125,8 +167,8 @@ function ContactsSection({ section }: { section: SectionOf<'contacts'> }) {
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {section.contacts.map((contact, i) => (
           <li key={i} className="rounded-lg border border-gray-200 bg-nhs-light-grey/60 p-4">
-            <p className="font-semibold text-gray-900">{contact.name}</p>
-            {contact.role ? <p className="text-sm text-nhs-grey">{contact.role}</p> : null}
+            <p className="font-semibold text-gray-900"><TextWithPhones text={contact.name} /></p>
+            {contact.role ? <p className="text-sm text-nhs-grey"><TextWithPhones text={contact.role} /></p> : null}
             <div className="mt-2 space-y-1 text-sm">
               {contact.phone ? (
                 <p className="flex items-center gap-2 text-gray-800">
@@ -156,7 +198,7 @@ function ContactsSection({ section }: { section: SectionOf<'contacts'> }) {
                   </a>
                 </p>
               ) : null}
-              {contact.note ? <p className="pt-1 text-gray-600">{contact.note}</p> : null}
+              {contact.note ? <p className="pt-1 text-gray-600"><TextWithPhones text={contact.note} /></p> : null}
             </div>
           </li>
         ))}
@@ -180,7 +222,7 @@ function PairsSection({ section }: { section: SectionOf<'pairs'> }) {
         {section.pairs.map((pair, i) => (
           <li key={i} className="rounded-lg border border-gray-200 bg-nhs-light-grey/60 px-4 py-3">
             <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-              <span className="font-medium text-gray-900">{pair.left}</span>
+              <span className="font-medium text-gray-900"><TextWithPhones text={pair.left} /></span>
               <svg
                 className="h-5 w-5 text-nhs-blue"
                 viewBox="0 0 24 24"
@@ -193,9 +235,9 @@ function PairsSection({ section }: { section: SectionOf<'pairs'> }) {
               >
                 <path d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
               </svg>
-              <span className="font-medium text-gray-900">{pair.right}</span>
+              <span className="font-medium text-gray-900"><TextWithPhones text={pair.right} /></span>
             </div>
-            {pair.note ? <p className="mt-1 text-sm text-gray-600">{pair.note}</p> : null}
+            {pair.note ? <p className="mt-1 text-sm text-gray-600"><TextWithPhones text={pair.note} /></p> : null}
           </li>
         ))}
       </ul>
@@ -241,14 +283,14 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                   <span className={theme.icon}>
                     <SmartVisualIconGlyph icon="people" className="h-5 w-5" />
                   </span>
-                  {group.title}
+                  <TextWithPhones text={group.title} />
                 </h3>
-                {group.note ? <p className="mt-1 text-sm text-gray-600">{group.note}</p> : null}
+                {group.note ? <p className="mt-1 text-sm text-gray-600"><TextWithPhones text={group.note} /></p> : null}
                 <ul className="mt-3 divide-y divide-gray-200/70">
                   {group.members.map((member, j) => (
                     <li key={j} className="py-3 first:pt-0 last:pb-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-gray-900">{member.name}</span>
+                        <span className="font-semibold text-gray-900"><TextWithPhones text={member.name} /></span>
                         {member.tag ? (
                           <span
                             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -273,7 +315,7 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                             const colourChip = fact.value.length <= 40 ? namedColourChipClass(fact.value) : null
                             return (
                               <div key={k} className="flex flex-wrap items-center gap-x-1.5">
-                                <dt className="shrink-0 font-medium text-nhs-grey">{fact.label}:</dt>
+                                <dt className="shrink-0 font-medium text-nhs-grey"><TextWithPhones text={fact.label} />:</dt>
                                 <dd className="text-gray-800">
                                   {colourChip ? (
                                     <span
@@ -282,7 +324,7 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                                       {fact.value}
                                     </span>
                                   ) : (
-                                    fact.value
+                                    <TextWithPhones text={fact.value} />
                                   )}
                                 </dd>
                               </div>
@@ -290,7 +332,7 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                           })}
                         </dl>
                       ) : null}
-                      {member.note ? <p className="mt-1.5 text-sm text-gray-600">{member.note}</p> : null}
+                      {member.note ? <p className="mt-1.5 text-sm text-gray-600"><TextWithPhones text={member.note} /></p> : null}
                     </li>
                   ))}
                 </ul>
@@ -314,13 +356,13 @@ function RolesSection({ section }: { section: SectionOf<'roles'> }) {
             <li key={i} className={`overflow-hidden rounded-lg border ${theme.border} ${theme.surface}`}>
               <div className={`h-1 ${theme.accent}`} aria-hidden="true" />
               <div className="p-4">
-                <p className={`font-semibold ${theme.heading}`}>{role.role}</p>
-                {role.person ? <p className="text-sm text-nhs-grey">{role.person}</p> : null}
+                <p className={`font-semibold ${theme.heading}`}><TextWithPhones text={role.role} /></p>
+                {role.person ? <p className="text-sm text-nhs-grey"><TextWithPhones text={role.person} /></p> : null}
                 <ul className="mt-3 space-y-1.5">
                   {role.responsibilities.map((resp, j) => (
                     <li key={j} className="flex items-start gap-2 text-sm text-gray-800">
                       <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${theme.accent}`} aria-hidden="true" />
-                      <span>{resp}</span>
+                      <span><TextWithPhones text={resp} /></span>
                     </li>
                   ))}
                 </ul>
@@ -348,9 +390,9 @@ function FactsSection({ section }: { section: SectionOf<'facts'> }) {
                     <SmartVisualIconGlyph icon={fact.icon} className="h-4 w-4" />
                   </span>
                 ) : null}
-                {fact.label}
+                <TextWithPhones text={fact.label} />
               </dt>
-              <dd className={`mt-1.5 text-lg font-bold leading-snug ${theme.heading}`}>{fact.value}</dd>
+              <dd className={`mt-1.5 text-lg font-bold leading-snug ${theme.heading}`}><TextWithPhones text={fact.value} /></dd>
             </div>
           )
         })}
@@ -373,13 +415,13 @@ function BulletsSection({ section }: { section: SectionOf<'bullets'> }) {
                     <SmartVisualIconGlyph icon={group.icon} className="h-5 w-5" />
                   </span>
                 ) : null}
-                {group.title}
+                <TextWithPhones text={group.title} />
               </h3>
               <ul className="mt-3 space-y-1.5">
                 {group.items.map((item, j) => (
                   <li key={j} className="flex items-start gap-2 text-sm text-gray-800">
                     <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${theme.accent}`} aria-hidden="true" />
-                    <span>{item}</span>
+                    <span><TextWithPhones text={item} /></span>
                   </li>
                 ))}
               </ul>
@@ -405,7 +447,7 @@ function TableSection({ section }: { section: SectionOf<'table'> }) {
                   scope="col"
                   className="bg-nhs-light-grey px-4 py-2.5 text-left font-semibold text-nhs-dark-blue first:rounded-l-lg last:rounded-r-lg"
                 >
-                  {header}
+                  <TextWithPhones text={header} />
                 </th>
               ))}
             </tr>
@@ -415,7 +457,7 @@ function TableSection({ section }: { section: SectionOf<'table'> }) {
               <tr key={i}>
                 {row.map((cell, j) => (
                   <td key={j} className="px-4 py-2.5 align-top text-gray-800">
-                    {cell}
+                    <TextWithPhones text={cell} />
                   </td>
                 ))}
               </tr>

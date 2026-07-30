@@ -280,3 +280,26 @@
     }
   }
 }
+/* Practice Handbook smart visual print mode: the "Print visual" button adds
+   .smart-visual-printing to <body>, so only the visual itself is printed. */
+@media print {
+  body.smart-visual-printing * {
+    visibility: hidden;
+  }
+  body.smart-visual-printing .smart-visual-print-area,
+  body.smart-visual-printing .smart-visual-print-area * {
+    visibility: visible;
+  }
+  body.smart-visual-printing .smart-visual-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .smart-visual-print-area section,
+  .smart-visual-print-area li {
+    break-inside: avoid;
+  }
+}

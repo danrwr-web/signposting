@@ -162,6 +162,7 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
           <AdminToolkitSmartVisualToggleClient
             surgeryId={surgeryId}
             itemId={item.id}
+            itemTitle={item.title}
             visual={
               smartVisual
                 ? {

@@ -9,6 +9,8 @@ import {
   smartVisualItemHasContent,
 } from '@/server/adminToolkitSmartVisual'
 import { AzureOpenAIError } from '@/server/azureOpenAI'
+import { prisma } from '@/lib/prisma'
+import { SmartVisualLayoutZ } from '@/lib/adminToolkitSmartVisualShared'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -16,6 +18,7 @@ export const maxDuration = 60
 const generateSmartVisualSchema = z.object({
   surgeryId: z.string().min(1),
   itemId: z.string().min(1),
+  guidance: z.string().trim().max(500).optional(),
 })
 
 const GATE_ERROR_STATUS: Record<string, number> = {
@@ -33,7 +36,7 @@ const GATE_ERROR_STATUS: Record<string, number> = {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { surgeryId, itemId } = generateSmartVisualSchema.parse(body)
+    const { surgeryId, itemId, guidance } = generateSmartVisualSchema.parse(body)
 
     const gate = await requireAdminToolkitItemEdit(surgeryId, itemId)
     if (!gate.ok) {
@@ -70,7 +73,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const result = await generateSmartVisualLayout(item, user.email)
+    // When a visual already exists, pass its layout so regeneration keeps
+    // the structure stable wherever the content still supports it.
+    const existingVisual = await prisma.adminItemSmartVisual.findUnique({
+      where: { adminItemId: itemId },
+      select: { layoutJson: true },
+    })
+    const previousParsed = existingVisual ? SmartVisualLayoutZ.safeParse(existingVisual.layoutJson) : null
+    const previousLayout = previousParsed?.success ? previousParsed.data : undefined
+
+    const result = await generateSmartVisualLayout(item, user.email, { guidance, previousLayout })
 
     return NextResponse.json({
       layout: result.layout,

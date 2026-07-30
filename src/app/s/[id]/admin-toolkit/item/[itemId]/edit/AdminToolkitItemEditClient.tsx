@@ -8,6 +8,7 @@ import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import { getFooterTextBlock, getIntroTextBlock, getRoleCardsBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
 import type { RoleCard, RoleCardsColumns, RoleCardsLayout } from '@/lib/adminToolkitContentBlocksShared'
 import { updateAdminToolkitItem } from '../../../actions'
+import { ConfirmDialog } from '@/components/ui'
 
 type InitialItem = {
   type: 'PAGE' | 'LIST'
@@ -285,6 +286,7 @@ export default function AdminToolkitItemEditClient({
 
   const [form, setForm] = useState<FormState>(initialForm)
   const [saving, setSaving] = useState(false)
+  const [regenPromptOpen, setRegenPromptOpen] = useState(false)
 
   useEffect(() => {
     setForm(initialForm)
@@ -419,6 +421,12 @@ export default function AdminToolkitItemEditClient({
                 return
               }
               toast.success('Page updated')
+              if (res.data.smartVisualNowHidden) {
+                // The edit just hid this page's smart visual — offer to
+                // regenerate it before returning to the page.
+                setRegenPromptOpen(true)
+                return
+              }
               router.push(`/s/${surgeryId}/admin-toolkit/${itemId}`)
               router.refresh()
             } finally {
@@ -429,6 +437,25 @@ export default function AdminToolkitItemEditClient({
           {saving ? 'Saving…' : 'Save'}
         </button>
       </div>
+
+      <ConfirmDialog
+        open={regenPromptOpen}
+        onClose={() => {
+          setRegenPromptOpen(false)
+          router.push(`/s/${surgeryId}/admin-toolkit/${itemId}`)
+          router.refresh()
+        }}
+        onConfirm={() => {
+          setRegenPromptOpen(false)
+          router.push(`/s/${surgeryId}/admin-toolkit/${itemId}?regenerateVisual=1`)
+          router.refresh()
+        }}
+        title="Regenerate smart visual?"
+        message="Your changes are saved. This page's smart visual is now hidden from staff until it is regenerated from the updated content."
+        confirmLabel="Regenerate now"
+        cancelLabel="Later"
+        variant="primary"
+      />
     </div>
   )
 }
