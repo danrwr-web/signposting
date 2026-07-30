@@ -218,6 +218,22 @@ export type SmartVisualGenerationResult = {
   modelUsed: string
 }
 
+export type SmartVisualGenerationOptions = {
+  /**
+   * Optional plain-text steering from the admin (e.g. "group by site").
+   * Injected as guidance only — the schema and safety rules still apply.
+   */
+  guidance?: string
+  /**
+   * The previously saved layout, when regenerating. Passed to the model so
+   * regenerations keep the same structure wherever the content still
+   * supports it, instead of reshuffling sections on every small edit.
+   */
+  previousLayout?: SmartVisualLayout
+}
+
+const MAX_GUIDANCE_CHARS = 500
+
 /**
  * Generate a smart visual layout for a handbook item via Azure OpenAI.
  * The response is validated against SmartVisualLayoutZ, with one corrective
@@ -227,8 +243,24 @@ export type SmartVisualGenerationResult = {
 export async function generateSmartVisualLayout(
   item: AdminToolkitPageItem,
   userEmail: string,
+  options: SmartVisualGenerationOptions = {},
 ): Promise<SmartVisualGenerationResult> {
   const { text: sourceText, truncated } = buildSmartVisualSourceText(item)
+
+  const guidance = options.guidance
+    ? stripHtmlToPlainText(options.guidance).slice(0, MAX_GUIDANCE_CHARS).trim()
+    : ''
+
+  const previousLayoutBlock = options.previousLayout
+    ? `\nPREVIOUS LAYOUT (structural reference — the content has changed since this was generated):
+${JSON.stringify(options.previousLayout)}
+Keep the same section types, order and grouping wherever the updated content still supports them. Change only what the content changes require, so the visual stays familiar to staff.\n`
+    : ''
+
+  const guidanceBlock = guidance
+    ? `\nADMIN GUIDANCE (apply where possible, but never break the output rules, invent facts, or soften safety wording):
+${guidance}\n`
+    : ''
 
   const userPrompt = `HANDBOOK ITEM TYPE: ${item.type}
 
@@ -238,7 +270,7 @@ ${
   truncated && item.type === 'LIST'
     ? '\nNOTE: The row list above was truncated. Do NOT output a "table" section of the rows — summarise the structure and surface key contacts or facts instead.\n'
     : ''
-}
+}${previousLayoutBlock}${guidanceBlock}
 TASK: Produce the JSON layout now.`
 
   const baseMessages: AzureOpenAIMessage[] = [

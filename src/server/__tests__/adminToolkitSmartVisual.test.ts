@@ -229,6 +229,37 @@ describe('generateSmartVisualLayout', () => {
     })
   })
 
+  it('includes admin guidance and the previous layout in the prompt when provided', async () => {
+    mockedCallAzureOpenAI.mockResolvedValueOnce(aiResponse(validLayoutJson))
+
+    const previousLayout = {
+      version: 1 as const,
+      sections: [{ type: 'summary' as const, text: 'Old structure.' }],
+    }
+    await generateSmartVisualLayout(pageItem(), 'admin@example.nhs.uk', {
+      guidance: 'Group by site and <b>keep it short</b>',
+      previousLayout,
+    })
+
+    const userMessage = mockedCallAzureOpenAI.mock.calls[0][0].messages[1].content
+    expect(userMessage).toContain('ADMIN GUIDANCE')
+    // Guidance is stripped to plain text before entering the prompt.
+    expect(userMessage).toContain('Group by site and keep it short')
+    expect(userMessage).not.toContain('<b>')
+    expect(userMessage).toContain('PREVIOUS LAYOUT')
+    expect(userMessage).toContain('Old structure.')
+  })
+
+  it('omits guidance and previous-layout blocks when not provided', async () => {
+    mockedCallAzureOpenAI.mockResolvedValueOnce(aiResponse(validLayoutJson))
+
+    await generateSmartVisualLayout(pageItem(), 'admin@example.nhs.uk')
+
+    const userMessage = mockedCallAzureOpenAI.mock.calls[0][0].messages[1].content
+    expect(userMessage).not.toContain('ADMIN GUIDANCE')
+    expect(userMessage).not.toContain('PREVIOUS LAYOUT')
+  })
+
   it('retries once with the validation errors and sums tokens across attempts', async () => {
     mockedCallAzureOpenAI
       .mockResolvedValueOnce(aiResponse(JSON.stringify({ version: 1, sections: [{ type: 'nonsense' }] })))

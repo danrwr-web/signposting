@@ -16,6 +16,8 @@ import {
   zodFieldErrors,
 } from '@/server/adminToolkitGates'
 import type { ActionResult } from '@/server/adminToolkitGates'
+import { getAdminToolkitPageItem } from '@/server/adminToolkit'
+import { computeSmartVisualFingerprint } from '@/server/adminToolkitSmartVisual'
 
 export type { ActionResult } from '@/server/adminToolkitGates'
 
@@ -600,7 +602,9 @@ const updateItemInput = z.object({
     .optional(),
 })
 
-export async function updateAdminToolkitItem(input: unknown): Promise<ActionResult<{ id: string }>> {
+export async function updateAdminToolkitItem(
+  input: unknown,
+): Promise<ActionResult<{ id: string; smartVisualNowHidden?: boolean }>> {
   const parsed = updateItemInput.safeParse(input)
   if (!parsed.success) {
     return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) } }
@@ -820,7 +824,26 @@ export async function updateAdminToolkitItem(input: unknown): Promise<ActionResu
     })
   })
 
-  return { ok: true, data: { id: itemId } }
+  // Tell the caller when this edit just hid the item's smart visual (visuals
+  // are hidden whenever their stored fingerprint no longer matches the
+  // content), so editors can be prompted to regenerate straight away.
+  let smartVisualNowHidden = false
+  try {
+    const visualRow = await prisma.adminItemSmartVisual.findUnique({
+      where: { adminItemId: itemId },
+      select: { sourceFingerprint: true },
+    })
+    if (visualRow) {
+      const freshItem = await getAdminToolkitPageItem(surgeryId, itemId)
+      smartVisualNowHidden =
+        !!freshItem && computeSmartVisualFingerprint(freshItem) !== visualRow.sourceFingerprint
+    }
+  } catch (error) {
+    // Advisory only — never fail the save over it.
+    console.error('updateAdminToolkitItem: smart visual staleness check failed:', error)
+  }
+
+  return { ok: true, data: { id: itemId, ...(smartVisualNowHidden ? { smartVisualNowHidden } : {}) } }
 }
 
 function normaliseListKey(raw: string): string {

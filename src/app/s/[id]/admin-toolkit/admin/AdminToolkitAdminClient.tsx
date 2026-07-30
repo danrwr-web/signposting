@@ -2220,6 +2220,24 @@ function ItemEditFormContent({
               return
             }
             toast.success('Page saved')
+            if (res.data.smartVisualNowHidden) {
+              const regenerateUrl = `/s/${surgeryId}/admin-toolkit/${selectedItem.id}?regenerateVisual=1`
+              toast(
+                (t) => (
+                  <span>
+                    The smart visual for this page is hidden until regenerated.{' '}
+                    <a
+                      href={regenerateUrl}
+                      className="font-semibold text-nhs-blue underline"
+                      onClick={() => toast.dismiss(t.id)}
+                    >
+                      Regenerate
+                    </a>
+                  </span>
+                ),
+                { duration: 10000 },
+              )
+            }
             await refresh()
           }}
         >
