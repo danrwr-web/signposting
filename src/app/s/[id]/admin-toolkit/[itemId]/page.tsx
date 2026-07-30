@@ -115,7 +115,9 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
     // Legacy fallback: if no FOOTER_TEXT block but contentHtml exists, use it as footer
     const footerHtml = footerTextBlock?.html ?? (item.type === 'PAGE' && item.contentHtml ? item.contentHtml : '')
 
-    const smartVisual = aiVisualsEnabled ? await getAdminToolkitSmartVisualForItem(item) : null
+    // A saved visual is shown to every viewer; the ai_handbook_visuals flag
+    // only gates generating/saving new visuals.
+    const smartVisual = await getAdminToolkitSmartVisualForItem(item)
     const canGenerateSmartVisual = canManage || canEditThisItem
 
     const panel = await getAdminToolkitPinnedPanel(surgeryId)

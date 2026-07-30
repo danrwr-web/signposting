@@ -176,7 +176,7 @@ The output is checked automatically for any base colour-slot names left behind. 
 
 Smart visuals turn a [Practice Handbook](/features/practice-handbook) page into a scannable, infographic-style view built from a fixed set of layouts: summaries, warning callouts, numbered steps, checklists, contact cards, buddy-pair mappings, team/buddy-group cards with working-day chips, role cards, key-fact tiles, grouped bullets and small tables. The AI is instructed to interpret and reorganise the content — grouping rows by team, converting working days into day chips, and separating natural sub-groups — rather than reproducing the original layout.
 
-This feature is controlled by the `ai_handbook_visuals` feature flag. System administrators (superusers) always have access regardless of the flag, so they can test and demo the feature on any practice; practice staff see saved visuals only once the flag is enabled for their surgery.
+Generating and saving visuals is controlled by the `ai_handbook_visuals` feature flag; system administrators (superusers) always have access regardless of the flag, so they can test and demo the feature on any practice. Once a visual has been saved, it is visible to **all** staff at that practice whether or not the flag is on — the flag governs who can create visuals, not who can view them. Removing a saved visual (available to anyone who can edit the item) takes it away again.
 
 ### How It Works
 
