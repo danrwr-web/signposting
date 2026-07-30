@@ -93,8 +93,11 @@ export default function AdminToolkitSmartVisualToggleClient({
   const handleGenerate = async (guidanceText?: string) => {
     setGenerating(true)
     setError(null)
-    setPreview(null)
     setView('visual')
+    // Keep any current preview (including manual reorder/remove edits) until
+    // a successful response replaces it — a failed regeneration must not
+    // throw away a previously valid, still-saveable preview.
+    const hadPreview = preview !== null
     try {
       const trimmedGuidance = guidanceText?.trim()
       const response = await fetch('/api/admin-toolkit/smart-visual', {
@@ -109,7 +112,7 @@ export default function AdminToolkitSmartVisualToggleClient({
       const data = await response.json()
       if (!response.ok) {
         setError(typeof data?.error === 'string' ? data.error : 'Failed to generate smart visual.')
-        if (!freshVisual) setView('standard')
+        if (!freshVisual && !hadPreview) setView('standard')
         return
       }
       setPreview({
@@ -119,7 +122,7 @@ export default function AdminToolkitSmartVisualToggleClient({
       })
     } catch {
       setError('Failed to generate smart visual. Please check your connection and try again.')
-      if (!freshVisual) setView('standard')
+      if (!freshVisual && !hadPreview) setView('standard')
     } finally {
       setGenerating(false)
     }
