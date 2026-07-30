@@ -56,6 +56,17 @@ describe('sanitizeAdminToolkitHtml', () => {
   it('otherwise matches the base allowlist', () => {
     expect(sanitizeAdminToolkitHtml('<p>Hello</p><script>alert(1)</script>')).toBe('<p>Hello</p>')
   })
+
+  it('keeps links to the internal handbook file route (uploaded PDFs)', () => {
+    const html = '<p><a href="/api/admin-toolkit/files/clx123abc" target="_blank" rel="noopener">SOP</a></p>'
+    expect(sanitizeAdminToolkitHtml(html)).toBe(html)
+    // The base sanitizer keeps relative hrefs too — links aren't handbook-only.
+    expect(sanitizeHtml(html)).toBe(html)
+  })
+
+  it('still strips javascript: links', () => {
+    expect(sanitizeAdminToolkitHtml('<p><a href="javascript:alert(1)">x</a></p>')).toBe('<p><a>x</a></p>')
+  })
 })
 
 describe('stripHtmlToPlainText', () => {

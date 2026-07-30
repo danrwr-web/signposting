@@ -1566,6 +1566,67 @@ export async function addAdminToolkitAttachmentLink(input: unknown): Promise<Act
   return { ok: true, data: { id: created.id } }
 }
 
+const addAttachmentFileInput = z.object({
+  surgeryId: z.string().min(1),
+  itemId: z.string().min(1),
+  label: z.string().trim().min(1, 'Label is required').max(120),
+  fileId: z.string().min(1),
+})
+
+/**
+ * Creates an attachment pointing at an uploaded PDF (see
+ * /api/admin-toolkit/files). The url is constructed server-side from a file
+ * that must already belong to this surgery and item, so the action can't be
+ * used to attach another surgery's document.
+ */
+export async function addAdminToolkitAttachmentFile(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = addAttachmentFileInput.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: { code: 'VALIDATION_ERROR', message: 'Invalid input.', fieldErrors: zodFieldErrors(parsed.error) },
+    }
+  }
+  const { surgeryId, itemId, label, fileId } = parsed.data
+  const gate = await requireAdminToolkitItemEdit(surgeryId, itemId)
+  if (!gate.ok) return gate
+
+  const file = await prisma.adminItemFile.findFirst({
+    where: { id: fileId, surgeryId, adminItemId: itemId },
+    select: { id: true, filename: true },
+  })
+  if (!file) return { ok: false, error: { code: 'NOT_FOUND', message: 'Uploaded file not found.' } }
+
+  const url = `/api/admin-toolkit/files/${file.id}`
+
+  const max = await prisma.adminItemAttachment.aggregate({
+    where: { surgeryId, adminItemId: itemId, deletedAt: null },
+    _max: { orderIndex: true },
+  })
+  const nextOrder = (max._max.orderIndex ?? 0) + 1
+
+  const created = await prisma.$transaction(async (tx) => {
+    const attachment = await tx.adminItemAttachment.create({
+      data: { surgeryId, adminItemId: itemId, label, url, orderIndex: nextOrder },
+      select: { id: true },
+    })
+    await tx.adminHistory.create({
+      data: {
+        surgeryId,
+        adminItemId: itemId,
+        action: 'ATTACHMENT_ADD',
+        actorUserId: gate.data.userId,
+        entityType: 'ADMIN_ITEM',
+        summary: `Added attachment "${label}" (uploaded PDF)`,
+        diffJson: { label, url, filename: file.filename },
+      },
+    })
+    return attachment
+  })
+
+  return { ok: true, data: { id: created.id } }
+}
+
 const removeAttachmentInput = z.object({
   surgeryId: z.string().min(1),
   itemId: z.string().min(1),
