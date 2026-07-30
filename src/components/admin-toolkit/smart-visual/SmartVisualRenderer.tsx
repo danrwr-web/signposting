@@ -5,7 +5,13 @@ import {
   type SmartVisualSection,
   type SmartVisualTheme,
 } from '@/lib/adminToolkitSmartVisualShared'
-import { SECTION_THEMES, DEFAULT_THEME, CALLOUT_TONE_THEMES, GROUP_THEME_CYCLE } from './smartVisualTheme'
+import {
+  SECTION_THEMES,
+  DEFAULT_THEME,
+  CALLOUT_TONE_THEMES,
+  GROUP_THEME_CYCLE,
+  namedColourChipClass,
+} from './smartVisualTheme'
 import { SmartVisualIconGlyph } from './smartVisualIcons'
 
 /**
@@ -244,7 +250,11 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold text-gray-900">{member.name}</span>
                         {member.tag ? (
-                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${theme.chip}`}>
+                          <span
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              namedColourChipClass(member.tag) ?? theme.chip
+                            }`}
+                          >
                             {member.tag}
                           </span>
                         ) : null}

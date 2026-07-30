@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import SmartVisualRenderer from '@/components/admin-toolkit/smart-visual/SmartVisualRenderer'
+import { namedColourChipClass } from '@/components/admin-toolkit/smart-visual/smartVisualTheme'
 import { SmartVisualLayoutZ } from '@/lib/adminToolkitSmartVisualShared'
 
 const layout = SmartVisualLayoutZ.parse({
@@ -69,6 +70,14 @@ describe('SmartVisualRenderer', () => {
     )
   })
 
+  it('renders colour-named tags in their own colour', () => {
+    render(<SmartVisualRenderer layout={layout} />)
+
+    // "Black" is a recognised colour word, so the chip uses the named-colour
+    // style rather than the group theme's chip style.
+    expect(screen.getByText('Black').className).toContain('bg-gray-900')
+  })
+
   it('renders a visible fallback for an unknown section type instead of nothing', () => {
     const skewedLayout = {
       version: 1,
@@ -78,5 +87,22 @@ describe('SmartVisualRenderer', () => {
     render(<SmartVisualRenderer layout={skewedLayout} />)
 
     expect(screen.getByText(/Refresh the page and try again/)).toBeInTheDocument()
+  })
+})
+
+describe('namedColourChipClass', () => {
+  it('maps colour words to chip styles, longest phrase first', () => {
+    expect(namedColourChipClass('Black')).toBe('bg-gray-900 text-white')
+    expect(namedColourChipClass('Lime Green')).toBe('bg-lime-400 text-lime-950')
+    expect(namedColourChipClass('Pale Blue')).toBe('bg-sky-300 text-sky-950')
+    expect(namedColourChipClass('Dark Blue')).toBe('bg-blue-900 text-white')
+    expect(namedColourChipClass('Yellow Star')).toBe('bg-yellow-400 text-yellow-950')
+    // Plain blue must not be caught by the dark/pale variants
+    expect(namedColourChipClass('Blue')).toBe('bg-blue-600 text-white')
+  })
+
+  it('returns null for tags with no recognised colour word', () => {
+    expect(namedColourChipClass('Senior Partner')).toBeNull()
+    expect(namedColourChipClass('Locum')).toBeNull()
   })
 })

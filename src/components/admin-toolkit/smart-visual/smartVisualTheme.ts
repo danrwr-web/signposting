@@ -57,6 +57,45 @@ export const SECTION_THEMES: Record<
  */
 export const GROUP_THEME_CYCLE: SmartVisualTheme[] = ['blue', 'green', 'amber', 'grey']
 
+/**
+ * Deterministic colour-word → chip-style mapping for member tags, so a tag
+ * like "Lime Green" or "Pale Blue" renders in that colour. Longest phrases
+ * are matched first ("dark blue" before "blue"). All styles come from this
+ * fixed, contrast-checked palette — the AI never supplies styling. Returns
+ * null when the tag contains no recognised colour word.
+ */
+const NAMED_COLOUR_CHIPS: Array<[RegExp, string]> = [
+  [/dark\s*blue|navy/, 'bg-blue-900 text-white'],
+  [/pale\s*blue|light\s*blue|sky\s*blue/, 'bg-sky-300 text-sky-950'],
+  [/royal\s*blue/, 'bg-blue-700 text-white'],
+  [/dark\s*green|forest/, 'bg-green-800 text-white'],
+  [/lime(\s*green)?|light\s*green|pale\s*green/, 'bg-lime-400 text-lime-950'],
+  [/dark\s*red|maroon|burgundy/, 'bg-red-900 text-white'],
+  [/dark\s*grey|dark\s*gray|charcoal/, 'bg-gray-700 text-white'],
+  [/light\s*grey|light\s*gray|silver/, 'bg-gray-300 text-gray-800'],
+  [/black/, 'bg-gray-900 text-white'],
+  [/white/, 'bg-white text-gray-800 border border-gray-300'],
+  [/grey|gray/, 'bg-gray-500 text-white'],
+  [/red/, 'bg-red-600 text-white'],
+  [/pink/, 'bg-pink-500 text-white'],
+  [/purple|violet|lilac/, 'bg-purple-600 text-white'],
+  [/orange/, 'bg-orange-500 text-white'],
+  [/amber|gold/, 'bg-amber-500 text-amber-950'],
+  [/yellow/, 'bg-yellow-400 text-yellow-950'],
+  [/teal|turquoise|aqua|cyan/, 'bg-teal-600 text-white'],
+  [/green/, 'bg-green-600 text-white'],
+  [/blue/, 'bg-blue-600 text-white'],
+  [/brown/, 'bg-amber-800 text-white'],
+]
+
+export function namedColourChipClass(tag: string): string | null {
+  const lower = tag.toLowerCase()
+  for (const [pattern, classes] of NAMED_COLOUR_CHIPS) {
+    if (pattern.test(lower)) return classes
+  }
+  return null
+}
+
 export const DEFAULT_THEME: SmartVisualTheme = 'blue'
 
 /** Callout tone → theme + emphasis used by the CalloutSection. */
