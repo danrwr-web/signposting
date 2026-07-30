@@ -2,12 +2,59 @@
  * @jest-environment node
  */
 
-import { sanitizeHtml, stripHtmlToPlainText } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml, sanitizeHtml, stripHtmlToPlainText } from '@/lib/sanitizeHtml'
 
 describe('sanitizeHtml (node)', () => {
   it('sanitises HTML without requiring a DOM/JSDOM', () => {
     expect(() => sanitizeHtml('<p>Hello</p><script>alert(1)</script>')).not.toThrow()
     expect(sanitizeHtml('<p>Hello</p><script>alert(1)</script>')).toBe('<p>Hello</p>')
+  })
+
+  it('strips img entirely (images are handbook-only)', () => {
+    expect(sanitizeHtml('<p>Before <img src="/api/admin-toolkit/images/clx123abc" alt="x"> after</p>')).toBe(
+      '<p>Before  after</p>'
+    )
+  })
+})
+
+describe('sanitizeAdminToolkitHtml', () => {
+  it('keeps img pointing at the internal handbook image route', () => {
+    expect(
+      sanitizeAdminToolkitHtml('<p><img src="/api/admin-toolkit/images/clx123abc" alt="Rota" /></p>')
+    ).toBe('<p><img src="/api/admin-toolkit/images/clx123abc" alt="Rota" /></p>')
+  })
+
+  it('keeps img with empty alt (decorative)', () => {
+    expect(sanitizeAdminToolkitHtml('<p><img src="/api/admin-toolkit/images/clx123abc" alt="" /></p>')).toBe(
+      '<p><img src="/api/admin-toolkit/images/clx123abc" alt="" /></p>'
+    )
+  })
+
+  it('drops img with external, data: or javascript: sources', () => {
+    expect(sanitizeAdminToolkitHtml('<p><img src="https://evil.example/x.png" /></p>')).toBe('<p></p>')
+    expect(sanitizeAdminToolkitHtml('<p><img src="http://evil.example/x.png" /></p>')).toBe('<p></p>')
+    expect(sanitizeAdminToolkitHtml('<p><img src="//evil.example/x.png" /></p>')).toBe('<p></p>')
+    expect(sanitizeAdminToolkitHtml('<p><img src="data:image/png;base64,AAAA" /></p>')).toBe('<p></p>')
+    expect(sanitizeAdminToolkitHtml('<p><img src="javascript:alert(1)" /></p>')).toBe('<p></p>')
+  })
+
+  it('drops img with non-matching relative paths or no src', () => {
+    expect(sanitizeAdminToolkitHtml('<p><img src="/api/other/x.png" /></p>')).toBe('<p></p>')
+    expect(sanitizeAdminToolkitHtml('<p><img src="../etc/passwd" /></p>')).toBe('<p></p>')
+    expect(sanitizeAdminToolkitHtml('<p><img src="/api/admin-toolkit/images/abc/../../x" /></p>')).toBe('<p></p>')
+    expect(sanitizeAdminToolkitHtml('<p><img alt="no src" /></p>')).toBe('<p></p>')
+  })
+
+  it('strips disallowed attributes but keeps src and alt', () => {
+    expect(
+      sanitizeAdminToolkitHtml(
+        '<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" title="t" width="600" onerror="alert(1)" /></p>'
+      )
+    ).toBe('<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" /></p>')
+  })
+
+  it('otherwise matches the base allowlist', () => {
+    expect(sanitizeAdminToolkitHtml('<p>Hello</p><script>alert(1)</script>')).toBe('<p>Hello</p>')
   })
 })
 

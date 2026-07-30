@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml, sanitizeHtml } from '@/lib/sanitizeHtml'
 import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
 import type { RoleCardsColumns, RoleCardsLayout, AdminToolkitContentJson } from '@/lib/adminToolkitContentBlocksShared'
 import { upsertBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
@@ -426,7 +426,7 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
     
     // Add INTRO_TEXT block if present
     if (introHtml && !isHtmlEmpty(introHtml)) {
-      json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+      json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeAdminToolkitHtml(introHtml) })
     }
     
     // Add ROLE_CARDS block if present
@@ -452,7 +452,7 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
     // Add FOOTER_TEXT block if present, or use legacy contentHtml as fallback
     const footerContent = footerHtml || (contentHtml && !isHtmlEmpty(contentHtml) ? contentHtml : '')
     if (footerContent && !isHtmlEmpty(footerContent)) {
-      json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerContent) })
+      json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeAdminToolkitHtml(footerContent) })
     }
     
     // Only set contentJson if we have blocks
@@ -654,7 +654,7 @@ export async function updateAdminToolkitItem(
       
       // Only add new intro block if it has meaningful content
       if (introHtml && !isHtmlEmpty(introHtml)) {
-        json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeHtml(introHtml) })
+        json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeAdminToolkitHtml(introHtml) })
       } else {
         // Explicitly empty - remove the block
         json = { ...json, blocks: withoutIntro }
@@ -706,7 +706,7 @@ export async function updateAdminToolkitItem(
       
       // Only add new footer block if it has meaningful content
       if (footerHtml && !isHtmlEmpty(footerHtml)) {
-        json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeHtml(footerHtml) })
+        json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeAdminToolkitHtml(footerHtml) })
       } else {
         // Explicitly empty - remove the block
         json = { ...json, blocks: withoutFooter }

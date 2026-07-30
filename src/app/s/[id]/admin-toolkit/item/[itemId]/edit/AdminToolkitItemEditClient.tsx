@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml } from '@/lib/sanitizeHtml'
 import { getFooterTextBlock, getIntroTextBlock, getRoleCardsBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
 import type { RoleCard, RoleCardsColumns, RoleCardsLayout } from '@/lib/adminToolkitContentBlocksShared'
 import { updateAdminToolkitItem } from '../../../actions'
@@ -321,7 +321,8 @@ export default function AdminToolkitItemEditClient({
               <RichTextEditor
                 docId={`admin-toolkit:staff-edit:${itemId}:intro`}
                 value={form.introHtml}
-                onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
+                onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeAdminToolkitHtml(html) }))}
+                imageUpload={{ surgeryId, itemId }}
                 height={220}
                 placeholder="Write guidance for staff…"
               />
@@ -337,7 +338,8 @@ export default function AdminToolkitItemEditClient({
               <RichTextEditor
                 docId={`admin-toolkit:staff-edit:${itemId}:footer`}
                 value={form.footerHtml}
-                onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
+                onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeAdminToolkitHtml(html) }))}
+                imageUpload={{ surgeryId, itemId }}
                 height={220}
                 placeholder="Optional extra guidance…"
               />

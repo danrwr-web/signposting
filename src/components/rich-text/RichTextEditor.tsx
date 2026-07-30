@@ -17,9 +17,10 @@ import { useEffect, useMemo, useRef } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { createRichTextExtensions } from '@/components/rich-text/extensions'
 import { cleanPastedHtml, normalizeHtml } from '@/components/rich-text/normalizeHtml'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml, sanitizeHtml } from '@/lib/sanitizeHtml'
 import { Skeleton } from '@/components/ui'
 import Toolbar from '@/components/rich-text/toolbar/Toolbar'
+import type { ImageUploadTarget } from '@/components/rich-text/toolbar/ImagePopover'
 
 interface RichTextEditorProps {
   /**
@@ -33,6 +34,13 @@ interface RichTextEditorProps {
   readOnly?: boolean
   placeholder?: string
   height?: number
+  /**
+   * Enables inline images (Practice Handbook content only): adds the image
+   * node to the schema, an upload button to the toolbar, and switches the
+   * paste sanitizer to the handbook variant so internal images survive.
+   * Content edited with this set must be saved via `sanitizeAdminToolkitHtml`.
+   */
+  imageUpload?: ImageUploadTarget
   'data-testid'?: string
 }
 
@@ -44,11 +52,17 @@ export default function RichTextEditor({
   readOnly = false,
   placeholder = 'Start typing...',
   height = 300,
+  imageUpload,
   'data-testid': testId,
 }: RichTextEditorProps) {
   const lastDocIdRef = useRef<string>(docId)
 
-  const extensions = useMemo(() => createRichTextExtensions({ placeholder }), [placeholder])
+  const enableImages = !!imageUpload
+  const extensions = useMemo(
+    () => createRichTextExtensions({ placeholder, enableImages }),
+    [placeholder, enableImages],
+  )
+  const sanitize = enableImages ? sanitizeAdminToolkitHtml : sanitizeHtml
 
   const editor = useEditor({
     // Defer creation to the client so server and first client render match —
@@ -58,7 +72,7 @@ export default function RichTextEditor({
     content: normalizeHtml(value),
     editable: !readOnly,
     editorProps: {
-      transformPastedHTML: (html) => sanitizeHtml(cleanPastedHtml(html)),
+      transformPastedHTML: (html) => sanitize(cleanPastedHtml(html)),
     },
     onUpdate: ({ editor: e }) => {
       onChange(e.getHTML())
@@ -95,7 +109,7 @@ export default function RichTextEditor({
 
   return (
     <div className={`rich-text-editor ${className}`} data-testid={testId}>
-      {!readOnly && <Toolbar editor={editor} />}
+      {!readOnly && <Toolbar editor={editor} imageUpload={imageUpload} />}
       <div
         className={`border border-gray-300 bg-white ${
           readOnly ? 'rounded-md' : 'rounded-b-md'

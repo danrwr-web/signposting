@@ -7,8 +7,14 @@
  * anything the editor can produce that the sanitizer strips is silent data
  * loss on save. That is why Strike (`<s>`) and HorizontalRule (`<hr>`) are
  * disabled: neither tag is in the allowlist.
+ *
+ * Images are opt-in (`enableImages`) and Practice Handbook-only: the base
+ * sanitizer strips `<img>`, and only `sanitizeAdminToolkitHtml` keeps it —
+ * and even then only with a same-origin `/api/admin-toolkit/images/{id}` src.
+ * Never enable images for content saved through the base `sanitizeHtml`.
  */
 import StarterKit from '@tiptap/starter-kit'
+import Image from '@tiptap/extension-image'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
@@ -37,7 +43,20 @@ export const NHS_HIGHLIGHT_COLORS = [
 
 export interface RichTextExtensionOptions {
   placeholder?: string
+  /** Practice Handbook only — see the header comment before enabling. */
+  enableImages?: boolean
 }
+
+// Inline (serializes inside <p>, so normalizeHtml needs no block-tag changes)
+// with attributes cut down to exactly what the handbook sanitizer allows.
+const AdminToolkitImage = Image.extend({
+  addAttributes() {
+    return {
+      src: { default: null },
+      alt: { default: null },
+    }
+  },
+}).configure({ inline: true, allowBase64: false })
 
 export function createRichTextExtensions(options: RichTextExtensionOptions = {}): Extensions {
   return [
@@ -59,6 +78,7 @@ export function createRichTextExtensions(options: RichTextExtensionOptions = {})
     Highlight.configure({
       multicolor: true,
     }),
+    ...(options.enableImages ? [AdminToolkitImage] : []),
     ...(options.placeholder
       ? [Placeholder.configure({ placeholder: options.placeholder })]
       : []),

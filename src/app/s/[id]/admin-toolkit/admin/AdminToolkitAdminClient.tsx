@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml } from '@/lib/sanitizeHtml'
 import type { AdminToolkitCategory, AdminToolkitPageItem, AdminToolkitPinnedPanel } from '@/server/adminToolkit'
 import type { AdminToolkitQuickAccessButton } from '@/lib/adminToolkitQuickAccessShared'
 import { getRoleCardsBlock, getIntroTextBlock, getFooterTextBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
@@ -121,10 +121,12 @@ function newClientId(): string {
 }
 
 function CreateModePageEditor({
+  surgeryId,
   editorInstanceKey,
   form,
   setForm,
 }: {
+  surgeryId: string
   /** Bumped on create-mode resets so the editors rehydrate with the cleared form. */
   editorInstanceKey: number
   form: PageFormState
@@ -169,7 +171,8 @@ function CreateModePageEditor({
               <RichTextEditor
                 docId={`admin-toolkit:create:${editorInstanceKey}:intro`}
                 value={form.introHtml}
-                onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
+                onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeAdminToolkitHtml(html) }))}
+                imageUpload={{ surgeryId }}
                 height={200}
                 placeholder="Write guidance for staff…"
               />
@@ -197,7 +200,8 @@ function CreateModePageEditor({
               <RichTextEditor
                 docId={`admin-toolkit:create:${editorInstanceKey}:footer`}
                 value={form.footerHtml}
-                onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
+                onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeAdminToolkitHtml(html) }))}
+                imageUpload={{ surgeryId }}
                 height={200}
                 placeholder="Optional extra guidance…"
               />
@@ -210,11 +214,13 @@ function CreateModePageEditor({
 }
 
 function PageEditorContent({
+  surgeryId,
   form,
   setForm,
   selectedItemId,
   hasLegacyContent,
 }: {
+  surgeryId: string
   form: PageFormState
   setForm: React.Dispatch<React.SetStateAction<PageFormState>>
   selectedItemId: string
@@ -268,7 +274,8 @@ function PageEditorContent({
             <RichTextEditor
               docId={`admin-toolkit:item:${selectedItemId}:intro`}
               value={form.introHtml}
-              onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeHtml(html) }))}
+              onChange={(html) => setForm((prev) => ({ ...prev, introHtml: sanitizeAdminToolkitHtml(html) }))}
+              imageUpload={{ surgeryId, itemId: selectedItemId }}
               height={200}
               placeholder="Write guidance for staff…"
             />
@@ -310,7 +317,8 @@ function PageEditorContent({
             <RichTextEditor
               docId={`admin-toolkit:item:${selectedItemId}:footer`}
               value={form.footerHtml}
-              onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeHtml(html) }))}
+              onChange={(html) => setForm((prev) => ({ ...prev, footerHtml: sanitizeAdminToolkitHtml(html) }))}
+              imageUpload={{ surgeryId, itemId: selectedItemId }}
               height={200}
               placeholder="Optional extra guidance…"
             />
@@ -1630,6 +1638,7 @@ function ItemsTab({
             <div>
               {form.type === 'PAGE' ? (
                 <CreateModePageEditor
+                  surgeryId={surgeryId}
                   editorInstanceKey={editorInstanceKey}
                   form={form}
                   setForm={setForm}
@@ -1907,6 +1916,7 @@ function ItemEditFormContent({
         </div>
         {selectedItem.type === 'PAGE' ? (
           <PageEditorContent
+            surgeryId={surgeryId}
             form={form}
             setForm={setForm}
             selectedItemId={selectedItem.id}

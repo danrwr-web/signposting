@@ -1,6 +1,14 @@
 /**
  * HTML Sanitization Utility
  * Sanitizes HTML content to prevent XSS attacks while preserving formatting
+ *
+ * Two allowlists live here:
+ * - the base config (`sanitizeHtml`) used by symptom instructions and most
+ *   content — no `img`
+ * - the Practice Handbook config (`sanitizeAdminToolkitHtml`) which
+ *   additionally allows `img`, but only with a same-origin
+ *   `/api/admin-toolkit/images/{id}` src. External, protocol-relative and
+ *   data: image sources are always stripped.
  */
 
 import sanitizeHtmlLib from 'sanitize-html'
@@ -43,21 +51,10 @@ const sanitizeConfig: sanitizeHtmlLib.IOptions = {
   allowedIframeHostnames: [],
 }
 
-/**
- * Sanitizes HTML content for safe rendering
- * @param html - The HTML content to sanitize
- * @returns Sanitized HTML string
- */
-export function sanitizeHtml(html: string): string {
-  if (!html || typeof html !== 'string') {
-    return ''
-  }
-
-  const sanitized = sanitizeHtmlLib(html, sanitizeConfig)
-
-  // Normalise inline style formatting to be stable and readable.
-  // sanitize-html may output compact styles like `color:rgb(255, 0, 0)` (no spaces / no trailing semicolons),
-  // which makes string-based tests brittle. We reformat as `color: rgb(...);` consistently.
+// Normalise inline style formatting to be stable and readable.
+// sanitize-html may output compact styles like `color:rgb(255, 0, 0)` (no spaces / no trailing semicolons),
+// which makes string-based tests brittle. We reformat as `color: rgb(...);` consistently.
+function normalizeStyleAttributes(sanitized: string): string {
   return sanitized.replace(/style="([^"]*)"/g, (_match: string, styleValue: string) => {
     const declarations = styleValue
       .split(';')
@@ -73,6 +70,56 @@ export function sanitizeHtml(html: string): string {
 
     return `style="${declarations.join(' ')}"`
   })
+}
+
+/**
+ * Sanitizes HTML content for safe rendering
+ * @param html - The HTML content to sanitize
+ * @returns Sanitized HTML string
+ */
+export function sanitizeHtml(html: string): string {
+  if (!html || typeof html !== 'string') {
+    return ''
+  }
+
+  return normalizeStyleAttributes(sanitizeHtmlLib(html, sanitizeConfig))
+}
+
+/**
+ * The only image src shape handbook content may reference: the authenticated
+ * serving route with a cuid id. Anything else — external URLs, data: URIs,
+ * other same-origin paths — is stripped by `sanitizeAdminToolkitHtml`.
+ */
+export const ADMIN_TOOLKIT_IMAGE_SRC_RE = /^\/api\/admin-toolkit\/images\/[a-z0-9]+$/i
+
+const adminToolkitSanitizeConfig: sanitizeHtmlLib.IOptions = {
+  ...sanitizeConfig,
+  allowedTags: [...allowedTags, 'img'],
+  allowedAttributes: {
+    ...sanitizeConfig.allowedAttributes,
+    img: ['src', 'alt'],
+  },
+  // No scheme'd URLs at all on img (kills http/https/data:). Relative srcs
+  // pass this check and are then constrained by the exclusiveFilter below.
+  allowedSchemesByTag: { img: [] },
+  // Drop any img whose src isn't the internal serving route. Scheme'd srcs
+  // have already been removed as attributes by this point, so those images
+  // arrive here with no src and are dropped too.
+  exclusiveFilter: (frame) =>
+    frame.tag === 'img' && !ADMIN_TOOLKIT_IMAGE_SRC_RE.test(frame.attribs?.src ?? ''),
+}
+
+/**
+ * Sanitizes Practice Handbook (Admin Toolkit) HTML. Same allowlist as
+ * `sanitizeHtml` plus `img` restricted to internal handbook image URLs.
+ * Symptom instructions must keep using `sanitizeHtml`.
+ */
+export function sanitizeAdminToolkitHtml(html: string): string {
+  if (!html || typeof html !== 'string') {
+    return ''
+  }
+
+  return normalizeStyleAttributes(sanitizeHtmlLib(html, adminToolkitSanitizeConfig))
 }
 
 /**
@@ -168,4 +215,21 @@ export function sanitizeAndFormatContent(content: string): string {
     const htmlWithBreaks = convertLineBreaksToHtml(content)
     return sanitizeHtml(htmlWithBreaks)
   }
+}
+
+/**
+ * `sanitizeAndFormatContent` for Practice Handbook regions: same behaviour,
+ * but images referencing the internal handbook image route survive.
+ */
+export function sanitizeAndFormatAdminToolkitContent(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return ''
+  }
+
+  const hasHtmlTags = /<[^>]+>/.test(content)
+
+  if (hasHtmlTags) {
+    return sanitizeAdminToolkitHtml(content)
+  }
+  return sanitizeAdminToolkitHtml(convertLineBreaksToHtml(content))
 }

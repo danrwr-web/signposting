@@ -234,6 +234,11 @@
   border-radius: 2px;
 }
 
+.rich-text-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+}
+
 .rich-text-editor .ProseMirror blockquote {
   margin: 0.5rem 0;
   padding-left: 0.75rem;
