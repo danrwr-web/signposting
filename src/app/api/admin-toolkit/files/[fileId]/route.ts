@@ -14,7 +14,7 @@ function safeFilename(filename: string): string {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ fileId: string }> },
 ) {
   try {
@@ -53,15 +53,28 @@ export async function GET(
       }
     }
 
+    // no-cache (not immutable): the browser may store the bytes but must
+    // revalidate on every use, so the permission gates above re-run and a
+    // signed-out or revoked user can't keep reading a cached copy. Bytes are
+    // immutable per id, so revalidation is a cheap 304 via the id ETag.
+    const etag = `"${fileId}"`
+    const cacheHeaders = {
+      'Cache-Control': 'private, no-cache',
+      ETag: etag,
+    }
+
+    const ifNoneMatch = request.headers.get('if-none-match')
+    if (ifNoneMatch && ifNoneMatch.split(',').some((v) => v.trim().replace(/^W\//, '') === etag)) {
+      return new NextResponse(null, { status: 304, headers: cacheHeaders })
+    }
+
     const body = Buffer.from(file.data)
     return new NextResponse(body, {
       status: 200,
       headers: {
+        ...cacheHeaders,
         'Content-Type': file.contentType,
         'Content-Length': String(body.byteLength),
-        // File bytes are immutable per id (uploads are never mutated), so
-        // long-lived private caching is safe.
-        'Cache-Control': 'private, max-age=31536000, immutable',
         'X-Content-Type-Options': 'nosniff',
         // Inline lets the browser preview the PDF, but PDFs can embed
         // scripts — the CSP sandbox (no allow-* flags) blocks script

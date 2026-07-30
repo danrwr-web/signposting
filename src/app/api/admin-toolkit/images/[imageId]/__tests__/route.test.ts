@@ -31,7 +31,9 @@ const mockedCanView = canUserViewAdminItemInCategory as jest.MockedFunction<type
 const IMAGE_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3])
 
 const makeContext = (imageId: string) => ({ params: Promise.resolve({ imageId }) })
-const req = {} as NextRequest
+const makeReq = (headers: Record<string, string> = {}) =>
+  ({ headers: { get: (k: string) => headers[k.toLowerCase()] ?? null } }) as unknown as NextRequest
+const req = makeReq()
 
 describe('GET /api/admin-toolkit/images/[imageId]', () => {
   beforeEach(() => {
@@ -78,15 +80,31 @@ describe('GET /api/admin-toolkit/images/[imageId]', () => {
     expect(res.status).toBe(404)
   })
 
-  it('serves the bytes with content type and private caching headers', async () => {
+  it('serves the bytes with content type and revalidate-always caching headers', async () => {
     const res = await GET(req, makeContext('img-1'))
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
     expect(res.headers.get('Content-Length')).toBe(String(IMAGE_BYTES.byteLength))
-    expect(res.headers.get('Cache-Control')).toBe('private, max-age=31536000, immutable')
+    // no-cache: the browser must revalidate (re-running the permission gates)
+    // before every reuse of a stored copy.
+    expect(res.headers.get('Cache-Control')).toBe('private, no-cache')
+    expect(res.headers.get('ETag')).toBe('"img-1"')
     expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff')
     const body = Buffer.from(await res.arrayBuffer())
     expect(body.equals(IMAGE_BYTES)).toBe(true)
+  })
+
+  it('returns 304 without a body when If-None-Match matches', async () => {
+    const res = await GET(makeReq({ 'if-none-match': '"img-1"' }), makeContext('img-1'))
+    expect(res.status).toBe(304)
+    expect(res.headers.get('ETag')).toBe('"img-1"')
+    expect((await res.arrayBuffer()).byteLength).toBe(0)
+  })
+
+  it('re-runs the permission gates on revalidation (no 304 for revoked access)', async () => {
+    mockedAccess.mockRejectedValue(new Error('Unauthorized'))
+    const res = await GET(makeReq({ 'if-none-match': '"img-1"' }), makeContext('img-1'))
+    expect(res.status).toBe(404)
   })
 
   it('skips the item visibility check for images without an item', async () => {

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeAdminToolkitHtml, sanitizeHtml } from '@/lib/sanitizeHtml'
+import { extractAdminToolkitUploadIds } from '@/lib/adminToolkitUploads'
 import type { AdminToolkitQuickAccessButton, AdminToolkitUiConfig } from '@/lib/adminToolkitQuickAccessShared'
 import type { RoleCardsColumns, RoleCardsLayout, AdminToolkitContentJson } from '@/lib/adminToolkitContentBlocksShared'
 import { upsertBlock, isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
@@ -418,15 +419,21 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
   if (!gate.ok) return gate
 
   const { surgeryId, type, title, categoryId, contentHtml, introHtml, footerHtml, warningLevel, lastReviewedAt, roleCardsBlock } = parsed.data
-  
+
+  // Uploads referenced by the new content were stored with adminItemId = null
+  // (the item didn't exist yet); collect their ids so they can be claimed below.
+  const uploadHtmlSources: string[] = []
+
   // Build contentJson for PAGE items
   let contentJson: unknown = undefined
   if (type === 'PAGE') {
     let json: AdminToolkitContentJson = { blocks: [] }
-    
+
     // Add INTRO_TEXT block if present
     if (introHtml && !isHtmlEmpty(introHtml)) {
-      json = upsertBlock(json, { type: 'INTRO_TEXT', html: sanitizeAdminToolkitHtml(introHtml) })
+      const cleanIntro = sanitizeAdminToolkitHtml(introHtml)
+      uploadHtmlSources.push(cleanIntro)
+      json = upsertBlock(json, { type: 'INTRO_TEXT', html: cleanIntro })
     }
     
     // Add ROLE_CARDS block if present
@@ -452,7 +459,9 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
     // Add FOOTER_TEXT block if present, or use legacy contentHtml as fallback
     const footerContent = footerHtml || (contentHtml && !isHtmlEmpty(contentHtml) ? contentHtml : '')
     if (footerContent && !isHtmlEmpty(footerContent)) {
-      json = upsertBlock(json, { type: 'FOOTER_TEXT', html: sanitizeAdminToolkitHtml(footerContent) })
+      const cleanFooter = sanitizeAdminToolkitHtml(footerContent)
+      uploadHtmlSources.push(cleanFooter)
+      json = upsertBlock(json, { type: 'FOOTER_TEXT', html: cleanFooter })
     }
     
     // Only set contentJson if we have blocks
@@ -463,6 +472,8 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
   
   // Keep legacy contentHtml for backwards compatibility (fallback rendering)
   const cleanedHtml = type === 'PAGE' ? sanitizeHtml(contentHtml || '') : null
+
+  const uploadIds = extractAdminToolkitUploadIds(uploadHtmlSources.join('\n'))
 
   const created = await prisma.$transaction(async (tx) => {
     const item = await tx.adminItem.create({
@@ -481,6 +492,21 @@ export async function createAdminToolkitItem(input: unknown): Promise<ActionResu
       },
       select: { id: true },
     })
+    // Claim create-form uploads: only this surgery's still-unowned rows, so
+    // the item's category visibility applies to them and the item-delete
+    // cascade cleans them up. Uploads owned by other items are never re-bound.
+    if (uploadIds.imageIds.length > 0) {
+      await tx.adminItemImage.updateMany({
+        where: { id: { in: uploadIds.imageIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: item.id },
+      })
+    }
+    if (uploadIds.fileIds.length > 0) {
+      await tx.adminItemFile.updateMany({
+        where: { id: { in: uploadIds.fileIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: item.id },
+      })
+    }
     await tx.adminHistory.create({
       data: {
         surgeryId,
@@ -789,11 +815,33 @@ export async function updateAdminToolkitItem(
     updateData.contentJson = nextContentJson as any
   }
 
+  // Claim any still-unowned uploads the updated content references (e.g. an
+  // upload from an abandoned create form whose URL was pasted here). Rows
+  // already owned by an item are never re-bound.
+  const claimIds = extractAdminToolkitUploadIds(
+    [
+      hasIntroHtmlUpdate ? sanitizeAdminToolkitHtml(parsed.data.introHtml ?? '') : '',
+      hasFooterHtmlUpdate ? sanitizeAdminToolkitHtml(parsed.data.footerHtml ?? '') : '',
+    ].join('\n'),
+  )
+
   await prisma.$transaction(async (tx) => {
     await tx.adminItem.update({
       where: { id: itemId },
       data: updateData,
     });
+    if (claimIds.imageIds.length > 0) {
+      await tx.adminItemImage.updateMany({
+        where: { id: { in: claimIds.imageIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: itemId },
+      })
+    }
+    if (claimIds.fileIds.length > 0) {
+      await tx.adminItemFile.updateMany({
+        where: { id: { in: claimIds.fileIds }, surgeryId, adminItemId: null },
+        data: { adminItemId: itemId },
+      })
+    }
     await tx.adminHistory.create({
       data: {
         surgeryId,
