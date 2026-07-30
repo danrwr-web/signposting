@@ -65,8 +65,12 @@ export default function AdminToolkitSmartVisualToggleClient({
 }: AdminToolkitSmartVisualToggleClientProps) {
   const router = useRouter()
 
-  const hasFreshVisual = Boolean(visual && !visual.isStale)
-  const [view, setView] = useState<'standard' | 'visual'>(hasFreshVisual ? 'visual' : 'standard')
+  // A stale visual (source content edited since generation) is never shown to
+  // anyone — it disappears until regenerated. Only a fresh visual is viewable.
+  const freshVisual = visual && !visual.isStale ? visual : null
+  const staleVisualExists = Boolean(visual && visual.isStale)
+
+  const [view, setView] = useState<'standard' | 'visual'>(freshVisual ? 'visual' : 'standard')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -74,15 +78,17 @@ export default function AdminToolkitSmartVisualToggleClient({
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [removing, setRemoving] = useState(false)
 
-  // A saved visual is always shown; the flag only gates generating new ones
-  // (superusers arrive with aiVisualsEnabled=true regardless of the flag).
+  // A fresh saved visual is shown to every viewer; the flag only gates
+  // generating new ones (superusers arrive with aiVisualsEnabled=true
+  // regardless of the flag). Editors also get controls for a hidden stale
+  // visual so they can regenerate or remove it.
   const canRegenerate = canGenerate && aiVisualsEnabled
-  const showControls = visual !== null || canRegenerate
+  const showControls = freshVisual !== null || canRegenerate || (staleVisualExists && canGenerate)
   if (!showControls) {
     return <>{children}</>
   }
 
-  const hasVisualTab = visual !== null || preview !== null || generating
+  const hasVisualTab = freshVisual !== null || preview !== null || generating
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -98,7 +104,7 @@ export default function AdminToolkitSmartVisualToggleClient({
       const data = await response.json()
       if (!response.ok) {
         setError(typeof data?.error === 'string' ? data.error : 'Failed to generate smart visual.')
-        if (!visual) setView('standard')
+        if (!freshVisual) setView('standard')
         return
       }
       setPreview({
@@ -108,7 +114,7 @@ export default function AdminToolkitSmartVisualToggleClient({
       })
     } catch {
       setError('Failed to generate smart visual. Please check your connection and try again.')
-      if (!visual) setView('standard')
+      if (!freshVisual) setView('standard')
     } finally {
       setGenerating(false)
     }
@@ -234,12 +240,13 @@ export default function AdminToolkitSmartVisualToggleClient({
         </div>
       ) : null}
 
-      {view === 'visual' && visual?.isStale && !preview && !generating ? (
+      {staleVisualExists && canGenerate && !preview && !generating ? (
         <div className="mb-4">
           <AlertBanner variant="warning">
             <span>
-              This visual was generated from an older version of this page and may be out of date.
-              {canRegenerate ? ' Use “Regenerate smart visual” to refresh it.' : ' Check the standard view for the latest content.'}
+              This page has been edited since its smart visual was generated, so the visual is hidden from staff
+              until it is regenerated.
+              {canRegenerate ? ' Use “Regenerate smart visual” to create an up-to-date version.' : ''}
             </span>
           </AlertBanner>
         </div>
@@ -271,7 +278,7 @@ export default function AdminToolkitSmartVisualToggleClient({
                     onClick={() => {
                       setPreview(null)
                       setError(null)
-                      if (!visual) setView('standard')
+                      if (!freshVisual) setView('standard')
                     }}
                   >
                     Discard
@@ -282,12 +289,12 @@ export default function AdminToolkitSmartVisualToggleClient({
           </div>
           <SmartVisualRenderer layout={preview.layout} />
         </div>
-      ) : visual ? (
+      ) : freshVisual ? (
         <div>
-          <SmartVisualRenderer layout={visual.layout} />
+          <SmartVisualRenderer layout={freshVisual.layout} />
           <p className="mt-4 text-xs text-gray-500">
-            Smart visual generated {new Date(visual.generatedAtIso).toLocaleDateString('en-GB')} · The original page
-            content remains the source of truth.
+            Smart visual generated {new Date(freshVisual.generatedAtIso).toLocaleDateString('en-GB')} · The original
+            page content remains the source of truth.
           </p>
         </div>
       ) : (
