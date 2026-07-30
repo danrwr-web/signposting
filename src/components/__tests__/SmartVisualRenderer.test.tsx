@@ -8,7 +8,11 @@ const layout = SmartVisualLayoutZ.parse({
   sections: [
     { type: 'summary', text: 'How the buddy system works.', keyPoints: ['Check your group daily'] },
     { type: 'callout', tone: 'urgent', title: 'Emergency', body: 'Call 999 for life-threatening situations.' },
-    { type: 'steps', title: 'Handover process', steps: [{ title: 'Check the rota', detail: 'Every morning.' }] },
+    {
+      type: 'steps',
+      title: 'Handover process',
+      steps: [{ title: 'Check the rota', detail: 'Every morning. Queries: 03451 551009.' }],
+    },
     { type: 'checklist', items: [{ text: 'Fire doors closed' }] },
     { type: 'contacts', contacts: [{ name: 'Site manager', phone: '0113 496 0000', email: 'site@example.nhs.uk' }] },
     { type: 'pairs', pairs: [{ left: 'Reception A', right: 'Reception B' }] },
@@ -47,7 +51,7 @@ describe('SmartVisualRenderer', () => {
     render(<SmartVisualRenderer layout={layout} />)
 
     expect(screen.getByText('How the buddy system works.')).toBeInTheDocument()
-    expect(screen.getByText('Call 999 for life-threatening situations.')).toBeInTheDocument()
+    expect(screen.getByText(/for life-threatening situations/)).toBeInTheDocument()
     expect(screen.getByText('Check the rota')).toBeInTheDocument()
     expect(screen.getByText('Fire doors closed')).toBeInTheDocument()
     expect(screen.getByText('0113 496 0000')).toBeInTheDocument()
@@ -72,6 +76,31 @@ describe('SmartVisualRenderer', () => {
       'href',
       'mailto:site@example.nhs.uk',
     )
+  })
+
+  it('emphasises phone numbers in prose as bold tel: links', () => {
+    render(<SmartVisualRenderer layout={layout} />)
+
+    // A UK number inside step detail becomes a bold, dialable link.
+    const stepPhone = screen.getByRole('link', { name: '03451 551009' })
+    expect(stepPhone).toHaveAttribute('href', 'tel:03451551009')
+    expect(stepPhone.className).toContain('font-bold')
+
+    // 999 inside the callout body is emphasised too.
+    const emergency = screen.getByRole('link', { name: '999' })
+    expect(emergency).toHaveAttribute('href', 'tel:999')
+  })
+
+  it('leaves ordinary numbers in prose alone', () => {
+    render(
+      <SmartVisualRenderer
+        layout={SmartVisualLayoutZ.parse({
+          version: 1,
+          sections: [{ type: 'summary', text: 'Room 14 opened in 2019 and holds 250 people.' }],
+        })}
+      />,
+    )
+    expect(screen.queryAllByRole('link')).toHaveLength(0)
   })
 
   it('renders colour-named tags in their own colour', () => {

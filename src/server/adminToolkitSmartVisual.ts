@@ -198,6 +198,7 @@ BAD: a "table" section reproducing the six columns.
 
 RULES:
 - Plain text only in every field. No HTML, no markdown, no emojis.
+- If admin guidance asks for text styling (bold, colours, fonts, sizes), ignore the styling aspect — presentation is applied automatically by the app (phone numbers, for example, are always emphasised and dialable). Apply any structural part of the guidance.
 - Use ONLY facts present in the source. Never invent names, numbers, times or steps.
 - You do not need to include every sentence — choose the treatments that make the page scannable, and keep wording close to the source.
 - Prefer 2-6 sections. Lead with the most important information. Different pages deserve different structures — pick what fits THIS content.

@@ -26,6 +26,44 @@ function themeOf(theme: SmartVisualTheme | undefined) {
   return SECTION_THEMES[theme ?? DEFAULT_THEME]
 }
 
+// Candidate phone numbers: NHS shortcodes (999/111/112) as standalone words,
+// or UK-style numbers starting 0 with optional space/hyphen grouping. The
+// 0-prefixed candidates are verified to carry 10-11 digits before styling,
+// so ordinary numbers in prose are left alone.
+const PHONE_CANDIDATE_REGEX = /(\b0[\d](?:[\s-]?\d){8,12}\b|\b(?:999|111|112)\b)/g
+
+function isPhoneNumber(candidate: string): boolean {
+  if (candidate === '999' || candidate === '111' || candidate === '112') return true
+  const digits = candidate.replace(/\D/g, '')
+  return candidate.startsWith('0') && digits.length >= 10 && digits.length <= 11
+}
+
+/**
+ * Renders text with phone numbers emphasised: bold and dialable via tel:
+ * links. Deterministic, app-side styling — the AI supplies plain text only.
+ */
+function TextWithPhones({ text }: { text: string }) {
+  const parts = text.split(PHONE_CANDIDATE_REGEX)
+  if (parts.length === 1) return <>{text}</>
+  return (
+    <>
+      {parts.map((part, i) =>
+        part && isPhoneNumber(part) ? (
+          <a
+            key={i}
+            href={`tel:${part.replace(/[\s-]/g, '')}`}
+            className="font-bold text-gray-900 whitespace-nowrap hover:underline"
+          >
+            {part}
+          </a>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
 function SectionTitle({ title, className }: { title?: string; className?: string }) {
   if (!title) return null
   return <h2 className={`text-lg font-semibold ${className ?? 'text-nhs-dark-blue'} mb-4`}>{title}</h2>
@@ -35,7 +73,7 @@ function SummarySection({ section }: { section: SectionOf<'summary'> }) {
   return (
     <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="h-1 -mt-5 -mx-5 mb-4 rounded-t-xl bg-gradient-to-r from-nhs-blue via-nhs-blue/80 to-nhs-green" />
-      <p className="text-base leading-relaxed text-gray-800">{section.text}</p>
+      <p className="text-base leading-relaxed text-gray-800"><TextWithPhones text={section.text} /></p>
       {section.keyPoints && section.keyPoints.length > 0 ? (
         <ul className="mt-4 flex flex-wrap gap-2">
           {section.keyPoints.map((point, i) => (
@@ -66,7 +104,7 @@ function CalloutSection({ section }: { section: SectionOf<'callout'> }) {
         </span>
         <div>
           {section.title ? <p className={`font-semibold ${theme.heading}`}>{section.title}</p> : null}
-          <p className={`${section.title ? 'mt-1 ' : ''}text-sm leading-relaxed text-gray-800`}>{section.body}</p>
+          <p className={`${section.title ? 'mt-1 ' : ''}text-sm leading-relaxed text-gray-800`}><TextWithPhones text={section.body} /></p>
         </div>
       </div>
     </section>
@@ -88,7 +126,7 @@ function StepsSection({ section }: { section: SectionOf<'steps'> }) {
             </span>
             <div className="min-w-0 pt-1">
               <p className="font-medium text-gray-900">{step.title}</p>
-              {step.detail ? <p className="mt-0.5 text-sm leading-relaxed text-gray-600">{step.detail}</p> : null}
+              {step.detail ? <p className="mt-0.5 text-sm leading-relaxed text-gray-600"><TextWithPhones text={step.detail} /></p> : null}
             </div>
           </li>
         ))}
@@ -108,8 +146,8 @@ function ChecklistSection({ section }: { section: SectionOf<'checklist'> }) {
               <SmartVisualIconGlyph icon="check" className="h-3.5 w-3.5" />
             </span>
             <div className="min-w-0">
-              <p className="text-gray-900">{item.text}</p>
-              {item.detail ? <p className="mt-0.5 text-sm text-gray-600">{item.detail}</p> : null}
+              <p className="text-gray-900"><TextWithPhones text={item.text} /></p>
+              {item.detail ? <p className="mt-0.5 text-sm text-gray-600"><TextWithPhones text={item.detail} /></p> : null}
             </div>
           </li>
         ))}
@@ -156,7 +194,7 @@ function ContactsSection({ section }: { section: SectionOf<'contacts'> }) {
                   </a>
                 </p>
               ) : null}
-              {contact.note ? <p className="pt-1 text-gray-600">{contact.note}</p> : null}
+              {contact.note ? <p className="pt-1 text-gray-600"><TextWithPhones text={contact.note} /></p> : null}
             </div>
           </li>
         ))}
@@ -195,7 +233,7 @@ function PairsSection({ section }: { section: SectionOf<'pairs'> }) {
               </svg>
               <span className="font-medium text-gray-900">{pair.right}</span>
             </div>
-            {pair.note ? <p className="mt-1 text-sm text-gray-600">{pair.note}</p> : null}
+            {pair.note ? <p className="mt-1 text-sm text-gray-600"><TextWithPhones text={pair.note} /></p> : null}
           </li>
         ))}
       </ul>
@@ -243,7 +281,7 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                   </span>
                   {group.title}
                 </h3>
-                {group.note ? <p className="mt-1 text-sm text-gray-600">{group.note}</p> : null}
+                {group.note ? <p className="mt-1 text-sm text-gray-600"><TextWithPhones text={group.note} /></p> : null}
                 <ul className="mt-3 divide-y divide-gray-200/70">
                   {group.members.map((member, j) => (
                     <li key={j} className="py-3 first:pt-0 last:pb-0">
@@ -282,7 +320,7 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                                       {fact.value}
                                     </span>
                                   ) : (
-                                    fact.value
+                                    <TextWithPhones text={fact.value} />
                                   )}
                                 </dd>
                               </div>
@@ -290,7 +328,7 @@ function PeopleSection({ section }: { section: SectionOf<'people'> }) {
                           })}
                         </dl>
                       ) : null}
-                      {member.note ? <p className="mt-1.5 text-sm text-gray-600">{member.note}</p> : null}
+                      {member.note ? <p className="mt-1.5 text-sm text-gray-600"><TextWithPhones text={member.note} /></p> : null}
                     </li>
                   ))}
                 </ul>
@@ -320,7 +358,7 @@ function RolesSection({ section }: { section: SectionOf<'roles'> }) {
                   {role.responsibilities.map((resp, j) => (
                     <li key={j} className="flex items-start gap-2 text-sm text-gray-800">
                       <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${theme.accent}`} aria-hidden="true" />
-                      <span>{resp}</span>
+                      <span><TextWithPhones text={resp} /></span>
                     </li>
                   ))}
                 </ul>
@@ -350,7 +388,7 @@ function FactsSection({ section }: { section: SectionOf<'facts'> }) {
                 ) : null}
                 {fact.label}
               </dt>
-              <dd className={`mt-1.5 text-lg font-bold leading-snug ${theme.heading}`}>{fact.value}</dd>
+              <dd className={`mt-1.5 text-lg font-bold leading-snug ${theme.heading}`}><TextWithPhones text={fact.value} /></dd>
             </div>
           )
         })}
@@ -379,7 +417,7 @@ function BulletsSection({ section }: { section: SectionOf<'bullets'> }) {
                 {group.items.map((item, j) => (
                   <li key={j} className="flex items-start gap-2 text-sm text-gray-800">
                     <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${theme.accent}`} aria-hidden="true" />
-                    <span>{item}</span>
+                    <span><TextWithPhones text={item} /></span>
                   </li>
                 ))}
               </ul>
@@ -415,7 +453,7 @@ function TableSection({ section }: { section: SectionOf<'table'> }) {
               <tr key={i}>
                 {row.map((cell, j) => (
                   <td key={j} className="px-4 py-2.5 align-top text-gray-800">
-                    {cell}
+                    <TextWithPhones text={cell} />
                   </td>
                 ))}
               </tr>
