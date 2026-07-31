@@ -2,13 +2,15 @@
  * HTML Sanitization Utility
  * Sanitizes HTML content to prevent XSS attacks while preserving formatting
  *
- * Two allowlists live here:
- * - the base config (`sanitizeHtml`) used by symptom instructions and most
- *   content — no `img`
+ * Three allowlists live here:
+ * - the base config (`sanitizeHtml`) used by most content — no `img`
  * - the Practice Handbook config (`sanitizeAdminToolkitHtml`) which
  *   additionally allows `img`, but only with a same-origin
- *   `/api/admin-toolkit/images/{id}` src. External, protocol-relative and
- *   data: image sources are always stripped.
+ *   `/api/admin-toolkit/images/{id}` src
+ * - the symptom config (`sanitizeSymptomHtml`) — same idea, but the only
+ *   allowed img src is `/api/symptom-images/{id}`
+ * External, protocol-relative and data: image sources are always stripped,
+ * and each module's config only accepts its own serving route.
  */
 
 import sanitizeHtmlLib from 'sanitize-html'
@@ -92,27 +94,38 @@ export function sanitizeHtml(html: string): string {
  */
 export const ADMIN_TOOLKIT_IMAGE_SRC_RE = /^\/api\/admin-toolkit\/images\/[a-z0-9]+$/i
 
-const adminToolkitSanitizeConfig: sanitizeHtmlLib.IOptions = {
-  ...sanitizeConfig,
-  allowedTags: [...allowedTags, 'img'],
-  allowedAttributes: {
-    ...sanitizeConfig.allowedAttributes,
-    img: ['src', 'alt'],
-  },
-  // No scheme'd URLs at all on img (kills http/https/data:). Relative srcs
-  // pass this check and are then constrained by the exclusiveFilter below.
-  allowedSchemesByTag: { img: [] },
-  // Drop any img whose src isn't the internal serving route. Scheme'd srcs
-  // have already been removed as attributes by this point, so those images
-  // arrive here with no src and are dropped too.
-  exclusiveFilter: (frame) =>
-    frame.tag === 'img' && !ADMIN_TOOLKIT_IMAGE_SRC_RE.test(frame.attribs?.src ?? ''),
+/**
+ * The only image src shape symptom instructions may reference: the
+ * authenticated symptom-image serving route with a cuid id.
+ */
+export const SYMPTOM_IMAGE_SRC_RE = /^\/api\/symptom-images\/[a-z0-9]+$/i
+
+// Base config plus `img` restricted to one internal serving route.
+function makeImageSanitizeConfig(srcRe: RegExp): sanitizeHtmlLib.IOptions {
+  return {
+    ...sanitizeConfig,
+    allowedTags: [...allowedTags, 'img'],
+    allowedAttributes: {
+      ...sanitizeConfig.allowedAttributes,
+      img: ['src', 'alt'],
+    },
+    // No scheme'd URLs at all on img (kills http/https/data:). Relative srcs
+    // pass this check and are then constrained by the exclusiveFilter below.
+    allowedSchemesByTag: { img: [] },
+    // Drop any img whose src isn't the internal serving route. Scheme'd srcs
+    // have already been removed as attributes by this point, so those images
+    // arrive here with no src and are dropped too.
+    exclusiveFilter: (frame) =>
+      frame.tag === 'img' && !srcRe.test(frame.attribs?.src ?? ''),
+  }
 }
+
+const adminToolkitSanitizeConfig = makeImageSanitizeConfig(ADMIN_TOOLKIT_IMAGE_SRC_RE)
+const symptomSanitizeConfig = makeImageSanitizeConfig(SYMPTOM_IMAGE_SRC_RE)
 
 /**
  * Sanitizes Practice Handbook (Admin Toolkit) HTML. Same allowlist as
  * `sanitizeHtml` plus `img` restricted to internal handbook image URLs.
- * Symptom instructions must keep using `sanitizeHtml`.
  */
 export function sanitizeAdminToolkitHtml(html: string): string {
   if (!html || typeof html !== 'string') {
@@ -120,6 +133,19 @@ export function sanitizeAdminToolkitHtml(html: string): string {
   }
 
   return normalizeStyleAttributes(sanitizeHtmlLib(html, adminToolkitSanitizeConfig))
+}
+
+/**
+ * Sanitizes symptom instruction HTML. Same allowlist as `sanitizeHtml` plus
+ * `img` restricted to internal symptom image URLs — handbook image URLs (or
+ * any other src) are stripped.
+ */
+export function sanitizeSymptomHtml(html: string): string {
+  if (!html || typeof html !== 'string') {
+    return ''
+  }
+
+  return normalizeStyleAttributes(sanitizeHtmlLib(html, symptomSanitizeConfig))
 }
 
 /**
@@ -147,7 +173,7 @@ export function sanitizeVariants<T extends { ageGroups: Array<{ instructions: st
     ...variants,
     ageGroups: variants.ageGroups.map((group) => ({
       ...group,
-      instructions: sanitizeHtml(group.instructions),
+      instructions: sanitizeSymptomHtml(group.instructions),
     })),
   }
 }
@@ -232,4 +258,21 @@ export function sanitizeAndFormatAdminToolkitContent(content: string): string {
     return sanitizeAdminToolkitHtml(content)
   }
   return sanitizeAdminToolkitHtml(convertLineBreaksToHtml(content))
+}
+
+/**
+ * `sanitizeAndFormatContent` for symptom instruction regions: same behaviour,
+ * but images referencing the internal symptom image route survive.
+ */
+export function sanitizeAndFormatSymptomContent(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return ''
+  }
+
+  const hasHtmlTags = /<[^>]+>/.test(content)
+
+  if (hasHtmlTags) {
+    return sanitizeSymptomHtml(content)
+  }
+  return sanitizeSymptomHtml(convertLineBreaksToHtml(content))
 }

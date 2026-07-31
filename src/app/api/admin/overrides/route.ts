@@ -7,6 +7,7 @@ import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 import { markSymptomPendingReview } from '@/server/clinicalReview'
 import { Prisma } from '@prisma/client'
 import { LinkToPagesZ } from '@/lib/api-contracts'
+import { sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 
 export const runtime = 'nodejs'
 
@@ -99,6 +100,14 @@ export async function POST(request: NextRequest) {
         allowedFields.includes(key) && value !== undefined
       )
     )
+
+    // Server-side sanitization: with <img> allowed, the internal-src-only
+    // invariant must not rely on the client. Idempotent for well-formed input.
+    for (const f of ['instructions', 'instructionsHtml'] as const) {
+      if (typeof cleanData[f] === 'string') {
+        cleanData[f] = sanitizeSymptomHtml(cleanData[f] as string)
+      }
+    }
 
     // Related-symptom links, kept in sync across both columns. Tri-state on
     // the stored array: null = inherit base links, [] = explicitly none,

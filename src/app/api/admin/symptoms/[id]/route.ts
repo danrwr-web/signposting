@@ -11,7 +11,7 @@ import { Prisma } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 import { SymptomVariantsZ, SurgeryVariantsOverrideZ, LinkToPagesZ } from '@/lib/api-contracts'
-import { sanitizeVariants } from '@/lib/sanitizeHtml'
+import { sanitizeVariants, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import { markSymptomPendingReview } from '@/server/clinicalReview'
 
 export const runtime = 'nodejs'
@@ -54,7 +54,14 @@ export async function PATCH(
     const { id } = await params
     const data = await request.json()
 
-    const { source, surgeryId, name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, variants } = data
+    const { source, surgeryId, name, ageGroup, briefInstruction, instructionsJson, highlightedText, variants } = data
+
+    // Enforce the sanitizer server-side: with <img> now allowed, the
+    // "src must be the internal symptom-image route" invariant is
+    // security-relevant and can't rely on client-side sanitization alone.
+    // Idempotent for well-formed clients, which already send sanitized HTML.
+    const instructions = typeof data.instructions === 'string' ? sanitizeSymptomHtml(data.instructions) : data.instructions
+    const instructionsHtml = typeof data.instructionsHtml === 'string' ? sanitizeSymptomHtml(data.instructionsHtml) : data.instructionsHtml
 
     if (source === 'base') {
       // Superusers can update base symptoms

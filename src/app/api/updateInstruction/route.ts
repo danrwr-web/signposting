@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 import { markSymptomPendingReview } from '@/server/clinicalReview'
+import { sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 
 export const runtime = 'nodejs'
 
@@ -29,8 +30,14 @@ export async function PATCH(request: NextRequest) {
 
     // Parse and validate request body
     const body = await request.json()
-    const { symptomId, source, surgeryId, modelUsed, newBriefInstruction, newInstructionsHtml, newInstructionsJson } =
-      updateInstructionSchema.parse(body)
+    const parsedBody = updateInstructionSchema.parse(body)
+    const { symptomId, source, surgeryId, modelUsed, newBriefInstruction, newInstructionsJson } = parsedBody
+    // Server-side sanitization: with <img> allowed, the internal-src-only
+    // invariant must not rely on the client. Idempotent for well-formed input.
+    const newInstructionsHtml =
+      parsedBody.newInstructionsHtml !== undefined
+        ? sanitizeSymptomHtml(parsedBody.newInstructionsHtml)
+        : undefined
 
     // Ensure at least one field is being updated
     if (!newBriefInstruction && !newInstructionsHtml) {

@@ -68,6 +68,17 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
     return () => { cancelled = true }
   }, [isOpen, flagSurgeryId])
 
+  // Inline-image upload scope for the instruction editors: base symptoms get
+  // global images (superuser upload, visible to every surgery); surgery
+  // symptoms get surgery-scoped ones. Undefined until a surgery is chosen so
+  // an upload can never target the wrong scope.
+  const newSymptomImageUpload =
+    target === 'BASE'
+      ? { kind: 'symptom' as const }
+      : flagSurgeryId
+        ? { kind: 'symptom' as const, surgeryId: flagSurgeryId }
+        : undefined
+
   if (!isOpen) return null
 
   const canSubmit = () => {
@@ -288,6 +299,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
               value={instructionsHtml}
               onChange={(html) => setInstructionsHtml(html)}
               className="min-h-[160px] max-h-[40vh] overflow-y-auto"
+              imageUpload={newSymptomImageUpload}
             />
           </div>
         </div>
@@ -317,6 +329,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
               onPositionChange={setVariantPosition}
               groups={variantGroups}
               onGroupsChange={setVariantGroups}
+              imageUpload={newSymptomImageUpload}
             />
           )}
         </div>

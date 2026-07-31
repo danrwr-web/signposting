@@ -1,6 +1,6 @@
 'use client'
 
-import { sanitizeAndFormatContent } from '@/lib/sanitizeHtml'
+import { sanitizeAndFormatSymptomContent } from '@/lib/sanitizeHtml'
 
 interface VariantPreviewListProps {
   /** Raw variants JSON from the API — parsed defensively. */
@@ -35,7 +35,7 @@ export default function VariantPreviewList({ variants }: VariantPreviewListProps
             </span>
             <div
               className="prose prose-sm max-w-none text-nhs-grey"
-              dangerouslySetInnerHTML={{ __html: sanitizeAndFormatContent(group.instructions || '') }}
+              dangerouslySetInnerHTML={{ __html: sanitizeAndFormatSymptomContent(group.instructions || '') }}
             />
           </div>
         ))}

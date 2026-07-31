@@ -7,7 +7,7 @@ import Image from 'next/image'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SuggestFeatureDialog from './SuggestFeatureDialog'
 import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
-import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeAndFormatSymptomContent, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
 import VariantGroupsEditor from './VariantGroupsEditor'
 import RelatedSymptomsEditor from './RelatedSymptomsEditor'
@@ -128,6 +128,22 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   
   // Can edit if superuser or practice admin
   const canEditInstructions = isSuperuser || isPracticeAdmin
+
+  // Inline-image upload scope must mirror handleSaveAll's target: saves that
+  // land on an override/custom row are surgery-scoped, while a superuser
+  // saving straight to the base symptom uploads a global image that every
+  // surgery can view (a surgery-scoped image referenced from base content
+  // would 404 for other surgeries).
+  const savesToBaseSymptom = symptom.source === 'base' && !isPracticeAdmin
+  const symptomImageUpload = savesToBaseSymptom || !surgeryId
+    ? { kind: 'symptom' as const }
+    : { kind: 'symptom' as const, surgeryId }
+  // The shared-variants editor always writes to the base symptom (custom
+  // symptoms aside), so its uploads are global unless the symptom is
+  // practice-owned.
+  const variantImageUpload = surgeryId && symptom.source === 'custom'
+    ? { kind: 'symptom' as const, surgeryId }
+    : { kind: 'symptom' as const }
   const canApplyAiChanges = canEditInstructions
 
   // Tri-state "Reset to default" affordance only makes sense when the save
@@ -963,7 +979,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setSaveError(null)
 
     try {
-      const sanitizedHtml = sanitizeHtml(editedInstructions)
+      const sanitizedHtml = sanitizeSymptomHtml(editedInstructions)
       
       // Determine the source and surgery ID for the API call
       let apiSource = symptom.source
@@ -1036,7 +1052,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setSaveError(null)
 
     try {
-      const sanitizedInstructions = sanitizeHtml(editedInstructions)
+      const sanitizedInstructions = sanitizeSymptomHtml(editedInstructions)
       
       // Determine the source and surgery ID for the API call
       let apiSource = symptom.source
@@ -1559,6 +1575,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                     onChange={setEditedInstructions}
                     placeholder="Enter detailed instructions with formatting..."
                     height={300}
+                    imageUpload={symptomImageUpload}
                   />
                 )}
                 {isOverrideContext && !instructionsReset && (
@@ -1602,6 +1619,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                       onPositionChange={setEditVariantPosition}
                       groups={editVariantGroups}
                       onGroupsChange={setEditVariantGroups}
+                      imageUpload={variantImageUpload}
                     />
                   )}
                 </div>
@@ -1661,6 +1679,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                         onPositionChange={setSurgeryVariantPosition}
                         groups={surgeryVariantGroups}
                         onGroupsChange={setSurgeryVariantGroups}
+                        imageUpload={surgeryId ? { kind: 'symptom', surgeryId } : variantImageUpload}
                       />
                     </div>
                   )}
@@ -1709,7 +1728,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                 <div 
                   className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
                   dangerouslySetInnerHTML={{ 
-                    __html: sanitizeAndFormatContent(highlightText(displayText))
+                    __html: sanitizeAndFormatSymptomContent(highlightText(displayText))
                   }}
                 />
               ) : (
@@ -2065,7 +2084,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                       <div 
                         className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-gray-300 rounded-lg p-4 bg-gray-50"
                         dangerouslySetInnerHTML={{ 
-                          __html: sanitizeAndFormatContent(highlightText(displayText))
+                          __html: sanitizeAndFormatSymptomContent(highlightText(displayText))
                         }}
                       />
                     </div>
@@ -2097,7 +2116,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                       <div 
                         className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-nhs-green rounded-lg p-4 bg-green-50"
                         dangerouslySetInnerHTML={{ 
-                          __html: sanitizeAndFormatContent(aiSuggestion)
+                          __html: sanitizeAndFormatSymptomContent(aiSuggestion)
                         }}
                       />
                     </div>
@@ -2168,7 +2187,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                 <div 
                   className="text-nhs-grey leading-relaxed"
                   dangerouslySetInnerHTML={{ 
-                    __html: sanitizeAndFormatContent(explanationHtml)
+                    __html: sanitizeAndFormatSymptomContent(explanationHtml)
                   }}
                 />
               </div>

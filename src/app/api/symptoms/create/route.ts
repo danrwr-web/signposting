@@ -7,7 +7,7 @@ import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 import { SymptomVariantsZ, LinkToPagesZ } from '@/lib/api-contracts'
-import { sanitizeVariants } from '@/lib/sanitizeHtml'
+import { sanitizeVariants, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import { Prisma } from '@prisma/client'
 
 const CreateSchema = z.object({
@@ -87,6 +87,9 @@ export async function POST(req: NextRequest) {
 
     const nameCi = parsed.data.name.trim()
     const ageGroup = parsed.data.ageGroup
+    // Server-side sanitization: with <img> allowed, the internal-src-only
+    // invariant must not rely on the client. Idempotent for well-formed input.
+    const cleanInstructionsHtml = sanitizeSymptomHtml(parsed.data.instructionsHtml)
 
     // Related-symptom links: the array wins when sent; the legacy single
     // field is folded into it so both columns stay in sync.
@@ -108,8 +111,8 @@ export async function POST(req: NextRequest) {
           linkToPage: linkToPages?.[0] ?? null,
           linkToPages: linkToPages ?? Prisma.DbNull,
           // Keep legacy mirroring for back-compat.
-          instructions: parsed.data.instructionsHtml,
-          instructionsHtml: parsed.data.instructionsHtml,
+          instructions: cleanInstructionsHtml,
+          instructionsHtml: cleanInstructionsHtml,
           instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
           variants: parsed.data.variants ? sanitizeVariants(parsed.data.variants) : Prisma.DbNull,
         }
@@ -136,8 +139,8 @@ export async function POST(req: NextRequest) {
         linkToPage: linkToPages?.[0] ?? null,
         linkToPages: linkToPages ?? Prisma.DbNull,
         // Keep legacy mirroring for back-compat.
-        instructions: parsed.data.instructionsHtml,
-        instructionsHtml: parsed.data.instructionsHtml,
+        instructions: cleanInstructionsHtml,
+        instructionsHtml: cleanInstructionsHtml,
         instructionsJson: parsed.data.instructionsJson ? JSON.stringify(parsed.data.instructionsJson) : null,
         variants: parsed.data.variants ? sanitizeVariants(parsed.data.variants) : Prisma.DbNull,
       }

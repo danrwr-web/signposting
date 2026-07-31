@@ -13,7 +13,7 @@ import ImageIconConfig from '@/components/ImageIconConfig'
 import SymptomLibraryExplorer from '@/components/SymptomLibraryExplorer'
 import SurgeryContextBar from '@/components/admin/SurgeryContextBar'
 import ClinicalReviewPanel from '@/components/ClinicalReviewPanel'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import { sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import RelatedSymptomsEditor from '@/components/RelatedSymptomsEditor'
 import EngagementAnalytics from '@/components/engagement/EngagementAnalytics'
@@ -1199,7 +1199,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   docId={`admin:symptom:new:instructions`}
                   value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                   onChange={(html) => {
-                    const sanitizedHtml = sanitizeHtml(html)
+                    const sanitizedHtml = sanitizeSymptomHtml(html)
                     setNewSymptom(prev => ({ 
                       ...prev, 
                       instructionsHtml: sanitizedHtml,
@@ -1209,6 +1209,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                   }}
                   placeholder="Enter detailed instructions with formatting..."
                   height={200}
+                  imageUpload={{ kind: 'symptom' }}
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Use the toolbar to format text, add NHS badges, create lists, and more.
@@ -1323,13 +1324,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                               docId={`admin:symptom:new:variant:${index}`}
                               value={variant.instructions || ''}
                               onChange={(html) => {
-                                const sanitizedHtml = sanitizeHtml(html)
+                                const sanitizedHtml = sanitizeSymptomHtml(html)
                                 const updated = [...variants]
                                 updated[index].instructions = sanitizedHtml
                                 setVariants(updated)
                               }}
                               placeholder="Enter detailed instructions for this variant..."
                               height={180}
+                              imageUpload={{ kind: 'symptom' }}
                             />
                           </div>
                           <button
@@ -1621,7 +1623,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     docId={`admin:symptom:edit:${editingSymptom?.id || 'none'}:instructions`}
                     value={newSymptom.instructionsHtml || newSymptom.instructions || ''}
                     onChange={(html) => {
-                      const sanitizedHtml = sanitizeHtml(html)
+                      const sanitizedHtml = sanitizeSymptomHtml(html)
                       setNewSymptom(prev => ({ 
                         ...prev, 
                         instructionsHtml: sanitizedHtml,
@@ -1631,6 +1633,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                     }}
                     placeholder="Enter detailed instructions with formatting..."
                     height={250}
+                    imageUpload={{ kind: 'symptom' }}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Use the toolbar to format text, add NHS badges, create lists, and more.
@@ -1739,7 +1742,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                               docId={`admin:symptom:${editingSymptom?.id ?? 'edit'}:variant:${index}`}
                               value={variant.instructions}
                               onChange={(html) => {
-                                const sanitized = sanitizeHtml(html)
+                                const sanitized = sanitizeSymptomHtml(html)
                                 setVariants(prev => {
                                   const updated = [...prev]
                                   updated[index] = { ...updated[index], instructions: sanitized }
@@ -1748,6 +1751,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                               }}
                               placeholder="Instructions for this variant"
                               height={180}
+                              imageUpload={{ kind: 'symptom' }}
                             />
                             <button
                               type="button"

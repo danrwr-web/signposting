@@ -10,7 +10,7 @@ import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSy
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
-import { sanitizeVariants } from '@/lib/sanitizeHtml'
+import { sanitizeVariants, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import { z } from 'zod'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
@@ -120,6 +120,11 @@ export async function POST(request: NextRequest) {
         ? linkToPages.map(l => l.trim()).filter(l => l !== '')
         : (linkToPage?.trim() ? [linkToPage.trim()] : null)
 
+    // Server-side sanitization: with <img> allowed, the internal-src-only
+    // invariant must not rely on the client. Idempotent for well-formed input.
+    const cleanInstructions = typeof instructions === 'string' ? sanitizeSymptomHtml(instructions) : instructions
+    const cleanInstructionsHtml = typeof instructionsHtml === 'string' ? sanitizeSymptomHtml(instructionsHtml) : instructionsHtml
+
     if (user.globalRole === 'SUPERUSER') {
       // Superusers create base symptoms visible to all surgeries
       const slug = await generateUniqueSymptomSlug(name, { scope: 'BASE' })
@@ -130,9 +135,9 @@ export async function POST(request: NextRequest) {
           name,
           ageGroup,
           briefInstruction,
-          instructions,
+          instructions: cleanInstructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
+          instructionsHtml: cleanInstructionsHtml,
           highlightedText,
           linkToPage: links?.[0] ?? null,
           linkToPages: links ?? Prisma.DbNull,
@@ -176,9 +181,9 @@ export async function POST(request: NextRequest) {
           name,
           ageGroup,
           briefInstruction,
-          instructions,
+          instructions: cleanInstructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
+          instructionsHtml: cleanInstructionsHtml,
           highlightedText,
           linkToPage: links?.[0] ?? null,
           linkToPages: links ?? Prisma.DbNull,
