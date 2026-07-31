@@ -50,6 +50,7 @@ The following core capabilities are established and available to all surgeries:
 
 ### Fixed
 
+- **AI suggestions no longer lose inline images**: when instructions containing an image are rewritten by AI ("Suggest improved wording" or surgery customisation), the image is now preserved in place — and if the AI moved on without it, it is re-attached at the end of the instructions rather than lost.
 - **Highlight rules no longer corrupt formatting**: a highlight phrase that matched text inside a link or image attribute (for example alt text) could break the surrounding formatting. Highlighting now only applies to visible text.
 - Feedback & suggestions triage (System management): symptom-content suggestions — which are reviewed by each practice's own admins — are now hidden from the central triage list and its counts by default; select the **Symptom content** type filter to view them. The table also now scrolls horizontally instead of cutting off the Status and Submitted columns on narrower screens.
 - Fixed the "Review and respond" link in new-suggestion notification emails pointing at an inaccessible internal deployment address instead of the app.

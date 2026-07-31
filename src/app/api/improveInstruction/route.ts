@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { isFeatureEnabledForUser } from '@/lib/features'
 import { callAzureOpenAI, AzureOpenAIError, extractJson } from '@/server/azureOpenAI'
+import { stashInlineImages, restoreInlineImages, IMAGE_PLACEHOLDER_PROMPT_RULE } from '@/server/aiInlineImages'
 
 export const runtime = 'nodejs'
 
@@ -35,9 +36,15 @@ export async function POST(request: NextRequest) {
 
     // Azure OpenAI configuration is read by the shared helper
 
+    // Swap inline images for placeholder tokens so the rewrite can't lose
+    // them — the originals are substituted back into the AI output below.
+    // Stashing happens before truncation, so images past the cut-off survive
+    // too (missing placeholders are re-appended on restore).
+    const { html: stashedText, images: stashedImages } = stashInlineImages(currentText || '')
+
     // Truncate input to prevent exceeding model context window
     const MAX_INPUT_CHARS = 8000
-    let safeCurrentText = currentText || ''
+    let safeCurrentText = stashedText
     if (safeCurrentText.length > MAX_INPUT_CHARS) {
       console.warn(`improveInstruction: truncating currentText from ${safeCurrentText.length} to ${MAX_INPUT_CHARS} chars`)
       safeCurrentText = safeCurrentText.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
@@ -90,7 +97,7 @@ OUTPUT FORMAT:
 - For the full instruction, return valid HTML using simple tags (<p>, <ul>, <li>, <strong>, <em>, <br />).
 - Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).
 - Do not include commentary about what you changed.
-`
+${stashedImages.length > 0 ? `- ${IMAGE_PLACEHOLDER_PROMPT_RULE}\n` : ''}`
 
     const userPrompt = `
 You will be given the current triage / signposting guidance used by GP practice admin and reception staff.
@@ -157,6 +164,9 @@ Do not include any other keys, explanations, markdown code fences, or commentary
       console.error('AI response missing fullInstructionHtml:', rawContent)
       return NextResponse.json({ error: 'Invalid AI response' }, { status: 500 })
     }
+
+    // Put the original inline images back (appending any the model dropped).
+    aiFullHtml = restoreInlineImages(aiFullHtml, stashedImages)
     
     // Log token usage (non-blocking)
     try {
