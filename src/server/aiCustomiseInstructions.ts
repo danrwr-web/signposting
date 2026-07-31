@@ -2,6 +2,7 @@ import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { callAzureOpenAI, extractJson, type AzureOpenAIMessage } from '@/server/azureOpenAI'
 import { stripHtmlToPlainText } from '@/lib/sanitizeHtml'
+import { stashInlineImages, restoreInlineImages, IMAGE_PLACEHOLDER_PROMPT_RULE } from '@/server/aiInlineImages'
 
 export interface CustomisedInstructionResult {
   briefInstruction: string
@@ -484,6 +485,14 @@ Rewrite it ONLY to translate appointment/slot terminology (e.g. colour slot name
   "instructionsHtml": "string - rewritten full instruction in clean HTML suitable for TipTap/sanitisation"
 }`
 
+  // Swap inline images for placeholder tokens so the rewrite can't lose them
+  // — the originals are substituted back into the AI output at the end.
+  // Stashing happens before truncation, so images past the cut-off survive
+  // too (missing placeholders are re-appended on restore).
+  const { html: stashedInstructionsHtml, images: stashedImages } = stashInlineImages(
+    baseSymptom.instructionsHtml || '(none)'
+  )
+
   const systemPrompt = `You are rewriting admin-facing signposting instructions for a specific GP surgery.
 
 Your task is to adapt generic symptom signposting guidance to match this surgery's:
@@ -545,12 +554,13 @@ ${importantNoticeRules}OUTPUT FORMAT:
 Return ONLY valid JSON with these exact fields:
 ${outputFieldsSchema}
 
-Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is clean and suitable for sanitisation. Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).`
+Use simple HTML tags: <p>, <ul>, <li>, <strong>, <em>, <br />. Ensure HTML is clean and suitable for sanitisation. Emojis should be included directly in the HTML text content (they are valid Unicode characters in HTML).
+${stashedImages.length > 0 ? `\n${IMAGE_PLACEHOLDER_PROMPT_RULE}\n` : ''}`
 
   // Truncate input to prevent exceeding model context window
   // The system prompt here is large (~4000+ chars with appointment model), so use a lower limit
   const MAX_INPUT_CHARS = 6000
-  let safeInstructionsHtml = baseSymptom.instructionsHtml || '(none)'
+  let safeInstructionsHtml = stashedInstructionsHtml
   if (safeInstructionsHtml.length > MAX_INPUT_CHARS) {
     console.warn(`customiseInstructions: truncating instructionsHtml from ${safeInstructionsHtml.length} to ${MAX_INPUT_CHARS} chars`)
     safeInstructionsHtml = safeInstructionsHtml.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — original text was too long to process in full]'
@@ -677,7 +687,9 @@ Return ONLY the JSON object with ${hasNotice ? 'briefInstruction, instructionsHt
     }
   }
 
-  const { briefInstruction, instructionsHtml, highlightedText } = attempt
+  const { briefInstruction, highlightedText } = attempt
+  // Put the original inline images back (appending any the model dropped).
+  const instructionsHtml = restoreInlineImages(attempt.instructionsHtml, stashedImages)
   const modelUsed = attempt.model
 
   // Log token usage (non-blocking)
