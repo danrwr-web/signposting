@@ -144,9 +144,15 @@ describe('HTML round trip with images enabled (Practice Handbook schema)', () =>
     expect(roundTripWithImages(stored)).toBe('<p><img src="/api/admin-toolkit/images/abc" alt="" /></p>')
   })
 
-  it('drops title/width attributes the schema does not allow', () => {
+  it('keeps a numeric width but drops attributes the schema does not allow', () => {
     expect(
       roundTripWithImages('<p><img src="/api/admin-toolkit/images/abc" alt="x" title="t" width="600"></p>')
+    ).toBe('<p><img src="/api/admin-toolkit/images/abc" alt="x" width="600" /></p>')
+  })
+
+  it('drops a non-numeric width at parse time', () => {
+    expect(
+      roundTripWithImages('<p><img src="/api/admin-toolkit/images/abc" alt="x" width="50%"></p>')
     ).toBe('<p><img src="/api/admin-toolkit/images/abc" alt="x" /></p>')
   })
 })

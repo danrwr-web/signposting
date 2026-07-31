@@ -48,6 +48,14 @@ export interface RichTextExtensionOptions {
   enableImages?: boolean
 }
 
+// Preset display widths (px) for inline images; CSS max-width: 100% keeps
+// them responsive on narrow screens. null = the image's natural size.
+export const IMAGE_SIZE_PRESETS = [
+  { label: 'Small', width: 160 },
+  { label: 'Medium', width: 320 },
+  { label: 'Large', width: 560 },
+] as const
+
 // Inline (serializes inside <p>, so normalizeHtml needs no block-tag changes)
 // with attributes cut down to exactly what the image sanitizers allow.
 const InlineImage = Image.extend({
@@ -55,6 +63,18 @@ const InlineImage = Image.extend({
     return {
       src: { default: null },
       alt: { default: null },
+      // Display width in px, serialized as the img width attribute. The
+      // sanitizers only keep plain numeric values.
+      width: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const raw = element.getAttribute('width') ?? ''
+          const width = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN
+          return Number.isFinite(width) && width > 0 ? width : null
+        },
+        renderHTML: (attributes: { width?: number | null }) =>
+          attributes.width ? { width: String(attributes.width) } : {},
+      },
     }
   },
 }).configure({ inline: true, allowBase64: false })

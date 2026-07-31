@@ -6,6 +6,7 @@ import ToolbarButton, { ToolbarSeparator } from '@/components/rich-text/toolbar/
 import SwatchPopover from '@/components/rich-text/toolbar/SwatchPopover'
 import LinkPopover from '@/components/rich-text/toolbar/LinkPopover'
 import ImagePopover, { type ImageUploadTarget } from '@/components/rich-text/toolbar/ImagePopover'
+import ImageSizePopover from '@/components/rich-text/toolbar/ImageSizePopover'
 
 const icon = {
   bulletList: (
@@ -60,6 +61,13 @@ const icon = {
       <path d="M2 11l3.5-3 3 2.5L11 8l3 3" />
     </svg>
   ),
+  imageSize: (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="2" y="6" width="7" height="7" rx="1" />
+      <path d="M11 5V3.5A1.5 1.5 0 009.5 2H3.5A1.5 1.5 0 002 3.5V5" opacity="0.4" />
+      <path d="M11 8h3m0 0-1.5-1.5M14 8l-1.5 1.5" />
+    </svg>
+  ),
 }
 
 interface ToolbarProps {
@@ -83,6 +91,8 @@ export default function Toolbar({ editor, imageUpload }: ToolbarProps) {
       textColor: (e.getAttributes('textStyle').color as string | undefined) ?? null,
       highlightColor: (e.getAttributes('highlight').color as string | undefined) ?? null,
       linkHref: (e.getAttributes('link').href as string | undefined) ?? null,
+      imageSelected: e.isActive('image'),
+      imageWidth: (e.getAttributes('image').width as number | undefined) ?? null,
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
     }),
@@ -183,6 +193,15 @@ export default function Toolbar({ editor, imageUpload }: ToolbarProps) {
         <ImagePopover editor={editor} imageUpload={imageUpload}>
           {icon.image}
         </ImagePopover>
+      )}
+      {imageUpload && (
+        <ImageSizePopover
+          editor={editor}
+          activeWidth={state.imageWidth}
+          disabled={!state.imageSelected}
+        >
+          {icon.imageSize}
+        </ImageSizePopover>
       )}
 
       <ToolbarSeparator />

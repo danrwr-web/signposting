@@ -45,12 +45,12 @@ describe('sanitizeAdminToolkitHtml', () => {
     expect(sanitizeAdminToolkitHtml('<p><img alt="no src" /></p>')).toBe('<p></p>')
   })
 
-  it('strips disallowed attributes but keeps src and alt', () => {
+  it('strips disallowed attributes but keeps src, alt and numeric width', () => {
     expect(
       sanitizeAdminToolkitHtml(
         '<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" title="t" width="600" onerror="alert(1)" /></p>'
       )
-    ).toBe('<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" /></p>')
+    ).toBe('<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" width="600" /></p>')
   })
 
   it('otherwise matches the base allowlist', () => {
@@ -84,12 +84,21 @@ describe('sanitizeSymptomHtml', () => {
     expect(sanitizeSymptomHtml('<p><img src="/api/symptom-images/abc/../../x" /></p>')).toBe('<p></p>')
   })
 
-  it('strips disallowed attributes but keeps src and alt', () => {
+  it('strips disallowed attributes but keeps src, alt and numeric width', () => {
     expect(
       sanitizeSymptomHtml(
-        '<p><img src="/api/symptom-images/clx123abc" alt="x" width="600" onerror="alert(1)" /></p>'
+        '<p><img src="/api/symptom-images/clx123abc" alt="x" width="320" title="t" onerror="alert(1)" /></p>'
       )
-    ).toBe('<p><img src="/api/symptom-images/clx123abc" alt="x" /></p>')
+    ).toBe('<p><img src="/api/symptom-images/clx123abc" alt="x" width="320" /></p>')
+  })
+
+  it('drops non-numeric width values', () => {
+    expect(
+      sanitizeSymptomHtml('<p><img src="/api/symptom-images/clx123abc" width="50%" /></p>')
+    ).toBe('<p><img src="/api/symptom-images/clx123abc" /></p>')
+    expect(
+      sanitizeSymptomHtml('<p><img src="/api/symptom-images/clx123abc" width="320px" /></p>')
+    ).toBe('<p><img src="/api/symptom-images/clx123abc" /></p>')
   })
 
   it('otherwise matches the base allowlist', () => {

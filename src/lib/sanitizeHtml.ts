@@ -107,7 +107,18 @@ function makeImageSanitizeConfig(srcRe: RegExp): sanitizeHtmlLib.IOptions {
     allowedTags: [...allowedTags, 'img'],
     allowedAttributes: {
       ...sanitizeConfig.allowedAttributes,
-      img: ['src', 'alt'],
+      img: ['src', 'alt', 'width'],
+    },
+    // width must be a plain pixel number (the editor's size presets);
+    // anything else — percentages, units, junk — is dropped.
+    transformTags: {
+      img: (tagName, attribs) => {
+        const next = { ...attribs }
+        if (next.width !== undefined && !/^\d+$/.test(next.width)) {
+          delete next.width
+        }
+        return { tagName, attribs: next }
+      },
     },
     // No scheme'd URLs at all on img (kills http/https/data:). Relative srcs
     // pass this check and are then constrained by the exclusiveFilter below.
