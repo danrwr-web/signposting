@@ -42,6 +42,7 @@ const makeReq = (body: unknown): NextRequest =>
 // Transaction client whose calls we can inspect.
 const tx = {
   baseSymptom: { create: jest.fn(), update: jest.fn() },
+  symptomImage: { updateMany: jest.fn() },
   surgerySymptomStatus: { updateMany: jest.fn(), create: jest.fn() },
   surgeryCustomSymptom: { update: jest.fn() },
   surgerySymptomOverride: { deleteMany: jest.fn() },
@@ -82,7 +83,7 @@ describe('POST /api/symptoms/promote', () => {
       ageGroup: 'Adult',
       briefInstruction: 'Brief',
       instructions: '<p>Hi</p>',
-      instructionsHtml: '<p>Hi</p>',
+      instructionsHtml: '<p>Hi <img src="/api/symptom-images/imgabc123" alt="chart" /></p>',
       instructionsJson: null,
       highlightedText: null,
       linkToPage: null,
@@ -126,6 +127,13 @@ describe('POST /api/symptoms/promote', () => {
         expect.objectContaining({ where: { id: CUSTOM_ID }, data: { isDeleted: true } })
       )
       expect(tx.symptomHistory.create).toHaveBeenCalled()
+
+      // Referenced surgery-scoped images are globalized so the base content
+      // renders for every practice.
+      expect(tx.symptomImage.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['imgabc123'] }, surgeryId: 'sur-1' },
+        data: { surgeryId: null },
+      })
     })
 
     it('creates an enabled status row when the practice had none', async () => {
@@ -157,7 +165,7 @@ describe('POST /api/symptoms/promote', () => {
         briefInstruction: 'New brief',
         highlightedText: 'Notice',
         instructions: '<p>New</p>',
-        instructionsHtml: '<p>New</p>',
+        instructionsHtml: '<p>New <img src="/api/symptom-images/imgdef456" alt="flow" /></p>',
         linkToPages: ['Chest pain'],
         variants: null,
         source: 'override',
@@ -179,7 +187,7 @@ describe('POST /api/symptoms/promote', () => {
       expect(updateData).toMatchObject({
         name: 'Practice name',
         briefInstruction: 'New brief',
-        instructionsHtml: '<p>New</p>',
+        instructionsHtml: '<p>New <img src="/api/symptom-images/imgdef456" alt="flow" /></p>',
         highlightedText: 'Notice',
         linkToPage: 'Chest pain',
         linkToPages: ['Chest pain'],
@@ -193,8 +201,32 @@ describe('POST /api/symptoms/promote', () => {
         symptomId: 'base-1',
         source: 'base',
         previousInstructionsHtml: '<p>Old</p>',
-        newInstructionsHtml: '<p>New</p>',
+        newInstructionsHtml: '<p>New <img src="/api/symptom-images/imgdef456" alt="flow" /></p>',
       })
+
+      // The image referenced by the pushed content is globalized.
+      expect(tx.symptomImage.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['imgdef456'] }, surgeryId: 'sur-1' },
+        data: { surgeryId: null },
+      })
+    })
+
+    it('does not touch images when the content references none', async () => {
+      mockedEffective.mockResolvedValue({
+        id: 'base-1',
+        name: 'Practice name',
+        ageGroup: 'Adult',
+        briefInstruction: 'New brief',
+        highlightedText: null,
+        instructions: '<p>Plain</p>',
+        instructionsHtml: '<p>Plain</p>',
+        linkToPages: null,
+        variants: null,
+        source: 'override',
+      } as any)
+      const res = await POST(makeReq({ baseSymptomId: 'base-1', surgeryId: 'sur-1' }))
+      expect(res.status).toBe(200)
+      expect(tx.symptomImage.updateMany).not.toHaveBeenCalled()
     })
 
     it('400s when the practice version is hidden', async () => {

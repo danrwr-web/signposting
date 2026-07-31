@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag, getEffectiveSymptomById, resolveLinkToPages } from '@/server/effectiveSymptoms'
 import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
+import { extractSymptomImageIds } from '@/server/symptomImages'
 
 /**
  * Superuser-only "push to base" endpoint.
@@ -56,7 +57,22 @@ export async function POST(req: NextRequest) {
       const slug = await generateUniqueSymptomSlug(custom.name, { scope: 'BASE' })
       const links = resolveLinkToPages(custom as any)
 
+      // Inline images referenced by the content are surgery-scoped; base
+      // content must be viewable everywhere, so globalize them (the serving
+      // route 404s cross-surgery otherwise).
+      const imageIds = extractSymptomImageIds(
+        custom.instructionsHtml,
+        custom.instructions,
+        (custom as any).variants ? JSON.stringify((custom as any).variants) : null
+      )
+
       const created = await prisma.$transaction(async (tx) => {
+        if (imageIds.length > 0) {
+          await tx.symptomImage.updateMany({
+            where: { id: { in: imageIds }, surgeryId: custom.surgeryId },
+            data: { surgeryId: null },
+          })
+        }
         const base = await tx.baseSymptom.create({
           data: {
             name: custom.name,
@@ -162,7 +178,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Inline images referenced by the practice's content (instructions and
+    // variants) are surgery-scoped; globalize them so the pushed base content
+    // renders for every practice.
+    const imageIds = extractSymptomImageIds(
+      effective.instructionsHtml,
+      effective.instructions,
+      effective.variants ? JSON.stringify(effective.variants) : null
+    )
+
     await prisma.$transaction(async (tx) => {
+      if (imageIds.length > 0) {
+        await tx.symptomImage.updateMany({
+          where: { id: { in: imageIds }, surgeryId },
+          data: { surgeryId: null },
+        })
+      }
       await tx.baseSymptom.update({
         where: { id: baseSymptomId },
         data: {
