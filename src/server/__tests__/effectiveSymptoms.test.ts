@@ -4,6 +4,8 @@ import {
   getEffectiveSymptomById,
   getEffectiveSymptomBySlug,
   getEffectiveSymptomByName,
+  resolveLinkToPages,
+  mergeLinkToPages,
 } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
 
@@ -329,6 +331,94 @@ describe('effectiveSymptoms tri-state briefInstruction merge', () => {
       expect(result).toHaveLength(1)
       expect(result[0].source).toBe('override')
       expect(result[0].disabled).toBe(true)
+    })
+  })
+})
+
+describe('related-symptom links (linkToPages)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  describe('resolveLinkToPages', () => {
+    it('prefers the JSON array and trims entries', () => {
+      expect(resolveLinkToPages({ linkToPages: [' Chest pain ', 'Coughs'], linkToPage: 'Old' }))
+        .toEqual(['Chest pain', 'Coughs'])
+    })
+
+    it('treats a stored empty array as explicitly no links', () => {
+      expect(resolveLinkToPages({ linkToPages: [], linkToPage: 'Old' })).toEqual([])
+    })
+
+    it('falls back to the legacy single link when the array is unset', () => {
+      expect(resolveLinkToPages({ linkToPages: null, linkToPage: 'Chest pain' })).toEqual(['Chest pain'])
+      expect(resolveLinkToPages({ linkToPages: null, linkToPage: '  ' })).toBeNull()
+      expect(resolveLinkToPages({ linkToPages: null, linkToPage: null })).toBeNull()
+    })
+  })
+
+  describe('mergeLinkToPages', () => {
+    const baseLinks = ['Chest pain', 'Breathing problems']
+
+    it('null override inherits base links', () => {
+      expect(mergeLinkToPages({ linkToPages: null, linkToPage: null }, baseLinks)).toEqual(baseLinks)
+    })
+
+    it('empty array override explicitly clears base links', () => {
+      expect(mergeLinkToPages({ linkToPages: [], linkToPage: null }, baseLinks)).toEqual([])
+    })
+
+    it('non-empty override replaces base links', () => {
+      expect(mergeLinkToPages({ linkToPages: ['Rashes'], linkToPage: null }, baseLinks)).toEqual(['Rashes'])
+    })
+
+    it('legacy override string replaces base links when the array is unset', () => {
+      expect(mergeLinkToPages({ linkToPages: null, linkToPage: 'Rashes' }, baseLinks)).toEqual(['Rashes'])
+      // Blank legacy value keeps the historical inherit behaviour.
+      expect(mergeLinkToPages({ linkToPages: null, linkToPage: '' }, baseLinks)).toEqual(baseLinks)
+    })
+  })
+
+  describe('through getEffectiveSymptoms', () => {
+    const baseWithLinks = { ...baseGout, linkToPages: ['Chest pain', 'Breathing problems'] }
+    const linkOverride = (linkToPages: any) => ({ ...overrideRow(null), linkToPages })
+
+    const setup = (base: any, override: any) => {
+      ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+        [base],
+        override ? [override] : [],
+        [],
+        [],
+      ])
+    }
+
+    it('projects the array and mirrors the first entry into linkToPage', async () => {
+      setup(baseWithLinks, null)
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].linkToPages).toEqual(['Chest pain', 'Breathing problems'])
+      expect(result[0].linkToPage).toBe('Chest pain')
+    })
+
+    it('falls back to the legacy column for rows without the array', async () => {
+      setup({ ...baseGout, linkToPage: 'Chest pain', linkToPages: null }, null)
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].linkToPages).toEqual(['Chest pain'])
+      expect(result[0].linkToPage).toBe('Chest pain')
+    })
+
+    it('lets an override clear the base links with an empty array', async () => {
+      setup(baseWithLinks, { ...linkOverride([]), linkToPage: null })
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].linkToPages).toEqual([])
+      expect(result[0].linkToPage).toBeNull()
+      expect(result[0].source).toBe('override')
+    })
+
+    it('lets an override replace the base links', async () => {
+      setup(baseWithLinks, { ...linkOverride(['Rashes']), linkToPage: null })
+      const result = await getEffectiveSymptoms('surgery-imperial')
+      expect(result[0].linkToPages).toEqual(['Rashes'])
+      expect(result[0].linkToPage).toBe('Rashes')
     })
   })
 })
