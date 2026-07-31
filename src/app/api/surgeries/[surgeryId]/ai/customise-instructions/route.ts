@@ -5,7 +5,9 @@ import { prisma } from '@/lib/prisma'
 import { CustomiseInstructionsReqZ } from '@/lib/api-contracts'
 import { customiseInstructions } from '@/server/aiCustomiseInstructions'
 import { isSymptomSafeToRerun } from '@/server/aiRerunPlan'
-import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
+import { getEffectiveSymptoms, getCachedSymptomsTag } from '@/server/effectiveSymptoms'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import { revalidateTag } from 'next/cache'
 import { z } from 'zod'
 
 export const runtime = 'nodejs'
@@ -469,6 +471,16 @@ export async function POST(
     // Ensure counts are numbers (defensive programming)
     const finalProcessedCount = Number(processedCount) || 0
     const finalSkippedCount = Number(skippedCount) || 0
+
+    if (finalProcessedCount > 0) {
+      // AI writes land in override rows, so the cached effective symptom
+      // lists are stale until revalidated; the review upserts also need the
+      // surgery-level requiresClinicalReview flag refreshed.
+      await updateRequiresClinicalReview(surgeryId)
+      revalidateTag(getCachedSymptomsTag(surgeryId, false))
+      revalidateTag(getCachedSymptomsTag(surgeryId, true))
+      revalidateTag('symptoms')
+    }
 
     return NextResponse.json({
       processedCount: finalProcessedCount,

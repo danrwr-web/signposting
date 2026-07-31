@@ -35,6 +35,9 @@ interface InUseSymptom {
 interface AvailableSymptom {
   baseSymptomId: string
   name: string
+  /** True for opt-in base symptoms this surgery has never adopted (newly
+   *  promoted into the shared library). */
+  isNew?: boolean
 }
 
 interface CustomOnlySymptom {
@@ -133,7 +136,17 @@ export async function GET(request: NextRequest) {
     const baseNameById = new Map(baseSymptoms.map((b) => [b.id, b.name]))
     const overriddenBaseIds = new Set(overrides.map((o) => o.baseSymptomId))
 
-    const inUse: InUseSymptom[] = allEffective.map((s) => {
+    // Opt-in base symptoms this surgery has never adopted (no status row at
+    // all). They belong in the "Available" bucket as new library additions,
+    // not in the in-use list as "Disabled" — a practice hasn't disabled
+    // something it never adopted.
+    const newToAdoptIds = new Set(
+      baseSymptoms
+        .filter((b) => (b as any).enabledByDefault === false && !statusBySymptomId.has(b.id))
+        .map((b) => b.id)
+    )
+
+    const inUse: InUseSymptom[] = allEffective.filter((s) => !newToAdoptIds.has(s.id)).map((s) => {
       const isEnabled = enabledIds.has(s.id)
       const statusRow = statusBySymptomId.get(s.id)
       const source = s.source === 'custom' ? 'custom' as const : 'base' as const
@@ -164,8 +177,13 @@ export async function GET(request: NextRequest) {
     // Hidden base symptoms (old system) are not part of effectiveSymptoms; keep them accessible
     // as "Available" so admins can restore them.
     const hiddenBaseIds = new Set(overrides.filter((o) => o.isHidden === true).map((o) => o.baseSymptomId))
-    const hiddenBaseList = baseSymptoms.filter((b) => hiddenBaseIds.has(b.id))
-    const available: AvailableSymptom[] = hiddenBaseList.map((b) => ({ baseSymptomId: b.id, name: b.name }))
+    const hiddenBaseList = baseSymptoms.filter((b) => hiddenBaseIds.has(b.id) && !newToAdoptIds.has(b.id))
+    const available: AvailableSymptom[] = [
+      ...baseSymptoms
+        .filter((b) => newToAdoptIds.has(b.id))
+        .map((b) => ({ baseSymptomId: b.id, name: b.name, isNew: true })),
+      ...hiddenBaseList.map((b) => ({ baseSymptomId: b.id, name: b.name })),
+    ]
 
     // Custom-only symptoms without status rows (legacy field; UI does not rely on it).
     const customOnly: CustomOnlySymptom[] = customSymptoms

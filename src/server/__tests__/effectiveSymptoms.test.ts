@@ -422,3 +422,45 @@ describe('related-symptom links (linkToPages)', () => {
     })
   })
 })
+
+describe('opt-in base symptoms (enabledByDefault=false)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks()
+  })
+
+  const optInBase = { ...baseGout, id: 'base-optin', slug: 'optin', name: 'Opt-in symptom', enabledByDefault: false }
+
+  const setup = (statuses: any[]) => {
+    ;(prisma.$transaction as jest.Mock).mockResolvedValueOnce([
+      [baseGout, optInBase],
+      [],
+      [],
+      statuses,
+    ])
+  }
+
+  it('is hidden until the surgery adopts it', async () => {
+    setup([])
+    const result = await getEffectiveSymptoms('surgery-imperial')
+    expect(result.map(s => s.id)).toEqual(['base-gout'])
+  })
+
+  it('shows as disabled in the includeDisabled list', async () => {
+    setup([])
+    const result = await getEffectiveSymptoms('surgery-imperial', true)
+    const optIn = result.find(s => s.id === 'base-optin')
+    expect(optIn?.disabled).toBe(true)
+  })
+
+  it('appears once the surgery enables it via a status row', async () => {
+    setup([{ id: 'st1', baseSymptomId: 'base-optin', customSymptomId: null, isEnabled: true }])
+    const result = await getEffectiveSymptoms('surgery-imperial')
+    expect(result.map(s => s.id)).toEqual(expect.arrayContaining(['base-gout', 'base-optin']))
+  })
+
+  it('a normal base symptom stays enabled without any status row', async () => {
+    setup([])
+    const result = await getEffectiveSymptoms('surgery-imperial')
+    expect(result.find(s => s.id === 'base-gout')?.disabled).toBe(false)
+  })
+})

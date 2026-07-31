@@ -15,6 +15,7 @@ import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 import { toast } from 'react-hot-toast'
 import { ageGroupBadgeClasses, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
+import { Button, Dialog } from '@/components/ui'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
@@ -56,6 +57,10 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   const [isHidingSymptom, setIsHidingSymptom] = useState(false)
   const [hideError, setHideError] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  // Superuser "push to base" (update the shared library from this practice's
+  // version, or promote a practice-created symptom into it).
+  const [showPushToBaseDialog, setShowPushToBaseDialog] = useState(false)
+  const [isPushingToBase, setIsPushingToBase] = useState(false)
   const [isDeletingSymptom, setIsDeletingSymptom] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [selectedVariantKey, setSelectedVariantKey] = useState<string | null>(null)
@@ -284,6 +289,39 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           variantKey: variantKey
         })
       }).catch(err => console.error('Failed to log variant engagement:', err))
+    }
+  }
+
+  const handlePushToBase = async () => {
+    if (!isSuperuser) return
+    setIsPushingToBase(true)
+    try {
+      const body =
+        symptom.source === 'custom'
+          ? { customSymptomId: symptom.id }
+          : { baseSymptomId: symptom.baseSymptomId ?? symptom.id, surgeryId }
+      const res = await fetch('/api/symptoms/promote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update the shared library')
+      }
+      setShowPushToBaseDialog(false)
+      if (symptom.source === 'custom') {
+        toast.success('Added to the shared library — other practices can now adopt it')
+        // The practice copy is retired; move to the new base symptom's page.
+        router.push(`/symptom/${data.baseSymptomId}${surgeryId ? `?surgery=${surgeryId}` : ''}`)
+      } else {
+        toast.success('Shared library updated to match this practice')
+        router.refresh()
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update the shared library')
+    } finally {
+      setIsPushingToBase(false)
     }
   }
 
@@ -1867,6 +1905,15 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                   Delete symptom
                 </button>
               )}
+
+              {isSuperuser && !isEditingInstructions && !isEditingAll && (symptom.source === 'override' || symptom.source === 'custom') && (
+                <button
+                  onClick={() => setShowPushToBaseDialog(true)}
+                  className="px-4 py-2 rounded-md bg-nhs-light-blue text-nhs-dark-blue border border-nhs-blue text-sm hover:bg-blue-100 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-1"
+                >
+                  {symptom.source === 'custom' ? 'Promote to shared library' : 'Update base to match'}
+                </button>
+              )}
             </div>
             <button
               onClick={() => {
@@ -1999,6 +2046,38 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           </div>
         )}
       </div>
+
+      {/* Push-to-base confirmation (superuser) */}
+      <Dialog
+        open={showPushToBaseDialog}
+        onClose={() => setShowPushToBaseDialog(false)}
+        title={symptom.source === 'custom' ? 'Promote to shared library' : 'Update base symptom'}
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setShowPushToBaseDialog(false)} disabled={isPushingToBase}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handlePushToBase} loading={isPushingToBase}>
+              {symptom.source === 'custom' ? 'Promote symptom' : 'Update base symptom'}
+            </Button>
+          </div>
+        }
+      >
+        {symptom.source === 'custom' ? (
+          <p className="text-sm text-gray-700">
+            This adds “{symptom.name}” to the shared library. It stays enabled for this practice, and other
+            practices will see it as <span className="font-medium">available to adopt</span> in their Symptom
+            Library — it stays disabled for them until they choose to enable it.
+          </p>
+        ) : (
+          <p className="text-sm text-gray-700">
+            This replaces the shared library content for “{symptom.name}” with this practice&apos;s customised
+            version, for <span className="font-medium">every practice</span> that uses the base symptom. This
+            practice&apos;s customisation marker is then removed, since its version and the base version will
+            match.
+          </p>
+        )}
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       {showDeleteDialog && (

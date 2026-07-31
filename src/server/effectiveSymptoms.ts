@@ -20,6 +20,9 @@ export interface EffectiveSymptom {
   instructionsHtml: string | null // HTML format with colour support
   linkToPage: string | null // Legacy single link — mirrors linkToPages[0]
   linkToPages: string[] | null // Related-symptom names, resolved by name at click time
+  // False for opt-in base symptoms (promoted from a practice) that this
+  // surgery has not adopted yet. Absent on custom symptoms.
+  enabledByDefault?: boolean
   source: 'base' | 'override' | 'custom'
   baseSymptomId?: string // For overrides, this is the base symptom ID
   isHidden?: boolean // For overrides, indicates if symptom is hidden for this surgery
@@ -98,6 +101,7 @@ const baseFields = (includeRichContent: boolean) => ({
   instructions: true,
   linkToPage: true,
   linkToPages: true,
+  enabledByDefault: true,
   instructionsHtml: true,
   ...(includeRichContent
     ? {
@@ -174,6 +178,17 @@ async function buildEffectiveSymptoms(
   const disabledCustomIds = new Set(
     statuses.filter(s => s.customSymptomId && s.isEnabled === false).map(s => s.customSymptomId!)
   )
+
+  // Opt-in base symptoms (enabledByDefault=false) count as disabled until the
+  // surgery explicitly adopts them — a status row with isEnabled=true wins.
+  const explicitlyEnabledBaseIds = new Set(
+    statuses.filter(s => s.baseSymptomId && s.isEnabled === true).map(s => s.baseSymptomId!)
+  )
+  for (const b of base) {
+    if ((b as any).enabledByDefault === false && !explicitlyEnabledBaseIds.has(b.id)) {
+      disabledBaseIds.add(b.id)
+    }
+  }
 
   // Merge base+overrides; include customs
   const byBaseId = new Map<string, EffectiveSymptom>(

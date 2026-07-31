@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
 
       const baseSymptom = await prisma.baseSymptom.findFirst({
         where: { id: baseSymptomId, isDeleted: false },
-        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true, variants: true }
+        select: { id: true, name: true, briefInstruction: true, instructionsHtml: true, highlightedText: true, variants: true, enabledByDefault: true }
       })
       if (!baseSymptom) {
         return NextResponse.json({ error: 'Base symptom not found' }, { status: 404 })
@@ -108,8 +108,12 @@ export async function GET(request: NextRequest) {
 
       const hasOverride = !!override
       // Mirrors effectiveSymptoms.ts: visible unless the override hides it or a
-      // status row explicitly disables it. Absence of a status row = enabled.
-      const isEnabled = !override?.isHidden && (statusRow ? statusRow.isEnabled !== false : true)
+      // status row explicitly disables it. Absence of a status row = enabled,
+      // except for opt-in symptoms (enabledByDefault=false), which need an
+      // explicit enable.
+      const isEnabled =
+        !override?.isHidden &&
+        (statusRow ? statusRow.isEnabled !== false : (baseSymptom as any).enabledByDefault !== false)
       const lastEdited = latestEdit(
         { at: statusRow?.lastEditedAt ?? null, by: statusRow?.lastEditedBy ?? null },
         { at: override?.lastEditedAt ?? null, by: override?.lastEditedBy ?? null }
