@@ -74,8 +74,9 @@ export async function GET(req: NextRequest) {
           ageGroup: true,
           briefInstruction: true, 
           highlightedText: true, 
-          instructions: true, 
-          linkToPage: true 
+          instructions: true,
+          linkToPage: true,
+          linkToPages: true
         },
         orderBy: { name: 'asc' }
       }).then(results => 

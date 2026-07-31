@@ -8,9 +8,10 @@
  * loss on save. That is why Strike (`<s>`) and HorizontalRule (`<hr>`) are
  * disabled: neither tag is in the allowlist.
  *
- * Images are opt-in (`enableImages`) and Practice Handbook-only: the base
- * sanitizer strips `<img>`, and only `sanitizeAdminToolkitHtml` keeps it —
- * and even then only with a same-origin `/api/admin-toolkit/images/{id}` src.
+ * Images are opt-in (`enableImages`): the base sanitizer strips `<img>`, and
+ * only `sanitizeAdminToolkitHtml` / `sanitizeSymptomHtml` keep it — and even
+ * then only with the matching same-origin serving-route src
+ * (`/api/admin-toolkit/images/{id}` or `/api/symptom-images/{id}`).
  * Never enable images for content saved through the base `sanitizeHtml`.
  */
 import StarterKit from '@tiptap/starter-kit'
@@ -43,17 +44,37 @@ export const NHS_HIGHLIGHT_COLORS = [
 
 export interface RichTextExtensionOptions {
   placeholder?: string
-  /** Practice Handbook only — see the header comment before enabling. */
+  /** See the header comment before enabling. */
   enableImages?: boolean
 }
 
+// Preset display widths (px) for inline images; CSS max-width: 100% keeps
+// them responsive on narrow screens. null = the image's natural size.
+export const IMAGE_SIZE_PRESETS = [
+  { label: 'Small', width: 160 },
+  { label: 'Medium', width: 320 },
+  { label: 'Large', width: 560 },
+] as const
+
 // Inline (serializes inside <p>, so normalizeHtml needs no block-tag changes)
-// with attributes cut down to exactly what the handbook sanitizer allows.
-const AdminToolkitImage = Image.extend({
+// with attributes cut down to exactly what the image sanitizers allow.
+const InlineImage = Image.extend({
   addAttributes() {
     return {
       src: { default: null },
       alt: { default: null },
+      // Display width in px, serialized as the img width attribute. The
+      // sanitizers only keep plain numeric values.
+      width: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const raw = element.getAttribute('width') ?? ''
+          const width = /^\d+$/.test(raw) ? parseInt(raw, 10) : NaN
+          return Number.isFinite(width) && width > 0 ? width : null
+        },
+        renderHTML: (attributes: { width?: number | null }) =>
+          attributes.width ? { width: String(attributes.width) } : {},
+      },
     }
   },
 }).configure({ inline: true, allowBase64: false })
@@ -78,7 +99,7 @@ export function createRichTextExtensions(options: RichTextExtensionOptions = {})
     Highlight.configure({
       multicolor: true,
     }),
-    ...(options.enableImages ? [AdminToolkitImage] : []),
+    ...(options.enableImages ? [InlineImage] : []),
     ...(options.placeholder
       ? [Placeholder.configure({ placeholder: options.placeholder })]
       : []),

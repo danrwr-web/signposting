@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 
-import { sanitizeAdminToolkitHtml, sanitizeHtml, stripHtmlToPlainText } from '@/lib/sanitizeHtml'
+import { sanitizeAdminToolkitHtml, sanitizeHtml, sanitizeSymptomHtml, stripHtmlToPlainText } from '@/lib/sanitizeHtml'
 
 describe('sanitizeHtml (node)', () => {
   it('sanitises HTML without requiring a DOM/JSDOM', () => {
@@ -10,7 +10,7 @@ describe('sanitizeHtml (node)', () => {
     expect(sanitizeHtml('<p>Hello</p><script>alert(1)</script>')).toBe('<p>Hello</p>')
   })
 
-  it('strips img entirely (images are handbook-only)', () => {
+  it('strips img entirely (images need a module-specific sanitizer)', () => {
     expect(sanitizeHtml('<p>Before <img src="/api/admin-toolkit/images/clx123abc" alt="x"> after</p>')).toBe(
       '<p>Before  after</p>'
     )
@@ -45,12 +45,12 @@ describe('sanitizeAdminToolkitHtml', () => {
     expect(sanitizeAdminToolkitHtml('<p><img alt="no src" /></p>')).toBe('<p></p>')
   })
 
-  it('strips disallowed attributes but keeps src and alt', () => {
+  it('strips disallowed attributes but keeps src, alt and numeric width', () => {
     expect(
       sanitizeAdminToolkitHtml(
         '<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" title="t" width="600" onerror="alert(1)" /></p>'
       )
-    ).toBe('<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" /></p>')
+    ).toBe('<p><img src="/api/admin-toolkit/images/clx123abc" alt="x" width="600" /></p>')
   })
 
   it('otherwise matches the base allowlist', () => {
@@ -66,6 +66,47 @@ describe('sanitizeAdminToolkitHtml', () => {
 
   it('still strips javascript: links', () => {
     expect(sanitizeAdminToolkitHtml('<p><a href="javascript:alert(1)">x</a></p>')).toBe('<p><a>x</a></p>')
+  })
+})
+
+describe('sanitizeSymptomHtml', () => {
+  it('keeps img pointing at the internal symptom image route', () => {
+    expect(
+      sanitizeSymptomHtml('<p><img src="/api/symptom-images/clx123abc" alt="Triage chart" /></p>')
+    ).toBe('<p><img src="/api/symptom-images/clx123abc" alt="Triage chart" /></p>')
+  })
+
+  it('drops img with external, data: or handbook-route sources', () => {
+    expect(sanitizeSymptomHtml('<p><img src="https://evil.example/x.png" /></p>')).toBe('<p></p>')
+    expect(sanitizeSymptomHtml('<p><img src="data:image/png;base64,AAAA" /></p>')).toBe('<p></p>')
+    // Handbook images belong to the handbook sanitizer, not symptom content.
+    expect(sanitizeSymptomHtml('<p><img src="/api/admin-toolkit/images/clx123abc" /></p>')).toBe('<p></p>')
+    expect(sanitizeSymptomHtml('<p><img src="/api/symptom-images/abc/../../x" /></p>')).toBe('<p></p>')
+  })
+
+  it('strips disallowed attributes but keeps src, alt and numeric width', () => {
+    expect(
+      sanitizeSymptomHtml(
+        '<p><img src="/api/symptom-images/clx123abc" alt="x" width="320" title="t" onerror="alert(1)" /></p>'
+      )
+    ).toBe('<p><img src="/api/symptom-images/clx123abc" alt="x" width="320" /></p>')
+  })
+
+  it('drops non-numeric width values', () => {
+    expect(
+      sanitizeSymptomHtml('<p><img src="/api/symptom-images/clx123abc" width="50%" /></p>')
+    ).toBe('<p><img src="/api/symptom-images/clx123abc" /></p>')
+    expect(
+      sanitizeSymptomHtml('<p><img src="/api/symptom-images/clx123abc" width="320px" /></p>')
+    ).toBe('<p><img src="/api/symptom-images/clx123abc" /></p>')
+  })
+
+  it('otherwise matches the base allowlist', () => {
+    expect(sanitizeSymptomHtml('<p>Hello</p><script>alert(1)</script>')).toBe('<p>Hello</p>')
+  })
+
+  it('is not accepted by the handbook sanitizer (routes are not interchangeable)', () => {
+    expect(sanitizeAdminToolkitHtml('<p><img src="/api/symptom-images/clx123abc" /></p>')).toBe('<p></p>')
   })
 })
 

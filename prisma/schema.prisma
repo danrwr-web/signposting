@@ -49,6 +49,7 @@ model User {
   adminItemSmartVisuals        AdminItemSmartVisual[]        @relation("AdminItemSmartVisualGeneratedBy")
   adminItemImagesCreated       AdminItemImage[]              @relation("AdminItemImageCreatedBy")
   adminItemFilesCreated        AdminItemFile[]               @relation("AdminItemFileCreatedBy")
+  symptomImagesCreated         SymptomImage[]                @relation("SymptomImageCreatedBy")
 
   // Workflow instances
   workflowInstances        WorkflowInstance[]
@@ -142,6 +143,7 @@ model Surgery {
   adminItemAttachments         AdminItemAttachment[]
   adminItemImages              AdminItemImage[]
   adminItemFiles               AdminItemFile[]
+  symptomImages                SymptomImage[]
   adminPinnedPanel             AdminPinnedPanel?
   adminDutyRota                AdminDutyRotaEntry[]
   adminOnTakeWeeks             AdminOnTakeWeek[]
@@ -165,8 +167,14 @@ model BaseSymptom {
   instructions     String? // Legacy markdown field for back-compat
   instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String? // HTML format with colour support
-  linkToPage       String?
+  linkToPage       String? // Legacy single link (mirrors linkToPages[0]); read fallback only
+  linkToPages      Json? // Names of related symptoms to link to (string[])
   variants         Json? // Optional age/scenario-tailored advice variants
+  // When false, the symptom is opt-in: surgeries see it as available to adopt
+  // in their Symptom Library but it stays disabled until they explicitly
+  // enable it (a SurgerySymptomStatus row with isEnabled=true). Used for
+  // symptoms promoted into the shared library from a single practice.
+  enabledByDefault Boolean   @default(true)
   isDeleted        Boolean   @default(false)
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
@@ -195,7 +203,10 @@ model SurgerySymptomOverride {
   instructions     String? // Legacy markdown field for back-compat
   instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String? // HTML format with colour support
-  linkToPage       String?
+  linkToPage       String? // Legacy single link (mirrors linkToPages[0]); read fallback only
+  // Related-symptom links. Tri-state: null = inherit base links,
+  // [] = explicitly no links for this surgery, [...] = replace.
+  linkToPages      Json?
   // Per-surgery age-group variants. Tri-state: null = inherit base variants,
   // JSON with ageGroups = replace them for this surgery, JSON with empty
   // ageGroups ({"ageGroups":[]}) = hide variants for this surgery.
@@ -223,7 +234,8 @@ model SurgeryCustomSymptom {
   instructions     String? // Legacy markdown field for back-compat
   instructionsJson String? // ProseMirror JSON (canonical format) - stored as string
   instructionsHtml String? // HTML format with colour support
-  linkToPage       String?
+  linkToPage       String? // Legacy single link (mirrors linkToPages[0]); read fallback only
+  linkToPages      Json? // Names of related symptoms to link to (string[])
   // Age-group variants for this practice-owned symptom. No inheritance —
   // custom symptoms have no base backing.
   variants         Json?
@@ -825,6 +837,32 @@ model AdminItemFile {
 
   @@index([surgeryId])
   @@index([adminItemId])
+  @@index([createdByUserId])
+}
+
+// Inline image embedded in symptom instructions. Bytes live in the database
+// and are served through /api/symptom-images/[imageId]. surgeryId is null for
+// global images (uploaded by superusers for base-symptom content, which every
+// surgery can see); surgery-scoped images are only served to members of that
+// surgery. There is no owning-symptom FK: symptom content lives on three
+// models (base/override/custom) and symptoms have no per-item visibility, so
+// an ownership claim would buy no authorization value. Orphaned rows (image
+// removed from content, or edit abandoned) are accepted; surgery-scoped
+// orphans are cleaned up by the surgery cascade.
+model SymptomImage {
+  id              String  @id @default(cuid())
+  surgeryId       String?
+  contentType     String // "image/jpeg" | "image/png" — derived from magic bytes, not the client MIME
+  data            Bytes
+  sizeBytes       Int
+  filename        String
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  surgery   Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("SymptomImageCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([surgeryId])
   @@index([createdByUserId])
 }
 

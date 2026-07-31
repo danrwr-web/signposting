@@ -10,7 +10,7 @@ import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSy
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { GetEffectiveSymptomsResZ, CreateSymptomReqZ } from '@/lib/api-contracts'
-import { sanitizeVariants } from '@/lib/sanitizeHtml'
+import { sanitizeVariants, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import { z } from 'zod'
 import type { EffectiveSymptom } from '@/lib/api-contracts'
 import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
           instructionsJson: true,
           instructionsHtml: true,
           linkToPage: true,
+          linkToPages: true,
           variants: true
         },
         orderBy: { name: 'asc' }
@@ -109,8 +110,20 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, variants } = CreateSymptomReqZ.parse(body)
+    const { name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, linkToPages, variants } = CreateSymptomReqZ.parse(body)
     const { generateUniqueSymptomSlug } = await import('@/server/symptomSlug')
+
+    // Related-symptom links: the array wins when sent; the legacy single
+    // field is folded into it so both columns stay in sync.
+    const links =
+      linkToPages != null
+        ? linkToPages.map(l => l.trim()).filter(l => l !== '')
+        : (linkToPage?.trim() ? [linkToPage.trim()] : null)
+
+    // Server-side sanitization: with <img> allowed, the internal-src-only
+    // invariant must not rely on the client. Idempotent for well-formed input.
+    const cleanInstructions = typeof instructions === 'string' ? sanitizeSymptomHtml(instructions) : instructions
+    const cleanInstructionsHtml = typeof instructionsHtml === 'string' ? sanitizeSymptomHtml(instructionsHtml) : instructionsHtml
 
     if (user.globalRole === 'SUPERUSER') {
       // Superusers create base symptoms visible to all surgeries
@@ -122,11 +135,12 @@ export async function POST(request: NextRequest) {
           name,
           ageGroup,
           briefInstruction,
-          instructions,
+          instructions: cleanInstructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
+          instructionsHtml: cleanInstructionsHtml,
           highlightedText,
-          linkToPage,
+          linkToPage: links?.[0] ?? null,
+          linkToPages: links ?? Prisma.DbNull,
           variants: variants ? sanitizeVariants(variants) : Prisma.DbNull,
         } as any),
         select: {
@@ -140,6 +154,7 @@ export async function POST(request: NextRequest) {
           instructionsJson: true,
           instructionsHtml: true,
           linkToPage: true,
+          linkToPages: true,
         }
       })
 
@@ -166,11 +181,12 @@ export async function POST(request: NextRequest) {
           name,
           ageGroup,
           briefInstruction,
-          instructions,
+          instructions: cleanInstructions,
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
-          instructionsHtml,
+          instructionsHtml: cleanInstructionsHtml,
           highlightedText,
-          linkToPage,
+          linkToPage: links?.[0] ?? null,
+          linkToPages: links ?? Prisma.DbNull,
           variants: variants ? sanitizeVariants(variants) : Prisma.DbNull,
         },
         select: {
@@ -184,6 +200,7 @@ export async function POST(request: NextRequest) {
           instructionsJson: true,
           instructionsHtml: true,
           linkToPage: true,
+          linkToPages: true,
         }
       })
 

@@ -218,6 +218,10 @@ function SymptomCard({ symptom, surgeryId, changeInfo, cardData, hideAgeBands = 
     ? 'text-xs text-white font-medium truncate flex-1'
     : 'text-xs text-nhs-blue font-medium truncate flex-1'
 
+  // Related-symptom links; the footer shows the first with a "+N more" hint
+  // (the full list lives on the symptom detail page).
+  const footerLinks = symptom.linkToPages ?? (symptom.linkToPage ? [symptom.linkToPage] : [])
+
   const openTextClasses = cardStyle === 'powerappsBlue'
     ? 'text-xs text-white font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'
     : 'text-xs text-nhs-blue font-medium opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100'
@@ -276,9 +280,12 @@ function SymptomCard({ symptom, surgeryId, changeInfo, cardData, hideAgeBands = 
         
         {/* Footer with link and open affordance */}
         <div className="flex items-center justify-between mt-auto">
-          {symptom.linkToPage && (
+          {footerLinks.length > 0 && (
             <div className={linkTextClasses}>
-              → {symptom.linkToPage}
+              → {footerLinks[0]}
+              {footerLinks.length > 1 && (
+                <span className="text-gray-400"> +{footerLinks.length - 1} more</span>
+              )}
             </div>
           )}
           <div className="flex items-center gap-2">

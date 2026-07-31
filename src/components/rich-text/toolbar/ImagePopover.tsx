@@ -7,7 +7,16 @@ import ToolbarButton from '@/components/rich-text/toolbar/ToolbarButton'
 import { useToolbarPopover } from '@/components/rich-text/toolbar/useToolbarPopover'
 
 export interface ImageUploadTarget {
-  surgeryId: string
+  /**
+   * Which module's upload route and sanitizer to use. Defaults to
+   * 'admin-toolkit' (Practice Handbook) so existing call sites are unchanged.
+   */
+  kind?: 'admin-toolkit' | 'symptom'
+  /**
+   * Absent for symptom uploads targeting base-symptom content (superuser →
+   * stored as a global image). Required for admin-toolkit uploads.
+   */
+  surgeryId?: string
   /** Absent when editing a not-yet-created item (admin create form). */
   itemId?: string
 }
@@ -63,11 +72,15 @@ export default function ImagePopover({ editor, imageUpload, children }: ImagePop
     try {
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('surgeryId', imageUpload.surgeryId)
+      if (imageUpload.surgeryId) {
+        formData.append('surgeryId', imageUpload.surgeryId)
+      }
       if (imageUpload.itemId) {
         formData.append('itemId', imageUpload.itemId)
       }
-      const res = await fetch('/api/admin-toolkit/images', { method: 'POST', body: formData })
+      const uploadUrl =
+        imageUpload.kind === 'symptom' ? '/api/symptom-images' : '/api/admin-toolkit/images'
+      const res = await fetch(uploadUrl, { method: 'POST', body: formData })
       const body = (await res.json().catch(() => null)) as { url?: string; error?: string } | null
       if (!res.ok || !body?.url) {
         setError(body?.error || 'Failed to upload image. Please try again.')

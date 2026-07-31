@@ -1,7 +1,8 @@
 'use client'
 
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
-import { sanitizeHtml } from '@/lib/sanitizeHtml'
+import type { ImageUploadTarget } from '@/components/rich-text/toolbar/ImagePopover'
+import { sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 
 export interface VariantGroupDraft {
   key: string
@@ -18,6 +19,8 @@ interface VariantGroupsEditorProps {
   onPositionChange: (value: 'before' | 'after') => void
   groups: VariantGroupDraft[]
   onGroupsChange: (groups: VariantGroupDraft[]) => void
+  /** Enables inline image uploads in the variant instruction editors. */
+  imageUpload?: ImageUploadTarget
 }
 
 /**
@@ -33,6 +36,7 @@ export default function VariantGroupsEditor({
   onPositionChange,
   groups,
   onGroupsChange,
+  imageUpload,
 }: VariantGroupsEditorProps) {
   return (
     <div className="space-y-3">
@@ -95,13 +99,14 @@ export default function VariantGroupsEditor({
             docId={`${docIdPrefix}:variant:${group.key || String(idx)}`}
             value={group.instructions}
             onChange={(html) => {
-              const sanitized = sanitizeHtml(html)
+              const sanitized = sanitizeSymptomHtml(html)
               const updated = [...groups]
               updated[idx] = { ...updated[idx], instructions: sanitized }
               onGroupsChange(updated)
             }}
             placeholder="Enter detailed instructions for this variant..."
             height={180}
+            imageUpload={imageUpload}
           />
           <button
             type="button"

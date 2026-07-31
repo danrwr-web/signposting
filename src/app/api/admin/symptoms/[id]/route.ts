@@ -10,11 +10,41 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
-import { SymptomVariantsZ, SurgeryVariantsOverrideZ } from '@/lib/api-contracts'
-import { sanitizeVariants } from '@/lib/sanitizeHtml'
+import { SymptomVariantsZ, SurgeryVariantsOverrideZ, LinkToPagesZ } from '@/lib/api-contracts'
+import { sanitizeVariants, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import { markSymptomPendingReview } from '@/server/clinicalReview'
 
 export const runtime = 'nodejs'
+
+// Apply related-symptom link fields to a Prisma update payload, keeping the
+// JSON array and the legacy single-value column in sync. linkToPages wins
+// when sent (null clears — on overrides that means inherit base links); a
+// legacy linkToPage string is mirrored into the array. Returns an error
+// response when the array fails validation.
+function applyLinkFields(data: any, target: any): NextResponse | null {
+  if (Object.prototype.hasOwnProperty.call(data, 'linkToPages')) {
+    if (data.linkToPages == null) {
+      target.linkToPages = Prisma.DbNull
+      target.linkToPage = null
+    } else {
+      const parsed = LinkToPagesZ.safeParse(data.linkToPages)
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: 'Invalid linkToPages shape', details: parsed.error.flatten() },
+          { status: 400 }
+        )
+      }
+      const links = parsed.data.map(l => l.trim()).filter(l => l !== '')
+      target.linkToPages = links
+      target.linkToPage = links[0] ?? null
+    }
+  } else if (typeof data.linkToPage === 'string') {
+    const legacy = data.linkToPage.trim()
+    target.linkToPage = data.linkToPage
+    target.linkToPages = legacy ? [legacy] : Prisma.DbNull
+  }
+  return null
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -24,7 +54,14 @@ export async function PATCH(
     const { id } = await params
     const data = await request.json()
 
-    const { source, surgeryId, name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, variants } = data
+    const { source, surgeryId, name, ageGroup, briefInstruction, instructionsJson, highlightedText, variants } = data
+
+    // Enforce the sanitizer server-side: with <img> now allowed, the
+    // "src must be the internal symptom-image route" invariant is
+    // security-relevant and can't rely on client-side sanitization alone.
+    // Idempotent for well-formed clients, which already send sanitized HTML.
+    const instructions = typeof data.instructions === 'string' ? sanitizeSymptomHtml(data.instructions) : data.instructions
+    const instructionsHtml = typeof data.instructionsHtml === 'string' ? sanitizeSymptomHtml(data.instructionsHtml) : data.instructionsHtml
 
     if (source === 'base') {
       // Superusers can update base symptoms
@@ -37,8 +74,9 @@ export async function PATCH(
         instructions,
         instructionsHtml,
         highlightedText,
-        linkToPage,
       }
+      const linkError = applyLinkFields(data, updateData)
+      if (linkError) return linkError
       // Only touch instructionsJson when the caller actually sent it — otherwise
       // a partial update (e.g. rename-only) would blank the stored ProseMirror JSON.
       if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
@@ -89,8 +127,9 @@ export async function PATCH(
         instructions,
         instructionsHtml,
         highlightedText,
-        linkToPage,
       }
+      const customLinkError = applyLinkFields(data, customUpdateData)
+      if (customLinkError) return customLinkError
       if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
         customUpdateData.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
       }
@@ -159,8 +198,9 @@ export async function PATCH(
         instructions,
         instructionsHtml,
         highlightedText,
-        linkToPage,
       }
+      const overrideLinkError = applyLinkFields(data, overrideUpdate)
+      if (overrideLinkError) return overrideLinkError
       if (Object.prototype.hasOwnProperty.call(data, 'instructionsJson')) {
         overrideUpdate.instructionsJson = instructionsJson ? JSON.stringify(instructionsJson) : null
       }

@@ -1,6 +1,7 @@
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { getSessionUser, can } from '@/lib/rbac'
 import { parseExcelFile } from '@/lib/excel-parser'
 
@@ -84,7 +85,8 @@ export async function POST(request: NextRequest) {
             briefInstruction: symptomData.briefInstruction,
             instructions: symptomData.instructions,
             highlightedText: symptomData.highlightedText,
-            linkToPage: symptomData.linkToPage,
+            linkToPage: symptomData.linkToPage ?? null,
+            linkToPages: symptomData.linkToPages ?? Prisma.DbNull,
           }
         })
         updated++
@@ -97,7 +99,8 @@ export async function POST(request: NextRequest) {
             briefInstruction: symptomData.briefInstruction,
             instructions: symptomData.instructions,
             highlightedText: symptomData.highlightedText,
-            linkToPage: symptomData.linkToPage,
+            linkToPage: symptomData.linkToPage ?? null,
+            linkToPages: symptomData.linkToPages ?? Prisma.DbNull,
           }
         })
         created++

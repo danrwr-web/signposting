@@ -107,8 +107,51 @@ describe('applyHighlightRules', () => {
   test('handles word boundaries correctly', () => {
     const text = 'pharmacyfirst should not match'
     const result = applyHighlightRules(text, mockRules)
-    
+
     expect(result).toContain('pharmacyfirst')
     expect(result).not.toContain('#6A0DAD')
+  })
+
+  test('does not match phrases inside tag attributes', () => {
+    const text = '<img src="/api/symptom-images/abc123" alt="call emergency services"> Stay calm'
+    const result = applyHighlightRules(text, mockRules)
+
+    // The alt attribute must survive untouched; a span inside it would break the tag.
+    expect(result).toContain('alt="call emergency services"')
+    expect(result).toContain('<img src="/api/symptom-images/abc123"')
+  })
+
+  test('highlights text next to a tag without corrupting it', () => {
+    const text = '<p>In an emergency call 999 <img src="/api/symptom-images/abc123" alt="triage chart"></p>'
+    const result = applyHighlightRules(text, mockRules)
+
+    expect(result).toContain('background-color: #dc2626')
+    expect(result).toContain('<img src="/api/symptom-images/abc123" alt="triage chart">')
+  })
+
+  test('built-in highlighting skips tag attributes', () => {
+    const text = '<img alt="green slot chart" src="/api/symptom-images/abc123"> Book a green slot'
+    const result = applyHighlightRules(text, [])
+
+    expect(result).toContain('alt="green slot chart"')
+    // The text occurrence outside the tag still gets wrapped.
+    expect(result).toContain('<span class="bg-green-600 text-white px-1 py-0.5 rounded text-sm font-medium">green slot</span>')
+  })
+
+  test('does not match phrases inside style attributes of earlier highlights', () => {
+    const rules = [
+      {
+        phrase: 'text',
+        textColor: '#ffffff',
+        bgColor: '#dc2626',
+        isEnabled: true
+      }
+    ]
+    const result = applyHighlightRules('some text here', rules)
+
+    // The injected span's class="text-sm" must not be re-matched by the rule.
+    const spanCount = (result.match(/<span/g) || []).length
+    expect(spanCount).toBe(1)
+    expect(result).toContain('>text</span>')
   })
 })

@@ -32,6 +32,35 @@ export function applyHighlightRules(
 }
 
 /**
+ * Split HTML into alternating text and tag tokens and transform only the
+ * text tokens, so replacements can never corrupt tag internals (attribute
+ * values such as alt="…", src="…" or style="…"). spanDepth tells the
+ * transform whether the text sits inside a <span> that an earlier pass
+ * created, so built-in highlighting can avoid double-wrapping.
+ */
+function mapTextSegments(
+  html: string,
+  transform: (segment: string, spanDepth: number) => string
+): string {
+  const tokens = html.split(/(<[^>]+>)/)
+  let spanDepth = 0
+  return tokens
+    .map(token => {
+      if (token.startsWith('<') && token.endsWith('>')) {
+        if (/^<span[\s>]/i.test(token)) {
+          spanDepth++
+        } else if (/^<\/span>$/i.test(token)) {
+          spanDepth = Math.max(0, spanDepth - 1)
+        }
+        return token
+      }
+      if (token === '') return token
+      return transform(token, spanDepth)
+    })
+    .join('')
+}
+
+/**
  * Apply built-in slot type highlighting
  */
 function applyBuiltInHighlighting(text: string): string {
@@ -90,38 +119,23 @@ function applyCustomRules(
     const pattern = requiresWordBoundary ? `\\b${escapedPhrase}\\b` : escapedPhrase
     const regex = new RegExp(pattern, 'gi')
 
-    text = text.replace(regex, (match) => {
-      return `<span style="color: ${textColor}; background-color: ${bgColor}; padding: 2px 4px; border-radius: 4px; font-weight: 500;" class="text-sm">${match}</span>`
-    })
+    // Re-tokenize per rule so a phrase can still match text this or an
+    // earlier rule wrapped, but never a tag's attributes.
+    text = mapTextSegments(text, segment =>
+      segment.replace(regex, (match) => {
+        return `<span style="color: ${textColor}; background-color: ${bgColor}; padding: 2px 4px; border-radius: 4px; font-weight: 500;" class="text-sm">${match}</span>`
+      })
+    )
   }
 
   return text
 }
 
 function wrapBuiltInHighlight(text: string, regex: RegExp, className: string): string {
-  return text.replace(regex, (match, _group, offset: number, original: string) => {
-    if (isInsideSpan(original, offset)) {
-      return match
-    }
-    return `<span class="${className}">${match}</span>`
+  // Skip text already inside a <span> (a custom rule or an earlier built-in
+  // pattern claimed it) and never touch tag internals.
+  return mapTextSegments(text, (segment, spanDepth) => {
+    if (spanDepth > 0) return segment
+    return segment.replace(regex, (match) => `<span class="${className}">${match}</span>`)
   })
-}
-
-function isInsideSpan(source: string, index: number): boolean {
-  const openIndex = source.lastIndexOf('<span', index)
-  if (openIndex === -1) {
-    return false
-  }
-
-  const openEnd = source.indexOf('>', openIndex)
-  if (openEnd === -1 || openEnd > index) {
-    return false
-  }
-
-  const closeIndex = source.indexOf('</span>', openEnd)
-  if (closeIndex === -1) {
-    return false
-  }
-
-  return closeIndex > index
 }

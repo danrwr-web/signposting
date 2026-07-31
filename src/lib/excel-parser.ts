@@ -19,6 +19,7 @@ export interface ParsedSymptom {
   instructions: string
   highlightedText?: string
   linkToPage?: string
+  linkToPages?: string[]
 }
 
 export function parseExcelFile(buffer: Buffer): ParsedSymptom[] {
@@ -40,6 +41,12 @@ export function parseExcelFile(buffer: Buffer): ParsedSymptom[] {
       continue
     }
 
+    // Related-symptom links: semicolon-separated names (symptom names can
+    // legitimately contain commas, e.g. "Coughs, colds and flu").
+    const parsedLinks = row.LinkToPage
+      ? row.LinkToPage.split(';').map(l => l.trim()).filter(l => l !== '')
+      : []
+    const linkToPages = parsedLinks.length > 0 ? parsedLinks : undefined
     // Generate slug from symptom name
     const slug = row.Symptom.trim()
       .toLowerCase()
@@ -55,7 +62,8 @@ export function parseExcelFile(buffer: Buffer): ParsedSymptom[] {
       briefInstruction: row.BriefInstruction?.trim() || '',
       instructions: row.Instructions.trim(),
       highlightedText: row.HighlightedText?.trim() || undefined,
-      linkToPage: row.LinkToPage?.trim() || undefined,
+      linkToPage: linkToPages?.[0],
+      linkToPages,
     })
   }
 

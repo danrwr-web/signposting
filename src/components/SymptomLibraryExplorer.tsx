@@ -27,6 +27,8 @@ interface InUseSymptom {
 interface AvailableSymptom {
   baseSymptomId: string
   name: string
+  /** Newly promoted opt-in base symptom this surgery has never adopted. */
+  isNew?: boolean
 }
 
 interface CustomOnlySymptom {
@@ -91,6 +93,11 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleteBusy, setDeleteBusy] = useState(false)
   const deleteInputRef = useRef<HTMLInputElement>(null)
+
+  // Post-adoption AI customisation offer
+  const [aiOffer, setAiOffer] = useState<{ baseSymptomId: string; name: string } | null>(null)
+  const [aiCustomising, setAiCustomising] = useState(false)
+  const [aiFlagEnabled, setAiFlagEnabled] = useState(false)
 
   // Guards against out-of-order responses when the surgery changes mid-fetch
   const requestSeqRef = useRef(0)
@@ -157,9 +164,22 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     }
   }, [effectiveSurgeryId])
 
-  // Actions to backend
-  const handleAction = async (action: string, payload: Record<string, any>) => {
+  useEffect(() => {
+    setAiFlagEnabled(false)
     if (!effectiveSurgeryId) return
+    let cancelled = false
+    fetch(`/api/surgeries/${effectiveSurgeryId}/features`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (!cancelled) setAiFlagEnabled(!!data?.features?.ai_surgery_customisation)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [effectiveSurgeryId])
+
+  // Actions to backend
+  const handleAction = async (action: string, payload: Record<string, any>): Promise<boolean> => {
+    if (!effectiveSurgeryId) return false
     setLoading(true)
     try {
       const response = await fetch('/api/surgerySymptoms', {
@@ -170,15 +190,55 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         toast.error(errorData.error || 'Operation failed')
-        return
+        return false
       }
       toast.success('Operation successful')
       await loadLibraryData(effectiveSurgeryId)
+      return true
     } catch (e) {
       console.error(e)
       toast.error('Operation failed')
+      return false
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Offer AI customisation right after adopting a symptom from the library
+  // (only shown when the surgery has the AI customisation feature enabled).
+  const adoptSymptom = async (baseSymptomId: string, name: string) => {
+    const ok = await handleAction('ENABLE_BASE', { baseSymptomId })
+    if (ok && aiFlagEnabled) {
+      setAiOffer({ baseSymptomId, name })
+    }
+  }
+
+  const runAiCustomise = async () => {
+    if (!aiOffer || !effectiveSurgeryId) return
+    setAiCustomising(true)
+    try {
+      const res = await fetch(`/api/surgeries/${effectiveSurgeryId}/ai/customise-instructions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scope: 'manual', symptomIds: [aiOffer.baseSymptomId] })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data?.error || 'AI customisation failed')
+        return
+      }
+      if ((data?.processedCount ?? 0) > 0) {
+        toast.success('AI customisation complete — approve it in Clinical Review before staff see it')
+      } else {
+        toast.error(data?.message || 'The symptom could not be customised')
+      }
+      setAiOffer(null)
+      await loadLibraryData(effectiveSurgeryId)
+    } catch (e) {
+      console.error(e)
+      toast.error('AI customisation failed')
+    } finally {
+      setAiCustomising(false)
     }
   }
 
@@ -309,6 +369,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     return {
       inuse: inUseEnabled.length,
       available: available.length,
+      availableNew: available.filter(s => s.isNew).length,
       modified: modified.length,
       localonly: localOnly.length,
       disabled: disabled.length,
@@ -331,6 +392,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
     customSymptomId?: string
     lastEditedAt?: string | null
     lastEditedBy?: string | null
+    isNew?: boolean
   }
 
   const filteredRows: Row[] = useMemo(() => {
@@ -359,7 +421,8 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
       baseName: s.name,
       status: 'AVAILABLE',
       isEnabled: false,
-      baseSymptomId: s.baseSymptomId
+      baseSymptomId: s.baseSymptomId,
+      isNew: s.isNew
     })
 
     switch (activeFilter) {
@@ -463,8 +526,15 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
               }`}
             >
               <span>{item.label}</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                {counts[item.key] ?? 0}
+              <span className="inline-flex items-center gap-1">
+                {item.key === 'available' && counts.availableNew > 0 && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    {counts.availableNew} new
+                  </span>
+                )}
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  {counts[item.key as keyof typeof counts] ?? 0}
+                </span>
               </span>
             </button>
           ))}
@@ -531,7 +601,14 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredRows.map(row => (
                 <tr key={row.key}>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{row.name}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                    {row.name}
+                    {row.isNew && (
+                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        New
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeColor(row.status)}`}>
                       {getStatusLabel(row.status)}
@@ -577,7 +654,7 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
                       )}
                       {row.kind === 'available' && row.baseSymptomId && (
                         <button
-                          onClick={() => handleAction('ENABLE_BASE', { baseSymptomId: row.baseSymptomId })}
+                          onClick={() => adoptSymptom(row.baseSymptomId!, row.name)}
                           className={btnBlue}
                           disabled={loading}
                         >
@@ -659,6 +736,31 @@ export default function SymptomLibraryExplorer({ surgeryId }: SymptomLibraryExpl
           onCreated={() => { setIsAddOpen(false); if (effectiveSurgeryId) loadLibraryData(effectiveSurgeryId) }}
         />
       )}
+
+      {/* Post-adoption AI customisation offer */}
+      <Dialog
+        open={aiOffer !== null}
+        onClose={() => { if (!aiCustomising) setAiOffer(null) }}
+        title="Customise for your practice?"
+        width="md"
+        footer={
+          <div className="flex gap-3 justify-end">
+            <Button variant="secondary" onClick={() => setAiOffer(null)} disabled={aiCustomising}>
+              Not now
+            </Button>
+            <Button variant="primary" onClick={runAiCustomise} loading={aiCustomising}>
+              Customise with AI
+            </Button>
+          </div>
+        }
+      >
+        <p className="text-sm text-gray-700">
+          “{aiOffer?.name}” is now enabled with the shared library wording. Would you like AI to adapt the
+          instructions to your practice, using the answers from your onboarding questionnaire (appointment
+          types, team roles, escalation routes)? The result goes to Clinical Review for approval before any
+          wording changes reach reception.
+        </p>
+      </Dialog>
 
       {/* Delete confirmation */}
       <Dialog
