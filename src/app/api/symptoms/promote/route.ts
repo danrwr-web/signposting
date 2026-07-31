@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
           instructionsJson: custom.instructionsJson,
           highlightedText: custom.highlightedText,
           linkToPage: custom.linkToPage,
+          linkToPages: (custom as any).linkToPages ?? Prisma.DbNull,
           ageGroup: custom.ageGroup,
           variants: (custom as any).variants ?? Prisma.DbNull,
         }

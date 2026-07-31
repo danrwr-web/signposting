@@ -6,7 +6,7 @@ import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalRev
 import { generateUniqueSymptomSlug } from '@/server/symptomSlug'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
-import { SymptomVariantsZ } from '@/lib/api-contracts'
+import { SymptomVariantsZ, LinkToPagesZ } from '@/lib/api-contracts'
 import { sanitizeVariants } from '@/lib/sanitizeHtml'
 import { Prisma } from '@prisma/client'
 
@@ -21,6 +21,7 @@ const CreateSchema = z.object({
   briefInstruction: z.string().max(500).optional().nullable(),
   highlightedText: z.string().max(2000).optional(),
   linkToPage: z.string().max(200).optional(),
+  linkToPages: LinkToPagesZ.nullable().optional(),
   instructionsHtml: z.string().min(1),
   instructionsJson: z.any().optional(),
   // Age-group variants (base symptoms and practice-owned custom symptoms)
@@ -87,6 +88,13 @@ export async function POST(req: NextRequest) {
     const nameCi = parsed.data.name.trim()
     const ageGroup = parsed.data.ageGroup
 
+    // Related-symptom links: the array wins when sent; the legacy single
+    // field is folded into it so both columns stay in sync.
+    const linkToPages =
+      parsed.data.linkToPages != null
+        ? parsed.data.linkToPages.map(l => l.trim()).filter(l => l !== '')
+        : (parsed.data.linkToPage?.trim() ? [parsed.data.linkToPage.trim()] : null)
+
     if (target === 'BASE') {
       const slug = await generateUniqueSymptomSlug(nameCi, { scope: 'BASE' })
 
@@ -97,7 +105,8 @@ export async function POST(req: NextRequest) {
           ageGroup,
           briefInstruction: parsed.data.briefInstruction ?? null,
           highlightedText: parsed.data.highlightedText ?? null,
-          linkToPage: parsed.data.linkToPage ?? null,
+          linkToPage: linkToPages?.[0] ?? null,
+          linkToPages: linkToPages ?? Prisma.DbNull,
           // Keep legacy mirroring for back-compat.
           instructions: parsed.data.instructionsHtml,
           instructionsHtml: parsed.data.instructionsHtml,
@@ -124,7 +133,8 @@ export async function POST(req: NextRequest) {
         ageGroup,
         briefInstruction: parsed.data.briefInstruction ?? null,
         highlightedText: parsed.data.highlightedText ?? null,
-        linkToPage: parsed.data.linkToPage ?? null,
+        linkToPage: linkToPages?.[0] ?? null,
+        linkToPages: linkToPages ?? Prisma.DbNull,
         // Keep legacy mirroring for back-compat.
         instructions: parsed.data.instructionsHtml,
         instructionsHtml: parsed.data.instructionsHtml,

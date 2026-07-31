@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
           instructionsJson: true,
           instructionsHtml: true,
           linkToPage: true,
+          linkToPages: true,
           variants: true
         },
         orderBy: { name: 'asc' }
@@ -109,8 +110,15 @@ export async function POST(request: NextRequest) {
     }
     
     const body = await request.json()
-    const { name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, variants } = CreateSymptomReqZ.parse(body)
+    const { name, ageGroup, briefInstruction, instructions, instructionsJson, instructionsHtml, highlightedText, linkToPage, linkToPages, variants } = CreateSymptomReqZ.parse(body)
     const { generateUniqueSymptomSlug } = await import('@/server/symptomSlug')
+
+    // Related-symptom links: the array wins when sent; the legacy single
+    // field is folded into it so both columns stay in sync.
+    const links =
+      linkToPages != null
+        ? linkToPages.map(l => l.trim()).filter(l => l !== '')
+        : (linkToPage?.trim() ? [linkToPage.trim()] : null)
 
     if (user.globalRole === 'SUPERUSER') {
       // Superusers create base symptoms visible to all surgeries
@@ -126,7 +134,8 @@ export async function POST(request: NextRequest) {
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
           instructionsHtml,
           highlightedText,
-          linkToPage,
+          linkToPage: links?.[0] ?? null,
+          linkToPages: links ?? Prisma.DbNull,
           variants: variants ? sanitizeVariants(variants) : Prisma.DbNull,
         } as any),
         select: {
@@ -140,6 +149,7 @@ export async function POST(request: NextRequest) {
           instructionsJson: true,
           instructionsHtml: true,
           linkToPage: true,
+          linkToPages: true,
         }
       })
 
@@ -170,7 +180,8 @@ export async function POST(request: NextRequest) {
           instructionsJson: instructionsJson ? JSON.stringify(instructionsJson) : null,
           instructionsHtml,
           highlightedText,
-          linkToPage,
+          linkToPage: links?.[0] ?? null,
+          linkToPages: links ?? Prisma.DbNull,
           variants: variants ? sanitizeVariants(variants) : Prisma.DbNull,
         },
         select: {
@@ -184,6 +195,7 @@ export async function POST(request: NextRequest) {
           instructionsJson: true,
           instructionsHtml: true,
           linkToPage: true,
+          linkToPages: true,
         }
       })
 

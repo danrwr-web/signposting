@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import VariantGroupsEditor, { type VariantGroupDraft } from '@/components/VariantGroupsEditor'
 import GroupedSurgeryOptions, { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
+import RelatedSymptomsEditor from '@/components/RelatedSymptomsEditor'
 import { toast } from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
@@ -25,7 +26,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
   const [ageGroup, setAgeGroup] = useState<'U5' | 'O5' | 'Adult'>('Adult')
   const [briefInstruction, setBriefInstruction] = useState('')
   const [highlightedText, setHighlightedText] = useState('')
-  const [linkToPage, setLinkToPage] = useState('')
+  const [linkToPages, setLinkToPages] = useState<string[]>([])
   const [instructionsHtml, setInstructionsHtml] = useState('')
   // Age-group variants (base symptoms only — custom symptoms cannot carry them)
   const [showVariants, setShowVariants] = useState(false)
@@ -92,7 +93,7 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
         ageGroup: targetHidesAgeBands ? 'Adult' : ageGroup,
         briefInstruction: briefInstruction.trim() || undefined,
         highlightedText: highlightedText.trim() || undefined,
-        linkToPage: linkToPage.trim() || undefined,
+        linkToPages: linkToPages.length > 0 ? linkToPages : undefined,
         instructionsHtml,
         variants:
           showVariants && variantGroups.length > 0
@@ -271,15 +272,12 @@ export default function NewSymptomModal({ isOpen, onClose, isSuperuser, currentS
 
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-700 mb-1">Related information (optional)</label>
-          <input
-            type="text"
-            value={linkToPage}
-            onChange={(e) => setLinkToPage(e.target.value)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-            placeholder="Name of another symptom to link to"
-            aria-describedby="related-info-hint"
+          <RelatedSymptomsEditor
+            value={linkToPages}
+            onChange={setLinkToPages}
+            surgeryId={flagSurgeryId || undefined}
+            idPrefix="new-symptom-related"
           />
-          <p id="related-info-hint" className="text-xs text-gray-500 mt-1">Enter the exact name of the other symptom. Users can click through for more detail.</p>
         </div>
 
         <div className="mb-4">

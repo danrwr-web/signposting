@@ -18,7 +18,8 @@ export interface EffectiveSymptom {
   instructions: string | null
   instructionsJson: string | null // ProseMirror JSON as string
   instructionsHtml: string | null // HTML format with colour support
-  linkToPage: string | null
+  linkToPage: string | null // Legacy single link — mirrors linkToPages[0]
+  linkToPages: string[] | null // Related-symptom names, resolved by name at click time
   source: 'base' | 'override' | 'custom'
   baseSymptomId?: string // For overrides, this is the base symptom ID
   isHidden?: boolean // For overrides, indicates if symptom is hidden for this surgery
@@ -39,6 +40,46 @@ export interface EffectiveSymptom {
 const symptomTag = (surgeryId: string, includeDisabled: boolean) =>
   `symptoms:${surgeryId}:${includeDisabled ? 'with-disabled' : 'enabled'}`
 
+// Parse a stored linkToPages JSON value. Returns null when the value is not
+// an array (i.e. unset); an empty array is meaningful — on overrides it means
+// "explicitly no links for this surgery".
+function parseLinkToPages(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null
+  return value
+    .filter((v): v is string => typeof v === 'string' && v.trim() !== '')
+    .map(v => v.trim())
+}
+
+// Resolve a row's related-symptom links: the JSON array when present, else
+// the legacy single-value linkToPage column (rows written by older paths).
+export function resolveLinkToPages(row: { linkToPages?: unknown; linkToPage?: string | null }): string[] | null {
+  const parsed = parseLinkToPages(row.linkToPages)
+  if (parsed !== null) return parsed
+  const legacy = row.linkToPage?.trim()
+  return legacy ? [legacy] : null
+}
+
+// Merge override links onto base links. Tri-state on the override: null =
+// inherit base links, [] = explicitly none, [...] = replace. Falls back to
+// the override's legacy linkToPage (non-blank means replace, matching the
+// old single-link merge rule).
+export function mergeLinkToPages(
+  override: { linkToPages?: unknown; linkToPage?: string | null },
+  baseLinks: string[] | null
+): string[] | null {
+  const overrideLinks = parseLinkToPages(override.linkToPages)
+  if (overrideLinks !== null) return overrideLinks
+  const legacy = override.linkToPage?.trim()
+  return legacy ? [legacy] : baseLinks
+}
+
+// Project a raw row's link columns into the EffectiveSymptom shape (resolved
+// array plus the legacy first-entry mirror).
+function projectLinkFields(row: { linkToPages?: unknown; linkToPage?: string | null }) {
+  const links = resolveLinkToPages(row)
+  return { linkToPages: links, linkToPage: links?.[0] ?? null }
+}
+
 type SymptomOptions = {
   includeDisabled?: boolean
   includeRichContent?: boolean
@@ -56,6 +97,7 @@ const baseFields = (includeRichContent: boolean) => ({
   highlightedText: true,
   instructions: true,
   linkToPage: true,
+  linkToPages: true,
   instructionsHtml: true,
   ...(includeRichContent
     ? {
@@ -73,6 +115,7 @@ const overrideFields = (includeRichContent: boolean) => ({
   highlightedText: true,
   instructions: true,
   linkToPage: true,
+  linkToPages: true,
   isHidden: true,
   instructionsHtml: true,
   ...(includeRichContent
@@ -92,6 +135,7 @@ const customFields = (includeRichContent: boolean) => ({
   highlightedText: true,
   instructions: true,
   linkToPage: true,
+  linkToPages: true,
   instructionsHtml: true,
   ...(includeRichContent
     ? {
@@ -133,18 +177,23 @@ async function buildEffectiveSymptoms(
 
   // Merge base+overrides; include customs
   const byBaseId = new Map<string, EffectiveSymptom>(
-    base.map(b => [
-      b.id,
-      {
-        ...b,
-        ageGroup: b.ageGroup as 'U5' | 'O5' | 'Adult',
-        source: 'base' as const,
-        disabled: disabledBaseIds.has(b.id),
-        instructionsJson: includeRichContent ? (b as any).instructionsJson ?? null : null,
-        instructionsHtml: (b as any).instructionsHtml ?? null,
-        variants: includeRichContent ? (b as any).variants ?? null : null
-      }
-    ])
+    base.map(b => {
+      const links = resolveLinkToPages(b)
+      return [
+        b.id,
+        {
+          ...b,
+          ageGroup: b.ageGroup as 'U5' | 'O5' | 'Adult',
+          linkToPages: links,
+          linkToPage: links?.[0] ?? null,
+          source: 'base' as const,
+          disabled: disabledBaseIds.has(b.id),
+          instructionsJson: includeRichContent ? (b as any).instructionsJson ?? null : null,
+          instructionsHtml: (b as any).instructionsHtml ?? null,
+          variants: includeRichContent ? (b as any).variants ?? null : null
+        }
+      ]
+    })
   )
   
   for (const o of overrides) {
@@ -162,6 +211,7 @@ async function buildEffectiveSymptoms(
       continue
     }
     
+    const mergedLinks = mergeLinkToPages(o, b.linkToPages)
     byBaseId.set(o.baseSymptomId, {
       ...b,
       name: (o.name && o.name.trim() !== '') ? o.name : b.name,
@@ -169,7 +219,8 @@ async function buildEffectiveSymptoms(
       briefInstruction: o.briefInstruction == null ? b.briefInstruction : o.briefInstruction,
       highlightedText: o.highlightedText == null ? b.highlightedText : o.highlightedText,
       instructions: o.instructions == null ? b.instructions : o.instructions,
-      linkToPage: (o.linkToPage && o.linkToPage.trim() !== '') ? o.linkToPage : b.linkToPage,
+      linkToPages: mergedLinks,
+      linkToPage: mergedLinks?.[0] ?? null,
       instructionsJson: includeRichContent ? ((o as any).instructionsJson == null ? ((b as any).instructionsJson ?? null) : (o as any).instructionsJson) : null,
       instructionsHtml: (o as any).instructionsHtml == null ? ((b as any).instructionsHtml ?? null) : (o as any).instructionsHtml,
       variants: includeRichContent ? ((o as any).variants == null ? ((b as any).variants ?? null) : (o as any).variants) : null,
@@ -194,15 +245,20 @@ async function buildEffectiveSymptoms(
   const effective = Array.from(byBaseId.values())
   const customsProjected = customs
     .filter(c => includeDisabled ? true : !disabledCustomIds.has(c.id))
-    .map(c => ({
-    ...c,
-    ageGroup: c.ageGroup as 'U5' | 'O5' | 'Adult',
-    source: 'custom' as const,
-    disabled: disabledCustomIds.has(c.id),
-    instructionsJson: includeRichContent ? (c as any).instructionsJson ?? null : null,
-    instructionsHtml: (c as any).instructionsHtml ?? null,
-    variants: includeRichContent ? (c as any).variants ?? null : null
-  }))
+    .map(c => {
+      const links = resolveLinkToPages(c)
+      return {
+        ...c,
+        ageGroup: c.ageGroup as 'U5' | 'O5' | 'Adult',
+        linkToPages: links,
+        linkToPage: links?.[0] ?? null,
+        source: 'custom' as const,
+        disabled: disabledCustomIds.has(c.id),
+        instructionsJson: includeRichContent ? (c as any).instructionsJson ?? null : null,
+        instructionsHtml: (c as any).instructionsHtml ?? null,
+        variants: includeRichContent ? (c as any).variants ?? null : null
+      }
+    })
 
   // Compute the search index from the effective (merged) content, then strip
   // the HTML from the slim payload — search must reflect what is displayed
@@ -247,10 +303,10 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       select: {
         id: true, slug: true, name: true, ageGroup: true,
         briefInstruction: true, highlightedText: true, instructions: true,
-        instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true
+        instructionsJson: true, instructionsHtml: true, linkToPage: true, linkToPages: true, variants: true
       }
     })
-    return base ? { ...base, ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const } : null
+    return base ? { ...base, ...projectLinkFields(base), ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const } : null
   }
 
   // Check if it's a custom symptom first
@@ -259,11 +315,11 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     select: {
       id: true, slug: true, name: true, ageGroup: true,
       briefInstruction: true, highlightedText: true, instructions: true,
-      instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true
+      instructionsJson: true, instructionsHtml: true, linkToPage: true, linkToPages: true, variants: true
     }
   })
   if (custom) {
-    return { ...custom, ageGroup: custom.ageGroup as 'U5' | 'O5' | 'Adult', source: 'custom' as const }
+    return { ...custom, ...projectLinkFields(custom), ageGroup: custom.ageGroup as 'U5' | 'O5' | 'Adult', source: 'custom' as const }
   }
 
   // Get base symptom
@@ -272,7 +328,7 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     select: {
       id: true, slug: true, name: true, ageGroup: true,
       briefInstruction: true, highlightedText: true, instructions: true,
-      instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true as any
+      instructionsJson: true, instructionsHtml: true, linkToPage: true, linkToPages: true, variants: true as any
     }
   })
   if (!base) return null
@@ -283,12 +339,13 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     select: {
       name: true, ageGroup: true, briefInstruction: true, highlightedText: true,
       instructions: true, instructionsJson: true, instructionsHtml: true,
-      linkToPage: true, isHidden: true, variants: true
+      linkToPage: true, linkToPages: true, isHidden: true, variants: true
     }
   })
 
   if (override) {
     if (override.isHidden) return null
+    const mergedLinks = mergeLinkToPages(override, resolveLinkToPages(base))
     return {
       ...base,
       name: (override.name && override.name.trim() !== '') ? override.name : base.name,
@@ -298,7 +355,8 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
       instructions: override.instructions == null ? base.instructions : override.instructions,
       instructionsJson: override.instructionsJson == null ? base.instructionsJson : override.instructionsJson,
       instructionsHtml: override.instructionsHtml == null ? base.instructionsHtml : override.instructionsHtml,
-      linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
+      linkToPages: mergedLinks,
+      linkToPage: mergedLinks?.[0] ?? null,
       variants: (override as any).variants == null ? ((base as any).variants ?? null) : (override as any).variants,
       baseVariants: (base as any).variants ?? null,
       overrideVariants: (override as any).variants ?? null,
@@ -308,7 +366,7 @@ export async function getEffectiveSymptomById(id: string, surgeryId?: string): P
     } as any
   }
 
-  return { ...base, ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }
+  return { ...base, ...projectLinkFields(base), ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }
 }
 
 export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string): Promise<EffectiveSymptom | null> {
@@ -327,11 +385,12 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
         instructionsJson: true,
         instructionsHtml: true,
         linkToPage: true,
+        linkToPages: true,
         variants: true
       }
     })
     
-    return base ? { ...base, ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const } : null
+    return base ? { ...base, ...projectLinkFields(base), ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const } : null
   }
 
   // Check if it's a custom symptom first
@@ -351,12 +410,13 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       instructionsJson: true,
       instructionsHtml: true,
       linkToPage: true,
+      linkToPages: true,
       variants: true
     }
   })
   
   if (custom) {
-    return { ...custom, ageGroup: custom.ageGroup as 'U5' | 'O5' | 'Adult', source: 'custom' as const }
+    return { ...custom, ...projectLinkFields(custom), ageGroup: custom.ageGroup as 'U5' | 'O5' | 'Adult', source: 'custom' as const }
   }
 
   // Get base symptom
@@ -373,6 +433,7 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       instructionsJson: true,
       instructionsHtml: true,
       linkToPage: true,
+      linkToPages: true,
       variants: true as any
     }
   })
@@ -396,6 +457,7 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       instructionsJson: true,
       instructionsHtml: true,
       linkToPage: true,
+      linkToPages: true,
       isHidden: true,
       variants: true
     }
@@ -407,6 +469,7 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       return null
     }
 
+    const mergedLinks = mergeLinkToPages(override, resolveLinkToPages(base))
     return {
       ...base,
       name: (override.name && override.name.trim() !== '') ? override.name : base.name,
@@ -416,7 +479,8 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
       instructions: override.instructions == null ? base.instructions : override.instructions,
       instructionsJson: override.instructionsJson == null ? base.instructionsJson : override.instructionsJson,
       instructionsHtml: override.instructionsHtml == null ? base.instructionsHtml : override.instructionsHtml,
-      linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
+      linkToPages: mergedLinks,
+      linkToPage: mergedLinks?.[0] ?? null,
       variants: (override as any).variants == null ? ((base as any).variants ?? null) : (override as any).variants,
       baseVariants: (base as any).variants ?? null,
       overrideVariants: (override as any).variants ?? null,
@@ -425,7 +489,7 @@ export async function getEffectiveSymptomBySlug(slug: string, surgeryId?: string
     }
   }
 
-  return { ...base, ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }
+  return { ...base, ...projectLinkFields(base), ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }
 }
 
 export async function getEffectiveSymptomByName(name: string, surgeryId?: string): Promise<EffectiveSymptom | null> {
@@ -435,10 +499,10 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
       select: {
         id: true, slug: true, name: true, ageGroup: true,
         briefInstruction: true, highlightedText: true, instructions: true,
-        instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true
+        instructionsJson: true, instructionsHtml: true, linkToPage: true, linkToPages: true, variants: true
       }
     })
-    return base ? { ...base, ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const } : null
+    return base ? { ...base, ...projectLinkFields(base), ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const } : null
   }
 
   // Check if it's a custom symptom first
@@ -447,11 +511,11 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
     select: {
       id: true, slug: true, name: true, ageGroup: true,
       briefInstruction: true, highlightedText: true, instructions: true,
-      instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true
+      instructionsJson: true, instructionsHtml: true, linkToPage: true, linkToPages: true, variants: true
     }
   })
   if (custom) {
-    return { ...custom, ageGroup: custom.ageGroup as 'U5' | 'O5' | 'Adult', source: 'custom' as const }
+    return { ...custom, ...projectLinkFields(custom), ageGroup: custom.ageGroup as 'U5' | 'O5' | 'Adult', source: 'custom' as const }
   }
 
   // Search base symptoms
@@ -460,7 +524,7 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
     select: {
       id: true, slug: true, name: true, ageGroup: true,
       briefInstruction: true, highlightedText: true, instructions: true,
-      instructionsJson: true, instructionsHtml: true, linkToPage: true, variants: true as any
+      instructionsJson: true, instructionsHtml: true, linkToPage: true, linkToPages: true, variants: true as any
     }
   })
   if (!base) return null
@@ -472,6 +536,7 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
 
   if (override) {
     if (override.isHidden) return null
+    const mergedLinks = mergeLinkToPages(override, resolveLinkToPages(base))
     return {
       ...base,
       name: (override.name && override.name.trim() !== '') ? override.name : base.name,
@@ -481,7 +546,8 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
       instructions: override.instructions == null ? base.instructions : override.instructions,
       instructionsJson: override.instructionsJson == null ? base.instructionsJson : override.instructionsJson,
       instructionsHtml: override.instructionsHtml == null ? base.instructionsHtml : override.instructionsHtml,
-      linkToPage: (override.linkToPage && override.linkToPage.trim() !== '') ? override.linkToPage : base.linkToPage,
+      linkToPages: mergedLinks,
+      linkToPage: mergedLinks?.[0] ?? null,
       variants: (override as any).variants == null ? ((base as any).variants ?? null) : (override as any).variants,
       baseVariants: (base as any).variants ?? null,
       overrideVariants: (override as any).variants ?? null,
@@ -491,5 +557,5 @@ export async function getEffectiveSymptomByName(name: string, surgeryId?: string
     }
   }
 
-  return { ...base, ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }
+  return { ...base, ...projectLinkFields(base), ageGroup: base.ageGroup as 'U5' | 'O5' | 'Adult', source: 'base' as const }
 }

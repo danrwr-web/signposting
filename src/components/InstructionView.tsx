@@ -10,6 +10,7 @@ import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
 import { sanitizeAndFormatContent, sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
 import VariantGroupsEditor from './VariantGroupsEditor'
+import RelatedSymptomsEditor from './RelatedSymptomsEditor'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 import { toast } from 'react-hot-toast'
@@ -27,7 +28,8 @@ interface InstructionViewProps {
 export default function InstructionView({ symptom, surgeryId, hideAgeBands = false }: InstructionViewProps) {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false)
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
-  const [isLoadingLinkedSymptom, setIsLoadingLinkedSymptom] = useState(false)
+  // Name of the related-symptom link currently being resolved (null = none).
+  const [loadingLinkedSymptomName, setLoadingLinkedSymptomName] = useState<string | null>(null)
   const [linkedSymptomError, setLinkedSymptomError] = useState<string | null>(null)
   const [isEditingInstructions, setIsEditingInstructions] = useState(false)
   const [editedInstructions, setEditedInstructions] = useState('')
@@ -37,7 +39,10 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   const [editedName, setEditedName] = useState('')
   const [editedBriefInstruction, setEditedBriefInstruction] = useState('')
   const [editedHighlightedText, setEditedHighlightedText] = useState('')
-  const [editedLinkToPage, setEditedLinkToPage] = useState('')
+  const [editedLinkToPages, setEditedLinkToPages] = useState<string[]>([])
+  // Snapshot at edit-open; links are only sent on save when actually changed,
+  // so an untouched override keeps inheriting the base symptom's links.
+  const [originalLinkToPages, setOriginalLinkToPages] = useState<string[]>([])
   // Tri-state override tracking. Captured on edit-open, used on save to decide
   // per field whether to send the field at all (unchanged), send a string
   // (explicit override, including "" = blank), or send null (reset to default).
@@ -107,6 +112,10 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   const { cardStyle } = useCardStyle()
   const isBlueCardAppearance = cardStyle === 'powerappsBlue'
   const showBlueHeader = isBlueCardAppearance && !isEditingAll
+
+  // Related-symptom links, falling back to the legacy single-link field for
+  // payloads that predate linkToPages.
+  const displayLinkToPages = symptom.linkToPages ?? (symptom.linkToPage ? [symptom.linkToPage] : [])
 
   // Check if user is superuser
   const isSuperuser = session?.user && (session.user as any).globalRole === 'SUPERUSER'
@@ -262,24 +271,24 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     }
   }
 
-  const handleLinkedSymptomClick = async () => {
-    if (!symptom.linkToPage) return
+  const handleLinkedSymptomClick = async (linkName: string) => {
+    if (!linkName) return
 
-    setIsLoadingLinkedSymptom(true)
+    setLoadingLinkedSymptomName(linkName)
     setLinkedSymptomError(null)
 
     try {
       // Build API URL with surgeryId parameter if available
-      let url = `/api/symptoms/by-name?name=${encodeURIComponent(symptom.linkToPage)}`
+      let url = `/api/symptoms/by-name?name=${encodeURIComponent(linkName)}`
       if (surgeryId) {
         url += `&surgeryId=${encodeURIComponent(surgeryId)}`
       }
 
       const response = await fetch(url, { cache: 'no-store' })
-      
+
       if (!response.ok) {
         if (response.status === 404) {
-          setLinkedSymptomError(`No symptom found with the name "${symptom.linkToPage}". Please check the spelling or contact your administrator.`)
+          setLinkedSymptomError(`No symptom found with the name "${linkName}". Please check the spelling or contact your administrator.`)
         } else {
           setLinkedSymptomError('Unable to find the linked symptom. Please try again later.')
         }
@@ -298,7 +307,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       console.error('Error looking up linked symptom:', error)
       setLinkedSymptomError('Unable to find the linked symptom. Please try again later.')
     } finally {
-      setIsLoadingLinkedSymptom(false)
+      setLoadingLinkedSymptomName(null)
     }
   }
 
@@ -915,7 +924,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setEditedName(symptom.name || '')
     setEditedBriefInstruction(initialBrief)
     setEditedHighlightedText(initialHighlighted)
-    setEditedLinkToPage(symptom.linkToPage || '')
+    const initialLinks = symptom.linkToPages ?? (symptom.linkToPage ? [symptom.linkToPage] : [])
+    setEditedLinkToPages(initialLinks)
+    setOriginalLinkToPages(initialLinks)
     setEditedInstructions(initialInstructions)
     setOriginalBriefInstruction(initialBrief)
     setOriginalHighlightedText(initialHighlighted)
@@ -934,7 +945,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setEditedName('')
     setEditedBriefInstruction('')
     setEditedHighlightedText('')
-    setEditedLinkToPage('')
+    setEditedLinkToPages([])
+    setOriginalLinkToPages([])
     setEditedInstructions('')
     setBriefInstructionReset(false)
     setHighlightedTextReset(false)
@@ -1064,8 +1076,12 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         surgeryId: apiSurgeryId,
         name: nameForPayload,
         ageGroup: symptom.ageGroup, // Keep existing age group
-        linkToPage: editedLinkToPage.trim(),
       }
+      // Only send links when actually changed, so an untouched override keeps
+      // inheriting the base symptom's links.
+      const cleanedLinks = editedLinkToPages.map(l => l.trim()).filter(l => l !== '')
+      const linksChanged = JSON.stringify(cleanedLinks) !== JSON.stringify(originalLinkToPages)
+      if (linksChanged) payload.linkToPages = cleanedLinks
       if (briefPayload !== undefined) payload.briefInstruction = briefPayload
       if (highlightedPayload !== undefined) payload.highlightedText = highlightedPayload
       if (instructionsPayload !== undefined) {
@@ -1097,7 +1113,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       }
       symptom.briefInstruction = editedBriefInstruction.trim()
       symptom.highlightedText = editedHighlightedText.trim()
-      symptom.linkToPage = editedLinkToPage.trim()
+      symptom.linkToPages = cleanedLinks.length > 0 ? cleanedLinks : null
+      symptom.linkToPage = cleanedLinks[0] ?? null
       symptom.instructionsHtml = sanitizedInstructions
       symptom.instructions = sanitizedInstructions
       symptom.source = apiSource // Update source if override was created
@@ -1106,7 +1123,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       setEditedName('')
       setEditedBriefInstruction('')
       setEditedHighlightedText('')
-      setEditedLinkToPage('')
+      setEditedLinkToPages([])
+      setOriginalLinkToPages([])
       setEditedInstructions('')
       resetVariantEditState()
       resetSurgeryVariantState()
@@ -1846,53 +1864,55 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           </div>
         </div>
 
-        {/* Link to Page */}
+        {/* Related symptom links */}
         {isEditingAll ? (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <div>
               <label className="block text-sm font-medium text-nhs-dark-blue mb-2">
-                Link to Related Symptom
+                Links to Related Symptoms
               </label>
-              <input
-                type="text"
-                value={editedLinkToPage}
-                onChange={(e) => setEditedLinkToPage(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-nhs-blue focus:border-nhs-blue"
-                placeholder="Enter name of related symptom..."
+              <RelatedSymptomsEditor
+                value={editedLinkToPages}
+                onChange={setEditedLinkToPages}
+                surgeryId={surgeryId}
               />
-              <p className="text-sm text-gray-500 mt-1">
-                Enter the exact name of another symptom to link to. Users will be able to click to navigate to that symptom’s instructions.
-              </p>
             </div>
           </div>
         ) : (
-          symptom.linkToPage && (
+          displayLinkToPages.length > 0 && (
             <div className="bg-nhs-light-blue border border-nhs-blue rounded-lg p-6 mb-6">
               <h3 className="text-lg font-semibold text-nhs-dark-blue mb-2">
                 Related Information
               </h3>
               <p className="text-nhs-grey mb-3">
-                For more detailed information about {symptom.linkToPage}, please see:
+                {displayLinkToPages.length === 1
+                  ? `For more detailed information about ${displayLinkToPages[0]}, please see:`
+                  : 'For more detailed information, please see:'}
               </p>
-              <button
-                onClick={handleLinkedSymptomClick}
-                disabled={isLoadingLinkedSymptom}
-                className="text-nhs-blue font-medium hover:text-nhs-dark-blue hover:underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label={`View instructions for ${symptom.linkToPage}`}
-              >
-                {isLoadingLinkedSymptom ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Loading...
-                  </span>
-                ) : (
-                  `→ ${symptom.linkToPage}`
-                )}
-              </button>
-              
+              <div className="flex flex-col items-start gap-2">
+                {displayLinkToPages.map(linkName => (
+                  <button
+                    key={linkName}
+                    onClick={() => handleLinkedSymptomClick(linkName)}
+                    disabled={loadingLinkedSymptomName !== null}
+                    className="text-nhs-blue font-medium hover:text-nhs-dark-blue hover:underline focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    aria-label={`View instructions for ${linkName}`}
+                  >
+                    {loadingLinkedSymptomName === linkName ? (
+                      <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        Loading...
+                      </span>
+                    ) : (
+                      `→ ${linkName}`
+                    )}
+                  </button>
+                ))}
+              </div>
+
               {linkedSymptomError && (
                 <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-red-700 text-sm">

@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
             briefInstruction: true,
             highlightedText: true,
             instructions: true,
-            linkToPage: true
+            linkToPage: true,
+            linkToPages: true
           }
         },
         surgery: {
@@ -92,6 +93,7 @@ export async function GET(request: NextRequest) {
         highlightedText: override.baseSymptom.highlightedText,
         instructions: override.baseSymptom.instructions,
         linkToPage: override.baseSymptom.linkToPage,
+        linkToPages: override.baseSymptom.linkToPages,
         overrideId: override.id
       })
       return acc

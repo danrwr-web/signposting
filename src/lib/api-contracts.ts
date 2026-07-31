@@ -103,6 +103,7 @@ export const EffectiveSymptomZ = z.object({
   instructionsJson: z.string().nullable().optional(), // ProseMirror JSON as string
   instructionsHtml: z.string().nullable().optional(), // HTML format with colour support
   linkToPage: z.string().nullable().optional(),
+  linkToPages: z.array(z.string()).nullable().optional(),
   variants: z.any().nullable().optional(),
   source: z.enum(['base', 'override', 'custom']),
   baseSymptomId: z.string().optional(),
@@ -139,6 +140,11 @@ export const SurgeryVariantsOverrideZ = z.object({
 });
 export type SurgeryVariantsOverride = z.infer<typeof SurgeryVariantsOverrideZ>;
 
+// Related-symptom links: names of other symptoms, resolved case-insensitively
+// at click time. On overrides the stored value is tri-state: null = inherit
+// base links, [] = explicitly none for this surgery, [...] = replace.
+export const LinkToPagesZ = z.array(z.string().min(1).max(200)).max(10);
+
 export const CreateSymptomReqZ = z.object({
   name: z.string().min(1),
   ageGroup: z.enum(['U5', 'O5', 'Adult']),
@@ -148,6 +154,7 @@ export const CreateSymptomReqZ = z.object({
   instructionsJson: z.any().optional(), // Legacy ProseMirror JSON (no longer written)
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
+  linkToPages: LinkToPagesZ.nullable().optional(),
   variants: SymptomVariantsZ.nullable().optional(),
 });
 
@@ -160,6 +167,7 @@ export const UpdateSymptomReqZ = z.object({
   instructionsJson: z.any().optional(), // Legacy ProseMirror JSON (no longer written)
   instructionsHtml: z.string().optional(), // HTML format with colour support
   linkToPage: z.string().optional(),
+  linkToPages: LinkToPagesZ.nullable().optional(),
   variants: SymptomVariantsZ.nullable().optional(),
 });
 

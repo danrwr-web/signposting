@@ -15,6 +15,7 @@ import SurgeryContextBar from '@/components/admin/SurgeryContextBar'
 import ClinicalReviewPanel from '@/components/ClinicalReviewPanel'
 import { sanitizeHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
+import RelatedSymptomsEditor from '@/components/RelatedSymptomsEditor'
 import EngagementAnalytics from '@/components/engagement/EngagementAnalytics'
 import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
 import { Surgery } from '@prisma/client'
@@ -67,7 +68,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
     instructionsJson: null as any,
     instructionsHtml: '',
     highlightedText: '',
-    linkToPage: '',
+    linkToPages: [] as string[],
     variants: null as any
   })
   const [showVariantsSection, setShowVariantsSection] = useState(false)
@@ -387,7 +388,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
       instructionsJson: instructionsJson,
       instructionsHtml: symptom.instructionsHtml || '',
       highlightedText: symptom.highlightedText || '',
-      linkToPage: symptom.linkToPage || '',
+      linkToPages: symptom.linkToPages ?? (symptom.linkToPage ? [symptom.linkToPage] : []),
       variants: (symptom as any).variants ?? null
     })
     try {
@@ -427,7 +428,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           instructionsJson: newSymptom.instructionsJson,
           instructionsHtml: newSymptom.instructionsHtml,
           highlightedText: newSymptom.highlightedText,
-          linkToPage: newSymptom.linkToPage,
+          linkToPages: newSymptom.linkToPages,
           variants: variants.length > 0
             ? {
                 heading: (variantHeading || undefined),
@@ -688,7 +689,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
           instructionsJson: null,
           instructionsHtml: '',
           highlightedText: '',
-          linkToPage: '',
+          linkToPages: [],
           variants: null
         })
         setVariants([])
@@ -1230,14 +1231,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                 
                 <div>
                   <label className="block text-sm font-medium text-nhs-grey mb-1">
-                    Link To Page
+                    Links to Related Symptoms
                   </label>
-                  <input
-                    type="text"
-                    value={newSymptom.linkToPage}
-                    onChange={(e) => setNewSymptom({ ...newSymptom, linkToPage: e.target.value })}
-                    className="w-full nhs-input"
-                    placeholder="Related page (optional)"
+                  <RelatedSymptomsEditor
+                    value={newSymptom.linkToPages}
+                    onChange={(links) => setNewSymptom({ ...newSymptom, linkToPages: links })}
+                    suggestions={baseSymptoms.map(s => s.name)}
+                    idPrefix="add-symptom-related"
                   />
                 </div>
               </div>
@@ -1651,13 +1651,13 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
 
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Link to Page
+                    Links to Related Symptoms
                   </label>
-                  <input
-                    type="url"
-                    value={newSymptom.linkToPage}
-                    onChange={(e) => setNewSymptom(prev => ({ ...prev, linkToPage: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-nhs-blue focus:border-nhs-blue"
+                  <RelatedSymptomsEditor
+                    value={newSymptom.linkToPages}
+                    onChange={(links) => setNewSymptom(prev => ({ ...prev, linkToPages: links }))}
+                    suggestions={baseSymptoms.map(s => s.name)}
+                    idPrefix="edit-symptom-related"
                   />
                 </div>
 

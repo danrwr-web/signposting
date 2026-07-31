@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { revalidateTag } from 'next/cache'
 import { getCachedSymptomsTag } from '@/server/effectiveSymptoms'
 import { markSymptomPendingReview } from '@/server/clinicalReview'
+import { Prisma } from '@prisma/client'
+import { LinkToPagesZ } from '@/lib/api-contracts'
 
 export const runtime = 'nodejs'
 
@@ -97,6 +99,32 @@ export async function POST(request: NextRequest) {
         allowedFields.includes(key) && value !== undefined
       )
     )
+
+    // Related-symptom links, kept in sync across both columns. Tri-state on
+    // the stored array: null = inherit base links, [] = explicitly none,
+    // [...] = replace. A legacy linkToPage string is folded into the array.
+    if (overrideData.linkToPages !== undefined) {
+      if (overrideData.linkToPages === null) {
+        cleanData.linkToPages = Prisma.DbNull
+        cleanData.linkToPage = null
+      } else {
+        const parsed = LinkToPagesZ.safeParse(overrideData.linkToPages)
+        if (!parsed.success) {
+          return NextResponse.json(
+            { error: 'Invalid linkToPages shape', details: parsed.error.flatten() },
+            { status: 400 }
+          )
+        }
+        const links = parsed.data.map((l: string) => l.trim()).filter((l: string) => l !== '')
+        cleanData.linkToPages = links
+        cleanData.linkToPage = links[0] ?? null
+      }
+    } else if (typeof cleanData.linkToPage === 'string') {
+      const legacy = cleanData.linkToPage.trim()
+      cleanData.linkToPages = legacy ? [legacy] : Prisma.DbNull
+    } else if (cleanData.linkToPage === null) {
+      cleanData.linkToPages = Prisma.DbNull
+    }
 
     // Debug logging
     console.error('Override API received:', { surgeryId, baseId, overrideData, cleanData })
