@@ -32,6 +32,8 @@ function serialiseSuggestion(suggestion: SuggestionWithSurgery) {
     response: suggestion.response,
     respondedAt: suggestion.respondedAt ? suggestion.respondedAt.toISOString() : null,
     responseViewedAt: suggestion.responseViewedAt ? suggestion.responseViewedAt.toISOString() : null,
+    redirectedFromType: suggestion.redirectedFromType,
+    redirectedAt: suggestion.redirectedAt ? suggestion.redirectedAt.toISOString() : null,
     createdAt: suggestion.createdAt.toISOString(),
     updatedAt: suggestion.updatedAt.toISOString(),
     surgery: suggestion.surgery,

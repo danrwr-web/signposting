@@ -18,16 +18,29 @@ describe('SuggestFeatureDialog', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as jest.Mock
   })
 
-  it('asks who the message is for and defaults to the toolkit team', () => {
+  it('asks who the message is for with nothing pre-selected', () => {
     render(<SuggestFeatureDialog open onClose={onClose} surgeryId="sur-1" />)
     expect(screen.getByText('Who is your message for?')).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: /Signposting Toolkit team/ })).toBeChecked()
-    expect(
-      screen.getByRole('radio', { name: /toolkit administrators/ })
-    ).toBeInTheDocument()
+    // No destination is pre-selected: the user must actively choose one, and
+    // the practice options are listed before the toolkit team.
+    const radios = screen.getAllByRole('radio')
+    radios.forEach((radio) => expect(radio).not.toBeChecked())
+    expect(radios[0]).toBe(screen.getByRole('radio', { name: /toolkit administrators/ }))
     expect(
       screen.getByRole('radio', { name: /management or clinical team/ })
     ).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Signposting Toolkit team/ })).toBeInTheDocument()
+    // The rest of the form stays hidden until a destination is chosen
+    expect(screen.queryByLabelText(/Details/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Submit suggestion/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the toolkit feedback form once the toolkit team is chosen', async () => {
+    const user = userEvent.setup()
+    render(<SuggestFeatureDialog open onClose={onClose} surgeryId="sur-1" />)
+
+    await user.click(screen.getByRole('radio', { name: /Signposting Toolkit team/ }))
+
     // Toolkit feedback types are offered; symptom content is its own audience now
     expect(screen.getByRole('option', { name: 'Feature request' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Improvement' })).toBeInTheDocument()
@@ -35,6 +48,7 @@ describe('SuggestFeatureDialog', () => {
     expect(screen.queryByRole('option', { name: 'Symptom content' })).not.toBeInTheDocument()
     // The destination is stated explicitly
     expect(screen.getByText(/not to.*anyone at your practice/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Submit suggestion/ })).toBeInTheDocument()
   })
 
   it('hides the practice administrators option outside a surgery', () => {
@@ -64,6 +78,7 @@ describe('SuggestFeatureDialog', () => {
     const user = userEvent.setup()
     render(<SuggestFeatureDialog open onClose={onClose} surgeryId="sur-1" />)
 
+    await user.click(screen.getByRole('radio', { name: /Signposting Toolkit team/ }))
     fireEvent.change(screen.getByLabelText(/Details/), { target: { value: 'Some details' } })
     await user.click(screen.getByRole('button', { name: /Submit suggestion/ }))
 
@@ -75,6 +90,7 @@ describe('SuggestFeatureDialog', () => {
     const user = userEvent.setup()
     render(<SuggestFeatureDialog open onClose={onClose} surgeryId="sur-1" />)
 
+    await user.click(screen.getByRole('radio', { name: /Signposting Toolkit team/ }))
     fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Dark mode' } })
     fireEvent.change(screen.getByLabelText(/Details/), { target: { value: 'Please add dark mode' } })
     await user.click(screen.getByRole('button', { name: /Submit suggestion/ }))

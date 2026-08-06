@@ -46,12 +46,16 @@ export default function SuggestFeatureDialog({
   const pathname = usePathname()
   const initialFocusRef = useRef<HTMLInputElement>(null)
   const wantsPracticeGuidance = defaultType === 'SYMPTOM_CONTENT' || Boolean(symptomContext)
-  const initialAudience: SuggestionAudience =
-    wantsPracticeGuidance && surgeryId ? 'practice-guidance' : 'toolkit'
+  // No default audience: users kept submitting practice matters to the toolkit
+  // team when a destination was pre-selected, so the form now stays hidden
+  // until they actively choose one. Symptom-page entry points are the
+  // exception — there the destination is unambiguous.
+  const initialAudience: SuggestionAudience | null =
+    wantsPracticeGuidance && surgeryId ? 'practice-guidance' : null
   const initialType: SuggestionType =
     defaultType && defaultType !== 'SYMPTOM_CONTENT' ? defaultType : 'FEATURE'
 
-  const [audience, setAudience] = useState<SuggestionAudience>(initialAudience)
+  const [audience, setAudience] = useState<SuggestionAudience | null>(initialAudience)
   const [type, setType] = useState<SuggestionType>(initialType)
   const [title, setTitle] = useState('')
   const [topic, setTopic] = useState('')
@@ -73,12 +77,9 @@ export default function SuggestFeatureDialog({
     }
   }, [open, initialAudience, initialType])
 
+  // Practice destinations come first: most misdirected suggestions are practice
+  // matters sent to the toolkit team, so the practice options get first refusal.
   const audienceOptions: AudienceOption[] = [
-    {
-      value: 'toolkit',
-      label: 'The Signposting Toolkit team',
-      description: 'Ideas, improvements or bug reports about the toolkit itself.',
-    },
     // Symptom-content suggestions are routed to surgery admins, so this option
     // only makes sense inside a surgery.
     ...(surgeryId
@@ -87,7 +88,7 @@ export default function SuggestFeatureDialog({
             value: 'practice-guidance' as const,
             label: 'Your practice’s toolkit administrators',
             description:
-              'Suggest new or amended local guidance or symptom content for your practice’s toolkit.',
+              'New or amended local guidance, symptom content or services in your practice’s own toolkit.',
           },
         ]
       : []),
@@ -96,6 +97,12 @@ export default function SuggestFeatureDialog({
       label: 'Your practice’s management or clinical team',
       description:
         'A question about your own practice’s policies, procedures or clinical processes.',
+    },
+    {
+      value: 'toolkit',
+      label: 'The Signposting Toolkit team',
+      description:
+        'Ideas, improvements or bug reports about the toolkit software itself — not about your practice.',
     },
   ]
 
@@ -106,7 +113,7 @@ export default function SuggestFeatureDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isPracticeTeam) return
+    if (!audience || isPracticeTeam) return
     if (needsTitle && !title.trim()) {
       setTitleError(true)
       return
@@ -174,7 +181,7 @@ export default function SuggestFeatureDialog({
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
             {isPracticeTeam ? 'Close' : 'Cancel'}
           </Button>
-          {!isPracticeTeam && (
+          {audience !== null && !isPracticeTeam && (
             <Button type="submit" form={FORM_ID} loading={isSubmitting}>
               Submit suggestion
             </Button>
@@ -221,6 +228,12 @@ export default function SuggestFeatureDialog({
               This goes to the <strong>Signposting Toolkit development team</strong> — not to
               anyone at your practice. Please don&apos;t include patient details or questions
               meant for your own practice staff.
+              {surgeryId ? (
+                <>
+                  {' '}If your suggestion turns out to be about your practice&apos;s own toolkit,
+                  we&apos;ll pass it on to your practice&apos;s administrators.
+                </>
+              ) : null}
             </AlertBanner>
 
             <FormField label="What kind of suggestion is this?" htmlFor="suggestion-type">
@@ -302,7 +315,7 @@ export default function SuggestFeatureDialog({
           </AlertBanner>
         )}
 
-        {!isPracticeTeam && (
+        {audience !== null && !isPracticeTeam && (
           <>
             <FormField label="Details" htmlFor="suggestion-text" required>
               <Textarea
