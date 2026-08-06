@@ -7,6 +7,8 @@ import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { computeClinicalReviewCounts, getReviewStatusForSymptom } from '@/lib/clinicalReviewCounts'
 import AgeGroupBadge from '@/components/AgeGroupBadge'
 import VariantPreviewList from '@/components/VariantPreviewList'
+import { RichContent } from '@/components/ui'
+import { sanitizeAndFormatSymptomContent } from '@/lib/sanitizeHtml'
 import { SymptomAgeGroup, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
 import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 
@@ -1364,7 +1366,10 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
                   )}
                 </div>
                 {currentHtml ? (
-                  <div className="prose max-w-none [&_a]:pointer-events-none [&_a]:opacity-60" dangerouslySetInnerHTML={{ __html: currentHtml }} />
+                  <RichContent
+                    className="prose max-w-none [&_a]:pointer-events-none [&_a]:opacity-60"
+                    html={sanitizeAndFormatSymptomContent(currentHtml)}
+                  />
                 ) : (
                   <p className="text-sm text-gray-700">—</p>
                 )}

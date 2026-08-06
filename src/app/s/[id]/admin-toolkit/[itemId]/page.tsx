@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { requireSurgeryAccess } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { sanitizeAndFormatAdminToolkitContent } from '@/lib/sanitizeHtml'
+import { RichContent } from '@/components/ui'
 import { canAccessAdminToolkitAdminDashboard, canEditAdminItem } from '@/lib/adminToolkitPermissions'
 import AdminToolkitPinnedPanel from '@/components/admin-toolkit/AdminToolkitPinnedPanel'
 import RoleCardsRendererWithCardStyle from '@/components/admin-toolkit/RoleCardsRendererWithCardStyle'
@@ -178,16 +179,16 @@ export default async function AdminToolkitItemPage({ params }: AdminToolkitItemP
             {item.type === 'PAGE' ? (
               <div className="bg-white rounded-lg shadow-md p-6">
                 {introTextBlock ? (
-                  <div
+                  <RichContent
                     className="prose max-w-none mb-6"
-                    dangerouslySetInnerHTML={{ __html: sanitizeAndFormatAdminToolkitContent(introTextBlock.html) }}
+                    html={sanitizeAndFormatAdminToolkitContent(introTextBlock.html)}
                   />
                 ) : null}
                 {roleCardsBlock ? <RoleCardsRendererWithCardStyle block={roleCardsBlock} /> : null}
                 {footerHtml ? (
-                  <div
+                  <RichContent
                     className={`prose max-w-none ${roleCardsBlock ? 'mt-6' : ''}`}
-                    dangerouslySetInnerHTML={{ __html: sanitizeAndFormatAdminToolkitContent(footerHtml) }}
+                    html={sanitizeAndFormatAdminToolkitContent(footerHtml)}
                   />
                 ) : null}
               </div>

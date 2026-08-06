@@ -15,7 +15,7 @@ import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 import { toast } from 'react-hot-toast'
 import { ageGroupBadgeClasses, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
-import { Button, Dialog } from '@/components/ui'
+import { Button, Dialog, RichContent } from '@/components/ui'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
@@ -1763,11 +1763,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           ) : (
             <div className="prose max-w-none">
               {displayText ? (
-                <div 
+                <RichContent
                   className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
-                  dangerouslySetInnerHTML={{ 
-                    __html: sanitizeAndFormatSymptomContent(highlightText(displayText))
-                  }}
+                  html={sanitizeAndFormatSymptomContent(highlightText(displayText))}
                 />
               ) : (
                 <div className="text-gray-500 italic">
@@ -2160,11 +2158,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                   <div>
                     <h4 className="text-sm font-medium text-nhs-dark-blue mb-2">Full instruction</h4>
                     <div className="prose max-w-none">
-                      <div 
+                      <RichContent
                         className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-gray-300 rounded-lg p-4 bg-gray-50"
-                        dangerouslySetInnerHTML={{ 
-                          __html: sanitizeAndFormatSymptomContent(highlightText(displayText))
-                        }}
+                        html={sanitizeAndFormatSymptomContent(highlightText(displayText))}
                       />
                     </div>
                   </div>
@@ -2192,11 +2188,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                   <div>
                     <h4 className="text-sm font-medium text-nhs-green mb-2">AI full instruction</h4>
                     <div className="prose max-w-none">
-                      <div 
+                      <RichContent
                         className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-nhs-green rounded-lg p-4 bg-green-50"
-                        dangerouslySetInnerHTML={{ 
-                          __html: sanitizeAndFormatSymptomContent(aiSuggestion)
-                        }}
+                        html={sanitizeAndFormatSymptomContent(aiSuggestion)}
                       />
                     </div>
                   </div>
