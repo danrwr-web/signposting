@@ -21,6 +21,9 @@ interface SuggestionDetailPanelProps {
   onSaved: () => void
 }
 
+const HANDOVER_NOTE =
+  'This looks like a request for your own practice rather than the toolkit development team, so we’ve passed it to your practice’s toolkit administrators to review.'
+
 export default function SuggestionDetailPanel({
   suggestion,
   onClose,
@@ -105,11 +108,13 @@ export default function SuggestionDetailPanel({
 
   const startRedirect = () => {
     // Offer a starting point for the note the submitter will see, but let the
-    // superuser edit or clear it before confirming.
-    if (!response.trim()) {
-      setResponse(
-        'This looks like a request for your own practice rather than the toolkit development team, so we’ve passed it to your practice’s toolkit administrators to review.'
-      )
+    // superuser edit or clear it before confirming. An earlier response is kept
+    // and the hand-over appended to it — replacing it would discard triage the
+    // submitter may already have read, and omitting it would leave them with
+    // stale text that says nothing about the redirect.
+    const existing = response.trim()
+    if (!existing.includes(HANDOVER_NOTE)) {
+      setResponse(existing ? `${existing}\n\n${HANDOVER_NOTE}` : HANDOVER_NOTE)
     }
     setIsRedirectMode(true)
   }

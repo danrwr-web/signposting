@@ -57,6 +57,10 @@ export async function PATCH(
       data.status = 'PENDING'
       data.redirectedFromType = existing.type
       data.redirectedAt = new Date()
+      // A hand-over is news to the submitter even when the note itself is
+      // unchanged, so the redirect always re-surfaces as unread rather than
+      // depending on the client having sent a new response.
+      data.responseViewedAt = null
     }
     if (parsed.data.status !== undefined) {
       data.status = parsed.data.status

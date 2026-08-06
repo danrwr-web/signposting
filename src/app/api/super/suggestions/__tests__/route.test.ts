@@ -141,6 +141,23 @@ describe('/api/super/suggestions', () => {
         expect(updateArgs.data.response).toBe('Passed to your practice.')
       })
 
+      it('marks the redirect unread even when the note is unchanged', async () => {
+        ;(prisma.suggestion.findUnique as jest.Mock).mockResolvedValue({
+          ...dbSuggestion,
+          surgeryId: 'sur-1',
+          response: 'We are looking into this.',
+          responseViewedAt: new Date('2026-07-02T10:00:00Z'),
+        })
+        ;(prisma.userSurgery.count as jest.Mock).mockResolvedValue(1)
+
+        // No 'response' in the body: the superuser left the existing note alone
+        const res = await PATCH(makePatchReq({ redirectToPractice: true }), params)
+        expect(res.status).toBe(200)
+        const updateArgs = (prisma.suggestion.update as jest.Mock).mock.calls[0][0]
+        // The hand-over must still reach the submitter as an unread item
+        expect(updateArgs.data.responseViewedAt).toBeNull()
+      })
+
       it('rejects redirecting a suggestion with no linked practice', async () => {
         const res = await PATCH(makePatchReq({ redirectToPractice: true }), params)
         expect(res.status).toBe(400)
