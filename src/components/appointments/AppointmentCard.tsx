@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react'
 import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
 import { sanitizeAndFormatAppointmentContent } from '@/lib/sanitizeHtml'
+import { RichContent } from '@/components/ui'
 import type { AppointmentType } from '@/components/appointments/types'
 
 interface AppointmentCardProps {
@@ -161,13 +162,11 @@ export default function AppointmentCard({
 
       {/* Notes */}
       {(appointment.notesHtml || appointment.notes) && (
-        <div
-          className="mt-auto border-t border-nhs-light-grey pt-2 text-sm text-nhs-grey prose prose-sm max-w-none [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
-          dangerouslySetInnerHTML={{
-            __html: sanitizeAndFormatAppointmentContent(
-              appointment.notesHtml ?? appointment.notes ?? ''
-            ),
-          }}
+        <RichContent
+          className="mt-auto border-t border-nhs-light-grey pt-2 text-sm text-nhs-grey prose prose-sm max-w-none"
+          html={sanitizeAndFormatAppointmentContent(
+            appointment.notesHtml ?? appointment.notes ?? ''
+          )}
         />
       )}
     </div>

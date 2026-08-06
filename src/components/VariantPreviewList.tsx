@@ -1,6 +1,7 @@
 'use client'
 
 import { sanitizeAndFormatSymptomContent } from '@/lib/sanitizeHtml'
+import { RichContent } from '@/components/ui'
 
 interface VariantPreviewListProps {
   /** Raw variants JSON from the API — parsed defensively. */
@@ -33,9 +34,9 @@ export default function VariantPreviewList({ variants }: VariantPreviewListProps
             <span className="mb-2 inline-flex items-center rounded-full bg-nhs-blue px-2.5 py-0.5 text-xs font-medium text-white">
               {group.label || group.key || `Variant ${idx + 1}`}
             </span>
-            <div
+            <RichContent
               className="prose prose-sm max-w-none text-nhs-grey"
-              dangerouslySetInnerHTML={{ __html: sanitizeAndFormatSymptomContent(group.instructions || '') }}
+              html={sanitizeAndFormatSymptomContent(group.instructions || '')}
             />
           </div>
         ))}

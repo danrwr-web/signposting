@@ -30,6 +30,12 @@ export type { DialogProps, DialogWidth } from './Dialog'
 export { ConfirmDialog } from './ConfirmDialog'
 export type { ConfirmDialogProps } from './ConfirmDialog'
 
+export { ImageLightbox } from './ImageLightbox'
+export type { ImageLightboxProps } from './ImageLightbox'
+
+export { RichContent } from './RichContent'
+export type { RichContentProps } from './RichContent'
+
 export { AlertBanner } from './AlertBanner'
 export type { AlertBannerProps, AlertVariant } from './AlertBanner'
 
