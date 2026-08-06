@@ -188,6 +188,11 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
                     <Badge color={SUGGESTION_STATUS_BADGE_COLORS[suggestion.status]} pill>
                       {SUGGESTION_STATUS_LABELS[suggestion.status]}
                     </Badge>
+                    {suggestion.redirectedAt ? (
+                      <Badge color="blue" pill>
+                        Redirected from the toolkit team
+                      </Badge>
+                    ) : null}
                   </div>
                   {session.type === 'superuser' && suggestion.surgery && (
                     <p className="text-sm text-gray-600 mb-2">From: {suggestion.surgery.name}</p>
@@ -265,7 +270,9 @@ export default function SuggestionsAnalytics({ session }: SuggestionsAnalyticsPr
           {session.type === 'surgery'
             ? ' You can see suggestions from users in your practice and mark them as done or declined.'
             : ' As a superuser, you can see all symptom suggestions across all practices and manage their status.'}
-          {' '}App feature requests and bug reports are triaged separately in System management.
+          {' '}App feature requests and bug reports are triaged separately in System management —
+          but when one of those turns out to be about your own practice&apos;s toolkit, the
+          Signposting team redirects it here, marked &quot;Redirected from the toolkit team&quot;.
         </p>
       </AlertBanner>
     </div>

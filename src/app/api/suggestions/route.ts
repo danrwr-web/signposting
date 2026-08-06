@@ -32,6 +32,8 @@ function serialiseSuggestion(suggestion: SuggestionWithSurgery) {
     response: suggestion.response,
     respondedAt: suggestion.respondedAt ? suggestion.respondedAt.toISOString() : null,
     responseViewedAt: suggestion.responseViewedAt ? suggestion.responseViewedAt.toISOString() : null,
+    redirectedFromType: suggestion.redirectedFromType,
+    redirectedAt: suggestion.redirectedAt ? suggestion.redirectedAt.toISOString() : null,
     createdAt: suggestion.createdAt.toISOString(),
     updatedAt: suggestion.updatedAt.toISOString(),
     surgery: suggestion.surgery,
@@ -90,11 +92,18 @@ export async function GET(request: NextRequest) {
       where.OR = [{ submittedByUserId: user.id }, { userEmail: user.email }]
     }
 
+    // The practice queue sorts by latest activity, not submission date: a
+    // suggestion redirected here by the toolkit team keeps its original
+    // createdAt, which could otherwise leave this "new" pending item buried
+    // beyond the row limit while the pending badge still counts it.
+    const orderBy: Prisma.SuggestionOrderByWithRelationInput =
+      scope === 'surgery' ? { updatedAt: 'desc' } : { createdAt: 'desc' }
+
     const [suggestions, unreadCount, unreadResponseCount] = await Promise.all([
       prisma.suggestion.findMany({
         where: status ? { ...where, status } : where,
         include: { surgery: SURGERY_SELECT },
-        orderBy: { createdAt: 'desc' },
+        orderBy,
         take: limit,
       }),
       prisma.suggestion.count({ where: { ...where, status: 'PENDING' } }),

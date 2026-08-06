@@ -28,6 +28,40 @@ export async function PATCH(
     }
 
     const data: Prisma.SuggestionUpdateInput = {}
+    if (parsed.data.redirectToPractice) {
+      if (existing.type === 'SYMPTOM_CONTENT') {
+        return NextResponse.json(
+          { error: 'This suggestion is already with the practice’s administrators' },
+          { status: 400 }
+        )
+      }
+      if (!existing.surgeryId) {
+        return NextResponse.json(
+          { error: 'This suggestion is not linked to a practice, so it cannot be redirected' },
+          { status: 400 }
+        )
+      }
+      const adminCount = await prisma.userSurgery.count({
+        where: { surgeryId: existing.surgeryId, role: 'ADMIN' },
+      })
+      if (adminCount === 0) {
+        return NextResponse.json(
+          { error: 'This practice has no toolkit administrators to receive the suggestion' },
+          { status: 400 }
+        )
+      }
+      // Move it into the practice admins' queue (scope=surgery only lists
+      // SYMPTOM_CONTENT rows) as a fresh pending item, keeping the original
+      // type so the submitter still recognises their suggestion.
+      data.type = 'SYMPTOM_CONTENT'
+      data.status = 'PENDING'
+      data.redirectedFromType = existing.type
+      data.redirectedAt = new Date()
+      // A hand-over is news to the submitter even when the note itself is
+      // unchanged, so the redirect always re-surfaces as unread rather than
+      // depending on the client having sent a new response.
+      data.responseViewedAt = null
+    }
     if (parsed.data.status !== undefined) {
       data.status = parsed.data.status
     }

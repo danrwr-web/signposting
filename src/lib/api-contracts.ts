@@ -453,9 +453,12 @@ export const CreateSuggestionReqZ = z.object({
 export const UpdateSuggestionTriageReqZ = z.object({
   status: SuggestionStatusZ.optional(),
   response: z.string().trim().max(5000).optional(),
-}).refine((data) => data.status !== undefined || data.response !== undefined, {
-  message: 'status or response is required',
-});
+  /** Hand the suggestion over to the practice's own admin queue (surgery-linked, non-symptom-content only). */
+  redirectToPractice: z.boolean().optional(),
+}).refine(
+  (data) => data.status !== undefined || data.response !== undefined || data.redirectToPractice === true,
+  { message: 'status, response, or redirectToPractice is required' }
+);
 
 export type SuggestionType = z.infer<typeof SuggestionTypeZ>;
 export type SuggestionStatus = z.infer<typeof SuggestionStatusZ>;
@@ -478,6 +481,8 @@ export interface SuggestionRes {
   response: string | null;
   respondedAt: string | null;
   responseViewedAt: string | null;
+  redirectedFromType: SuggestionType | null;
+  redirectedAt: string | null;
   createdAt: string;
   updatedAt: string;
   surgery: { id: string; name: string; slug: string | null } | null;

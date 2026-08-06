@@ -12,6 +12,9 @@ jest.mock('@/lib/prisma', () => ({
       update: jest.fn(),
       delete: jest.fn(),
     },
+    userSurgery: {
+      count: jest.fn(),
+    },
   },
 }))
 
@@ -110,6 +113,78 @@ describe('/api/super/suggestions', () => {
       expect(updateArgs.data.respondedAt).toBeInstanceOf(Date)
       // A fresh response must re-appear as unread to the submitter
       expect(updateArgs.data.responseViewedAt).toBeNull()
+    })
+
+    describe('redirect to practice', () => {
+      it('moves the suggestion into the practice admin queue as a fresh pending item', async () => {
+        ;(prisma.suggestion.findUnique as jest.Mock).mockResolvedValue({
+          ...dbSuggestion,
+          surgeryId: 'sur-1',
+        })
+        ;(prisma.userSurgery.count as jest.Mock).mockResolvedValue(2)
+
+        const res = await PATCH(
+          makePatchReq({ redirectToPractice: true, response: 'Passed to your practice.' }),
+          params
+        )
+        expect(res.status).toBe(200)
+        expect(prisma.userSurgery.count).toHaveBeenCalledWith({
+          where: { surgeryId: 'sur-1', role: 'ADMIN' },
+        })
+        const updateArgs = (prisma.suggestion.update as jest.Mock).mock.calls[0][0]
+        // Practice admin queues only list SYMPTOM_CONTENT rows
+        expect(updateArgs.data.type).toBe('SYMPTOM_CONTENT')
+        expect(updateArgs.data.status).toBe('PENDING')
+        // The original type is kept so the submitter still recognises it
+        expect(updateArgs.data.redirectedFromType).toBe('FEATURE')
+        expect(updateArgs.data.redirectedAt).toBeInstanceOf(Date)
+        expect(updateArgs.data.response).toBe('Passed to your practice.')
+      })
+
+      it('marks the redirect unread even when the note is unchanged', async () => {
+        ;(prisma.suggestion.findUnique as jest.Mock).mockResolvedValue({
+          ...dbSuggestion,
+          surgeryId: 'sur-1',
+          response: 'We are looking into this.',
+          responseViewedAt: new Date('2026-07-02T10:00:00Z'),
+        })
+        ;(prisma.userSurgery.count as jest.Mock).mockResolvedValue(1)
+
+        // No 'response' in the body: the superuser left the existing note alone
+        const res = await PATCH(makePatchReq({ redirectToPractice: true }), params)
+        expect(res.status).toBe(200)
+        const updateArgs = (prisma.suggestion.update as jest.Mock).mock.calls[0][0]
+        // The hand-over must still reach the submitter as an unread item
+        expect(updateArgs.data.responseViewedAt).toBeNull()
+      })
+
+      it('rejects redirecting a suggestion with no linked practice', async () => {
+        const res = await PATCH(makePatchReq({ redirectToPractice: true }), params)
+        expect(res.status).toBe(400)
+        expect(prisma.suggestion.update).not.toHaveBeenCalled()
+      })
+
+      it('rejects redirecting a suggestion that is already symptom content', async () => {
+        ;(prisma.suggestion.findUnique as jest.Mock).mockResolvedValue({
+          ...dbSuggestion,
+          type: 'SYMPTOM_CONTENT',
+          surgeryId: 'sur-1',
+        })
+        const res = await PATCH(makePatchReq({ redirectToPractice: true }), params)
+        expect(res.status).toBe(400)
+        expect(prisma.suggestion.update).not.toHaveBeenCalled()
+      })
+
+      it('rejects redirecting to a practice with no administrators', async () => {
+        ;(prisma.suggestion.findUnique as jest.Mock).mockResolvedValue({
+          ...dbSuggestion,
+          surgeryId: 'sur-1',
+        })
+        ;(prisma.userSurgery.count as jest.Mock).mockResolvedValue(0)
+        const res = await PATCH(makePatchReq({ redirectToPractice: true }), params)
+        expect(res.status).toBe(400)
+        expect(prisma.suggestion.update).not.toHaveBeenCalled()
+      })
     })
   })
 })

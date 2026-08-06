@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
-import { Badge, Button, Dialog, FormField, Select, Textarea } from '@/components/ui'
+import { AlertBanner, Badge, Button, Dialog, FormField, Select, Textarea } from '@/components/ui'
 import type { SuggestionStatus } from '@/lib/api-contracts'
 import {
   SUGGESTION_STATUSES,
@@ -21,6 +21,9 @@ interface SuggestionDetailPanelProps {
   onSaved: () => void
 }
 
+const HANDOVER_NOTE =
+  'This looks like a request for your own practice rather than the toolkit development team, so we’ve passed it to your practice’s toolkit administrators to review.'
+
 export default function SuggestionDetailPanel({
   suggestion,
   onClose,
@@ -30,18 +33,23 @@ export default function SuggestionDetailPanel({
   const [response, setResponse] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isRedirectMode, setIsRedirectMode] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
 
   // Sync form state when a (different) suggestion is opened.
   useEffect(() => {
     if (suggestion) {
       setStatus(suggestion.status)
       setResponse(suggestion.response || '')
+      setIsRedirectMode(false)
     }
   }, [suggestion])
 
   if (!suggestion) {
     return null
   }
+
+  const canRedirect = Boolean(suggestion.surgeryId) && suggestion.type !== 'SYMPTOM_CONTENT'
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -66,6 +74,49 @@ export default function SuggestionDetailPanel({
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleRedirect = async () => {
+    setIsRedirecting(true)
+    try {
+      const body: { redirectToPractice: true; response?: string } = { redirectToPractice: true }
+      // Match handleSave: send any change, including an explicit empty string —
+      // omitting a cleared note would silently keep the stored response.
+      if (response.trim() !== (suggestion.response || '')) {
+        body.response = response.trim()
+      }
+      const res = await fetch(`/api/super/suggestions/${suggestion.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Failed to redirect suggestion')
+      }
+      toast.success(
+        `Redirected to ${suggestion.surgery?.name || 'the practice'}’s toolkit administrators`
+      )
+      onSaved()
+      onClose()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to redirect suggestion')
+    } finally {
+      setIsRedirecting(false)
+    }
+  }
+
+  const startRedirect = () => {
+    // Offer a starting point for the note the submitter will see, but let the
+    // superuser edit or clear it before confirming. An earlier response is kept
+    // and the hand-over appended to it — replacing it would discard triage the
+    // submitter may already have read, and omitting it would leave them with
+    // stale text that says nothing about the redirect.
+    const existing = response.trim()
+    if (!existing.includes(HANDOVER_NOTE)) {
+      setResponse(existing ? `${existing}\n\n${HANDOVER_NOTE}` : HANDOVER_NOTE)
+    }
+    setIsRedirectMode(true)
   }
 
   const handleDelete = async () => {
@@ -98,17 +149,37 @@ export default function SuggestionDetailPanel({
       title={suggestion.title || suggestion.symptom || 'Suggestion'}
       width="2xl"
       footer={
-        <>
-          <Button variant="danger-soft" onClick={handleDelete} loading={isDeleting}>
-            Delete
-          </Button>
-          <Button variant="secondary" onClick={onClose} disabled={isSaving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} loading={isSaving}>
-            Save changes
-          </Button>
-        </>
+        isRedirectMode ? (
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setIsRedirectMode(false)}
+              disabled={isRedirecting}
+            >
+              Back
+            </Button>
+            <Button onClick={handleRedirect} loading={isRedirecting}>
+              Confirm redirect
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="danger-soft" onClick={handleDelete} loading={isDeleting}>
+              Delete
+            </Button>
+            {canRedirect && (
+              <Button variant="secondary" onClick={startRedirect} disabled={isSaving}>
+                Redirect to practice admins
+              </Button>
+            )}
+            <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} loading={isSaving}>
+              Save changes
+            </Button>
+          </>
+        )
       }
     >
       <div className="space-y-5">
@@ -166,21 +237,44 @@ export default function SuggestionDetailPanel({
           <p className="text-sm text-gray-800 whitespace-pre-wrap">{suggestion.text}</p>
         </div>
 
-        <FormField label="Status" htmlFor="triage-status">
-          <Select
-            id="triage-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as SuggestionStatus)}
-          >
-            {SUGGESTION_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {SUGGESTION_STATUS_LABELS[s]}
-              </option>
-            ))}
-          </Select>
-        </FormField>
+        {suggestion.redirectedAt && suggestion.redirectedFromType ? (
+          <AlertBanner variant="info">
+            Redirected to the practice&apos;s toolkit administrators on{' '}
+            {formatSuggestionDate(suggestion.redirectedAt)} (originally submitted as a{' '}
+            {SUGGESTION_TYPE_LABELS[suggestion.redirectedFromType].toLowerCase()}).
+          </AlertBanner>
+        ) : null}
 
-        <FormField label="Response to submitter" htmlFor="triage-response">
+        {isRedirectMode ? (
+          <AlertBanner variant="warning">
+            <span>
+              This will move the suggestion to{' '}
+              <strong>{suggestion.surgery?.name || 'the practice'}&apos;s toolkit
+              administrators</strong>. It will appear as a new pending item on their Suggestions
+              tab and leave this triage queue. The submitter will see the note below on their My
+              suggestions page.
+            </span>
+          </AlertBanner>
+        ) : (
+          <FormField label="Status" htmlFor="triage-status">
+            <Select
+              id="triage-status"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as SuggestionStatus)}
+            >
+              {SUGGESTION_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {SUGGESTION_STATUS_LABELS[s]}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+        )}
+
+        <FormField
+          label={isRedirectMode ? 'Note to submitter' : 'Response to submitter'}
+          htmlFor="triage-response"
+        >
           <Textarea
             id="triage-response"
             value={response}

@@ -62,6 +62,8 @@ export default async function MySuggestionsPage({ params }: MySuggestionsPagePro
           response: s.response,
           respondedAt: s.respondedAt ? s.respondedAt.toISOString() : null,
           responseViewedAt: s.responseViewedAt ? s.responseViewedAt.toISOString() : null,
+          redirectedFromType: s.redirectedFromType,
+          redirectedAt: s.redirectedAt ? s.redirectedAt.toISOString() : null,
           createdAt: s.createdAt.toISOString(),
           updatedAt: s.updatedAt.toISOString(),
           surgery: s.surgery,

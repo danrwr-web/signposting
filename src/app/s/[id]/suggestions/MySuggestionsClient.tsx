@@ -56,12 +56,21 @@ export default function MySuggestionsClient({ surgeryId, suggestions }: MySugges
             <li key={suggestion.id}>
               <Card padding="lg">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <Badge color={SUGGESTION_TYPE_BADGE_COLORS[suggestion.type]}>
-                    {SUGGESTION_TYPE_LABELS[suggestion.type]}
+                  {/* Show the type the user originally chose; a redirect converts the
+                      row to SYMPTOM_CONTENT internally, which would look wrong here. */}
+                  <Badge
+                    color={SUGGESTION_TYPE_BADGE_COLORS[suggestion.redirectedFromType ?? suggestion.type]}
+                  >
+                    {SUGGESTION_TYPE_LABELS[suggestion.redirectedFromType ?? suggestion.type]}
                   </Badge>
                   <Badge color={SUGGESTION_STATUS_BADGE_COLORS[suggestion.status]} pill>
                     {SUGGESTION_STATUS_LABELS[suggestion.status]}
                   </Badge>
+                  {suggestion.redirectedAt ? (
+                    <Badge color="blue" pill>
+                      Passed to your practice&apos;s administrators
+                    </Badge>
+                  ) : null}
                   {suggestion.hasNewResponse ? (
                     <Badge color="green" pill>
                       New response
