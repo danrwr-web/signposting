@@ -44,10 +44,17 @@ export default function AppointmentEditModal({
   onSave,
   onCancel
 }: AppointmentEditModalProps) {
+  // Derived at render time so the uncontrolled RichTextEditor sees the stored
+  // notes on the render it is created — an effect-set state arrives too late,
+  // and the editor only re-hydrates when docId changes.
+  const initialNotesHtml = appointment
+    ? appointment.notesHtml ?? convertLineBreaksToHtml(appointment.notes ?? '')
+    : ''
+
   const [name, setName] = useState('')
   const [staffType, setStaffType] = useState<string>('All')
   const [durationMins, setDurationMins] = useState<string>('')
-  const [notesHtml, setNotesHtml] = useState('')
+  const [notesHtml, setNotesHtml] = useState(initialNotesHtml)
   const [colour, setColour] = useState('')
   const [hasCustomColour, setHasCustomColour] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -76,7 +83,7 @@ export default function AppointmentEditModal({
       setName(appointment.name)
       setStaffType(initialStaffType)
       setDurationMins(appointment.durationMins?.toString() || '')
-      setNotesHtml(appointment.notesHtml ?? convertLineBreaksToHtml(appointment.notes ?? ''))
+      setNotesHtml(initialNotesHtml)
       setColour(appointment.colour || defaultColour)
       setHasCustomColour(
         Boolean(appointment.colour && appointment.colour.trim() && appointment.colour !== defaultColour)
@@ -283,7 +290,7 @@ export default function AppointmentEditModal({
           </label>
           <RichTextEditor
             docId={appointment?.id ?? 'new-appointment'}
-            value={notesHtml}
+            value={initialNotesHtml}
             onChange={setNotesHtml}
             height={160}
             placeholder="Add notes for reception staff…"
