@@ -77,7 +77,9 @@ export default function SuggestionDetailPanel({
     setIsRedirecting(true)
     try {
       const body: { redirectToPractice: true; response?: string } = { redirectToPractice: true }
-      if (response.trim()) {
+      // Match handleSave: send any change, including an explicit empty string —
+      // omitting a cleared note would silently keep the stored response.
+      if (response.trim() !== (suggestion.response || '')) {
         body.response = response.trim()
       }
       const res = await fetch(`/api/super/suggestions/${suggestion.id}`, {

@@ -52,6 +52,9 @@ const dbSuggestion = {
   response: null,
   respondedByUserId: null,
   respondedAt: null,
+  responseViewedAt: null,
+  redirectedFromType: null,
+  redirectedAt: null,
   legacyAuditJson: null,
   createdAt: new Date('2026-07-01T10:00:00Z'),
   updatedAt: new Date('2026-07-01T10:00:00Z'),
@@ -234,6 +237,21 @@ describe('/api/suggestions', () => {
             surgeryId: { in: ['sur-1'] },
           }),
         })
+      )
+    })
+
+    it('scope=surgery orders by latest activity so redirected items are not buried', async () => {
+      mockChecker({ getAdminSurgeryIds: () => ['sur-1'] })
+      await GET(makeGetReq('?scope=surgery'))
+      expect(prisma.suggestion.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { updatedAt: 'desc' } })
+      )
+    })
+
+    it('scope=mine keeps submission order', async () => {
+      await GET(makeGetReq())
+      expect(prisma.suggestion.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { createdAt: 'desc' } })
       )
     })
 
