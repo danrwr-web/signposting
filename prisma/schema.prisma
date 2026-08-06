@@ -47,6 +47,7 @@ model User {
   adminItemEditGrantsCreated   AdminItemEditGrant[]          @relation("AdminItemEditGrantCreatedBy")
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
   adminItemSmartVisuals        AdminItemSmartVisual[]        @relation("AdminItemSmartVisualGeneratedBy")
+  symptomSmartVisuals          SymptomSmartVisual[]          @relation("SymptomSmartVisualGeneratedBy")
   adminItemImagesCreated       AdminItemImage[]              @relation("AdminItemImageCreatedBy")
   adminItemFilesCreated        AdminItemFile[]               @relation("AdminItemFileCreatedBy")
   symptomImagesCreated         SymptomImage[]                @relation("SymptomImageCreatedBy")
@@ -154,6 +155,7 @@ model Surgery {
   adminItemEditGrants          AdminItemEditGrant[]
   adminToolkitEngagementEvents AdminToolkitEngagementEvent[]
   adminItemSmartVisuals        AdminItemSmartVisual[]
+  symptomSmartVisuals          SymptomSmartVisual[]
 
   // Sales Pipeline
   pipelineEntry SalesPipeline? @relation("PipelineSurgery")
@@ -479,6 +481,41 @@ model SymptomHistory {
   @@index([symptomId])
   @@index([source])
   @@index([changedAt])
+}
+
+// AI-generated "smart visual" layout for a symptom's triage instructions. The
+// symptom content remains the source of truth; sourceFingerprint records what
+// the layout was generated from so the read path can flag the visual as stale.
+//
+// Surgery-scoped by design: a base symptom's *effective* content differs per
+// practice once overrides are merged, so a shared library-level visual could
+// never be kept fingerprint-accurate.
+model SymptomSmartVisual {
+  id String @id @default(cuid())
+
+  surgeryId String
+  // Effective symptom id — the base symptom id for base/override symptoms, or
+  // the custom symptom id. Matches SymptomReviewStatus.symptomId.
+  symptomId String
+  // Age-group variant this visual was generated from. "" = the symptom's main
+  // instructions; otherwise the variant key, so a visual is never shown under
+  // a variant whose wording it was not generated from.
+  variantKey String @default("")
+
+  layoutJson        Json // validated SymptomSmartVisualLayout (see src/lib/symptomSmartVisualShared.ts)
+  sourceFingerprint String // sha256 hex of the canonical source snapshot at generation time
+  modelUsed         String?
+  generatedAt       DateTime @default(now())
+  generatedByUserId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  surgery     Surgery @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  generatedBy User?   @relation("SymptomSmartVisualGeneratedBy", fields: [generatedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([surgeryId, symptomId, variantKey])
+  @@index([surgeryId])
 }
 
 model TokenUsageLog {

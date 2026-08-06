@@ -30,6 +30,12 @@ const DEFAULT_FEATURES: FeatureDefinition[] = [
       'Allow Practice Handbook editors to generate AI visual layouts of handbook pages, giving staff a scannable infographic-style view alongside the standard page.',
   },
   {
+    key: 'ai_symptom_visuals',
+    name: 'AI symptom smart visuals',
+    description:
+      'Allow practice admins to generate AI visual layouts of a symptom’s triage instructions. Saved visuals are only shown to staff once the symptom has passed clinical review.',
+  },
+  {
     key: 'workflow_guidance',
     name: 'Workflow guidance',
     description: 'Enable document workflow guidance for reception and care navigation teams.',

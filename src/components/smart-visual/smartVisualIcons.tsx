@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react'
-import type { SmartVisualIcon } from '@/lib/adminToolkitSmartVisualShared'
+import type { SmartVisualIcon } from '@/lib/smartVisualPrimitives'
 
 function iconSvg(path: ReactElement, className: string) {
   return (
