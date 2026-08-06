@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { RichContent } from '@/components/ui'
 
@@ -187,6 +187,50 @@ describe('RichContent', () => {
 
       expect(screen.getByText('100%')).toBeInTheDocument()
       expect(transform()).toBe('translate(0px, 0px) scale(1)')
+    })
+
+    /**
+     * Once zoomed, the stage takes pointer capture so panning survives the pointer
+     * leaving the image — which retargets the following `pointerup` to the stage.
+     * jsdom has no `setPointerCapture`, so `userEvent` can't reproduce that; these
+     * dispatch the retargeted sequence a real browser delivers.
+     */
+    describe('while zoomed (stage holds pointer capture)', () => {
+      async function openZoomed() {
+        const user = await openLightbox()
+        await user.click(screen.getByRole('button', { name: 'Zoom in' }))
+        return user
+      }
+
+      it('a tap on the image does not close the viewer', async () => {
+        await openZoomed()
+        const image = lightboxImage() as HTMLImageElement
+
+        fireEvent.pointerDown(image, { pointerId: 1 })
+        fireEvent.pointerUp(screen.getByTestId('image-lightbox-stage'), { pointerId: 1 })
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      it('a tap on the empty stage still closes the viewer', async () => {
+        await openZoomed()
+        const stage = screen.getByTestId('image-lightbox-stage')
+
+        fireEvent.pointerDown(stage, { pointerId: 1 })
+        fireEvent.pointerUp(stage, { pointerId: 1 })
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      })
+
+      it('double-clicking the image resets to the fitted view', async () => {
+        const user = await openZoomed()
+        expect(screen.getByText('150%')).toBeInTheDocument()
+
+        await user.dblClick(lightboxImage() as HTMLImageElement)
+
+        expect(screen.getByText('100%')).toBeInTheDocument()
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
     })
 
     it('starts each newly opened image back at the fitted view', async () => {

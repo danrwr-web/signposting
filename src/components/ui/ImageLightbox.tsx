@@ -268,6 +268,13 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
   const pinchDistanceRef = useRef<number | null>(null)
   const panStartRef = useRef<{ x: number; y: number; offset: Offset } | null>(null)
   const movedRef = useRef(false)
+  /**
+   * Whether the press started on the image. `pointerup` can't tell us: once the
+   * stage takes pointer capture (below), every later event for that pointer is
+   * retargeted to the stage, so a tap on the image would look like a tap on
+   * empty space and dismiss the viewer.
+   */
+  const downOnImageRef = useRef(false)
 
   const handlePointerDown = useCallback(
     (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -275,6 +282,8 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
 
       if (pointersRef.current.size === 1) {
         movedRef.current = false
+        // Read the target before taking capture — pointerdown's own target is real.
+        downOnImageRef.current = e.target instanceof HTMLImageElement
         panStartRef.current = { x: e.clientX, y: e.clientY, offset: offsetRef.current }
         if (scaleRef.current > MIN_SCALE) {
           e.currentTarget.setPointerCapture?.(e.pointerId)
@@ -347,7 +356,7 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
       endPointer(e)
 
       // A tap on empty stage — anywhere but the image — dismisses the viewer.
-      if (wasTap && !(e.target instanceof HTMLImageElement)) {
+      if (wasTap && !downOnImageRef.current) {
         onCloseRef.current()
       }
     },
@@ -356,7 +365,9 @@ export function ImageLightbox({ open, src, alt, onClose }: ImageLightboxProps) {
 
   const handleDoubleClick = useCallback(
     (e: ReactMouseEvent<HTMLDivElement>) => {
-      if (!(e.target instanceof HTMLImageElement)) return
+      // Same source of truth as the tap check: capture is released by the time
+      // dblclick fires, but don't depend on that ordering.
+      if (!downOnImageRef.current) return
       if (scaleRef.current > MIN_SCALE) {
         resetZoom()
       } else {
