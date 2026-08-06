@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
 import SuggestFeatureDialog from './SuggestFeatureDialog'
-import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
+import { applyHighlightRules, highlightPlainText, HighlightRule } from '@/lib/highlighting'
 import { sanitizeAndFormatSymptomContent, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
 import RichTextEditor from './rich-text/RichTextEditor'
 import VariantGroupsEditor from './VariantGroupsEditor'
@@ -271,8 +271,16 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     }
   }
 
+  // Instruction bodies are rich text: highlight the HTML in place, then let
+  // `sanitizeAndFormatSymptomContent` clean the result at the render site.
+  const highlightHtml = (html: string) => {
+    return applyHighlightRules(html, highlightRules)
+  }
+
+  // Brief instruction and highlighted text are plain-text fields, so they are
+  // escaped before highlighting — see `highlightPlainText`.
   const highlightText = (text: string) => {
-    return applyHighlightRules(text, highlightRules)
+    return highlightPlainText(text, highlightRules)
   }
 
   const handleVariantSelect = (variantKey: string) => {
@@ -1765,7 +1773,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
               {displayText ? (
                 <RichContent
                   className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
-                  html={sanitizeAndFormatSymptomContent(highlightText(displayText))}
+                  html={sanitizeAndFormatSymptomContent(highlightHtml(displayText))}
                 />
               ) : (
                 <div className="text-gray-500 italic">
@@ -2160,7 +2168,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                     <div className="prose max-w-none">
                       <RichContent
                         className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-gray-300 rounded-lg p-4 bg-gray-50"
-                        html={sanitizeAndFormatSymptomContent(highlightText(displayText))}
+                        html={sanitizeAndFormatSymptomContent(highlightHtml(displayText))}
                       />
                     </div>
                   </div>

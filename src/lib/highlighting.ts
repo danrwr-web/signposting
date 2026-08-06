@@ -3,6 +3,8 @@
  * Pure functions that work with highlight rules data
  */
 
+import { escapeHtml } from './escapeHtml'
+
 export interface HighlightRule {
   id: string
   phrase: string
@@ -29,6 +31,42 @@ export function applyHighlightRules(
   }
 
   return highlightedText
+}
+
+/**
+ * Highlight a **plain-text** field and return HTML that is safe to render.
+ *
+ * `applyHighlightRules` passes its input through verbatim — it is an HTML
+ * transform, so anything tag-shaped in the input stays tag-shaped in the
+ * output. Fields like `briefInstruction` and `highlightedText` are authored in
+ * plain `<input>`/`<textarea>` controls and are never meant to carry markup,
+ * so we escape them first: markup an author typed (or pasted, or injected)
+ * renders as literal text instead of executing.
+ *
+ * Rule phrases are escaped alongside the text. Escaping rewrites the string
+ * the phrase matcher scans, so a rule for a phrase containing `&`, `<` or `>`
+ * — "A&E" being the obvious NHS example — would otherwise silently stop
+ * matching. Escaping both sides keeps them in the same alphabet.
+ *
+ * (Consequence of matching post-escape: a rule whose phrase is literally an
+ * entity name — "amp", "lt", "gt" — can match inside an escaped entity and
+ * split it, which displays that one entity oddly. Harmless and inert; not
+ * worth reimplementing the pipeline to avoid.)
+ */
+export function highlightPlainText(
+  text: string | null | undefined,
+  rules: Array<{ phrase: string; textColor: string; bgColor: string; isEnabled: boolean }>,
+  enableBuiltInHighlights: boolean = true
+): string {
+  if (!text || typeof text !== 'string') {
+    return ''
+  }
+
+  const escapedRules = Array.isArray(rules)
+    ? rules.map(rule => ({ ...rule, phrase: escapeHtml(rule.phrase) }))
+    : []
+
+  return applyHighlightRules(escapeHtml(text), escapedRules, enableBuiltInHighlights)
 }
 
 /**
