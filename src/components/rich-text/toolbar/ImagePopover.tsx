@@ -11,14 +11,21 @@ export interface ImageUploadTarget {
    * Which module's upload route and sanitizer to use. Defaults to
    * 'admin-toolkit' (Practice Handbook) so existing call sites are unchanged.
    */
-  kind?: 'admin-toolkit' | 'symptom'
+  kind?: 'admin-toolkit' | 'symptom' | 'appointment'
   /**
    * Absent for symptom uploads targeting base-symptom content (superuser →
-   * stored as a global image). Required for admin-toolkit uploads.
+   * stored as a global image). Required for admin-toolkit and appointment
+   * uploads.
    */
   surgeryId?: string
   /** Absent when editing a not-yet-created item (admin create form). */
   itemId?: string
+}
+
+const UPLOAD_URL_BY_KIND: Record<NonNullable<ImageUploadTarget['kind']>, string> = {
+  'admin-toolkit': '/api/admin-toolkit/images',
+  symptom: '/api/symptom-images',
+  appointment: '/api/appointment-images',
 }
 
 interface ImagePopoverProps {
@@ -78,8 +85,7 @@ export default function ImagePopover({ editor, imageUpload, children }: ImagePop
       if (imageUpload.itemId) {
         formData.append('itemId', imageUpload.itemId)
       }
-      const uploadUrl =
-        imageUpload.kind === 'symptom' ? '/api/symptom-images' : '/api/admin-toolkit/images'
+      const uploadUrl = UPLOAD_URL_BY_KIND[imageUpload.kind ?? 'admin-toolkit']
       const res = await fetch(uploadUrl, { method: 'POST', body: formData })
       const body = (await res.json().catch(() => null)) as { url?: string; error?: string } | null
       if (!res.ok || !body?.url) {

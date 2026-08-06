@@ -50,6 +50,7 @@ model User {
   adminItemImagesCreated       AdminItemImage[]              @relation("AdminItemImageCreatedBy")
   adminItemFilesCreated        AdminItemFile[]               @relation("AdminItemFileCreatedBy")
   symptomImagesCreated         SymptomImage[]                @relation("SymptomImageCreatedBy")
+  appointmentImagesCreated     AppointmentImage[]            @relation("AppointmentImageCreatedBy")
 
   // Workflow instances
   workflowInstances        WorkflowInstance[]
@@ -131,6 +132,7 @@ model Surgery {
   surgeryFeatureFlags              SurgeryFeatureFlag[]
   appointmentTypes                 AppointmentType[]
   appointmentStaffTypes            AppointmentStaffType[]
+  appointmentImages                AppointmentImage[]
   onboardingProfile                SurgeryOnboardingProfile?
   workflowTemplates                WorkflowTemplate[]
   workflowInstances                WorkflowInstance[]
@@ -965,15 +967,44 @@ model AppointmentType {
   staffType    String? // e.g. "PN" | "HCA" | "Dr" | "All"
   durationMins Int?
   colour       String? // hex or tailwind token; optional
-  notes        String? // store as text
+  notes        String? // plain-text fallback, derived from notesHtml on rich-text saves
+  notesHtml    String? // canonical rich-text notes (sanitized HTML)
   isEnabled    Boolean   @default(true)
   isDefault    Boolean   @default(false)
   lastEditedBy String?
   lastEditedAt DateTime? @updatedAt
 
-  Surgery Surgery? @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  Surgery Surgery?           @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  images  AppointmentImage[]
 
   @@index([surgeryId])
+}
+
+// Inline image embedded in appointment notes. Bytes live in the database and
+// are served through /api/appointment-images/[imageId], which re-checks
+// surgery membership. appointmentTypeId is null for images uploaded from the
+// create modal before the appointment exists — saving claims ones the notes
+// reference (see extractAppointmentImageIds). Orphaned rows (image removed
+// from notes, or create form abandoned) are accepted and cleaned up by the
+// surgery/appointment cascade.
+model AppointmentImage {
+  id                String  @id @default(cuid())
+  surgeryId         String
+  appointmentTypeId String?
+  contentType       String // "image/jpeg" | "image/png" — derived from magic bytes, not the client MIME
+  data              Bytes
+  sizeBytes         Int
+  filename          String
+  createdByUserId   String?
+  createdAt         DateTime @default(now())
+
+  surgery         Surgery          @relation(fields: [surgeryId], references: [id], onDelete: Cascade)
+  appointmentType AppointmentType? @relation(fields: [appointmentTypeId], references: [id], onDelete: Cascade)
+  createdBy       User?            @relation("AppointmentImageCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([surgeryId])
+  @@index([appointmentTypeId])
+  @@index([createdByUserId])
 }
 
 model AppointmentStaffType {

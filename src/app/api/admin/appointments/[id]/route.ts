@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { requireSurgeryAdmin } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
+import { sanitizeAppointmentHtml, stripHtmlToPlainText } from '@/lib/sanitizeHtml'
+import { isHtmlEmpty } from '@/lib/adminToolkitContentBlocksShared'
+import { extractAppointmentImageIds } from '@/lib/appointmentUploads'
 import { z } from 'zod'
 
 export const runtime = 'nodejs'
@@ -13,6 +16,7 @@ const updateAppointmentSchema = z.object({
   durationMins: z.number().int().positive().optional().nullable(),
   colour: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  notesHtml: z.string().optional().nullable(),
   isEnabled: z.boolean().optional()
 })
 
@@ -61,13 +65,40 @@ export async function PATCH(
     if (validated.staffType !== undefined) updateData.staffType = validated.staffType
     if (validated.durationMins !== undefined) updateData.durationMins = validated.durationMins
     if (validated.colour !== undefined) updateData.colour = validated.colour
-    if (validated.notes !== undefined) updateData.notes = validated.notes
     if (validated.isEnabled !== undefined) updateData.isEnabled = validated.isEnabled
 
-    // Update appointment type
-    const appointment = await prisma.appointmentType.update({
-      where: { id },
-      data: updateData
+    // notesHtml is canonical: when sent, plain notes is derived from it so
+    // the text search filter keeps working. A legacy notes-only payload
+    // clears notesHtml so stale rich content can't shadow the update.
+    let imageIds: string[] = []
+    if (validated.notesHtml !== undefined) {
+      const sanitized = validated.notesHtml ? sanitizeAppointmentHtml(validated.notesHtml) : null
+      const notesHtml = sanitized && !isHtmlEmpty(sanitized) ? sanitized : null
+      updateData.notesHtml = notesHtml
+      updateData.notes = notesHtml ? stripHtmlToPlainText(notesHtml) || null : null
+      imageIds = extractAppointmentImageIds(notesHtml)
+    } else if (validated.notes !== undefined) {
+      updateData.notes = validated.notes
+      updateData.notesHtml = null
+    }
+
+    // Update, then claim still-unowned images the notes reference (uploaded
+    // from the create modal before the row existed). Rows already owned by an
+    // appointment are never re-bound.
+    const appointment = await prisma.$transaction(async (tx) => {
+      const updated = await tx.appointmentType.update({
+        where: { id },
+        data: updateData
+      })
+
+      if (imageIds.length > 0 && existing.surgeryId) {
+        await tx.appointmentImage.updateMany({
+          where: { id: { in: imageIds }, surgeryId: existing.surgeryId, appointmentTypeId: null },
+          data: { appointmentTypeId: id }
+        })
+      }
+
+      return updated
     })
 
     return NextResponse.json(appointment)

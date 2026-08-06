@@ -247,6 +247,9 @@ export async function POST(request: NextRequest) {
               durationMins: row.durationMins,
               staffType: row.staffType,
               notes: row.notes,
+              // CSV notes are plain text and always overwrite; clear any
+              // rich-text notes so they can't shadow the imported value.
+              notesHtml: null,
               lastEditedBy: user.email,
               lastEditedAt: new Date()
             }

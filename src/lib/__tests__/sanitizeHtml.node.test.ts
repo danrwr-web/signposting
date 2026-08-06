@@ -2,7 +2,14 @@
  * @jest-environment node
  */
 
-import { sanitizeAdminToolkitHtml, sanitizeHtml, sanitizeSymptomHtml, stripHtmlToPlainText } from '@/lib/sanitizeHtml'
+import {
+  escapeHtml,
+  sanitizeAdminToolkitHtml,
+  sanitizeAppointmentHtml,
+  sanitizeHtml,
+  sanitizeSymptomHtml,
+  stripHtmlToPlainText,
+} from '@/lib/sanitizeHtml'
 
 describe('sanitizeHtml (node)', () => {
   it('sanitises HTML without requiring a DOM/JSDOM', () => {
@@ -107,6 +114,63 @@ describe('sanitizeSymptomHtml', () => {
 
   it('is not accepted by the handbook sanitizer (routes are not interchangeable)', () => {
     expect(sanitizeAdminToolkitHtml('<p><img src="/api/symptom-images/clx123abc" /></p>')).toBe('<p></p>')
+  })
+})
+
+describe('sanitizeAppointmentHtml', () => {
+  it('keeps img pointing at the internal appointment image route', () => {
+    expect(
+      sanitizeAppointmentHtml('<p><img src="/api/appointment-images/clx123abc" alt="Clinic room" /></p>')
+    ).toBe('<p><img src="/api/appointment-images/clx123abc" alt="Clinic room" /></p>')
+  })
+
+  it('drops img with external, data:, handbook or symptom-route sources', () => {
+    expect(sanitizeAppointmentHtml('<p><img src="https://evil.example/x.png" /></p>')).toBe('<p></p>')
+    expect(sanitizeAppointmentHtml('<p><img src="data:image/png;base64,AAAA" /></p>')).toBe('<p></p>')
+    // Other modules' images belong to their own sanitizers.
+    expect(sanitizeAppointmentHtml('<p><img src="/api/admin-toolkit/images/clx123abc" /></p>')).toBe('<p></p>')
+    expect(sanitizeAppointmentHtml('<p><img src="/api/symptom-images/clx123abc" /></p>')).toBe('<p></p>')
+    expect(sanitizeAppointmentHtml('<p><img src="/api/appointment-images/abc/../../x" /></p>')).toBe('<p></p>')
+  })
+
+  it('strips disallowed attributes but keeps src, alt and numeric width', () => {
+    expect(
+      sanitizeAppointmentHtml(
+        '<p><img src="/api/appointment-images/clx123abc" alt="x" width="320" title="t" onerror="alert(1)" /></p>'
+      )
+    ).toBe('<p><img src="/api/appointment-images/clx123abc" alt="x" width="320" /></p>')
+  })
+
+  it('drops non-numeric width values', () => {
+    expect(
+      sanitizeAppointmentHtml('<p><img src="/api/appointment-images/clx123abc" width="50%" /></p>')
+    ).toBe('<p><img src="/api/appointment-images/clx123abc" /></p>')
+  })
+
+  it('otherwise matches the base allowlist', () => {
+    expect(sanitizeAppointmentHtml('<p>Hello</p><script>alert(1)</script>')).toBe('<p>Hello</p>')
+  })
+
+  it('is not accepted by the other sanitizers (routes are not interchangeable)', () => {
+    expect(sanitizeAdminToolkitHtml('<p><img src="/api/appointment-images/clx123abc" /></p>')).toBe('<p></p>')
+    expect(sanitizeSymptomHtml('<p><img src="/api/appointment-images/clx123abc" /></p>')).toBe('<p></p>')
+  })
+})
+
+describe('escapeHtml', () => {
+  it('escapes tag-shaped and entity characters for text-node use', () => {
+    expect(escapeHtml('Use <code>ABC</code> & more')).toBe(
+      'Use &lt;code&gt;ABC&lt;/code&gt; &amp; more'
+    )
+  })
+
+  it('round-trips through stripHtmlToPlainText', () => {
+    const original = 'Use <code>ABC</code> & more'
+    expect(stripHtmlToPlainText(escapeHtml(original))).toBe(original)
+  })
+
+  it('returns empty string for empty input', () => {
+    expect(escapeHtml('')).toBe('')
   })
 })
 

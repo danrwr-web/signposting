@@ -25,12 +25,26 @@ Each appointment entry includes:
 - **Staff Team** — Which team handles this appointment
 - **Duration** — Appointment length in minutes
 - **Colour Coding** — Visual identification by staff team
-- **Notes** — Additional guidance or rules
+- **Notes** — Additional guidance or rules, with rich formatting and images
 
 ### Status
 - **Enabled/Disabled** — Control visibility
 - **Default Appointments** — System-provided templates
 - **Custom Appointments** — Surgery-specific types
+
+---
+
+## Rich-Text Notes and Images
+
+Appointment notes use the same rich-text editor as symptom instructions and the Practice Handbook. Admins can:
+
+- Format notes with headings, bold, lists, links and highlights
+- Insert JPG or PNG images (up to 2MB each) via the image button in the editor toolbar, with optional alt text for screen readers
+- Resize an inserted image — select it and choose Small, Medium, Large, or Original size
+
+Images are private to your practice: they are stored with your surgery's data and served only to signed-in members of your surgery. Notes — including any images — appear on the appointment's card in the directory.
+
+> **CSV note**: importing a CSV overwrites the notes of any appointment it updates with the plain text from the file, replacing rich formatting and images for those entries.
 
 ---
 
@@ -196,9 +210,9 @@ The appointment directory works closely with the symptom library:
 ### For Admins
 - Keep directory up to date
 - Use clear, consistent naming
-- Add helpful notes
+- Add helpful notes — a small image (e.g. a room map or equipment photo) can save explaining
 - Organise by staff teams logically
-- Import CSV for bulk updates
+- Import CSV for bulk updates (remembering it replaces rich-text notes with the CSV's plain text)
 
 ### For Reception Staff
 - Use search to find appointments quickly

@@ -17,7 +17,12 @@ import { useEffect, useMemo, useRef } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import { createRichTextExtensions } from '@/components/rich-text/extensions'
 import { cleanPastedHtml, normalizeHtml } from '@/components/rich-text/normalizeHtml'
-import { sanitizeAdminToolkitHtml, sanitizeHtml, sanitizeSymptomHtml } from '@/lib/sanitizeHtml'
+import {
+  sanitizeAdminToolkitHtml,
+  sanitizeAppointmentHtml,
+  sanitizeHtml,
+  sanitizeSymptomHtml,
+} from '@/lib/sanitizeHtml'
 import { Skeleton } from '@/components/ui'
 import Toolbar from '@/components/rich-text/toolbar/Toolbar'
 import type { ImageUploadTarget } from '@/components/rich-text/toolbar/ImagePopover'
@@ -39,10 +44,20 @@ interface RichTextEditorProps {
    * button to the toolbar, and switches the paste sanitizer to the target
    * module's variant so internal images survive. Content edited with this
    * set must be saved via the matching sanitizer (`sanitizeAdminToolkitHtml`
-   * for the handbook, `sanitizeSymptomHtml` for symptoms).
+   * for the handbook, `sanitizeSymptomHtml` for symptoms,
+   * `sanitizeAppointmentHtml` for appointment notes).
    */
   imageUpload?: ImageUploadTarget
   'data-testid'?: string
+}
+
+const IMAGE_SANITIZERS: Record<
+  NonNullable<ImageUploadTarget['kind']>,
+  (html: string) => string
+> = {
+  'admin-toolkit': sanitizeAdminToolkitHtml,
+  symptom: sanitizeSymptomHtml,
+  appointment: sanitizeAppointmentHtml,
 }
 
 export default function RichTextEditor({
@@ -65,9 +80,7 @@ export default function RichTextEditor({
   )
   const sanitize = !enableImages
     ? sanitizeHtml
-    : imageUpload?.kind === 'symptom'
-      ? sanitizeSymptomHtml
-      : sanitizeAdminToolkitHtml
+    : IMAGE_SANITIZERS[imageUpload?.kind ?? 'admin-toolkit']
 
   const editor = useEditor({
     // Defer creation to the client so server and first client render match —

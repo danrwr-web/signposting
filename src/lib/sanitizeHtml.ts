@@ -2,13 +2,15 @@
  * HTML Sanitization Utility
  * Sanitizes HTML content to prevent XSS attacks while preserving formatting
  *
- * Three allowlists live here:
+ * Four allowlists live here:
  * - the base config (`sanitizeHtml`) used by most content — no `img`
  * - the Practice Handbook config (`sanitizeAdminToolkitHtml`) which
  *   additionally allows `img`, but only with a same-origin
  *   `/api/admin-toolkit/images/{id}` src
  * - the symptom config (`sanitizeSymptomHtml`) — same idea, but the only
  *   allowed img src is `/api/symptom-images/{id}`
+ * - the appointment config (`sanitizeAppointmentHtml`) — same idea, but the
+ *   only allowed img src is `/api/appointment-images/{id}`
  * External, protocol-relative and data: image sources are always stripped,
  * and each module's config only accepts its own serving route.
  */
@@ -100,6 +102,12 @@ export const ADMIN_TOOLKIT_IMAGE_SRC_RE = /^\/api\/admin-toolkit\/images\/[a-z0-
  */
 export const SYMPTOM_IMAGE_SRC_RE = /^\/api\/symptom-images\/[a-z0-9]+$/i
 
+/**
+ * The only image src shape appointment notes may reference: the authenticated
+ * appointment-image serving route with a cuid id.
+ */
+export const APPOINTMENT_IMAGE_SRC_RE = /^\/api\/appointment-images\/[a-z0-9]+$/i
+
 // Base config plus `img` restricted to one internal serving route.
 function makeImageSanitizeConfig(srcRe: RegExp): sanitizeHtmlLib.IOptions {
   return {
@@ -133,6 +141,7 @@ function makeImageSanitizeConfig(srcRe: RegExp): sanitizeHtmlLib.IOptions {
 
 const adminToolkitSanitizeConfig = makeImageSanitizeConfig(ADMIN_TOOLKIT_IMAGE_SRC_RE)
 const symptomSanitizeConfig = makeImageSanitizeConfig(SYMPTOM_IMAGE_SRC_RE)
+const appointmentSanitizeConfig = makeImageSanitizeConfig(APPOINTMENT_IMAGE_SRC_RE)
 
 /**
  * Sanitizes Practice Handbook (Admin Toolkit) HTML. Same allowlist as
@@ -157,6 +166,19 @@ export function sanitizeSymptomHtml(html: string): string {
   }
 
   return normalizeStyleAttributes(sanitizeHtmlLib(html, symptomSanitizeConfig))
+}
+
+/**
+ * Sanitizes appointment notes HTML. Same allowlist as `sanitizeHtml` plus
+ * `img` restricted to internal appointment image URLs — handbook or symptom
+ * image URLs (or any other src) are stripped.
+ */
+export function sanitizeAppointmentHtml(html: string): string {
+  if (!html || typeof html !== 'string') {
+    return ''
+  }
+
+  return normalizeStyleAttributes(sanitizeHtmlLib(html, appointmentSanitizeConfig))
 }
 
 /**
@@ -214,6 +236,19 @@ export function stripHtmlToPlainText(html: string): string {
 
   // Collapse whitespace runs (including newlines from stripped block tags).
   return decoded.replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Escapes plain text for use inside an HTML text node, so tag-shaped literal
+ * text (e.g. "use <code> here") displays verbatim instead of being parsed as
+ * markup. Use before feeding legacy plain-text fields into an HTML editor.
+ */
+export function escapeHtml(text: string): string {
+  if (!text || typeof text !== 'string') {
+    return ''
+  }
+
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 /**
@@ -286,4 +321,21 @@ export function sanitizeAndFormatSymptomContent(content: string): string {
     return sanitizeSymptomHtml(content)
   }
   return sanitizeSymptomHtml(convertLineBreaksToHtml(content))
+}
+
+/**
+ * `sanitizeAndFormatContent` for appointment notes: same behaviour, but
+ * images referencing the internal appointment image route survive.
+ */
+export function sanitizeAndFormatAppointmentContent(content: string): string {
+  if (!content || typeof content !== 'string') {
+    return ''
+  }
+
+  const hasHtmlTags = /<[^>]+>/.test(content)
+
+  if (hasHtmlTags) {
+    return sanitizeAppointmentHtml(content)
+  }
+  return sanitizeAppointmentHtml(convertLineBreaksToHtml(content))
 }
