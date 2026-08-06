@@ -113,5 +113,92 @@ describe('RichContent', () => {
 
       expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
+
+    it('closes when the empty area of the stage is tapped', async () => {
+      const user = await openLightbox()
+
+      await user.click(screen.getByTestId('image-lightbox-stage'))
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  describe('zoom', () => {
+    async function openLightbox() {
+      const user = userEvent.setup()
+      const { container } = render(<RichContent html={HTML_WITH_IMAGE} />)
+      await user.click(container.querySelector('img') as HTMLImageElement)
+      return user
+    }
+
+    const transform = () => (lightboxImage() as HTMLImageElement).style.transform
+
+    it('opens fitted to the viewport at 100% with no offset', async () => {
+      await openLightbox()
+
+      expect(screen.getByText('100%')).toBeInTheDocument()
+      expect(transform()).toBe('translate(0px, 0px) scale(1)')
+      expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Reset zoom' })).toBeDisabled()
+    })
+
+    it('zooms in and back out with the toolbar buttons', async () => {
+      const user = await openLightbox()
+
+      await user.click(screen.getByRole('button', { name: 'Zoom in' }))
+      expect(screen.getByText('150%')).toBeInTheDocument()
+      expect(transform()).toContain('scale(1.5)')
+
+      await user.click(screen.getByRole('button', { name: 'Zoom out' }))
+      expect(screen.getByText('100%')).toBeInTheDocument()
+    })
+
+    it('zooms with the + and - keys and resets with 0', async () => {
+      const user = await openLightbox()
+
+      await user.keyboard('+')
+      expect(screen.getByText('150%')).toBeInTheDocument()
+
+      await user.keyboard('+')
+      expect(screen.getByText('225%')).toBeInTheDocument()
+
+      await user.keyboard('0')
+      expect(screen.getByText('100%')).toBeInTheDocument()
+      expect(transform()).toBe('translate(0px, 0px) scale(1)')
+    })
+
+    it('caps zoom at 600% and never goes below the fitted view', async () => {
+      const user = await openLightbox()
+
+      for (let i = 0; i < 10; i++) await user.keyboard('+')
+      expect(screen.getByText('600%')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled()
+
+      for (let i = 0; i < 10; i++) await user.keyboard('-')
+      expect(screen.getByText('100%')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled()
+    })
+
+    it('resets zoom via the reset button', async () => {
+      const user = await openLightbox()
+
+      await user.click(screen.getByRole('button', { name: 'Zoom in' }))
+      await user.click(screen.getByRole('button', { name: 'Reset zoom' }))
+
+      expect(screen.getByText('100%')).toBeInTheDocument()
+      expect(transform()).toBe('translate(0px, 0px) scale(1)')
+    })
+
+    it('starts each newly opened image back at the fitted view', async () => {
+      const user = await openLightbox()
+
+      await user.click(screen.getByRole('button', { name: 'Zoom in' }))
+      expect(screen.getByText('150%')).toBeInTheDocument()
+
+      await user.keyboard('{Escape}')
+      await user.click(screen.getAllByRole('button', { name: /Enlarge image/ })[0])
+
+      expect(screen.getByText('100%')).toBeInTheDocument()
+    })
   })
 })

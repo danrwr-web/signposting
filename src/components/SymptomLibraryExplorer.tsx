@@ -5,7 +5,8 @@ import { toast } from 'react-hot-toast'
 import NewSymptomModal from '@/components/NewSymptomModal'
 import VariantPreviewList from '@/components/VariantPreviewList'
 import { type GroupableSurgery } from '@/components/GroupedSurgeryOptions'
-import { Dialog, Button, FormField, Input, AlertBanner, SkeletonTable, EmptyState } from '@/components/ui'
+import { Dialog, Button, FormField, Input, AlertBanner, SkeletonTable, EmptyState, RichContent } from '@/components/ui'
+import { sanitizeAndFormatSymptomContent } from '@/lib/sanitizeHtml'
 
 type SymptomStatus = 'BASE' | 'MODIFIED' | 'LOCAL_ONLY' | 'DISABLED'
 
@@ -1052,7 +1053,10 @@ function SymptomPreviewDrawer({ isOpen, onClose, surgeryId, baseSymptomId, custo
                   )}
                 </div>
                 {currentHtml ? (
-                  <div className="prose max-w-none [&_a]:pointer-events-none [&_a]:opacity-60" dangerouslySetInnerHTML={{ __html: currentHtml }} />
+                  <RichContent
+                    className="prose max-w-none [&_a]:pointer-events-none [&_a]:opacity-60"
+                    html={sanitizeAndFormatSymptomContent(currentHtml)}
+                  />
                 ) : (
                   <p className="text-sm text-gray-700">—</p>
                 )}
