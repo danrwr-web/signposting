@@ -126,5 +126,39 @@ describe('POST /api/admin/appointments/import', () => {
       issues: []
     })
   })
+
+  it('clears notesHtml when re-import overwrites an existing appointment', async () => {
+    mockFindMany.mockResolvedValue([{ id: 'apt-1', name: 'Flu jab' }])
+
+    const csv =
+      'Appointment Name,Duration,Personnel,Notes\nFlu jab,10 mins,Nurse,Seasonal vaccine\n'
+    const formData = new FormData()
+    const file = new File([csv], 'appointments.csv', { type: 'text/csv' })
+    Object.defineProperty(file, 'text', {
+      value: () => Promise.resolve(csv)
+    })
+    formData.append('file', file)
+    formData.append('surgeryId', 'surgery-123')
+
+    const request = {
+      formData: jest.fn().mockResolvedValue(formData)
+    } as unknown as NextRequest
+
+    const response = await POST(request)
+    const payload = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalledWith({
+      where: { id: 'apt-1' },
+      data: expect.objectContaining({
+        notes: 'Seasonal vaccine',
+        // CSV notes are plain text; stale rich notes must not survive the import.
+        notesHtml: null
+      })
+    })
+    expect(payload).toEqual(
+      expect.objectContaining({ created: 0, updated: 1, total: 1 })
+    )
+  })
 })
 

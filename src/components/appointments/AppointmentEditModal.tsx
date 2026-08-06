@@ -2,17 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Modal from './Modal'
+import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { normalizeStaffLabel } from '@/lib/staffTypes'
-
-interface AppointmentType {
-  id: string
-  name: string
-  staffType: string | null
-  durationMins: number | null
-  colour: string | null
-  notes: string | null
-  isEnabled: boolean
-}
+import { convertLineBreaksToHtml } from '@/lib/sanitizeHtml'
+import type { AppointmentType } from '@/components/appointments/types'
 
 interface StaffTypeOption {
   id: string
@@ -23,6 +16,7 @@ interface StaffTypeOption {
 
 interface AppointmentEditModalProps {
   appointment: AppointmentType | null
+  surgeryId: string
   staffTypes: StaffTypeOption[]
   onSave: (data: Partial<AppointmentType>) => void
   onCancel: () => void
@@ -45,6 +39,7 @@ function isHexColour(value: string): boolean {
 
 export default function AppointmentEditModal({
   appointment,
+  surgeryId,
   staffTypes,
   onSave,
   onCancel
@@ -52,7 +47,7 @@ export default function AppointmentEditModal({
   const [name, setName] = useState('')
   const [staffType, setStaffType] = useState<string>('All')
   const [durationMins, setDurationMins] = useState<string>('')
-  const [notes, setNotes] = useState('')
+  const [notesHtml, setNotesHtml] = useState('')
   const [colour, setColour] = useState('')
   const [hasCustomColour, setHasCustomColour] = useState(false)
   const nameInputRef = useRef<HTMLInputElement>(null)
@@ -81,7 +76,7 @@ export default function AppointmentEditModal({
       setName(appointment.name)
       setStaffType(initialStaffType)
       setDurationMins(appointment.durationMins?.toString() || '')
-      setNotes(appointment.notes || '')
+      setNotesHtml(appointment.notesHtml ?? convertLineBreaksToHtml(appointment.notes ?? ''))
       setColour(appointment.colour || defaultColour)
       setHasCustomColour(
         Boolean(appointment.colour && appointment.colour.trim() && appointment.colour !== defaultColour)
@@ -93,7 +88,7 @@ export default function AppointmentEditModal({
       setName('')
       setStaffType(defaultStaffType)
       setDurationMins('')
-      setNotes('')
+      setNotesHtml('')
       setColour(defaultColour)
       setHasCustomColour(false)
     }
@@ -123,11 +118,12 @@ export default function AppointmentEditModal({
       ? trimmedColour || null
       : null
 
+    // Only notesHtml is sent; the server sanitizes it and derives plain notes.
     const data: Partial<AppointmentType> = {
       name,
       staffType: staffType || null,
       durationMins: durationMins ? parseInt(durationMins, 10) : null,
-      notes: notes || null,
+      notesHtml: notesHtml || null,
       colour: colourToPersist
     }
 
@@ -161,6 +157,7 @@ export default function AppointmentEditModal({
       title={modalTitle}
       onClose={onCancel}
       initialFocusRef={nameInputRef}
+      widthClassName="max-w-2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -281,18 +278,17 @@ export default function AppointmentEditModal({
         </div>
 
         <div>
-          <label
-            htmlFor="appointment-notes"
-            className="mb-1 block text-sm font-medium text-nhs-grey"
-          >
+          <label className="mb-1 block text-sm font-medium text-nhs-grey">
             Notes
           </label>
-          <textarea
-            id="appointment-notes"
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            rows={3}
-            className="w-full rounded-md border border-nhs-light-grey px-3 py-2 focus:outline-none focus:ring-2 focus:ring-nhs-blue"
+          <RichTextEditor
+            docId={appointment?.id ?? 'new-appointment'}
+            value={notesHtml}
+            onChange={setNotesHtml}
+            height={160}
+            placeholder="Add notes for reception staff…"
+            imageUpload={{ kind: 'appointment', surgeryId, itemId: appointment?.id }}
+            data-testid="appointment-notes-editor"
           />
         </div>
 

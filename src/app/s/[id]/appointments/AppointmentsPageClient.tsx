@@ -10,16 +10,7 @@ import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
 import { Button, ConfirmDialog, Dialog } from '@/components/ui'
 import { SkeletonCardGrid } from '@/components/ui/Skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
-
-interface AppointmentType {
-  id: string
-  name: string
-  staffType: string | null
-  durationMins: number | null
-  colour: string | null
-  notes: string | null
-  isEnabled: boolean
-}
+import type { AppointmentType } from '@/components/appointments/types'
 
 interface AppointmentsPageClientProps {
   surgeryId: string
@@ -349,6 +340,7 @@ export default function AppointmentsPageClient({
         {(showAddModal || editingAppointment) && (
           <AppointmentEditModal
             appointment={editingAppointment}
+            surgeryId={surgeryId}
             staffTypes={filterOptions}
             onSave={handleSave}
             onCancel={() => {

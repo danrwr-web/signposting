@@ -2,16 +2,8 @@
 
 import type { CSSProperties } from 'react'
 import { normalizeStaffLabel, StaffTypeResponse } from '@/lib/staffTypes'
-
-interface AppointmentType {
-  id: string
-  name: string
-  staffType: string | null
-  durationMins: number | null
-  colour: string | null
-  notes: string | null
-  isEnabled: boolean
-}
+import { sanitizeAndFormatAppointmentContent } from '@/lib/sanitizeHtml'
+import type { AppointmentType } from '@/components/appointments/types'
 
 interface AppointmentCardProps {
   appointment: AppointmentType
@@ -168,10 +160,15 @@ export default function AppointmentCard({
       )}
 
       {/* Notes */}
-      {appointment.notes && (
-        <div className="mt-auto border-t border-nhs-light-grey pt-2 text-sm text-nhs-grey">
-          {appointment.notes}
-        </div>
+      {(appointment.notesHtml || appointment.notes) && (
+        <div
+          className="mt-auto border-t border-nhs-light-grey pt-2 text-sm text-nhs-grey [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
+          dangerouslySetInnerHTML={{
+            __html: sanitizeAndFormatAppointmentContent(
+              appointment.notesHtml ?? appointment.notes ?? ''
+            ),
+          }}
+        />
       )}
     </div>
   )
