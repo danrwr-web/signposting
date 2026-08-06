@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Modal from './Modal'
 import RichTextEditor from '@/components/rich-text/RichTextEditor'
 import { normalizeStaffLabel } from '@/lib/staffTypes'
-import { convertLineBreaksToHtml } from '@/lib/sanitizeHtml'
+import { convertLineBreaksToHtml, escapeHtml } from '@/lib/sanitizeHtml'
 import type { AppointmentType } from '@/components/appointments/types'
 
 interface StaffTypeOption {
@@ -46,9 +46,10 @@ export default function AppointmentEditModal({
 }: AppointmentEditModalProps) {
   // Derived at render time so the uncontrolled RichTextEditor sees the stored
   // notes on the render it is created — an effect-set state arrives too late,
-  // and the editor only re-hydrates when docId changes.
+  // and the editor only re-hydrates when docId changes. Legacy plain notes
+  // are escaped so tag-shaped literal text isn't parsed as markup.
   const initialNotesHtml = appointment
-    ? appointment.notesHtml ?? convertLineBreaksToHtml(appointment.notes ?? '')
+    ? appointment.notesHtml ?? convertLineBreaksToHtml(escapeHtml(appointment.notes ?? ''))
     : ''
 
   const [name, setName] = useState('')

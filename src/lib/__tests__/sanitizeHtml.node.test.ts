@@ -3,6 +3,7 @@
  */
 
 import {
+  escapeHtml,
   sanitizeAdminToolkitHtml,
   sanitizeAppointmentHtml,
   sanitizeHtml,
@@ -153,6 +154,23 @@ describe('sanitizeAppointmentHtml', () => {
   it('is not accepted by the other sanitizers (routes are not interchangeable)', () => {
     expect(sanitizeAdminToolkitHtml('<p><img src="/api/appointment-images/clx123abc" /></p>')).toBe('<p></p>')
     expect(sanitizeSymptomHtml('<p><img src="/api/appointment-images/clx123abc" /></p>')).toBe('<p></p>')
+  })
+})
+
+describe('escapeHtml', () => {
+  it('escapes tag-shaped and entity characters for text-node use', () => {
+    expect(escapeHtml('Use <code>ABC</code> & more')).toBe(
+      'Use &lt;code&gt;ABC&lt;/code&gt; &amp; more'
+    )
+  })
+
+  it('round-trips through stripHtmlToPlainText', () => {
+    const original = 'Use <code>ABC</code> & more'
+    expect(stripHtmlToPlainText(escapeHtml(original))).toBe(original)
+  })
+
+  it('returns empty string for empty input', () => {
+    expect(escapeHtml('')).toBe('')
   })
 })
 

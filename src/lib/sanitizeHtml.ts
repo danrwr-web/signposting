@@ -239,6 +239,19 @@ export function stripHtmlToPlainText(html: string): string {
 }
 
 /**
+ * Escapes plain text for use inside an HTML text node, so tag-shaped literal
+ * text (e.g. "use <code> here") displays verbatim instead of being parsed as
+ * markup. Use before feeding legacy plain-text fields into an HTML editor.
+ */
+export function escapeHtml(text: string): string {
+  if (!text || typeof text !== 'string') {
+    return ''
+  }
+
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+/**
  * Converts plain text line breaks to HTML
  * @param text - The plain text content
  * @returns HTML string with line breaks converted to <br> tags

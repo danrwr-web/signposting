@@ -64,6 +64,14 @@ describe('AppointmentEditModal notes editor', () => {
     })
   })
 
+  it('shows tag-shaped literal text in legacy notes verbatim, not as markup', async () => {
+    renderModal({ ...baseAppointment, notes: 'Use <code>ABC</code> literally & carefully' })
+
+    await waitFor(() => {
+      expect(screen.getByText(/Use <code>ABC<\/code> literally & carefully/)).toBeInTheDocument()
+    })
+  })
+
   it('starts empty when creating a new appointment', async () => {
     renderModal(null)
 

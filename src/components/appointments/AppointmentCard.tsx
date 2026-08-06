@@ -162,7 +162,7 @@ export default function AppointmentCard({
       {/* Notes */}
       {(appointment.notesHtml || appointment.notes) && (
         <div
-          className="mt-auto border-t border-nhs-light-grey pt-2 text-sm text-nhs-grey [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
+          className="mt-auto border-t border-nhs-light-grey pt-2 text-sm text-nhs-grey prose prose-sm max-w-none [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded"
           dangerouslySetInnerHTML={{
             __html: sanitizeAndFormatAppointmentContent(
               appointment.notesHtml ?? appointment.notes ?? ''
