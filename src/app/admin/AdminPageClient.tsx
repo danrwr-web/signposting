@@ -19,7 +19,7 @@ import RelatedSymptomsEditor from '@/components/RelatedSymptomsEditor'
 import EngagementAnalytics from '@/components/engagement/EngagementAnalytics'
 import SuggestionsAnalytics from '@/components/SuggestionsAnalytics'
 import { Surgery } from '@prisma/client'
-import { HighlightRule } from '@/lib/highlighting'
+import { highlightPlainText, HighlightRule } from '@/lib/highlighting'
 import { Session } from '@/server/auth'
 import { GetEffectiveSymptomsResZ, GetHighlightsResZ } from '@/lib/api-contracts'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
@@ -459,10 +459,7 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
   }
 
   const highlightText = (text: string) => {
-    const { applyHighlightRules } = require('@/lib/highlighting')
-    // Ensure highlightRules is an array
-    const rules = Array.isArray(highlightRules) ? highlightRules : []
-    return applyHighlightRules(text, rules)
+    return highlightPlainText(text, highlightRules)
   }
 
 
@@ -1011,12 +1008,14 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
                           <div className="font-medium text-nhs-dark-blue">
                             {symptom.name}
                           </div>
-                            <div 
-                              className="text-sm text-nhs-grey"
-                              dangerouslySetInnerHTML={{ 
-                                __html: `${symptom.ageGroup} • ${highlightText(symptom.briefInstruction || '')}` 
-                              }}
-                            />
+                            <div className="text-sm text-nhs-grey">
+                              {symptom.ageGroup} •{' '}
+                              <span
+                                dangerouslySetInnerHTML={{
+                                  __html: highlightText(symptom.briefInstruction || '')
+                                }}
+                              />
+                            </div>
                         </div>
                       ))}
                     </div>

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { memo, useMemo } from 'react'
 import { EffectiveSymptom } from '@/server/effectiveSymptoms'
-import { applyHighlightRules, HighlightRule } from '@/lib/highlighting'
+import { highlightPlainText, HighlightRule } from '@/lib/highlighting'
 import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 
@@ -142,7 +142,7 @@ function SymptomCard({ symptom, surgeryId, changeInfo, cardData, hideAgeBands = 
   }
 
   const highlightText = (text: string) => {
-    return applyHighlightRules(text, highlightRules, enableBuiltInHighlights)
+    return highlightPlainText(text, highlightRules, enableBuiltInHighlights)
   }
 
   const linkUrl = `/symptom/${symptom.id || 'unknown'}${effectiveSurgeryId ? `?surgery=${effectiveSurgeryId}` : ''}`
