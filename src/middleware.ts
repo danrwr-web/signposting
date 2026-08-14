@@ -6,6 +6,55 @@ import type { NextRequest } from 'next/server'
 const APP_HOST = 'app.signpostingtool.co.uk'
 const MARKETING_HOSTS = new Set(['www.signpostingtool.co.uk', 'signpostingtool.co.uk'])
 
+/**
+ * API paths that must stay reachable with no session at all.
+ *
+ * Deliberately an allowlist: anything not named here needs a session before it
+ * can be written to. Keep it short, and justify every entry.
+ */
+const PUBLIC_API_PREFIXES = [
+  // NextAuth's own handler plus the legacy /admin-login and /super-login
+  // endpoints. These ARE the sign-in mechanism — gating them locks everyone out.
+  '/api/auth/',
+  // Vercel Cron invokes this with no session; it authenticates itself with a
+  // CRON_SECRET bearer token (see api/cron/refresh-practice-data/route.ts).
+  '/api/cron/',
+]
+
+const PUBLIC_API_PATHS = new Set([
+  // The public demo request form on signpostingtool.co.uk/demo-request, which
+  // anonymous visitors submit.
+  '/api/demo-request',
+])
+
+/** Methods that can change stored data. GET/HEAD/OPTIONS are unaffected. */
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+function isPublicApiPath(pathname: string): boolean {
+  return (
+    PUBLIC_API_PATHS.has(pathname) ||
+    PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  )
+}
+
+/**
+ * Whether the request carries *any* recognised session.
+ *
+ * Two session systems are live in parallel: NextAuth JWTs issued by /login, and
+ * the legacy `session` cookie issued by /admin-login and /super-login and read
+ * by routes such as /api/highlights and /api/image-icons. Accepting only the
+ * first would lock superusers out of the pages that use the second.
+ *
+ * This is a coarse presence check, not authorisation — every route still runs
+ * its own permission logic. The point is only that a caller with no session
+ * whatsoever can never reach a route that forgets to check.
+ */
+async function hasAnySession(req: NextRequest): Promise<boolean> {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+  if (token) return true
+  return Boolean(req.cookies.get('session')?.value)
+}
+
 const authMiddleware = withAuth(
   function middleware(req) {
     // Handle OPTIONS requests (CORS preflight)
@@ -125,6 +174,24 @@ export default async function middleware(req: NextRequest) {
     const defaultSurgeryId = token?.defaultSurgeryId as string | undefined
     const targetPath = defaultSurgeryId ? `/s/${defaultSurgeryId}` : '/login'
     return NextResponse.redirect(new URL(targetPath, req.url))
+  }
+
+  // Defence in depth for the API surface. Route handlers each do their own
+  // authorisation, but this middleware previously only covered /admin and /s/,
+  // so a handler that forgot to check was reachable by anyone on the internet.
+  // Writes now require a session unless explicitly allowlisted above.
+  //
+  // Scoped to mutating methods on purpose: some pages (e.g. /symptom/[id]) are
+  // currently readable without a session and fetch API data to render, so
+  // gating GET here would change read behaviour as a side effect of a security
+  // fix. Read access is a separate decision.
+  if (
+    pathname.startsWith('/api/') &&
+    MUTATING_METHODS.has(req.method) &&
+    !isPublicApiPath(pathname) &&
+    !(await hasAnySession(req))
+  ) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
   }
 
   // In development or for other hosts, keep existing behaviour.
