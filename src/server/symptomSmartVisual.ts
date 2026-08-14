@@ -100,18 +100,20 @@ export function computeSymptomSmartVisualFingerprint(
   variant: ResolvedSymptomVariant,
   options: SymptomSmartVisualSourceOptions = {}
 ): string {
-  const { text } = buildSymptomSmartVisualSourceText(symptom, variant, options)
+  // Deliberately the FULL text, not the truncated prompt: hashing the
+  // truncated value would leave any edit past MAX_INPUT_CHARS invisible to
+  // staleness, so an over-long symptom could keep serving a visual generated
+  // from superseded instructions.
+  const text = buildFullSourceText(symptom, variant, options)
   return createHash('sha256').update(text).digest('hex')
 }
 
-/**
- * Serialize the symptom content into plain text for the AI prompt.
- */
-export function buildSymptomSmartVisualSourceText(
+/** The complete source text, before any prompt-size truncation. */
+function buildFullSourceText(
   symptom: EffectiveSymptom,
   variant: ResolvedSymptomVariant,
-  options: SymptomSmartVisualSourceOptions = {}
-): { text: string; truncated: boolean } {
+  options: SymptomSmartVisualSourceOptions
+): string {
   const lines: string[] = [`SYMPTOM: ${symptom.name.trim()}`]
 
   if (!options.hideAgeBands) {
@@ -136,13 +138,27 @@ export function buildSymptomSmartVisualSourceText(
     lines.push('', 'INSTRUCTIONS:', instructions)
   }
 
-  let text = lines.join('\n')
-  let truncated = false
-  if (text.length > MAX_INPUT_CHARS) {
-    text = text.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — content too long to process in full]'
-    truncated = true
+  return lines.join('\n')
+}
+
+/**
+ * Serialize the symptom content into plain text for the AI prompt, capped at
+ * the model's input budget. The fingerprint hashes the *untruncated* text —
+ * see `computeSymptomSmartVisualFingerprint`.
+ */
+export function buildSymptomSmartVisualSourceText(
+  symptom: EffectiveSymptom,
+  variant: ResolvedSymptomVariant,
+  options: SymptomSmartVisualSourceOptions = {}
+): { text: string; truncated: boolean } {
+  const full = buildFullSourceText(symptom, variant, options)
+  if (full.length > MAX_INPUT_CHARS) {
+    return {
+      text: full.slice(0, MAX_INPUT_CHARS) + '\n... [truncated — content too long to process in full]',
+      truncated: true,
+    }
   }
-  return { text, truncated }
+  return { text: full, truncated: false }
 }
 
 /** A symptom needs instructions before there is anything to visualise. */

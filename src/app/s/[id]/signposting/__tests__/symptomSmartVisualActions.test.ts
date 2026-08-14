@@ -28,7 +28,13 @@ jest.mock('@/lib/prisma', () => ({
     },
     symptomHistory: { create: jest.fn() },
     symptomReviewStatus: { upsert: jest.fn() },
-    $transaction: jest.fn(async (ops: unknown[]) => Promise.all(ops as Promise<unknown>[])),
+    // Supports both forms: an array of operations, and a callback given a
+    // transactional client (which here is just the same mocked client).
+    $transaction: jest.fn(async (arg: unknown) =>
+      typeof arg === 'function'
+        ? (arg as (tx: unknown) => Promise<unknown>)(jest.requireMock('@/lib/prisma').prisma)
+        : Promise.all(arg as Promise<unknown>[])
+    ),
   },
 }))
 
@@ -284,6 +290,29 @@ describe('removeSymptomSmartVisual', () => {
 
     expect(result.ok).toBe(true)
     expect(mockedHistoryCreate).not.toHaveBeenCalled()
+  })
+
+  it('deletes and audits in one transaction', async () => {
+    // Split apart, a failed audit write would leave the visual gone with no
+    // audit row — and the retry would delete nothing, skip the write and
+    // report success, losing the removal from the trail permanently.
+    await removeSymptomSmartVisual({ surgeryId: 'surgery-1', symptomId: 'sym-1' })
+
+    expect(mockedTransaction).toHaveBeenCalledTimes(1)
+    expect(typeof mockedTransaction.mock.calls[0][0]).toBe('function')
+    expect(mockedDeleteMany).toHaveBeenCalledTimes(1)
+    expect(mockedHistoryCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not report success when the audit write fails', async () => {
+    // The transaction rolls the delete back too, so the visual survives and a
+    // retry can still produce its audit row.
+    mockedHistoryCreate.mockRejectedValueOnce(new Error('audit write failed'))
+
+    const result = await removeSymptomSmartVisual({ surgeryId: 'surgery-1', symptomId: 'sym-1' })
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('UNKNOWN')
   })
 
   it('is blocked when the gate fails', async () => {

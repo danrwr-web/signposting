@@ -160,10 +160,28 @@ describe('computeSymptomSmartVisualFingerprint', () => {
     // cannot be added on one side only and silently stop invalidating visuals.
     const s = symptom()
     for (const options of [{}, { hideAgeBands: true }]) {
-      const { text } = buildSymptomSmartVisualSourceText(s, mainVariant(s), options)
+      const { text, truncated } = buildSymptomSmartVisualSourceText(s, mainVariant(s), options)
+      expect(truncated).toBe(false)
       const expected = createHash('sha256').update(text).digest('hex')
       expect(computeSymptomSmartVisualFingerprint(s, mainVariant(s), options)).toBe(expected)
     }
+  })
+
+  it('still changes for an edit past the prompt truncation limit', () => {
+    // The prompt is capped at MAX_INPUT_CHARS, but the fingerprint hashes the
+    // untruncated text — otherwise an edit in the omitted tail would leave the
+    // visual looking fresh against instructions it was never generated from.
+    const filler = 'word '.repeat(4000)
+    const before = symptom({ instructionsHtml: `<p>${filler}ORIGINAL TAIL</p>` })
+    const after = symptom({ instructionsHtml: `<p>${filler}REWRITTEN TAIL</p>` })
+
+    // Guard the premise: both must actually exceed the prompt cap.
+    expect(buildSymptomSmartVisualSourceText(before, mainVariant(before)).truncated).toBe(true)
+    expect(buildSymptomSmartVisualSourceText(after, mainVariant(after)).truncated).toBe(true)
+
+    expect(computeSymptomSmartVisualFingerprint(before, mainVariant(before))).not.toBe(
+      computeSymptomSmartVisualFingerprint(after, mainVariant(after))
+    )
   })
 })
 

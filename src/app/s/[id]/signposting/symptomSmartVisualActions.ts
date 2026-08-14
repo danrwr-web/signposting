@@ -191,15 +191,21 @@ export async function removeSymptomSmartVisual(
   const { symptom, symptomKeyId, variant, userEmail } = gate.data
 
   try {
-    const deleted = await prisma.symptomSmartVisual.deleteMany({
-      where: { surgeryId, symptomId: symptomKeyId, variantKey: variant.variantKey },
-    })
+    // Delete and audit together. Split across two calls, a failed history write
+    // would leave the visual already gone with no audit row — and the retry
+    // would delete nothing, see count 0, skip the history write and report
+    // success, losing the removal from the audit trail permanently.
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.symptomSmartVisual.deleteMany({
+        where: { surgeryId, symptomId: symptomKeyId, variantKey: variant.variantKey },
+      })
 
-    // Only record history when something was actually removed, so a repeated
-    // click stays idempotent instead of stacking audit rows.
-    if (deleted.count > 0) {
+      // Only record history when something was actually removed, so a repeated
+      // click stays idempotent instead of stacking audit rows.
+      if (deleted.count === 0) return
+
       const variantSuffix = variant.variantLabel ? ` for ${variant.variantLabel}` : ''
-      await prisma.symptomHistory.create({
+      await tx.symptomHistory.create({
         data: {
           symptomId: symptomKeyId,
           source: symptom.source,
@@ -207,7 +213,7 @@ export async function removeSymptomSmartVisual(
           editorEmail: userEmail,
         },
       })
-    }
+    })
 
     return { ok: true, data: { symptomId: symptomKeyId, variantKey: variant.variantKey } }
   } catch (error) {

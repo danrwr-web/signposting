@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Input, AlertBanner, ConfirmDialog, Skeleton, SkeletonText } from '@/components/ui'
 import SymptomSmartVisualRenderer from './SymptomSmartVisualRenderer'
@@ -124,9 +124,14 @@ export default function SymptomSmartVisualToggle({
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false)
   const [removing, setRemoving] = useState(false)
 
+  // Which variant is selected right now, readable from inside an in-flight
+  // request whose closure captured an older value.
+  const activeVariantKeyRef = useRef(activeVariantKey)
+
   // Switching age-group variant must never leave the previous variant's visual
   // (or a preview generated from its wording) on screen.
   useEffect(() => {
+    activeVariantKeyRef.current = activeVariantKey
     setPreview(null)
     setError(null)
     setView('standard')
@@ -135,6 +140,13 @@ export default function SymptomSmartVisualToggle({
   const canRegenerate = canGenerate && aiVisualsEnabled
 
   const handleGenerate = async (guidanceText?: string) => {
+    // Pin the variant this request is for. Generation takes seconds, and if the
+    // admin switches age group meanwhile, a late response must not paint the
+    // previous variant's triage content under the newly selected one — they
+    // could then review and save it believing it describes the other age group.
+    const requestedVariantKey = activeVariantKey
+    const isStaleResponse = () => activeVariantKeyRef.current !== requestedVariantKey
+
     setGenerating(true)
     setError(null)
     setView('visual')
@@ -150,11 +162,12 @@ export default function SymptomSmartVisualToggle({
         body: JSON.stringify({
           surgeryId,
           symptomId,
-          variantKey: activeVariantKey,
+          variantKey: requestedVariantKey,
           ...(trimmedGuidance ? { guidance: trimmedGuidance } : {}),
         }),
       })
       const data = await response.json()
+      if (isStaleResponse()) return
       if (!response.ok) {
         setError(typeof data?.error === 'string' ? data.error : 'Failed to generate smart visual.')
         if (!viewableVisual && !hadPreview) setView('standard')
@@ -163,13 +176,16 @@ export default function SymptomSmartVisualToggle({
       setPreview({
         layout: data.layout,
         sourceFingerprint: data.sourceFingerprint,
-        variantKey: typeof data.variantKey === 'string' ? data.variantKey : activeVariantKey,
+        variantKey: typeof data.variantKey === 'string' ? data.variantKey : requestedVariantKey,
         modelUsed: typeof data.modelUsed === 'string' ? data.modelUsed : null,
       })
     } catch {
+      if (isStaleResponse()) return
       setError('Failed to generate smart visual. Please check your connection and try again.')
       if (!viewableVisual && !hadPreview) setView('standard')
     } finally {
+      // Always clears: the spinner belongs to this request either way, and only
+      // one generation can be in flight (the button is disabled while loading).
       setGenerating(false)
     }
   }
