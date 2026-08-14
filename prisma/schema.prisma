@@ -9,6 +9,10 @@ datasource db {
   // CRITICAL: Always keep provider as "postgresql" - changing to "sqlite" breaks Vercel deployments
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Migrations and advisory locks need a non-pooled connection. Declaring it
+  // here lets Prisma pick it up directly; scripts/prisma-migrate-deploy.js also
+  // falls back to the names the Neon and Vercel integrations inject.
+  directUrl = env("DIRECT_URL")
 }
 
 // RBAC Models (using String fields instead of enums for SQLite compatibility)
