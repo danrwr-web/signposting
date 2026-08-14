@@ -2,6 +2,7 @@ import { withAuth } from 'next-auth/middleware'
 import { getToken } from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { verifyLegacySession } from '@/lib/legacySessionCookie'
 
 const APP_HOST = 'app.signpostingtool.co.uk'
 const MARKETING_HOSTS = new Set(['www.signpostingtool.co.uk', 'signpostingtool.co.uk'])
@@ -45,14 +46,23 @@ function isPublicApiPath(pathname: string): boolean {
  * by routes such as /api/highlights and /api/image-icons. Accepting only the
  * first would lock superusers out of the pages that use the second.
  *
- * This is a coarse presence check, not authorisation — every route still runs
- * its own permission logic. The point is only that a caller with no session
- * whatsoever can never reach a route that forgets to check.
+ * Both are verified cryptographically. Accepting the mere presence of the
+ * legacy cookie would be worthless: it is set by the client, so any caller
+ * could send `session=x` and walk straight through this gate.
+ *
+ * This is still authentication, not authorisation — every route runs its own
+ * permission logic. The point is only that a caller with no valid session can
+ * never reach a route that forgets to check.
  */
 async function hasAnySession(req: NextRequest): Promise<boolean> {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   if (token) return true
-  return Boolean(req.cookies.get('session')?.value)
+
+  const legacy = await verifyLegacySession(
+    req.cookies.get('session')?.value,
+    process.env.NEXTAUTH_SECRET
+  )
+  return legacy !== null
 }
 
 const authMiddleware = withAuth(

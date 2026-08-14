@@ -8,6 +8,9 @@
  */
 import { NextRequest } from 'next/server'
 import middleware from '@/middleware'
+import { signLegacySession } from '@/lib/legacySessionCookie'
+
+const SECRET = 'test-secret-value'
 
 const getToken = jest.fn()
 jest.mock('next-auth/jwt', () => ({
@@ -30,6 +33,7 @@ function request(pathname: string, { method = 'POST', cookie, host = 'app.signpo
 beforeEach(() => {
   jest.clearAllMocks()
   getToken.mockResolvedValue(null)
+  process.env.NEXTAUTH_SECRET = SECRET
 })
 
 describe('API write gate', () => {
@@ -59,13 +63,32 @@ describe('API write gate', () => {
     expect(res?.status).not.toBe(401)
   })
 
-  it('allows the write with the legacy session cookie', async () => {
+  it('allows the write with a validly signed legacy session cookie', async () => {
     // /admin-login and /super-login issue this cookie, and routes such as
     // /api/highlights authorise from it. Requiring a NextAuth token only would
     // lock those users out of pages that work today.
-    const res = await middleware(request('/api/highlights', { cookie: 'session=%7B%22type%22%3A%22superuser%22%7D' }))
+    const signed = await signLegacySession(JSON.stringify({ type: 'superuser', id: 'u1' }), SECRET)
+
+    const res = await middleware(request('/api/highlights', { cookie: `session=${signed}` }))
 
     expect(res?.status).not.toBe(401)
+  })
+
+  it('refuses a forged legacy cookie', async () => {
+    // The cookie is set by the client, so accepting mere presence would let
+    // any caller walk through the gate with `session=x`.
+    for (const value of ['x', '{"type":"superuser"}', 'abc.def']) {
+      const res = await middleware(request('/api/highlights', { cookie: `session=${encodeURIComponent(value)}` }))
+      expect(res?.status).toBe(401)
+    }
+  })
+
+  it('refuses a legacy cookie signed with a different secret', async () => {
+    const signed = await signLegacySession(JSON.stringify({ type: 'superuser', id: 'u1' }), 'wrong-secret')
+
+    const res = await middleware(request('/api/highlights', { cookie: `session=${signed}` }))
+
+    expect(res?.status).toBe(401)
   })
 })
 
