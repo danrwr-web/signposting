@@ -75,33 +75,33 @@ export function resolveSymptomVariant(
 }
 
 /**
- * Canonical content snapshot for staleness detection. Built with explicit key
- * order over exactly the fields the AI is shown, so the same visible content
- * always produces the same hash. Excludes ids, timestamps and review state —
- * those don't change what the visual was generated from.
+ * Options that change what the AI is shown. Anything added here is picked up
+ * by the fingerprint automatically — see
+ * `computeSymptomSmartVisualFingerprint`.
  */
-function buildCanonicalSnapshot(
-  symptom: EffectiveSymptom,
-  variant: ResolvedSymptomVariant
-): Record<string, unknown> {
-  return {
-    name: symptom.name.trim(),
-    ageGroup: symptom.ageGroup,
-    briefInstruction: stripHtmlToPlainText(symptom.briefInstruction ?? ''),
-    highlightedText: stripHtmlToPlainText(symptom.highlightedText ?? ''),
-    variantKey: variant.variantKey,
-    variantLabel: variant.variantLabel ?? null,
-    instructions: stripHtmlToPlainText(variant.instructionsHtml),
-  }
+export type SymptomSmartVisualSourceOptions = {
+  /** Practice hides age bands, so the prompt omits age-group framing. */
+  hideAgeBands?: boolean
 }
 
+/**
+ * Staleness fingerprint: a hash of the exact source text the AI was given.
+ *
+ * Deliberately derived from `buildSymptomSmartVisualSourceText` rather than
+ * from a parallel snapshot of the symptom's fields. A separate snapshot has to
+ * be kept in step with the prompt builder by hand, and drifts silently the
+ * moment either side gains an input the other doesn't know about (the
+ * `hideAgeBands` option was exactly that). Hashing the prompt input makes the
+ * two impossible to diverge: if the AI would see something different, the
+ * visual is stale, by construction.
+ */
 export function computeSymptomSmartVisualFingerprint(
   symptom: EffectiveSymptom,
-  variant: ResolvedSymptomVariant
+  variant: ResolvedSymptomVariant,
+  options: SymptomSmartVisualSourceOptions = {}
 ): string {
-  return createHash('sha256')
-    .update(JSON.stringify(buildCanonicalSnapshot(symptom, variant)))
-    .digest('hex')
+  const { text } = buildSymptomSmartVisualSourceText(symptom, variant, options)
+  return createHash('sha256').update(text).digest('hex')
 }
 
 /**
@@ -110,7 +110,7 @@ export function computeSymptomSmartVisualFingerprint(
 export function buildSymptomSmartVisualSourceText(
   symptom: EffectiveSymptom,
   variant: ResolvedSymptomVariant,
-  options: { hideAgeBands?: boolean } = {}
+  options: SymptomSmartVisualSourceOptions = {}
 ): { text: string; truncated: boolean } {
   const lines: string[] = [`SYMPTOM: ${symptom.name.trim()}`]
 
@@ -378,7 +378,11 @@ TASK: Produce the JSON layout now.`
 
   return {
     layout: attempt.layout,
-    sourceFingerprint: computeSymptomSmartVisualFingerprint(symptom, variant),
+    // Same options as the source text above, so the fingerprint always
+    // describes the prompt this generation actually used.
+    sourceFingerprint: computeSymptomSmartVisualFingerprint(symptom, variant, {
+      hideAgeBands: options.hideAgeBands,
+    }),
     modelUsed,
   }
 }
@@ -392,6 +396,26 @@ export type SymptomSmartVisualView = {
 }
 
 /**
+ * The visuals a given viewer may receive.
+ *
+ * Callers must filter with this **before** putting layouts into client props:
+ * the client also hides unapproved and stale visuals, but props are serialized
+ * into the RSC payload, so dropping them server-side is what makes clinical
+ * approval an actual gate rather than a display convention.
+ *
+ * Editors keep both stale and unapproved visuals — the toggle needs them to
+ * show its "regenerate" and "awaiting clinical approval" banners.
+ */
+export function visibleSymptomSmartVisuals<T extends { isStale: boolean }>(
+  visuals: T[],
+  viewer: { canGenerate: boolean; approved: boolean }
+): T[] {
+  if (viewer.canGenerate) return visuals
+  if (!viewer.approved) return []
+  return visuals.filter((v) => !v.isStale)
+}
+
+/**
  * Load every saved smart visual for a symptom (one per variant), flagging each
  * stale when the symptom's current content no longer matches what it was
  * generated from. Rows whose stored layout fails validation (e.g. written by
@@ -400,7 +424,10 @@ export type SymptomSmartVisualView = {
 export async function getSymptomSmartVisuals(
   surgeryId: string,
   symptomId: string,
-  symptom: EffectiveSymptom
+  symptom: EffectiveSymptom,
+  // Must match the options used at generation time, or every visual would read
+  // as stale the moment the practice toggles its age-band display mode.
+  options: SymptomSmartVisualSourceOptions = {}
 ): Promise<SymptomSmartVisualView[]> {
   const rows = await prisma.symptomSmartVisual.findMany({
     where: { surgeryId, symptomId },
@@ -422,7 +449,7 @@ export async function getSymptomSmartVisuals(
     // compare against, so its visual can only ever be stale.
     const variant = resolveSymptomVariant(symptom, row.variantKey)
     const isStale = variant
-      ? row.sourceFingerprint !== computeSymptomSmartVisualFingerprint(symptom, variant)
+      ? row.sourceFingerprint !== computeSymptomSmartVisualFingerprint(symptom, variant, options)
       : true
 
     views.push({

@@ -9,7 +9,7 @@ import ClinicalReviewActions from '@/components/ClinicalReviewActions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { FEATURE_HIDE_AGE_BANDS, FEATURE_AI_SYMPTOM_VISUALS } from '@/lib/featureKeys'
 import { can } from '@/lib/rbac'
-import { getSymptomSmartVisuals } from '@/server/symptomSmartVisual'
+import { getSymptomSmartVisuals, visibleSymptomSmartVisuals } from '@/server/symptomSmartVisual'
 import { symptomKeyIdFor } from '@/server/symptomSmartVisualGates'
 import type { SymptomSmartVisualProps } from '@/components/symptom-smart-visual/SymptomSmartVisualToggle'
 
@@ -184,17 +184,23 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
     const canGenerate = !!sessionUser && can(sessionUser).manageSurgery(surgeryId)
     const isSuperuser = !!sessionUser && can(sessionUser).isSuperuser()
     const symptomKeyId = symptomKeyIdFor(symptom)
-    const visuals = await getSymptomSmartVisuals(surgeryId, symptomKeyId, symptom)
+    // hideAgeBands changes what the AI was shown, so staleness must be judged
+    // with the same option the visual was generated under.
+    const visuals = await getSymptomSmartVisuals(surgeryId, symptomKeyId, symptom, { hideAgeBands })
+
+    const approved = reviewStatus?.status === 'APPROVED'
+    // Drop layouts this viewer may not see before they reach the RSC payload.
+    const visibleVisuals = visibleSymptomSmartVisuals(visuals, { canGenerate, approved })
 
     // Nothing to render and nothing to offer: skip the client component
     // entirely for staff at practices that don't use the feature.
     const aiVisualsEnabled =
       isSuperuser || (await isFeatureEnabledForSurgery(surgeryId, FEATURE_AI_SYMPTOM_VISUALS))
-    if (visuals.length > 0 || (canGenerate && aiVisualsEnabled)) {
+    if (visibleVisuals.length > 0 || (canGenerate && aiVisualsEnabled)) {
       smartVisual = {
         surgeryId,
         symptomId: symptomKeyId,
-        visuals: visuals.map((v) => ({
+        visuals: visibleVisuals.map((v) => ({
           variantKey: v.variantKey,
           layout: v.layout,
           generatedAtIso: v.generatedAt.toISOString(),
@@ -202,7 +208,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         })),
         canGenerate,
         aiVisualsEnabled,
-        approved: reviewStatus?.status === 'APPROVED',
+        approved,
       }
     }
   }

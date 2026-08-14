@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { zodFieldErrors, type ActionResult } from '@/server/actionResult'
 import { requireSymptomSmartVisualEdit } from '@/server/symptomSmartVisualGates'
 import { computeSymptomSmartVisualFingerprint } from '@/server/symptomSmartVisual'
-import { markSymptomPendingReview } from '@/server/clinicalReview'
+import { symptomPendingReviewUpsertArgs } from '@/server/clinicalReview'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 import {
   SymptomSmartVisualLayoutZ,
   normalizeSymptomSmartVisualLayout,
@@ -48,7 +49,7 @@ export async function saveSymptomSmartVisual(
 
   const gate = await requireSymptomSmartVisualEdit(surgeryId, symptomId, requestedVariantKey)
   if (!gate.ok) return gate
-  const { symptom, symptomKeyId, variant, userId, userEmail } = gate.data
+  const { symptom, symptomKeyId, variant, userId, userEmail, hideAgeBands } = gate.data
 
   // Never trust the client blob — re-validate and normalise server-side.
   const layoutParsed = SymptomSmartVisualLayoutZ.safeParse(parsed.data.layout)
@@ -73,7 +74,9 @@ export async function saveSymptomSmartVisual(
     // Recompute the fingerprint from current DB state: if the instructions
     // changed between generation and save, reject rather than saving a visual
     // that no longer matches its source.
-    const currentFingerprint = computeSymptomSmartVisualFingerprint(symptom, variant)
+    const currentFingerprint = computeSymptomSmartVisualFingerprint(symptom, variant, {
+      hideAgeBands,
+    })
     if (currentFingerprint !== sourceFingerprint) {
       return {
         ok: false,
@@ -128,11 +131,26 @@ export async function saveSymptomSmartVisual(
           modelUsed: modelUsed ?? 'unknown-model',
         },
       }),
+      // The approval reset MUST be atomic with the visual write. If it were a
+      // separate call and that call failed, the visual would be stored while
+      // the symptom kept its APPROVED status — publishing an AI
+      // reinterpretation that no clinician ever saw, which is exactly the
+      // guarantee this feature rests on.
+      prisma.symptomReviewStatus.upsert(
+        symptomPendingReviewUpsertArgs(surgeryId, symptomKeyId, symptom.ageGroup)
+      ),
     ])
 
-    // Outside the transaction: this recounts pending reviews and revalidates
-    // surgery caches, so it must not hold the write open.
-    await markSymptomPendingReview(surgeryId, symptomKeyId, symptom.ageGroup)
+    // Safe to run afterwards: this only recounts pending reviews and
+    // revalidates caches. Its own failure must not be reported as a failed
+    // save — by this point the visual is committed and the symptom is already
+    // PENDING, so the only casualty is a briefly stale banner count, which the
+    // next review-state change corrects.
+    try {
+      await updateRequiresClinicalReview(surgeryId)
+    } catch (error) {
+      console.error('saveSymptomSmartVisual: review recount failed after commit:', error)
+    }
 
     return { ok: true, data: { symptomId: symptomKeyId, variantKey: variant.variantKey } }
   } catch (error) {

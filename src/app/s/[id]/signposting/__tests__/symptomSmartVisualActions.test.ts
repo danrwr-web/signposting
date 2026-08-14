@@ -8,7 +8,7 @@ import {
   resolveSymptomVariant,
   MAIN_VARIANT_KEY,
 } from '@/server/symptomSmartVisual'
-import { markSymptomPendingReview } from '@/server/clinicalReview'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
 import { prisma } from '@/lib/prisma'
 import type { EffectiveSymptom } from '@/server/effectiveSymptoms'
 
@@ -16,8 +16,8 @@ jest.mock('@/server/symptomSmartVisualGates', () => ({
   requireSymptomSmartVisualEdit: jest.fn(),
 }))
 
-jest.mock('@/server/clinicalReview', () => ({
-  markSymptomPendingReview: jest.fn(),
+jest.mock('@/server/updateRequiresClinicalReview', () => ({
+  updateRequiresClinicalReview: jest.fn(),
 }))
 
 jest.mock('@/lib/prisma', () => ({
@@ -27,6 +27,7 @@ jest.mock('@/lib/prisma', () => ({
       deleteMany: jest.fn(),
     },
     symptomHistory: { create: jest.fn() },
+    symptomReviewStatus: { upsert: jest.fn() },
     $transaction: jest.fn(async (ops: unknown[]) => Promise.all(ops as Promise<unknown>[])),
   },
 }))
@@ -35,8 +36,9 @@ const mockedGate = requireSymptomSmartVisualEdit as jest.Mock
 const mockedUpsert = prisma.symptomSmartVisual.upsert as jest.Mock
 const mockedDeleteMany = prisma.symptomSmartVisual.deleteMany as jest.Mock
 const mockedHistoryCreate = prisma.symptomHistory.create as jest.Mock
+const mockedReviewUpsert = prisma.symptomReviewStatus.upsert as jest.Mock
 const mockedTransaction = prisma.$transaction as jest.Mock
-const mockedMarkPending = markSymptomPendingReview as jest.Mock
+const mockedRecount = updateRequiresClinicalReview as jest.Mock
 
 const symptom: EffectiveSymptom = {
   id: 'sym-1',
@@ -90,7 +92,8 @@ beforeEach(() => {
   mockedUpsert.mockResolvedValue({ id: 'svv-1' })
   mockedDeleteMany.mockResolvedValue({ count: 1 })
   mockedHistoryCreate.mockResolvedValue({ id: 'hist-1' })
-  mockedMarkPending.mockResolvedValue(undefined)
+  mockedReviewUpsert.mockResolvedValue({ id: 'srs-1' })
+  mockedRecount.mockResolvedValue(undefined)
 })
 
 describe('saveSymptomSmartVisual', () => {
@@ -122,8 +125,55 @@ describe('saveSymptomSmartVisual', () => {
     const result = await saveSymptomSmartVisual(validInput)
 
     expect(result.ok).toBe(true)
-    expect(mockedMarkPending).toHaveBeenCalledTimes(1)
-    expect(mockedMarkPending).toHaveBeenCalledWith('surgery-1', 'sym-1', 'Adult')
+    expect(mockedReviewUpsert).toHaveBeenCalledTimes(1)
+    expect(mockedReviewUpsert.mock.calls[0][0]).toMatchObject({
+      where: {
+        surgeryId_symptomId_ageGroup: {
+          surgeryId: 'surgery-1',
+          symptomId: 'sym-1',
+          ageGroup: 'Adult',
+        },
+      },
+      update: { status: 'PENDING', lastReviewedAt: null },
+    })
+  })
+
+  it('resets the approval INSIDE the same transaction as the visual write', async () => {
+    // If these could commit separately, a failure between them would publish an
+    // AI reinterpretation still carrying its old APPROVED status.
+    await saveSymptomSmartVisual(validInput)
+
+    expect(mockedTransaction).toHaveBeenCalledTimes(1)
+    expect(mockedTransaction.mock.calls[0][0]).toHaveLength(3)
+    // Every write was issued while building the transaction's operation list,
+    // so none of them can be committed without the others.
+    for (const mock of [mockedUpsert, mockedHistoryCreate, mockedReviewUpsert]) {
+      expect(mock).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('never leaves the symptom approved when the transaction fails', async () => {
+    mockedTransaction.mockRejectedValueOnce(new Error('connection dropped'))
+
+    const result = await saveSymptomSmartVisual(validInput)
+
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error.code).toBe('UNKNOWN')
+    // The whole transaction rolls back together, so neither the visual nor the
+    // approval reset lands — and the post-commit recount never runs.
+    expect(mockedRecount).not.toHaveBeenCalled()
+  })
+
+  it('still reports success when only the post-commit recount fails', async () => {
+    // The approval reset is already committed at this point, so the symptom is
+    // correctly Pending — only the surgery-level banner count lags. Reporting a
+    // failed save here would be misleading and would stop the client refreshing.
+    mockedRecount.mockRejectedValueOnce(new Error('recount failed'))
+
+    const result = await saveSymptomSmartVisual(validInput)
+
+    expect(result.ok).toBe(true)
+    expect(mockedReviewUpsert).toHaveBeenCalledTimes(1)
   })
 
   it('records "unknown-model" rather than dropping AI attribution when the model is missing', async () => {
@@ -164,7 +214,7 @@ describe('saveSymptomSmartVisual', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error.code).toBe('VALIDATION_ERROR')
     expect(mockedUpsert).not.toHaveBeenCalled()
-    expect(mockedMarkPending).not.toHaveBeenCalled()
+    expect(mockedReviewUpsert).not.toHaveBeenCalled()
   })
 
   it('rejects a layout the client dressed up with HTML that empties a required field', async () => {
@@ -187,7 +237,7 @@ describe('saveSymptomSmartVisual', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(result.error.code).toBe('STALE')
     expect(mockedUpsert).not.toHaveBeenCalled()
-    expect(mockedMarkPending).not.toHaveBeenCalled()
+    expect(mockedReviewUpsert).not.toHaveBeenCalled()
   })
 
   it('is blocked when the gate fails (flag off, not an admin, symptom missing)', async () => {
@@ -200,19 +250,10 @@ describe('saveSymptomSmartVisual', () => {
       expect(result.ok).toBe(false)
       if (!result.ok) expect(result.error.code).toBe(code)
       expect(mockedUpsert).not.toHaveBeenCalled()
-      expect(mockedMarkPending).not.toHaveBeenCalled()
+      expect(mockedReviewUpsert).not.toHaveBeenCalled()
     }
   })
 
-  it('does not report success when the write fails', async () => {
-    mockedTransaction.mockRejectedValueOnce(new Error('db down'))
-
-    const result = await saveSymptomSmartVisual(validInput)
-
-    expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error.code).toBe('UNKNOWN')
-    expect(mockedMarkPending).not.toHaveBeenCalled()
-  })
 })
 
 describe('removeSymptomSmartVisual', () => {
@@ -233,7 +274,7 @@ describe('removeSymptomSmartVisual', () => {
   it('does not re-trigger clinical review — removing only takes a view away', async () => {
     await removeSymptomSmartVisual({ surgeryId: 'surgery-1', symptomId: 'sym-1' })
 
-    expect(mockedMarkPending).not.toHaveBeenCalled()
+    expect(mockedReviewUpsert).not.toHaveBeenCalled()
   })
 
   it('is idempotent when no visual exists', async () => {

@@ -6,8 +6,10 @@ import {
   resolveSymptomVariant,
   generateSymptomSmartVisualLayout,
   getSymptomSmartVisuals,
+  visibleSymptomSmartVisuals,
   MAIN_VARIANT_KEY,
 } from '@/server/symptomSmartVisual'
+import { createHash } from 'crypto'
 import { callAzureOpenAI } from '@/server/azureOpenAI'
 import { prisma } from '@/lib/prisma'
 import type { EffectiveSymptom } from '@/server/effectiveSymptoms'
@@ -144,6 +146,24 @@ describe('computeSymptomSmartVisualFingerprint', () => {
     const u5 = computeSymptomSmartVisualFingerprint(s, resolveSymptomVariant(s, 'u5')!)
     const adult = computeSymptomSmartVisualFingerprint(s, resolveSymptomVariant(s, 'adult')!)
     expect(u5).not.toBe(adult)
+  })
+
+  it('differs when hideAgeBands differs, because the AI is shown different text', () => {
+    const s = symptom()
+    const shown = computeSymptomSmartVisualFingerprint(s, mainVariant(s), { hideAgeBands: false })
+    const hidden = computeSymptomSmartVisualFingerprint(s, mainVariant(s), { hideAgeBands: true })
+    expect(shown).not.toBe(hidden)
+  })
+
+  it('is the hash of the exact source text the AI receives', () => {
+    // Binds the fingerprint to the prompt builder, so a future prompt input
+    // cannot be added on one side only and silently stop invalidating visuals.
+    const s = symptom()
+    for (const options of [{}, { hideAgeBands: true }]) {
+      const { text } = buildSymptomSmartVisualSourceText(s, mainVariant(s), options)
+      const expected = createHash('sha256').update(text).digest('hex')
+      expect(computeSymptomSmartVisualFingerprint(s, mainVariant(s), options)).toBe(expected)
+    }
   })
 })
 
@@ -317,6 +337,28 @@ describe('generateSymptomSmartVisualLayout', () => {
     await expect(
       generateSymptomSmartVisualLayout(s, mainVariant(s), 'admin@example.nhs.uk')
     ).resolves.toMatchObject({ modelUsed: 'gpt-4o-mini' })
+  })
+})
+
+describe('visibleSymptomSmartVisuals', () => {
+  const fresh = { variantKey: '', isStale: false }
+  const stale = { variantKey: 'u5', isStale: true }
+
+  it('sends nothing to a non-editor while the symptom is unapproved', () => {
+    // The layout must not reach the RSC payload at all — the client hiding it
+    // would still leave it readable in browser tooling.
+    expect(visibleSymptomSmartVisuals([fresh, stale], { canGenerate: false, approved: false })).toEqual([])
+  })
+
+  it('sends only fresh visuals to a non-editor once approved', () => {
+    expect(visibleSymptomSmartVisuals([fresh, stale], { canGenerate: false, approved: true })).toEqual([fresh])
+  })
+
+  it('sends everything to an editor, who needs stale and unapproved ones for the banners', () => {
+    expect(visibleSymptomSmartVisuals([fresh, stale], { canGenerate: true, approved: false })).toEqual([
+      fresh,
+      stale,
+    ])
   })
 })
 

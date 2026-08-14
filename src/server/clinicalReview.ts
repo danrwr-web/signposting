@@ -1,4 +1,5 @@
 import 'server-only'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getEffectiveSymptoms, type EffectiveSymptom } from '@/server/effectiveSymptoms'
 import {
@@ -8,18 +9,22 @@ import {
 } from '@/lib/clinicalReviewCounts'
 
 /**
- * Marks a symptom as awaiting clinical review for a surgery after its content
- * changed (instructions, notices or variants), and refreshes the surgery's
- * requiresClinicalReview flag. Used by the manual practice edit paths; the AI
- * customise route has its own transactional equivalent.
+ * The upsert that moves a symptom to PENDING review, as arguments rather than a
+ * call. Callers that must reset the approval in the *same* transaction as the
+ * content write (so a failure can never leave new content sitting behind a
+ * stale APPROVED status) pass this to `tx.symptomReviewStatus.upsert(...)` and
+ * then run `updateRequiresClinicalReview` afterwards.
+ *
+ * `markSymptomPendingReview` below is the convenience wrapper for callers that
+ * do not need that guarantee.
  */
-export async function markSymptomPendingReview(
+export function symptomPendingReviewUpsertArgs(
   surgeryId: string,
   symptomId: string,
   ageGroup: string | null | undefined
-): Promise<void> {
+): Prisma.SymptomReviewStatusUpsertArgs {
   const normalizedAgeGroup = (ageGroup || null) as unknown as string
-  await prisma.symptomReviewStatus.upsert({
+  return {
     where: {
       surgeryId_symptomId_ageGroup: {
         surgeryId,
@@ -38,7 +43,23 @@ export async function markSymptomPendingReview(
       status: 'PENDING',
       lastReviewedAt: null,
     },
-  })
+  }
+}
+
+/**
+ * Marks a symptom as awaiting clinical review for a surgery after its content
+ * changed (instructions, notices or variants), and refreshes the surgery's
+ * requiresClinicalReview flag. Used by the manual practice edit paths; the AI
+ * customise route has its own transactional equivalent.
+ */
+export async function markSymptomPendingReview(
+  surgeryId: string,
+  symptomId: string,
+  ageGroup: string | null | undefined
+): Promise<void> {
+  await prisma.symptomReviewStatus.upsert(
+    symptomPendingReviewUpsertArgs(surgeryId, symptomId, ageGroup)
+  )
   const { updateRequiresClinicalReview } = await import('@/server/updateRequiresClinicalReview')
   await updateRequiresClinicalReview(surgeryId)
 }

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { isFeatureEnabledForSurgery } from '@/lib/features'
-import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 import { requireSymptomSmartVisualEdit } from '@/server/symptomSmartVisualGates'
 import {
   generateSymptomSmartVisualLayout,
@@ -48,7 +46,7 @@ export async function POST(req: NextRequest) {
         { status: GATE_ERROR_STATUS[gate.error.code] ?? 403 }
       )
     }
-    const { symptom, symptomKeyId, variant, userEmail } = gate.data
+    const { symptom, symptomKeyId, variant, userEmail, hideAgeBands } = gate.data
 
     if (!symptomSmartVisualHasContent(variant)) {
       return NextResponse.json(
@@ -76,8 +74,6 @@ export async function POST(req: NextRequest) {
       ? SymptomSmartVisualLayoutZ.safeParse(existingVisual.layoutJson)
       : null
     const previousLayout = previousParsed?.success ? previousParsed.data : undefined
-
-    const hideAgeBands = await isFeatureEnabledForSurgery(surgeryId, FEATURE_HIDE_AGE_BANDS)
 
     const result = await generateSymptomSmartVisualLayout(symptom, variant, userEmail, {
       guidance,

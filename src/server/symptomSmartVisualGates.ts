@@ -2,7 +2,7 @@ import 'server-only'
 
 import { getSessionUser, can } from '@/lib/rbac'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
-import { FEATURE_AI_SYMPTOM_VISUALS } from '@/lib/featureKeys'
+import { FEATURE_AI_SYMPTOM_VISUALS, FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 import { getEffectiveSymptomById, type EffectiveSymptom } from '@/server/effectiveSymptoms'
 import { resolveSymptomVariant, type ResolvedSymptomVariant } from '@/server/symptomSmartVisual'
 import type { ActionResult } from '@/server/actionResult'
@@ -19,6 +19,11 @@ export type SymptomSmartVisualGateData = {
    */
   symptomKeyId: string
   variant: ResolvedSymptomVariant
+  /**
+   * Resolved here so generation and save compute the fingerprint from exactly
+   * the same prompt options — see `computeSymptomSmartVisualFingerprint`.
+   */
+  hideAgeBands: boolean
 }
 
 /**
@@ -78,6 +83,8 @@ export async function requireSymptomSmartVisualEdit(
     }
   }
 
+  const hideAgeBands = await isFeatureEnabledForSurgery(surgeryId, FEATURE_HIDE_AGE_BANDS)
+
   return {
     ok: true,
     data: {
@@ -87,6 +94,7 @@ export async function requireSymptomSmartVisualEdit(
       symptom,
       symptomKeyId: symptomKeyIdFor(symptom),
       variant,
+      hideAgeBands,
     },
   }
 }
