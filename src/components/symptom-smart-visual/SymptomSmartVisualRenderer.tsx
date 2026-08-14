@@ -1,3 +1,6 @@
+'use client'
+
+import { createContext, useContext, useMemo } from 'react'
 import type {
   SymptomSmartVisualLayout,
   SymptomSmartVisualSection,
@@ -10,12 +13,33 @@ import {
   CALLOUT_TONE_THEMES,
 } from '@/components/smart-visual/smartVisualTheme'
 import { SmartVisualIconGlyph } from '@/components/smart-visual/smartVisualIcons'
+import { splitHighlightSegments } from '@/lib/highlightSegments'
+import type { HighlightRule } from '@/lib/highlighting'
 
 /**
  * Renders a validated symptom smart visual layout using the approved section
- * components. Deliberately hook-free and server-safe: all AI-provided text is
- * emitted as React text nodes only — never as HTML.
+ * components. All AI-provided text is emitted as React text nodes only — never
+ * as HTML — including the practice's highlight rules, which arrive as segment
+ * data rather than markup for exactly that reason.
+ *
+ * The highlight rules reach every piece of text through context: they are
+ * needed in roughly thirty places, and threading them as props through each
+ * section component would bury the layout in plumbing.
  */
+
+type SmartVisualHighlights = {
+  rules: HighlightRule[]
+  enableBuiltInHighlights: boolean
+}
+
+const HighlightsContext = createContext<SmartVisualHighlights>({
+  rules: [],
+  enableBuiltInHighlights: true,
+})
+
+function useSmartVisualHighlights() {
+  return useContext(HighlightsContext)
+}
 
 type SectionOf<T extends SymptomSmartVisualSection['type']> = Extract<
   SymptomSmartVisualSection,
@@ -43,7 +67,7 @@ function isPhoneNumber(candidate: string): boolean {
  * links. Deterministic, app-side styling — the AI supplies plain text only.
  * Doubly valuable here, where 999 and 111 carry the urgency of the guidance.
  */
-function TextWithPhones({ text }: { text: string }) {
+function PhoneAwareText({ text }: { text: string }) {
   const parts = text.split(PHONE_CANDIDATE_REGEX)
   if (parts.length === 1) return <>{text}</>
   return (
@@ -59,6 +83,51 @@ function TextWithPhones({ text }: { text: string }) {
           </a>
         ) : (
           part
+        )
+      )}
+    </>
+  )
+}
+
+/**
+ * The single text primitive for the whole visual: the practice's highlight
+ * rules, then phone emphasis within each resulting segment (so a highlighted
+ * "Call 999" stays both coloured and dialable).
+ *
+ * Highlights arrive as segment data rather than HTML precisely so this stays a
+ * tree of React text nodes — the AI's text is never parsed as markup.
+ */
+function TextWithPhones({ text }: { text: string }) {
+  const { rules, enableBuiltInHighlights } = useSmartVisualHighlights()
+  const segments = splitHighlightSegments(text, rules, enableBuiltInHighlights)
+
+  if (segments.length <= 1 && !segments[0]?.style && !segments[0]?.className) {
+    return <PhoneAwareText text={text} />
+  }
+
+  return (
+    <>
+      {segments.map((segment, i) =>
+        segment.style || segment.className ? (
+          <span
+            key={i}
+            style={
+              segment.style
+                ? {
+                    color: segment.style.color,
+                    backgroundColor: segment.style.backgroundColor,
+                    padding: '2px 4px',
+                    borderRadius: '4px',
+                    fontWeight: 500,
+                  }
+                : undefined
+            }
+            className={segment.className ?? 'text-sm'}
+          >
+            <PhoneAwareText text={segment.text} />
+          </span>
+        ) : (
+          <PhoneAwareText key={i} text={segment.text} />
         )
       )}
     </>
@@ -481,10 +550,26 @@ function renderSection(section: SymptomSmartVisualSection, index: number) {
 
 export default function SymptomSmartVisualRenderer({
   layout,
+  highlightRules,
+  enableBuiltInHighlights = true,
 }: {
   layout: SymptomSmartVisualLayout
+  /**
+   * The practice's highlight rules, so a smart visual colours the same phrases
+   * the standard instruction view does. Omit to render without highlighting.
+   */
+  highlightRules?: HighlightRule[]
+  enableBuiltInHighlights?: boolean
 }) {
+  const highlights = useMemo<SmartVisualHighlights>(
+    () => ({ rules: highlightRules ?? [], enableBuiltInHighlights }),
+    [highlightRules, enableBuiltInHighlights]
+  )
   return (
-    <div className="space-y-5">{layout.sections.map((section, i) => renderSection(section, i))}</div>
+    <HighlightsContext.Provider value={highlights}>
+      <div className="space-y-5">
+        {layout.sections.map((section, i) => renderSection(section, i))}
+      </div>
+    </HighlightsContext.Provider>
   )
 }

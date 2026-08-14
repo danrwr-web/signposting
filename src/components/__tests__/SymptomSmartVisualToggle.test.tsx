@@ -65,8 +65,130 @@ const renderToggle = (variantKey: string, variantLabel: string | null) =>
     </SymptomSmartVisualToggle>
   )
 
+const savedVisual = (variantKey: string, text: string, isStale = false) => ({
+  variantKey,
+  layout: layoutFor(text),
+  generatedAtIso: '2026-08-01T00:00:00.000Z',
+  isStale,
+})
+
 beforeEach(() => {
   jest.clearAllMocks()
+  // Feature checks aside, nothing in these tests should reach the network.
+  // @ts-expect-error override global fetch for test
+  global.fetch = jest.fn(() => new Promise(() => {}))
+})
+
+describe('SymptomSmartVisualToggle default view', () => {
+  it('opens on the smart visual when the symptom has one', () => {
+    render(
+      <SymptomSmartVisualToggle
+        {...baseProps}
+        visuals={[savedVisual('', 'Saved visual content.')]}
+        activeVariantKey=""
+        activeVariantLabel={null}
+      >
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+
+    expect(screen.getByText('Saved visual content.')).toBeInTheDocument()
+    expect(screen.queryByText('standard instructions')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Smart visual' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+  })
+
+  it('opens on the standard instructions when there is no visual', () => {
+    render(
+      <SymptomSmartVisualToggle {...baseProps} activeVariantKey="" activeVariantLabel={null}>
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+
+    expect(screen.getByText('standard instructions')).toBeInTheDocument()
+  })
+
+  it('opens on the standard instructions when the only visual is stale', () => {
+    render(
+      <SymptomSmartVisualToggle
+        {...baseProps}
+        visuals={[savedVisual('', 'Outdated visual.', true)]}
+        activeVariantKey=""
+        activeVariantLabel={null}
+      >
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+
+    expect(screen.getByText('standard instructions')).toBeInTheDocument()
+    expect(screen.queryByText('Outdated visual.')).not.toBeInTheDocument()
+  })
+
+  it('does not default a non-editor into an unapproved visual', () => {
+    render(
+      <SymptomSmartVisualToggle
+        {...baseProps}
+        canGenerate={false}
+        approved={false}
+        visuals={[savedVisual('', 'Pending visual.')]}
+        activeVariantKey=""
+        activeVariantLabel={null}
+      >
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+
+    expect(screen.getByText('standard instructions')).toBeInTheDocument()
+    expect(screen.queryByText('Pending visual.')).not.toBeInTheDocument()
+  })
+
+  it('lets the reader switch back to the standard instructions', () => {
+    render(
+      <SymptomSmartVisualToggle
+        {...baseProps}
+        visuals={[savedVisual('', 'Saved visual content.')]}
+        activeVariantKey=""
+        activeVariantLabel={null}
+      >
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Standard' }))
+    expect(screen.getByText('standard instructions')).toBeInTheDocument()
+  })
+
+  it('follows the default for whichever variant is selected', () => {
+    // Only the Adult variant has a visual, so switching to it should surface
+    // that visual, and switching back to U5 should fall back to standard.
+    const props = {
+      ...baseProps,
+      visuals: [savedVisual('adult', 'Adult visual content.')],
+    }
+    const { rerender } = render(
+      <SymptomSmartVisualToggle {...props} activeVariantKey="u5" activeVariantLabel="Under 5">
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+    expect(screen.getByText('standard instructions')).toBeInTheDocument()
+
+    rerender(
+      <SymptomSmartVisualToggle {...props} activeVariantKey="adult" activeVariantLabel="Adult">
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+    expect(screen.getByText('Adult visual content.')).toBeInTheDocument()
+
+    rerender(
+      <SymptomSmartVisualToggle {...props} activeVariantKey="u5" activeVariantLabel="Under 5">
+        <div>standard instructions</div>
+      </SymptomSmartVisualToggle>
+    )
+    expect(screen.getByText('standard instructions')).toBeInTheDocument()
+    expect(screen.queryByText('Adult visual content.')).not.toBeInTheDocument()
+  })
 })
 
 describe('SymptomSmartVisualToggle variant safety', () => {

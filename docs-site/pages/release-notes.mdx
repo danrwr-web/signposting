@@ -27,6 +27,10 @@ The following core capabilities are established and available to all surgeries:
 
 ## v1.8 — Current Release (August 2026)
 
+### Fixed
+
+- **The "use built-in highlighting" practice setting is now respected on symptom pages.** Turning built-in slot highlighting off for a practice had no effect on the symptom instruction view — Green/Orange/Red Slot and pink/purple were still colour-coded. The setting is now applied there, and to smart visuals.
+
 ### New
 
 - **Smart visuals for symptom instructions**: the infographic-style view introduced for the Practice Handbook is now available in the signposting module. Practice admins can click **Generate smart visual** on a symptom to have AI reorganise its triage guidance into a scannable layout built for a live call — escalation criteria in a dedicated **red flags** block with the single action to take, "if X, book Y" decisions as **routing** rows with colour-coded urgency, and time frames and phone numbers as key-fact tiles. As in the Handbook, the output is real, selectable, accessible app content rather than an image, and the written instructions remain the source of truth: edit them and the visual is hidden until it is regenerated.
@@ -34,6 +38,8 @@ The following core capabilities are established and available to all surgeries:
   Two things work differently from the Handbook, because signposting content is clinical rather than operational:
   - **Saving a visual sends the symptom for clinical review.** Staff continue to see the standard instructions until a clinician approves it. Admins can see the unapproved visual in the meantime, badged as pending.
   - **Visuals are stored per age-group variant.** Switching between Under-5 / 5–17 / Adult swaps to that variant's own visual, so a visual is never shown against wording it was not generated from.
+
+  Where an approved visual exists the symptom **opens on it**, since that is the faster read while a patient is waiting; the written instructions stay one click away on the **Standard** tab. Your practice's highlight rules apply inside the visual as well, so the same phrases are coloured in both views.
 
   Feature-flagged (`ai_symptom_visuals`) — contact us to enable. See [AI Features](/features/ai-features#ai-symptom-smart-visuals).
 - **AI wording suggestions are now editable before you apply them**: the "Suggest improved wording" preview used to be accept-whole-or-discard — the only way to adjust the AI's wording was to apply it first and then edit. The right-hand pane is now a full editor, so you can tweak both the brief routing label and the full instruction in the preview and apply exactly what you want. The buttons are now **Apply Brief**, **Apply Full** and **Apply Both**. Applying still records which AI model produced the draft and still sends the symptom for clinical review. See [AI Features](/features/ai-features#ai-instruction-editor).

@@ -35,6 +35,10 @@ interface InstructionViewProps {
 export default function InstructionView({ symptom, surgeryId, hideAgeBands = false, smartVisual }: InstructionViewProps) {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false)
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
+  // The surgery's built-in slot highlighting setting. Applies to both the
+  // standard instructions and the smart visual, so the two cannot disagree
+  // about which phrases are highlighted.
+  const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState(true)
   // Name of the related-symptom link currently being resolved (null = none).
   const [loadingLinkedSymptomName, setLoadingLinkedSymptomName] = useState<string | null>(null)
   const [linkedSymptomError, setLinkedSymptomError] = useState<string | null>(null)
@@ -217,8 +221,13 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
-          const { highlights, enableImageIcons: imageIconsEnabled } = json
+          const {
+            highlights,
+            enableImageIcons: imageIconsEnabled,
+            enableBuiltInHighlights: builtInsEnabled,
+          } = json
           setHighlightRules(Array.isArray(highlights) ? highlights : [])
+          setEnableBuiltInHighlights(builtInsEnabled ?? true)
           setEnableImageIcons(imageIconsEnabled ?? true)
           
           // Load image icon if enabled
@@ -285,13 +294,13 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   // Instruction bodies are rich text: highlight the HTML in place, then let
   // `sanitizeAndFormatSymptomContent` clean the result at the render site.
   const highlightHtml = (html: string) => {
-    return applyHighlightRules(html, highlightRules)
+    return applyHighlightRules(html, highlightRules, enableBuiltInHighlights)
   }
 
   // Brief instruction and highlighted text are plain-text fields, so they are
   // escaped before highlighting — see `highlightPlainText`.
   const highlightText = (text: string) => {
-    return highlightPlainText(text, highlightRules)
+    return highlightPlainText(text, highlightRules, enableBuiltInHighlights)
   }
 
   const handleVariantSelect = (variantKey: string) => {
@@ -1798,6 +1807,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
               {...smartVisual}
               activeVariantKey={selectedVariantKey ?? ''}
               activeVariantLabel={activeVariantLabel}
+              highlightRules={highlightRules}
+              enableBuiltInHighlights={enableBuiltInHighlights}
             >
               {instructionBody}
             </SymptomSmartVisualToggle>

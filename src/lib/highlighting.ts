@@ -99,33 +99,28 @@ function mapTextSegments(
 }
 
 /**
+ * Built-in slot-type highlights, in application order.
+ *
+ * Exported so the React-node renderer in `src/lib/highlightSegments.ts` can
+ * apply exactly the same patterns and classes — the smart visual and the
+ * standard instruction view must not drift apart on what counts as a slot.
+ * `source` is kept alongside the pattern because each use needs its own
+ * lastIndex-free regex instance.
+ */
+export const BUILT_IN_HIGHLIGHTS: Array<{ source: string; className: string }> = [
+  { source: '(green slot)', className: 'bg-green-600 text-white px-1 py-0.5 rounded text-sm font-medium' },
+  { source: '(orange slot)', className: 'bg-orange-600 text-white px-1 py-0.5 rounded text-sm font-medium' },
+  { source: '(red slot)', className: 'bg-red-600 text-white px-1 py-0.5 rounded text-sm font-medium' },
+  { source: '(pink|purple)', className: 'bg-purple-600 text-white px-1 py-0.5 rounded text-sm font-medium' },
+]
+
+/**
  * Apply built-in slot type highlighting
  */
 function applyBuiltInHighlighting(text: string): string {
-  text = wrapBuiltInHighlight(
-    text,
-    /(green slot)/gi,
-    'bg-green-600 text-white px-1 py-0.5 rounded text-sm font-medium'
-  )
-
-  text = wrapBuiltInHighlight(
-    text,
-    /(orange slot)/gi,
-    'bg-orange-600 text-white px-1 py-0.5 rounded text-sm font-medium'
-  )
-
-  text = wrapBuiltInHighlight(
-    text,
-    /(red slot)/gi,
-    'bg-red-600 text-white px-1 py-0.5 rounded text-sm font-medium'
-  )
-
-  text = wrapBuiltInHighlight(
-    text,
-    /(pink|purple)/gi,
-    'bg-purple-600 text-white px-1 py-0.5 rounded text-sm font-medium'
-  )
-
+  for (const { source, className } of BUILT_IN_HIGHLIGHTS) {
+    text = wrapBuiltInHighlight(text, new RegExp(source, 'gi'), className)
+  }
   return text
 }
 

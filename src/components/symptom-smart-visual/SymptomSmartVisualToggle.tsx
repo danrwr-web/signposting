@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button, Input, AlertBanner, ConfirmDialog, Skeleton, SkeletonText } from '@/components/ui'
 import SymptomSmartVisualRenderer from './SymptomSmartVisualRenderer'
 import type { SymptomSmartVisualLayout } from '@/lib/symptomSmartVisualShared'
+import type { HighlightRule } from '@/lib/highlighting'
 
 /**
  * The save/remove server actions are imported lazily, inside the handlers that
@@ -43,6 +44,12 @@ interface SymptomSmartVisualToggleProps extends SymptomSmartVisualProps {
   activeVariantLabel: string | null
   /** Hidden entirely while the instructions are being edited. */
   disabled?: boolean
+  /**
+   * The practice's highlight rules, passed straight through to the renderer so
+   * the visual colours the same phrases as the standard instructions.
+   */
+  highlightRules?: HighlightRule[]
+  enableBuiltInHighlights?: boolean
   /** The standard rendered instruction body. */
   children: React.ReactNode
 }
@@ -99,6 +106,8 @@ export default function SymptomSmartVisualToggle({
   activeVariantKey,
   activeVariantLabel,
   disabled = false,
+  highlightRules,
+  enableBuiltInHighlights = true,
   children,
 }: SymptomSmartVisualToggleProps) {
   const router = useRouter()
@@ -115,7 +124,10 @@ export default function SymptomSmartVisualToggle({
   const viewableVisual = freshVisual && (approved || canGenerate) ? freshVisual : null
   const awaitingApproval = Boolean(freshVisual && !approved)
 
-  const [view, setView] = useState<'standard' | 'visual'>('standard')
+  // The visual leads when the symptom has one this viewer can see — it is the
+  // faster read mid-call, which is the whole point of generating it. Standard
+  // stays one click away.
+  const [view, setView] = useState<'standard' | 'visual'>(viewableVisual ? 'visual' : 'standard')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [generating, setGenerating] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -134,8 +146,15 @@ export default function SymptomSmartVisualToggle({
     activeVariantKeyRef.current = activeVariantKey
     setPreview(null)
     setError(null)
-    setView('standard')
   }, [activeVariantKey])
+
+  // Apply the same "visual leads" default to whichever variant is now
+  // selected, so switching age group lands on that variant's visual when it
+  // has one and falls back to the standard instructions when it does not.
+  const hasViewableVisual = viewableVisual !== null
+  useEffect(() => {
+    setView(hasViewableVisual ? 'visual' : 'standard')
+  }, [activeVariantKey, hasViewableVisual])
 
   const canRegenerate = canGenerate && aiVisualsEnabled
 
@@ -512,7 +531,11 @@ export default function SymptomSmartVisualToggle({
                       </svg>
                     </button>
                   </div>
-                  <SymptomSmartVisualRenderer layout={single} />
+                  <SymptomSmartVisualRenderer
+                    layout={single}
+                    highlightRules={highlightRules}
+                    enableBuiltInHighlights={enableBuiltInHighlights}
+                  />
                 </div>
               )
             })}
@@ -520,7 +543,11 @@ export default function SymptomSmartVisualToggle({
         </div>
       ) : viewableVisual ? (
         <div>
-          <SymptomSmartVisualRenderer layout={viewableVisual.layout} />
+          <SymptomSmartVisualRenderer
+            layout={viewableVisual.layout}
+            highlightRules={highlightRules}
+            enableBuiltInHighlights={enableBuiltInHighlights}
+          />
           <p className="mt-4 text-xs text-gray-500">
             Smart visual generated{' '}
             {new Date(viewableVisual.generatedAtIso).toLocaleDateString('en-GB')} · The written

@@ -44,7 +44,9 @@ describe('SymptomSmartVisualRenderer', () => {
     expect(screen.getByText('Earache in adults.')).toBeInTheDocument()
     expect(screen.getByText('How long?')).toBeInTheDocument()
     expect(screen.getByText('Confirm the age')).toBeInTheDocument()
-    expect(screen.getByText('Pink Slot')).toBeInTheDocument()
+    // "Pink" is claimed by the built-in slot highlight, so the pair label is
+    // split across elements — same as in the standard instruction view.
+    expect(screen.getByText('Pink').className).toContain('bg-purple-600')
     expect(screen.getByText('Call back within')).toBeInTheDocument()
     expect(screen.getByText('Self-care advice')).toBeInTheDocument()
     expect(screen.getByText('Route')).toBeInTheDocument()
@@ -134,6 +136,89 @@ describe('SymptomSmartVisualRenderer', () => {
     const table = screen.getByRole('table')
     expect(within(table).getByText('Under 5')).toBeInTheDocument()
     expect(within(table).getByText('Duty GP list')).toBeInTheDocument()
+  })
+
+  it('applies the practice highlight rules to the visual', () => {
+    const rules = [
+      {
+        id: 'r1',
+        phrase: 'duty GP',
+        textColor: '#ffffff',
+        bgColor: '#da020e',
+        isEnabled: true,
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+    ]
+    const withPhrase: SymptomSmartVisualLayout = SymptomSmartVisualLayoutZ.parse({
+      version: 1,
+      sections: [{ type: 'routing', options: [{ when: 'Unclear', action: 'Ask the duty GP' }] }],
+    })
+    render(<SymptomSmartVisualRenderer layout={withPhrase} highlightRules={rules} />)
+
+    const highlighted = screen.getByText('duty GP')
+    expect(highlighted.tagName).toBe('SPAN')
+    expect(highlighted).toHaveStyle({ backgroundColor: '#da020e' })
+  })
+
+  it('applies built-in slot highlighting, and honours the practice switching it off', () => {
+    const slots: SymptomSmartVisualLayout = SymptomSmartVisualLayoutZ.parse({
+      version: 1,
+      sections: [{ type: 'summary', text: 'Offer a Green Slot with the ANP.' }],
+    })
+
+    const { unmount } = render(<SymptomSmartVisualRenderer layout={slots} />)
+    expect(screen.getByText('Green Slot').className).toContain('bg-green-600')
+    unmount()
+
+    render(<SymptomSmartVisualRenderer layout={slots} enableBuiltInHighlights={false} />)
+    expect(screen.queryByText('Green Slot')).not.toBeInTheDocument()
+    expect(screen.getByText('Offer a Green Slot with the ANP.')).toBeInTheDocument()
+  })
+
+  it('keeps a highlighted phone number both coloured and dialable', () => {
+    const rules = [
+      {
+        id: 'r1',
+        phrase: 'Call 999',
+        textColor: '#ffffff',
+        bgColor: '#da020e',
+        isEnabled: true,
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+    ]
+    const emergency: SymptomSmartVisualLayout = SymptomSmartVisualLayoutZ.parse({
+      version: 1,
+      sections: [{ type: 'redFlags', action: 'Call 999 immediately', flags: ['Chest pain'] }],
+    })
+    render(<SymptomSmartVisualRenderer layout={emergency} highlightRules={rules} />)
+
+    expect(screen.getByRole('link', { name: '999' })).toHaveAttribute('href', 'tel:999')
+  })
+
+  it('still emits highlighted text as text nodes, never markup', () => {
+    const rules = [
+      {
+        id: 'r1',
+        phrase: 'advice',
+        textColor: '#000000',
+        bgColor: '#ffff00',
+        isEnabled: true,
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+    ]
+    const injected: SymptomSmartVisualLayout = {
+      version: 1,
+      sections: [{ type: 'summary', text: '<img src=x onerror=alert(1)> advice' }],
+    } as SymptomSmartVisualLayout
+    const { container } = render(
+      <SymptomSmartVisualRenderer layout={injected} highlightRules={rules} />
+    )
+
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('advice')).toHaveStyle({ backgroundColor: '#ffff00' })
   })
 
   it('falls back visibly for a section type this bundle does not know', () => {
