@@ -19,30 +19,52 @@ describeIf('credential columns under global omit', () => {
   // undefined URL in every run that has no database.
   let client: PrismaClient
 
+  // Fixtures are uniquely named per run and removed by id. Never deleteMany({}):
+  // INTEGRATION_DATABASE_URL may point at a populated database, and a blanket
+  // delete would erase it.
+  const RUN = `omitspec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const SURGERY_ID = `${RUN}-s`
+  const USER_ID = `${RUN}-u`
+
   beforeAll(async () => {
     client = new PrismaClient({
       datasources: { db: { url } },
       omit: { user: { password: true }, surgery: { adminPassHash: true } },
     })
-    await client.userSurgery.deleteMany({})
-    await client.user.deleteMany({})
-    await client.surgery.deleteMany({})
     await client.surgery.create({
-      data: { id: 's1', name: 'Omit Test Practice', adminEmail: 'admin@example.com', adminPassHash: 'HASH_S' },
+      data: {
+        id: SURGERY_ID,
+        name: `${RUN} Practice`,
+        adminEmail: `${RUN}@example.invalid`,
+        adminPassHash: 'HASH_S',
+      },
     })
     await client.user.create({
-      data: { id: 'u1', email: 'user@example.com', password: 'HASH_U', globalRole: 'USER' },
+      data: {
+        id: USER_ID,
+        email: `${RUN}@user.invalid`,
+        password: 'HASH_U',
+        globalRole: 'USER',
+      },
     })
-    await client.userSurgery.create({ data: { userId: 'u1', surgeryId: 's1', role: 'ADMIN' } })
+    await client.userSurgery.create({
+      data: { userId: USER_ID, surgeryId: SURGERY_ID, role: 'ADMIN' },
+    })
   })
 
   afterAll(async () => {
-    await client?.$disconnect()
+    if (!client) return
+    // Ordered child-first so a foreign key cannot strand a fixture, and each
+    // delete is scoped to this run's ids.
+    await client.userSurgery.deleteMany({ where: { userId: USER_ID } })
+    await client.user.deleteMany({ where: { id: USER_ID } })
+    await client.surgery.deleteMany({ where: { id: SURGERY_ID } })
+    await client.$disconnect()
   })
 
   it('withholds the hashes from an ordinary read', async () => {
-    const user = await client.user.findUnique({ where: { id: 'u1' } })
-    const surgery = await client.surgery.findUnique({ where: { id: 's1' } })
+    const user = await client.user.findUnique({ where: { id: USER_ID } })
+    const surgery = await client.surgery.findUnique({ where: { id: SURGERY_ID } })
 
     expect((user as Record<string, unknown>).password).toBeUndefined()
     expect((surgery as Record<string, unknown>).adminPassHash).toBeUndefined()
@@ -51,7 +73,7 @@ describeIf('credential columns under global omit', () => {
   it('withholds them through nested relation reads too', async () => {
     // The shape that leaked on the admin screens: surgery -> users -> user.
     const surgery = await client.surgery.findUnique({
-      where: { id: 's1' },
+      where: { id: SURGERY_ID },
       include: { users: { include: { user: true } } },
     })
 
@@ -61,9 +83,9 @@ describeIf('credential columns under global omit', () => {
   })
 
   it('still returns them when a caller opts in, so login keeps working', async () => {
-    const user = await client.user.findUnique({ where: { id: 'u1' }, omit: { password: false } })
+    const user = await client.user.findUnique({ where: { id: USER_ID }, omit: { password: false } })
     const surgery = await client.surgery.findUnique({
-      where: { adminEmail: 'admin@example.com' },
+      where: { adminEmail: `${RUN}@example.invalid` },
       omit: { adminPassHash: false },
     })
 
@@ -72,8 +94,8 @@ describeIf('credential columns under global omit', () => {
   })
 
   it('leaves non-credential columns alone', async () => {
-    const surgery = await client.surgery.findUnique({ where: { id: 's1' } })
-    expect(surgery!.adminEmail).toBe('admin@example.com')
-    expect(surgery!.name).toBe('Omit Test Practice')
+    const surgery = await client.surgery.findUnique({ where: { id: SURGERY_ID } })
+    expect(surgery!.adminEmail).toBe(`${RUN}@example.invalid`)
+    expect(surgery!.name).toBe(`${RUN} Practice`)
   })
 })

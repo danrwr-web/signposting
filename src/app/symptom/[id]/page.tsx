@@ -8,6 +8,7 @@ import { getSessionUser } from '@/lib/rbac'
 import ClinicalReviewActions from '@/components/ClinicalReviewActions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
+import { surgeriesForViewer } from '@/server/viewerSurgeries'
 
 // Disable caching for this page to prevent stale data
 export const dynamic = 'force-dynamic'
@@ -74,14 +75,10 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   }
 
   // Get surgeries for header
-  // Public page: only the fields SimpleHeader declares. Without an explicit
-  // select Prisma returns every scalar column — including adminEmail and the
-  // adminPassHash bcrypt hash — and these rows are passed to a client
-  // component, so they were serialised into the page for anyone to read.
-  const surgeries = await prisma.surgery.findMany({
-    select: { id: true, slug: true, name: true, surgeryType: true },
-    orderBy: { name: 'asc' },
-  })
+  // Reachable without a session, and this list is handed to a client component,
+  // so it lands in the page source for whoever is looking. Scoped to the viewer:
+  // a signed-out visitor gets nothing rather than the whole practice list.
+  const surgeries = await surgeriesForViewer(await getSessionUser())
 
   // Per-surgery display option: hide age band badges and treat the symptom as all-ages
   const hideAgeBands = surgeryId
