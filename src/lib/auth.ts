@@ -21,6 +21,8 @@ export const authOptions: NextAuthOptions = {
           // Find user by email
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
+            // Login needs the hash; it is omitted from queries by default (src/lib/prisma.ts).
+            omit: { password: false },
             include: {
               memberships: {
                 include: {

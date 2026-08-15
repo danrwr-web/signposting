@@ -131,7 +131,7 @@ function resolveDirectUrl(env) {
  * abort rather than migrate. A broken preview build is cheap; an unreviewed
  * migration on live practice data is not.
  */
-function evaluateMigrationTarget({ vercelEnv, effectiveUrl, productionHost }) {
+function evaluateMigrationTarget({ vercelEnv, effectiveUrl, productionHost, urlSource }) {
   // Local runs and CI (`npm run db:migrate:deploy`) have no VERCEL_ENV and keep
   // the previous behaviour — the operator chose the database deliberately.
   if (vercelEnv !== 'preview') {
@@ -190,9 +190,18 @@ function evaluateMigrationTarget({ vercelEnv, effectiveUrl, productionHost }) {
         '',
         'Migrations have NOT been run, and this build is failing on purpose.',
         '',
-        'Scope DATABASE_URL and DIRECT_URL to the Production environment only in',
-        'the Vercel project, so preview deployments receive their own database',
-        'branch instead of the live one.',
+        // Hostnames only, never the URL: connection strings carry credentials.
+        // Which VARIABLE supplied the URL is the whole diagnosis when a preview
+        // database exists but the migration still resolves to production —
+        // typically a project-level DIRECT_URL that outranks the per-deployment
+        // DATABASE_URL an integration injects.
+        `  migration URL came from: ${urlSource || '(unknown)'}`,
+        `  it resolves to host    : ${targetHost}`,
+        `  PRODUCTION_DB_HOST     : ${prodHost}`,
+        '',
+        'If a preview database or branch does exist, the variable named above is',
+        'the one still pointing at production. Scope it to the Production',
+        'environment only, or remove it so the preview value is used.',
       ].join('\n'),
     }
   }
@@ -254,6 +263,7 @@ function main() {
     vercelEnv: process.env.VERCEL_ENV,
     effectiveUrl: finalDb,
     productionHost: process.env.PRODUCTION_DB_HOST,
+    urlSource: directUrl ? direct.source : 'DATABASE_URL',
   })
 
   if (decision.action === 'abort') {

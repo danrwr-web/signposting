@@ -22,6 +22,12 @@ export interface SessionUser {
   }>
 }
 
+/**
+ * NOTE: not request-memoised. React's `cache` would be the idiomatic fix, but
+ * this project is on React 18.3.1, which does not export it — `next build`
+ * compiles an import of it happily and then throws at request time. Callers that
+ * already hold a user should pass it rather than call this again.
+ */
 export async function getSessionUser(): Promise<SessionUser | null> {
   try {
     const session = await getServerSession(authOptions)

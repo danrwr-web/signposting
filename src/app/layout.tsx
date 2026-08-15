@@ -6,7 +6,8 @@ import { SurgeryProvider } from '@/context/SurgeryContext'
 import { CardStyleProvider } from '@/context/CardStyleContext'
 import { NavigationPanelProvider } from '@/context/NavigationPanelContext'
 import { cookies } from 'next/headers'
-import { prisma } from '@/lib/prisma'
+import { getSessionUser } from '@/lib/rbac'
+import { surgeriesForViewer } from '@/server/viewerSurgeries'
 import Providers from '@/components/Providers'
 import UniversalNavigationPanel from '@/components/UniversalNavigationPanel'
 
@@ -39,14 +40,12 @@ export default async function RootLayout({
   try {
     const cookieStore = await cookies()
     const surgeryId = cookieStore.get('surgery')?.value
-    
-    // Get all surgeries for the SurgeryProvider
+
+    // Scoped to the viewer — this list is a client prop, so it ends up in the
+    // HTML of every page. See surgeriesForViewer for why that matters.
     // Note: Prisma has built-in connection timeout handling
-    surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true, surgeryType: true },
-      orderBy: { name: 'asc' }
-    })
-    
+    surgeries = await surgeriesForViewer(await getSessionUser())
+
     // Resolve surgery data if ID is present
     if (surgeryId) {
       const surgery = surgeries.find((s: { id: string }) => s.id === surgeryId)

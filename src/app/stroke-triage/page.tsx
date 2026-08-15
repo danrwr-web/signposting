@@ -1,5 +1,6 @@
 import SimpleHeader from '@/components/SimpleHeader'
-import { prisma } from '@/lib/prisma'
+import { surgeriesForViewer } from '@/server/viewerSurgeries'
+import { getSessionUser } from '@/lib/rbac'
 
 interface StrokeTriagePageProps {
   searchParams: Promise<{
@@ -12,9 +13,10 @@ export default async function StrokeTriagePage({ searchParams }: StrokeTriagePag
   const surgerySlug = resolvedSearchParams.surgery
 
   // Get surgeries for header
-  const surgeries = await prisma.surgery.findMany({
-    orderBy: { name: 'asc' }
-  })
+  // Reachable without a session, and this list is handed to a client component,
+  // so it lands in the page source for whoever is looking. Scoped to the viewer:
+  // a signed-out visitor gets nothing rather than the whole practice list.
+  const surgeries = await surgeriesForViewer(await getSessionUser())
 
   return (
     <div className="min-h-screen bg-nhs-light-grey">

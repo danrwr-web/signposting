@@ -173,6 +173,8 @@ export async function authenticateSurgeryAdmin(email: string, password: string):
   try {
     const surgery = await prisma.surgery.findUnique({
       where: { adminEmail: email },
+      // Login needs the hash; it is omitted from queries by default (src/lib/prisma.ts).
+      omit: { adminPassHash: false },
     })
     
     if (!surgery || !surgery.adminPassHash) {
@@ -203,6 +205,8 @@ export async function authenticateSuperuser(email: string, password: string): Pr
     // Look up user in database by email and verify they are a superuser
     const user = await prisma.user.findUnique({
       where: { email },
+      // Login needs the hash; it is omitted from queries by default (src/lib/prisma.ts).
+      omit: { password: false },
       include: {
         memberships: {
           include: {
