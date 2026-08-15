@@ -9,6 +9,12 @@ datasource db {
   // CRITICAL: Always keep provider as "postgresql" - changing to "sqlite" breaks Vercel deployments
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // No directUrl here on purpose. Prisma validates env("DIRECT_URL") before it
+  // does anything else, so declaring it makes the variable mandatory for every
+  // datasource command — db:push, db:migrate:dev, build:dev — and not just for
+  // deploys. scripts/prisma-migrate-deploy.js resolves the non-pooled URL and
+  // swaps it into DATABASE_URL for the migration instead, which keeps the
+  // requirement where it belongs.
 }
 
 // RBAC Models (using String fields instead of enums for SQLite compatibility)
