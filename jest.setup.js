@@ -50,6 +50,14 @@ if (typeof global.MessageEvent === 'undefined') {
   global.MessageEvent = class MessageEvent {}
 }
 
+// jsdom's `crypto` has getRandomValues but no `subtle`. Both the edge runtime
+// (middleware) and Node provide Web Crypto, so code under test can rely on it —
+// see src/lib/legacySessionCookie.ts, which signs the legacy session cookie.
+const { webcrypto } = require('crypto')
+if (typeof global.crypto === 'undefined' || typeof global.crypto.subtle === 'undefined') {
+  Object.defineProperty(global, 'crypto', { value: webcrypto, configurable: true, writable: true })
+}
+
 const { fetch, Headers, Request, Response, FormData, File } = require('undici')
 
 if (typeof global.fetch === 'undefined') {

@@ -10,6 +10,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { signLegacySession, verifyLegacySession } from '@/lib/legacySessionCookie'
 
 export interface Session {
   type: 'surgery' | 'superuser'
@@ -29,8 +30,13 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 export async function createSession(session: Session): Promise<void> {
   const cookieStore = await cookies()
-  const sessionData = JSON.stringify(session)
-  
+  // Signed, not plain JSON: an unsigned value could simply be presented by the
+  // caller, and getSession() below trusts whatever it decodes.
+  const sessionData = await signLegacySession(
+    JSON.stringify(session),
+    process.env.NEXTAUTH_SECRET ?? ''
+  )
+
   const cookieDomain = process.env.COOKIE_DOMAIN
 
   cookieStore.set('session', sessionData, {
@@ -47,8 +53,15 @@ export async function getSession(): Promise<Session | null> {
   try {
     const cookieStore = await cookies()
     const sessionCookie = cookieStore.get('session')
-    
-    if (!sessionCookie?.value) {
+
+    // Fails closed on a missing, unsigned or tampered value, so a forged cookie
+    // falls through to the NextAuth check below rather than being trusted.
+    const verifiedPayload = await verifyLegacySession(
+      sessionCookie?.value,
+      process.env.NEXTAUTH_SECRET
+    )
+
+    if (!verifiedPayload) {
       // Fallback to NextAuth session if our cookie is missing
       try {
         const nextAuthSession = await getServerSession(authOptions)
@@ -74,8 +87,8 @@ export async function getSession(): Promise<Session | null> {
       } catch {}
       return null
     }
-    
-    return JSON.parse(sessionCookie.value) as Session
+
+    return JSON.parse(verifiedPayload) as Session
   } catch (error) {
     console.error('Error parsing session:', error)
     return null
