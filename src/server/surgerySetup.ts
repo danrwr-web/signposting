@@ -5,7 +5,7 @@ import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinica
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import type { AppointmentModelConfig } from '@/lib/api-contracts'
 import type { SurgeryType } from '@prisma/client'
-import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
+import { aiInstructionCustomisationWhere } from '@/lib/aiCustomisationHistory'
 
 export const HEALTH_WINDOW_DAYS = 30
 
@@ -175,14 +175,7 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
   let aiCustomisationOccurred = false
   if (allCustomisableIds.length > 0) {
     const aiRow = await prisma.symptomHistory.findFirst({
-      where: {
-        symptomId: { in: allCustomisableIds },
-        modelUsed: { not: null },
-        // Smart visuals are AI output but change no wording, so they must not
-        // satisfy a checklist step that asks the practice to tailor its
-        // instructions. Reverts are excluded for the same reason.
-        NOT: [{ modelUsed: 'REVERT' }, { entryType: SMART_VISUAL_HISTORY_ENTRY }],
-      },
+      where: aiInstructionCustomisationWhere(allCustomisableIds),
       select: { id: true },
     })
     aiCustomisationOccurred = aiRow !== null
@@ -552,11 +545,7 @@ export async function computeSurgerySetupSnapshotsBatch(
   const aiSymptomIds = [...aiSymptomToSurgery.keys()]
   if (aiSymptomIds.length > 0) {
     const aiHistoryRows = await prisma.symptomHistory.findMany({
-      where: {
-        symptomId: { in: aiSymptomIds },
-        modelUsed: { not: null },
-        NOT: [{ modelUsed: 'REVERT' }, { entryType: SMART_VISUAL_HISTORY_ENTRY }],
-      },
+      where: aiInstructionCustomisationWhere(aiSymptomIds),
       select: { symptomId: true },
     })
     for (const row of aiHistoryRows) {

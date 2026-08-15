@@ -5,6 +5,7 @@ import { getSessionUser, can } from '@/lib/rbac'
 import { AppointmentModelConfig } from '@/lib/api-contracts'
 import { getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { unstable_noStore as noStore } from 'next/cache'
+import { aiInstructionCustomisationWhere } from '@/lib/aiCustomisationHistory'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -125,13 +126,7 @@ export async function GET(request: NextRequest) {
     let aiCustomisationOccurred = false
     if (symptomIds.length > 0) {
       const historyRecord = await prisma.symptomHistory.findFirst({
-        where: {
-          symptomId: { in: symptomIds },
-          modelUsed: {
-            not: null,
-            notIn: ['REVERT'],
-          },
-        },
+        where: aiInstructionCustomisationWhere(symptomIds),
         select: { id: true },
       })
       aiCustomisationOccurred = !!historyRecord

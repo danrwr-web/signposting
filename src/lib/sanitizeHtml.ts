@@ -212,6 +212,16 @@ export function sanitizeVariants<T extends { ageGroups: Array<{ instructions: st
 }
 
 /**
+ * Tags that end a run of text. A separator is inserted after each so adjacent
+ * blocks do not run together once the tags themselves are gone.
+ *
+ * `<br>` is included because it is a break with no closing tag; the rest are
+ * matched on their closing tag, which is where the boundary actually falls.
+ */
+const BLOCK_BOUNDARY_RE =
+  /<\s*br\s*\/?\s*>|<\s*\/\s*(?:p|div|li|ul|ol|h[1-6]|blockquote|tr|td|th|table|section|article|header|footer|pre|figcaption)\s*>/gi
+
+/**
  * Strips all HTML and returns plain text suitable for plain-text fields
  * (e.g. the Important Notice / highlightedText, which is edited in a textarea)
  * @param html - The HTML (or plain text) content
@@ -222,7 +232,19 @@ export function stripHtmlToPlainText(html: string): string {
     return ''
   }
 
-  const stripped = sanitizeHtmlLib(html, { allowedTags: [], allowedAttributes: {} })
+  // Give block boundaries a separator BEFORE the tags are removed. Stripping
+  // alone concatenates adjacent blocks, so `<p>Call 999.</p><p>Otherwise call
+  // 111.</p>` becomes "Call 999.Otherwise call 111." — two instructions fused
+  // into one sentence. That is bad in a plain-text mirror of a note, and worse
+  // in the text handed to a model, where it can merge separate clinical steps
+  // into a single condition or action.
+  //
+  // Only matters when nothing already separates the blocks: where the source
+  // has a newline between them the collapse below already handled it, which is
+  // why this went unnoticed on prettified HTML and appeared on editor output.
+  const separated = html.replace(BLOCK_BOUNDARY_RE, '$& ')
+
+  const stripped = sanitizeHtmlLib(separated, { allowedTags: [], allowedAttributes: {} })
 
   // sanitize-html leaves text entity-encoded; decode the common ones so the
   // value reads naturally in plain-text editors.

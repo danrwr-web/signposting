@@ -1,0 +1,32 @@
+import type { Prisma } from '@prisma/client'
+import { SMART_VISUAL_HISTORY_ENTRY } from './symptomSmartVisualShared'
+
+/**
+ * The one definition of "AI has customised this practice's instructions".
+ *
+ * Three places asked this question independently — the setup tracker, the setup
+ * checklist page and /api/admin/metrics — each with its own hand-written
+ * predicate, and each spelled slightly differently (`NOT: { modelUsed }` versus
+ * `notIn: ['REVERT']`). When smart visuals started writing attributable history
+ * rows, one copy was updated and the other two silently kept completing the
+ * checklist step. A shared definition is the only way that stays fixed.
+ *
+ * What counts: a history row carrying the model that produced it, for one of
+ * this surgery's symptoms.
+ *
+ * What does not:
+ * - REVERT rows, which record an edit being undone rather than made.
+ * - Smart-visual rows. They are genuine AI output and correctly attributed, but
+ *   they change no instruction wording, and the checklist step they would
+ *   satisfy asks the practice to "tailor symptom instructions to your
+ *   appointment model".
+ */
+export function aiInstructionCustomisationWhere(
+  symptomIds: string[]
+): Prisma.SymptomHistoryWhereInput {
+  return {
+    symptomId: { in: symptomIds },
+    modelUsed: { not: null },
+    NOT: [{ modelUsed: 'REVERT' }, { entryType: SMART_VISUAL_HISTORY_ENTRY }],
+  }
+}
