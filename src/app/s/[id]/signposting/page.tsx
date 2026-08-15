@@ -7,6 +7,8 @@ import HomePageClient from '@/app/HomePageClient'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
+import { surgeriesForViewer } from '@/server/viewerSurgeries'
+import { getSessionUser } from '@/lib/rbac'
 
 export const revalidate = 60
 
@@ -41,10 +43,9 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
       redirect('/unauthorized')
     }
 
-    const surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true, surgeryType: true },
-      orderBy: { name: 'asc' }
-    })
+    // Scoped to the viewer: this list is a client prop, so it lands in the
+    // page source. A member of one practice has no need for the rest.
+    const surgeries = await surgeriesForViewer(await getSessionUser())
 
     const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
