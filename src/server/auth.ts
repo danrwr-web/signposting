@@ -61,7 +61,20 @@ export async function getSession(): Promise<Session | null> {
       process.env.NEXTAUTH_SECRET
     )
 
-    if (!verifiedPayload) {
+    // A legacy cookie is only honoured for superusers now. /admin-login issued
+    // `type: 'surgery'` cookies, and removing that login does not revoke the
+    // ones already out there — they stay valid for the cookie's remaining life
+    // and every route that trusts getSession() would keep authorising them.
+    // Ignoring the payload here (rather than returning null outright) lets the
+    // NextAuth check below still run, so a user who happens to hold a stale
+    // cookie AND a real session is unaffected.
+    const legacySession = verifiedPayload
+      ? (JSON.parse(verifiedPayload) as Session)
+      : null
+    const usableLegacySession =
+      legacySession && legacySession.type === 'superuser' ? legacySession : null
+
+    if (!usableLegacySession) {
       // Fallback to NextAuth session if our cookie is missing
       try {
         const nextAuthSession = await getServerSession(authOptions)
@@ -88,7 +101,7 @@ export async function getSession(): Promise<Session | null> {
       return null
     }
 
-    return JSON.parse(verifiedPayload) as Session
+    return usableLegacySession
   } catch (error) {
     console.error('Error parsing session:', error)
     return null
@@ -100,7 +113,7 @@ export async function destroySession(): Promise<void> {
   cookieStore.delete('session')
 }
 
-export async function requireAuth(redirectTo: string = '/admin-login'): Promise<Session> {
+export async function requireAuth(redirectTo: string = '/login'): Promise<Session> {
   const session = await getSession()
   
   if (!session) {
@@ -150,10 +163,10 @@ export async function requireAuth(redirectTo: string = '/admin-login'): Promise<
 }
 
 export async function requireSurgeryAuth(): Promise<Session> {
-  const session = await requireAuth('/admin-login')
+  const session = await requireAuth('/login')
   
   if (session.type !== 'surgery' || !session.surgeryId) {
-    redirect('/admin-login')
+    redirect('/login')
   }
   
   return session
@@ -167,37 +180,6 @@ export async function requireSuperuserAuth(): Promise<Session> {
   }
   
   return session
-}
-
-export async function authenticateSurgeryAdmin(email: string, password: string): Promise<Session | null> {
-  try {
-    const surgery = await prisma.surgery.findUnique({
-      where: { adminEmail: email },
-      // Login needs the hash; it is omitted from queries by default (src/lib/prisma.ts).
-      omit: { adminPassHash: false },
-    })
-    
-    if (!surgery || !surgery.adminPassHash) {
-      return null
-    }
-    
-    const isValid = await verifyPassword(password, surgery.adminPassHash)
-    
-    if (!isValid) {
-      return null
-    }
-    
-    return {
-      type: 'surgery',
-      id: surgery.id,
-      email: surgery.adminEmail!,
-      surgeryId: surgery.id,
-      surgerySlug: surgery.slug ?? undefined,
-    }
-  } catch (error) {
-    console.error('Error authenticating surgery admin:', error)
-    return null
-  }
 }
 
 export async function authenticateSuperuser(email: string, password: string): Promise<Session | null> {
@@ -260,18 +242,3 @@ export async function authenticateSuperuser(email: string, password: string): Pr
   }
 }
 
-export async function setSurgeryAdminPassword(surgeryId: string, password: string): Promise<boolean> {
-  try {
-    const hashedPassword = await hashPassword(password)
-    
-    await prisma.surgery.update({
-      where: { id: surgeryId },
-      data: { adminPassHash: hashedPassword },
-    })
-    
-    return true
-  } catch (error) {
-    console.error('Error setting surgery admin password:', error)
-    return false
-  }
-}

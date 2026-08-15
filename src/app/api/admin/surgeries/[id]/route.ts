@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireSuperuser } from '@/lib/rbac'
 import { prisma } from '@/lib/prisma'
 import { UpdateSurgeryReqZ } from '@/lib/api-contracts'
-import { hashPassword } from '@/server/auth'
 
 export const runtime = 'nodejs'
 
@@ -27,9 +26,6 @@ export async function PATCH(
     const data: any = {}
     if (updateData.name) data.name = updateData.name
     if (updateData.adminEmail) data.adminEmail = updateData.adminEmail
-    if (updateData.adminPassword) {
-      data.adminPassHash = await hashPassword(updateData.adminPassword)
-    }
     if (updateData.surgeryType) data.surgeryType = updateData.surgeryType
 
     const surgery = await prisma.surgery.update({

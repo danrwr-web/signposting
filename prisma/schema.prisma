@@ -105,8 +105,7 @@ model Surgery {
   id            String   @id @default(cuid())
   name          String   @unique
   slug          String?  @unique // Made optional for backward compatibility
-  adminEmail    String?  @unique
-  adminPassHash String? // bcrypt hash; nullable until set
+  adminEmail    String?  @unique // contact label only; not a login credential
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

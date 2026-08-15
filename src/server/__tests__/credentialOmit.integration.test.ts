@@ -29,14 +29,13 @@ describeIf('credential columns under global omit', () => {
   beforeAll(async () => {
     client = new PrismaClient({
       datasources: { db: { url } },
-      omit: { user: { password: true }, surgery: { adminPassHash: true } },
+      omit: { user: { password: true } },
     })
     await client.surgery.create({
       data: {
         id: SURGERY_ID,
         name: `${RUN} Practice`,
         adminEmail: `${RUN}@example.invalid`,
-        adminPassHash: 'HASH_S',
       },
     })
     await client.user.create({
@@ -67,7 +66,7 @@ describeIf('credential columns under global omit', () => {
     const surgery = await client.surgery.findUnique({ where: { id: SURGERY_ID } })
 
     expect((user as Record<string, unknown>).password).toBeUndefined()
-    expect((surgery as Record<string, unknown>).adminPassHash).toBeUndefined()
+    expect(surgery!.name).toBe(`${RUN} Practice`)
   })
 
   it('withholds them through nested relation reads too', async () => {
@@ -79,18 +78,12 @@ describeIf('credential columns under global omit', () => {
 
     const member = surgery!.users[0].user as unknown as Record<string, unknown>
     expect(member.password).toBeUndefined()
-    expect((surgery as unknown as Record<string, unknown>).adminPassHash).toBeUndefined()
   })
 
   it('still returns them when a caller opts in, so login keeps working', async () => {
     const user = await client.user.findUnique({ where: { id: USER_ID }, omit: { password: false } })
-    const surgery = await client.surgery.findUnique({
-      where: { adminEmail: `${RUN}@example.invalid` },
-      omit: { adminPassHash: false },
-    })
 
     expect(user!.password).toBe('HASH_U')
-    expect(surgery!.adminPassHash).toBe('HASH_S')
   })
 
   it('leaves non-credential columns alone', async () => {

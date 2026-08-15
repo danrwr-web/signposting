@@ -193,13 +193,11 @@ export const CreateSurgeryReqZ = z.object({
   name: z.string().min(1),
   slug: z.string().min(1).optional(),
   adminEmail: z.string().email().optional(),
-  adminPassword: z.string().min(6).optional(),
 });
 
 export const UpdateSurgeryReqZ = z.object({
   name: z.string().min(1).optional(),
   adminEmail: z.string().email().optional(),
-  adminPassword: z.string().min(6).optional(),
   surgeryType: SurgeryTypeZ.optional(),
 });
 

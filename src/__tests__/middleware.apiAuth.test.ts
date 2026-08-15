@@ -64,7 +64,7 @@ describe('API write gate', () => {
   })
 
   it('allows the write with a validly signed legacy session cookie', async () => {
-    // /admin-login and /super-login issue this cookie, and routes such as
+    // /super-login issues this cookie, and routes such as
     // /api/highlights authorise from it. Requiring a NextAuth token only would
     // lock those users out of pages that work today.
     const signed = await signLegacySession(JSON.stringify({ type: 'superuser', id: 'u1' }), SECRET)
@@ -72,6 +72,20 @@ describe('API write gate', () => {
     const res = await middleware(request('/api/highlights', { cookie: `session=${signed}` }))
 
     expect(res?.status).not.toBe(401)
+  })
+
+  it('refuses a validly signed legacy cookie from the removed practice login', async () => {
+    // /admin-login issued `type: 'surgery'` cookies. Removing that login does
+    // not revoke the ones already issued — they stay correctly signed until
+    // they expire — so the holder could keep making practice-level writes.
+    const signed = await signLegacySession(
+      JSON.stringify({ type: 'surgery', id: 's1', surgeryId: 's1' }),
+      SECRET
+    )
+
+    const res = await middleware(request('/api/highlights', { cookie: `session=${signed}` }))
+
+    expect(res?.status).toBe(401)
   })
 
   it('refuses a forged legacy cookie', async () => {
@@ -97,7 +111,6 @@ describe('endpoints that must stay public', () => {
     ['/api/auth/callback/credentials', 'NextAuth callback — sign-in breaks entirely without it'],
     ['/api/auth/signin', 'NextAuth sign-in'],
     ['/api/auth/session', 'NextAuth session'],
-    ['/api/auth/surgery-login', 'legacy practice admin login'],
     ['/api/auth/super-login', 'legacy superuser login'],
     ['/api/demo-request', 'public marketing form'],
     ['/api/cron/refresh-practice-data', 'Vercel Cron, authenticated by CRON_SECRET'],

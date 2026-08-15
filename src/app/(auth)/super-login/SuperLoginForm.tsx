@@ -92,11 +92,8 @@ export default function SuperLoginForm() {
       </div>
 
       <div className="text-center">
-        <a
-          href="/admin-login"
-          className="text-sm text-nhs-blue hover:text-nhs-dark-blue"
-        >
-          Surgery Admin Login
+        <a href="/login" className="text-sm text-nhs-blue hover:text-nhs-dark-blue">
+          Practice staff sign in
         </a>
       </div>
     </form>

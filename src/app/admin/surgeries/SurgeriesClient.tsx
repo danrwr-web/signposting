@@ -183,7 +183,6 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
         body: JSON.stringify({
           name: formData.get('name'),
           adminEmail: formData.get('adminEmail') || undefined,
-          adminPassword: formData.get('adminPassword') || undefined,
           surgeryType: formData.get('surgeryType') || undefined,
         }),
       })
@@ -430,24 +429,13 @@ export default function SurgeriesClient({ surgeries }: SurgeriesClientProps) {
               </div>
               <div className="mb-4">
                 <label htmlFor="edit-adminEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                  Admin Email
+                  Admin contact email
                 </label>
                 <Input
                   type="email"
                   id="edit-adminEmail"
                   name="adminEmail"
                   defaultValue={editingSurgery.adminEmail || ''}
-                />
-              </div>
-              <div className="mb-6">
-                <label htmlFor="edit-adminPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                  Admin Password (leave blank to keep current)
-                </label>
-                <Input
-                  type="password"
-                  id="edit-adminPassword"
-                  name="adminPassword"
-                  placeholder="Leave blank to keep current"
                 />
               </div>
             </form>

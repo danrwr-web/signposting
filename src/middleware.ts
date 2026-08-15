@@ -14,8 +14,8 @@ const MARKETING_HOSTS = new Set(['www.signpostingtool.co.uk', 'signpostingtool.c
  * can be written to. Keep it short, and justify every entry.
  */
 const PUBLIC_API_PREFIXES = [
-  // NextAuth's own handler plus the legacy /admin-login and /super-login
-  // endpoints. These ARE the sign-in mechanism — gating them locks everyone out.
+  // NextAuth's own handler plus the legacy /super-login endpoint. These ARE
+  // the sign-in mechanism — gating them locks everyone out.
   '/api/auth/',
   // Vercel Cron invokes this with no session; it authenticates itself with a
   // CRON_SECRET bearer token (see api/cron/refresh-practice-data/route.ts).
@@ -42,7 +42,7 @@ function isPublicApiPath(pathname: string): boolean {
  * Whether the request carries *any* recognised session.
  *
  * Two session systems are live in parallel: NextAuth JWTs issued by /login, and
- * the legacy `session` cookie issued by /admin-login and /super-login and read
+ * the legacy `session` cookie issued by /super-login and read
  * by routes such as /api/highlights and /api/image-icons. Accepting only the
  * first would lock superusers out of the pages that use the second.
  *
@@ -62,7 +62,17 @@ async function hasAnySession(req: NextRequest): Promise<boolean> {
     req.cookies.get('session')?.value,
     process.env.NEXTAUTH_SECRET
   )
-  return legacy !== null
+  if (!legacy) return false
+
+  // Only superuser legacy cookies still count. /admin-login is gone, but the
+  // `type: 'surgery'` cookies it issued remain signed and valid until they
+  // expire; getSession() ignores them, and this keeps the two in step so such a
+  // request is refused here rather than reaching a route that forgets to check.
+  try {
+    return (JSON.parse(legacy) as { type?: string }).type === 'superuser'
+  } catch {
+    return false
+  }
 }
 
 const authMiddleware = withAuth(

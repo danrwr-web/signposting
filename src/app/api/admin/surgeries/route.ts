@@ -19,8 +19,8 @@ export async function GET() {
     await requireSuperuser()
     
     const surgeries = await prisma.surgery.findMany({
-      // Never hand the surgery admin credentials to a client component.
-      omit: { adminEmail: true, adminPassHash: true },
+      // adminEmail is a contact address; keep it out of client payloads.
+      omit: { adminEmail: true },
       include: {
         users: {
           include: {

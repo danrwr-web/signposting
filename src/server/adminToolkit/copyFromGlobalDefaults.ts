@@ -5,7 +5,10 @@ import type { Prisma, PrismaClient } from '@prisma/client'
 
 const GLOBAL_DEFAULTS_KEY = 'global-default-buttons'
 
-type DbClient = PrismaClient | Prisma.TransactionClient
+// Derived from the configured client, not bare PrismaClient: src/lib/prisma.ts
+// constructs it with an `omit`, which parameterises the type, and a bare
+// PrismaClient annotation no longer accepts it.
+type DbClient = typeof prisma | Prisma.TransactionClient
 
 export type CopyFromGlobalDefaultsResult =
   | { status: 'skipped'; reason: 'already-has-content'; categoriesCreated: 0; itemsCreated: 0; attachmentsCreated: 0 }
@@ -72,7 +75,7 @@ export async function copyAdminToolkitFromGlobalDefaultsToSurgery(opts: {
     }),
   ])
 
-  const hasTransaction = (client: DbClient): client is PrismaClient =>
+  const hasTransaction = (client: DbClient): client is typeof prisma =>
     typeof (client as PrismaClient).$transaction === 'function'
 
   const runSeed = async (tx: Prisma.TransactionClient) => {
