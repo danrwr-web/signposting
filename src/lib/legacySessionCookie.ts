@@ -2,7 +2,7 @@
  * Signing and verification for the legacy `session` cookie.
  *
  * That cookie predates NextAuth in this codebase and is still issued by
- * /admin-login and /super-login, and still read by `getSession()` in
+ * /super-login, and still read by `getSession()` in
  * src/server/auth.ts for routes such as /api/highlights and /api/image-icons.
  *
  * It used to be plain JSON: `{"type":"superuser","id":"…"}`. httpOnly stops a
@@ -16,7 +16,7 @@
  * Crypto only, so the same code runs in the edge middleware and in Node.
  *
  * Note: this invalidates cookies issued before the change. Anyone signed in via
- * /admin-login or /super-login signs in once more; NextAuth sessions are
+ * /super-login signs in once more; NextAuth sessions are
  * unaffected.
  */
 

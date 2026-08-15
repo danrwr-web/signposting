@@ -1,0 +1,12 @@
+-- Surgery-level admin login is removed, so the credential it authenticated
+-- against goes with it. Practice staff sign in as Users with a UserSurgery
+-- membership; this was a second, parallel credential system on the Surgery row.
+--
+-- The column also carried a bcrypt hash that reached public page HTML (see
+-- PR #144), so dropping it removes the class of exposure rather than the
+-- instance. Only one row ever had a value, on the GLOBAL_DEFAULT template
+-- surgery, and no real practice used this login.
+--
+-- adminEmail is kept: it is a contact address shown in the superuser dashboard
+-- and set during provisioning, and it is no longer a credential lookup key.
+ALTER TABLE "Surgery" DROP COLUMN IF EXISTS "adminPassHash";

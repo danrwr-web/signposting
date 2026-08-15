@@ -3,9 +3,9 @@ import { PrismaClient } from '@prisma/client'
 /**
  * Credential columns are omitted from every query by default.
  *
- * `User.password` and `Surgery.adminPassHash` are bcrypt hashes checked at
- * login (src/lib/auth.ts, src/server/auth.ts). Both live on rows that pages
- * routinely hand to client components, and Next.js serialises client props into
+ * `User.password` is a bcrypt hash checked at login (src/lib/auth.ts,
+ * src/server/auth.ts). It lives on rows that pages routinely hand to client
+ * components, and Next.js serialises client props into
  * the page HTML — so any query that forgot a `select` published them. That is
  * not hypothetical: it happened on three public pages and three admin screens,
  * and each time nothing broke, no test failed, and no error was logged.
@@ -18,7 +18,6 @@ const createPrismaClient = () =>
   new PrismaClient({
     omit: {
       user: { password: true },
-      surgery: { adminPassHash: true },
     },
   })
 

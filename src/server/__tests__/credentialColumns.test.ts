@@ -3,8 +3,7 @@ import { readFileSync } from 'fs'
 import path from 'path'
 
 /**
- * `User.password` and `Surgery.adminPassHash` are bcrypt hashes verified at
- * login. Both sit on rows that pages hand to client components, and Next.js
+ * `User.password` is a bcrypt hash verified at login. Both sit on rows that pages hand to client components, and Next.js
  * serialises client props into the page HTML — so any read that forgot to
  * exclude them published them. It happened on three public pages and three
  * admin screens, and each time nothing broke and no test failed.
@@ -34,12 +33,12 @@ const repoRoot = path.resolve(__dirname, '../../..')
  */
 const APPROVED_OPT_INS: Record<string, number> = {
   'src/lib/auth.ts': 1, // NextAuth credentials provider
-  'src/server/auth.ts': 2, // surgery-admin login, superuser login
+  'src/server/auth.ts': 1, // superuser login
   'src/app/api/super/pipeline/[id]/provision/route.ts': 1, // detects a passwordless account
   'src/app/api/user/change-password/route.ts': 1, // verifies the current password
 }
 
-const CREDENTIALS = ['password', 'adminPassHash']
+const CREDENTIALS = ['password']
 
 /** Strip comments so documented examples are not counted as real opt-ins. */
 function stripComments(source: string): string {
@@ -53,7 +52,7 @@ function stripComments(source: string): string {
  * opposite meanings, so the surrounding key decides:
  *
  *   omit:   { password: false }      -> reads it back  (an opt-in)
- *   omit:   { adminPassHash: true }  -> excludes it    (not an opt-in)
+ *   omit:   { password: true }       -> excludes it    (not an opt-in)
  *   select: { password: true }       -> reads it back  (an opt-in)
  *
  * Matching the field name alone would both miss `select` opt-ins and misread
@@ -83,7 +82,6 @@ describe('credential columns', () => {
 
     expect(client).toMatch(/omit:\s*\{/)
     expect(client).toMatch(/user:\s*\{\s*password:\s*true\s*\}/)
-    expect(client).toMatch(/surgery:\s*\{\s*adminPassHash:\s*true\s*\}/)
   })
 
   it('keep the cached client typed as the omitted client', () => {
@@ -97,7 +95,7 @@ describe('credential columns', () => {
 
   it('are only read back in approved authentication paths', () => {
     const out = execSync(
-      "grep -rl 'password\\|adminPassHash' src --include='*.ts' --include='*.tsx' || true",
+      "grep -rl 'password' src --include='*.ts' --include='*.tsx' || true",
       { cwd: repoRoot, encoding: 'utf8' }
     )
 

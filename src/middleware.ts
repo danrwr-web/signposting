@@ -14,8 +14,8 @@ const MARKETING_HOSTS = new Set(['www.signpostingtool.co.uk', 'signpostingtool.c
  * can be written to. Keep it short, and justify every entry.
  */
 const PUBLIC_API_PREFIXES = [
-  // NextAuth's own handler plus the legacy /admin-login and /super-login
-  // endpoints. These ARE the sign-in mechanism — gating them locks everyone out.
+  // NextAuth's own handler plus the legacy /super-login endpoint. These ARE
+  // the sign-in mechanism — gating them locks everyone out.
   '/api/auth/',
   // Vercel Cron invokes this with no session; it authenticates itself with a
   // CRON_SECRET bearer token (see api/cron/refresh-practice-data/route.ts).
@@ -42,7 +42,7 @@ function isPublicApiPath(pathname: string): boolean {
  * Whether the request carries *any* recognised session.
  *
  * Two session systems are live in parallel: NextAuth JWTs issued by /login, and
- * the legacy `session` cookie issued by /admin-login and /super-login and read
+ * the legacy `session` cookie issued by /super-login and read
  * by routes such as /api/highlights and /api/image-icons. Accepting only the
  * first would lock superusers out of the pages that use the second.
  *
