@@ -57,7 +57,22 @@ function hostOf(url) {
  */
 function normaliseHost(host) {
   if (!host) return null
-  return String(host).trim().toLowerCase().replace(/-pooler(?=\.)/, '') || null
+  let value = String(host).trim().toLowerCase()
+  if (!value) return null
+
+  // Tolerate a whole connection string pasted where a hostname was asked for.
+  // Extracting the host is safer than comparing the raw value: a value that can
+  // never match is a guard that never fires.
+  if (value.includes('://') || value.includes('@') || value.includes('/')) {
+    try {
+      value = new URL(value.includes('://') ? value : `postgresql://${value}`).hostname
+    } catch {
+      return null
+    }
+  }
+
+  value = value.replace(/:\d+$/, '').replace(/-pooler(?=\.)/, '')
+  return value || null
 }
 
 /**
@@ -119,13 +134,19 @@ function evaluateMigrationTarget({ vercelEnv, effectiveUrl, productionHost }) {
     return { action: 'run' }
   }
 
-  if (!productionHost) {
+  // Normalise BEFORE testing for configuration. A whitespace-only or otherwise
+  // unreadable value is truthy but normalises to null, so testing the raw value
+  // would accept it as configured and then compare against null — which never
+  // matches, failing OPEN in precisely the case the guard exists to catch.
+  const prodHost = normaliseHost(productionHost)
+  if (!prodHost) {
     return {
       action: 'abort',
       reason: [
         'ERROR: Refusing to run migrations from a preview build.',
         '',
-        'PRODUCTION_DB_HOST is not set, so this script cannot tell whether the',
+        'PRODUCTION_DB_HOST is not set to a readable hostname (it is missing,',
+        'blank, or could not be parsed), so this script cannot tell whether the',
         'preview is pointed at its own database or at production.',
         '',
         'Set PRODUCTION_DB_HOST (the production database hostname only, no',
@@ -147,7 +168,7 @@ function evaluateMigrationTarget({ vercelEnv, effectiveUrl, productionHost }) {
     }
   }
 
-  if (targetHost === normaliseHost(productionHost)) {
+  if (targetHost === prodHost) {
     return {
       action: 'abort',
       reason: [

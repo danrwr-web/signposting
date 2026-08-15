@@ -55,6 +55,47 @@ describe('evaluateMigrationTarget — preview builds', () => {
     expect(result.reason).toContain('PRODUCTION_DB_HOST is not set')
   })
 
+  it.each([
+    ['whitespace only', '   '],
+    ['a tab', '\t'],
+    ['a value that parses to nothing', '://'],
+  ])('fails closed when PRODUCTION_DB_HOST is %s', (_label, productionHost) => {
+    // The trap: these are all truthy, so a bare presence check accepts them as
+    // configured — but they normalise to null, which can never equal a real
+    // host. The guard would then return "run" against the production database,
+    // the exact case it exists to catch.
+    const result = evaluateMigrationTarget({
+      vercelEnv: 'preview',
+      effectiveUrl: url(PROD_HOST),
+      productionHost,
+    })
+
+    expect(result.action).toBe('abort')
+    expect(result.reason).toContain('PRODUCTION_DB_HOST is not set')
+  })
+
+  it('still blocks when PRODUCTION_DB_HOST holds a whole connection string', () => {
+    // Pasting the connection string into a field asking for a hostname is an
+    // easy mistake, and comparing it raw would never match.
+    const result = evaluateMigrationTarget({
+      vercelEnv: 'preview',
+      effectiveUrl: url(PROD_HOST),
+      productionHost: url(PROD_HOST),
+    })
+
+    expect(result.action).toBe('abort')
+  })
+
+  it('ignores a port appended to PRODUCTION_DB_HOST', () => {
+    const result = evaluateMigrationTarget({
+      vercelEnv: 'preview',
+      effectiveUrl: url(PROD_HOST),
+      productionHost: `${PROD_HOST}:5432`,
+    })
+
+    expect(result.action).toBe('abort')
+  })
+
   it('fails closed when the URL cannot be parsed', () => {
     const result = evaluateMigrationTarget({
       vercelEnv: 'preview',
