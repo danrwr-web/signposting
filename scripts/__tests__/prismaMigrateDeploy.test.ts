@@ -10,6 +10,7 @@ const {
   normaliseDbUrl,
   hostOf,
   resolveDirectUrl,
+  buildMigrationEnv,
   evaluateMigrationTarget,
 } = require('../prisma-migrate-deploy.js')
 
@@ -180,6 +181,20 @@ describe('resolveDirectUrl', () => {
       { source: 'DATABASE_URL_UNPOOLED' }
     )
     expect(resolveDirectUrl({})).toMatchObject({ source: null, value: '' })
+  })
+})
+
+describe('buildMigrationEnv', () => {
+  it('sets DIRECT_URL as well as DATABASE_URL', () => {
+    // prisma/schema.prisma declares directUrl = env("DIRECT_URL"), and Prisma
+    // validates that before connecting — an unset DIRECT_URL fails with P1012
+    // regardless of how good DATABASE_URL is. Resolving a direct URL under one
+    // of the integration names, or from an already-direct DATABASE_URL, would
+    // otherwise leave DIRECT_URL unset and abort every such migration.
+    expect(buildMigrationEnv(url(PROD_HOST))).toEqual({
+      DATABASE_URL: url(PROD_HOST),
+      DIRECT_URL: url(PROD_HOST),
+    })
   })
 })
 

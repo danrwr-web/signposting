@@ -79,6 +79,23 @@ function resolveDirectUrl(env) {
 }
 
 /**
+ * The environment Prisma Migrate is invoked with.
+ *
+ * The schema declares `directUrl = env("DIRECT_URL")`, and Prisma validates that
+ * BEFORE doing anything else: an unset DIRECT_URL fails with P1012 even when the
+ * connection string is perfectly good. That would break the two cases this
+ * script exists to support — a direct URL supplied under one of the integration
+ * names (DATABASE_URL_UNPOOLED / POSTGRES_URL_NON_POOLING), and a DATABASE_URL
+ * that is already a direct connection with no separate DIRECT_URL at all.
+ *
+ * Both variables are therefore pinned to the same resolved value: the URL
+ * migrations should actually use.
+ */
+function buildMigrationEnv(effectiveUrl) {
+  return { DATABASE_URL: effectiveUrl, DIRECT_URL: effectiveUrl }
+}
+
+/**
  * Decide whether this build may run migrations.
  *
  * Fails closed on preview: if we cannot prove the target is NOT production, we
@@ -212,6 +229,8 @@ function main() {
     console.warn(`WARNING: ${decision.warning}`)
   }
 
+  Object.assign(process.env, buildMigrationEnv(finalDb))
+
   // Be a bit more tolerant of concurrent deploys holding the advisory lock.
   process.env.PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT =
     process.env.PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT || '60000'
@@ -228,6 +247,7 @@ module.exports = {
   hostOf,
   normaliseHost,
   resolveDirectUrl,
+  buildMigrationEnv,
   evaluateMigrationTarget,
   DIRECT_URL_FALLBACKS,
 }
