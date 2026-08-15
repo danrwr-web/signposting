@@ -2,6 +2,8 @@ import 'server-only'
 
 import { prisma } from '@/lib/prisma'
 import SimpleHeader from '@/components/SimpleHeader'
+import { surgeriesForViewer, type ViewerSurgery } from '@/server/viewerSurgeries'
+import { getSessionUser } from '@/lib/rbac'
 
 /**
  * Shared layout for all /s/[id]/... routes.
@@ -23,14 +25,13 @@ export default async function SurgeryLayout({
 }) {
   const { id: surgeryId } = await params
 
-  // Fetch all surgeries for the header selector (enables surgery switching for superusers)
-  // and find the current surgery for display
-  let surgeries: { id: string; slug: string | null; name: string; surgeryType: 'LIVE' | 'TEST' | 'GLOBAL_DEFAULT' }[] = []
+  // Surgeries for the header selector (surgery switching for superusers), and
+  // the current surgery for display.
+  let surgeries: ViewerSurgery[] = []
   try {
-    surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true, surgeryType: true },
-      orderBy: { name: 'asc' },
-    })
+    // Scoped to the viewer: this list is a client prop, so it lands in the
+    // page source. A member of one practice has no need for the rest.
+    surgeries = await surgeriesForViewer(await getSessionUser())
   } catch (error) {
     console.error('Error loading surgeries in layout:', error)
   }

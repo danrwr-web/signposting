@@ -19,6 +19,8 @@ export async function GET() {
     await requireSuperuser()
     
     const surgeries = await prisma.surgery.findMany({
+      // adminEmail is a contact address; keep it out of client payloads.
+      omit: { adminEmail: true },
       include: {
         users: {
           include: {

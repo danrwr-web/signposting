@@ -29,7 +29,6 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
         body: JSON.stringify({
           name: formData.get('name'),
           adminEmail: formData.get('adminEmail'),
-          adminPassword: formData.get('adminPassword'),
         }),
       })
 
@@ -61,7 +60,6 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
         body: JSON.stringify({
           name: formData.get('name'),
           adminEmail: formData.get('adminEmail'),
-          adminPassword: formData.get('adminPassword'),
         }),
       })
 
@@ -206,12 +204,8 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
               <Input name="name" required />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Admin Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Admin contact email</label>
               <Input name="adminEmail" type="email" />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Admin Password</label>
-              <Input name="adminPassword" type="password" />
             </div>
           </form>
         </Dialog>
@@ -240,14 +234,8 @@ export default function SuperDashboardClient({ surgeries }: SuperDashboardClient
                 <Input name="name" defaultValue={editingSurgery.name} required />
               </div>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Admin Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Admin contact email</label>
                 <Input name="adminEmail" type="email" defaultValue={editingSurgery.adminEmail || ''} />
-              </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Admin Password (leave blank to keep current)
-                </label>
-                <Input name="adminPassword" type="password" />
               </div>
             </form>
           )}

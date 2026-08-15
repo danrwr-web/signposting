@@ -7,6 +7,7 @@ import HomePageClient from '@/app/HomePageClient'
 import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
+import { surgeriesForViewer } from '@/server/viewerSurgeries'
 
 // Allow Next.js to cache this page for a short window. Symptom data is already
 // cached for 300s inside getCachedEffectiveSymptoms; aligning the page with a
@@ -54,10 +55,9 @@ export default async function SignpostingToolPage({ params }: SignpostingToolPag
     }
 
     // Get all surgeries for the surgery selector (only fields needed by the UI)
-    const surgeries = await prisma.surgery.findMany({
-      select: { id: true, slug: true, name: true, surgeryType: true },
-      orderBy: { name: 'asc' }
-    })
+    // Scoped to the viewer: this list is a client prop, so it lands in the
+    // page source. A member of one practice has no need for the rest.
+    const surgeries = await surgeriesForViewer(user)
 
     // Get effective symptoms for this surgery (base + overrides + enabled custom)
     const symptoms = await getCachedEffectiveSymptoms(surgeryId)

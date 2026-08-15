@@ -12,6 +12,7 @@ import { can } from '@/lib/rbac'
 import { getSymptomSmartVisuals, visibleSymptomSmartVisuals } from '@/server/symptomSmartVisual'
 import { symptomKeyIdFor } from '@/server/symptomSmartVisualGates'
 import type { SymptomSmartVisualProps } from '@/components/symptom-smart-visual/SymptomSmartVisualToggle'
+import { surgeriesForViewer } from '@/server/viewerSurgeries'
 
 // Disable caching for this page to prevent stale data
 export const dynamic = 'force-dynamic'
@@ -78,9 +79,10 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   }
 
   // Get surgeries for header
-  const surgeries = await prisma.surgery.findMany({
-    orderBy: { name: 'asc' }
-  })
+  // Reachable without a session, and this list is handed to a client component,
+  // so it lands in the page source for whoever is looking. Scoped to the viewer:
+  // a signed-out visitor gets nothing rather than the whole practice list.
+  const surgeries = await surgeriesForViewer(await getSessionUser())
 
   // Per-surgery display option: hide age band badges and treat the symptom as all-ages
   const hideAgeBands = surgeryId

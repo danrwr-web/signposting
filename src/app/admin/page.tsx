@@ -29,6 +29,8 @@ export default async function AdminPage() {
     let surgeries
     if (isSuperuser) {
       surgeries = await prisma.surgery.findMany({
+        // adminEmail is a contact address; keep it out of client payloads.
+        omit: { adminEmail: true },
         orderBy: { name: 'asc' },
         include: {
           symptomReviews: {
@@ -50,6 +52,8 @@ export default async function AdminPage() {
         .map(m => m.surgeryId)
       
       surgeries = await prisma.surgery.findMany({
+        // adminEmail is a contact address; keep it out of client payloads.
+        omit: { adminEmail: true },
         where: { id: { in: surgeryIds } },
         orderBy: { name: 'asc' },
         include: {
