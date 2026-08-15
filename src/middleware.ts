@@ -62,7 +62,17 @@ async function hasAnySession(req: NextRequest): Promise<boolean> {
     req.cookies.get('session')?.value,
     process.env.NEXTAUTH_SECRET
   )
-  return legacy !== null
+  if (!legacy) return false
+
+  // Only superuser legacy cookies still count. /admin-login is gone, but the
+  // `type: 'surgery'` cookies it issued remain signed and valid until they
+  // expire; getSession() ignores them, and this keeps the two in step so such a
+  // request is refused here rather than reaching a route that forgets to check.
+  try {
+    return (JSON.parse(legacy) as { type?: string }).type === 'superuser'
+  } catch {
+    return false
+  }
 }
 
 const authMiddleware = withAuth(

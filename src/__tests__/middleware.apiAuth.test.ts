@@ -74,6 +74,20 @@ describe('API write gate', () => {
     expect(res?.status).not.toBe(401)
   })
 
+  it('refuses a validly signed legacy cookie from the removed practice login', async () => {
+    // /admin-login issued `type: 'surgery'` cookies. Removing that login does
+    // not revoke the ones already issued — they stay correctly signed until
+    // they expire — so the holder could keep making practice-level writes.
+    const signed = await signLegacySession(
+      JSON.stringify({ type: 'surgery', id: 's1', surgeryId: 's1' }),
+      SECRET
+    )
+
+    const res = await middleware(request('/api/highlights', { cookie: `session=${signed}` }))
+
+    expect(res?.status).toBe(401)
+  })
+
   it('refuses a forged legacy cookie', async () => {
     // The cookie is set by the client, so accepting mere presence would let
     // any caller walk through the gate with `session=x`.

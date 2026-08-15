@@ -61,7 +61,20 @@ export async function getSession(): Promise<Session | null> {
       process.env.NEXTAUTH_SECRET
     )
 
-    if (!verifiedPayload) {
+    // A legacy cookie is only honoured for superusers now. /admin-login issued
+    // `type: 'surgery'` cookies, and removing that login does not revoke the
+    // ones already out there — they stay valid for the cookie's remaining life
+    // and every route that trusts getSession() would keep authorising them.
+    // Ignoring the payload here (rather than returning null outright) lets the
+    // NextAuth check below still run, so a user who happens to hold a stale
+    // cookie AND a real session is unaffected.
+    const legacySession = verifiedPayload
+      ? (JSON.parse(verifiedPayload) as Session)
+      : null
+    const usableLegacySession =
+      legacySession && legacySession.type === 'superuser' ? legacySession : null
+
+    if (!usableLegacySession) {
       // Fallback to NextAuth session if our cookie is missing
       try {
         const nextAuthSession = await getServerSession(authOptions)
@@ -88,7 +101,7 @@ export async function getSession(): Promise<Session | null> {
       return null
     }
 
-    return JSON.parse(verifiedPayload) as Session
+    return usableLegacySession
   } catch (error) {
     console.error('Error parsing session:', error)
     return null
