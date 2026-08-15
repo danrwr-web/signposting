@@ -15,6 +15,7 @@ interface SurgeryContextValue {
   currentSurgeryId: string | null
   currentSurgerySlug: string | null
   setSurgery: (next: SurgeryState) => void
+  syncSurgery: (next: SurgeryState) => void
   clearSurgery: () => void
   availableSurgeries: SurgeryState[]
   canManageSurgery: (surgeryId: string) => boolean
@@ -86,12 +87,23 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
       const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === pathId)
       if (hasAccess) {
         const surgeryData = availableSurgeries.find(s => s.id === pathId)
-        const next: SurgeryState = surgeryData || { id: pathId, slug: pathId, name: '' }
-        setSurgeryState(prev => (prev && prev.id === next.id && prev.name === next.name ? prev : next))
+        // availableSurgeries comes from the root layout, which renders once per
+        // document load and so can predate sign-in. A miss must never downgrade
+        // an already-named surgery to the nameless placeholder, and the
+        // placeholder must never be persisted — SurgeryContextSync supplies the
+        // authoritative value on /s/[id] pages.
+        setSurgeryState(prev => {
+          const next: SurgeryState =
+            surgeryData ||
+            (prev && prev.id === pathId && prev.name ? prev : { id: pathId, slug: pathId, name: '' })
+          return prev && prev.id === next.id && prev.name === next.name ? prev : next
+        })
         if (readCookie(COOKIE_KEY) !== pathId) {
           writeCookie(COOKIE_KEY, pathId, COOKIE_MAX_AGE)
         }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        if (surgeryData) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(surgeryData))
+        }
       }
       // On a /s/ route never fall through to cookie/localStorage: if access looked
       // false the session just hasn't hydrated yet, and this effect re-runs when it does.
@@ -104,10 +116,16 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
       const hasAccess = isSuperuser || memberships.some((m: any) => m.surgeryId === urlId)
       if (hasAccess) {
         const surgeryData = availableSurgeries.find(s => s.id === urlId)
-        const next: SurgeryState = surgeryData || { id: urlId, slug: urlId, name: '' }
-        setSurgeryState(prev => (prev && prev.id === next.id && prev.name === next.name ? prev : next))
+        setSurgeryState(prev => {
+          const next: SurgeryState =
+            surgeryData ||
+            (prev && prev.id === urlId && prev.name ? prev : { id: urlId, slug: urlId, name: '' })
+          return prev && prev.id === next.id && prev.name === next.name ? prev : next
+        })
         writeCookie(COOKIE_KEY, urlId, COOKIE_MAX_AGE)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        if (surgeryData) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(surgeryData))
+        }
         return
       }
     }
@@ -185,6 +203,21 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
     isSettingRef.current = false
   }, [pathname, router, searchParams, isSuperuser, memberships])
 
+  // Server-authoritative update pushed by SurgeryContextSync from the /s/[id]
+  // layout, which re-fetches its viewer-scoped surgery list on every navigation
+  // (unlike the root layout that supplies availableSurgeries). No client-side
+  // access check: the server already scoped the value to the viewer. Unlike
+  // setSurgery this must not navigate.
+  const syncSurgery = useCallback((next: SurgeryState) => {
+    setSurgeryState(prev =>
+      prev && prev.id === next.id && prev.slug === next.slug && prev.name === next.name ? prev : next
+    )
+    if (readCookie(COOKIE_KEY) !== next.id) {
+      writeCookie(COOKIE_KEY, next.id, COOKIE_MAX_AGE)
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+  }, [])
+
   const clearSurgery = useCallback(() => {
     isSettingRef.current = true
     setSurgeryState(null)
@@ -206,12 +239,13 @@ export function SurgeryProvider({ initialSurgery, availableSurgeries, children }
     surgery, 
     currentSurgeryId: surgery?.id ?? null,
     currentSurgerySlug: surgery?.slug ?? surgery?.id ?? null,
-    setSurgery, 
-    clearSurgery, 
+    setSurgery,
+    syncSurgery,
+    clearSurgery,
     availableSurgeries,
     canManageSurgery,
     isSuperuser
-  }), [surgery, setSurgery, clearSurgery, availableSurgeries, canManageSurgery, isSuperuser])
+  }), [surgery, setSurgery, syncSurgery, clearSurgery, availableSurgeries, canManageSurgery, isSuperuser])
   return (
     <SurgeryContext.Provider value={value}>{children}</SurgeryContext.Provider>
   )

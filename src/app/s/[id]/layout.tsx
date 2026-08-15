@@ -1,7 +1,7 @@
 import 'server-only'
 
-import { prisma } from '@/lib/prisma'
 import SimpleHeader from '@/components/SimpleHeader'
+import SurgeryContextSync from '@/components/SurgeryContextSync'
 import { surgeriesForViewer, type ViewerSurgery } from '@/server/viewerSurgeries'
 import { getSessionUser } from '@/lib/rbac'
 
@@ -36,8 +36,18 @@ export default async function SurgeryLayout({
     console.error('Error loading surgeries in layout:', error)
   }
 
+  // Unlike the root layout (rendered once per document load), this layout
+  // re-renders on every navigation, so this resolution is always fresh. Synced
+  // into SurgeryContext so the navigation panel shows the right surgery even
+  // when the root layout rendered before sign-in. Matches by slug too, since
+  // some /s/[id] pages accept slug URLs.
+  const current = surgeries.find(s => s.id === surgeryId || s.slug === surgeryId) ?? null
+
   return (
     <>
+      <SurgeryContextSync
+        surgery={current ? { id: current.id, slug: current.slug || current.id, name: current.name } : null}
+      />
       <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} />
       {children}
     </>
