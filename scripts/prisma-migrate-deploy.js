@@ -37,10 +37,27 @@ function normaliseDbUrl(url) {
 function hostOf(url) {
   if (!url) return null
   try {
-    return new URL(String(url).trim()).hostname.toLowerCase() || null
+    return normaliseHost(new URL(String(url).trim()).hostname)
   } catch {
     return null
   }
+}
+
+/**
+ * Canonical form of a database hostname.
+ *
+ * Neon serves the same database on two hostnames: a direct endpoint, and a
+ * pooled one with "-pooler" appended to the endpoint id. This guard compares
+ * the *migration* URL, which is the direct form — so if PRODUCTION_DB_HOST were
+ * set to the pooled hostname (the obvious thing to copy, since it is what
+ * DATABASE_URL usually contains) the comparison would never match and the guard
+ * would fail OPEN, silently permitting exactly what it exists to prevent.
+ *
+ * Collapsing both forms to one means either value works.
+ */
+function normaliseHost(host) {
+  if (!host) return null
+  return String(host).trim().toLowerCase().replace(/-pooler(?=\.)/, '') || null
 }
 
 /**
@@ -73,7 +90,7 @@ function evaluateMigrationTarget({ vercelEnv, effectiveUrl, productionHost }) {
   // the previous behaviour — the operator chose the database deliberately.
   if (vercelEnv !== 'preview') {
     const targetHost = hostOf(effectiveUrl)
-    const prodHost = productionHost ? productionHost.toLowerCase() : null
+    const prodHost = normaliseHost(productionHost)
     if (vercelEnv === 'production' && prodHost && targetHost && targetHost !== prodHost) {
       return {
         action: 'run',
@@ -113,7 +130,7 @@ function evaluateMigrationTarget({ vercelEnv, effectiveUrl, productionHost }) {
     }
   }
 
-  if (targetHost === productionHost.toLowerCase()) {
+  if (targetHost === normaliseHost(productionHost)) {
     return {
       action: 'abort',
       reason: [
@@ -209,6 +226,7 @@ if (require.main === module) {
 module.exports = {
   normaliseDbUrl,
   hostOf,
+  normaliseHost,
   resolveDirectUrl,
   evaluateMigrationTarget,
   DIRECT_URL_FALLBACKS,

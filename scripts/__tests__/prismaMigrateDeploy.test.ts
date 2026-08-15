@@ -74,6 +74,42 @@ describe('evaluateMigrationTarget — preview builds', () => {
     expect(result.action).toBe('abort')
   })
 
+  it('treats the pooled and direct Neon hostnames as the same database', () => {
+    // The fail-open trap: Neon serves one database on two hostnames, and the
+    // guard compares the *direct* one (migrations swap to DIRECT_URL). Copying
+    // the pooled host out of DATABASE_URL is the obvious thing to do, and would
+    // otherwise mean the comparison never matched and the guard silently
+    // allowed the migration it exists to block.
+    const pooled = PROD_HOST.replace(/^(ep-[^.]+)/, '$1-pooler')
+    expect(pooled).not.toBe(PROD_HOST)
+
+    // Production host configured in either form must block a preview.
+    expect(
+      evaluateMigrationTarget({
+        vercelEnv: 'preview',
+        effectiveUrl: url(PROD_HOST),
+        productionHost: pooled,
+      }).action
+    ).toBe('abort')
+
+    expect(
+      evaluateMigrationTarget({
+        vercelEnv: 'preview',
+        effectiveUrl: url(pooled),
+        productionHost: PROD_HOST,
+      }).action
+    ).toBe('abort')
+  })
+
+  it('does not collapse a genuinely different host that merely contains "pooler"', () => {
+    const result = evaluateMigrationTarget({
+      vercelEnv: 'preview',
+      effectiveUrl: url(PREVIEW_HOST),
+      productionHost: PROD_HOST,
+    })
+    expect(result.action).toBe('run')
+  })
+
   it('ignores credentials, port and database name when comparing', () => {
     const result = evaluateMigrationTarget({
       vercelEnv: 'preview',
