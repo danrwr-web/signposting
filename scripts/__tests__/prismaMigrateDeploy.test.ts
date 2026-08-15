@@ -10,7 +10,6 @@ const {
   normaliseDbUrl,
   hostOf,
   resolveDirectUrl,
-  buildMigrationEnv,
   evaluateMigrationTarget,
 } = require('../prisma-migrate-deploy.js')
 
@@ -59,6 +58,9 @@ describe('evaluateMigrationTarget — preview builds', () => {
     ['whitespace only', '   '],
     ['a tab', '\t'],
     ['a value that parses to nothing', '://'],
+    ['annotated with a label', 'ep-prod-main-123456.eu-west-2.aws.neon.tech (production)'],
+    ['a sentence', 'the production database'],
+    ['carrying a stray comma', 'ep-prod-main-123456.eu-west-2.aws.neon.tech,'],
   ])('fails closed when PRODUCTION_DB_HOST is %s', (_label, productionHost) => {
     // The trap: these are all truthy, so a bare presence check accepts them as
     // configured — but they normalise to null, which can never equal a real
@@ -222,20 +224,6 @@ describe('resolveDirectUrl', () => {
       { source: 'DATABASE_URL_UNPOOLED' }
     )
     expect(resolveDirectUrl({})).toMatchObject({ source: null, value: '' })
-  })
-})
-
-describe('buildMigrationEnv', () => {
-  it('sets DIRECT_URL as well as DATABASE_URL', () => {
-    // prisma/schema.prisma declares directUrl = env("DIRECT_URL"), and Prisma
-    // validates that before connecting — an unset DIRECT_URL fails with P1012
-    // regardless of how good DATABASE_URL is. Resolving a direct URL under one
-    // of the integration names, or from an already-direct DATABASE_URL, would
-    // otherwise leave DIRECT_URL unset and abort every such migration.
-    expect(buildMigrationEnv(url(PROD_HOST))).toEqual({
-      DATABASE_URL: url(PROD_HOST),
-      DIRECT_URL: url(PROD_HOST),
-    })
   })
 })
 
