@@ -481,6 +481,7 @@ model SymptomHistory {
   editorName               String? // Name of the editor
   editorEmail              String? // Email of the editor
   modelUsed                String? // AI model used (if applicable, or "REVERT" for revert operations)
+  entryType                String? // Discriminates non-wording entries (e.g. SMART_VISUAL); null = an instruction edit
   changedAt                DateTime @default(now())
 
   @@index([symptomId])

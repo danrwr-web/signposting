@@ -218,3 +218,15 @@ export function normalizeSymptomSmartVisualLayout(
 export function symptomSmartVisualSectionTypes(layout: SymptomSmartVisualLayout): string[] {
   return layout.sections.map((s) => s.type)
 }
+
+/**
+ * Marks a SymptomHistory row as recording a smart-visual action rather than an
+ * edit to the instructions themselves.
+ *
+ * The setup checklist's "AI customisation" step is satisfied by any history row
+ * with a modelUsed — it means "AI has tailored your instructions to your
+ * appointment model". Saving a smart visual is AI-derived and correctly
+ * attributed, but it changes no instruction wording, so without this marker it
+ * would tick that step off and stop a practice from doing the real one.
+ */
+export const SMART_VISUAL_HISTORY_ENTRY = 'SMART_VISUAL'

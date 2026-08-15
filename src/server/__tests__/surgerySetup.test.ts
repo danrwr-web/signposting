@@ -1,5 +1,6 @@
 import { latestDate, computeStage, computeSurgerySetupSnapshotsBatch } from '@/server/surgerySetup'
 import { prisma } from '@/lib/prisma'
+import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
 
 jest.mock('@/server/effectiveSymptoms', () => ({ getEffectiveSymptoms: jest.fn() }))
 jest.mock('@/lib/features', () => ({ isFeatureEnabledForSurgery: jest.fn() }))
@@ -161,6 +162,24 @@ describe('computeSurgerySetupSnapshotsBatch AI customisation', () => {
       { surgeryId: 's1', baseSymptomId: 'base-1' },
     ])
     ;(prisma.symptomHistory.findMany as jest.Mock).mockResolvedValue([{ symptomId: 'base-1' }])
+  })
+
+  it('excludes smart-visual rows from the AI customisation check', async () => {
+    // Saving a smart visual writes an attributable history row with a
+    // modelUsed, but changes no instruction wording. Counting it would tick
+    // "AI customisation has been run" off the setup checklist and stop the
+    // practice doing the step the item is actually asking for.
+    //
+    // Prisma is mocked here, so this asserts the exclusion is requested; the
+    // filtering itself is the database's.
+    await computeSurgerySetupSnapshotsBatch(['s1'])
+
+    const where = (prisma.symptomHistory.findMany as jest.Mock).mock.calls[0][0].where
+    expect(where.NOT).toEqual(
+      expect.arrayContaining([{ entryType: SMART_VISUAL_HISTORY_ENTRY }])
+    )
+    // The pre-existing REVERT exclusion must survive alongside it.
+    expect(where.NOT).toEqual(expect.arrayContaining([{ modelUsed: 'REVERT' }]))
   })
 
   it('counts AI customisation in the batch tracker when history exists', async () => {

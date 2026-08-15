@@ -1,0 +1,12 @@
+-- Distinguishes SymptomHistory rows that record a smart-visual action from ones
+-- that record an edit to the instructions.
+--
+-- The setup checklist treats any row with a modelUsed as "AI customisation has
+-- been run", meaning AI has tailored the instructions to the practice's
+-- appointment model. A saved smart visual is AI-derived and carries a model,
+-- but changes no wording — so it would satisfy that step without the practice
+-- ever having done it.
+--
+-- Nullable and unset for every existing row, so historical completion is
+-- unchanged; only rows written from here on are discriminated.
+ALTER TABLE "SymptomHistory" ADD COLUMN "entryType" TEXT;

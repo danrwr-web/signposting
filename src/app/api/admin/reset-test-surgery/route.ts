@@ -224,6 +224,17 @@ async function cleanSurgeryData(surgeryId: string) {
     // Clear clinical review statuses
     prisma.symptomReviewStatus.deleteMany({ where: { surgeryId } }),
 
+    // Clear saved smart visuals.
+    //
+    // A visual's approval lives in SymptomReviewStatus and its audit trail in
+    // SymptomHistory, both cleared by this reset. Leaving the visuals behind
+    // would strand them in a state no normal flow produces: previously approved
+    // ones silently revert to unapproved, with no record of who generated them
+    // or from what. (The instructions themselves survive a reset — overrides
+    // and custom symptoms are deliberately kept — so this is about the review
+    // state, not orphaned content.)
+    prisma.symptomSmartVisual.deleteMany({ where: { surgeryId } }),
+
     // Clear symptom history for this surgery's symptoms
     ...(allSymptomIds.length > 0
       ? [

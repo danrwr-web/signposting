@@ -12,11 +12,17 @@ import {
   normalizeSymptomSmartVisualLayout,
   symptomSmartVisualSectionTypes,
 } from '@/lib/symptomSmartVisualShared'
+import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
 
 const saveSymptomSmartVisualInput = z.object({
   surgeryId: z.string().min(1),
   symptomId: z.string().min(1),
-  variantKey: z.string().max(120).optional(),
+  // Generous rather than tight: the key is author-defined free text from the
+  // symptom's own variant data (no length limit in the admin editor), and it is
+  // resolved against that symptom's actual variants server-side — an unknown
+  // key is rejected regardless. The cap only bounds payload size, so a low one
+  // buys nothing and rejects legitimate keys.
+  variantKey: z.string().max(512).optional(),
   layout: z.unknown(),
   sourceFingerprint: z.string().length(64),
   modelUsed: z.string().max(120).optional(),
@@ -129,6 +135,9 @@ export async function saveSymptomSmartVisual(
           newText: summary,
           editorEmail: userEmail,
           modelUsed: modelUsed ?? 'unknown-model',
+          // Attributable as AI output, but not an instruction edit — see the
+          // constant for why the setup checklist must not count it.
+          entryType: SMART_VISUAL_HISTORY_ENTRY,
         },
       }),
       // The approval reset MUST be atomic with the visual write. If it were a
@@ -162,7 +171,12 @@ export async function saveSymptomSmartVisual(
 const removeSymptomSmartVisualInput = z.object({
   surgeryId: z.string().min(1),
   symptomId: z.string().min(1),
-  variantKey: z.string().max(120).optional(),
+  // Generous rather than tight: the key is author-defined free text from the
+  // symptom's own variant data (no length limit in the admin editor), and it is
+  // resolved against that symptom's actual variants server-side — an unknown
+  // key is rejected regardless. The cap only bounds payload size, so a low one
+  // buys nothing and rejects legitimate keys.
+  variantKey: z.string().max(512).optional(),
 })
 
 /**
@@ -211,6 +225,7 @@ export async function removeSymptomSmartVisual(
           source: symptom.source,
           newText: `Removed smart visual${variantSuffix}`,
           editorEmail: userEmail,
+          entryType: SMART_VISUAL_HISTORY_ENTRY,
         },
       })
     })

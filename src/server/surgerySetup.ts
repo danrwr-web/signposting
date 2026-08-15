@@ -5,6 +5,7 @@ import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinica
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import type { AppointmentModelConfig } from '@/lib/api-contracts'
 import type { SurgeryType } from '@prisma/client'
+import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
 
 export const HEALTH_WINDOW_DAYS = 30
 
@@ -177,7 +178,10 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
       where: {
         symptomId: { in: allCustomisableIds },
         modelUsed: { not: null },
-        NOT: { modelUsed: 'REVERT' },
+        // Smart visuals are AI output but change no wording, so they must not
+        // satisfy a checklist step that asks the practice to tailor its
+        // instructions. Reverts are excluded for the same reason.
+        NOT: [{ modelUsed: 'REVERT' }, { entryType: SMART_VISUAL_HISTORY_ENTRY }],
       },
       select: { id: true },
     })
@@ -551,7 +555,7 @@ export async function computeSurgerySetupSnapshotsBatch(
       where: {
         symptomId: { in: aiSymptomIds },
         modelUsed: { not: null },
-        NOT: { modelUsed: 'REVERT' },
+        NOT: [{ modelUsed: 'REVERT' }, { entryType: SMART_VISUAL_HISTORY_ENTRY }],
       },
       select: { symptomId: true },
     })

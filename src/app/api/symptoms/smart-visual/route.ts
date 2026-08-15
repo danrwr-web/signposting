@@ -16,7 +16,12 @@ const generateSymptomSmartVisualSchema = z.object({
   surgeryId: z.string().min(1),
   symptomId: z.string().min(1),
   /** '' targets the symptom's main instructions; otherwise an age-variant key. */
-  variantKey: z.string().max(120).optional(),
+  // Generous rather than tight: the key is author-defined free text from the
+  // symptom's own variant data (no length limit in the admin editor), and it is
+  // resolved against that symptom's actual variants server-side — an unknown
+  // key is rejected regardless. The cap only bounds payload size, so a low one
+  // buys nothing and rejects legitimate keys.
+  variantKey: z.string().max(512).optional(),
   guidance: z.string().trim().max(500).optional(),
 })
 
