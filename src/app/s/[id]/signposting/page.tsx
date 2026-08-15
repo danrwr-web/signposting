@@ -8,7 +8,6 @@ import { getCommonReasonsForSurgery, UiConfig } from '@/lib/commonReasons'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
 import { surgeriesForViewer } from '@/server/viewerSurgeries'
-import { getSessionUser } from '@/lib/rbac'
 
 export const revalidate = 60
 
@@ -27,7 +26,7 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
   const { id: surgeryId } = await params
 
   try {
-    await requireSurgeryAccess(surgeryId)
+    const user = await requireSurgeryAccess(surgeryId)
 
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
@@ -45,7 +44,7 @@ export default async function SignpostingPage({ params }: SignpostingPageProps) 
 
     // Scoped to the viewer: this list is a client prop, so it lands in the
     // page source. A member of one practice has no need for the rest.
-    const surgeries = await surgeriesForViewer(await getSessionUser())
+    const surgeries = await surgeriesForViewer(user)
 
     const symptoms = await getCachedEffectiveSymptoms(surgeryId)
 
