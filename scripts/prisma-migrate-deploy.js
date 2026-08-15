@@ -77,7 +77,7 @@ function normaliseHost(host) {
   // through. A value like "ep-prod.example (production)" is non-empty, so it
   // would satisfy a null check, but can never equal a real host — leaving a
   // guard that is configured, silent, and completely inert.
-  if (!HOSTNAME_RE.test(value) && !IPV6_HOST_RE.test(value)) return null
+  if (!HOSTNAME_RE.test(value)) return null
 
   return value || null
 }
@@ -89,7 +89,14 @@ function normaliseHost(host) {
 // them as readable leaves the guard configured and inert.
 const LABEL = '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
 const HOSTNAME_RE = new RegExp(`^${LABEL}(?:\\.${LABEL})*$`)
-const IPV6_HOST_RE = /^\[[0-9a-f:]+\]$/
+
+// Named hosts only. There is deliberately no IPv6 literal case: Neon and Vercel
+// address databases by hostname, so an accepted bracketed literal would be
+// something this guard never actually meets — and a hand-rolled matcher for one
+// is easy to get subtly wrong, which here means accepting a malformed literal
+// that can never equal the real target and failing OPEN. A literal is treated
+// as unreadable instead, which aborts a preview build rather than waving it
+// through.
 
 /**
  * Environment variable names that carry a non-pooled connection string.

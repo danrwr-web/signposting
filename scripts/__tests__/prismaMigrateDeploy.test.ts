@@ -65,6 +65,8 @@ describe('evaluateMigrationTarget — preview builds', () => {
     ['a label ending in a hyphen', 'ep-prod-main-123456-.eu-west-2.aws.neon.tech'],
     ['a label starting with a hyphen', '-ep-prod-main-123456.eu-west-2.aws.neon.tech'],
     ['a trailing dot left behind', 'ep-prod-main-123456.eu-west-2.aws.neon.tech.'],
+    ['a malformed IPv6 literal', '[2001:db8:::1]'],
+    ['a well-formed IPv6 literal', '[2001:db8::1]'],
   ])('fails closed when PRODUCTION_DB_HOST is %s', (_label, productionHost) => {
     // The trap: these are all truthy, so a bare presence check accepts them as
     // configured — but they normalise to null, which can never equal a real
