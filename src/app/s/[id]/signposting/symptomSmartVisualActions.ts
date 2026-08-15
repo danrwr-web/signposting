@@ -17,12 +17,13 @@ import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
 const saveSymptomSmartVisualInput = z.object({
   surgeryId: z.string().min(1),
   symptomId: z.string().min(1),
-  // Generous rather than tight: the key is author-defined free text from the
-  // symptom's own variant data (no length limit in the admin editor), and it is
-  // resolved against that symptom's actual variants server-side — an unknown
-  // key is rejected regardless. The cap only bounds payload size, so a low one
-  // buys nothing and rejects legitimate keys.
-  variantKey: z.string().max(512).optional(),
+  // No length cap: the authoring side (VariantAgeGroupZ, VariantGroupsEditor)
+  // does not impose one, so any cap here rejects a variant that is valid,
+  // persisted and selectable elsewhere in the app — failing before the key can
+  // even be resolved. The key is checked against this symptom's real variants
+  // server-side, so an unknown one is rejected on its merits rather than its
+  // length, and request size is already bounded by the platform.
+  variantKey: z.string().optional(),
   layout: z.unknown(),
   sourceFingerprint: z.string().length(64),
   modelUsed: z.string().max(120).optional(),
@@ -171,12 +172,13 @@ export async function saveSymptomSmartVisual(
 const removeSymptomSmartVisualInput = z.object({
   surgeryId: z.string().min(1),
   symptomId: z.string().min(1),
-  // Generous rather than tight: the key is author-defined free text from the
-  // symptom's own variant data (no length limit in the admin editor), and it is
-  // resolved against that symptom's actual variants server-side — an unknown
-  // key is rejected regardless. The cap only bounds payload size, so a low one
-  // buys nothing and rejects legitimate keys.
-  variantKey: z.string().max(512).optional(),
+  // No length cap: the authoring side (VariantAgeGroupZ, VariantGroupsEditor)
+  // does not impose one, so any cap here rejects a variant that is valid,
+  // persisted and selectable elsewhere in the app — failing before the key can
+  // even be resolved. The key is checked against this symptom's real variants
+  // server-side, so an unknown one is rejected on its merits rather than its
+  // length, and request size is already bounded by the platform.
+  variantKey: z.string().optional(),
 })
 
 /**

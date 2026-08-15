@@ -236,6 +236,33 @@ function formatZodIssues(issues: Array<{ path: PropertyKey[]; message: string }>
     .join('\n')
 }
 
+/**
+ * Raised when the symptom's content does not fit the model's input budget.
+ *
+ * Generation refuses rather than truncating. Truncation drops the tail of the
+ * instructions, and there is no reason the tail is less important than the
+ * head — escalation criteria and routing rules commonly sit at the end. The
+ * result would be a visual that looks complete, opens by default once
+ * approved, and is missing red flags, with nothing on screen to say so. A
+ * clinician reviewing it cannot see what the model was never shown.
+ *
+ * Prompting the model not to guess (which is what the old truncation note did)
+ * does not help: it cannot report content it never received.
+ */
+export class SymptomSmartVisualSourceTooLongError extends Error {
+  readonly clientMessage: string
+
+  constructor(length: number, limit: number) {
+    super(`Symptom source text is ${length} characters, over the ${limit} limit`)
+    this.name = 'SymptomSmartVisualSourceTooLongError'
+    this.clientMessage =
+      'These instructions are too long to turn into a smart visual in full. ' +
+      'Generating one would leave part of the guidance out, so it has not been ' +
+      'attempted. Shortening the instructions, or splitting them across age-group ' +
+      'variants, will allow a visual to be generated.'
+  }
+}
+
 export type SymptomSmartVisualGenerationResult = {
   layout: SymptomSmartVisualLayout
   sourceFingerprint: string
@@ -275,6 +302,14 @@ export async function generateSymptomSmartVisualLayout(
     hideAgeBands: options.hideAgeBands,
   })
 
+  // Refuse rather than visualise part of the guidance. See the error's doc.
+  if (truncated) {
+    throw new SymptomSmartVisualSourceTooLongError(
+      buildFullSourceText(symptom, variant, { hideAgeBands: options.hideAgeBands }).length,
+      MAX_INPUT_CHARS
+    )
+  }
+
   const guidance = options.guidance
     ? stripHtmlToPlainText(options.guidance).slice(0, MAX_GUIDANCE_CHARS).trim()
     : ''
@@ -292,11 +327,7 @@ ${guidance}\n`
 
   const userPrompt = `SOURCE CONTENT:
 ${sourceText}
-${
-  truncated
-    ? '\nNOTE: The content above was truncated. Structure what you can see; do not guess at the missing part.\n'
-    : ''
-}${previousLayoutBlock}${guidanceBlock}
+${previousLayoutBlock}${guidanceBlock}
 TASK: Produce the JSON layout now.`
 
   const baseMessages: AzureOpenAIMessage[] = [

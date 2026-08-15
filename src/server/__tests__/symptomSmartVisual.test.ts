@@ -1,6 +1,8 @@
 import {
   computeSymptomSmartVisualFingerprint,
   buildSymptomSmartVisualSourceText,
+  generateSymptomSmartVisualLayout,
+  SymptomSmartVisualSourceTooLongError,
   symptomSmartVisualHasContent,
   symptomVariantGroups,
   resolveSymptomVariant,
@@ -182,6 +184,35 @@ describe('computeSymptomSmartVisualFingerprint', () => {
     expect(computeSymptomSmartVisualFingerprint(before, mainVariant(before))).not.toBe(
       computeSymptomSmartVisualFingerprint(after, mainVariant(after))
     )
+  })
+})
+
+describe('generateSymptomSmartVisualLayout over-budget refusal', () => {
+  it('refuses rather than visualising part of the guidance', async () => {
+    // Truncation drops the tail, and escalation criteria commonly sit at the
+    // end. The resulting visual would look complete, open by default once
+    // approved, and be missing red flags with nothing on screen to say so.
+    const overLong = symptom({
+      instructionsHtml: `<p>${'a'.repeat(13000)}</p><p>If the patient is drowsy, call 999.</p>`,
+    })
+
+    expect(
+      buildSymptomSmartVisualSourceText(overLong, mainVariant(overLong)).truncated
+    ).toBe(true)
+
+    await expect(
+      generateSymptomSmartVisualLayout(overLong, mainVariant(overLong), 'a@b.c')
+    ).rejects.toBeInstanceOf(SymptomSmartVisualSourceTooLongError)
+  })
+
+  it('says why, in terms an admin can act on', async () => {
+    const overLong = symptom({ instructionsHtml: `<p>${'a'.repeat(13000)}</p>` })
+
+    await expect(
+      generateSymptomSmartVisualLayout(overLong, mainVariant(overLong), 'a@b.c')
+    ).rejects.toMatchObject({
+      clientMessage: expect.stringContaining('too long'),
+    })
   })
 })
 
