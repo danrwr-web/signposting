@@ -1,6 +1,5 @@
 import { latestDate, computeStage, computeSurgerySetupSnapshotsBatch } from '@/server/surgerySetup'
 import { prisma } from '@/lib/prisma'
-import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
 
 jest.mock('@/server/effectiveSymptoms', () => ({ getEffectiveSymptoms: jest.fn() }))
 jest.mock('@/lib/features', () => ({ isFeatureEnabledForSurgery: jest.fn() }))
@@ -175,11 +174,12 @@ describe('computeSurgerySetupSnapshotsBatch AI customisation', () => {
     await computeSurgerySetupSnapshotsBatch(['s1'])
 
     const where = (prisma.symptomHistory.findMany as jest.Mock).mock.calls[0][0].where
-    expect(where.NOT).toEqual(
-      expect.arrayContaining([{ entryType: SMART_VISUAL_HISTORY_ENTRY }])
-    )
+    // Undiscriminated rows only — that is what an instruction edit writes, and
+    // matching NULL positively is what keeps smart visuals out without also
+    // excluding the edits (see aiCustomisationHistory.integration).
+    expect(where.entryType).toBeNull()
     // The pre-existing REVERT exclusion must survive alongside it.
-    expect(where.NOT).toEqual(expect.arrayContaining([{ modelUsed: 'REVERT' }]))
+    expect(where.NOT).toEqual({ modelUsed: 'REVERT' })
   })
 
   it('counts AI customisation in the batch tracker when history exists', async () => {

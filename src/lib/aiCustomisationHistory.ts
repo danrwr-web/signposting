@@ -1,5 +1,4 @@
 import type { Prisma } from '@prisma/client'
-import { SMART_VISUAL_HISTORY_ENTRY } from './symptomSmartVisualShared'
 
 /**
  * The one definition of "AI has customised this practice's instructions".
@@ -27,6 +26,19 @@ export function aiInstructionCustomisationWhere(
   return {
     symptomId: { in: symptomIds },
     modelUsed: { not: null },
-    NOT: [{ modelUsed: 'REVERT' }, { entryType: SMART_VISUAL_HISTORY_ENTRY }],
+    // `entryType: null`, NOT `NOT: { entryType: SMART_VISUAL }`.
+    //
+    // The negated form looked equivalent and is not: SQL compares NULL to
+    // anything as unknown, so `NOT (entryType = 'SMART_VISUAL')` is false for
+    // the NULL rows every instruction edit writes — excluding exactly the rows
+    // this predicate exists to find. Measured against Postgres: it returned
+    // nothing at all, which would have left the checklist step permanently
+    // incomplete for every practice.
+    //
+    // Matching NULL positively is also the safer shape going forward. A future
+    // non-wording AI feature that sets its own entryType is excluded by
+    // default, rather than counted until someone remembers to add it here.
+    entryType: null,
+    NOT: { modelUsed: 'REVERT' },
   }
 }

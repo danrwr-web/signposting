@@ -1,20 +1,22 @@
 import { execSync } from 'child_process'
 import path from 'path'
 import { aiInstructionCustomisationWhere } from '@/lib/aiCustomisationHistory'
-import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
 
 const repoRoot = path.resolve(__dirname, '../../..')
 
 describe('aiInstructionCustomisationWhere', () => {
-  it('requires an attributed model and excludes reverts and smart visuals', () => {
+  it('requires an attributed model, an undiscriminated row, and excludes reverts', () => {
     const where = aiInstructionCustomisationWhere(['s1', 's2'])
 
     expect(where.symptomId).toEqual({ in: ['s1', 's2'] })
     expect(where.modelUsed).toEqual({ not: null })
-    expect(where.NOT).toEqual([
-      { modelUsed: 'REVERT' },
-      { entryType: SMART_VISUAL_HISTORY_ENTRY },
-    ])
+    expect(where.NOT).toEqual({ modelUsed: 'REVERT' })
+
+    // Positively `null`, never `NOT: { entryType: SMART_VISUAL }`. The negated
+    // form typechecks and reads correctly, but NULL compares as unknown in SQL,
+    // so it excluded every instruction edit as well. See the integration test —
+    // this assertion alone cannot prove the behaviour, only the shape.
+    expect(where.entryType).toBeNull()
   })
 
   it('is the only place the predicate is written', () => {
