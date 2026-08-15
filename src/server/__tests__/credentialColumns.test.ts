@@ -36,6 +36,45 @@ const APPROVED_OPT_INS: Record<string, number> = {
   'src/lib/auth.ts': 1, // NextAuth credentials provider
   'src/server/auth.ts': 2, // surgery-admin login, superuser login
   'src/app/api/super/pipeline/[id]/provision/route.ts': 1, // detects a passwordless account
+  'src/app/api/user/change-password/route.ts': 1, // verifies the current password
+}
+
+const CREDENTIALS = ['password', 'adminPassHash']
+
+/** Strip comments so documented examples are not counted as real opt-ins. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ')
+}
+
+/**
+ * Count read-backs of a credential column.
+ *
+ * There are two ways past the global omit, spelled almost identically with
+ * opposite meanings, so the surrounding key decides:
+ *
+ *   omit:   { password: false }      -> reads it back  (an opt-in)
+ *   omit:   { adminPassHash: true }  -> excludes it    (not an opt-in)
+ *   select: { password: true }       -> reads it back  (an opt-in)
+ *
+ * Matching the field name alone would both miss `select` opt-ins and misread
+ * ordinary `omit` exclusions as opt-ins. `[^}]*` keeps each match inside one
+ * object literal so a later block cannot be attributed to an earlier key.
+ */
+function countOptIns(source: string): number {
+  const text = stripComments(source).replace(/\s+/g, ' ')
+  let count = 0
+
+  for (const field of CREDENTIALS) {
+    for (const [key, value] of [
+      ['omit', 'false'],
+      ['select', 'true'],
+    ] as const) {
+      const re = new RegExp(`${key}:\\s*\\{[^}]*\\b${field}\\s*:\\s*${value}\\b`, 'g')
+      count += (text.match(re) ?? []).length
+    }
+  }
+
+  return count
 }
 
 describe('credential columns', () => {
@@ -58,8 +97,7 @@ describe('credential columns', () => {
 
   it('are only read back in approved authentication paths', () => {
     const out = execSync(
-      "grep -rn 'omit: { password: false }\\|omit: { adminPassHash: false }' src " +
-        "--include='*.ts' --include='*.tsx' || true",
+      "grep -rl 'password\\|adminPassHash' src --include='*.ts' --include='*.tsx' || true",
       { cwd: repoRoot, encoding: 'utf8' }
     )
 
@@ -69,16 +107,10 @@ describe('credential columns', () => {
       .split('\n')
       .map(l => l.trim())
       .filter(Boolean)
-      // Prose mentions of the opt-in (this pattern is documented in
-      // src/lib/prisma.ts) are not opt-ins.
-      .filter(l => {
-        const code = l.split(/:\d+:/)[1] ?? ''
-        return !/^\s*(\*|\/\/)/.test(code)
-      })
-      .map(l => l.split(':')[0])
       .filter(f => !f.includes('__tests__') && !f.includes('.test.'))
-      .forEach(f => {
-        counts[f] = (counts[f] ?? 0) + 1
+      .forEach(file => {
+        const n = countOptIns(readFileSync(path.join(repoRoot, file), 'utf8'))
+        if (n > 0) counts[file] = n
       })
 
     expect(counts).toEqual(APPROVED_OPT_INS)
