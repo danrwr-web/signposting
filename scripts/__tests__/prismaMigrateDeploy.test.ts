@@ -61,6 +61,10 @@ describe('evaluateMigrationTarget — preview builds', () => {
     ['annotated with a label', 'ep-prod-main-123456.eu-west-2.aws.neon.tech (production)'],
     ['a sentence', 'the production database'],
     ['carrying a stray comma', 'ep-prod-main-123456.eu-west-2.aws.neon.tech,'],
+    ['typed with a doubled dot', 'ep-prod-main-123456..eu-west-2.aws.neon.tech'],
+    ['a label ending in a hyphen', 'ep-prod-main-123456-.eu-west-2.aws.neon.tech'],
+    ['a label starting with a hyphen', '-ep-prod-main-123456.eu-west-2.aws.neon.tech'],
+    ['a trailing dot left behind', 'ep-prod-main-123456.eu-west-2.aws.neon.tech.'],
   ])('fails closed when PRODUCTION_DB_HOST is %s', (_label, productionHost) => {
     // The trap: these are all truthy, so a bare presence check accepts them as
     // configured — but they normalise to null, which can never equal a real

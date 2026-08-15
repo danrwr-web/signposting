@@ -82,7 +82,13 @@ function normaliseHost(host) {
   return value || null
 }
 
-const HOSTNAME_RE = /^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/
+// Validated per DNS label, not across the whole string: each dot-separated
+// label must start and end alphanumeric, with hyphens only inside. Testing the
+// string as a whole would accept "ep-prod..example.com" and
+// "ep-prod-.example.com" — typos that can never name a real host, so treating
+// them as readable leaves the guard configured and inert.
+const LABEL = '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
+const HOSTNAME_RE = new RegExp(`^${LABEL}(?:\\.${LABEL})*$`)
 const IPV6_HOST_RE = /^\[[0-9a-f:]+\]$/
 
 /**
