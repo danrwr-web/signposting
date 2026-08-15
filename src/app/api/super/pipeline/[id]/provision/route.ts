@@ -119,6 +119,9 @@ export async function POST(
       //    src/lib/auth.ts), so the temporary password is set for it.
       const existingUser = await tx.user.findUnique({
         where: { email: adminEmail },
+        // Reads password to detect a passwordless account; omitted by default
+        // (src/lib/prisma.ts).
+        omit: { password: false },
       })
       const reusedExistingAccount = Boolean(existingUser)
 
