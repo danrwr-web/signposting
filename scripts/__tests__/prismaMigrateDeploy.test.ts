@@ -67,6 +67,8 @@ describe('evaluateMigrationTarget — preview builds', () => {
     ['a trailing dot left behind', 'ep-prod-main-123456.eu-west-2.aws.neon.tech.'],
     ['a malformed IPv6 literal', '[2001:db8:::1]'],
     ['a well-formed IPv6 literal', '[2001:db8::1]'],
+    ['a label over the 63-character DNS limit', `${'e'.repeat(64)}.aws.neon.tech`],
+    ['longer than the 253-character DNS limit', `${`${'e'.repeat(60)}.`.repeat(5)}aws.neon.tech`],
   ])('fails closed when PRODUCTION_DB_HOST is %s', (_label, productionHost) => {
     // The trap: these are all truthy, so a bare presence check accepts them as
     // configured — but they normalise to null, which can never equal a real
@@ -158,6 +160,23 @@ describe('evaluateMigrationTarget — preview builds', () => {
       productionHost: PROD_HOST,
     })
     expect(result.action).toBe('run')
+  })
+
+  it('still accepts a label at exactly the 63-character limit', () => {
+    // Guards the length check against over-rejecting: a legal long label must
+    // keep matching, or tightening validation would quietly stop the guard
+    // recognising a real production host.
+    const longLabel = 'e'.repeat(63)
+    const host = `${longLabel}.aws.neon.tech`
+
+    const result = evaluateMigrationTarget({
+      vercelEnv: 'preview',
+      effectiveUrl: url(host),
+      productionHost: host,
+    })
+
+    expect(result.action).toBe('abort')
+    expect(result.reason).toContain('pointed at the PRODUCTION database')
   })
 
   it('ignores credentials, port and database name when comparing', () => {

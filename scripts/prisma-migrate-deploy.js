@@ -77,18 +77,26 @@ function normaliseHost(host) {
   // through. A value like "ep-prod.example (production)" is non-empty, so it
   // would satisfy a null check, but can never equal a real host — leaving a
   // guard that is configured, silent, and completely inert.
+  if (value.length > MAX_HOSTNAME_LENGTH) return null
   if (!HOSTNAME_RE.test(value)) return null
 
   return value || null
 }
 
-// Validated per DNS label, not across the whole string: each dot-separated
-// label must start and end alphanumeric, with hyphens only inside. Testing the
-// string as a whole would accept "ep-prod..example.com" and
-// "ep-prod-.example.com" — typos that can never name a real host, so treating
-// them as readable leaves the guard configured and inert.
-const LABEL = '[a-z0-9](?:[a-z0-9-]*[a-z0-9])?'
+// Full RFC 1123 hostname syntax: each dot-separated label is 1-63 characters,
+// alphanumeric at both ends with hyphens only inside, and the whole name is at
+// most 253. Validating the string as a whole instead would accept
+// "ep-prod..example.com", "ep-prod-.example.com" and over-length labels —
+// strings that can never name a real host, so treating them as readable leaves
+// the guard configured and inert.
+//
+// This is the boundary of what validation can do. A well-formed but WRONG value
+// (a decommissioned branch's hostname, a transposed character that still parses)
+// is indistinguishable from a correct one here, and no syntax check will ever
+// catch it. What establishes the guard works is watching it fire.
+const LABEL = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
 const HOSTNAME_RE = new RegExp(`^${LABEL}(?:\\.${LABEL})*$`)
+const MAX_HOSTNAME_LENGTH = 253
 
 // Named hosts only. There is deliberately no IPv6 literal case: Neon and Vercel
 // address databases by hostname, so an accepted bracketed literal would be
