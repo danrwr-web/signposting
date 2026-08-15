@@ -57,18 +57,11 @@ describe('surgeriesForViewer', () => {
     )
   })
 
-  it('includes the default surgery when it is not also a membership', async () => {
+  it('excludes a default surgery the user has no membership for', async () => {
+    // defaultSurgeryId can outlive the membership it came from, and neither
+    // PermissionChecker nor SurgeryProvider will act on one without a
+    // membership — so including it would disclose a surgery for no benefit.
     await surgeriesForViewer(user({ defaultSurgeryId: 'surgery-z' }))
-
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: { in: ['surgery-a', 'surgery-z'] } },
-      })
-    )
-  })
-
-  it('does not repeat the default surgery when it is already a membership', async () => {
-    await surgeriesForViewer(user({ defaultSurgeryId: 'surgery-a' }))
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -77,8 +70,10 @@ describe('surgeriesForViewer', () => {
     )
   })
 
-  it('returns nothing for a user with no memberships and no default', async () => {
-    const result = await surgeriesForViewer(user({ memberships: [] }))
+  it('returns nothing for a user whose only default is not a membership', async () => {
+    const result = await surgeriesForViewer(
+      user({ memberships: [], defaultSurgeryId: 'surgery-z' })
+    )
 
     expect(result).toEqual([])
     expect(findMany).not.toHaveBeenCalled()

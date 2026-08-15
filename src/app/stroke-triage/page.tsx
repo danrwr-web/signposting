@@ -12,8 +12,13 @@ export default async function StrokeTriagePage({ searchParams }: StrokeTriagePag
   const surgerySlug = resolvedSearchParams.surgery
 
   // Get surgeries for header
+  // Public page: only the fields SimpleHeader declares. Without an explicit
+  // select Prisma returns every scalar column — including adminEmail and the
+  // adminPassHash bcrypt hash — and these rows are passed to a client
+  // component, so they were serialised into the page for anyone to read.
   const surgeries = await prisma.surgery.findMany({
-    orderBy: { name: 'asc' }
+    select: { id: true, slug: true, name: true, surgeryType: true },
+    orderBy: { name: 'asc' },
   })
 
   return (

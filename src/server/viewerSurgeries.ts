@@ -34,15 +34,13 @@ export async function surgeriesForViewer(user: SessionUser | null): Promise<View
     })
   }
 
-  // The default surgery is included alongside memberships because
-  // SurgeryProvider's last-resort branch resolves it out of this list; a user
-  // whose default is not also a membership would otherwise land nowhere.
-  const ids = Array.from(
-    new Set([
-      ...user.memberships.map(m => m.surgeryId),
-      ...(user.defaultSurgeryId ? [user.defaultSurgeryId] : []),
-    ])
-  )
+  // Memberships only. defaultSurgeryId is deliberately NOT included: it can
+  // outlive the membership it was set from (removing a membership does not
+  // clear it, and setting a default only checks the surgery exists), and both
+  // PermissionChecker.viewSurgery and SurgeryProvider's default branch require
+  // a real membership. So a default without one can never be viewed or
+  // selected — including it here would disclose a surgery for no benefit.
+  const ids = Array.from(new Set(user.memberships.map(m => m.surgeryId)))
 
   if (ids.length === 0) return []
 
