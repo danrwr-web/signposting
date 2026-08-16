@@ -143,7 +143,7 @@ This feature is controlled by the `ai_surgery_customisation` feature flag.
 1. **Navigate to AI Setup** — Go to **Admin → AI Setup** for your surgery.
 2. **Review your appointment model** — The page displays all configured appointment types from your onboarding profile, showing local names, clinician roles, and descriptions. If no types are configured, you will be prompted to complete Step 2.5 of the onboarding wizard first.
 3. **Choose a scope:**
-   - **Customise ALL symptoms** — Process every enabled symptom for the surgery. This can take several minutes for large libraries; keep the tab open.
+   - **Customise ALL symptoms** — Process every enabled symptom for the surgery. This can take several minutes for large libraries; keep the tab open. Because this scope does not spare wording your practice has edited by hand, and returns every symptom to pending clinical review, it asks you to confirm before it starts.
    - **Select symptoms manually** — Search and pick specific symptoms from a checklist.
    - **Smart re-run** *(superusers only)* — Re-run customisation on the surgery's behalf without overwriting local work. The system compares each symptom's current content against the AI's recorded outputs and re-runs only symptoms that are untouched AI output or were never customised; anything the practice has edited is skipped, with the skipped list (and who last edited each one) shown before you run. Note: edits made only to a symptom's Important Notice are not detected by this comparison — clinical review remains the safety net.
 4. **Click "Generate AI-customised instructions"** — The system processes symptoms one by one, showing real-time progress:
@@ -175,6 +175,7 @@ The output is checked automatically for any base colour-slot names left behind. 
 - All AI-generated content requires clinical review before publication.
 - Original instructions and Important Notice text are preserved in version history.
 - The AI never publishes directly — human approval is always required.
+- **Customise ALL symptoms** asks for confirmation first, naming how many symptoms will be rewritten. It is the one scope that replaces wording your practice has edited by hand and returns already-approved symptoms to pending review, so the confirmation points superusers at **Smart re-run** and practice admins at **Select symptoms manually** if that is not what they intended.
 
 ---
 

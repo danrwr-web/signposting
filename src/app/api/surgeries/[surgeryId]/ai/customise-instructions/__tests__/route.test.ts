@@ -43,6 +43,18 @@ jest.mock('@/server/aiCustomiseInstructions', () => ({
 
 jest.mock('@/server/effectiveSymptoms', () => ({
   getEffectiveSymptoms: jest.fn(),
+  getCachedSymptomsTag: (surgeryId: string, disabled: boolean) =>
+    `symptoms:${surgeryId}:${disabled}`,
+}))
+
+jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }))
+
+// Recount of the practice's outstanding reviews, run after the write. It reads
+// review rows through its own module, so leaving it real made every request in
+// this suite 500 on a prisma method the mock above does not carry — the route
+// was reported as broken when only the recount was unmocked.
+jest.mock('@/server/updateRequiresClinicalReview', () => ({
+  updateRequiresClinicalReview: jest.fn(),
 }))
 
 jest.mock('@/server/aiRerunPlan', () => ({

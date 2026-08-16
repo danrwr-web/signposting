@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import { SessionUser } from '@/lib/rbac'
 import { EffectiveSymptom, AppointmentModelConfig } from '@/lib/api-contracts'
 import Link from 'next/link'
+import { Button, Dialog } from '@/components/ui'
 
 interface AISetupClientProps {
   surgeryId: string
@@ -81,6 +82,7 @@ export default function AISetupClient({
   } | null>(null)
   const [rerunPlan, setRerunPlan] = useState<AiRerunPlan | null>(null)
   const [planLoading, setPlanLoading] = useState(false)
+  const [showRunAllConfirm, setShowRunAllConfirm] = useState(false)
 
   const isSuperuser = user.globalRole === 'SUPERUSER'
 
@@ -205,7 +207,23 @@ export default function AISetupClient({
     }
   }
 
+  // "Customise ALL" is the only scope that rewrites the whole library in one
+  // click: unlike "Re-run safely" it does not skip symptoms a person has edited
+  // by hand, and every symptom it touches drops back to pending clinical
+  // review. Both are recoverable — the previous wording is kept in each
+  // symptom's history — but recovering is one symptom at a time, so the
+  // decision is worth making deliberately rather than on the way past.
+  const handleRunClick = () => {
+    if (scope === 'all') {
+      setShowRunAllConfirm(true)
+      return
+    }
+    handleCustomise()
+  }
+
   const handleCustomise = async () => {
+    setShowRunAllConfirm(false)
+
     if (scope === 'manual' && selectedSymptomIds.length === 0) {
       toast.error('Please select at least one symptom')
       return
@@ -701,7 +719,7 @@ export default function AISetupClient({
               {/* Action Button */}
               <div className="mb-6">
                 <button
-                  onClick={handleCustomise}
+                  onClick={handleRunClick}
                   disabled={
                     processing ||
                     (scope === 'manual' && selectedSymptomIds.length === 0) ||
@@ -717,6 +735,56 @@ export default function AISetupClient({
                     : 'Generate AI-customised instructions'}
                 </button>
               </div>
+
+              <Dialog
+                open={showRunAllConfirm}
+                onClose={() => setShowRunAllConfirm(false)}
+                title="Customise every symptom?"
+                footer={
+                  <div className="flex gap-3 justify-end">
+                    <Button variant="secondary" onClick={() => setShowRunAllConfirm(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="primary" onClick={handleCustomise}>
+                      Customise all {symptoms.length} symptoms
+                    </Button>
+                  </div>
+                }
+              >
+                <div className="space-y-3 text-sm text-gray-700">
+                  <p>
+                    This rewrites the instructions for{' '}
+                    <span className="font-medium">all {symptoms.length} symptoms</span> enabled for{' '}
+                    {surgeryName}.
+                  </p>
+                  <p>
+                    Wording that someone here has edited by hand{' '}
+                    <span className="font-medium">will be replaced</span>.
+                    {isSuperuser ? (
+                      <>
+                        {' '}
+                        To leave those alone, cancel and choose{' '}
+                        <span className="font-medium">Smart re-run</span> instead.
+                      </>
+                    ) : (
+                      <>
+                        {' '}
+                        To keep any of it, cancel and choose{' '}
+                        <span className="font-medium">Select symptoms manually</span> instead.
+                      </>
+                    )}
+                  </p>
+                  <p>
+                    Every symptom will return to <span className="font-medium">pending clinical
+                    review</span>, including ones already approved, so they will need approving
+                    again before staff see the new wording.
+                  </p>
+                  <p className="text-gray-500">
+                    The previous wording is kept in each symptom&apos;s history, so an individual
+                    symptom can be put back — one at a time.
+                  </p>
+                </div>
+              </Dialog>
 
               {/* Results */}
               {result && (
