@@ -11,8 +11,8 @@ import {
   CALLOUT_TONE_THEMES,
   GROUP_THEME_CYCLE,
   namedColourChipClass,
-} from './smartVisualTheme'
-import { SmartVisualIconGlyph } from './smartVisualIcons'
+} from '@/components/smart-visual/smartVisualTheme'
+import { SmartVisualIconGlyph } from '@/components/smart-visual/smartVisualIcons'
 
 /**
  * Renders a validated smart visual layout using the approved section

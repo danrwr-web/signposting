@@ -163,6 +163,25 @@ describe('computeSurgerySetupSnapshotsBatch AI customisation', () => {
     ;(prisma.symptomHistory.findMany as jest.Mock).mockResolvedValue([{ symptomId: 'base-1' }])
   })
 
+  it('excludes smart-visual rows from the AI customisation check', async () => {
+    // Saving a smart visual writes an attributable history row with a
+    // modelUsed, but changes no instruction wording. Counting it would tick
+    // "AI customisation has been run" off the setup checklist and stop the
+    // practice doing the step the item is actually asking for.
+    //
+    // Prisma is mocked here, so this asserts the exclusion is requested; the
+    // filtering itself is the database's.
+    await computeSurgerySetupSnapshotsBatch(['s1'])
+
+    const where = (prisma.symptomHistory.findMany as jest.Mock).mock.calls[0][0].where
+    // Undiscriminated rows only — that is what an instruction edit writes, and
+    // matching NULL positively is what keeps smart visuals out without also
+    // excluding the edits (see aiCustomisationHistory.integration).
+    expect(where.entryType).toBeNull()
+    // The pre-existing REVERT exclusion must survive alongside it.
+    expect(where.NOT).toEqual({ modelUsed: 'REVERT' })
+  })
+
   it('counts AI customisation in the batch tracker when history exists', async () => {
     const [snapshot] = await computeSurgerySetupSnapshotsBatch(['s1'])
 

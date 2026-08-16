@@ -43,10 +43,10 @@ interface ModuleAccessClientProps {
 const CORE_MODULE_KEYS = ['workflow_guidance', 'admin_toolkit']
 
 // AI features - shown with a practice-level toggle in the AI section
-const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation', 'ai_handbook_visuals']
+const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation', 'ai_handbook_visuals', 'ai_symptom_visuals']
 
-// Subset of AI features that support per-user overrides. Handbook smart
-// visuals are practice-wide (enforcement is surgery-level only), so they are
+// Subset of AI features that support per-user overrides. Both smart-visual
+// flags are practice-wide (enforcement is surgery-level only), so they are
 // excluded from the user-level matrix — a per-user toggle would do nothing.
 const AI_USER_OVERRIDE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation']
 

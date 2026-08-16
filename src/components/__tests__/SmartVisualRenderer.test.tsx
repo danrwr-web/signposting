@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import SmartVisualRenderer from '@/components/admin-toolkit/smart-visual/SmartVisualRenderer'
-import { namedColourChipClass } from '@/components/admin-toolkit/smart-visual/smartVisualTheme'
+import { namedColourChipClass } from '@/components/smart-visual/smartVisualTheme'
 import { SmartVisualLayoutZ } from '@/lib/adminToolkitSmartVisualShared'
 
 const layout = SmartVisualLayoutZ.parse({

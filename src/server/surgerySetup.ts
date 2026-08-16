@@ -5,6 +5,7 @@ import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinica
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import type { AppointmentModelConfig } from '@/lib/api-contracts'
 import type { SurgeryType } from '@prisma/client'
+import { aiInstructionCustomisationWhere } from '@/lib/aiCustomisationHistory'
 
 export const HEALTH_WINDOW_DAYS = 30
 
@@ -174,11 +175,7 @@ export async function computeSurgerySetupSnapshot(surgeryId: string): Promise<Su
   let aiCustomisationOccurred = false
   if (allCustomisableIds.length > 0) {
     const aiRow = await prisma.symptomHistory.findFirst({
-      where: {
-        symptomId: { in: allCustomisableIds },
-        modelUsed: { not: null },
-        NOT: { modelUsed: 'REVERT' },
-      },
+      where: aiInstructionCustomisationWhere(allCustomisableIds),
       select: { id: true },
     })
     aiCustomisationOccurred = aiRow !== null
@@ -548,11 +545,7 @@ export async function computeSurgerySetupSnapshotsBatch(
   const aiSymptomIds = [...aiSymptomToSurgery.keys()]
   if (aiSymptomIds.length > 0) {
     const aiHistoryRows = await prisma.symptomHistory.findMany({
-      where: {
-        symptomId: { in: aiSymptomIds },
-        modelUsed: { not: null },
-        NOT: { modelUsed: 'REVERT' },
-      },
+      where: aiInstructionCustomisationWhere(aiSymptomIds),
       select: { symptomId: true },
     })
     for (const row of aiHistoryRows) {

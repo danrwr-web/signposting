@@ -7,7 +7,11 @@ import SimpleHeader from '@/components/SimpleHeader'
 import { getSessionUser } from '@/lib/rbac'
 import ClinicalReviewActions from '@/components/ClinicalReviewActions'
 import { isFeatureEnabledForSurgery } from '@/lib/features'
-import { FEATURE_HIDE_AGE_BANDS } from '@/lib/featureKeys'
+import { FEATURE_HIDE_AGE_BANDS, FEATURE_AI_SYMPTOM_VISUALS } from '@/lib/featureKeys'
+import { can } from '@/lib/rbac'
+import { getSymptomSmartVisuals, visibleSymptomSmartVisuals } from '@/server/symptomSmartVisual'
+import { symptomKeyIdFor } from '@/server/symptomSmartVisualGates'
+import type { SymptomSmartVisualProps } from '@/components/symptom-smart-visual/SymptomSmartVisualToggle'
 import { surgeriesForViewer } from '@/server/viewerSurgeries'
 
 // Disable caching for this page to prevent stale data
@@ -156,26 +160,68 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
     }
   }
 
+  // Clinical review status for this surgery, used both for the status banner
+  // and to decide whether a saved smart visual may be shown to staff.
+  const reviewStatus = surgeryId
+    ? await prisma.symptomReviewStatus.findUnique({
+        where: {
+          surgeryId_symptomId_ageGroup: {
+            surgeryId,
+            symptomId: symptom.id,
+            ageGroup: symptom.ageGroup || null,
+          },
+        },
+        include: {
+          lastReviewedBy: { select: { name: true, email: true } },
+        },
+      })
+    : null
+
+  // AI smart visuals. Unlike the Practice Handbook, a saved visual is only
+  // released to staff once the symptom has passed clinical review — generating
+  // is gated by the flag, viewing is gated by approval.
+  let smartVisual: SymptomSmartVisualProps | undefined
+  if (surgeryId) {
+    const sessionUser = await getSessionUser()
+    const canGenerate = !!sessionUser && can(sessionUser).manageSurgery(surgeryId)
+    const isSuperuser = !!sessionUser && can(sessionUser).isSuperuser()
+    const symptomKeyId = symptomKeyIdFor(symptom)
+    // hideAgeBands changes what the AI was shown, so staleness must be judged
+    // with the same option the visual was generated under.
+    const visuals = await getSymptomSmartVisuals(surgeryId, symptomKeyId, symptom, { hideAgeBands })
+
+    const approved = reviewStatus?.status === 'APPROVED'
+    // Drop layouts this viewer may not see before they reach the RSC payload.
+    const visibleVisuals = visibleSymptomSmartVisuals(visuals, { canGenerate, approved })
+
+    // Nothing to render and nothing to offer: skip the client component
+    // entirely for staff at practices that don't use the feature.
+    const aiVisualsEnabled =
+      isSuperuser || (await isFeatureEnabledForSurgery(surgeryId, FEATURE_AI_SYMPTOM_VISUALS))
+    if (visibleVisuals.length > 0 || (canGenerate && aiVisualsEnabled)) {
+      smartVisual = {
+        surgeryId,
+        symptomId: symptomKeyId,
+        visuals: visibleVisuals.map((v) => ({
+          variantKey: v.variantKey,
+          layout: v.layout,
+          generatedAtIso: v.generatedAt.toISOString(),
+          isStale: v.isStale,
+        })),
+        canGenerate,
+        aiVisualsEnabled,
+        approved,
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-nhs-light-grey">
       <SimpleHeader surgeries={surgeries} currentSurgeryId={surgeryId} />
       {/* Inline status badge and approver info */}
       {surgeryId && (
-        await (async () => {
-          const status = await prisma.symptomReviewStatus.findUnique({
-            where: {
-              surgeryId_symptomId_ageGroup: {
-                surgeryId,
-                symptomId: symptom.id,
-                ageGroup: symptom.ageGroup || null
-              }
-            },
-            include: {
-              lastReviewedBy: {
-                select: { name: true, email: true }
-              }
-            }
-          })
+        (() => {
+          const status = reviewStatus
           const approved = status?.status === 'APPROVED'
           const needsChange = status?.status === 'CHANGES_REQUIRED'
           const pending = !status || status.status === 'PENDING'
@@ -245,6 +291,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         symptom={symptom}
         surgeryId={surgeryId}
         hideAgeBands={hideAgeBands}
+        smartVisual={smartVisual}
       />
     </div>
   )

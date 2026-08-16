@@ -1,0 +1,240 @@
+'use server'
+
+import { z } from 'zod'
+import { prisma } from '@/lib/prisma'
+import { zodFieldErrors, type ActionResult } from '@/server/actionResult'
+import { requireSymptomSmartVisualEdit } from '@/server/symptomSmartVisualGates'
+import { computeSymptomSmartVisualFingerprint } from '@/server/symptomSmartVisual'
+import { symptomPendingReviewUpsertArgs } from '@/server/clinicalReview'
+import { updateRequiresClinicalReview } from '@/server/updateRequiresClinicalReview'
+import {
+  SymptomSmartVisualLayoutZ,
+  normalizeSymptomSmartVisualLayout,
+  symptomSmartVisualSectionTypes,
+} from '@/lib/symptomSmartVisualShared'
+import { SMART_VISUAL_HISTORY_ENTRY } from '@/lib/symptomSmartVisualShared'
+
+const saveSymptomSmartVisualInput = z.object({
+  surgeryId: z.string().min(1),
+  symptomId: z.string().min(1),
+  // No length cap: the authoring side (VariantAgeGroupZ, VariantGroupsEditor)
+  // does not impose one, so any cap here rejects a variant that is valid,
+  // persisted and selectable elsewhere in the app — failing before the key can
+  // even be resolved. The key is checked against this symptom's real variants
+  // server-side, so an unknown one is rejected on its merits rather than its
+  // length, and request size is already bounded by the platform.
+  variantKey: z.string().optional(),
+  layout: z.unknown(),
+  sourceFingerprint: z.string().length(64),
+  modelUsed: z.string().max(120).optional(),
+})
+
+/**
+ * Persist a previewed smart visual for one symptom variant.
+ *
+ * Unlike the Practice Handbook equivalent, saving here puts the symptom back
+ * into clinical review: signposting content is clinical, and a smart visual is
+ * an AI *reinterpretation* of it (deciding what counts as a red flag and what
+ * order steps go in), so a clinician must approve it before staff can see it.
+ */
+export async function saveSymptomSmartVisual(
+  input: unknown
+): Promise<ActionResult<{ symptomId: string; variantKey: string }>> {
+  const parsed = saveSymptomSmartVisualInput.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input.',
+        fieldErrors: zodFieldErrors(parsed.error),
+      },
+    }
+  }
+  const { surgeryId, symptomId, sourceFingerprint, modelUsed } = parsed.data
+  const requestedVariantKey = parsed.data.variantKey ?? ''
+
+  const gate = await requireSymptomSmartVisualEdit(surgeryId, symptomId, requestedVariantKey)
+  if (!gate.ok) return gate
+  const { symptom, symptomKeyId, variant, userId, userEmail, hideAgeBands } = gate.data
+
+  // Never trust the client blob — re-validate and normalise server-side.
+  const layoutParsed = SymptomSmartVisualLayoutZ.safeParse(parsed.data.layout)
+  if (!layoutParsed.success) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid smart visual layout.',
+        fieldErrors: zodFieldErrors(layoutParsed.error),
+      },
+    }
+  }
+  let layout
+  try {
+    layout = normalizeSymptomSmartVisualLayout(layoutParsed.data)
+  } catch {
+    return { ok: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid smart visual layout.' } }
+  }
+
+  try {
+    // Recompute the fingerprint from current DB state: if the instructions
+    // changed between generation and save, reject rather than saving a visual
+    // that no longer matches its source.
+    const currentFingerprint = computeSymptomSmartVisualFingerprint(symptom, variant, {
+      hideAgeBands,
+    })
+    if (currentFingerprint !== sourceFingerprint) {
+      return {
+        ok: false,
+        error: {
+          code: 'STALE',
+          message:
+            'The symptom content changed while you were previewing. Please regenerate the visual.',
+        },
+      }
+    }
+
+    const sectionTypes = symptomSmartVisualSectionTypes(layout)
+    const variantSuffix = variant.variantLabel ? ` for ${variant.variantLabel}` : ''
+    const summary = `Saved smart visual${variantSuffix} (${sectionTypes.length} section${
+      sectionTypes.length === 1 ? '' : 's'
+    }: ${sectionTypes.join(', ')})`
+
+    await prisma.$transaction([
+      prisma.symptomSmartVisual.upsert({
+        where: {
+          surgeryId_symptomId_variantKey: {
+            surgeryId,
+            symptomId: symptomKeyId,
+            variantKey: variant.variantKey,
+          },
+        },
+        create: {
+          surgeryId,
+          symptomId: symptomKeyId,
+          variantKey: variant.variantKey,
+          layoutJson: layout,
+          sourceFingerprint: currentFingerprint,
+          modelUsed: modelUsed ?? null,
+          generatedByUserId: userId,
+        },
+        update: {
+          layoutJson: layout,
+          sourceFingerprint: currentFingerprint,
+          modelUsed: modelUsed ?? null,
+          generatedAt: new Date(),
+          generatedByUserId: userId,
+        },
+      }),
+      // AI-derived output stays attributable exactly as an AI wording edit does.
+      // newText is the legacy non-null column, so the audit summary goes there.
+      prisma.symptomHistory.create({
+        data: {
+          symptomId: symptomKeyId,
+          source: symptom.source,
+          newText: summary,
+          editorEmail: userEmail,
+          modelUsed: modelUsed ?? 'unknown-model',
+          // Attributable as AI output, but not an instruction edit — see the
+          // constant for why the setup checklist must not count it.
+          entryType: SMART_VISUAL_HISTORY_ENTRY,
+        },
+      }),
+      // The approval reset MUST be atomic with the visual write. If it were a
+      // separate call and that call failed, the visual would be stored while
+      // the symptom kept its APPROVED status — publishing an AI
+      // reinterpretation that no clinician ever saw, which is exactly the
+      // guarantee this feature rests on.
+      prisma.symptomReviewStatus.upsert(
+        symptomPendingReviewUpsertArgs(surgeryId, symptomKeyId, symptom.ageGroup)
+      ),
+    ])
+
+    // Safe to run afterwards: this only recounts pending reviews and
+    // revalidates caches. Its own failure must not be reported as a failed
+    // save — by this point the visual is committed and the symptom is already
+    // PENDING, so the only casualty is a briefly stale banner count, which the
+    // next review-state change corrects.
+    try {
+      await updateRequiresClinicalReview(surgeryId)
+    } catch (error) {
+      console.error('saveSymptomSmartVisual: review recount failed after commit:', error)
+    }
+
+    return { ok: true, data: { symptomId: symptomKeyId, variantKey: variant.variantKey } }
+  } catch (error) {
+    console.error('saveSymptomSmartVisual failed:', error)
+    return { ok: false, error: { code: 'UNKNOWN', message: 'Failed to save the smart visual.' } }
+  }
+}
+
+const removeSymptomSmartVisualInput = z.object({
+  surgeryId: z.string().min(1),
+  symptomId: z.string().min(1),
+  // No length cap: the authoring side (VariantAgeGroupZ, VariantGroupsEditor)
+  // does not impose one, so any cap here rejects a variant that is valid,
+  // persisted and selectable elsewhere in the app — failing before the key can
+  // even be resolved. The key is checked against this symptom's real variants
+  // server-side, so an unknown one is rejected on its merits rather than its
+  // length, and request size is already bounded by the platform.
+  variantKey: z.string().optional(),
+})
+
+/**
+ * Delete a saved smart visual. Removing one only takes a view away, so it does
+ * not put the symptom back into clinical review.
+ */
+export async function removeSymptomSmartVisual(
+  input: unknown
+): Promise<ActionResult<{ symptomId: string; variantKey: string }>> {
+  const parsed = removeSymptomSmartVisualInput.safeParse(input)
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'Invalid input.',
+        fieldErrors: zodFieldErrors(parsed.error),
+      },
+    }
+  }
+  const { surgeryId, symptomId } = parsed.data
+  const requestedVariantKey = parsed.data.variantKey ?? ''
+
+  const gate = await requireSymptomSmartVisualEdit(surgeryId, symptomId, requestedVariantKey)
+  if (!gate.ok) return gate
+  const { symptom, symptomKeyId, variant, userEmail } = gate.data
+
+  try {
+    // Delete and audit together. Split across two calls, a failed history write
+    // would leave the visual already gone with no audit row — and the retry
+    // would delete nothing, see count 0, skip the history write and report
+    // success, losing the removal from the audit trail permanently.
+    await prisma.$transaction(async (tx) => {
+      const deleted = await tx.symptomSmartVisual.deleteMany({
+        where: { surgeryId, symptomId: symptomKeyId, variantKey: variant.variantKey },
+      })
+
+      // Only record history when something was actually removed, so a repeated
+      // click stays idempotent instead of stacking audit rows.
+      if (deleted.count === 0) return
+
+      const variantSuffix = variant.variantLabel ? ` for ${variant.variantLabel}` : ''
+      await tx.symptomHistory.create({
+        data: {
+          symptomId: symptomKeyId,
+          source: symptom.source,
+          newText: `Removed smart visual${variantSuffix}`,
+          editorEmail: userEmail,
+          entryType: SMART_VISUAL_HISTORY_ENTRY,
+        },
+      })
+    })
+
+    return { ok: true, data: { symptomId: symptomKeyId, variantKey: variant.variantKey } }
+  } catch (error) {
+    console.error('removeSymptomSmartVisual failed:', error)
+    return { ok: false, error: { code: 'UNKNOWN', message: 'Failed to remove the smart visual.' } }
+  }
+}

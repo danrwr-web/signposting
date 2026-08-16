@@ -15,7 +15,10 @@ import { useSurgery } from '@/context/SurgeryContext'
 import { useCardStyle } from '@/context/CardStyleContext'
 import { toast } from 'react-hot-toast'
 import { ageGroupBadgeClasses, formatAgeGroupLabel, formatAgeGroupDescription } from '@/lib/ageGroups'
-import { Button, Dialog, RichContent } from '@/components/ui'
+import { Button, Dialog, Input, RichContent } from '@/components/ui'
+import SymptomSmartVisualToggle, {
+  type SymptomSmartVisualProps,
+} from '@/components/symptom-smart-visual/SymptomSmartVisualToggle'
 
 interface InstructionViewProps {
   symptom: EffectiveSymptom
@@ -24,11 +27,18 @@ interface InstructionViewProps {
   // guidance, and all-ages AI question prompts. Resolved server-side by the
   // page (never via /api/my/features, which over-reports for superusers).
   hideAgeBands?: boolean
+  // Saved AI smart visuals plus the gates that govern them, resolved
+  // server-side by the page. Absent when there is no surgery context.
+  smartVisual?: SymptomSmartVisualProps
 }
 
-export default function InstructionView({ symptom, surgeryId, hideAgeBands = false }: InstructionViewProps) {
+export default function InstructionView({ symptom, surgeryId, hideAgeBands = false, smartVisual }: InstructionViewProps) {
   const [showSuggestionModal, setShowSuggestionModal] = useState(false)
   const [highlightRules, setHighlightRules] = useState<HighlightRule[]>([])
+  // The surgery's built-in slot highlighting setting. Applies to both the
+  // standard instructions and the smart visual, so the two cannot disagree
+  // about which phrases are highlighted.
+  const [enableBuiltInHighlights, setEnableBuiltInHighlights] = useState(true)
   // Name of the related-symptom link currently being resolved (null = none).
   const [loadingLinkedSymptomName, setLoadingLinkedSymptomName] = useState<string | null>(null)
   const [linkedSymptomError, setLinkedSymptomError] = useState<string | null>(null)
@@ -91,6 +101,11 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null)
   const [aiBrief, setAiBrief] = useState<string | null>(null)
   const [aiModel, setAiModel] = useState<string | null>(null)
+  // Working copies of the AI output, edited in the preview modal before being
+  // applied. Seeded from the response; these — not the originals — are what
+  // the Apply buttons save.
+  const [editedAiSuggestion, setEditedAiSuggestion] = useState('')
+  const [editedAiBrief, setEditedAiBrief] = useState('')
   // AI explanation state (kept for API but UI hidden)
   const [showExplanationModal, setShowExplanationModal] = useState(false)
   const [loadingExplanation, setLoadingExplanation] = useState(false)
@@ -206,8 +221,13 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
         const response = await fetch(url, { cache: 'no-store' })
         if (response.ok) {
           const json = await response.json()
-          const { highlights, enableImageIcons: imageIconsEnabled } = json
+          const {
+            highlights,
+            enableImageIcons: imageIconsEnabled,
+            enableBuiltInHighlights: builtInsEnabled,
+          } = json
           setHighlightRules(Array.isArray(highlights) ? highlights : [])
+          setEnableBuiltInHighlights(builtInsEnabled ?? true)
           setEnableImageIcons(imageIconsEnabled ?? true)
           
           // Load image icon if enabled
@@ -274,13 +294,13 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   // Instruction bodies are rich text: highlight the HTML in place, then let
   // `sanitizeAndFormatSymptomContent` clean the result at the render site.
   const highlightHtml = (html: string) => {
-    return applyHighlightRules(html, highlightRules)
+    return applyHighlightRules(html, highlightRules, enableBuiltInHighlights)
   }
 
   // Brief instruction and highlighted text are plain-text fields, so they are
   // escaped before highlighting — see `highlightPlainText`.
   const highlightText = (text: string) => {
-    return highlightPlainText(text, highlightRules)
+    return highlightPlainText(text, highlightRules, enableBuiltInHighlights)
   }
 
   const handleVariantSelect = (variantKey: string) => {
@@ -405,6 +425,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       setAiSuggestion(data.aiSuggestion)
       setAiBrief(data.aiBrief || "")
       setAiModel(data.model)
+      setEditedAiSuggestion(data.aiSuggestion || "")
+      setEditedAiBrief(data.aiBrief || "")
       setShowAIModal(true)
     } catch (error) {
       console.error('Error getting AI suggestion:', error)
@@ -415,7 +437,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   }
 
   const handleAcceptBriefOnly = async () => {
-    if (!aiBrief) return
+    const briefToApply = editedAiBrief.trim()
+    if (!briefToApply) return
     if (!canApplyAiChanges) {
       toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
       return
@@ -442,7 +465,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           source: effectiveSource,
           surgeryId: surgeryId || undefined,
           modelUsed: aiModel,
-          newBriefInstruction: aiBrief,
+          newBriefInstruction: briefToApply,
         }),
       })
 
@@ -456,13 +479,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       }
 
       // Update local symptom object to reflect the change immediately
-      symptom.briefInstruction = aiBrief
+      symptom.briefInstruction = briefToApply
 
-      // Close the modal and clear state
-      setShowAIModal(false)
-      setAiSuggestion(null)
-      setAiBrief(null)
-      setAiModel(null)
+      handleDiscardAISuggestion()
 
       // Show success toast
       toast.success('Brief instruction updated and logged')
@@ -476,7 +495,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   }
 
   const handleAcceptFullOnly = async () => {
-    if (!aiSuggestion) return
+    // Sanitize the edited HTML exactly as the manual editor save path does.
+    const htmlToApply = sanitizeSymptomHtml(editedAiSuggestion)
+    if (!htmlToApply.trim()) return
     if (!canApplyAiChanges) {
       toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
       return
@@ -503,7 +524,7 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           source: effectiveSource,
           surgeryId: surgeryId || undefined,
           modelUsed: aiModel,
-          newInstructionsHtml: aiSuggestion,
+          newInstructionsHtml: htmlToApply,
         }),
       })
 
@@ -517,13 +538,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       }
 
       // Update local symptom object to reflect the change immediately
-      symptom.instructionsHtml = aiSuggestion
+      symptom.instructionsHtml = htmlToApply
 
-      // Close the modal and clear state
-      setShowAIModal(false)
-      setAiSuggestion(null)
-      setAiBrief(null)
-      setAiModel(null)
+      handleDiscardAISuggestion()
 
       // Show success toast
       toast.success('Full instruction updated and logged')
@@ -537,7 +554,9 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
   }
 
   const handleAcceptBoth = async () => {
-    if (!aiSuggestion || !aiBrief) return
+    const htmlToApply = sanitizeSymptomHtml(editedAiSuggestion)
+    const briefToApply = editedAiBrief.trim()
+    if (!htmlToApply.trim() || !briefToApply) return
     if (!canApplyAiChanges) {
       toast.error("You don’t have permission to apply changes. Ask a surgery admin.")
       return
@@ -564,8 +583,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
           source: effectiveSource,
           surgeryId: surgeryId || undefined,
           modelUsed: aiModel,
-          newBriefInstruction: aiBrief,
-          newInstructionsHtml: aiSuggestion,
+          newBriefInstruction: briefToApply,
+          newInstructionsHtml: htmlToApply,
         }),
       })
 
@@ -579,14 +598,10 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
       }
 
       // Update local symptom object to reflect the change immediately
-      symptom.instructionsHtml = aiSuggestion
-      symptom.briefInstruction = aiBrief
+      symptom.instructionsHtml = htmlToApply
+      symptom.briefInstruction = briefToApply
 
-      // Close the modal and clear state
-      setShowAIModal(false)
-      setAiSuggestion(null)
-      setAiBrief(null)
-      setAiModel(null)
+      handleDiscardAISuggestion()
 
       // Show success toast
       toast.success('Instructions updated and logged')
@@ -604,6 +619,8 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     setAiSuggestion(null)
     setAiBrief(null)
     setAiModel(null)
+    setEditedAiSuggestion('')
+    setEditedAiBrief('')
   }
 
   const handleRequestExplanation = async () => {
@@ -1257,6 +1274,23 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
     ? 'rounded-lg shadow-md p-6 mb-6 border border-[#173b80] bg-[#264c96] text-white'
     : 'bg-white rounded-lg shadow-md p-6 mb-6'
 
+  // The standard rendered instructions. Extracted so the smart visual toggle
+  // can wrap it as the "Standard" view without duplicating the markup.
+  const instructionBody = (
+    <div className="prose max-w-none">
+      {displayText ? (
+        <RichContent
+          className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
+          html={sanitizeAndFormatSymptomContent(highlightHtml(displayText))}
+        />
+      ) : (
+        <div className="text-gray-500 italic">
+          No detailed instructions available. Please contact your healthcare provider for guidance.
+        </div>
+      )}
+    </div>
+  )
+
   const editButtonClasses = showBlueHeader
     ? 'px-4 py-2 text-sm font-medium text-[#264c96] bg-white border border-transparent rounded-lg hover:bg-white/90 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-[#264c96]'
     : 'px-4 py-2 text-sm font-medium text-nhs-blue bg-nhs-light-blue border border-nhs-blue rounded-lg hover:bg-blue-50 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2'
@@ -1768,19 +1802,18 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                 </button>
               </div>
             </div>
+          ) : smartVisual ? (
+            <SymptomSmartVisualToggle
+              {...smartVisual}
+              activeVariantKey={selectedVariantKey ?? ''}
+              activeVariantLabel={activeVariantLabel}
+              highlightRules={highlightRules}
+              enableBuiltInHighlights={enableBuiltInHighlights}
+            >
+              {instructionBody}
+            </SymptomSmartVisualToggle>
           ) : (
-            <div className="prose max-w-none">
-              {displayText ? (
-                <RichContent
-                  className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto"
-                  html={sanitizeAndFormatSymptomContent(highlightHtml(displayText))}
-                />
-              ) : (
-                <div className="text-gray-500 italic">
-                  No detailed instructions available. Please contact your healthcare provider for guidance.
-                </div>
-              )}
-            </div>
+            instructionBody
           )}
           
           {/* Suggested Questions Panel */}
@@ -2174,33 +2207,54 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
                   </div>
                 </div>
 
-                {/* AI suggestion */}
+                {/* AI suggestion — editable before it is applied */}
                 <div className="space-y-6">
-                  <h3 className="text-lg font-semibold text-nhs-green mb-4">
-                    AI suggestion (not saved)
-                  </h3>
+                  <div>
+                    <h3 className="text-lg font-semibold text-nhs-green">
+                      AI suggestion (editable, not saved)
+                    </h3>
+                    <p className="mt-1 text-sm text-nhs-grey">
+                      Tweak the wording here before applying it. Applying still sends the symptom for
+                      clinical review.
+                    </p>
+                  </div>
 
                   {/* AI brief instruction */}
                   <div>
-                    <h4 className="text-sm font-medium text-nhs-green mb-2">AI brief instruction</h4>
-                    <div className="prose max-w-none">
-                      <div 
-                        className="text-nhs-grey leading-relaxed border border-nhs-green rounded-lg p-4 bg-green-50"
-                      >
-                        {aiBrief || '(none provided)'}
-                      </div>
-                    </div>
+                    <label
+                      htmlFor="ai-brief-instruction"
+                      className="block text-sm font-medium text-nhs-green mb-2"
+                    >
+                      AI brief instruction
+                    </label>
+                    <Input
+                      id="ai-brief-instruction"
+                      value={editedAiBrief}
+                      onChange={(e) => setEditedAiBrief(e.target.value)}
+                      placeholder="Short routing label, e.g. Community Pharmacy / Face to Face Consultation"
+                      disabled={!canApplyAiChanges}
+                    />
                   </div>
 
                   {/* AI full instruction */}
                   <div>
                     <h4 className="text-sm font-medium text-nhs-green mb-2">AI full instruction</h4>
-                    <div className="prose max-w-none">
-                      <RichContent
-                        className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-nhs-green rounded-lg p-4 bg-green-50"
-                        html={sanitizeAndFormatSymptomContent(aiSuggestion)}
+                    {canApplyAiChanges ? (
+                      <RichTextEditor
+                        docId={`ai-suggestion:${symptom.id}`}
+                        value={editedAiSuggestion}
+                        onChange={setEditedAiSuggestion}
+                        imageUpload={symptomImageUpload}
+                        height={360}
                       />
-                    </div>
+                    ) : (
+                      <div className="prose max-w-none">
+                        <RichContent
+                          className="text-nhs-grey leading-relaxed prose-headings:text-nhs-dark-blue prose-a:text-nhs-blue prose-a:underline hover:prose-a:text-nhs-dark-blue prose-strong:text-nhs-dark-blue prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-pre:bg-gray-100 prose-pre:p-4 prose-pre:rounded prose-pre:overflow-x-auto border border-nhs-green rounded-lg p-4 bg-green-50"
+                          html={sanitizeAndFormatSymptomContent(editedAiSuggestion)}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -2220,24 +2274,24 @@ export default function InstructionView({ symptom, surgeryId, hideAgeBands = fal
               )}
               <button
                 onClick={handleAcceptBriefOnly}
-                disabled={!aiBrief || !canApplyAiChanges}
+                disabled={!editedAiBrief.trim() || !canApplyAiChanges}
                 className="px-6 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Replace Brief only
+                Apply Brief
               </button>
               <button
                 onClick={handleAcceptFullOnly}
-                disabled={!aiSuggestion || !canApplyAiChanges}
+                disabled={!editedAiSuggestion.trim() || !canApplyAiChanges}
                 className="px-6 py-2 bg-nhs-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Replace Full only
+                Apply Full
               </button>
               <button
                 onClick={handleAcceptBoth}
-                disabled={!aiSuggestion || !aiBrief || !canApplyAiChanges}
+                disabled={!editedAiSuggestion.trim() || !editedAiBrief.trim() || !canApplyAiChanges}
                 className="px-6 py-2 bg-nhs-green text-white rounded-lg hover:bg-green-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-nhs-green focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Replace Both
+                Apply Both
               </button>
             </div>
           </div>

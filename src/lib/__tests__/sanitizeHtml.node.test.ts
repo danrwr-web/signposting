@@ -192,6 +192,28 @@ describe('stripHtmlToPlainText', () => {
     expect(stripHtmlToPlainText('<p>Line one</p>\n<p>Line   two</p>')).toBe('Line one Line two')
   })
 
+  it('separates adjacent blocks that nothing else divides', () => {
+    // Editor output has no whitespace between blocks, so stripping alone fused
+    // them: "Call 999.Otherwise call 111." Two clinical steps become one
+    // sentence — in a note's plain-text mirror, and in the text sent to a model.
+    expect(stripHtmlToPlainText('<p>Call 999.</p><p>Otherwise call 111.</p>')).toBe(
+      'Call 999. Otherwise call 111.'
+    )
+    expect(stripHtmlToPlainText('<ul><li>First</li><li>Second</li></ul>')).toBe('First Second')
+    expect(stripHtmlToPlainText('<h2>Heading</h2><p>Body</p>')).toBe('Heading Body')
+  })
+
+  it('treats a line break as a boundary', () => {
+    expect(stripHtmlToPlainText('Line one<br>Line two')).toBe('Line one Line two')
+    expect(stripHtmlToPlainText('Line one<br />Line two')).toBe('Line one Line two')
+  })
+
+  it('does not introduce a separator inside a block', () => {
+    expect(stripHtmlToPlainText('<p>Use the <strong>Duty GP line</strong> now</p>')).toBe(
+      'Use the Duty GP line now'
+    )
+  })
+
   it('returns empty string for empty or tag-only input', () => {
     expect(stripHtmlToPlainText('')).toBe('')
     expect(stripHtmlToPlainText('<p></p>')).toBe('')

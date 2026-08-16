@@ -11,38 +11,34 @@
  * The AI prompt in src/server/adminToolkitSmartVisual.ts is a prose rendering
  * of this schema — keep the two in sync when changing section shapes.
  *
+ * Theme/icon enums and the plain-text helpers are shared with the other smart
+ * visual surfaces — see src/lib/smartVisualPrimitives.ts.
+ *
  * Keep this file free of `server-only` and heavy runtime dependencies.
  */
 
 import { z } from 'zod'
+import {
+  IconZ,
+  OptTxt,
+  ThemeZ,
+  Txt,
+  normalizeLayoutWithSchema,
+} from '@/lib/smartVisualPrimitives'
+
+export {
+  SMART_VISUAL_THEMES,
+  SMART_VISUAL_ICONS,
+  type SmartVisualTheme,
+  type SmartVisualIcon,
+} from '@/lib/smartVisualPrimitives'
 
 export const SMART_VISUAL_VERSION = 1
 
-export const SMART_VISUAL_THEMES = ['blue', 'green', 'amber', 'red', 'grey'] as const
-const ThemeZ = z.enum(SMART_VISUAL_THEMES)
-export type SmartVisualTheme = z.infer<typeof ThemeZ>
-
-export const SMART_VISUAL_ICONS = [
-  'phone',
-  'email',
-  'clock',
-  'alert',
-  'check',
-  'info',
-  'people',
-  'document',
-  'star',
-  'calendar',
-] as const
-const IconZ = z.enum(SMART_VISUAL_ICONS)
-export type SmartVisualIcon = z.infer<typeof IconZ>
-
+// Working-day chips are a handbook rota concern only, so this enum stays local.
 export const SMART_VISUAL_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 const DayZ = z.enum(SMART_VISUAL_DAYS)
 export type SmartVisualDay = z.infer<typeof DayZ>
-
-const Txt = (max: number) => z.string().trim().min(1).max(max)
-const OptTxt = (max: number) => z.string().trim().max(max).optional()
 
 const SummarySectionZ = z.object({
   type: z.literal('summary'),
@@ -245,48 +241,13 @@ export const SmartVisualLayoutZ = z.object({
 export type SmartVisualLayout = z.infer<typeof SmartVisualLayoutZ>
 
 /**
- * Strip any HTML tags and collapse whitespace in a plain-text field.
- * The renderer only ever emits text nodes, so this is belt-and-braces.
- */
-function toPlainText(value: string): string {
-  return value
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function cleanValue(value: unknown): unknown {
-  if (typeof value === 'string') return toPlainText(value)
-  if (Array.isArray(value)) return value.map(cleanValue)
-  if (value && typeof value === 'object') {
-    const result: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      const cleaned = cleanValue(v)
-      // Drop optional string fields that became empty after stripping
-      if (typeof cleaned === 'string' && cleaned === '' && k !== 'type') continue
-      result[k] = cleaned
-    }
-    return result
-  }
-  return value
-}
-
-/**
  * Post-parse normalisation of a validated layout: strips stray HTML tags,
  * collapses whitespace and drops emptied optional string fields. Run this
  * after `SmartVisualLayoutZ.safeParse` on every path that accepts a layout
  * (generation and save) — never trust AI or client input to be plain text.
  */
 export function normalizeSmartVisualLayout(layout: SmartVisualLayout): SmartVisualLayout {
-  const cleaned = cleanValue(layout) as SmartVisualLayout
-  // Re-validate so normalisation can never produce an out-of-contract object
-  // (e.g. a required field emptied by tag stripping).
-  const reparsed = SmartVisualLayoutZ.safeParse(cleaned)
-  if (!reparsed.success) {
-    throw new Error('Smart visual layout became invalid after normalisation.')
-  }
-  return reparsed.data
+  return normalizeLayoutWithSchema(SmartVisualLayoutZ, layout)
 }
 
 /** Human-readable list of section types present in a layout (for audit rows). */

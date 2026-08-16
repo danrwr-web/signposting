@@ -7,6 +7,7 @@ import { computeClinicalReviewCounts, getClinicalReviewKey } from '@/lib/clinica
 import { isFeatureEnabledForSurgery } from '@/lib/features'
 import SetupChecklistClient from './SetupChecklistClient'
 import { AppointmentModelConfig } from '@/lib/api-contracts'
+import { aiInstructionCustomisationWhere } from '@/lib/aiCustomisationHistory'
 
 interface SetupChecklistPageProps {
   params: Promise<{
@@ -97,11 +98,7 @@ export default async function SetupChecklistPage({ params }: SetupChecklistPageP
     let aiCustomisationOccurred = false
     if (allSymptomIds.length > 0) {
       const aiHistoryRecord = await prisma.symptomHistory.findFirst({
-        where: {
-          symptomId: { in: Array.from(allSymptomIds) },
-          modelUsed: { not: null },
-          NOT: { modelUsed: 'REVERT' }
-        }
+        where: aiInstructionCustomisationWhere(Array.from(allSymptomIds)),
       })
       aiCustomisationOccurred = aiHistoryRecord !== null
     }

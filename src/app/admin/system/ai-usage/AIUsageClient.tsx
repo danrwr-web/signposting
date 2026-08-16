@@ -63,6 +63,8 @@ export default function AIUsageClient() {
   const formatRouteName = (route: string): string => {
     if (route === 'improveInstruction') return 'Improve wording'
     if (route === 'explainInstruction') return 'Explain rule'
+    if (route === 'handbookSmartVisual') return 'Handbook smart visual'
+    if (route === 'symptomSmartVisual') return 'Symptom smart visual'
     return route
   }
 

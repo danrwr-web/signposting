@@ -54,7 +54,7 @@ function getDisplayName(feature: Feature): string {
 
 // Core modules vs AI features
 const CORE_MODULE_KEYS = ['workflow_guidance', 'admin_toolkit']
-const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation', 'ai_handbook_visuals']
+const AI_FEATURE_KEYS = ['ai_instructions', 'ai_training', 'ai_surgery_customisation', 'ai_handbook_visuals', 'ai_symptom_visuals']
 
 export default function FeatureRolloutsClient({
   surgeries,

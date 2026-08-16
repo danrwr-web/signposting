@@ -1,4 +1,4 @@
-import type { SmartVisualTheme } from '@/lib/adminToolkitSmartVisualShared'
+import type { SmartVisualTheme } from '@/lib/smartVisualPrimitives'
 
 /**
  * Tailwind class triples for the constrained smart-visual theme enum,

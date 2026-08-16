@@ -34,10 +34,11 @@ The AI Instruction Editor helps improve the clarity and tone of symptom instruct
    - Preserves key information
    - Uses plain English principles
 
-3. **Draft Creation**
-   - Suggestion stored as DRAFT
-   - Original content remains unchanged
-   - Admin can preview changes
+3. **Preview and edit**
+   - The suggestion opens in a side-by-side preview: your current version on the left, the AI's on the right
+   - **The AI's version is editable.** The right-hand pane is a full editor, so you can tweak the brief routing label and the full instruction before applying anything — the AI's draft is a starting point, not a verdict
+   - Original content remains unchanged until you apply
+   - Apply **Apply Brief**, **Apply Full** or **Apply Both**; what you applied is exactly what you saw, including your edits
 
 4. **Clinical Review Required**
    - Draft automatically enters PENDING state
@@ -55,7 +56,12 @@ The AI Instruction Editor helps improve the clarity and tone of symptom instruct
 - **Tone Consistency** — Maintains NHS style guide
 - **Plain English** — Ensures readability (reading age 9-12)
 - **Clinical Preservation** — Keeps medical accuracy
+- **Editable Before Applying** — Adjust the AI's wording in the preview rather than applying and then correcting it
 - **Undo Capability** — Can revert to previous version
+
+Only practice admins and system administrators can apply changes. Other staff see the suggestion read-only, with a note to ask an admin.
+
+Editing an AI suggestion does not remove its AI attribution — the change history still records which model produced the draft, and the symptom still goes for clinical review.
 
 ### Safety Checks
 
@@ -194,6 +200,51 @@ Generating and saving visuals is controlled by the `ai_handbook_visuals` feature
 
 ---
 
+## AI Symptom Smart Visuals
+
+Symptom smart visuals apply the same idea to signposting: a symptom's triage instructions are reorganised into a layout that can be read at a glance mid-call, while a patient waits. Generating and saving is controlled by the `ai_symptom_visuals` feature flag; system administrators always have access regardless of the flag.
+
+The section types are shaped for triage rather than rotas:
+
+- **Red flags** — escalation criteria in a dedicated block, with the single action to take when any of them apply. Escalation criteria are never rendered as ordinary bullets.
+- **Routing** — the core "if X, book Y" decisions as condition → action rows, each with a colour-coded urgency chip (Emergency / Same day / Urgent / Routine) taken from the source's own wording.
+- **Callouts** — the symptom's Important Notice, always surfaced as the first section.
+- **Key facts, checklists, steps, grouped bullets, pairs and small tables** for the supporting detail.
+
+999, 111 and local numbers are automatically emphasised and made tappable, and your practice's [highlight rules](/features/symptom-library#highlight-rules) apply throughout the visual exactly as they do in the standard instructions — so a phrase your practice colours red stays red in both views.
+
+### How It Works
+
+1. **An admin generates a preview** — Practice admins click **Generate smart visual** on a symptom page. The AI analyses the instructions and returns a structured layout; nothing is saved yet.
+2. **Constrained output** — The AI can only choose from the approved section types, colours and icons, and every response is validated against a strict schema before it is shown. Invalid responses are rejected. The output is rendered as real app content — text, not an image — so it stays selectable, accessible and responsive.
+3. **Review, adjust and save** — The admin can reorder or remove sections, steer a regeneration with a short instruction (e.g. "make the routing options clearer"), then save or discard.
+4. **Clinical review** — Saving puts the symptom back into **Pending** clinical review. See below.
+5. **Staff toggle** — Once approved, the symptom **opens on the smart visual**, since that is the faster read mid-call. The standard instructions stay one click away on the **Standard** tab, and symptoms without a visual open as they always have.
+6. **Staleness protection** — The written instructions remain the source of truth. If they are edited after the visual was generated, the visual is automatically hidden from everyone until an admin regenerates it.
+
+### Differences from Handbook Visuals
+
+Signposting content is clinical, and a smart visual is an AI *reinterpretation* of it — the AI decides what counts as a red flag and what order steps go in. Two rules therefore differ from the Practice Handbook:
+
+| | Practice Handbook | Symptom instructions |
+|---|---|---|
+| **When staff can see a saved visual** | Immediately on save | Only after the symptom passes clinical review |
+| **What saving triggers** | An audit trail entry | An audit trail entry **and** a return to Pending clinical review |
+| **How many visuals per item** | One per handbook item | One per age-group variant |
+
+While a visual is awaiting approval, staff continue to see the standard instructions; admins can see it, badged as pending. Removing a visual only takes a view away, so it does not trigger a new review.
+
+Because visuals are stored per age-group variant, switching between Under-5 / 5–17 / Adult swaps to that variant's own visual — a visual is never shown against wording it was not generated from. If a variant has no visual, the standard instructions are shown.
+
+### Safety
+
+- The AI is instructed to use only facts present in the instructions, and never to change clinical meaning, escalation pathways or urgency. Wording such as "urgent", "same day", "999", "A&E" and "duty GP" is preserved exactly.
+- Colour-slot language (Red Slot, Pink/Purple Slot, Green Slot, Orange Slot) and other local appointment names are copied verbatim, never translated or tidied.
+- The written instructions are never modified by generating a visual.
+- Only practice admins and system administrators can generate, save or remove visuals.
+
+---
+
 ## Smart Symptom Updates
 
 When base library content is updated centrally, surgeries can choose to adopt updates or keep their local versions.
@@ -234,6 +285,7 @@ AI features can be enabled or disabled at multiple levels:
 | `ai_training` | AI Suggested Questions | Yes |
 | `ai_surgery_customisation` | AI Surgery Customisation | Yes |
 | `ai_handbook_visuals` | AI Handbook Smart Visuals | No — practice-wide |
+| `ai_symptom_visuals` | AI Symptom Smart Visuals | No — practice-wide |
 
 > **Note:** In earlier documentation, the AI Suggested Questions flag was referred to as `ai_questions`. The actual database key is `ai_training`.
 
