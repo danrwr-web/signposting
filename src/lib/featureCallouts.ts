@@ -1,11 +1,13 @@
 /**
- * Time-boxed "new feature" callouts.
+ * Time-boxed "new feature" callouts — per-browser fallback store.
  *
- * Each callout key gets a localStorage record on first sight; the callout
- * window stays active for a fixed number of days from that moment, so users
- * see the announcement for a few days after they next use the app, then it
- * disappears on its own. Dismissal hides the intrusive part (the tooltip)
- * immediately but subtle markers (badges) may run for the full window.
+ * The authoritative per-user state lives on the server (UserCalloutState, via
+ * useFeatureCallout); these helpers are the localStorage mirror used when
+ * there is no usable server state (offline, signed out). Readers must fail
+ * closed: no record means "not new". Never write a record just to anchor a
+ * window after a failed request — that silently re-announces the callout.
+ * Dismissal (explicit, or by engaging with the feature) hides tooltip and
+ * badges alike; otherwise a `days` window expires the callout on its own.
  */
 
 export interface CalloutState {

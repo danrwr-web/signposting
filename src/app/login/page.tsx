@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { signIn, getSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function LoginPage() {
@@ -10,7 +9,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,13 +29,16 @@ export default function LoginPage() {
         const session = await getSession()
         if (session?.user) {
           const user = session.user as any
-          
-          // All users go to signposting tool first
+
+          // Full document navigation, not router.push: the root layout computes
+          // the viewer-scoped surgery list once per document load, and the render
+          // that served /login was anonymous. A soft navigation would keep that
+          // empty list for the whole SPA session.
           if (user.defaultSurgeryId) {
-            router.push(`/s/${user.defaultSurgeryId}`)
+            window.location.assign(`/s/${user.defaultSurgeryId}`)
           } else {
             // Fallback if no default surgery
-            router.push('/')
+            window.location.assign('/')
           }
         }
       }

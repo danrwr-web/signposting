@@ -62,10 +62,8 @@ export default function UniversalNavigationPanel() {
   const [showPreferencesModal, setShowPreferencesModal] = useState(false)
   const [showHelpPanel, setShowHelpPanel] = useState(false)
   const [showSuggestDialog, setShowSuggestDialog] = useState(false)
-  const { windowActive: suggestCalloutActive } = useFeatureCallout(
-    SUGGEST_FEATURE_CALLOUT_KEY,
-    SUGGEST_FEATURE_CALLOUT_DAYS
-  )
+  const { windowActive: suggestCalloutActive, dismissTooltip: dismissSuggestCallout } =
+    useFeatureCallout(SUGGEST_FEATURE_CALLOUT_KEY, SUGGEST_FEATURE_CALLOUT_DAYS)
   // Responses to the user's suggestions that they haven't seen yet
   const [unreadResponseCount, setUnreadResponseCount] = useState(0)
   // Onboarding state for setup link (three states)
@@ -500,6 +498,9 @@ export default function UniversalNavigationPanel() {
           {/* Suggest a Feature Button */}
           <button
             onClick={() => {
+              // Engaging with the feature means it is no longer "new" to this
+              // user — clear the callout everywhere, permanently.
+              dismissSuggestCallout()
               close()
               setShowSuggestDialog(true)
             }}
@@ -529,7 +530,10 @@ export default function UniversalNavigationPanel() {
           {surgeryId && (
             <Link
               href={`/s/${surgeryId}/suggestions`}
-              onClick={() => close()}
+              onClick={() => {
+                dismissSuggestCallout()
+                close()
+              }}
               className="group w-full flex items-center px-3 py-2.5 rounded-lg text-sm font-medium text-nhs-grey hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-inset"
             >
               <span className="mr-3 flex-shrink-0 text-gray-400 group-hover:text-nhs-blue" aria-hidden="true">

@@ -1,10 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import {
   dismissCallout,
   ensureCalloutState,
   isWithinCalloutWindow,
+  readCalloutState,
   type CalloutState,
 } from '@/lib/featureCallouts'
 
@@ -72,15 +74,16 @@ export interface FeatureCalloutOptions {
  * Drives a "new feature" callout backed by per-user server-side state
  * (UserCalloutState), so seen/dismissed follows the user across devices.
  *
- * - `windowActive`: with `days` set, true for that many days after the user
- *   first loads the app with this callout present — use for subtle markers
- *   like "New" badges. Without `days`, true until dismissed.
- * - `tooltipVisible`: true during the window until dismissed — use for the
- *   one-off spotlight.
+ * - `windowActive`: true while the callout should be marked (e.g. a "New"
+ *   badge): until dismissed, and — when `days` is set — for at most that many
+ *   days after the user first loads the app with this callout present.
+ * - `tooltipVisible`: same condition — use for the one-off spotlight.
  *
- * Falls back to localStorage when the API is unreachable, and both flags
- * start false so server rendering is unaffected. `resolved` flips true once
- * the state has been determined — use it to sequence dependent callouts.
+ * Falls back to *reading* localStorage when there is no usable server state
+ * (offline, signed out) and treats unknown state as not new, so a failed
+ * request can never announce — or re-announce — a feature. Both flags start
+ * false so server rendering is unaffected. `resolved` flips true once the
+ * state has been determined — use it to sequence dependent callouts.
  */
 export function useFeatureCallout(
   key: string,
@@ -91,8 +94,13 @@ export function useFeatureCallout(
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const [resolved, setResolved] = useState(false)
   const legacySeenKey = options?.legacySeenKey
+  const { status: sessionStatus } = useSession()
 
   useEffect(() => {
+    // Callout state is per-user; until the session has hydrated we don't know
+    // whose state to read, so stay unresolved (the effect re-runs on change).
+    if (sessionStatus === 'loading') return
+
     let cancelled = false
 
     const resolve = async () => {
@@ -105,15 +113,22 @@ export function useFeatureCallout(
         }
       }
 
-      const serverState = await fetchServerState(key, legacyDismissed)
+      // Signed out (the nav trigger also mounts on public pages): the API
+      // requires a session, so don't call it at all.
+      const serverState =
+        sessionStatus === 'authenticated'
+          ? await fetchServerState(key, legacyDismissed)
+          : null
       if (cancelled) return
 
       let state: CalloutState | null
       if (serverState) {
         state = serverState
       } else {
-        // API unavailable (offline, unauthenticated) — per-browser fallback.
-        state = ensureCalloutState(key)
+        // No usable server state — read the per-browser fallback, but never
+        // write one here: anchoring "first seen = now" after a failed request
+        // would silently re-announce the callout for another full window.
+        state = readCalloutState(key)
         if (state && legacyDismissed) {
           state = { ...state, dismissed: true }
         }
@@ -121,8 +136,9 @@ export function useFeatureCallout(
 
       const inWindow =
         days === undefined ? state !== null : isWithinCalloutWindow(state, days)
-      setWindowActive(days === undefined ? inWindow && !state?.dismissed : inWindow)
-      setTooltipVisible(inWindow && !state?.dismissed)
+      const active = inWindow && !state?.dismissed
+      setWindowActive(active)
+      setTooltipVisible(active)
       setResolved(true)
     }
 
@@ -130,26 +146,22 @@ export function useFeatureCallout(
     return () => {
       cancelled = true
     }
-  }, [key, days, legacySeenKey])
+  }, [key, days, legacySeenKey, sessionStatus])
 
   // React to this callout being dismissed via another hook instance
   useEffect(() => {
     const handleDismissed = (event: Event) => {
       if ((event as CustomEvent<{ key: string }>).detail?.key !== key) return
       setTooltipVisible(false)
-      if (days === undefined) {
-        setWindowActive(false)
-      }
+      setWindowActive(false)
     }
     window.addEventListener(DISMISS_EVENT, handleDismissed)
     return () => window.removeEventListener(DISMISS_EVENT, handleDismissed)
-  }, [key, days])
+  }, [key])
 
   const dismissTooltip = useCallback(() => {
     setTooltipVisible(false)
-    if (days === undefined) {
-      setWindowActive(false)
-    }
+    setWindowActive(false)
 
     const cached = stateCache.get(key)
     if (cached) {
@@ -167,7 +179,7 @@ export function useFeatureCallout(
     }).catch(() => {
       // Local fallback already recorded the dismissal.
     })
-  }, [key, days])
+  }, [key])
 
   return { windowActive, tooltipVisible, resolved, dismissTooltip }
 }

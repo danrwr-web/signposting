@@ -6,14 +6,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 
 export default function SuperLoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,7 +30,9 @@ export default function SuperLoginForm() {
       
       if (response.ok && result.success) {
         toast.success('Login successful!')
-        router.push(result.redirectTo || '/super')
+        // Full document navigation so session-scoped layout data is refetched
+        // with the new session cookie (see /login for the same constraint).
+        window.location.assign(result.redirectTo || '/super')
       } else {
         toast.error(result.message || 'Login failed')
       }
