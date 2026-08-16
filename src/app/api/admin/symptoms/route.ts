@@ -5,7 +5,7 @@
 
 import 'server-only'
 import { NextRequest, NextResponse } from 'next/server'
-import { getSessionUser } from '@/lib/rbac'
+import { getSessionUser, can } from '@/lib/rbac'
 import { getCachedSymptomsTag, getEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
@@ -32,10 +32,28 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const letter = searchParams.get('letter') ?? 'All'
     const q = (searchParams.get('q') ?? '').trim().toLowerCase()
+    const requestedSurgeryId = searchParams.get('surgeryId')
 
     // Get effective symptoms for this surgery (or all if superuser)
     let allSymptoms
-    if (user.globalRole === 'SUPERUSER') {
+    if (requestedSurgeryId) {
+      // A caller that names a practice gets that practice's enabled library.
+      //
+      // This parameter was accepted and then ignored: a superuser received the
+      // global base list instead, and a member of more than one practice
+      // received their *default* practice's list rather than the one they
+      // asked for. /s/[id]/admin/ai-setup passes it, so "Customise ALL
+      // symptoms" could run against a list belonging to a different practice —
+      // missing this one's custom symptoms and including symptoms it has not
+      // enabled.
+      if (!can(user).viewSurgery(requestedSurgeryId)) {
+        return NextResponse.json(
+          { error: 'Surgery access required' },
+          { status: 403 }
+        )
+      }
+      allSymptoms = await getEffectiveSymptoms(requestedSurgeryId)
+    } else if (user.globalRole === 'SUPERUSER') {
       // For superuser, get all base symptoms
       allSymptoms = await prisma.baseSymptom.findMany({
         select: { 

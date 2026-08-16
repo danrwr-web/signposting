@@ -10,6 +10,7 @@ import { getSessionUser } from '@/lib/rbac'
 import { surgeriesForViewer } from '@/server/viewerSurgeries'
 import Providers from '@/components/Providers'
 import UniversalNavigationPanel from '@/components/UniversalNavigationPanel'
+import DeploymentEnvironmentBanner from '@/components/DeploymentEnvironmentBanner'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -63,6 +64,9 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        {/* Outside Providers: it depends on nothing but the environment, and
+            it must still render if session or surgery resolution fails. */}
+        <DeploymentEnvironmentBanner />
         <Providers>
           <CardStyleProvider>
             <SurgeryProvider initialSurgery={initialSurgery} availableSurgeries={surgeries}>

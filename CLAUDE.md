@@ -278,9 +278,11 @@ Test files are excluded from the TypeScript compilation (`tsconfig.json` exclude
 
 For localised changes, run only the relevant suites instead of the full run — e.g. `npx jest src/server/__tests__/surgerySetupFlags.test.ts`. The full suite is slow on a cold transform cache (fresh containers/CI); in CPU-constrained environments add `--maxWorkers=2`.
 
-Known full-suite issues (as of June 2026):
-- `src/context/__tests__/SurgeryContext.test.tsx` can spin indefinitely (render loop in `SurgeryProvider`'s mount effect) — exclude it with `npx jest --testPathIgnorePatterns SurgeryContext` if the run hangs.
-- Pre-existing failures unrelated to most changes: `src/app/help/__tests__/page.test.tsx` (page now redirects to external docs), `CompactToolbar.test.tsx` and `AdminDashboardClient.test.tsx` (missing `NavigationPanelProvider` wrapper), and `src/app/api/symptoms/__tests__/route.test.ts`. Don't chase these unless your change touches those areas.
+Known full-suite issues (as of August 2026):
+- `src/context/__tests__/SurgeryContext.test.tsx` spins indefinitely (render loop in `SurgeryProvider`'s mount effect) — exclude it with `npx jest --testPathIgnorePatterns SurgeryContext` if the run hangs. Still reproduces; a 90-second run does not terminate.
+- Pre-existing failures unrelated to most changes: `src/app/help/__tests__/page.test.tsx` (page now redirects to external docs), and `CompactToolbar.test.tsx` and `AdminDashboardClient.test.tsx` (missing `NavigationPanelProvider` wrapper). Don't chase these unless your change touches those areas.
+
+With those excluded the suite is green — 3 failed suites, 10 failed tests, everything else passing. Treat any other failure as yours. Two entries previously on this list no longer belong: `src/app/api/symptoms/__tests__/route.test.ts` passes, and the customise-instructions route suite was failing on a stale mock (the route's post-write review recount was left unmocked), which is fixed. A stale list is worse than none — it makes a real regression look expected — so correct it when it drifts.
 
 ## Build & Deployment
 

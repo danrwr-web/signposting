@@ -93,6 +93,22 @@ When running locally, Neon or Docker Postgres works fine.
 
 - `.env.local` must never be committed — it is git-ignored by default.
 
+### Knowing which deployment you are on
+
+Use `deploymentEnvironment()` from `src/lib/environment.ts`, not `NODE_ENV`.
+
+Vercel sets `NODE_ENV=production` for preview builds as well as production ones, so `NODE_ENV` cannot tell the two apart — a guard written against it treats every preview as production. `VERCEL_ENV` is the variable that distinguishes `production`, `preview` and `development`, and the helper wraps it:
+
+```ts
+import { deploymentEnvironment, isProductionDeployment } from '@/lib/environment'
+```
+
+When `VERCEL_ENV` is missing or unrecognised the helper reports `development`. That is deliberate: wrongly reporting `production` would silently disable the environment banner on a preview, while wrongly reporting `development` shows a banner where it is not needed — visible immediately and harmless.
+
+`NODE_ENV` still has its own job (build mode, minification, React's development warnings) and this does not replace it. Use `NODE_ENV` for "is this an optimised build", and this helper for "which deployment am I talking to".
+
+Non-production deployments render `DeploymentEnvironmentBanner` at the top of every page, naming the environment, the git branch and the database endpoint. It is server-rendered because `DATABASE_URL` is not exposed to the browser, and only the endpoint label ever reaches the markup — never the connection string.
+
 ---
 
 ## 5. Running the Application Locally

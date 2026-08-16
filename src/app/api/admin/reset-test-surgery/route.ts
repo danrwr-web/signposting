@@ -93,10 +93,19 @@ export async function POST(request: NextRequest) {
     // Auth check
     await requireSurgeryAdmin(surgeryId)
 
-    // Verify this is the Test Surgery
+    // Verify this is the Test Surgery.
+    //
+    // Two independent checks, because what follows is thirteen `deleteMany`
+    // calls against a whole practice and the caller only had to be an admin of
+    // it. The name check alone was the whole guard, and a name is not a safety
+    // property: it is free text an admin can set, and a practice genuinely
+    // called "Test Surgery" that is serving real patients would have been
+    // wiped. `surgeryType` is the field that actually records what a practice
+    // is for, and the reset itself sets it to TEST, so anything this endpoint
+    // has legitimately touched already satisfies it.
     const surgery = await prisma.surgery.findUnique({
       where: { id: surgeryId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, surgeryType: true },
     })
 
     if (!surgery) {
@@ -109,6 +118,17 @@ export async function POST(request: NextRequest) {
     if (surgery.name.toLowerCase() !== 'test surgery') {
       return NextResponse.json(
         { error: 'This endpoint can only be used with the Test Surgery' },
+        { status: 403 }
+      )
+    }
+
+    if (surgery.surgeryType !== 'TEST') {
+      return NextResponse.json(
+        {
+          error:
+            `This practice is not marked as a Test practice (its type is ${surgery.surgeryType}), ` +
+            'so it has not been reset. Change its type to Test in the practice settings first.',
+        },
         { status: 403 }
       )
     }
