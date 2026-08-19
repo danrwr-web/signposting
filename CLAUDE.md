@@ -46,7 +46,7 @@ npm run build:dev    # Dev build (generates + pushes schema + builds)
 | Workflow Canvas| React Flow 11                                      |
 | Documents      | docxtemplater + PizZip (client-side .docx generation) |
 | Testing        | Jest 30 + Testing Library + ts-jest                |
-| AI             | Azure OpenAI (gpt-4o-mini)                         |
+| AI             | Azure OpenAI (default deployment is a gpt-4.1-mini variant; deployment name configurable via `AZURE_OPENAI_DEPLOYMENT`) |
 | Deployment     | Vercel (serverless)                                |
 | Validation     | Zod 4                                              |
 
@@ -57,7 +57,7 @@ src/
 ├── app/                    # Next.js App Router
 │   ├── (auth)/             # Login pages (admin-login, super-login)
 │   ├── admin/              # Superuser admin dashboard
-│   │   └── system/         # System-level tools (setup-tracker, ai-usage, changes, defaults, features)
+│   │   └── system/         # System-level tools (setup-tracker, ai-usage, changes, defaults, features, suggestions)
 │   ├── api/                # REST API route handlers (~50 endpoint dirs)
 │   ├── s/[id]/             # Surgery-scoped pages (main app shell)
 │   │   ├── signposting/    # Symptom directory
@@ -67,6 +67,7 @@ src/
 │   │   ├── appointments/   # Appointment directory
 │   │   ├── workflow/       # Workflow canvas
 │   │   ├── analytics/      # Usage analytics
+│   │   ├── suggestions/    # In-surgery feedback / feature suggestions
 │   │   └── dashboard/      # Surgery dashboard
 │   ├── super/              # Superuser dashboard
 │   │   └── pipeline/       # Sales pipeline, comms hub, provisioning
@@ -76,8 +77,11 @@ src/
 │   ├── admin/              # Admin table, kebab menu, search
 │   ├── admin-toolkit/      # Practice Handbook UI
 │   ├── appointments/       # Appointment management
+│   ├── engagement/         # Engagement analytics widgets (charts, ranked lists, summary tiles)
 │   ├── marketing/          # Landing page components
 │   ├── rich-text/          # Standalone rich text editor
+│   ├── smart-visual/       # Admin Toolkit smart-visual rendering primitives
+│   ├── symptom-smart-visual/ # Symptom-instruction smart-visual renderer + toggle
 │   ├── workflow/           # Workflow canvas nodes & icons
 │   └── __tests__/          # Component tests
 ├── context/                # React Context providers
@@ -85,7 +89,7 @@ src/
 │   ├── CardStyleContext.tsx # Card display preferences
 │   └── NavigationPanelContext.tsx
 ├── hooks/                  # Custom React hooks
-├── lib/                    # Shared utilities
+├── lib/                    # Shared utilities (partial list — `ls src/lib` for the full set)
 │   ├── auth.ts             # NextAuth configuration
 │   ├── rbac.ts             # Role-based access control
 │   ├── prisma.ts           # Prisma client singleton
@@ -93,13 +97,21 @@ src/
 │   ├── features.ts         # Feature flag resolution
 │   ├── highlighting.ts     # Highlight rule engine
 │   ├── adminToolkitPermissions.ts  # Admin Toolkit RBAC
+│   ├── smartVisualPrimitives.ts    # Zod schema for smart-visual primitives
+│   ├── symptomSearch.ts    # Symptom-search matching
+│   ├── email.ts            # Outbound email (SMTP) helpers
 │   └── sanitizeHtml.ts     # HTML sanitization
-├── server/                 # Server-only utilities
+├── server/                 # Server-only utilities (many more files than shown — `ls src/server`)
 │   ├── effectiveSymptoms.ts    # Resolve base + overrides + custom symptoms
 │   ├── effectiveWorkflows.ts   # Resolve workflow templates & instances
 │   ├── adminToolkit.ts         # Admin Toolkit queries
 │   ├── highlights.ts           # Compute active highlight rules
-│   └── aiCustomiseInstructions.ts  # AI integration
+│   ├── azureOpenAI.ts          # Shared Azure OpenAI HTTP client + error classification
+│   ├── surgerySetup.ts         # Setup-tracker snapshot builder
+│   ├── clinicalReview.ts       # Clinical review workflow helpers
+│   ├── symptomSmartVisual.ts   # Symptom smart-visual generation + gating
+│   ├── adminToolkitSmartVisual.ts # Handbook smart-visual generation + gating
+│   └── aiCustomiseInstructions.ts  # AI instruction customisation
 ├── navigation/             # Navigation module definitions
 ├── types/                  # TypeScript type extensions
 │   ├── global.d.ts
@@ -108,7 +120,7 @@ src/
 ```
 
 Key non-src directories:
-- `prisma/` - Database schema (`schema.prisma`, ~1050 lines) and seed script
+- `prisma/` - Database schema (`schema.prisma`, ~1465 lines) and seed script
 - `scripts/` - Build helpers and data migration scripts
 - `docs-site/` - User/admin documentation (Nextra site, deployed on Vercel)
 - `public/images/` - Logos, favicons, OG images
@@ -181,7 +193,7 @@ Database-driven feature flags with two levels:
 
 ### Prisma Schema
 
-The schema is at `prisma/schema.prisma` (~1170 lines, 50+ models). PostgreSQL is required (not SQLite).
+The schema is at `prisma/schema.prisma` (~1465 lines, ~60 models). PostgreSQL is required (not SQLite).
 
 Key conventions:
 - Cascade deletes on child records when parent is deleted
@@ -234,7 +246,11 @@ Always run `npm run db:generate` after schema changes to regenerate the Prisma c
 **Always use the shared UI primitives** from `src/components/ui/` instead of writing inline Tailwind for common elements. Import from `@/components/ui`:
 
 ```typescript
-import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertBanner, Skeleton, EmptyState } from '@/components/ui'
+import {
+  Button, Input, Select, Textarea, FormField,
+  Badge, Card, Dialog, ConfirmDialog, AlertBanner,
+  Skeleton, EmptyState, ImageLightbox, RichContent,
+} from '@/components/ui'
 ```
 
 | Component | Use instead of | Key props |
@@ -247,6 +263,9 @@ import { Button, Input, Select, Textarea, FormField, Badge, Card, Dialog, AlertB
 | `Badge` | `<span className="inline-flex px-2 py-0.5 rounded...">` | `color` (10 presets), `size` (`sm`\|`md`\|`lg`), `pill` |
 | `Card` | `<div className="bg-white rounded-lg shadow-md...">` | `elevation` (`flat`\|`raised`\|`elevated`\|`floating`), `hoverable`, `padding` |
 | `Dialog` | Custom `<div className="fixed inset-0 z-50...">` modals | `open`, `onClose`, `title`, `description`, `width`, `footer`, `initialFocusRef` |
+| `ConfirmDialog` | Bespoke "Are you sure?" prompts | `open`, `onClose`, `onConfirm`, `title`, `message`, `confirmLabel`, `variant` (builds on `Dialog`) |
+| `ImageLightbox` | Custom full-screen image viewers | `open`, `onClose`, `src`, `alt` — provides zoom + pan |
+| `RichContent` | Raw `dangerouslySetInnerHTML` of sanitized instruction HTML | `html`, `className` — safely renders the canonical `instructionsHtml` format |
 | `AlertBanner` | `<div className="bg-red-50 border-l-4...">` | `variant` (`error`\|`warning`\|`success`\|`info`) |
 | `Skeleton` | Custom `<div className="animate-pulse bg-gray-200...">` placeholders | `width`, `height`, `rounded` (`sm`\|`md`\|`lg`\|`full`\|`xl`); also exports `SkeletonText`, `SkeletonCard`, `SkeletonTable`, `SkeletonCardGrid`, `SkeletonWorkflowCard`, `SkeletonAdminToolkit` |
 | `EmptyState` | Custom empty-list/no-results placeholders | `title`, `description`, `illustration` (`search`\|`documents`\|`calendar`\|`clipboard`\|`folder`\|`users`\|`workflow`), `action`, `secondaryAction` |
@@ -304,7 +323,7 @@ See `env.example` for the full list. Key variables:
 ## Key Domain Concepts
 
 - **Surgery** - An NHS GP practice (the primary tenant unit)
-- **Symptom** - A patient symptom with triage instructions and age-group variants (U5/O5/Adult)
+- **Symptom** - A patient symptom with triage instructions and age-group variants (Under-5, Over-5, Adult, plus custom variant groups). Variants live alongside the canonical instruction on the base/override/custom layers and are merged by `effectiveSymptoms()`.
 - **Clinical Review** - Approval workflow where symptoms must be clinically approved before going live
 - **Highlight Rule** - Text pattern matching rules that apply colored highlights to instructions
 - **High-Risk Link** - Quick-access buttons for urgent/high-risk symptoms
@@ -314,16 +333,19 @@ See `env.example` for the full list. Key variables:
 - **Setup Checklist** - Guided onboarding flow for new surgeries at `/s/[id]/admin/setup-checklist` tracking feature adoption and governance steps
 - **Sales Pipeline** - Superuser-only CRM at `/super/pipeline` covering prospect tracking, comms templates, contract-variant document templates (including SetupGuide .docx generation via docxtemplater/PizZip), and surgery provisioning
 - **Surgery Setup Tracker** - Superuser-only cross-surgery dashboard at `/admin/system/setup-tracker` surfacing each surgery's setup completion and health (built on `computeSurgerySetupSnapshotsBatch` in `src/server/surgerySetup.ts`)
+- **Smart Visual** - An AI-generated visual summary of an instruction (icons + short headlines + phone numbers) rendered from a strict primitive schema in `src/lib/smartVisualPrimitives.ts`. Available for both symptom instructions and Admin Toolkit items; gated per-surgery. Server-side generation lives in `src/server/symptomSmartVisual.ts` / `src/server/adminToolkitSmartVisual.ts`; client rendering in `src/components/smart-visual/` and `src/components/symptom-smart-visual/`.
 
 ## Common Pitfalls
 
 1. **`context.params` must be awaited** - In Next.js 15, route handler params are Promises
 2. **PostgreSQL only** - The Prisma schema uses PostgreSQL-specific features; do not change the provider
 3. **Server-only imports** - Database and auth utilities use the `'server-only'` package; importing them in client components will cause build errors
-4. **Content format consistency** - When updating symptom instructions, update all three format fields (markdown, JSON, HTML)
+4. **Content format consistency** - When updating symptom instructions, `instructionsHtml` is the canonical format; keep the legacy plain-text `instructions` column in sync via the existing write path. Do NOT write `instructionsJson` — the column exists only for backward compatibility (read fallback is `instructionsHtml` → `instructions`; never rely on `instructionsJson` being current).
 5. **Surgery scoping** - Always filter queries by `surgeryId` to maintain tenant isolation
 6. **Redirect errors** - Next.js `redirect()` throws an error internally; do not wrap calls in try-catch that would swallow `NEXT_REDIRECT`
 7. **Skeleton/EmptyState for loading and empty states** - Don't hand-roll `<div className="animate-pulse...">` placeholders or bespoke "no results" screens. Use the shared `Skeleton` variants (`SkeletonCardGrid`, `SkeletonTable`, etc.) and `EmptyState` with an illustration preset instead, so loading/empty UX stays consistent.
+8. **No unauthenticated API writes** - All `POST/PUT/PATCH/DELETE` API routes must require a session (see `getSessionUser()` / `requireAuth()`); public routes are read-only and must not accept mutation. Recent audits removed the last exceptions — don't reintroduce them.
+9. **Scope surgery listings to the viewer** - When returning lists of surgeries, use `viewerSurgeries()` (in `src/server/viewerSurgeries.ts`) rather than a raw `prisma.surgery.findMany()`, so non-superusers only see surgeries they belong to.
 
 ## Documentation Updates
 
