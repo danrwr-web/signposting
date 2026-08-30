@@ -3,7 +3,7 @@ import { GET } from '../route'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/server/auth'
 import { getSessionUser, can } from '@/lib/rbac'
-import { getEngagementExtras } from '@/server/engagementAnalytics'
+import { getEngagementExtras, resolveRange } from '@/server/engagementAnalytics'
 
 jest.mock('@/lib/prisma', () => ({
   prisma: {
@@ -30,20 +30,34 @@ jest.mock('@/lib/rbac', () => ({
   can: jest.fn(),
 }))
 
+// The aggregation itself is covered in src/server/__tests__/engagementAnalytics.test.ts;
+// here the fakes just have to carry the scope the route builds.
 jest.mock('@/server/engagementAnalytics', () => ({
   getEngagementExtras: jest.fn(),
+  resolveRange: jest.fn(() => ({ start: null, previousWindow: null })),
+  engagementWhere: jest.fn((scope: { surgeryId: string | null }) => ({
+    event: 'view_symptom',
+    ...(scope.surgeryId ? { surgeryId: scope.surgeryId } : {}),
+  })),
 }))
 
 const mockedGetSession = getSession as jest.MockedFunction<typeof getSession>
 const mockedGetExtras = getEngagementExtras as jest.MockedFunction<typeof getEngagementExtras>
+const mockedResolveRange = resolveRange as jest.MockedFunction<typeof resolveRange>
 const mockedGroupBy = prisma.engagementEvent.groupBy as jest.Mock
-const mockedBaseSymptomFindMany = prisma.baseSymptom.findMany as jest.Mock
 const mockedSurgeryFindMany = prisma.surgery.findMany as jest.Mock
 
 const makeReq = (url: string) => ({ url } as unknown as NextRequest)
 
 const EXTRAS = {
-  totals: { totalViews: 42, distinctUsers: 5, distinctSymptoms: 7, activeSurgeries: null },
+  topSymptoms: [{ id: 'b1', name: 'Back Pain', ageGroup: 'Adult', viewCount: 5 }],
+  totals: {
+    totalViews: 42,
+    signedInViews: 31,
+    distinctUsers: 5,
+    distinctSymptoms: 7,
+    activeSurgeries: null,
+  },
   previousTotals: { totalViews: 30, distinctUsers: 4 },
   trend: { bucket: 'day' as const, capped: false, points: [{ date: '2026-07-22', views: 42 }] },
   insights: {
@@ -55,12 +69,21 @@ const EXTRAS = {
   },
 }
 
+/** The scope the route hands the aggregation layer. */
+const expectScope = (over: Record<string, unknown> = {}) => ({
+  surgeryId: null,
+  startDate: null,
+  previousWindow: null,
+  includeTestSurgeries: false,
+  ...over,
+})
+
 describe('GET /api/engagement/top', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockedGetExtras.mockResolvedValue(EXTRAS)
+    mockedResolveRange.mockReturnValue({ start: null, previousWindow: null })
     mockedGroupBy.mockResolvedValue([])
-    mockedBaseSymptomFindMany.mockResolvedValue([])
     mockedSurgeryFindMany.mockResolvedValue([])
     // Default: legacy admin cookie present, so surgery sessions are trusted
     mockedCookieGet.mockReturnValue({ value: 'legacy-session' })
@@ -83,7 +106,11 @@ describe('GET /api/engagement/top', () => {
         where: expect.objectContaining({ surgeryId: 'sur-1' }),
       })
     )
-    expect(mockedGetExtras).toHaveBeenCalledWith({ surgeryId: 'sur-1', startDate: null })
+    expect(mockedGetExtras).toHaveBeenCalledWith(
+      expectScope({ surgeryId: 'sur-1' }),
+      expect.any(Date),
+      { topTake: 10 }
+    )
   })
 
   it('rejects a surgery session requesting another surgery', async () => {
@@ -128,11 +155,8 @@ describe('GET /api/engagement/top', () => {
   it('lets superusers query all surgeries with a breakdown', async () => {
     mockedGetSession.mockResolvedValue({ type: 'superuser', id: 'u1' })
     mockedGroupBy
-      .mockResolvedValueOnce([]) // top symptoms
       .mockResolvedValueOnce([]) // top users
-      .mockResolvedValueOnce([
-        { surgeryId: 'sur-1', _count: { surgeryId: 9 } },
-      ]) // breakdown
+      .mockResolvedValueOnce([{ surgeryId: 'sur-1', _count: { surgeryId: 9 } }]) // breakdown
     mockedSurgeryFindMany.mockResolvedValue([{ id: 'sur-1', name: 'Mount Pleasant', slug: 'mp' }])
 
     const res = await GET(
@@ -143,10 +167,10 @@ describe('GET /api/engagement/top', () => {
     expect(json.surgeryBreakdown).toEqual([
       { surgeryId: 'sur-1', surgeryName: 'Mount Pleasant', surgerySlug: 'mp', engagementCount: 9 },
     ])
-    expect(mockedGetExtras).toHaveBeenCalledWith({ surgeryId: null, startDate: null })
+    expect(mockedGetExtras).toHaveBeenCalledWith(expectScope(), expect.any(Date), { topTake: 10 })
   })
 
-  it('includes totals, trend and insights in the response', async () => {
+  it('includes totals, trend, insights and the symptom leaderboard in the response', async () => {
     mockedGetSession.mockResolvedValue({ type: 'superuser', id: 'u1' })
     const res = await GET(makeReq('http://localhost/api/engagement/top'))
     const json = await res.json()
@@ -154,23 +178,8 @@ describe('GET /api/engagement/top', () => {
     expect(json.previousTotals).toEqual(EXTRAS.previousTotals)
     expect(json.trend).toEqual(EXTRAS.trend)
     expect(json.insights).toEqual(EXTRAS.insights)
-  })
-
-  it('skips top-symptom rows whose base symptom has been deleted', async () => {
-    mockedGetSession.mockResolvedValue({ type: 'superuser', id: 'u1' })
-    mockedGroupBy
-      .mockResolvedValueOnce([
-        { baseId: 'b1', _count: { baseId: 5 } },
-        { baseId: 'b-deleted', _count: { baseId: 3 } },
-      ])
-      .mockResolvedValueOnce([])
-    mockedBaseSymptomFindMany.mockResolvedValue([{ id: 'b1', name: 'Back Pain', ageGroup: 'Adult' }])
-
-    const res = await GET(makeReq('http://localhost/api/engagement/top'))
-    const json = await res.json()
-    expect(json.topSymptoms).toEqual([
-      { id: 'b1', name: 'Back Pain', ageGroup: 'Adult', viewCount: 5 },
-    ])
+    // Ranked from the same tracked library as the tile and the least-viewed card.
+    expect(json.topSymptoms).toEqual(EXTRAS.topSymptoms)
   })
 
   it('falls back to the default limit when the limit param is invalid', async () => {
@@ -179,10 +188,57 @@ describe('GET /api/engagement/top', () => {
     expect(mockedGroupBy).toHaveBeenCalledWith(expect.objectContaining({ take: 10 }))
   })
 
-  it('passes the start date through to scoping', async () => {
+  it('resolves the window from the named range, not a caller-supplied date', async () => {
     mockedGetSession.mockResolvedValue({ type: 'superuser', id: 'u1' })
-    const start = '2026-07-16T00:00:00.000Z'
-    await GET(makeReq(`http://localhost/api/engagement/top?startDate=${start}`))
-    expect(mockedGetExtras).toHaveBeenCalledWith({ surgeryId: null, startDate: new Date(start) })
+    const start = new Date('2026-08-23T23:00:00.000Z')
+    mockedResolveRange.mockReturnValue({
+      start,
+      previousWindow: { start: new Date('2026-08-16T23:00:00.000Z'), end: start },
+    })
+
+    await GET(makeReq('http://localhost/api/engagement/top?range=7d'))
+    expect(mockedResolveRange).toHaveBeenCalledWith('7d', expect.any(Date))
+    expect(mockedGetExtras).toHaveBeenCalledWith(
+      expectScope({
+        startDate: start,
+        previousWindow: { start: new Date('2026-08-16T23:00:00.000Z'), end: start },
+      }),
+      expect.any(Date),
+      { topTake: 10 }
+    )
+  })
+
+  it('falls back to the default range when the range param is invalid', async () => {
+    mockedGetSession.mockResolvedValue({ type: 'superuser', id: 'u1' })
+    await GET(makeReq('http://localhost/api/engagement/top?range=last-tuesday'))
+    expect(mockedResolveRange).toHaveBeenCalledWith('30d', expect.any(Date))
+  })
+
+  it('excludes test surgeries from the overview unless asked', async () => {
+    mockedGetSession.mockResolvedValue({ type: 'superuser', id: 'u1' })
+
+    await GET(makeReq('http://localhost/api/engagement/top'))
+    expect(mockedGetExtras).toHaveBeenCalledWith(
+      expectScope({ includeTestSurgeries: false }),
+      expect.any(Date),
+      { topTake: 10 }
+    )
+
+    await GET(makeReq('http://localhost/api/engagement/top?includeTestSurgeries=true'))
+    expect(mockedGetExtras).toHaveBeenLastCalledWith(
+      expectScope({ includeTestSurgeries: true }),
+      expect.any(Date),
+      { topTake: 10 }
+    )
+  })
+
+  it('ignores includeTestSurgeries from a surgery session', async () => {
+    mockedGetSession.mockResolvedValue({ type: 'surgery', id: 'sur-1', surgeryId: 'sur-1' })
+    await GET(makeReq('http://localhost/api/engagement/top?includeTestSurgeries=true'))
+    expect(mockedGetExtras).toHaveBeenCalledWith(
+      expectScope({ surgeryId: 'sur-1', includeTestSurgeries: false }),
+      expect.any(Date),
+      { topTake: 10 }
+    )
   })
 })

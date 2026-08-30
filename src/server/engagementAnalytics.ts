@@ -9,6 +9,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
 import type {
+  EngagementRankedSymptom,
   EngagementTotals,
   EngagementTrendPoint,
   EngagementTopRes,
@@ -19,18 +20,49 @@ const VIEW_EVENT = 'view_symptom'
 /** All-time trend requests are capped to this many most-recent days. */
 export const TREND_CAP_DAYS = 90
 
+export type EngagementRange = '7d' | '30d' | '90d' | 'all'
+
+export const RANGE_DAYS: Record<Exclude<EngagementRange, 'all'>, number> = {
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+}
+
 export interface EngagementScope {
   /** null = all surgeries (superuser overview) */
   surgeryId: string | null
-  /** null = all time */
+  /** Inclusive start of the reporting window; null = all time. */
   startDate: Date | null
+  /** Same elapsed time one period earlier, for the delta chips. */
+  previousWindow: { start: Date; end: Date } | null
+  /**
+   * All-surgeries scope only: TEST and GLOBAL_DEFAULT practices are left out of
+   * every figure unless this is set, so internal traffic doesn't inflate the
+   * headline numbers. An explicitly selected surgery is always reported on,
+   * whatever its type.
+   */
+  includeTestSurgeries: boolean
 }
 
-function baseWhere(scope: EngagementScope): Prisma.EngagementEventWhereInput {
+/** True when the scope should be narrowed to live practices only. */
+function liveOnly(scope: EngagementScope): boolean {
+  return !scope.surgeryId && !scope.includeTestSurgeries
+}
+
+/** Exported so the route's top-user query shares the scope's filtering exactly. */
+export function engagementWhere(scope: EngagementScope): Prisma.EngagementEventWhereInput {
   const where: Prisma.EngagementEventWhereInput = { event: VIEW_EVENT }
   if (scope.surgeryId) where.surgeryId = scope.surgeryId
   if (scope.startDate) where.createdAt = { gte: scope.startDate }
+  if (liveOnly(scope)) where.surgery = { is: { surgeryType: 'LIVE' } }
   return where
+}
+
+/** The same narrowing as engagementWhere, for the hand-written aggregate queries. */
+function liveOnlySql(scope: EngagementScope) {
+  return liveOnly(scope)
+    ? Prisma.sql`AND EXISTS (SELECT 1 FROM "Surgery" s WHERE s."id" = e."surgeryId" AND s."surgeryType" = 'LIVE')`
+    : Prisma.empty
 }
 
 /* ------------------------------------------------------------------ */
@@ -44,9 +76,112 @@ const londonDayFormat = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 })
 
+const londonPartsFormat = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Europe/London',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+})
+
 /** Calendar date (YYYY-MM-DD) of an instant, in Europe/London. */
 export function londonDay(instant: Date): string {
   return londonDayFormat.format(instant)
+}
+
+/** Offset of Europe/London from UTC at a given instant, in milliseconds. */
+function londonOffsetMs(instant: Date): number {
+  const parts = londonPartsFormat.formatToParts(instant)
+  const at = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find(p => p.type === type)?.value ?? 0)
+  const asIfUtc = Date.UTC(
+    at('year'),
+    at('month') - 1,
+    at('day'),
+    at('hour'),
+    at('minute'),
+    at('second')
+  )
+  return asIfUtc - instant.getTime()
+}
+
+/** The UTC instant of a wall-clock time on a London calendar day. */
+export function londonInstant(day: string, time = '00:00:00'): Date {
+  const naive = Date.parse(`${day}T${time}Z`)
+  // The first guess can land the wrong side of a DST transition; re-reading the
+  // offset at that guess settles it.
+  const firstPass = naive - londonOffsetMs(new Date(naive))
+  return new Date(naive - londonOffsetMs(new Date(firstPass)))
+}
+
+/** The UTC instant at which a London calendar day begins. */
+export function londonMidnight(day: string): Date {
+  return londonInstant(day)
+}
+
+/** Wall-clock time of day in London, as HH:MM:SS. */
+export function londonTimeOfDay(instant: Date): string {
+  const parts = londonPartsFormat.formatToParts(instant)
+  const at = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find(p => p.type === type)?.value ?? '00'
+  return `${at('hour')}:${at('minute')}:${at('second')}`
+}
+
+/** Move a YYYY-MM-DD calendar day by whole days. */
+export function shiftDay(day: string, delta: number): string {
+  // Stepping at UTC noon keeps the walk immune to DST transitions.
+  const noon = new Date(`${day}T12:00:00Z`)
+  noon.setUTCDate(noon.getUTCDate() + delta)
+  return noon.toISOString().slice(0, 10)
+}
+
+/**
+ * Turn a named range into whole London calendar days. Bucketing the window on
+ * midnight boundaries (rather than "now minus N×24h") means "Last 7 days" is
+ * seven complete days rather than eight partial ones, and every viewer sees the
+ * same window regardless of their own clock.
+ *
+ * The window runs from that midnight up to now, so today is only partly
+ * elapsed: at 09:00 a 7-day range covers 153 hours, not 168. Comparing that
+ * against the seven *complete* days before it would understate every delta
+ * chip for most of the day — a flat week would read as -9% at 09:00, and only
+ * reach 0% at midnight. So the previous window is shifted back a whole `days`
+ * and cut off at the same time of day.
+ *
+ * That shift lands on the same weekdays only for `7d`. 30 and 90 are not
+ * multiples of 7, so those windows drift by two and six weekdays respectively,
+ * and can hold a different mix of weekdays and weekend days — worst case 20
+ * against 22 weekdays over 30 days. GP traffic is heavily weekday-shaped, so
+ * that shows up as a few percent of calendar noise in the chip. It is inherent
+ * to comparing "the last 30 days" with "the 30 before that", as every
+ * analytics tool that offers those ranges does; week-aligned ranges (28/91)
+ * would remove it at the cost of what the range names mean.
+ *
+ * Both boundaries are London wall-clock times rather than elapsed milliseconds.
+ * In the days around a clock change only one of the two windows spans the
+ * transition, so equal elapsed time puts the previous cutoff an hour out — in
+ * March it would end at 08:00 against the current 09:00, dropping the busiest
+ * hour of that day from the comparison.
+ */
+export function resolveRange(
+  range: EngagementRange,
+  now: Date = new Date()
+): { start: Date | null; previousWindow: { start: Date; end: Date } | null } {
+  if (range === 'all') return { start: null, previousWindow: null }
+  const days = RANGE_DAYS[range]
+  const startDay = shiftDay(londonDay(now), -(days - 1))
+  const start = londonMidnight(startDay)
+
+  const previousStart = londonMidnight(shiftDay(startDay, -days))
+  const previousEnd = londonInstant(shiftDay(londonDay(now), -days), londonTimeOfDay(now))
+  // The wall-clock construction already puts the cutoff on the day before the
+  // current window opens, but a nonexistent local time on a spring-forward day
+  // resolves loosely; the windows must stay disjoint regardless.
+  const end = new Date(Math.min(previousEnd.getTime(), start.getTime()))
+  return { start, previousWindow: { start: previousStart, end } }
 }
 
 /**
@@ -62,19 +197,11 @@ export function fillDaySeries(
   const endDay = londonDay(end)
   const points: EngagementTrendPoint[] = []
   let day = londonDay(start)
-  // Stepping at UTC noon keeps the walk immune to DST transitions.
   while (day <= endDay && points.length <= 400) {
     points.push({ date: day, views: counts.get(day) ?? 0 })
-    const next = new Date(`${day}T12:00:00Z`)
-    next.setUTCDate(next.getUTCDate() + 1)
-    day = next.toISOString().slice(0, 10)
+    day = shiftDay(day, 1)
   }
   return points
-}
-
-/** The same-length window immediately before [start, now). */
-export function previousWindow(start: Date, now: Date): { start: Date; end: Date } {
-  return { start: new Date(start.getTime() - (now.getTime() - start.getTime())), end: start }
 }
 
 /**
@@ -97,49 +224,82 @@ export function toWeekdayHourArrays(
 /*  Aggregations                                                       */
 /* ------------------------------------------------------------------ */
 
-export async function getTotals(scope: EngagementScope): Promise<EngagementTotals> {
-  const where = baseWhere(scope)
-  const [totalViews, users, symptoms, surgeries] = await Promise.all([
-    prisma.engagementEvent.count({ where }),
-    prisma.engagementEvent.groupBy({
-      by: ['userEmail'],
-      where: { ...where, userEmail: { not: null } },
-    }),
-    prisma.engagementEvent.groupBy({ by: ['baseId'], where }),
-    scope.surgeryId
-      ? Promise.resolve(null)
-      : prisma.engagementEvent.groupBy({
-          by: ['surgeryId'],
-          where: { ...where, surgeryId: { not: null } },
-        }),
-  ])
-  return {
-    totalViews,
-    distinctUsers: users.length,
-    distinctSymptoms: symptoms.length,
-    activeSurgeries: surgeries ? surgeries.length : null,
-  }
+/** Volume figures. The symptom count is derived from the tracked library
+ *  instead (see getSymptomInsights) so every symptom figure reconciles. */
+export type EngagementVolumeTotals = Omit<EngagementTotals, 'distinctSymptoms'>
+
+export interface EngagementTileTotals {
+  totals: EngagementVolumeTotals
+  previousTotals: EngagementTopRes['previousTotals']
 }
 
-export async function getPreviousTotals(
-  scope: EngagementScope,
-  now: Date = new Date()
-): Promise<EngagementTopRes['previousTotals']> {
-  if (!scope.startDate) return null
-  const window = previousWindow(scope.startDate, now)
-  const where: Prisma.EngagementEventWhereInput = {
-    event: VIEW_EVENT,
-    createdAt: { gte: window.start, lt: window.end },
+/** Row shape of the consolidated tile aggregate. */
+interface TileRow {
+  totalViews: number
+  signedInViews: number
+  distinctUsers: number
+  activeSurgeries: number
+  previousViews: number
+  previousUsers: number
+}
+
+/**
+ * Every tile figure, for both the selected window and the one before it, in a
+ * single pass.
+ *
+ * This was six round trips: two counts plus two groupBys whose rows were pulled
+ * over the wire only to be discarded for their .length — one row per distinct
+ * user and per distinct surgery — and two more for the previous window.
+ * COUNT(DISTINCT …) does that work in the database, and FILTER lets both
+ * windows share one scan of the range.
+ */
+export async function getTileTotals(scope: EngagementScope): Promise<EngagementTileTotals> {
+  const inWindow = scope.startDate
+    ? Prisma.sql`(e."createdAt" >= ${scope.startDate})`
+    : Prisma.sql`(TRUE)`
+  const inPrevious = scope.previousWindow
+    ? Prisma.sql`(e."createdAt" >= ${scope.previousWindow.start} AND e."createdAt" < ${scope.previousWindow.end})`
+    : Prisma.sql`(FALSE)`
+
+  // COUNT returns BigInt without the ::int cast, which NextResponse.json
+  // cannot serialise.
+  const rows = await prisma.$queryRaw<TileRow[]>(Prisma.sql`
+    SELECT
+      COUNT(*) FILTER (WHERE ${inWindow})::int AS "totalViews",
+      COUNT(*) FILTER (WHERE ${inWindow} AND e."userEmail" IS NOT NULL)::int AS "signedInViews",
+      COUNT(DISTINCT e."userEmail") FILTER (WHERE ${inWindow})::int AS "distinctUsers",
+      COUNT(DISTINCT e."surgeryId") FILTER (WHERE ${inWindow})::int AS "activeSurgeries",
+      COUNT(*) FILTER (WHERE ${inPrevious})::int AS "previousViews",
+      COUNT(DISTINCT e."userEmail") FILTER (WHERE ${inPrevious})::int AS "previousUsers"
+    FROM "EngagementEvent" e
+    WHERE e."event" = ${VIEW_EVENT}
+      AND (${inWindow} OR ${inPrevious})
+      ${scope.surgeryId ? Prisma.sql`AND e."surgeryId" = ${scope.surgeryId}` : Prisma.empty}
+      ${liveOnlySql(scope)}
+  `)
+  // An empty table still yields one all-zero row, but guard rather than assume.
+  const row = rows[0] ?? {
+    totalViews: 0,
+    signedInViews: 0,
+    distinctUsers: 0,
+    activeSurgeries: 0,
+    previousViews: 0,
+    previousUsers: 0,
   }
-  if (scope.surgeryId) where.surgeryId = scope.surgeryId
-  const [totalViews, users] = await Promise.all([
-    prisma.engagementEvent.count({ where }),
-    prisma.engagementEvent.groupBy({
-      by: ['userEmail'],
-      where: { ...where, userEmail: { not: null } },
-    }),
-  ])
-  return { totalViews, distinctUsers: users.length }
+
+  return {
+    totals: {
+      totalViews: row.totalViews,
+      signedInViews: row.signedInViews,
+      distinctUsers: row.distinctUsers,
+      // COUNT DISTINCT ignores NULL surgeryIds, which is what "active
+      // surgeries" means; the figure itself is only shown for the overview.
+      activeSurgeries: scope.surgeryId ? null : row.activeSurgeries,
+    },
+    previousTotals: scope.previousWindow
+      ? { totalViews: row.previousViews, distinctUsers: row.previousUsers }
+      : null,
+  }
 }
 
 export async function getDailyTrend(
@@ -148,16 +308,17 @@ export async function getDailyTrend(
 ): Promise<EngagementTopRes['trend']> {
   const capped = !scope.startDate
   const start =
-    scope.startDate ?? new Date(now.getTime() - TREND_CAP_DAYS * 24 * 60 * 60 * 1000)
+    scope.startDate ?? londonMidnight(shiftDay(londonDay(now), -(TREND_CAP_DAYS - 1)))
   // COUNT(*) comes back as BigInt without the ::int cast, which
   // NextResponse.json cannot serialise.
   const rows = await prisma.$queryRaw<Array<{ day: string; views: number }>>(Prisma.sql`
-    SELECT to_char((("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/London')::date, 'YYYY-MM-DD') AS day,
+    SELECT to_char(((e."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/London')::date, 'YYYY-MM-DD') AS day,
            COUNT(*)::int AS views
-    FROM "EngagementEvent"
-    WHERE "event" = ${VIEW_EVENT}
-      AND "createdAt" >= ${start}
-      ${scope.surgeryId ? Prisma.sql`AND "surgeryId" = ${scope.surgeryId}` : Prisma.empty}
+    FROM "EngagementEvent" e
+    WHERE e."event" = ${VIEW_EVENT}
+      AND e."createdAt" >= ${start}
+      ${scope.surgeryId ? Prisma.sql`AND e."surgeryId" = ${scope.surgeryId}` : Prisma.empty}
+      ${liveOnlySql(scope)}
     GROUP BY 1
     ORDER BY 1
   `)
@@ -168,72 +329,117 @@ export async function getBusiestTimes(
   scope: EngagementScope
 ): Promise<{ byWeekday: number[]; byHour: number[] }> {
   const rows = await prisma.$queryRaw<Array<{ dow: number; hour: number; views: number }>>(Prisma.sql`
-    SELECT EXTRACT(ISODOW FROM ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/London')::int AS dow,
-           EXTRACT(HOUR FROM ("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/London')::int AS hour,
+    SELECT EXTRACT(ISODOW FROM (e."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/London')::int AS dow,
+           EXTRACT(HOUR FROM (e."createdAt" AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/London')::int AS hour,
            COUNT(*)::int AS views
-    FROM "EngagementEvent"
-    WHERE "event" = ${VIEW_EVENT}
-      ${scope.startDate ? Prisma.sql`AND "createdAt" >= ${scope.startDate}` : Prisma.empty}
-      ${scope.surgeryId ? Prisma.sql`AND "surgeryId" = ${scope.surgeryId}` : Prisma.empty}
+    FROM "EngagementEvent" e
+    WHERE e."event" = ${VIEW_EVENT}
+      ${scope.startDate ? Prisma.sql`AND e."createdAt" >= ${scope.startDate}` : Prisma.empty}
+      ${scope.surgeryId ? Prisma.sql`AND e."surgeryId" = ${scope.surgeryId}` : Prisma.empty}
+      ${liveOnlySql(scope)}
     GROUP BY 1, 2
   `)
   return toWeekdayHourArrays(rows)
 }
 
 /**
- * Least-viewed symptoms in the period, measured against the symptoms the
- * scope can actually see. Custom symptoms are excluded because symptom views
- * are only recorded for base symptoms (see src/app/symptom/[id]/page.tsx),
- * so they would all falsely register as never viewed.
+ * The symptoms a scope reports on: the library as it stands today, so every
+ * symptom figure on the tab is measured against the same denominator.
+ * Retired (soft-deleted) symptoms are excluded, as are custom symptoms —
+ * views are only recorded for base symptoms (see src/app/symptom/[id]/page.tsx),
+ * so custom ones would all falsely register as never viewed.
  */
-export async function getLeastViewedSymptoms(
-  scope: EngagementScope,
-  take = 8
-): Promise<Pick<EngagementTopRes['insights'], 'leastViewed' | 'neverViewedCount' | 'trackedSymptomCount'>> {
-  const tracked: Array<{ id: string; name: string; ageGroup: string }> = []
+async function getTrackedSymptoms(
+  scope: EngagementScope
+): Promise<Array<{ id: string; name: string; ageGroup: string }>> {
+  // Keyed by base symptom id: an override and its base resolve to the same
+  // tracked symptom, and counting it twice would break the reconciliation
+  // between "symptoms accessed" and "never viewed".
+  const tracked = new Map<string, { id: string; name: string; ageGroup: string }>()
   if (scope.surgeryId) {
     const symptoms = await getCachedEffectiveSymptoms(scope.surgeryId)
     for (const s of symptoms) {
       if (s.source === 'custom') continue
-      tracked.push({ id: s.baseSymptomId ?? s.id, name: s.name, ageGroup: s.ageGroup })
+      const id = s.baseSymptomId ?? s.id
+      if (!tracked.has(id)) tracked.set(id, { id, name: s.name, ageGroup: s.ageGroup })
     }
   } else {
     const base = await prisma.baseSymptom.findMany({
       where: { isDeleted: false },
       select: { id: true, name: true, ageGroup: true },
     })
-    tracked.push(...base)
+    for (const s of base) tracked.set(s.id, s)
   }
+  return [...tracked.values()]
+}
 
-  const grouped = await prisma.engagementEvent.groupBy({
-    by: ['baseId'],
-    where: baseWhere(scope),
-    _count: { baseId: true },
-  })
+export interface SymptomInsights {
+  /** Most viewed tracked symptoms, highest first; excludes never-viewed ones. */
+  topViewed: EngagementRankedSymptom[]
+  leastViewed: EngagementRankedSymptom[]
+  neverViewedCount: number
+  trackedSymptomCount: number
+  /** Tracked symptoms with at least one view — the "Symptoms accessed" tile. */
+  viewedSymptomCount: number
+}
+
+/**
+ * Both symptom leaderboards and the coverage counts, from a single pass over
+ * the tracked library. Sharing one ranking guarantees the tile, the top list
+ * and the least-viewed card can never disagree, and the name tiebreak keeps
+ * equal-count rows in a stable order between refreshes.
+ */
+export async function getSymptomInsights(
+  scope: EngagementScope,
+  { topTake = 10, leastTake = 8 }: { topTake?: number; leastTake?: number } = {}
+): Promise<SymptomInsights> {
+  const [tracked, grouped] = await Promise.all([
+    getTrackedSymptoms(scope),
+    prisma.engagementEvent.groupBy({
+      by: ['baseId'],
+      where: engagementWhere(scope),
+      _count: { baseId: true },
+    }),
+  ])
   const counts = new Map(grouped.map(g => [g.baseId, g._count.baseId]))
 
-  const rows = tracked.map(t => ({ ...t, viewCount: counts.get(t.id) ?? 0 }))
-  rows.sort((a, b) => a.viewCount - b.viewCount || a.name.localeCompare(b.name))
+  const rows: EngagementRankedSymptom[] = tracked.map(t => ({
+    ...t,
+    viewCount: counts.get(t.id) ?? 0,
+  }))
+  const byName = (a: EngagementRankedSymptom, b: EngagementRankedSymptom) =>
+    a.name.localeCompare(b.name)
+  const ascending = [...rows].sort((a, b) => a.viewCount - b.viewCount || byName(a, b))
+  const descending = [...rows].sort((a, b) => b.viewCount - a.viewCount || byName(a, b))
+  const neverViewedCount = rows.filter(r => r.viewCount === 0).length
+
   return {
-    leastViewed: rows.slice(0, take),
-    neverViewedCount: rows.filter(r => r.viewCount === 0).length,
+    topViewed: descending.filter(r => r.viewCount > 0).slice(0, topTake),
+    leastViewed: ascending.slice(0, leastTake),
+    neverViewedCount,
     trackedSymptomCount: rows.length,
+    viewedSymptomCount: rows.length - neverViewedCount,
   }
 }
 
-/** Convenience wrapper: everything the route needs beyond the top lists. */
-export async function getEngagementExtras(scope: EngagementScope, now: Date = new Date()) {
-  const [totals, previousTotals, trend, busiestTimes, leastViewed] = await Promise.all([
-    getTotals(scope),
-    getPreviousTotals(scope, now),
+/** Convenience wrapper: everything the route needs beyond the top user list. */
+export async function getEngagementExtras(
+  scope: EngagementScope,
+  now: Date = new Date(),
+  { topTake = 10 }: { topTake?: number } = {}
+) {
+  const [tiles, trend, busiestTimes, symptomInsights] = await Promise.all([
+    getTileTotals(scope),
     getDailyTrend(scope, now),
     getBusiestTimes(scope),
-    getLeastViewedSymptoms(scope),
+    getSymptomInsights(scope, { topTake }),
   ])
+  const { topViewed, viewedSymptomCount, ...insights } = symptomInsights
   return {
-    totals,
-    previousTotals,
+    topSymptoms: topViewed,
+    totals: { ...tiles.totals, distinctSymptoms: viewedSymptomCount },
+    previousTotals: tiles.previousTotals,
     trend,
-    insights: { ...leastViewed, ...busiestTimes },
+    insights: { ...insights, ...busiestTimes },
   }
 }

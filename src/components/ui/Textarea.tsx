@@ -1,6 +1,7 @@
 'use client'
 
 import { forwardRef, type TextareaHTMLAttributes } from 'react'
+import { defaultFieldWidth } from './fieldWidth'
 
 /* ------------------------------------------------------------------ */
 /*  Textarea                                                           */
@@ -18,7 +19,8 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
       <textarea
         ref={ref}
         className={[
-          'w-full px-3 py-2 rounded-md border text-sm',
+          defaultFieldWidth(className),
+          'px-3 py-2 rounded-md border text-sm',
           'transition-[color,border-color,box-shadow] duration-150',
           'focus:outline-none focus:ring-2 focus:border-transparent',
           'disabled:opacity-60 disabled:cursor-not-allowed',

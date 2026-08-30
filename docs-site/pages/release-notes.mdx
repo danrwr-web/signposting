@@ -29,9 +29,20 @@ The following core capabilities are established and available to all surgeries:
 
 ### Fixed
 
+- **Engagement Analytics now reports on live practice usage only, and its figures reconcile.** Five things were counted in ways that overstated or understated real use of the directory:
+  - The cross-surgery overview counted test and template practices alongside live ones, so views, active users and "active surgeries" all included internal testing. It now shows live practices by default, with an **Include test surgeries** tickbox for superusers (the setting is recorded in the CSV export). Selecting one surgery still reports on it whatever its type.
+  - Opening a symptom from Clinical Review's **Open symptom page** button, or from a suggestion in the superuser suggestions area, was recorded as a reception-desk lookup. Review and triage traffic is now excluded, as it always was from the Clinical Review symptom list.
+  - **Symptoms accessed** counted retired symptoms, so it could disagree with the "X of Y symptoms had no views" line beneath it. Both figures, and **Most Viewed Symptoms**, are now measured against the same library, and equal-ranked symptoms no longer reorder between refreshes.
+  - Date ranges ran from the current time of day rather than midnight, so "Last 7 days" charted eight days with a short first bar, and the window was built from the viewer's own clock. Ranges now cover whole UK calendar days and are the same for everyone. Percentage changes compare against the same elapsed stretch a period earlier, so a partly-finished day never drags the comparison down.
+  - **Active users** silently omitted anyone signed in through the shared practice login, while their views still counted in the total. The tile now says how many of the period's views were signed in, so the gap is visible.
+
+  See [Engagement Tab](/governance/admin-guide#engagement-tab-signposting-settings). Historical figures may look lower than before, particularly on the all-surgeries overview — that is the test-practice and review traffic coming out.
+
 - **The "use built-in highlighting" practice setting is now respected on symptom pages.** Turning built-in slot highlighting off for a practice had no effect on the symptom instruction view — Green/Orange/Red Slot and pink/purple were still colour-coded. The setting is now applied there, and to smart visuals.
 
 ### Updated
+
+- **Engagement Analytics is clearer about what it is showing, and quicker to load.** A line under the heading now names the scope, date range and whether test practices are included, so the tab no longer relies on the page header — which on the cross-surgery overview names a different surgery entirely. "Symptoms accessed" is now **Symptoms viewed** and carries the library total beneath it, the busiest hour is named in text rather than left to the heatmap's colours alone, the trend chart calls out its peak day and shows each day's figure as you move across it, and the date-range controls stay usable while data loads. The summary row also reserves its full width while loading, so the page no longer jumps. Behind the scenes the summary tiles went from six database round trips to one, and the cross-surgery overview gained an index it was missing. See [Engagement Tab](/governance/admin-guide#engagement-tab-signposting-settings).
 
 - **Rewriting your whole symptom library now asks first**: on **Admin → AI Setup**, the **Customise ALL symptoms** scope started immediately on the first click. It is the one scope that replaces wording your practice has edited by hand, and it returns every symptom — including ones a clinician has already approved — to pending review. It now shows what it is about to do, and how many symptoms that is, before it starts, and points you at **Smart re-run** or **Select symptoms manually** if you wanted to keep your own wording. Nothing about the customisation itself has changed, and previous wording is still kept in each symptom's history. See [AI Features](/features/ai-features#ai-surgery-specific-customisation).
 

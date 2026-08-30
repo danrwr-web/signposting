@@ -5,7 +5,12 @@ import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/server/auth'
 import { getSessionUser, can } from '@/lib/rbac'
-import { getEngagementExtras } from '@/server/engagementAnalytics'
+import {
+  engagementWhere,
+  getEngagementExtras,
+  resolveRange,
+  type EngagementScope,
+} from '@/server/engagementAnalytics'
 import type { EngagementTopRes } from '@/lib/api-contracts'
 
 /**
@@ -25,14 +30,20 @@ async function isSurgeryAdminSession(surgeryId: string): Promise<boolean> {
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const BooleanFlagZ = z
+  .enum(['true', 'false'])
+  .optional()
+  .transform(v => v === 'true')
+
 const QueryZ = z.object({
   surgeryId: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(50).catch(10),
-  startDate: z.coerce.date().optional(),
-  includeSurgeryBreakdown: z
-    .enum(['true', 'false'])
-    .optional()
-    .transform(v => v === 'true'),
+  // Named ranges rather than a caller-supplied startDate: the window is
+  // resolved server-side onto whole Europe/London days so it doesn't shift
+  // with the caller's clock.
+  range: z.enum(['7d', '30d', '90d', 'all']).catch('30d'),
+  includeSurgeryBreakdown: BooleanFlagZ,
+  includeTestSurgeries: BooleanFlagZ,
 })
 
 export async function GET(request: NextRequest) {
@@ -46,18 +57,20 @@ export async function GET(request: NextRequest) {
     const parsed = QueryZ.safeParse({
       surgeryId: searchParams.get('surgeryId') ?? undefined,
       limit: searchParams.get('limit') ?? undefined,
-      startDate: searchParams.get('startDate') ?? undefined,
+      range: searchParams.get('range') ?? undefined,
       includeSurgeryBreakdown: searchParams.get('includeSurgeryBreakdown') ?? undefined,
+      includeTestSurgeries: searchParams.get('includeTestSurgeries') ?? undefined,
     })
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid query parameters' }, { status: 400 })
     }
-    const { limit, startDate } = parsed.data
+    const { limit, range } = parsed.data
 
     // Scope enforcement: surgery admins only ever see their own surgery;
     // the all-surgeries overview and per-surgery breakdown are superuser-only.
     let surgeryId: string | null
     let includeSurgeryBreakdown: boolean
+    let includeTestSurgeries: boolean
     if (session.type === 'surgery') {
       if (!session.surgeryId) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -70,79 +83,47 @@ export async function GET(request: NextRequest) {
       }
       surgeryId = session.surgeryId
       includeSurgeryBreakdown = false
+      // Irrelevant for a single pinned surgery, which is always reported on.
+      includeTestSurgeries = false
     } else {
       surgeryId = parsed.data.surgeryId ?? null
       includeSurgeryBreakdown = parsed.data.includeSurgeryBreakdown
+      includeTestSurgeries = parsed.data.includeTestSurgeries
     }
 
-    const where: {
-      event: string
-      surgeryId?: string
-      createdAt?: { gte: Date }
-    } = { event: 'view_symptom' }
-    if (surgeryId) where.surgeryId = surgeryId
-    if (startDate) where.createdAt = { gte: startDate }
+    // One instant for the whole request: the window and the trend's final
+    // bucket must not straddle a midnight between two Date() calls.
+    const now = new Date()
+    const { start, previousWindow } = resolveRange(range, now)
+    const scope: EngagementScope = {
+      surgeryId,
+      startDate: start,
+      previousWindow,
+      includeTestSurgeries,
+    }
+    const where = engagementWhere(scope)
 
-    // Top symptoms by view count
-    const topSymptoms = await prisma.engagementEvent.groupBy({
-      by: ['baseId'],
-      where,
-      _count: {
-        baseId: true,
-      },
-      orderBy: {
-        _count: {
-          baseId: 'desc',
-        },
-      },
-      take: limit,
-    })
-
-    // Get symptom details
-    const symptomIds = topSymptoms.map(item => item.baseId)
-    const symptoms = await prisma.baseSymptom.findMany({
-      where: { id: { in: symptomIds } },
-      select: {
-        id: true,
-        name: true,
-        ageGroup: true,
-      }
-    })
-
-    // Combine with counts, skipping events whose symptom has since been deleted
-    const topSymptomsWithDetails = topSymptoms.flatMap(item => {
-      const symptom = symptoms.find(s => s.id === item.baseId)
-      if (!symptom) return []
-      return [{ ...symptom, viewCount: item._count.baseId }]
-    })
-
-    // Top users by engagement count
-    const topUsers = await prisma.engagementEvent.groupBy({
-      by: ['userEmail'],
-      where: {
-        ...where,
-        userEmail: { not: null },
-      },
-      _count: {
-        userEmail: true,
-      },
-      orderBy: {
-        _count: {
-          userEmail: 'desc',
-        },
-      },
-      take: limit,
-    })
-
-    const extras = await getEngagementExtras({ surgeryId, startDate: startDate ?? null })
+    // Top users by engagement count. The symptom leaderboard is built from the
+    // tracked library in getEngagementExtras so it shares one ranking with the
+    // "symptoms accessed" tile and the least-viewed card.
+    const [topUsers, extras, surgeryBreakdown] = await Promise.all([
+      prisma.engagementEvent.groupBy({
+        by: ['userEmail'],
+        where: { ...where, userEmail: { not: null } },
+        _count: { userEmail: true },
+        orderBy: { _count: { userEmail: 'desc' } },
+        take: limit,
+      }),
+      getEngagementExtras(scope, now, { topTake: limit }),
+      includeSurgeryBreakdown ? getSurgeryBreakdown(where) : Promise.resolve(undefined),
+    ])
 
     const response: EngagementTopRes = {
-      topSymptoms: topSymptomsWithDetails,
       topUsers: topUsers.map(item => ({
         userEmail: item.userEmail as string,
         engagementCount: item._count.userEmail,
       })),
-      surgeryBreakdown: includeSurgeryBreakdown ? await getSurgeryBreakdown(where) : undefined,
+      surgeryBreakdown,
       ...extras,
     }
     return NextResponse.json(response)

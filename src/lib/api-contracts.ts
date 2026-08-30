@@ -385,7 +385,14 @@ export interface EngagementRankedSymptom {
 
 export interface EngagementTotals {
   totalViews: number;
+  /**
+   * Views attributable to a signed-in user. Views are only attributed when the
+   * viewer held a NextAuth session, so this is at most totalViews and the
+   * difference is what distinctUsers cannot account for.
+   */
+  signedInViews: number;
   distinctUsers: number;
+  /** Tracked symptoms viewed at least once; always trackedSymptomCount minus neverViewedCount. */
   distinctSymptoms: number;
   /** Only computed for the all-surgeries (superuser) scope; null otherwise. */
   activeSurgeries: number | null;
@@ -407,7 +414,13 @@ export interface EngagementTopRes {
     engagementCount: number;
   }>;
   totals: EngagementTotals;
-  /** Same-length window immediately before the selected range; null for all time. */
+  /**
+   * The same elapsed time one period earlier — shifted back a whole period and
+   * truncated to match how much of the current period has actually elapsed.
+   * The shift preserves weekdays for the 7-day range only; 30 and 90 are not
+   * multiples of 7, so those comparisons can hold a slightly different mix of
+   * weekdays. Null for all time.
+   */
   previousTotals: { totalViews: number; distinctUsers: number } | null;
   trend: {
     bucket: 'day';

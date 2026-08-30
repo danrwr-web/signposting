@@ -81,8 +81,19 @@ export function TrendChart({ points }: TrendChartProps) {
 
   const yFor = (views: number) => MARGIN.top + innerH * (1 - views / yMax)
 
+  const active = hovered !== null ? points[hovered] : peak
+
   return (
-    <svg
+    <>
+      {/* Duplicates what the svg's aria-label already says, so it is decoration
+          for assistive tech rather than a second announcement. */}
+      <p className="mb-1 text-sm text-gray-600" aria-hidden="true">
+        {hovered === null && <span className="text-gray-500">Peak: </span>}
+        <span className="font-medium text-gray-900">{formatDate(active.date)}</span>
+        {' — '}
+        {active.views.toLocaleString()} view{active.views === 1 ? '' : 's'}
+      </p>
+      <svg
       viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
       className="h-auto w-full"
       role="img"
@@ -172,6 +183,7 @@ export function TrendChart({ points }: TrendChartProps) {
           </text>
         ) : null
       )}
-    </svg>
+      </svg>
+    </>
   )
 }

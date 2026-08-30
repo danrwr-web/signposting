@@ -1071,13 +1071,26 @@ export default function AdminPageClient({ surgeries, symptoms, session, currentS
             )}
 
             {/* Engagement Tab */}
-            {activeTab === 'engagement' && (
-              <EngagementAnalytics
-                session={session}
-                selectedSurgeryId={session.type === 'superuser' && !engagementShowAll && selectedSurgery ? selectedSurgery : 'all'}
-                onSelectSurgery={(id) => { setEngagementShowAll(false); handleSurgeryChange(id) }}
-              />
-            )}
+            {activeTab === 'engagement' && (() => {
+              const engagementSurgeryId =
+                session.type === 'superuser'
+                  ? (!engagementShowAll && selectedSurgery ? selectedSurgery : null)
+                  : (session.surgeryId ?? null)
+              return (
+                <EngagementAnalytics
+                  session={session}
+                  selectedSurgeryId={engagementSurgeryId ?? 'all'}
+                  onSelectSurgery={(id) => { setEngagementShowAll(false); handleSurgeryChange(id) }}
+                  // Named here rather than in the tab: only the page holds the
+                  // surgery list, and the export previously wrote a raw id.
+                  scopeLabel={
+                    engagementSurgeryId
+                      ? surgeries.find(s => s.id === engagementSurgeryId)?.name
+                      : 'All surgeries'
+                  }
+                />
+              )
+            })()}
 
             {/* Suggestions Tab */}
             {activeTab === 'suggestions' && (

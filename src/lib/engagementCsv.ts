@@ -11,6 +11,9 @@ export interface EngagementCsvMeta {
   rangeLabel: string
   /** e.g. "Mount Pleasant Health Centre" or "All surgeries" */
   scopeLabel: string
+  /** Whether test/template practices are in the figures. Undefined when the
+   *  distinction doesn't apply (a single selected surgery). */
+  includesTestSurgeries?: boolean
   generatedAt: Date
 }
 
@@ -34,11 +37,15 @@ export function buildEngagementCsv(data: EngagementTopRes, meta: EngagementCsvMe
   lines.push(row('Engagement analytics export'))
   lines.push(row('Scope', meta.scopeLabel))
   lines.push(row('Date range', meta.rangeLabel))
+  if (meta.includesTestSurgeries !== undefined) {
+    lines.push(row('Test surgeries', meta.includesTestSurgeries ? 'Included' : 'Excluded'))
+  }
   lines.push(row('Generated', meta.generatedAt.toISOString()))
   lines.push('')
 
   lines.push(row('Summary'))
   lines.push(row('Total symptom views', data.totals.totalViews))
+  lines.push(row('Views from signed-in staff', data.totals.signedInViews))
   lines.push(row('Active users', data.totals.distinctUsers))
   lines.push(row('Symptoms accessed', data.totals.distinctSymptoms))
   if (data.totals.activeSurgeries !== null) {

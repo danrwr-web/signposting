@@ -335,6 +335,9 @@ model EngagementEvent {
 
   @@index([surgeryId, ref])
   @@index([surgeryId, createdAt])
+  // The cross-surgery engagement overview filters on event + createdAt with no
+  // surgeryId to lead with, so neither composite above can serve it.
+  @@index([event, createdAt])
 }
 
 model HighlightRule {

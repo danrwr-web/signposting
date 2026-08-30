@@ -9,10 +9,24 @@ export interface BusiestTimesCardProps {
   byHour: number[]
 }
 
+/** "08:00–09:00" for hour 8. */
+function hourRange(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00–${String((hour + 1) % 24).padStart(2, '0')}:00`
+}
+
 export function BusiestTimesCard({ byWeekday, byHour }: BusiestTimesCardProps) {
   const weekdayMax = Math.max(...byWeekday, 1)
   const hourMax = Math.max(...byHour, 1)
   const hasData = byWeekday.some(v => v > 0) || byHour.some(v => v > 0)
+
+  // The heatmap encodes volume in colour alone, and its old aria-label carried
+  // no values at all. The busiest hours are the reason to look at it, so they
+  // are stated in text — for everyone, not only assistive tech.
+  const busiestHours = byHour
+    .map((views, hour) => ({ hour, views }))
+    .filter(h => h.views > 0)
+    .sort((a, b) => b.views - a.views || a.hour - b.hour)
+    .slice(0, 3)
 
   return (
     <Card elevation="flat" padding="lg">
@@ -46,7 +60,17 @@ export function BusiestTimesCard({ byWeekday, byHour }: BusiestTimesCardProps) {
           </ul>
 
           <h4 className="mb-2 mt-5 text-sm font-medium text-gray-700">By hour of day</h4>
-          <div className="flex gap-px" role="img" aria-label="Symptom views by hour of day">
+          <div
+            className="flex gap-px"
+            role="img"
+            aria-label={
+              busiestHours.length > 0
+                ? `Symptom views by hour of day. Busiest: ${busiestHours
+                    .map(h => `${hourRange(h.hour)}, ${h.views.toLocaleString()} views`)
+                    .join('; ')}.`
+                : 'Symptom views by hour of day. No views recorded.'
+            }
+          >
             {byHour.map((views, hour) => (
               <div
                 key={hour}
@@ -54,7 +78,7 @@ export function BusiestTimesCard({ byWeekday, byHour }: BusiestTimesCardProps) {
                 style={{
                   backgroundColor: `rgba(0, 94, 184, ${views === 0 ? 0.06 : 0.15 + 0.85 * (views / hourMax)})`,
                 }}
-                title={`${String(hour).padStart(2, '0')}:00–${String((hour + 1) % 24).padStart(2, '0')}:00 — ${views.toLocaleString()} view${views === 1 ? '' : 's'}`}
+                title={`${hourRange(hour)} — ${views.toLocaleString()} view${views === 1 ? '' : 's'}`}
               />
             ))}
           </div>
@@ -65,6 +89,14 @@ export function BusiestTimesCard({ byWeekday, byHour }: BusiestTimesCardProps) {
             <span>18:00</span>
             <span>23:00</span>
           </div>
+          {busiestHours.length > 0 && (
+            <p className="mt-3 text-sm text-gray-600">
+              Busiest hour:{' '}
+              <span className="font-medium text-gray-900">{hourRange(busiestHours[0].hour)}</span>{' '}
+              ({busiestHours[0].views.toLocaleString()} view
+              {busiestHours[0].views === 1 ? '' : 's'})
+            </p>
+          )}
         </>
       )}
 

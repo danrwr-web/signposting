@@ -46,18 +46,27 @@ interface EngagementAnalyticsProps {
   selectedSurgeryId?: string
   /** Called when the user drills into a surgery from the breakdown list. */
   onSelectSurgery?: (surgeryId: string) => void
+  /** Human name of the current scope, e.g. "Ide Lane Surgery" or "All
+   *  surgeries". The page header names the surgery being *configured*, which
+   *  isn't always what this tab is reporting on, so the tab says its own. */
+  scopeLabel?: string
 }
 
 export default function EngagementAnalytics({
   session,
   selectedSurgeryId = 'all',
   onSelectSurgery,
+  scopeLabel,
 }: EngagementAnalyticsProps) {
   const [engagementData, setEngagementData] = useState<EngagementTopRes | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange>('30d')
   const [limit, setLimit] = useState(10)
+  // Test practices and the global template are internal traffic, so the
+  // cross-surgery overview leaves them out unless asked (same default as the
+  // setup tracker). Irrelevant once a specific surgery is selected.
+  const [includeTestSurgeries, setIncludeTestSurgeries] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   // Hide age badges when viewing a single surgery that runs in all-ages mode
@@ -94,16 +103,12 @@ export default function EngagementAnalytics({
         setIsLoading(true)
         setError(null)
 
+        // The window itself is resolved server-side onto whole Europe/London
+        // days, so two people looking at the same range see the same figures.
         const params = new URLSearchParams({
           limit: limit.toString(),
+          range: dateRange,
         })
-
-        if (dateRange !== 'all') {
-          const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
-          const startDate = new Date()
-          startDate.setDate(startDate.getDate() - days)
-          params.append('startDate', startDate.toISOString())
-        }
 
         if (session.type === 'surgery' && session.surgeryId) {
           // Surgery admins see only their surgery's data
@@ -115,6 +120,7 @@ export default function EngagementAnalytics({
 
         if (session.type === 'superuser') {
           params.append('includeSurgeryBreakdown', 'true')
+          if (includeTestSurgeries) params.append('includeTestSurgeries', 'true')
         }
 
         const response = await fetch(`/api/engagement/top?${params}`)
@@ -134,27 +140,63 @@ export default function EngagementAnalytics({
 
     fetchEngagementData()
     return () => { cancelled = true }
-  }, [session, limit, dateRange, selectedSurgeryId, refreshKey])
+  }, [session, limit, dateRange, selectedSurgeryId, includeTestSurgeries, refreshKey])
+
+  // Only the cross-surgery overview mixes practice types; a selected surgery is
+  // always reported on, whatever its type.
+  const showTestSurgeryToggle = session.type === 'superuser' && !scopedSurgeryId
 
   const handleExport = () => {
     if (!engagementData) return
     const csv = buildEngagementCsv(engagementData, {
       rangeLabel: RANGE_LABELS[dateRange],
-      scopeLabel: scopedSurgeryId ?? 'All surgeries',
+      scopeLabel: scopeLabel ?? scopedSurgeryId ?? 'All surgeries',
+      includesTestSurgeries: showTestSurgeryToggle ? includeTestSurgeries : undefined,
       generatedAt: new Date(),
     })
     downloadCsv(csv, `engagement-data-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`)
     setShowExportModal(false)
   }
 
+  // What this tab is actually reporting on. Stated here because the page header
+  // names the surgery being configured, which is a different thing on the
+  // all-surgeries overview, and because the tiles otherwise carry no period.
+  const scopeSummary = [
+    scopeLabel ?? (scopedSurgeryId ? undefined : 'All surgeries'),
+    RANGE_LABELS[dateRange],
+    showTestSurgeryToggle
+      ? includeTestSurgeries
+        ? 'including test practices'
+        : 'live practices only'
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-xl font-semibold text-nhs-dark-blue">Engagement Analytics</h2>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="text-xl font-semibold text-nhs-dark-blue">Engagement Analytics</h2>
+        <p className="mt-0.5 text-sm text-gray-600">{scopeSummary}</p>
+      </div>
       <div className="flex items-center gap-3">
+        {showTestSurgeryToggle && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={includeTestSurgeries}
+              onChange={e => setIncludeTestSurgeries(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-nhs-blue focus:ring-nhs-blue"
+            />
+            Include test surgeries
+          </label>
+        )}
+        {/* Not disabled while loading: a stale in-flight response is already
+            discarded, and locking the controls mid-fetch just blocks a change
+            of mind. */}
         <Select
           value={dateRange}
           onChange={e => setDateRange(e.target.value as DateRange)}
-          disabled={isLoading}
           aria-label="Date range"
           className="w-auto"
         >
@@ -167,7 +209,6 @@ export default function EngagementAnalytics({
         <Select
           value={limit}
           onChange={e => setLimit(Number(e.target.value))}
-          disabled={isLoading}
           aria-label="Number of results"
           className="w-auto"
         >
@@ -176,7 +217,7 @@ export default function EngagementAnalytics({
           <option value={20}>Top 20</option>
         </Select>
         <Button
-          variant="success"
+          variant="secondary"
           onClick={() => setShowExportModal(true)}
           disabled={isLoading || !engagementData}
         >
@@ -190,8 +231,12 @@ export default function EngagementAnalytics({
     return (
       <div className="space-y-6">
         {header}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
+        <div
+          className={`grid grid-cols-2 gap-4 ${
+            showTestSurgeryToggle ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+          }`}
+        >
+          {[...Array(showTestSurgeryToggle ? 4 : 3)].map((_, i) => (
             <Card key={i} elevation="flat" padding="md">
               <Skeleton height="h-4" width="w-2/3" />
               <Skeleton height="h-8" width="w-1/3" className="mt-2" />
@@ -240,6 +285,7 @@ export default function EngagementAnalytics({
           totals={engagementData.totals}
           previousTotals={engagementData.previousTotals}
           periodLabel={PERIOD_LABELS[dateRange]}
+          trackedSymptomCount={engagementData.insights.trackedSymptomCount}
           isSuperuser={isSuperuser}
         />
       )}
@@ -353,12 +399,18 @@ export default function EngagementAnalytics({
         <div>
           <p className="font-medium">About Engagement Analytics</p>
           <p className="mt-1">
-            This data shows symptom views and user activity. Data is collected when users view
-            symptom pages.
+            A view is recorded when someone opens a symptom page. Clinical review and
+            suggestion-triage visits are excluded, so these figures reflect day-to-day
+            signposting rather than content checking. Ranges cover whole days in UK local
+            time.
             {session.type === 'surgery'
               ? ' Data is filtered to show only activity for your surgery.'
               : session.type === 'superuser'
-                ? ' As a superuser, you can view system-wide data and drill down by surgery using the dropdown above.'
+                ? ` As a superuser, you can view system-wide data and drill down by surgery using the dropdown above.${
+                    showTestSurgeryToggle && !includeTestSurgeries
+                      ? ' Test and template practices are excluded unless you tick “Include test surgeries”.'
+                      : ''
+                  }`
                 : ''}
           </p>
         </div>

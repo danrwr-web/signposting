@@ -1,10 +1,16 @@
 import {
   fillDaySeries,
-  previousWindow,
+  resolveRange,
   toWeekdayHourArrays,
   londonDay,
-  getLeastViewedSymptoms,
-  getTotals,
+  londonMidnight,
+  londonTimeOfDay,
+  shiftDay,
+  RANGE_DAYS,
+  getSymptomInsights,
+  getTileTotals,
+  getDailyTrend,
+  type EngagementScope,
 } from '@/server/engagementAnalytics'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
@@ -16,6 +22,7 @@ jest.mock('@/lib/prisma', () => ({
       count: jest.fn(),
     },
     baseSymptom: { findMany: jest.fn() },
+    $queryRaw: jest.fn(),
   },
 }))
 
@@ -26,7 +33,19 @@ jest.mock('@/server/effectiveSymptoms', () => ({
 const mockedGroupBy = prisma.engagementEvent.groupBy as jest.Mock
 const mockedCount = prisma.engagementEvent.count as jest.Mock
 const mockedBaseFindMany = prisma.baseSymptom.findMany as jest.Mock
+const mockedQueryRaw = prisma.$queryRaw as unknown as jest.Mock
 const mockedEffective = getCachedEffectiveSymptoms as jest.Mock
+
+/** All-surgeries, all-time, live practices only — override what a test needs. */
+const scope = (over: Partial<EngagementScope> = {}): EngagementScope => ({
+  surgeryId: null,
+  startDate: null,
+  previousWindow: null,
+  includeTestSurgeries: false,
+  ...over,
+})
+
+const LIVE_ONLY = { surgery: { is: { surgeryType: 'LIVE' } } }
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -66,13 +85,184 @@ describe('fillDaySeries', () => {
   })
 })
 
-describe('previousWindow', () => {
-  it('returns the same-length window immediately before the range', () => {
-    const start = new Date('2026-07-16T00:00:00Z')
-    const now = new Date('2026-07-23T00:00:00Z')
-    const window = previousWindow(start, now)
-    expect(window.start).toEqual(new Date('2026-07-09T00:00:00Z'))
-    expect(window.end).toEqual(start)
+describe('londonMidnight', () => {
+  it('resolves to 00:00 UTC for a GMT day', () => {
+    expect(londonMidnight('2026-01-15').toISOString()).toBe('2026-01-15T00:00:00.000Z')
+  })
+
+  it('resolves to 23:00 UTC the previous day for a BST day', () => {
+    expect(londonMidnight('2026-07-15').toISOString()).toBe('2026-07-14T23:00:00.000Z')
+  })
+
+  it('lands on the correct side of the spring-forward transition', () => {
+    // Clocks go forward at 01:00 GMT on 29 March 2026, so that day starts at 00:00 UTC
+    expect(londonMidnight('2026-03-29').toISOString()).toBe('2026-03-29T00:00:00.000Z')
+    expect(londonMidnight('2026-03-30').toISOString()).toBe('2026-03-29T23:00:00.000Z')
+  })
+
+  it('lands on the correct side of the autumn transition', () => {
+    // Clocks go back at 02:00 BST on 25 October 2026
+    expect(londonMidnight('2026-10-25').toISOString()).toBe('2026-10-24T23:00:00.000Z')
+    expect(londonMidnight('2026-10-26').toISOString()).toBe('2026-10-26T00:00:00.000Z')
+  })
+})
+
+describe('resolveRange', () => {
+  it('covers whole London days, so a 7-day range is exactly 7 buckets', () => {
+    const now = new Date('2026-08-30T14:20:00Z')
+    const { start } = resolveRange('7d', now)
+    expect(londonDay(start!)).toBe('2026-08-24')
+    // The window must not start mid-day: the first bucket would under-report.
+    expect(start!.toISOString()).toBe('2026-08-23T23:00:00.000Z')
+    expect(fillDaySeries([], start!, now)).toHaveLength(7)
+  })
+
+  it('compares against the same elapsed time one period earlier', () => {
+    // Today is only partly elapsed, so comparing it against seven *complete*
+    // days would understate every delta chip until midnight. Away from a clock
+    // change, matching wall-clock cutoffs also matches elapsed time.
+    const now = new Date('2026-08-30T08:00:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    const elapsed = now.getTime() - start!.getTime()
+    expect(previousWindow!.end.getTime() - previousWindow!.start.getTime()).toBe(elapsed)
+  })
+
+  it('lands the 7-day comparison on exactly the same weekdays', () => {
+    const now = new Date('2026-08-30T08:00:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    expect(londonDay(start!)).toBe('2026-08-24')
+    expect(londonDay(previousWindow!.start)).toBe('2026-08-17')
+    expect(new Date('2026-08-24T12:00:00Z').getUTCDay()).toBe(
+      new Date('2026-08-17T12:00:00Z').getUTCDay()
+    )
+  })
+
+  it('does not preserve weekdays on the 30- and 90-day ranges', () => {
+    // Pinned rather than fixed: 30 and 90 are not multiples of 7, so those
+    // comparisons drift by two and six weekdays. That is inherent to comparing
+    // "the last 30 days" with "the 30 before that" — week-aligned ranges would
+    // remove it, at the cost of what the range names mean. Documented so the
+    // drift is a known property rather than a surprise.
+    const now = new Date('2026-08-30T08:00:00Z')
+    const weekdayOf = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay()
+    for (const [range, drift] of [
+      ['7d', 0],
+      ['30d', 30 % 7],
+      ['90d', 90 % 7],
+    ] as const) {
+      const { start, previousWindow } = resolveRange(range, now)
+      const shift =
+        (weekdayOf(londonDay(start!)) - weekdayOf(londonDay(previousWindow!.start)) + 7) % 7
+      expect(`${range}: ${shift}`).toBe(`${range}: ${drift}`)
+    }
+  })
+
+  it('keeps the two windows disjoint', () => {
+    for (const range of ['7d', '30d', '90d'] as const) {
+      for (const hour of [0, 1, 9, 23]) {
+        const now = new Date(`2026-10-25T${String(hour).padStart(2, '0')}:30:00Z`)
+        const { start, previousWindow } = resolveRange(range, now)
+        // 25 October 2026 is the autumn clock change: the shifted-back period
+        // is an hour longer, which must not push it into the current window.
+        expect(previousWindow!.end.getTime()).toBeLessThanOrEqual(start!.getTime())
+        expect(previousWindow!.start.getTime()).toBeLessThan(previousWindow!.end.getTime())
+      }
+    }
+  })
+
+  it('cuts the comparison off at the same London wall-clock time', () => {
+    // The week after the 29 March spring-forward: only the current window
+    // spans the transition, so matching elapsed milliseconds instead of wall
+    // clock ended the comparison at 08:00 against the current 09:00 —
+    // dropping the busiest hour of that day.
+    const now = new Date('2026-03-31T08:00:00Z') // 09:00 London, BST
+    const { previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(now)).toBe('09:00:00')
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('09:00:00')
+    expect(londonDay(previousWindow!.end)).toBe('2026-03-24')
+  })
+
+  it('holds when the previous window is the one spanning the clock change', () => {
+    const now = new Date('2026-04-05T08:00:00Z') // 09:00 London, BST
+    const { previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('09:00:00')
+    expect(londonDay(previousWindow!.end)).toBe('2026-03-29')
+  })
+
+  it('cuts off at the same wall-clock time away from any transition', () => {
+    const now = new Date('2026-08-30T08:00:00Z') // 09:00 London
+    const { previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('09:00:00')
+    expect(londonDay(previousWindow!.end)).toBe('2026-08-23')
+  })
+
+  it('reads as no change over a period of perfectly flat traffic', () => {
+    // The regression this guards: at 09:00 a calendar-aligned 7-day window is
+    // 153 hours, and comparing it against 168 reported -9% for a flat week.
+    const now = new Date('2026-08-30T08:00:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    const currentHours = (now.getTime() - start!.getTime()) / 3_600_000
+    const previousHours =
+      (previousWindow!.end.getTime() - previousWindow!.start.getTime()) / 3_600_000
+    expect(currentHours).toBe(previousHours)
+  })
+
+  it('holds its invariants across every day of a year', () => {
+    // This window arithmetic has been wrong twice — once comparing a partial
+    // day against complete ones, once matching elapsed milliseconds across a
+    // clock change. A sweep is cheaper than a third round of finding out.
+    for (let day = 0; day < 365; day++) {
+      for (const hour of [0, 1, 9, 23]) {
+        const now = new Date(Date.UTC(2026, 0, 1 + day, hour, 30, 0))
+        for (const range of ['7d', '30d', '90d'] as const) {
+          const days = RANGE_DAYS[range]
+          const { start, previousWindow } = resolveRange(range, now)
+          const where = `${range} at ${now.toISOString()}`
+
+          // The two windows never overlap and the previous one is never empty.
+          expect(`${where}: ${previousWindow!.end <= start!}`).toBe(`${where}: true`)
+          expect(`${where}: ${previousWindow!.start < previousWindow!.end}`).toBe(
+            `${where}: true`
+          )
+          // The chart always shows exactly the number of days it names.
+          expect(`${where}: ${fillDaySeries([], start!, now).length}`).toBe(`${where}: ${days}`)
+          // Both windows open on a London midnight, a whole period apart.
+          expect(`${where}: ${londonDay(start!)}`).toBe(
+            `${where}: ${shiftDay(londonDay(now), -(days - 1))}`
+          )
+          expect(`${where}: ${londonDay(previousWindow!.start)}`).toBe(
+            `${where}: ${shiftDay(londonDay(now), -(days - 1) - days)}`
+          )
+        }
+      }
+    }
+  })
+
+  it('resolves a cutoff that falls in the spring-forward gap without losing time', () => {
+    // At 01:30 on 5 April the 7-day comparison wants to end at 01:30 on 29
+    // March — an hour that does not exist, since the clocks jump 01:00 to
+    // 02:00. It resolves forward to 02:30, so the wall-clock labels differ
+    // while the elapsed time each window covers stays identical, which is what
+    // the percentage actually depends on. Roughly one hour a year; correct.
+    const now = new Date('2026-04-05T00:30:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(now)).toBe('01:30:00')
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('02:30:00')
+    expect(previousWindow!.end.getTime() - previousWindow!.start.getTime()).toBe(
+      now.getTime() - start!.getTime()
+    )
+  })
+
+  it('is unbounded for the all-time range', () => {
+    expect(resolveRange('all', new Date('2026-08-30T14:20:00Z'))).toEqual({
+      start: null,
+      previousWindow: null,
+    })
+  })
+
+  it('shifts calendar days across month boundaries', () => {
+    expect(shiftDay('2026-03-01', -1)).toBe('2026-02-28')
+    expect(shiftDay('2026-12-31', 1)).toBe('2027-01-01')
   })
 })
 
@@ -80,23 +270,64 @@ describe('toWeekdayHourArrays', () => {
   it('pivots ISODOW/hour rows into Monday-first weekday and hour arrays', () => {
     const { byWeekday, byHour } = toWeekdayHourArrays([
       { dow: 1, hour: 9, views: 3 },
-      { dow: 1, hour: 14, views: 2 },
+      { dow: 1, hour: 10, views: 2 },
       { dow: 7, hour: 9, views: 1 },
     ])
-    expect(byWeekday).toEqual([5, 0, 0, 0, 0, 0, 1])
+    expect(byWeekday[0]).toBe(5)
+    expect(byWeekday[6]).toBe(1)
     expect(byHour[9]).toBe(4)
-    expect(byHour[14]).toBe(2)
-    expect(byHour.reduce((a, b) => a + b, 0)).toBe(6)
+    expect(byHour[10]).toBe(2)
   })
 
   it('ignores out-of-range rows', () => {
-    const { byWeekday, byHour } = toWeekdayHourArrays([{ dow: 0, hour: 24, views: 9 }])
+    const { byWeekday, byHour } = toWeekdayHourArrays([{ dow: 0, hour: 99, views: 5 }])
     expect(byWeekday.every(v => v === 0)).toBe(true)
     expect(byHour.every(v => v === 0)).toBe(true)
   })
 })
 
-describe('getLeastViewedSymptoms', () => {
+describe('test surgery scoping', () => {
+  beforeEach(() => {
+    mockedGroupBy.mockResolvedValue([])
+    mockedQueryRaw.mockResolvedValue([])
+    mockedBaseFindMany.mockResolvedValue([])
+  })
+
+  const sqlOf = (call: number) => mockedQueryRaw.mock.calls[call][0].strings.join('')
+
+  it('narrows the all-surgeries overview to live practices by default', async () => {
+    await getTileTotals(scope())
+    expect(sqlOf(0)).toContain('"surgeryType" = \'LIVE\'')
+  })
+
+  it('includes test practices when asked', async () => {
+    await getTileTotals(scope({ includeTestSurgeries: true }))
+    expect(sqlOf(0)).not.toContain('surgeryType')
+  })
+
+  it('always reports on an explicitly selected surgery, whatever its type', async () => {
+    await getTileTotals(scope({ surgeryId: 'test-surgery' }))
+    expect(sqlOf(0)).not.toContain('surgeryType')
+  })
+
+  it('narrows the symptom ranking too', async () => {
+    await getSymptomInsights(scope())
+    expect(mockedGroupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(LIVE_ONLY) })
+    )
+  })
+
+  it('narrows the hand-written aggregates too', async () => {
+    await getDailyTrend(scope(), new Date('2026-08-30T14:20:00Z'))
+    expect(sqlOf(0)).toContain('"surgeryType" = \'LIVE\'')
+
+    mockedQueryRaw.mockClear()
+    await getDailyTrend(scope({ includeTestSurgeries: true }), new Date('2026-08-30T14:20:00Z'))
+    expect(sqlOf(0)).not.toContain('surgeryType')
+  })
+})
+
+describe('getSymptomInsights', () => {
   it('excludes custom symptoms and keys overrides by their base symptom id', async () => {
     mockedEffective.mockResolvedValue([
       { id: 'b1', name: 'Back Pain', ageGroup: 'Adult', source: 'base' },
@@ -105,7 +336,7 @@ describe('getLeastViewedSymptoms', () => {
     ])
     mockedGroupBy.mockResolvedValue([{ baseId: 'b2', _count: { baseId: 6 } }])
 
-    const result = await getLeastViewedSymptoms({ surgeryId: 'sur-1', startDate: null })
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
 
     expect(result.trackedSymptomCount).toBe(2)
     expect(result.leastViewed.map(s => s.name)).toEqual(['Back Pain', 'Tummy Ache'])
@@ -114,15 +345,28 @@ describe('getLeastViewedSymptoms', () => {
     expect(result.neverViewedCount).toBe(1)
   })
 
-  it('uses the base symptom library for the all-surgeries scope', async () => {
-    mockedBaseFindMany.mockResolvedValue([
-      { id: 'b1', name: 'Ear Ache', ageGroup: 'O5' },
+  it('counts an override and its base as one tracked symptom', async () => {
+    mockedEffective.mockResolvedValue([
+      { id: 'b1', name: 'Back Pain', ageGroup: 'Adult', source: 'base' },
+      { id: 'ov1', baseSymptomId: 'b1', name: 'Back Pain', ageGroup: 'Adult', source: 'override' },
     ])
+    mockedGroupBy.mockResolvedValue([{ baseId: 'b1', _count: { baseId: 4 } }])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
+    expect(result.trackedSymptomCount).toBe(1)
+    expect(result.viewedSymptomCount).toBe(1)
+  })
+
+  it('leaves retired symptoms out of the tracked library', async () => {
+    mockedBaseFindMany.mockResolvedValue([{ id: 'b1', name: 'Ear Ache', ageGroup: 'O5' }])
     mockedGroupBy.mockResolvedValue([])
 
-    const result = await getLeastViewedSymptoms({ surgeryId: null, startDate: null })
+    const result = await getSymptomInsights(scope())
 
     expect(mockedEffective).not.toHaveBeenCalled()
+    expect(mockedBaseFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { isDeleted: false } })
+    )
     expect(result.leastViewed).toEqual([
       { id: 'b1', name: 'Ear Ache', ageGroup: 'O5', viewCount: 0 },
     ])
@@ -137,35 +381,134 @@ describe('getLeastViewedSymptoms', () => {
     ])
     mockedGroupBy.mockResolvedValue([{ baseId: 'b2', _count: { baseId: 1 } }])
 
-    const result = await getLeastViewedSymptoms({ surgeryId: 'sur-1', startDate: null })
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
     expect(result.leastViewed.map(s => s.name)).toEqual(['Mango', 'Zebra', 'Apple'])
+  })
+
+  it('ranks the top list highest-first, breaking ties by name', async () => {
+    mockedEffective.mockResolvedValue([
+      { id: 'b1', name: 'Zebra', ageGroup: 'Adult', source: 'base' },
+      { id: 'b2', name: 'Apple', ageGroup: 'Adult', source: 'base' },
+      { id: 'b3', name: 'Mango', ageGroup: 'Adult', source: 'base' },
+    ])
+    mockedGroupBy.mockResolvedValue([
+      { baseId: 'b1', _count: { baseId: 5 } },
+      { baseId: 'b2', _count: { baseId: 5 } },
+    ])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
+    // Never-viewed symptoms are not "top viewed", and equal counts are stable.
+    expect(result.topViewed.map(s => s.name)).toEqual(['Apple', 'Zebra'])
+  })
+
+  it('honours the top and least list sizes independently', async () => {
+    mockedEffective.mockResolvedValue(
+      ['a', 'b', 'c', 'd'].map(n => ({ id: n, name: n, ageGroup: 'Adult', source: 'base' }))
+    )
+    mockedGroupBy.mockResolvedValue([
+      { baseId: 'a', _count: { baseId: 3 } },
+      { baseId: 'b', _count: { baseId: 2 } },
+      { baseId: 'c', _count: { baseId: 1 } },
+    ])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }), {
+      topTake: 2,
+      leastTake: 1,
+    })
+    expect(result.topViewed.map(s => s.name)).toEqual(['a', 'b'])
+    expect(result.leastViewed.map(s => s.name)).toEqual(['d'])
+  })
+
+  it('reconciles the symptom figures: viewed = tracked - never viewed', async () => {
+    mockedEffective.mockResolvedValue(
+      ['a', 'b', 'c', 'd', 'e'].map(n => ({ id: n, name: n, ageGroup: 'Adult', source: 'base' }))
+    )
+    // Includes a retired symptom that is no longer in the library but still has
+    // events: it must not push "symptoms accessed" above the tracked total.
+    mockedGroupBy.mockResolvedValue([
+      { baseId: 'a', _count: { baseId: 3 } },
+      { baseId: 'b', _count: { baseId: 1 } },
+      { baseId: 'retired', _count: { baseId: 9 } },
+    ])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
+    expect(result.trackedSymptomCount).toBe(5)
+    expect(result.neverViewedCount).toBe(3)
+    expect(result.viewedSymptomCount).toBe(2)
+    expect(result.viewedSymptomCount).toBe(
+      result.trackedSymptomCount - result.neverViewedCount
+    )
+    expect(result.topViewed.map(s => s.id)).not.toContain('retired')
   })
 })
 
-describe('getTotals', () => {
-  it('computes true totals and distinct counts for a surgery scope', async () => {
-    mockedCount.mockResolvedValue(42)
-    mockedGroupBy
-      .mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }, { userEmail: 'b@nhs.net' }])
-      .mockResolvedValueOnce([{ baseId: 'b1' }, { baseId: 'b2' }, { baseId: 'b3' }])
+describe('getTileTotals', () => {
+  const row = (over: Record<string, number> = {}) => [{
+    totalViews: 0,
+    signedInViews: 0,
+    distinctUsers: 0,
+    activeSurgeries: 0,
+    previousViews: 0,
+    previousUsers: 0,
+    ...over,
+  }]
 
-    const totals = await getTotals({ surgeryId: 'sur-1', startDate: null })
+  it('reads every tile figure from one aggregate', async () => {
+    mockedQueryRaw.mockResolvedValue(
+      row({ totalViews: 42, signedInViews: 30, distinctUsers: 2 })
+    )
+
+    const { totals } = await getTileTotals(scope({ surgeryId: 'sur-1' }))
     expect(totals).toEqual({
       totalViews: 42,
+      signedInViews: 30,
       distinctUsers: 2,
-      distinctSymptoms: 3,
       activeSurgeries: null,
     })
+    // The point of the consolidation: one round trip, not six.
+    expect(mockedQueryRaw).toHaveBeenCalledTimes(1)
+    expect(mockedGroupBy).not.toHaveBeenCalled()
+  })
+
+  it('reports signed-in views so the unattributed remainder is visible', async () => {
+    mockedQueryRaw.mockResolvedValue(row({ totalViews: 100, signedInViews: 40 }))
+    const { totals } = await getTileTotals(scope({ surgeryId: 'sur-1' }))
+    // 60 views came from sessions with no attributable user.
+    expect(totals.totalViews - totals.signedInViews).toBe(60)
   })
 
   it('counts active surgeries only for the all-surgeries scope', async () => {
-    mockedCount.mockResolvedValue(10)
-    mockedGroupBy
-      .mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }])
-      .mockResolvedValueOnce([{ baseId: 'b1' }])
-      .mockResolvedValueOnce([{ surgeryId: 'sur-1' }, { surgeryId: 'sur-2' }])
-
-    const totals = await getTotals({ surgeryId: null, startDate: null })
+    mockedQueryRaw.mockResolvedValue(row({ activeSurgeries: 2 }))
+    const { totals } = await getTileTotals(scope())
     expect(totals.activeSurgeries).toBe(2)
+  })
+
+  it('returns the previous window from the same pass', async () => {
+    mockedQueryRaw.mockResolvedValue(
+      row({ totalViews: 42, previousViews: 30, previousUsers: 4 })
+    )
+    const { previousTotals } = await getTileTotals(
+      scope({
+        startDate: new Date('2026-08-23T23:00:00Z'),
+        previousWindow: {
+          start: new Date('2026-08-16T23:00:00Z'),
+          end: new Date('2026-08-23T23:00:00Z'),
+        },
+      })
+    )
+    expect(previousTotals).toEqual({ totalViews: 30, distinctUsers: 4 })
+    expect(mockedQueryRaw).toHaveBeenCalledTimes(1)
+  })
+
+  it('has no previous window to compare against for all time', async () => {
+    mockedQueryRaw.mockResolvedValue(row({ totalViews: 42 }))
+    const { previousTotals } = await getTileTotals(scope())
+    expect(previousTotals).toBeNull()
+  })
+
+  it('survives an empty result set', async () => {
+    mockedQueryRaw.mockResolvedValue([])
+    const { totals } = await getTileTotals(scope())
+    expect(totals.totalViews).toBe(0)
   })
 })
