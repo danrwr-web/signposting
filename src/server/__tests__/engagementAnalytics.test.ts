@@ -4,6 +4,7 @@ import {
   toWeekdayHourArrays,
   londonDay,
   londonMidnight,
+  londonTimeOfDay,
   shiftDay,
   getSymptomInsights,
   getTileTotals,
@@ -117,7 +118,8 @@ describe('resolveRange', () => {
 
   it('compares against the same elapsed time one period earlier', () => {
     // Today is only partly elapsed, so comparing it against seven *complete*
-    // days would understate every delta chip until midnight.
+    // days would understate every delta chip until midnight. Away from a clock
+    // change, matching wall-clock cutoffs also matches elapsed time.
     const now = new Date('2026-08-30T08:00:00Z')
     const { start, previousWindow } = resolveRange('7d', now)
     const elapsed = now.getTime() - start!.getTime()
@@ -145,6 +147,32 @@ describe('resolveRange', () => {
         expect(previousWindow!.start.getTime()).toBeLessThan(previousWindow!.end.getTime())
       }
     }
+  })
+
+  it('cuts the comparison off at the same London wall-clock time', () => {
+    // The week after the 29 March spring-forward: only the current window
+    // spans the transition, so matching elapsed milliseconds instead of wall
+    // clock ended the comparison at 08:00 against the current 09:00 —
+    // dropping the busiest hour of that day.
+    const now = new Date('2026-03-31T08:00:00Z') // 09:00 London, BST
+    const { previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(now)).toBe('09:00:00')
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('09:00:00')
+    expect(londonDay(previousWindow!.end)).toBe('2026-03-24')
+  })
+
+  it('holds when the previous window is the one spanning the clock change', () => {
+    const now = new Date('2026-04-05T08:00:00Z') // 09:00 London, BST
+    const { previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('09:00:00')
+    expect(londonDay(previousWindow!.end)).toBe('2026-03-29')
+  })
+
+  it('cuts off at the same wall-clock time away from any transition', () => {
+    const now = new Date('2026-08-30T08:00:00Z') // 09:00 London
+    const { previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('09:00:00')
+    expect(londonDay(previousWindow!.end)).toBe('2026-08-23')
   })
 
   it('reads as no change over a period of perfectly flat traffic', () => {

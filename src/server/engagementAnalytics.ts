@@ -108,13 +108,26 @@ function londonOffsetMs(instant: Date): number {
   return asIfUtc - instant.getTime()
 }
 
-/** The UTC instant at which a London calendar day begins. */
-export function londonMidnight(day: string): Date {
-  const naive = Date.parse(`${day}T00:00:00Z`)
+/** The UTC instant of a wall-clock time on a London calendar day. */
+export function londonInstant(day: string, time = '00:00:00'): Date {
+  const naive = Date.parse(`${day}T${time}Z`)
   // The first guess can land the wrong side of a DST transition; re-reading the
   // offset at that guess settles it.
   const firstPass = naive - londonOffsetMs(new Date(naive))
   return new Date(naive - londonOffsetMs(new Date(firstPass)))
+}
+
+/** The UTC instant at which a London calendar day begins. */
+export function londonMidnight(day: string): Date {
+  return londonInstant(day)
+}
+
+/** Wall-clock time of day in London, as HH:MM:SS. */
+export function londonTimeOfDay(instant: Date): string {
+  const parts = londonPartsFormat.formatToParts(instant)
+  const at = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find(p => p.type === type)?.value ?? '00'
+  return `${at('hour')}:${at('minute')}:${at('second')}`
 }
 
 /** Move a YYYY-MM-DD calendar day by whole days. */
@@ -137,7 +150,13 @@ export function shiftDay(day: string, delta: number): string {
  * chip for most of the day — a flat week would read as -9% at 09:00, and only
  * reach 0% at midnight. So the previous window is shifted back a whole `days`,
  * which keeps it on the same weekdays (GP traffic is strongly weekday-shaped),
- * and truncated to the same elapsed time.
+ * and cut off at the same time of day.
+ *
+ * Both boundaries are London wall-clock times rather than elapsed milliseconds.
+ * In the days around a clock change only one of the two windows spans the
+ * transition, so equal elapsed time puts the previous cutoff an hour out — in
+ * March it would end at 08:00 against the current 09:00, dropping the busiest
+ * hour of that day from the comparison.
  */
 export function resolveRange(
   range: EngagementRange,
@@ -149,12 +168,12 @@ export function resolveRange(
   const start = londonMidnight(startDay)
 
   const previousStart = londonMidnight(shiftDay(startDay, -days))
-  const elapsed = now.getTime() - start.getTime()
-  // A clock change can make the shifted-back period an hour longer than the
-  // current one, which would otherwise overlap it; the windows must stay
-  // disjoint.
-  const previousEnd = Math.min(previousStart.getTime() + elapsed, start.getTime())
-  return { start, previousWindow: { start: previousStart, end: new Date(previousEnd) } }
+  const previousEnd = londonInstant(shiftDay(londonDay(now), -days), londonTimeOfDay(now))
+  // The wall-clock construction already puts the cutoff on the day before the
+  // current window opens, but a nonexistent local time on a spring-forward day
+  // resolves loosely; the windows must stay disjoint regardless.
+  const end = new Date(Math.min(previousEnd.getTime(), start.getTime()))
+  return { start, previousWindow: { start: previousStart, end } }
 }
 
 /**
