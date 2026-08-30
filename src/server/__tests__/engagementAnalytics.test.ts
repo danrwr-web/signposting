@@ -127,7 +127,7 @@ describe('resolveRange', () => {
     expect(previousWindow!.end.getTime() - previousWindow!.start.getTime()).toBe(elapsed)
   })
 
-  it('shifts the comparison back a whole period, so it lands on the same weekdays', () => {
+  it('lands the 7-day comparison on exactly the same weekdays', () => {
     const now = new Date('2026-08-30T08:00:00Z')
     const { start, previousWindow } = resolveRange('7d', now)
     expect(londonDay(start!)).toBe('2026-08-24')
@@ -135,6 +135,26 @@ describe('resolveRange', () => {
     expect(new Date('2026-08-24T12:00:00Z').getUTCDay()).toBe(
       new Date('2026-08-17T12:00:00Z').getUTCDay()
     )
+  })
+
+  it('does not preserve weekdays on the 30- and 90-day ranges', () => {
+    // Pinned rather than fixed: 30 and 90 are not multiples of 7, so those
+    // comparisons drift by two and six weekdays. That is inherent to comparing
+    // "the last 30 days" with "the 30 before that" — week-aligned ranges would
+    // remove it, at the cost of what the range names mean. Documented so the
+    // drift is a known property rather than a surprise.
+    const now = new Date('2026-08-30T08:00:00Z')
+    const weekdayOf = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay()
+    for (const [range, drift] of [
+      ['7d', 0],
+      ['30d', 30 % 7],
+      ['90d', 90 % 7],
+    ] as const) {
+      const { start, previousWindow } = resolveRange(range, now)
+      const shift =
+        (weekdayOf(londonDay(start!)) - weekdayOf(londonDay(previousWindow!.start)) + 7) % 7
+      expect(`${range}: ${shift}`).toBe(`${range}: ${drift}`)
+    }
   })
 
   it('keeps the two windows disjoint', () => {

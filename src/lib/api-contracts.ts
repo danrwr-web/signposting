@@ -415,9 +415,11 @@ export interface EngagementTopRes {
   }>;
   totals: EngagementTotals;
   /**
-   * The same elapsed time one period earlier — shifted back a whole period so
-   * it lands on the same weekdays, and truncated to match how much of the
-   * current period has actually elapsed. Null for all time.
+   * The same elapsed time one period earlier — shifted back a whole period and
+   * truncated to match how much of the current period has actually elapsed.
+   * The shift preserves weekdays for the 7-day range only; 30 and 90 are not
+   * multiples of 7, so those comparisons can hold a slightly different mix of
+   * weekdays. Null for all time.
    */
   previousTotals: { totalViews: number; distinctUsers: number } | null;
   trend: {

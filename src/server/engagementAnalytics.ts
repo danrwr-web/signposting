@@ -148,9 +148,17 @@ export function shiftDay(day: string, delta: number): string {
  * elapsed: at 09:00 a 7-day range covers 153 hours, not 168. Comparing that
  * against the seven *complete* days before it would understate every delta
  * chip for most of the day — a flat week would read as -9% at 09:00, and only
- * reach 0% at midnight. So the previous window is shifted back a whole `days`,
- * which keeps it on the same weekdays (GP traffic is strongly weekday-shaped),
+ * reach 0% at midnight. So the previous window is shifted back a whole `days`
  * and cut off at the same time of day.
+ *
+ * That shift lands on the same weekdays only for `7d`. 30 and 90 are not
+ * multiples of 7, so those windows drift by two and six weekdays respectively,
+ * and can hold a different mix of weekdays and weekend days — worst case 20
+ * against 22 weekdays over 30 days. GP traffic is heavily weekday-shaped, so
+ * that shows up as a few percent of calendar noise in the chip. It is inherent
+ * to comparing "the last 30 days" with "the 30 before that", as every
+ * analytics tool that offers those ranges does; week-aligned ranges (28/91)
+ * would remove it at the cost of what the range names mean.
  *
  * Both boundaries are London wall-clock times rather than elapsed milliseconds.
  * In the days around a clock change only one of the two windows spans the
