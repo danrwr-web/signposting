@@ -6,6 +6,7 @@ import {
   londonMidnight,
   londonTimeOfDay,
   shiftDay,
+  RANGE_DAYS,
   getSymptomInsights,
   getTileTotals,
   getDailyTrend,
@@ -184,6 +185,52 @@ describe('resolveRange', () => {
     const previousHours =
       (previousWindow!.end.getTime() - previousWindow!.start.getTime()) / 3_600_000
     expect(currentHours).toBe(previousHours)
+  })
+
+  it('holds its invariants across every day of a year', () => {
+    // This window arithmetic has been wrong twice — once comparing a partial
+    // day against complete ones, once matching elapsed milliseconds across a
+    // clock change. A sweep is cheaper than a third round of finding out.
+    for (let day = 0; day < 365; day++) {
+      for (const hour of [0, 1, 9, 23]) {
+        const now = new Date(Date.UTC(2026, 0, 1 + day, hour, 30, 0))
+        for (const range of ['7d', '30d', '90d'] as const) {
+          const days = RANGE_DAYS[range]
+          const { start, previousWindow } = resolveRange(range, now)
+          const where = `${range} at ${now.toISOString()}`
+
+          // The two windows never overlap and the previous one is never empty.
+          expect(`${where}: ${previousWindow!.end <= start!}`).toBe(`${where}: true`)
+          expect(`${where}: ${previousWindow!.start < previousWindow!.end}`).toBe(
+            `${where}: true`
+          )
+          // The chart always shows exactly the number of days it names.
+          expect(`${where}: ${fillDaySeries([], start!, now).length}`).toBe(`${where}: ${days}`)
+          // Both windows open on a London midnight, a whole period apart.
+          expect(`${where}: ${londonDay(start!)}`).toBe(
+            `${where}: ${shiftDay(londonDay(now), -(days - 1))}`
+          )
+          expect(`${where}: ${londonDay(previousWindow!.start)}`).toBe(
+            `${where}: ${shiftDay(londonDay(now), -(days - 1) - days)}`
+          )
+        }
+      }
+    }
+  })
+
+  it('resolves a cutoff that falls in the spring-forward gap without losing time', () => {
+    // At 01:30 on 5 April the 7-day comparison wants to end at 01:30 on 29
+    // March — an hour that does not exist, since the clocks jump 01:00 to
+    // 02:00. It resolves forward to 02:30, so the wall-clock labels differ
+    // while the elapsed time each window covers stays identical, which is what
+    // the percentage actually depends on. Roughly one hour a year; correct.
+    const now = new Date('2026-04-05T00:30:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    expect(londonTimeOfDay(now)).toBe('01:30:00')
+    expect(londonTimeOfDay(previousWindow!.end)).toBe('02:30:00')
+    expect(previousWindow!.end.getTime() - previousWindow!.start.getTime()).toBe(
+      now.getTime() - start!.getTime()
+    )
   })
 
   it('is unbounded for the all-time range', () => {
