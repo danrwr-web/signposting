@@ -11,6 +11,14 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   error?: boolean
 }
 
+/**
+ * Note on width: the default `w-full` below suits form layouts, but Tailwind
+ * emits `.w-full` after `.w-auto`, so a plain `className="w-auto"` loses the
+ * tie and silently does nothing — it only looks narrow because a non-wrapping
+ * flex row shrinks it. To size a Select to its content, pass `!w-auto` (or any
+ * other `!w-*`) so the override actually wins.
+ */
+
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ error = false, className = '', children, ...rest }, ref) => {
     return (

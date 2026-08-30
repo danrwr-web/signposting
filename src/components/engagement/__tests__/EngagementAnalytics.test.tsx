@@ -226,4 +226,18 @@ describe('EngagementAnalytics', () => {
     await waitFor(() => expect(screen.getByText('999')).toBeInTheDocument())
     expect(screen.queryByText(/views signed in/)).not.toBeInTheDocument()
   })
+
+  it('keeps the header controls on one auto-width row', async () => {
+    // jsdom does no layout, so this guards the two class-level causes of the
+    // controls stacking full-width: Select's own w-full beats a plain w-auto,
+    // and a wrapping row gives each control a line of its own to fill.
+    mockFetch(makeResponse())
+    render(<EngagementAnalytics session={superuserSession} selectedSurgeryId="all" />)
+
+    await waitFor(() => expect(screen.getByText('999')).toBeInTheDocument())
+    const range = screen.getByLabelText('Date range')
+    expect(range.className).toContain('!w-auto')
+    expect(screen.getByLabelText('Number of results').className).toContain('!w-auto')
+    expect(range.parentElement!.className).not.toContain('flex-wrap')
+  })
 })

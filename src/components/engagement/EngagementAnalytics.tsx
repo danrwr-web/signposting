@@ -156,7 +156,7 @@ export default function EngagementAnalytics({
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-semibold text-nhs-dark-blue">Engagement Analytics</h2>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex items-center gap-3">
         {showTestSurgeryToggle && (
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input
@@ -174,7 +174,7 @@ export default function EngagementAnalytics({
           onChange={e => setDateRange(e.target.value as DateRange)}
           disabled={isLoading}
           aria-label="Date range"
-          className="w-auto"
+          className="!w-auto"
         >
           {(Object.keys(RANGE_LABELS) as DateRange[]).map(range => (
             <option key={range} value={range}>
@@ -187,7 +187,7 @@ export default function EngagementAnalytics({
           onChange={e => setLimit(Number(e.target.value))}
           disabled={isLoading}
           aria-label="Number of results"
-          className="w-auto"
+          className="!w-auto"
         >
           <option value={5}>Top 5</option>
           <option value={10}>Top 10</option>
