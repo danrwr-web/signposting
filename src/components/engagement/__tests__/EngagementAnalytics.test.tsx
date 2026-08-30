@@ -243,4 +243,100 @@ describe('EngagementAnalytics', () => {
     }
     expect(range.parentElement!.className).not.toContain('flex-wrap')
   })
+
+  it('states its own scope, period and practice-type', async () => {
+    mockFetch(makeResponse())
+    render(
+      <EngagementAnalytics
+        session={superuserSession}
+        selectedSurgeryId="all"
+        scopeLabel="All surgeries"
+      />
+    )
+
+    // The page header names the surgery being configured, which on the
+    // overview is a different thing from what this tab is reporting.
+    await waitFor(() =>
+      expect(
+        screen.getByText('All surgeries · Last 30 days · live practices only')
+      ).toBeInTheDocument()
+    )
+
+    await userEvent.click(screen.getByLabelText('Include test surgeries'))
+    await waitFor(() =>
+      expect(
+        screen.getByText('All surgeries · Last 30 days · including test practices')
+      ).toBeInTheDocument()
+    )
+  })
+
+  it('names the surgery, not its id, when scoped to one practice', async () => {
+    mockFetch(makeResponse())
+    render(<EngagementAnalytics session={surgerySession} scopeLabel="Ide Lane Surgery" />)
+
+    await waitFor(() =>
+      expect(screen.getByText('Ide Lane Surgery · Last 30 days')).toBeInTheDocument()
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'Export Data' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Export CSV' }))
+    expect(buildEngagementCsv).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ scopeLabel: 'Ide Lane Surgery' })
+    )
+  })
+
+  it('gives the symptom count its denominator', async () => {
+    mockFetch(makeResponse())
+    render(<EngagementAnalytics session={surgerySession} />)
+
+    await waitFor(() => expect(screen.getByText('Symptoms viewed')).toBeInTheDocument())
+    expect(screen.getByText('of 25 in the library')).toBeInTheDocument()
+  })
+
+  it('reserves the same number of tiles while loading as after', async () => {
+    // A three-tile skeleton followed by a four-tile row shifted the page on
+    // every superuser load.
+    global.fetch = jest.fn(() => new Promise(() => {})) as unknown as typeof fetch
+    const { container } = render(
+      <EngagementAnalytics session={superuserSession} selectedSurgeryId="all" />
+    )
+    const grid = container.querySelector('.grid')!
+    expect(grid.className).toContain('lg:grid-cols-4')
+    expect(grid.children).toHaveLength(4)
+  })
+
+  it('leaves the range controls usable while a fetch is in flight', async () => {
+    global.fetch = jest.fn(() => new Promise(() => {})) as unknown as typeof fetch
+    render(<EngagementAnalytics session={surgerySession} />)
+    expect(screen.getByLabelText('Date range')).toBeEnabled()
+    expect(screen.getByLabelText('Number of results')).toBeEnabled()
+    // Export still needs data to export.
+    expect(screen.getByRole('button', { name: 'Export Data' })).toBeDisabled()
+  })
+
+  it('names the busiest hour in text, not only in colour', async () => {
+    const byHour = Array(24).fill(0)
+    byHour[8] = 74
+    byHour[14] = 30
+    mockFetch(
+      makeResponse({
+        insights: { ...makeResponse().insights, byHour },
+      })
+    )
+    render(<EngagementAnalytics session={surgerySession} />)
+
+    await waitFor(() => expect(screen.getByText('08:00–09:00')).toBeInTheDocument())
+    expect(
+      screen.getByLabelText(/Busiest: 08:00–09:00, 74 views; 14:00–15:00, 30 views/)
+    ).toBeInTheDocument()
+  })
+
+  it('shows the trend peak up front rather than only on hover', async () => {
+    mockFetch(makeResponse())
+    render(<EngagementAnalytics session={surgerySession} />)
+
+    await waitFor(() => expect(screen.getByText('Peak:')).toBeInTheDocument())
+    expect(screen.getByText('Peak:').closest('p')).toHaveTextContent('Peak: 22 Jul — 5 views')
+  })
 })

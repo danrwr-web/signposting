@@ -46,12 +46,17 @@ interface EngagementAnalyticsProps {
   selectedSurgeryId?: string
   /** Called when the user drills into a surgery from the breakdown list. */
   onSelectSurgery?: (surgeryId: string) => void
+  /** Human name of the current scope, e.g. "Ide Lane Surgery" or "All
+   *  surgeries". The page header names the surgery being *configured*, which
+   *  isn't always what this tab is reporting on, so the tab says its own. */
+  scopeLabel?: string
 }
 
 export default function EngagementAnalytics({
   session,
   selectedSurgeryId = 'all',
   onSelectSurgery,
+  scopeLabel,
 }: EngagementAnalyticsProps) {
   const [engagementData, setEngagementData] = useState<EngagementTopRes | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -145,7 +150,7 @@ export default function EngagementAnalytics({
     if (!engagementData) return
     const csv = buildEngagementCsv(engagementData, {
       rangeLabel: RANGE_LABELS[dateRange],
-      scopeLabel: scopedSurgeryId ?? 'All surgeries',
+      scopeLabel: scopeLabel ?? scopedSurgeryId ?? 'All surgeries',
       includesTestSurgeries: showTestSurgeryToggle ? includeTestSurgeries : undefined,
       generatedAt: new Date(),
     })
@@ -153,9 +158,27 @@ export default function EngagementAnalytics({
     setShowExportModal(false)
   }
 
+  // What this tab is actually reporting on. Stated here because the page header
+  // names the surgery being configured, which is a different thing on the
+  // all-surgeries overview, and because the tiles otherwise carry no period.
+  const scopeSummary = [
+    scopeLabel ?? (scopedSurgeryId ? undefined : 'All surgeries'),
+    RANGE_LABELS[dateRange],
+    showTestSurgeryToggle
+      ? includeTestSurgeries
+        ? 'including test practices'
+        : 'live practices only'
+      : undefined,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const header = (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="text-xl font-semibold text-nhs-dark-blue">Engagement Analytics</h2>
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 className="text-xl font-semibold text-nhs-dark-blue">Engagement Analytics</h2>
+        <p className="mt-0.5 text-sm text-gray-600">{scopeSummary}</p>
+      </div>
       <div className="flex items-center gap-3">
         {showTestSurgeryToggle && (
           <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -163,16 +186,17 @@ export default function EngagementAnalytics({
               type="checkbox"
               checked={includeTestSurgeries}
               onChange={e => setIncludeTestSurgeries(e.target.checked)}
-              disabled={isLoading}
               className="h-4 w-4 rounded border-gray-300 text-nhs-blue focus:ring-nhs-blue"
             />
             Include test surgeries
           </label>
         )}
+        {/* Not disabled while loading: a stale in-flight response is already
+            discarded, and locking the controls mid-fetch just blocks a change
+            of mind. */}
         <Select
           value={dateRange}
           onChange={e => setDateRange(e.target.value as DateRange)}
-          disabled={isLoading}
           aria-label="Date range"
           className="w-auto"
         >
@@ -185,7 +209,6 @@ export default function EngagementAnalytics({
         <Select
           value={limit}
           onChange={e => setLimit(Number(e.target.value))}
-          disabled={isLoading}
           aria-label="Number of results"
           className="w-auto"
         >
@@ -194,7 +217,7 @@ export default function EngagementAnalytics({
           <option value={20}>Top 20</option>
         </Select>
         <Button
-          variant="success"
+          variant="secondary"
           onClick={() => setShowExportModal(true)}
           disabled={isLoading || !engagementData}
         >
@@ -208,8 +231,12 @@ export default function EngagementAnalytics({
     return (
       <div className="space-y-6">
         {header}
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-          {[...Array(3)].map((_, i) => (
+        <div
+          className={`grid grid-cols-2 gap-4 ${
+            showTestSurgeryToggle ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+          }`}
+        >
+          {[...Array(showTestSurgeryToggle ? 4 : 3)].map((_, i) => (
             <Card key={i} elevation="flat" padding="md">
               <Skeleton height="h-4" width="w-2/3" />
               <Skeleton height="h-8" width="w-1/3" className="mt-2" />
@@ -258,6 +285,7 @@ export default function EngagementAnalytics({
           totals={engagementData.totals}
           previousTotals={engagementData.previousTotals}
           periodLabel={PERIOD_LABELS[dateRange]}
+          trackedSymptomCount={engagementData.insights.trackedSymptomCount}
           isSuperuser={isSuperuser}
         />
       )}

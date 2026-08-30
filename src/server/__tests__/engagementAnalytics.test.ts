@@ -6,7 +6,7 @@ import {
   londonMidnight,
   shiftDay,
   getSymptomInsights,
-  getTotals,
+  getTileTotals,
   getDailyTrend,
   type EngagementScope,
 } from '@/server/engagementAnalytics'
@@ -158,38 +158,42 @@ describe('toWeekdayHourArrays', () => {
 
 describe('test surgery scoping', () => {
   beforeEach(() => {
-    mockedCount.mockResolvedValue(0)
     mockedGroupBy.mockResolvedValue([])
     mockedQueryRaw.mockResolvedValue([])
+    mockedBaseFindMany.mockResolvedValue([])
   })
 
+  const sqlOf = (call: number) => mockedQueryRaw.mock.calls[call][0].strings.join('')
+
   it('narrows the all-surgeries overview to live practices by default', async () => {
-    await getTotals(scope())
-    expect(mockedCount).toHaveBeenCalledWith({ where: expect.objectContaining(LIVE_ONLY) })
+    await getTileTotals(scope())
+    expect(sqlOf(0)).toContain('"surgeryType" = \'LIVE\'')
   })
 
   it('includes test practices when asked', async () => {
-    await getTotals(scope({ includeTestSurgeries: true }))
-    expect(mockedCount).not.toHaveBeenCalledWith({
-      where: expect.objectContaining({ surgery: expect.anything() }),
-    })
+    await getTileTotals(scope({ includeTestSurgeries: true }))
+    expect(sqlOf(0)).not.toContain('surgeryType')
   })
 
   it('always reports on an explicitly selected surgery, whatever its type', async () => {
-    await getTotals(scope({ surgeryId: 'test-surgery' }))
-    expect(mockedCount).not.toHaveBeenCalledWith({
-      where: expect.objectContaining({ surgery: expect.anything() }),
-    })
+    await getTileTotals(scope({ surgeryId: 'test-surgery' }))
+    expect(sqlOf(0)).not.toContain('surgeryType')
+  })
+
+  it('narrows the symptom ranking too', async () => {
+    await getSymptomInsights(scope())
+    expect(mockedGroupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(LIVE_ONLY) })
+    )
   })
 
   it('narrows the hand-written aggregates too', async () => {
     await getDailyTrend(scope(), new Date('2026-08-30T14:20:00Z'))
-    const sql = mockedQueryRaw.mock.calls[0][0].strings.join('')
-    expect(sql).toContain('"surgeryType" = \'LIVE\'')
+    expect(sqlOf(0)).toContain('"surgeryType" = \'LIVE\'')
 
     mockedQueryRaw.mockClear()
     await getDailyTrend(scope({ includeTestSurgeries: true }), new Date('2026-08-30T14:20:00Z'))
-    expect(mockedQueryRaw.mock.calls[0][0].strings.join('')).not.toContain('surgeryType')
+    expect(sqlOf(0)).not.toContain('surgeryType')
   })
 })
 
@@ -308,36 +312,73 @@ describe('getSymptomInsights', () => {
   })
 })
 
-describe('getTotals', () => {
-  it('computes true totals and distinct counts for a surgery scope', async () => {
-    mockedCount.mockResolvedValueOnce(42).mockResolvedValueOnce(30)
-    mockedGroupBy.mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }, { userEmail: 'b@nhs.net' }])
+describe('getTileTotals', () => {
+  const row = (over: Record<string, number> = {}) => [{
+    totalViews: 0,
+    signedInViews: 0,
+    distinctUsers: 0,
+    activeSurgeries: 0,
+    previousViews: 0,
+    previousUsers: 0,
+    ...over,
+  }]
 
-    const totals = await getTotals(scope({ surgeryId: 'sur-1' }))
+  it('reads every tile figure from one aggregate', async () => {
+    mockedQueryRaw.mockResolvedValue(
+      row({ totalViews: 42, signedInViews: 30, distinctUsers: 2 })
+    )
+
+    const { totals } = await getTileTotals(scope({ surgeryId: 'sur-1' }))
     expect(totals).toEqual({
       totalViews: 42,
       signedInViews: 30,
       distinctUsers: 2,
       activeSurgeries: null,
     })
+    // The point of the consolidation: one round trip, not six.
+    expect(mockedQueryRaw).toHaveBeenCalledTimes(1)
+    expect(mockedGroupBy).not.toHaveBeenCalled()
   })
 
   it('reports signed-in views so the unattributed remainder is visible', async () => {
-    mockedCount.mockResolvedValueOnce(100).mockResolvedValueOnce(40)
-    mockedGroupBy.mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }])
-
-    const totals = await getTotals(scope({ surgeryId: 'sur-1' }))
+    mockedQueryRaw.mockResolvedValue(row({ totalViews: 100, signedInViews: 40 }))
+    const { totals } = await getTileTotals(scope({ surgeryId: 'sur-1' }))
     // 60 views came from sessions with no attributable user.
     expect(totals.totalViews - totals.signedInViews).toBe(60)
   })
 
   it('counts active surgeries only for the all-surgeries scope', async () => {
-    mockedCount.mockResolvedValue(10)
-    mockedGroupBy
-      .mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }])
-      .mockResolvedValueOnce([{ surgeryId: 'sur-1' }, { surgeryId: 'sur-2' }])
-
-    const totals = await getTotals(scope())
+    mockedQueryRaw.mockResolvedValue(row({ activeSurgeries: 2 }))
+    const { totals } = await getTileTotals(scope())
     expect(totals.activeSurgeries).toBe(2)
+  })
+
+  it('returns the previous window from the same pass', async () => {
+    mockedQueryRaw.mockResolvedValue(
+      row({ totalViews: 42, previousViews: 30, previousUsers: 4 })
+    )
+    const { previousTotals } = await getTileTotals(
+      scope({
+        startDate: new Date('2026-08-23T23:00:00Z'),
+        previousWindow: {
+          start: new Date('2026-08-16T23:00:00Z'),
+          end: new Date('2026-08-23T23:00:00Z'),
+        },
+      })
+    )
+    expect(previousTotals).toEqual({ totalViews: 30, distinctUsers: 4 })
+    expect(mockedQueryRaw).toHaveBeenCalledTimes(1)
+  })
+
+  it('has no previous window to compare against for all time', async () => {
+    mockedQueryRaw.mockResolvedValue(row({ totalViews: 42 }))
+    const { previousTotals } = await getTileTotals(scope())
+    expect(previousTotals).toBeNull()
+  })
+
+  it('survives an empty result set', async () => {
+    mockedQueryRaw.mockResolvedValue([])
+    const { totals } = await getTileTotals(scope())
+    expect(totals.totalViews).toBe(0)
   })
 })

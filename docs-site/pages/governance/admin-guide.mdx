@@ -280,11 +280,12 @@ Analytics are accessible to Surgery Admins and Superusers from the admin navigat
 
 The **Engagement** tab in Signposting settings gives a symptom-level view of how the directory is being used:
 
-- **Summary tiles** show true totals for the selected date range — total symptom views, active users and symptoms accessed — with a percentage change against the previous period of the same length. Superusers viewing all surgeries also see how many surgeries were active.
-- A **Views Over Time** chart plots daily symptom views (the All time range shows the most recent 90 days).
+- A line under the heading names what you are looking at — the scope, the date range, and whether test practices are included — so it is always clear even when the page header above names a different surgery.
+- **Summary tiles** show true totals for the selected date range — total symptom views, active users and symptoms viewed — with a percentage change against the previous period of the same length. Superusers viewing all surgeries also see how many surgeries were active.
+- A **Views Over Time** chart plots daily symptom views (the All time range shows the most recent 90 days), with the peak day called out above it and each day's figure shown as you move across the bars.
 - **Most Viewed Symptoms** and **Most Active Users** rank the top 5/10/20 for the selected range, with proportional bars so relative volume is visible at a glance.
 - **Least Viewed Symptoms** highlights content that isn't being used — useful for spotting symptoms worth covering in training or reviewing for relevance. Views are only recorded for library symptoms, so surgery-created custom symptoms aren't included.
-- **Busiest Days & Times** shows when lookups happen (UK local time), to help with staffing and picking training slots.
+- **Busiest Days & Times** shows when lookups happen (UK local time), to help with staffing and picking training slots. The busiest hour is named in text beneath the heatmap.
 - **Export Data** downloads everything currently shown as a CSV file.
 
 Surgery admins see only their own surgery's activity. Superusers can view a single surgery or the cross-surgery overview, which adds a per-surgery breakdown with drill-in links.
@@ -294,7 +295,7 @@ Surgery admins see only their own surgery's activity. Superusers can view a sing
 - **Date ranges cover whole days in UK local time.** "Last 7 days" is today plus the six days before it, so the first bar of the chart is a complete day rather than a part-day. Everyone looking at the same range sees the same window.
 - **Clinical review and suggestion triage are excluded.** Opening a symptom from the Clinical Review tab, or from a suggestion in the superuser suggestions area, is content checking rather than signposting, so it isn't counted as a view.
 - **Active users only counts staff whose views could be attributed to them.** A view is attributed when the person is signed in with their own account; views from the shared practice login can't be. Where the two differ, the tile says how many of the period's views were signed in, so you can see how much of the traffic the user figure represents.
-- **Symptoms accessed counts symptoms in your library today.** It always equals the total in **Least Viewed Symptoms** minus the number never viewed, so the two cards can't disagree. Retired symptoms are left out of both.
+- **Symptoms viewed counts symptoms in your library today**, and is captioned with the library total so you can see the share at a glance. It always equals the total in **Least Viewed Symptoms** minus the number never viewed, so the two cards can't disagree. Retired symptoms are left out of both.
 - **The cross-surgery overview excludes test and template practices** so internal testing doesn't inflate the totals. Superusers can tick **Include test surgeries** to put them back in — the choice is recorded in the CSV export. Selecting a single surgery always reports on it, whatever its type.
 
 ---

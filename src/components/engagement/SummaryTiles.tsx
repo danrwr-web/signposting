@@ -34,6 +34,8 @@ export interface SummaryTilesProps {
   previousTotals: EngagementTopRes['previousTotals']
   /** e.g. "7 days" — names the comparison window on the delta chips. */
   periodLabel: string
+  /** Symptoms in the library for this scope, for the coverage caption. */
+  trackedSymptomCount: number
   isSuperuser: boolean
 }
 
@@ -46,7 +48,13 @@ interface Tile {
   caption?: string
 }
 
-export function SummaryTiles({ totals, previousTotals, periodLabel, isSuperuser }: SummaryTilesProps) {
+export function SummaryTiles({
+  totals,
+  previousTotals,
+  periodLabel,
+  trackedSymptomCount,
+  isSuperuser,
+}: SummaryTilesProps) {
   const showSurgeries = isSuperuser && totals.activeSurgeries !== null
   const tiles: Tile[] = [
     {
@@ -69,10 +77,16 @@ export function SummaryTiles({ totals, previousTotals, periodLabel, isSuperuser 
           : undefined,
     },
     {
-      label: 'Symptoms accessed',
+      // "Accessed" read as though it might mean something other than viewed.
+      // The caption gives the figure its denominator, which is the question
+      // this tile actually prompts.
+      label: 'Symptoms viewed',
       value: totals.distinctSymptoms,
       valueClass: 'text-purple-600',
       delta: null,
+      caption: trackedSymptomCount > 0
+        ? `of ${trackedSymptomCount.toLocaleString()} in the library`
+        : undefined,
     },
     ...(showSurgeries
       ? [

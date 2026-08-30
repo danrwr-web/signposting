@@ -189,49 +189,78 @@ export function toWeekdayHourArrays(
  *  instead (see getSymptomInsights) so every symptom figure reconciles. */
 export type EngagementVolumeTotals = Omit<EngagementTotals, 'distinctSymptoms'>
 
-export async function getTotals(scope: EngagementScope): Promise<EngagementVolumeTotals> {
-  const where = engagementWhere(scope)
-  // Views are only attributed to a user when the viewer held a NextAuth
-  // session, so signed-in views are reported alongside the user count to make
-  // the gap between the two visible.
-  const signedInWhere: Prisma.EngagementEventWhereInput = { ...where, userEmail: { not: null } }
-  const [totalViews, signedInViews, users, surgeries] = await Promise.all([
-    prisma.engagementEvent.count({ where }),
-    prisma.engagementEvent.count({ where: signedInWhere }),
-    prisma.engagementEvent.groupBy({ by: ['userEmail'], where: signedInWhere }),
-    scope.surgeryId
-      ? Promise.resolve(null)
-      : prisma.engagementEvent.groupBy({
-          by: ['surgeryId'],
-          where: { ...where, surgeryId: { not: null } },
-        }),
-  ])
-  return {
-    totalViews,
-    signedInViews,
-    distinctUsers: users.length,
-    activeSurgeries: surgeries ? surgeries.length : null,
-  }
+export interface EngagementTileTotals {
+  totals: EngagementVolumeTotals
+  previousTotals: EngagementTopRes['previousTotals']
 }
 
-export async function getPreviousTotals(
-  scope: EngagementScope
-): Promise<EngagementTopRes['previousTotals']> {
-  if (!scope.previousWindow) return null
-  const where: Prisma.EngagementEventWhereInput = {
-    event: VIEW_EVENT,
-    createdAt: { gte: scope.previousWindow.start, lt: scope.previousWindow.end },
+/** Row shape of the consolidated tile aggregate. */
+interface TileRow {
+  totalViews: number
+  signedInViews: number
+  distinctUsers: number
+  activeSurgeries: number
+  previousViews: number
+  previousUsers: number
+}
+
+/**
+ * Every tile figure, for both the selected window and the one before it, in a
+ * single pass.
+ *
+ * This was six round trips: two counts plus two groupBys whose rows were pulled
+ * over the wire only to be discarded for their .length — one row per distinct
+ * user and per distinct surgery — and two more for the previous window.
+ * COUNT(DISTINCT …) does that work in the database, and FILTER lets both
+ * windows share one scan of the range.
+ */
+export async function getTileTotals(scope: EngagementScope): Promise<EngagementTileTotals> {
+  const inWindow = scope.startDate
+    ? Prisma.sql`(e."createdAt" >= ${scope.startDate})`
+    : Prisma.sql`(TRUE)`
+  const inPrevious = scope.previousWindow
+    ? Prisma.sql`(e."createdAt" >= ${scope.previousWindow.start} AND e."createdAt" < ${scope.previousWindow.end})`
+    : Prisma.sql`(FALSE)`
+
+  // COUNT returns BigInt without the ::int cast, which NextResponse.json
+  // cannot serialise.
+  const rows = await prisma.$queryRaw<TileRow[]>(Prisma.sql`
+    SELECT
+      COUNT(*) FILTER (WHERE ${inWindow})::int AS "totalViews",
+      COUNT(*) FILTER (WHERE ${inWindow} AND e."userEmail" IS NOT NULL)::int AS "signedInViews",
+      COUNT(DISTINCT e."userEmail") FILTER (WHERE ${inWindow})::int AS "distinctUsers",
+      COUNT(DISTINCT e."surgeryId") FILTER (WHERE ${inWindow})::int AS "activeSurgeries",
+      COUNT(*) FILTER (WHERE ${inPrevious})::int AS "previousViews",
+      COUNT(DISTINCT e."userEmail") FILTER (WHERE ${inPrevious})::int AS "previousUsers"
+    FROM "EngagementEvent" e
+    WHERE e."event" = ${VIEW_EVENT}
+      AND (${inWindow} OR ${inPrevious})
+      ${scope.surgeryId ? Prisma.sql`AND e."surgeryId" = ${scope.surgeryId}` : Prisma.empty}
+      ${liveOnlySql(scope)}
+  `)
+  // An empty table still yields one all-zero row, but guard rather than assume.
+  const row = rows[0] ?? {
+    totalViews: 0,
+    signedInViews: 0,
+    distinctUsers: 0,
+    activeSurgeries: 0,
+    previousViews: 0,
+    previousUsers: 0,
   }
-  if (scope.surgeryId) where.surgeryId = scope.surgeryId
-  if (liveOnly(scope)) where.surgery = { is: { surgeryType: 'LIVE' } }
-  const [totalViews, users] = await Promise.all([
-    prisma.engagementEvent.count({ where }),
-    prisma.engagementEvent.groupBy({
-      by: ['userEmail'],
-      where: { ...where, userEmail: { not: null } },
-    }),
-  ])
-  return { totalViews, distinctUsers: users.length }
+
+  return {
+    totals: {
+      totalViews: row.totalViews,
+      signedInViews: row.signedInViews,
+      distinctUsers: row.distinctUsers,
+      // COUNT DISTINCT ignores NULL surgeryIds, which is what "active
+      // surgeries" means; the figure itself is only shown for the overview.
+      activeSurgeries: scope.surgeryId ? null : row.activeSurgeries,
+    },
+    previousTotals: scope.previousWindow
+      ? { totalViews: row.previousViews, distinctUsers: row.previousUsers }
+      : null,
+  }
 }
 
 export async function getDailyTrend(
@@ -360,9 +389,8 @@ export async function getEngagementExtras(
   now: Date = new Date(),
   { topTake = 10 }: { topTake?: number } = {}
 ) {
-  const [volume, previousTotals, trend, busiestTimes, symptomInsights] = await Promise.all([
-    getTotals(scope),
-    getPreviousTotals(scope),
+  const [tiles, trend, busiestTimes, symptomInsights] = await Promise.all([
+    getTileTotals(scope),
     getDailyTrend(scope, now),
     getBusiestTimes(scope),
     getSymptomInsights(scope, { topTake }),
@@ -370,8 +398,8 @@ export async function getEngagementExtras(
   const { topViewed, viewedSymptomCount, ...insights } = symptomInsights
   return {
     topSymptoms: topViewed,
-    totals: { ...volume, distinctSymptoms: viewedSymptomCount },
-    previousTotals,
+    totals: { ...tiles.totals, distinctSymptoms: viewedSymptomCount },
+    previousTotals: tiles.previousTotals,
     trend,
     insights: { ...insights, ...busiestTimes },
   }
