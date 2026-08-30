@@ -33,7 +33,7 @@ export interface EngagementScope {
   surgeryId: string | null
   /** Inclusive start of the reporting window; null = all time. */
   startDate: Date | null
-  /** Equal-length window immediately before startDate, for the delta chips. */
+  /** Same elapsed time one period earlier, for the delta chips. */
   previousWindow: { start: Date; end: Date } | null
   /**
    * All-surgeries scope only: TEST and GLOBAL_DEFAULT practices are left out of
@@ -130,6 +130,14 @@ export function shiftDay(day: string, delta: number): string {
  * midnight boundaries (rather than "now minus N×24h") means "Last 7 days" is
  * seven complete days rather than eight partial ones, and every viewer sees the
  * same window regardless of their own clock.
+ *
+ * The window runs from that midnight up to now, so today is only partly
+ * elapsed: at 09:00 a 7-day range covers 153 hours, not 168. Comparing that
+ * against the seven *complete* days before it would understate every delta
+ * chip for most of the day — a flat week would read as -9% at 09:00, and only
+ * reach 0% at midnight. So the previous window is shifted back a whole `days`,
+ * which keeps it on the same weekdays (GP traffic is strongly weekday-shaped),
+ * and truncated to the same elapsed time.
  */
 export function resolveRange(
   range: EngagementRange,
@@ -139,10 +147,14 @@ export function resolveRange(
   const days = RANGE_DAYS[range]
   const startDay = shiftDay(londonDay(now), -(days - 1))
   const start = londonMidnight(startDay)
-  return {
-    start,
-    previousWindow: { start: londonMidnight(shiftDay(startDay, -days)), end: start },
-  }
+
+  const previousStart = londonMidnight(shiftDay(startDay, -days))
+  const elapsed = now.getTime() - start.getTime()
+  // A clock change can make the shifted-back period an hour longer than the
+  // current one, which would otherwise overlap it; the windows must stay
+  // disjoint.
+  const previousEnd = Math.min(previousStart.getTime() + elapsed, start.getTime())
+  return { start, previousWindow: { start: previousStart, end: new Date(previousEnd) } }
 }
 
 /**

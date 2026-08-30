@@ -115,12 +115,47 @@ describe('resolveRange', () => {
     expect(fillDaySeries([], start!, now)).toHaveLength(7)
   })
 
-  it('compares against the equal-length window immediately before', () => {
-    const now = new Date('2026-08-30T14:20:00Z')
+  it('compares against the same elapsed time one period earlier', () => {
+    // Today is only partly elapsed, so comparing it against seven *complete*
+    // days would understate every delta chip until midnight.
+    const now = new Date('2026-08-30T08:00:00Z')
     const { start, previousWindow } = resolveRange('7d', now)
-    expect(previousWindow!.end).toEqual(start)
+    const elapsed = now.getTime() - start!.getTime()
+    expect(previousWindow!.end.getTime() - previousWindow!.start.getTime()).toBe(elapsed)
+  })
+
+  it('shifts the comparison back a whole period, so it lands on the same weekdays', () => {
+    const now = new Date('2026-08-30T08:00:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    expect(londonDay(start!)).toBe('2026-08-24')
     expect(londonDay(previousWindow!.start)).toBe('2026-08-17')
-    expect(fillDaySeries([], previousWindow!.start, previousWindow!.end)).toHaveLength(8)
+    expect(new Date('2026-08-24T12:00:00Z').getUTCDay()).toBe(
+      new Date('2026-08-17T12:00:00Z').getUTCDay()
+    )
+  })
+
+  it('keeps the two windows disjoint', () => {
+    for (const range of ['7d', '30d', '90d'] as const) {
+      for (const hour of [0, 1, 9, 23]) {
+        const now = new Date(`2026-10-25T${String(hour).padStart(2, '0')}:30:00Z`)
+        const { start, previousWindow } = resolveRange(range, now)
+        // 25 October 2026 is the autumn clock change: the shifted-back period
+        // is an hour longer, which must not push it into the current window.
+        expect(previousWindow!.end.getTime()).toBeLessThanOrEqual(start!.getTime())
+        expect(previousWindow!.start.getTime()).toBeLessThan(previousWindow!.end.getTime())
+      }
+    }
+  })
+
+  it('reads as no change over a period of perfectly flat traffic', () => {
+    // The regression this guards: at 09:00 a calendar-aligned 7-day window is
+    // 153 hours, and comparing it against 168 reported -9% for a flat week.
+    const now = new Date('2026-08-30T08:00:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    const currentHours = (now.getTime() - start!.getTime()) / 3_600_000
+    const previousHours =
+      (previousWindow!.end.getTime() - previousWindow!.start.getTime()) / 3_600_000
+    expect(currentHours).toBe(previousHours)
   })
 
   it('is unbounded for the all-time range', () => {
