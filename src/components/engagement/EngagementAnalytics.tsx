@@ -58,6 +58,10 @@ export default function EngagementAnalytics({
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange>('30d')
   const [limit, setLimit] = useState(10)
+  // Test practices and the global template are internal traffic, so the
+  // cross-surgery overview leaves them out unless asked (same default as the
+  // setup tracker). Irrelevant once a specific surgery is selected.
+  const [includeTestSurgeries, setIncludeTestSurgeries] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   // Hide age badges when viewing a single surgery that runs in all-ages mode
@@ -94,16 +98,12 @@ export default function EngagementAnalytics({
         setIsLoading(true)
         setError(null)
 
+        // The window itself is resolved server-side onto whole Europe/London
+        // days, so two people looking at the same range see the same figures.
         const params = new URLSearchParams({
           limit: limit.toString(),
+          range: dateRange,
         })
-
-        if (dateRange !== 'all') {
-          const days = dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90
-          const startDate = new Date()
-          startDate.setDate(startDate.getDate() - days)
-          params.append('startDate', startDate.toISOString())
-        }
 
         if (session.type === 'surgery' && session.surgeryId) {
           // Surgery admins see only their surgery's data
@@ -115,6 +115,7 @@ export default function EngagementAnalytics({
 
         if (session.type === 'superuser') {
           params.append('includeSurgeryBreakdown', 'true')
+          if (includeTestSurgeries) params.append('includeTestSurgeries', 'true')
         }
 
         const response = await fetch(`/api/engagement/top?${params}`)
@@ -134,13 +135,18 @@ export default function EngagementAnalytics({
 
     fetchEngagementData()
     return () => { cancelled = true }
-  }, [session, limit, dateRange, selectedSurgeryId, refreshKey])
+  }, [session, limit, dateRange, selectedSurgeryId, includeTestSurgeries, refreshKey])
+
+  // Only the cross-surgery overview mixes practice types; a selected surgery is
+  // always reported on, whatever its type.
+  const showTestSurgeryToggle = session.type === 'superuser' && !scopedSurgeryId
 
   const handleExport = () => {
     if (!engagementData) return
     const csv = buildEngagementCsv(engagementData, {
       rangeLabel: RANGE_LABELS[dateRange],
       scopeLabel: scopedSurgeryId ?? 'All surgeries',
+      includesTestSurgeries: showTestSurgeryToggle ? includeTestSurgeries : undefined,
       generatedAt: new Date(),
     })
     downloadCsv(csv, `engagement-data-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`)
@@ -150,7 +156,19 @@ export default function EngagementAnalytics({
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-xl font-semibold text-nhs-dark-blue">Engagement Analytics</h2>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        {showTestSurgeryToggle && (
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={includeTestSurgeries}
+              onChange={e => setIncludeTestSurgeries(e.target.checked)}
+              disabled={isLoading}
+              className="h-4 w-4 rounded border-gray-300 text-nhs-blue focus:ring-nhs-blue"
+            />
+            Include test surgeries
+          </label>
+        )}
         <Select
           value={dateRange}
           onChange={e => setDateRange(e.target.value as DateRange)}
@@ -353,12 +371,18 @@ export default function EngagementAnalytics({
         <div>
           <p className="font-medium">About Engagement Analytics</p>
           <p className="mt-1">
-            This data shows symptom views and user activity. Data is collected when users view
-            symptom pages.
+            A view is recorded when someone opens a symptom page. Clinical review and
+            suggestion-triage visits are excluded, so these figures reflect day-to-day
+            signposting rather than content checking. Ranges cover whole days in UK local
+            time.
             {session.type === 'surgery'
               ? ' Data is filtered to show only activity for your surgery.'
               : session.type === 'superuser'
-                ? ' As a superuser, you can view system-wide data and drill down by surgery using the dropdown above.'
+                ? ` As a superuser, you can view system-wide data and drill down by surgery using the dropdown above.${
+                    showTestSurgeryToggle && !includeTestSurgeries
+                      ? ' Test and template practices are excluded unless you tick “Include test surgeries”.'
+                      : ''
+                  }`
                 : ''}
           </p>
         </div>

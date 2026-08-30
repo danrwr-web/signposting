@@ -13,6 +13,7 @@ import { getSymptomSmartVisuals, visibleSymptomSmartVisuals } from '@/server/sym
 import { symptomKeyIdFor } from '@/server/symptomSmartVisualGates'
 import type { SymptomSmartVisualProps } from '@/components/symptom-smart-visual/SymptomSmartVisualToggle'
 import { surgeriesForViewer } from '@/server/viewerSurgeries'
+import { firstParam, isInternalEngagementRef } from '@/lib/engagementRefs'
 
 // Disable caching for this page to prevent stale data
 export const dynamic = 'force-dynamic'
@@ -25,6 +26,7 @@ interface SymptomPageProps {
   searchParams: Promise<{
     surgery?: string
     ref?: string | string[]
+    from?: string | string[]
   }>
 }
 
@@ -33,8 +35,10 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
   const { id } = resolvedParams
   const resolvedSearchParams = await searchParams
   const surgeryParam = resolvedSearchParams.surgery
-  const rawRef = resolvedSearchParams.ref
-  const refParam = Array.isArray(rawRef) ? rawRef[0] : rawRef
+  const refParam = firstParam(resolvedSearchParams.ref)
+  // `from` marks internal review traffic too, and InstructionView reads it for
+  // the back-link, so it has to survive the canonical redirect below.
+  const fromParam = firstParam(resolvedSearchParams.from)
 
   // Get surgery ID from param (canonical id, with slug compatibility)
   let surgeryId: string | undefined
@@ -60,6 +64,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
         const next = new URLSearchParams()
         next.set('surgery', surgeryId)
         if (refParam) next.set('ref', refParam)
+        if (fromParam) next.set('from', fromParam)
         redirect(`/symptom/${id}?${next.toString()}`)
       }
     }
@@ -147,7 +152,7 @@ export default async function SymptomPage({ params, searchParams }: SymptomPageP
       baseSymptomId = symptom.baseSymptomId || symptom.id
     }
     
-    if (baseSymptomId && refParam !== 'clinical-review') {
+    if (baseSymptomId && !isInternalEngagementRef(refParam, fromParam)) {
       await prisma.engagementEvent.create({
         data: {
           surgeryId,

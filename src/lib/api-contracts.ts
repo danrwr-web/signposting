@@ -385,7 +385,14 @@ export interface EngagementRankedSymptom {
 
 export interface EngagementTotals {
   totalViews: number;
+  /**
+   * Views attributable to a signed-in user. Views are only attributed when the
+   * viewer held a NextAuth session, so this is at most totalViews and the
+   * difference is what distinctUsers cannot account for.
+   */
+  signedInViews: number;
   distinctUsers: number;
+  /** Tracked symptoms viewed at least once; always trackedSymptomCount minus neverViewedCount. */
   distinctSymptoms: number;
   /** Only computed for the all-surgeries (superuser) scope; null otherwise. */
   activeSurgeries: number | null;

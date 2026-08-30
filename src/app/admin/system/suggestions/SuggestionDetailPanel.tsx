@@ -212,8 +212,10 @@ export default function SuggestionDetailPanel({
                   // Surgery context is required to resolve custom symptoms and
                   // show the practice's own overrides rather than base wording.
                   <Link
-                    href={`/symptom/${suggestion.baseId}${
-                      suggestion.surgeryId ? `?surgery=${suggestion.surgeryId}` : ''
+                    // ref=suggestions keeps this superuser triage visit out of
+                    // the practice's engagement figures.
+                    href={`/symptom/${suggestion.baseId}?ref=suggestions${
+                      suggestion.surgeryId ? `&surgery=${suggestion.surgeryId}` : ''
                     }`}
                     className="text-nhs-blue hover:text-nhs-dark-blue underline"
                   >

@@ -20,7 +20,13 @@ const makeResponse = (overrides: Partial<EngagementTopRes> = {}): EngagementTopR
     { id: 'b2', name: 'Abdomen Pain', ageGroup: 'Adult', viewCount: 6 },
   ],
   topUsers: [{ userEmail: 'shera.yorke-mccoy@nhs.net', engagementCount: 36 }],
-  totals: { totalViews: 999, distinctUsers: 14, distinctSymptoms: 25, activeSurgeries: null },
+  totals: {
+    totalViews: 999,
+    signedInViews: 999,
+    distinctUsers: 14,
+    distinctSymptoms: 25,
+    activeSurgeries: null,
+  },
   previousTotals: { totalViews: 800, distinctUsers: 10 },
   trend: {
     bucket: 'day',
@@ -150,5 +156,74 @@ describe('EngagementAnalytics', () => {
     expect(
       screen.getByRole('img', { name: /Daily symptom views over 2 days/ })
     ).toBeInTheDocument()
+  })
+
+  it('asks for a named range so the window is resolved server-side', async () => {
+    const fetchMock = mockFetch(makeResponse())
+    render(<EngagementAnalytics session={surgerySession} />)
+
+    await waitFor(() => expect(screen.getByText('999')).toBeInTheDocument())
+    const engagementCall = fetchMock.mock.calls
+      .map(c => String(c[0]))
+      .find(url => url.includes('/api/engagement/top'))!
+    expect(engagementCall).toContain('range=30d')
+    // A caller-supplied instant would move the window with the viewer's clock.
+    expect(engagementCall).not.toContain('startDate')
+  })
+
+  it('excludes test surgeries by default and refetches when they are included', async () => {
+    const fetchMock = mockFetch(makeResponse())
+    render(<EngagementAnalytics session={superuserSession} selectedSurgeryId="all" />)
+
+    await waitFor(() => expect(screen.getByText('999')).toBeInTheDocument())
+    const urls = () => fetchMock.mock.calls.map(c => String(c[0]))
+    expect(urls().find(u => u.includes('/api/engagement/top'))).not.toContain(
+      'includeTestSurgeries'
+    )
+
+    await userEvent.click(screen.getByLabelText('Include test surgeries'))
+    await waitFor(() =>
+      expect(urls().some(u => u.includes('includeTestSurgeries=true'))).toBe(true)
+    )
+  })
+
+  it('hides the test-surgery toggle outside the all-surgeries overview', async () => {
+    mockFetch(makeResponse())
+    const { rerender } = render(<EngagementAnalytics session={surgerySession} />)
+    await waitFor(() => expect(screen.getByText('999')).toBeInTheDocument())
+    expect(screen.queryByLabelText('Include test surgeries')).not.toBeInTheDocument()
+
+    // A superuser drilled into one surgery reports on it whatever its type.
+    rerender(<EngagementAnalytics session={superuserSession} selectedSurgeryId="sur-1" />)
+    await waitFor(() =>
+      expect(screen.queryByLabelText('Include test surgeries')).not.toBeInTheDocument()
+    )
+  })
+
+  it('says how much of the traffic the active-user count can account for', async () => {
+    mockFetch(
+      makeResponse({
+        totals: {
+          totalViews: 296,
+          signedInViews: 180,
+          distinctUsers: 23,
+          distinctSymptoms: 100,
+          activeSurgeries: null,
+        },
+      })
+    )
+    render(<EngagementAnalytics session={surgerySession} />)
+
+    await waitFor(() =>
+      expect(screen.getByText('From 180 of 296 views signed in')).toBeInTheDocument()
+    )
+  })
+
+  it('leaves the signed-in caption off when every view is attributed', async () => {
+    mockFetch(makeResponse())
+    render(<EngagementAnalytics session={surgerySession} />)
+
+    await waitFor(() => expect(screen.getByText('999')).toBeInTheDocument())
+    expect(screen.queryByText(/views signed in/)).not.toBeInTheDocument()
   })
 })

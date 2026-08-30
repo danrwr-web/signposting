@@ -1,10 +1,14 @@
 import {
   fillDaySeries,
-  previousWindow,
+  resolveRange,
   toWeekdayHourArrays,
   londonDay,
-  getLeastViewedSymptoms,
+  londonMidnight,
+  shiftDay,
+  getSymptomInsights,
   getTotals,
+  getDailyTrend,
+  type EngagementScope,
 } from '@/server/engagementAnalytics'
 import { prisma } from '@/lib/prisma'
 import { getCachedEffectiveSymptoms } from '@/server/effectiveSymptoms'
@@ -16,6 +20,7 @@ jest.mock('@/lib/prisma', () => ({
       count: jest.fn(),
     },
     baseSymptom: { findMany: jest.fn() },
+    $queryRaw: jest.fn(),
   },
 }))
 
@@ -26,7 +31,19 @@ jest.mock('@/server/effectiveSymptoms', () => ({
 const mockedGroupBy = prisma.engagementEvent.groupBy as jest.Mock
 const mockedCount = prisma.engagementEvent.count as jest.Mock
 const mockedBaseFindMany = prisma.baseSymptom.findMany as jest.Mock
+const mockedQueryRaw = prisma.$queryRaw as unknown as jest.Mock
 const mockedEffective = getCachedEffectiveSymptoms as jest.Mock
+
+/** All-surgeries, all-time, live practices only — override what a test needs. */
+const scope = (over: Partial<EngagementScope> = {}): EngagementScope => ({
+  surgeryId: null,
+  startDate: null,
+  previousWindow: null,
+  includeTestSurgeries: false,
+  ...over,
+})
+
+const LIVE_ONLY = { surgery: { is: { surgeryType: 'LIVE' } } }
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -66,13 +83,56 @@ describe('fillDaySeries', () => {
   })
 })
 
-describe('previousWindow', () => {
-  it('returns the same-length window immediately before the range', () => {
-    const start = new Date('2026-07-16T00:00:00Z')
-    const now = new Date('2026-07-23T00:00:00Z')
-    const window = previousWindow(start, now)
-    expect(window.start).toEqual(new Date('2026-07-09T00:00:00Z'))
-    expect(window.end).toEqual(start)
+describe('londonMidnight', () => {
+  it('resolves to 00:00 UTC for a GMT day', () => {
+    expect(londonMidnight('2026-01-15').toISOString()).toBe('2026-01-15T00:00:00.000Z')
+  })
+
+  it('resolves to 23:00 UTC the previous day for a BST day', () => {
+    expect(londonMidnight('2026-07-15').toISOString()).toBe('2026-07-14T23:00:00.000Z')
+  })
+
+  it('lands on the correct side of the spring-forward transition', () => {
+    // Clocks go forward at 01:00 GMT on 29 March 2026, so that day starts at 00:00 UTC
+    expect(londonMidnight('2026-03-29').toISOString()).toBe('2026-03-29T00:00:00.000Z')
+    expect(londonMidnight('2026-03-30').toISOString()).toBe('2026-03-29T23:00:00.000Z')
+  })
+
+  it('lands on the correct side of the autumn transition', () => {
+    // Clocks go back at 02:00 BST on 25 October 2026
+    expect(londonMidnight('2026-10-25').toISOString()).toBe('2026-10-24T23:00:00.000Z')
+    expect(londonMidnight('2026-10-26').toISOString()).toBe('2026-10-26T00:00:00.000Z')
+  })
+})
+
+describe('resolveRange', () => {
+  it('covers whole London days, so a 7-day range is exactly 7 buckets', () => {
+    const now = new Date('2026-08-30T14:20:00Z')
+    const { start } = resolveRange('7d', now)
+    expect(londonDay(start!)).toBe('2026-08-24')
+    // The window must not start mid-day: the first bucket would under-report.
+    expect(start!.toISOString()).toBe('2026-08-23T23:00:00.000Z')
+    expect(fillDaySeries([], start!, now)).toHaveLength(7)
+  })
+
+  it('compares against the equal-length window immediately before', () => {
+    const now = new Date('2026-08-30T14:20:00Z')
+    const { start, previousWindow } = resolveRange('7d', now)
+    expect(previousWindow!.end).toEqual(start)
+    expect(londonDay(previousWindow!.start)).toBe('2026-08-17')
+    expect(fillDaySeries([], previousWindow!.start, previousWindow!.end)).toHaveLength(8)
+  })
+
+  it('is unbounded for the all-time range', () => {
+    expect(resolveRange('all', new Date('2026-08-30T14:20:00Z'))).toEqual({
+      start: null,
+      previousWindow: null,
+    })
+  })
+
+  it('shifts calendar days across month boundaries', () => {
+    expect(shiftDay('2026-03-01', -1)).toBe('2026-02-28')
+    expect(shiftDay('2026-12-31', 1)).toBe('2027-01-01')
   })
 })
 
@@ -80,23 +140,60 @@ describe('toWeekdayHourArrays', () => {
   it('pivots ISODOW/hour rows into Monday-first weekday and hour arrays', () => {
     const { byWeekday, byHour } = toWeekdayHourArrays([
       { dow: 1, hour: 9, views: 3 },
-      { dow: 1, hour: 14, views: 2 },
+      { dow: 1, hour: 10, views: 2 },
       { dow: 7, hour: 9, views: 1 },
     ])
-    expect(byWeekday).toEqual([5, 0, 0, 0, 0, 0, 1])
+    expect(byWeekday[0]).toBe(5)
+    expect(byWeekday[6]).toBe(1)
     expect(byHour[9]).toBe(4)
-    expect(byHour[14]).toBe(2)
-    expect(byHour.reduce((a, b) => a + b, 0)).toBe(6)
+    expect(byHour[10]).toBe(2)
   })
 
   it('ignores out-of-range rows', () => {
-    const { byWeekday, byHour } = toWeekdayHourArrays([{ dow: 0, hour: 24, views: 9 }])
+    const { byWeekday, byHour } = toWeekdayHourArrays([{ dow: 0, hour: 99, views: 5 }])
     expect(byWeekday.every(v => v === 0)).toBe(true)
     expect(byHour.every(v => v === 0)).toBe(true)
   })
 })
 
-describe('getLeastViewedSymptoms', () => {
+describe('test surgery scoping', () => {
+  beforeEach(() => {
+    mockedCount.mockResolvedValue(0)
+    mockedGroupBy.mockResolvedValue([])
+    mockedQueryRaw.mockResolvedValue([])
+  })
+
+  it('narrows the all-surgeries overview to live practices by default', async () => {
+    await getTotals(scope())
+    expect(mockedCount).toHaveBeenCalledWith({ where: expect.objectContaining(LIVE_ONLY) })
+  })
+
+  it('includes test practices when asked', async () => {
+    await getTotals(scope({ includeTestSurgeries: true }))
+    expect(mockedCount).not.toHaveBeenCalledWith({
+      where: expect.objectContaining({ surgery: expect.anything() }),
+    })
+  })
+
+  it('always reports on an explicitly selected surgery, whatever its type', async () => {
+    await getTotals(scope({ surgeryId: 'test-surgery' }))
+    expect(mockedCount).not.toHaveBeenCalledWith({
+      where: expect.objectContaining({ surgery: expect.anything() }),
+    })
+  })
+
+  it('narrows the hand-written aggregates too', async () => {
+    await getDailyTrend(scope(), new Date('2026-08-30T14:20:00Z'))
+    const sql = mockedQueryRaw.mock.calls[0][0].strings.join('')
+    expect(sql).toContain('"surgeryType" = \'LIVE\'')
+
+    mockedQueryRaw.mockClear()
+    await getDailyTrend(scope({ includeTestSurgeries: true }), new Date('2026-08-30T14:20:00Z'))
+    expect(mockedQueryRaw.mock.calls[0][0].strings.join('')).not.toContain('surgeryType')
+  })
+})
+
+describe('getSymptomInsights', () => {
   it('excludes custom symptoms and keys overrides by their base symptom id', async () => {
     mockedEffective.mockResolvedValue([
       { id: 'b1', name: 'Back Pain', ageGroup: 'Adult', source: 'base' },
@@ -105,7 +202,7 @@ describe('getLeastViewedSymptoms', () => {
     ])
     mockedGroupBy.mockResolvedValue([{ baseId: 'b2', _count: { baseId: 6 } }])
 
-    const result = await getLeastViewedSymptoms({ surgeryId: 'sur-1', startDate: null })
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
 
     expect(result.trackedSymptomCount).toBe(2)
     expect(result.leastViewed.map(s => s.name)).toEqual(['Back Pain', 'Tummy Ache'])
@@ -114,15 +211,28 @@ describe('getLeastViewedSymptoms', () => {
     expect(result.neverViewedCount).toBe(1)
   })
 
-  it('uses the base symptom library for the all-surgeries scope', async () => {
-    mockedBaseFindMany.mockResolvedValue([
-      { id: 'b1', name: 'Ear Ache', ageGroup: 'O5' },
+  it('counts an override and its base as one tracked symptom', async () => {
+    mockedEffective.mockResolvedValue([
+      { id: 'b1', name: 'Back Pain', ageGroup: 'Adult', source: 'base' },
+      { id: 'ov1', baseSymptomId: 'b1', name: 'Back Pain', ageGroup: 'Adult', source: 'override' },
     ])
+    mockedGroupBy.mockResolvedValue([{ baseId: 'b1', _count: { baseId: 4 } }])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
+    expect(result.trackedSymptomCount).toBe(1)
+    expect(result.viewedSymptomCount).toBe(1)
+  })
+
+  it('leaves retired symptoms out of the tracked library', async () => {
+    mockedBaseFindMany.mockResolvedValue([{ id: 'b1', name: 'Ear Ache', ageGroup: 'O5' }])
     mockedGroupBy.mockResolvedValue([])
 
-    const result = await getLeastViewedSymptoms({ surgeryId: null, startDate: null })
+    const result = await getSymptomInsights(scope())
 
     expect(mockedEffective).not.toHaveBeenCalled()
+    expect(mockedBaseFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { isDeleted: false } })
+    )
     expect(result.leastViewed).toEqual([
       { id: 'b1', name: 'Ear Ache', ageGroup: 'O5', viewCount: 0 },
     ])
@@ -137,35 +247,97 @@ describe('getLeastViewedSymptoms', () => {
     ])
     mockedGroupBy.mockResolvedValue([{ baseId: 'b2', _count: { baseId: 1 } }])
 
-    const result = await getLeastViewedSymptoms({ surgeryId: 'sur-1', startDate: null })
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
     expect(result.leastViewed.map(s => s.name)).toEqual(['Mango', 'Zebra', 'Apple'])
+  })
+
+  it('ranks the top list highest-first, breaking ties by name', async () => {
+    mockedEffective.mockResolvedValue([
+      { id: 'b1', name: 'Zebra', ageGroup: 'Adult', source: 'base' },
+      { id: 'b2', name: 'Apple', ageGroup: 'Adult', source: 'base' },
+      { id: 'b3', name: 'Mango', ageGroup: 'Adult', source: 'base' },
+    ])
+    mockedGroupBy.mockResolvedValue([
+      { baseId: 'b1', _count: { baseId: 5 } },
+      { baseId: 'b2', _count: { baseId: 5 } },
+    ])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
+    // Never-viewed symptoms are not "top viewed", and equal counts are stable.
+    expect(result.topViewed.map(s => s.name)).toEqual(['Apple', 'Zebra'])
+  })
+
+  it('honours the top and least list sizes independently', async () => {
+    mockedEffective.mockResolvedValue(
+      ['a', 'b', 'c', 'd'].map(n => ({ id: n, name: n, ageGroup: 'Adult', source: 'base' }))
+    )
+    mockedGroupBy.mockResolvedValue([
+      { baseId: 'a', _count: { baseId: 3 } },
+      { baseId: 'b', _count: { baseId: 2 } },
+      { baseId: 'c', _count: { baseId: 1 } },
+    ])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }), {
+      topTake: 2,
+      leastTake: 1,
+    })
+    expect(result.topViewed.map(s => s.name)).toEqual(['a', 'b'])
+    expect(result.leastViewed.map(s => s.name)).toEqual(['d'])
+  })
+
+  it('reconciles the symptom figures: viewed = tracked - never viewed', async () => {
+    mockedEffective.mockResolvedValue(
+      ['a', 'b', 'c', 'd', 'e'].map(n => ({ id: n, name: n, ageGroup: 'Adult', source: 'base' }))
+    )
+    // Includes a retired symptom that is no longer in the library but still has
+    // events: it must not push "symptoms accessed" above the tracked total.
+    mockedGroupBy.mockResolvedValue([
+      { baseId: 'a', _count: { baseId: 3 } },
+      { baseId: 'b', _count: { baseId: 1 } },
+      { baseId: 'retired', _count: { baseId: 9 } },
+    ])
+
+    const result = await getSymptomInsights(scope({ surgeryId: 'sur-1' }))
+    expect(result.trackedSymptomCount).toBe(5)
+    expect(result.neverViewedCount).toBe(3)
+    expect(result.viewedSymptomCount).toBe(2)
+    expect(result.viewedSymptomCount).toBe(
+      result.trackedSymptomCount - result.neverViewedCount
+    )
+    expect(result.topViewed.map(s => s.id)).not.toContain('retired')
   })
 })
 
 describe('getTotals', () => {
   it('computes true totals and distinct counts for a surgery scope', async () => {
-    mockedCount.mockResolvedValue(42)
-    mockedGroupBy
-      .mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }, { userEmail: 'b@nhs.net' }])
-      .mockResolvedValueOnce([{ baseId: 'b1' }, { baseId: 'b2' }, { baseId: 'b3' }])
+    mockedCount.mockResolvedValueOnce(42).mockResolvedValueOnce(30)
+    mockedGroupBy.mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }, { userEmail: 'b@nhs.net' }])
 
-    const totals = await getTotals({ surgeryId: 'sur-1', startDate: null })
+    const totals = await getTotals(scope({ surgeryId: 'sur-1' }))
     expect(totals).toEqual({
       totalViews: 42,
+      signedInViews: 30,
       distinctUsers: 2,
-      distinctSymptoms: 3,
       activeSurgeries: null,
     })
+  })
+
+  it('reports signed-in views so the unattributed remainder is visible', async () => {
+    mockedCount.mockResolvedValueOnce(100).mockResolvedValueOnce(40)
+    mockedGroupBy.mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }])
+
+    const totals = await getTotals(scope({ surgeryId: 'sur-1' }))
+    // 60 views came from sessions with no attributable user.
+    expect(totals.totalViews - totals.signedInViews).toBe(60)
   })
 
   it('counts active surgeries only for the all-surgeries scope', async () => {
     mockedCount.mockResolvedValue(10)
     mockedGroupBy
       .mockResolvedValueOnce([{ userEmail: 'a@nhs.net' }])
-      .mockResolvedValueOnce([{ baseId: 'b1' }])
       .mockResolvedValueOnce([{ surgeryId: 'sur-1' }, { surgeryId: 'sur-2' }])
 
-    const totals = await getTotals({ surgeryId: null, startDate: null })
+    const totals = await getTotals(scope())
     expect(totals.activeSurgeries).toBe(2)
   })
 })

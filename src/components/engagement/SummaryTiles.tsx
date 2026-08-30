@@ -37,9 +37,18 @@ export interface SummaryTilesProps {
   isSuperuser: boolean
 }
 
+interface Tile {
+  label: string
+  value: number
+  valueClass: string
+  delta: number | null
+  /** Optional muted line under the figure, for a caveat the number can't carry. */
+  caption?: string
+}
+
 export function SummaryTiles({ totals, previousTotals, periodLabel, isSuperuser }: SummaryTilesProps) {
   const showSurgeries = isSuperuser && totals.activeSurgeries !== null
-  const tiles = [
+  const tiles: Tile[] = [
     {
       label: 'Total symptom views',
       value: totals.totalViews,
@@ -51,6 +60,13 @@ export function SummaryTiles({ totals, previousTotals, periodLabel, isSuperuser 
       value: totals.distinctUsers,
       valueClass: 'text-nhs-green',
       delta: previousTotals ? percentDelta(totals.distinctUsers, previousTotals.distinctUsers) : null,
+      // Views are only attributed to a user when the viewer held a NextAuth
+      // session, so say how much of the traffic this figure can account for
+      // rather than leaving the shortfall invisible.
+      caption:
+        totals.totalViews > 0 && totals.signedInViews < totals.totalViews
+          ? `From ${totals.signedInViews.toLocaleString()} of ${totals.totalViews.toLocaleString()} views signed in`
+          : undefined,
     },
     {
       label: 'Symptoms accessed',
@@ -79,6 +95,7 @@ export function SummaryTiles({ totals, previousTotals, periodLabel, isSuperuser 
             {tile.value.toLocaleString()}
           </p>
           <DeltaChip delta={tile.delta} periodLabel={periodLabel} />
+          {tile.caption && <p className="mt-1.5 text-xs text-gray-500">{tile.caption}</p>}
         </Card>
       ))}
     </div>
