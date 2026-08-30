@@ -1,6 +1,7 @@
 'use client'
 
 import { forwardRef, type SelectHTMLAttributes } from 'react'
+import { defaultFieldWidth } from './fieldWidth'
 
 /* ------------------------------------------------------------------ */
 /*  Select                                                             */
@@ -11,21 +12,14 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   error?: boolean
 }
 
-/**
- * Note on width: the default `w-full` below suits form layouts, but Tailwind
- * emits `.w-full` after `.w-auto`, so a plain `className="w-auto"` loses the
- * tie and silently does nothing — it only looks narrow because a non-wrapping
- * flex row shrinks it. To size a Select to its content, pass `!w-auto` (or any
- * other `!w-*`) so the override actually wins.
- */
-
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
   ({ error = false, className = '', children, ...rest }, ref) => {
     return (
       <select
         ref={ref}
         className={[
-          'w-full px-3 py-2 rounded-md border text-sm',
+          defaultFieldWidth(className),
+          'px-3 py-2 rounded-md border text-sm',
           'transition-[color,border-color,box-shadow] duration-150',
           'focus:outline-none focus:ring-2 focus:border-transparent',
           'disabled:opacity-60 disabled:cursor-not-allowed',

@@ -305,7 +305,7 @@ export default function UserDetailPanel({
                     onChange={(e) =>
                       handleUpdateMembershipRole(membership.id, e.target.value as 'STANDARD' | 'ADMIN')
                     }
-                    className="!w-auto text-xs py-1"
+                    className="w-auto text-xs py-1"
                   >
                     <option value="STANDARD">Standard</option>
                     <option value="ADMIN">Admin</option>

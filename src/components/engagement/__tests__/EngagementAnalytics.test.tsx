@@ -236,8 +236,11 @@ describe('EngagementAnalytics', () => {
 
     await waitFor(() => expect(screen.getByText('999')).toBeInTheDocument())
     const range = screen.getByLabelText('Date range')
-    expect(range.className).toContain('!w-auto')
-    expect(screen.getByLabelText('Number of results').className).toContain('!w-auto')
+    const limit = screen.getByLabelText('Number of results')
+    for (const control of [range, limit]) {
+      expect(control.className).toContain('w-auto')
+      expect(control.className).not.toContain('w-full')
+    }
     expect(range.parentElement!.className).not.toContain('flex-wrap')
   })
 })

@@ -174,7 +174,7 @@ export default function EngagementAnalytics({
           onChange={e => setDateRange(e.target.value as DateRange)}
           disabled={isLoading}
           aria-label="Date range"
-          className="!w-auto"
+          className="w-auto"
         >
           {(Object.keys(RANGE_LABELS) as DateRange[]).map(range => (
             <option key={range} value={range}>
@@ -187,7 +187,7 @@ export default function EngagementAnalytics({
           onChange={e => setLimit(Number(e.target.value))}
           disabled={isLoading}
           aria-label="Number of results"
-          className="!w-auto"
+          className="w-auto"
         >
           <option value={5}>Top 5</option>
           <option value={10}>Top 10</option>
