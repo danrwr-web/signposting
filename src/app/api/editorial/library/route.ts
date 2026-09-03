@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { isDailyDoseAdmin, resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
+import { DAILY_DOSE_LIBRARY_RESET_AT } from '@/lib/daily-dose/libraryReset'
 import { Prisma } from '@prisma/client'
 
 export const runtime = 'nodejs'
@@ -37,10 +38,16 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
     const sortBy = searchParams.get('sortBy') || 'createdAt'
     const sortOrder = searchParams.get('sortOrder') || 'desc'
+    const libraryView = searchParams.get('view') === 'legacy' ? 'legacy' : 'current'
 
-    // Build where clause
+    // Build where clause. The deliberate September 2026 reset keeps all earlier
+    // cards available for inspection, but excludes them from the normal library.
     const where: Prisma.DailyDoseCardWhereInput = {
       surgeryId,
+      createdAt:
+        libraryView === 'legacy'
+          ? { lt: DAILY_DOSE_LIBRARY_RESET_AT }
+          : { gte: DAILY_DOSE_LIBRARY_RESET_AT },
     }
 
     if (status && status !== 'all') {
@@ -118,7 +125,11 @@ export async function GET(request: NextRequest) {
       isActive: card.isActive,
     }))
 
-    return NextResponse.json({ cards: transformedCards })
+    return NextResponse.json({
+      cards: transformedCards,
+      libraryView,
+      libraryResetAt: DAILY_DOSE_LIBRARY_RESET_AT.toISOString(),
+    })
   } catch (error) {
     console.error('GET /api/editorial/library error', error)
     return NextResponse.json(
