@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSessionUser } from '@/lib/rbac'
 import { resolveSurgeryIdForUser } from '@/lib/daily-dose/access'
+import { DAILY_DOSE_LIBRARY_RESET_AT } from '@/lib/daily-dose/libraryReset'
 import { DailyDoseSessionStartZ } from '@/lib/daily-dose/schemas'
 import { selectSessionCards, selectWarmupRecallCards } from '@/lib/daily-dose/sessionSelection'
 import { extractQuestionsFromBlocks, extractQuestionsFromInteractions } from '@/lib/daily-dose/questions'
@@ -64,12 +65,13 @@ export async function POST(request: NextRequest) {
       const storedCardIds = Array.isArray(recentSession.cardIds)
         ? (recentSession.cardIds as string[])
         : []
-        const cards = await prisma.dailyDoseCard.findMany({
-          where: { 
-            id: { in: storedCardIds },
-            isActive: true,
-          },
-          select: {
+      const cards = await prisma.dailyDoseCard.findMany({
+        where: {
+          id: { in: storedCardIds },
+          isActive: true,
+          createdAt: { gte: DAILY_DOSE_LIBRARY_RESET_AT },
+        },
+        select: {
           id: true,
           title: true,
           topicId: true,
@@ -135,6 +137,7 @@ export async function POST(request: NextRequest) {
       where: {
         status: 'PUBLISHED',
         isActive: true,
+        createdAt: { gte: DAILY_DOSE_LIBRARY_RESET_AT },
         topicId: { in: focusTopicIds },
         OR: [{ surgeryId }, { surgeryId: null }],
       },
@@ -177,7 +180,7 @@ export async function POST(request: NextRequest) {
       return categoryFiltered.length > 0 ? categoryFiltered : roleScopedCards
     })()
 
-    let eligibleCards = filteredRawCards.map((card) => toCardPayload(card))
+    const eligibleCards = filteredRawCards.map((card) => toCardPayload(card))
 
     if (eligibleCards.length === 0) {
       return NextResponse.json(
