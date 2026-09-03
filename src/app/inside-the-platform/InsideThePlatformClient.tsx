@@ -36,6 +36,16 @@ const screenshots = [
     height: 620,
   },
   {
+    eyebrow: 'Appointment Directory',
+    title: 'Know what can be booked and how',
+    description:
+      'Search local appointment types, filter by staff team and keep the practical booking detail alongside each entry.',
+    image: '/images/appointment-directory.png',
+    alt: 'Searchable appointment types in the Appointment Directory',
+    width: 1247,
+    height: 852,
+  },
+  {
     eyebrow: 'Practice Handbook',
     title: 'Keep local knowledge close to the work',
     description:
