@@ -3,8 +3,8 @@ import DemoRequestClient from './DemoRequestClient'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.signpostingtool.co.uk'),
-  title: 'Request a Demo – The Signposting Toolkit',
-  description: 'Request a demo of the Signposting Toolkit. Tell us about your surgery and we\'ll get in touch to arrange a walkthrough.',
+  title: 'Book a demo – The Signposting Toolkit',
+  description: 'Book a practical walkthrough of the Signposting Toolkit for your general practice team.',
   alternates: {
     canonical: 'https://www.signpostingtool.co.uk/demo-request',
   },
@@ -13,4 +13,3 @@ export const metadata: Metadata = {
 export default function DemoRequestPage() {
   return <DemoRequestClient />
 }
-

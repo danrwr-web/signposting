@@ -100,16 +100,32 @@ export default function DemoRequestClient() {
     <div className="min-h-screen bg-white">
       <MarketingHeader appEntryUrl={appEntryUrl} />
 
-      {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div className="text-center mb-10">
           <h1 className="text-4xl font-bold text-gray-900 mb-4 tracking-tight">
-            Request a demo of the Signposting Toolkit
+            See how it would work in your practice
           </h1>
-          <p className="text-lg text-gray-600 leading-relaxed">
-            Tell us a bit about your surgery and we&apos;ll get in touch to arrange a walkthrough.
+          <p className="mx-auto max-w-2xl text-lg text-gray-600 leading-relaxed">
+            Tell us a little about your team. We&apos;ll arrange a practical walkthrough and focus on the parts of the platform that matter to you.
           </p>
         </div>
+
+        {!isSuccess && (
+          <div className="mb-10 grid border-y border-gray-200 sm:grid-cols-3 sm:divide-x sm:divide-gray-200">
+            <div className="py-5 sm:pr-6">
+              <p className="font-semibold text-gray-900">A live walkthrough</p>
+              <p className="mt-1 text-sm leading-6 text-gray-600">See the current product, not a sales mock-up.</p>
+            </div>
+            <div className="py-5 sm:px-6">
+              <p className="font-semibold text-gray-900">Your questions</p>
+              <p className="mt-1 text-sm leading-6 text-gray-600">Bring a local process or problem you want to discuss.</p>
+            </div>
+            <div className="py-5 sm:pl-6">
+              <p className="font-semibold text-gray-900">A prompt reply</p>
+              <p className="mt-1 text-sm leading-6 text-gray-600">We aim to respond within one working day.</p>
+            </div>
+          </div>
+        )}
 
         {isSuccess ? (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
@@ -130,10 +146,10 @@ export default function DemoRequestClient() {
                 Back to homepage
               </Link>
               <Link
-                href="/"
+                href="/inside-the-platform"
                 className="text-base font-medium text-nhs-blue hover:text-nhs-dark-blue underline underline-offset-2"
               >
-                Learn more about the Signposting Toolkit
+                Explore the platform
               </Link>
             </div>
           </div>
@@ -283,7 +299,7 @@ export default function DemoRequestClient() {
                 rows={4}
                 value={formData.message}
                 onChange={handleChange}
-                placeholder="Anything particular you'd like to focus on?"
+                placeholder="Is there a particular part of your practice you'd like us to focus on?"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:border-transparent"
               />
             </div>
@@ -294,9 +310,17 @@ export default function DemoRequestClient() {
                 disabled={isSubmitting}
                 className="w-full px-10 py-4 text-lg font-semibold rounded-lg text-white bg-nhs-blue hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Submitting...' : 'Submit request'}
+                {isSubmitting ? 'Sending...' : 'Send demo request'}
               </button>
             </div>
+
+            <p className="text-sm leading-6 text-gray-500">
+              We&apos;ll use these details only to respond to your request. See our{' '}
+              <Link href="/privacy" className="font-medium text-nhs-blue underline underline-offset-2 hover:text-nhs-dark-blue">
+                privacy notice
+              </Link>
+              .
+            </p>
           </form>
         )}
       </main>
@@ -307,4 +331,3 @@ export default function DemoRequestClient() {
     </div>
   )
 }
-

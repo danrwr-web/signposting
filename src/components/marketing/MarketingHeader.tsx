@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 
 type MarketingHeaderProps = {
@@ -8,15 +9,10 @@ type MarketingHeaderProps = {
 }
 
 const navLinks = [
-  { href: '/why-signposting-toolkit', label: 'Why Choose Us' },
-  { href: '/inside-the-platform', label: 'Inside the Platform' },
+  { href: '/inside-the-platform', label: 'Platform' },
+  { href: '/why-signposting-toolkit', label: 'Why it works' },
   { href: '/faqs', label: 'FAQs' },
-  {
-    href: 'https://docs.signpostingtool.co.uk/getting-started/user-guide',
-    label: 'User Guide',
-    external: true,
-  },
-  { href: '/demo-request', label: 'Request a Demo' },
+  { href: '/demo-request', label: 'Book a demo' },
 ]
 
 export default function MarketingHeader({ appEntryUrl }: MarketingHeaderProps) {
@@ -56,41 +52,32 @@ export default function MarketingHeader({ appEntryUrl }: MarketingHeaderProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-[4.5rem]">
             <Link href="/" className="flex items-center space-x-3 flex-shrink-0">
-              <img
+              <Image
                 src="/images/signposting_logo_head.png"
                 alt="Signposting Toolkit logo"
+                width={683}
+                height={186}
                 className="h-10 w-auto sm:h-12"
+                priority
               />
             </Link>
 
             {/* Desktop nav */}
             <nav aria-label="Primary" className="hidden lg:flex items-center gap-x-1">
-              {navLinks.map((link) =>
-                link.external ? (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-nhs-blue rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    {link.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-nhs-blue rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                )
-              )}
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-nhs-blue rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  {link.label}
+                </Link>
+              ))}
               <Link
                 href={appEntryUrl}
                 className="ml-3 px-5 py-2.5 text-sm font-semibold text-white bg-nhs-blue rounded-lg hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 transition-colors shadow-sm"
               >
-                Launch Toolkit
+                Customer login
               </Link>
             </nav>
 
@@ -138,36 +125,23 @@ export default function MarketingHeader({ appEntryUrl }: MarketingHeaderProps) {
             aria-label="Mobile navigation"
           >
             <div className="max-w-7xl mx-auto px-4 py-3 space-y-1">
-              {navLinks.map((link) =>
-                link.external ? (
-                  <a
-                    key={link.href}
-                    href={link.href}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="block px-4 py-3 text-base font-medium text-gray-700 hover:text-nhs-blue hover:bg-gray-50 rounded-lg transition-colors"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {link.label}
-                  </a>
-                ) : (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="block px-4 py-3 text-base font-medium text-gray-700 hover:text-nhs-blue hover:bg-gray-50 rounded-lg transition-colors"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                )
-              )}
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="block px-4 py-3 text-base font-medium text-gray-700 hover:text-nhs-blue hover:bg-gray-50 rounded-lg transition-colors"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
               <div className="pt-2 pb-1 px-4">
                 <Link
                   href={appEntryUrl}
                   className="block w-full text-center px-5 py-3 text-base font-semibold text-white bg-nhs-blue rounded-lg hover:bg-nhs-dark-blue transition-colors"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Launch Toolkit
+                  Customer login
                 </Link>
               </div>
             </div>
