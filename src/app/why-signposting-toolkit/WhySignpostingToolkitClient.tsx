@@ -1,24 +1,20 @@
-'use client'
-
 import Link from 'next/link'
 import MarketingHeader from '@/components/marketing/MarketingHeader'
 import MarketingFooter from '@/components/marketing/MarketingFooter'
 
-function CheckIcon() {
-  return (
-    <svg className="w-5 h-5 text-nhs-blue mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}
+const localDetails = [
+  'the wording your team uses',
+  'the appointments you actually offer',
+  'your local services and referral routes',
+  'the workflows and handbook guidance specific to your practice',
+]
 
-function WarningIcon() {
-  return (
-    <svg className="w-5 h-5 text-nhs-blue mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-    </svg>
-  )
-}
+const governanceDetails = [
+  'Pending and approved content states',
+  'Named reviewers and review dates',
+  'Role-based access for staff and administrators',
+  'Usage information and a route for staff suggestions',
+]
 
 export default function WhySignpostingToolkitClient() {
   const appBaseUrl =
@@ -30,228 +26,188 @@ export default function WhySignpostingToolkitClient() {
     <div className="min-h-screen bg-white">
       <MarketingHeader appEntryUrl={appEntryUrl} />
 
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 via-white to-white py-20">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(0,94,184,0.04)_1px,transparent_0)] bg-[length:32px_32px]" />
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl leading-tight tracking-tight mb-6">
-              Why choose the{' '}
-              <span className="text-gradient-blue">Signposting Toolkit?</span>
-            </h1>
-            <p className="text-xl text-gray-600 mt-6 max-w-3xl mx-auto leading-relaxed">
-              The Signposting Toolkit is built by practising GPs to support safer, clearer care navigation for reception and care navigation teams. Here&apos;s how it&apos;s different from generic symptom lists and basic signposting tools.
-            </p>
-            <div className="mt-10">
-              <Link
-                href="/demo-request"
-                className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-lg text-white bg-nhs-blue hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2 transition-all shadow-md hover:shadow-lg"
-              >
-                Request a demo
-              </Link>
+      <main>
+        <section className="border-b border-slate-200 bg-slate-50 py-16 sm:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="max-w-4xl">
+              <p className="text-sm font-semibold uppercase tracking-[0.18em] text-nhs-blue">
+                Why it works
+              </p>
+              <h1 className="mt-5 text-4xl font-bold tracking-tight text-slate-950 sm:text-6xl">
+                Built in a practice, for the work practices actually do.
+              </h1>
+              <p className="mt-7 max-w-3xl text-xl leading-8 text-slate-600">
+                The first version was created at Ide Lane Surgery because reception staff needed
+                a dependable answer when a patient asked what should happen next. The platform has
+                grown, but that practical starting point still shapes it.
+              </p>
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/demo-request"
+                  className="inline-flex items-center justify-center rounded-md bg-nhs-blue px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+                >
+                  Book a demo
+                </Link>
+                <Link
+                  href="/inside-the-platform"
+                  className="inline-flex items-center justify-center rounded-md border border-slate-300 bg-white px-6 py-3 text-base font-semibold text-slate-800 transition-colors hover:border-slate-400 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+                >
+                  See the platform
+                </Link>
+              </div>
+            </div>
+
+            <dl className="mt-16 grid gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-3">
+              <div className="bg-white p-6">
+                <dt className="text-sm font-medium text-slate-500">Where it started</dt>
+                <dd className="mt-2 text-lg font-semibold text-slate-950">Ide Lane Surgery</dd>
+              </div>
+              <div className="bg-white p-6">
+                <dt className="text-sm font-medium text-slate-500">Signposting library</dt>
+                <dd className="mt-2 text-lg font-semibold text-slate-950">More than 200 symptoms</dd>
+              </div>
+              <div className="bg-white p-6">
+                <dt className="text-sm font-medium text-slate-500">Patient records required</dt>
+                <dd className="mt-2 text-lg font-semibold text-slate-950">None</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <section className="py-16 sm:py-24">
+          <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20 lg:px-8">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-nhs-blue">
+                Local by design
+              </p>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                The useful part is the local detail.
+              </h2>
+            </div>
+            <div className="text-lg leading-8 text-slate-700">
+              <p>
+                A national list can provide a starting point. It cannot tell a receptionist which
+                appointment to use at your surgery, how your duty team works, or which community
+                service is available nearby.
+              </p>
+              <p className="mt-5">
+                Signposting gives each practice a shared starting library, then lets authorised
+                staff adapt it to reflect:
+              </p>
+              <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+                {localDetails.map((detail) => (
+                  <li key={detail} className="border-l-2 border-nhs-blue pl-4 text-base leading-7">
+                    {detail}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Built for real GP workflows */}
-      <section className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Built for real GP workflows
-          </h2>
-          <ul className="space-y-5 text-lg text-gray-700">
-            <li className="flex items-start">
-              <CheckIcon />
-              <span>Developed and used in a real NHS GP surgery</span>
-            </li>
-            <li className="flex items-start">
-              <CheckIcon />
-              <span>Designed around day-to-day reception and care navigation work</span>
-            </li>
-            <li className="flex items-start">
-              <CheckIcon />
-              <span>Focused on safe delegation and continuity, not just &ldquo;deflection&rdquo;</span>
-            </li>
-          </ul>
-        </div>
-      </section>
+        <section className="bg-nhs-dark-blue py-16 text-white sm:py-24">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-2 lg:gap-20">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-blue-200">
+                  At the front desk
+                </p>
+                <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+                  Designed for the person answering the question.
+                </h2>
+              </div>
+              <div className="space-y-5 text-lg leading-8 text-blue-50">
+                <p>
+                  The working day is busy. Guidance has to be easy to find, quick to scan and clear
+                  about the next step. It should not depend on remembering which folder contains the
+                  latest version or who happens to be on shift.
+                </p>
+                <p>
+                  Signposting, Appointment Directory, Workflow Guidance and Practice Handbook put
+                  those answers in one familiar place, using a consistent layout across the platform.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      {/* Local clinical governance and customisation */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Local clinical governance and customisation
-          </h2>
-          <div className="space-y-5 text-lg text-gray-700">
-            <p>
-              Every instruction can be edited locally. Each surgery (or PCN) can align the toolkit with its own pathways. The practice keeps full ownership and sign-off of the content.
-            </p>
-            <ul className="space-y-4 ml-1">
-              <li className="flex items-start">
-                <div className="w-1.5 h-1.5 rounded-full bg-nhs-blue mt-2.5 mr-4 flex-shrink-0" />
-                <span>Full local control over all symptom instructions</span>
-              </li>
-              <li className="flex items-start">
-                <div className="w-1.5 h-1.5 rounded-full bg-nhs-blue mt-2.5 mr-4 flex-shrink-0" />
-                <span>Customise pathways to match your local services</span>
-              </li>
-              <li className="flex items-start">
-                <div className="w-1.5 h-1.5 rounded-full bg-nhs-blue mt-2.5 mr-4 flex-shrink-0" />
-                <span>Clinical sign-off required before any changes go live</span>
-              </li>
+        <section className="py-16 sm:py-24">
+          <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-20 lg:px-8">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-nhs-blue">
+                Governance
+              </p>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+                Review information where it is used.
+              </h2>
+              <p className="mt-6 text-lg leading-8 text-slate-700">
+                Local ownership matters. Practices decide what their live guidance says and who is
+                authorised to change or approve it. The review information stays alongside the
+                content rather than in a separate spreadsheet.
+              </p>
+            </div>
+            <ul className="divide-y divide-slate-200 border-y border-slate-200">
+              {governanceDetails.map((detail) => (
+                <li key={detail} className="flex gap-4 py-5 text-base font-medium text-slate-800">
+                  <svg
+                    aria-hidden="true"
+                    className="mt-0.5 h-5 w-5 shrink-0 text-nhs-blue"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m5 13 4 4L19 7" />
+                  </svg>
+                  {detail}
+                </li>
+              ))}
             </ul>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Safety-first design */}
-      <section className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Safety-first design
-          </h2>
-          <div className="space-y-5 text-lg text-gray-700">
-            <p>
-              The Signposting Toolkit is designed to support safe decision-making, not replace clinical judgement.
-            </p>
-            <ul className="space-y-4">
-              <li className="flex items-start">
-                <WarningIcon />
-                <span>High-risk symptoms are clearly flagged</span>
-              </li>
-              <li className="flex items-start">
-                <WarningIcon />
-                <span>Clear &ldquo;stop and check&rdquo; points built into the workflow</span>
-              </li>
-              <li className="flex items-start">
-                <WarningIcon />
-                <span>The toolkit supports reception teams; it doesn&apos;t make clinical decisions</span>
-              </li>
-              <li className="flex items-start">
-                <WarningIcon />
-                <span>Optional AI tools can help improve clarity of wording — any draft content must be reviewed locally before use</span>
-              </li>
-            </ul>
+        <section className="bg-slate-50 py-16 sm:py-24">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <div className="border-l-4 border-nhs-blue bg-white p-7 shadow-sm sm:p-10">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-nhs-blue">
+                Optional AI
+              </p>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-slate-950">
+                Useful for a first draft. Never the final decision.
+              </h2>
+              <div className="mt-6 space-y-4 text-lg leading-8 text-slate-700">
+                <p>
+                  Authorised administrators can use optional AI tools to help draft clearer wording,
+                  suggest questions or create a simple visual. The features can be switched off.
+                </p>
+                <p>
+                  AI output is returned as a draft for local review. It does not bypass roles,
+                  permissions or the practice&apos;s approval process, and patient-identifiable
+                  information should never be entered.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Designed for reception and care navigation teams */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Designed for reception and care navigation teams
-          </h2>
-          <div className="space-y-5 text-lg text-gray-700">
-            <p>
-              The toolkit is built specifically for non-clinical staff who need clear, consistent guidance they can use confidently.
-            </p>
-            <ul className="space-y-4">
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Plain-English instructions that anyone can follow</span>
-              </li>
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Colour-coded urgency cues for quick visual scanning</span>
-              </li>
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Consistent layout across symptoms for faster navigation</span>
-              </li>
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Faster onboarding for new team members</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Ready for multi-surgery use */}
-      <section className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Ready for multi-surgery use
-          </h2>
-          <div className="space-y-5 text-lg text-gray-700">
-            <p>
-              The toolkit supports practices working together, whether as part of a PCN or across multiple sites.
-            </p>
-            <ul className="space-y-4">
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Works across practices or a PCN</span>
-              </li>
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Each site can have its own local variants</span>
-              </li>
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Shared governance with clear accountability</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Audit and improvement */}
-      <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8">
-            Audit and improvement
-          </h2>
-          <div className="space-y-5 text-lg text-gray-700">
-            <p>
-              The toolkit provides visibility into how it&apos;s being used, helping practices improve their care navigation over time.
-            </p>
-            <ul className="space-y-4">
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Activity is logged (what&apos;s viewed/clicked)</span>
-              </li>
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Content can be reviewed and updated over time</span>
-              </li>
-              <li className="flex items-start">
-                <CheckIcon />
-                <span>Practices can see how the toolkit is being used</span>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      {/* Closing CTA */}
-      <section className="bg-gradient-to-r from-nhs-dark-blue to-nhs-blue py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-white mb-4">
-              See how it could work in your surgery
+        <section className="py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold tracking-tight text-slate-950">
+              See it with your own practice in mind.
             </h2>
-            <p className="text-lg text-blue-100 mb-10 max-w-2xl mx-auto">
-              Book a demo to see the Signposting Toolkit in action and discuss how it could support your reception and care navigation teams.
+            <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-slate-600">
+              We&apos;ll show you the four modules, the local editing and review process, and what
+              setup would involve for your team.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Link
-                href="/demo-request"
-                className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-lg text-nhs-dark-blue bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-nhs-dark-blue transition-all shadow-md"
-              >
-                Request a demo
-              </Link>
-              <Link
-                href="/"
-                className="inline-flex items-center px-10 py-4 text-lg font-medium rounded-lg text-white border-2 border-white/30 hover:border-white/60 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-nhs-dark-blue transition-colors"
-              >
-                Back to homepage
-              </Link>
-            </div>
+            <Link
+              href="/demo-request"
+              className="mt-8 inline-flex items-center justify-center rounded-md bg-nhs-blue px-7 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-nhs-dark-blue focus:outline-none focus:ring-2 focus:ring-nhs-blue focus:ring-offset-2"
+            >
+              Book a demo
+            </Link>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <MarketingFooter />
     </div>

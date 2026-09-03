@@ -4,7 +4,7 @@ import InsideThePlatformClient from './InsideThePlatformClient'
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.signpostingtool.co.uk'),
   title: 'Inside the platform – The Signposting Toolkit',
-  description: 'See how the Signposting Toolkit supports day-to-day work for busy practice teams with clear, structured signposting and workflow support.',
+  description: 'Explore symptom guidance, the Appointment Directory, Workflow Guidance and Practice Handbook in the Signposting Toolkit platform.',
   alternates: {
     canonical: 'https://www.signpostingtool.co.uk/inside-the-platform',
   },

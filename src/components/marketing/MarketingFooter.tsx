@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 
 type MarketingFooterProps = {
@@ -16,13 +17,15 @@ export default function MarketingFooter({
         <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
           {/* Brand */}
           <div className="col-span-2 lg:col-span-1">
-            <img
+            <Image
               src="/images/signposting_logo_head.png"
               alt="Signposting Toolkit"
+              width={683}
+              height={186}
               className="h-10 w-auto mb-4"
             />
             <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
-              Built by GPs for GPs and their care navigators. Safer signposting for every practice.
+              Practical guidance for general practice teams, created inside a working GP surgery.
             </p>
           </div>
 
@@ -35,7 +38,7 @@ export default function MarketingFooter({
                   href="/why-signposting-toolkit"
                   className="text-sm text-gray-600 hover:text-nhs-blue transition-colors"
                 >
-                  Why Choose Us
+                  Why it works
                 </Link>
               </li>
               <li>
@@ -43,7 +46,7 @@ export default function MarketingFooter({
                   href="/inside-the-platform"
                   className="text-sm text-gray-600 hover:text-nhs-blue transition-colors"
                 >
-                  Inside the Platform
+                  Platform
                 </Link>
               </li>
               {showRequestDemoLink && (
@@ -52,7 +55,7 @@ export default function MarketingFooter({
                     href="/demo-request"
                     className="text-sm text-gray-600 hover:text-nhs-blue transition-colors"
                   >
-                    Request a Demo
+                    Book a demo
                   </Link>
                 </li>
               )}
