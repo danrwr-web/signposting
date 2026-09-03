@@ -3,6 +3,7 @@ import 'server-only'
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import EditorialBatchClient from './EditorialBatchClient'
+import ToolkitSourceReview from './ToolkitSourceReview'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,5 +41,10 @@ export default async function EditorialBatchPage({ params, searchParams }: Edito
     redirect('/unauthorized')
   }
 
-  return <EditorialBatchClient batchId={batchId} surgeryId={surgeryId} />
+  return (
+    <div className="space-y-6">
+      <ToolkitSourceReview batchId={batchId} surgeryId={surgeryId} />
+      <EditorialBatchClient batchId={batchId} surgeryId={surgeryId} />
+    </div>
+  )
 }

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import Link from 'next/link'
 import { getSessionUser } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
 import EditorialLibraryClient from './EditorialLibraryClient'
@@ -42,13 +43,23 @@ export default async function EditorialLibraryPage({ searchParams }: EditorialLi
   }
 
   return (
-    <EditorialLibraryClient
-      surgeryId={surgeryId}
-      userName={user.name ?? user.email}
-      canAdmin={canAdmin}
-      isSuperuser={isSuperuser}
-      initialJobId={jobId}
-      initialBulkRunId={bulkRunId}
-    />
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Link
+          href={`/editorial/library/legacy?surgery=${encodeURIComponent(surgeryId)}`}
+          className="text-sm font-semibold text-slate-600 hover:text-nhs-blue hover:underline"
+        >
+          View legacy / test cards
+        </Link>
+      </div>
+      <EditorialLibraryClient
+        surgeryId={surgeryId}
+        userName={user.name ?? user.email}
+        canAdmin={canAdmin}
+        isSuperuser={isSuperuser}
+        initialJobId={jobId}
+        initialBulkRunId={bulkRunId}
+      />
+    </div>
   )
 }
